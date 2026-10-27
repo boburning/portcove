@@ -299,6 +299,7 @@ void test("native receipts include the admission runtime and containment reprodu
     plan.receiptInputs.filter((input) => input.kind === "file").map((input) => input.path),
   );
   for (const file of [
+    "desktop-test-cli.mts",
     "resource-command.mts",
     "resource-capacity.mts",
     "resource-paths.mts",

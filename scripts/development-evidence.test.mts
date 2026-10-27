@@ -9,7 +9,7 @@ import {
   revalidateAcceptancePacket,
   parseAcceptancePreflightContext,
 } from "./acceptance-packet.mts";
-import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
+import { importCapturedDesktop } from "./desktop-test-cli.mts";
 import {
   capabilityRequirement,
   captureSettledVisual,
@@ -239,44 +239,211 @@ void test("bootstrap verifies late mutation after manifest preparation before im
   const file = path.join(directory, "source");
   await writeFile(file, "original");
   const input = await retainEvidenceInput({ root: path.join(directory, "retained"), file });
-  const source = await readFile(new URL("./desktop-test-cli.mts", import.meta.url), "utf8");
-  const start = source.indexOf("for (const input of inputs.filter");
-  const target = 'await import("../apps/desktop/scripts/desktop-test.mts");';
-  const end = source.indexOf(target, start);
-  assert.ok(start >= 0 && end > start);
-  const block = source.slice(start, end + target.length).replace(target, "await importTarget();");
   let imported = false;
   const before = await stat(file);
   await assert.rejects(
     async () =>
-      await runInNewContext(`(async()=>{${block}})()`, {
-        assert,
-        inputs: [{ ...input, role: "app", kind: "executable" }],
-        values: { app: file },
-        captureOutput: directory,
-        revision: "a".repeat(40),
-        root: directory,
-        selection: { selected_scenarios: ["test"] },
-        retainedMetadata: false,
-        executionStarted: new Date(),
-        captureSignal: AbortSignal.timeout(10_000),
-        lock: { owner: { token: "fixture-only" } },
-        process: { argv: ["node", "runner"], env: {} },
-        path,
-        writeFile: async (...args: Parameters<typeof writeFile>) => {
-          await writeFile(...args);
-          await writeFile(file, "modified");
-          await utimes(file, before.atime, before.mtime);
+      await importCapturedDesktop(
+        {
+          inputs: [{ ...input, role: "app", kind: "executable" }],
+          values: { app: file },
+          captureOutput: directory,
+          revision: "a".repeat(40),
+          root: directory,
+          selection: { selected_scenarios: ["test"] },
+          retainedMetadata: false,
+          executionStarted: new Date(),
+          captureSignal: AbortSignal.timeout(10_000),
+          lockToken: "fixture-only",
         },
-        verifyConsumedInputs,
-        importTarget: () => {
+        async () => {
           imported = true;
         },
-      }),
+        {
+          runtime: { argv: ["node", "runner"], env: {} },
+          write: async (...args: Parameters<typeof writeFile>) => {
+            await writeFile(...args);
+            await writeFile(file, "modified");
+            await utimes(file, before.atime, before.mtime);
+          },
+        },
+      ),
     /changed after capture/u,
   );
   assert.equal(imported, false);
   assert.ok((await stat(path.join(directory, "prelaunch.json"))).isFile());
+});
+
+void test("captured desktop launch retains arguments, exclusive publication and abort refusal", async (t) => {
+  const directory = await retainedFixture("pcv-prelaunch-import-");
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  await writeFile(file, "original");
+  const input = await retainEvidenceInput({ root: path.join(directory, "retained"), file });
+  const runtime = { argv: ["node", "runner"], env: {} as NodeJS.ProcessEnv };
+  const context = {
+    inputs: [{ ...input, role: "app", kind: "executable", binding: "retained-artifact" as const }],
+    values: {
+      app: file,
+      scenario: ["first", "second"],
+      enabled: true,
+      disabled: false,
+      absent: undefined,
+    },
+    captureOutput: directory,
+    revision: "a".repeat(40),
+    root: directory,
+    selection: { selected_scenarios: ["first", "second"] },
+    retainedMetadata: false,
+    executionStarted: new Date("2026-10-27T00:00:00Z"),
+    captureSignal: AbortSignal.timeout(10_000),
+    lockToken: "fixture-only",
+  };
+  let imports = 0;
+  const consume = async () => {
+    imports++;
+  };
+  await importCapturedDesktop(context, consume, { runtime });
+  assert.equal(imports, 1);
+  assert.deepEqual(runtime.argv, [
+    "node",
+    "runner",
+    "--app",
+    input.retained.path,
+    "--scenario",
+    "first",
+    "--scenario",
+    "second",
+    "--enabled",
+  ]);
+  assert.equal(runtime.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN, "fixture-only");
+  assert.equal(
+    runtime.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST,
+    path.join(directory, "prelaunch.json"),
+  );
+  const manifest = jsonObject(
+    await readFile(required(runtime.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST), "utf8"),
+  );
+  assert.equal(manifest.execution_started_at, "2026-10-27T00:00:00.000Z");
+  assert.deepEqual(manifest.selected_scenarios, ["first", "second"]);
+  const published = await readFile(required(runtime.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST));
+  await assert.rejects(importCapturedDesktop(context, consume, { runtime }), { code: "EEXIST" });
+  assert.equal(imports, 1);
+  assert.deepEqual(
+    await readFile(required(runtime.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST)),
+    published,
+  );
+  const abortedOutput = path.join(directory, "aborted");
+  await mkdir(abortedOutput);
+  const controller = new AbortController();
+  const abort = new Error("controlled pre-import abort");
+  controller.abort(abort);
+  await assert.rejects(
+    importCapturedDesktop(
+      { ...context, captureOutput: abortedOutput, captureSignal: controller.signal },
+      consume,
+      { runtime },
+    ),
+    (error: unknown) => isRecord(error) && error.name === "AbortError" && error.cause === abort,
+  );
+  assert.equal(imports, 1);
+});
+
+void test("actual desktop launcher consumes the final verification seam across harmless refactors", async (t) => {
+  const cli = new URL("./desktop-test-cli.mts", import.meta.url);
+  const resolve = (name: string) => new URL(name, import.meta.url).href;
+  for (const variant of [
+    "original",
+    "renamed-reordered",
+    "removed-verifier",
+    "bypassed-caller",
+  ] as const) {
+    const directory = await retainedFixture("pcv-prelaunch-caller-");
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const file = path.join(directory, "source");
+    await writeFile(file, "original");
+    const input = await retainEvidenceInput({ root: path.join(directory, "retained"), file });
+    const program = `
+      import assert from 'node:assert/strict';
+      import { mock } from 'node:test';
+      import { registerHooks } from 'node:module';
+      import { fileURLToPath } from 'node:url';
+      import path from 'node:path';
+      import * as fs from 'node:fs/promises';
+      const cli = ${JSON.stringify(cli.href)}, directory = ${JSON.stringify(directory)}, file = ${JSON.stringify(file)};
+      const retained = await import(${JSON.stringify(resolve("./retained-evidence.mts"))});
+      const values = { app:file, output:directory, driver:file, 'native-driver':file };
+      const selection = {profile:'smoke', selected_scenarios:['test']};
+      let imported = false, released = false;
+      Object.defineProperty(process, 'platform', {value:'linux'});
+      const replace = (url, namedExports) => mock.module(url, {namedExports});
+      replace(${JSON.stringify(resolve("./resource-command.mts"))}, {resourceEntrypoint:async(kind,run)=>{assert.equal(kind,'browser');return run();}});
+      replace(${JSON.stringify(resolve("./desktop-execution-plan.mts"))}, {parseDesktopHarnessOptions:()=>({values}),resolveDesktopHarnessSelection:()=>selection,planDesktopExecution:()=>({})});
+      replace(${JSON.stringify(resolve("./tool-cache.mts"))}, {cachedDesktopDrivers:()=>null});
+      replace(${JSON.stringify(resolve("./dev-storage.mts"))}, {getPaths:()=>({output_root:directory})});
+      replace(${JSON.stringify(resolve("./retained-evidence.mts"))}, {...retained,retainedEvidenceRoot:()=>directory,ensureRetainedEvidenceStore:async()=>{},retainedExecutableCanLaunch:()=>false});
+      replace(${JSON.stringify(resolve("./native-helper-dependencies.mts"))}, {captureDesktopReceiptInputs:async()=>[${JSON.stringify({ ...input, role: "app", kind: "executable" })}]});
+      replace(${JSON.stringify(resolve("./native-session-lock.mts"))}, {acquireNativeSessionLock:async()=>({owner:{token:'fixture-only'},release:async()=>{released=true;}})});
+      replace(${JSON.stringify(resolve("./desktop-scenarios.mts"))}, {desktopHarnessDeadlineMs:()=>10000});
+      replace('node:child_process', {spawnSync:()=>({stdout:'a'.repeat(40),status:0})});
+      const {default:ignored,...namedFs}=fs;
+      replace('node:fs/promises', {...namedFs,writeFile:async(...args)=>{
+        await fs.writeFile(...args);
+        if(path.basename(String(args[0]))==='prelaunch.json')await fs.writeFile(file,'modified');
+      }});
+      replace(${JSON.stringify(new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url).href)}, {});
+      registerHooks({load(url,context,next){
+        const loaded=next(url,context);
+        if(url!==cli)return loaded;
+        let source=String(loaded.source);
+        const variant=${JSON.stringify(variant)};
+        if(variant==='renamed-reordered') {
+          const start=source.indexOf('export async function importCapturedDesktop(');
+          const end=source.indexOf('// Preparation owns separate build',start);
+          assert.ok(start>=0 && end>start);
+          const declaration=source.slice(start,end);
+          source=declaration+source.slice(0,start)+source.slice(end);
+          source=source.replaceAll('importCapturedDesktop','$capturedLaunch');
+        }
+        if(variant==='removed-verifier') {
+          const gate='await verifyConsumedInputs(inputs, { signal: captureSignal });';
+          assert.ok(source.includes(gate));source=source.replace(gate,'');
+        }
+        if(variant==='bypassed-caller') {
+          const call='await importCapturedDesktop(';
+          assert.ok(source.includes(call));source=source.replace(call,'await globalThis.bypass(');
+          globalThis.bypass=async(context,consume)=>consume();
+        }
+        return {...loaded,source};
+      }});
+      // Observe the real target import without loading any native harness code.
+      registerHooks({resolve(specifier,context,next){
+        if(context.parentURL===cli && specifier==='../apps/desktop/scripts/desktop-test.mts')imported=true;
+        return next(specifier,context);
+      }});
+      process.argv=[process.execPath,fileURLToPath(cli)];
+      await assert.rejects(import(cli),/changed after capture/u);
+      assert.equal(imported,false,'Target import must remain unreachable after late mutation');
+      assert.equal(released,true,'Original admission must release after refusal');
+      console.log('PASS actual prelaunch caller');
+    `;
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    delete env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN;
+    const result = spawnSync(
+      process.execPath,
+      ["--experimental-test-module-mocks", "--input-type=module", "--eval", program],
+      { env, encoding: "utf8", timeout: 15_000, maxBuffer: 1024 * 1024 },
+    );
+    assert.ifError(result.error);
+    if (variant === "original" || variant === "renamed-reordered") {
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /PASS actual prelaunch caller/u);
+    } else {
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /Missing expected rejection/u);
+    }
+  }
 });
 
 void test("prelaunch custody accepts native equivalent absolute path separators", async (t) => {

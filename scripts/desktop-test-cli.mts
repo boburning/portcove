@@ -164,12 +164,8 @@ async function executeDesktopTest() {
         await import("./desktop-execution-plan.mts");
       const { cachedDesktopDrivers } = await import("./tool-cache.mts");
       const { getPaths } = await import("./dev-storage.mts");
-      const {
-        retainedEvidenceRoot,
-        ensureRetainedEvidenceStore,
-        verifyConsumedInputs,
-        retainedExecutableCanLaunch,
-      } = await import("./retained-evidence.mts");
+      const { retainedEvidenceRoot, ensureRetainedEvidenceStore, retainedExecutableCanLaunch } =
+        await import("./retained-evidence.mts");
       const { captureDesktopReceiptInputs } = await import("./native-helper-dependencies.mts");
       const { acquireNativeSessionLock } = await import("./native-session-lock.mts");
       const {
@@ -283,55 +279,24 @@ async function executeDesktopTest() {
                 ? "trusted-verifier-observation"
                 : "before-target-import";
         }
-        for (const input of inputs.filter((input) =>
-          ["retained-artifact", "retained-metadata-read"].includes(input.binding),
-        ))
-          values[input.role] = input.retained.path;
-        const manifest = path.join(captureOutput, "prelaunch.json");
-        await writeFile(
-          manifest,
-          JSON.stringify({
-            format_version: 1,
+        await importCapturedDesktop(
+          {
+            inputs,
+            values,
+            captureOutput,
             revision,
             root,
-            selected_scenarios: selection.selected_scenarios,
-            inputs,
-            retained_metadata: retainedMetadata,
-            pre_import_for: "apps/desktop/scripts/desktop-test.mts",
-            created_at: new Date().toISOString(),
-            execution_started_at: executionStarted.toISOString(),
-            limitations: [
-              "Source helpers use cooperative live-path verification before import and after execution; retained copies alone do not prove loaded bytes",
-              "The trusted launcher/verifier is reviewed separately; this record grants no execution or merge authority",
-              "Path-sensitive or unestablished executable layouts use checked original paths; retained copies do not establish immutable consumption for those paths",
-            ],
-          }),
-          { flag: "wx", mode: 0o600 },
+            selection,
+            retainedMetadata,
+            executionStarted,
+            captureSignal,
+            lockToken: lock.owner.token,
+          },
+          async () => {
+            harnessRequested = true;
+            await import("../apps/desktop/scripts/desktop-test.mts");
+          },
         );
-        assert.ok(process.argv[0] && process.argv[1]);
-        process.argv = [
-          process.argv[0],
-          process.argv[1],
-          ...Object.entries(values).flatMap(([name, value]) =>
-            Array.isArray(value)
-              ? value.flatMap((entry) => [`--${name}`, entry])
-              : typeof value === "boolean"
-                ? value
-                  ? [`--${name}`]
-                  : []
-                : value === undefined
-                  ? []
-                  : [`--${name}`, String(value)],
-          ),
-        ];
-        process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN = lock.owner.token;
-        process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST = manifest;
-        // Remapping arguments and writing the manifest consume no target bytes.
-        // One full verification here covers that preparation before target import.
-        await verifyConsumedInputs(inputs, { signal: captureSignal });
-        captureSignal.throwIfAborted();
-        harnessRequested = true;
-        await import("../apps/desktop/scripts/desktop-test.mts");
       } catch (error) {
         if (captureOutput) {
           try {
@@ -398,13 +363,101 @@ async function executeRetainedPackageCommand() {
   }
 }
 
+/** Finish captured-input preparation and reverify immediately before consuming target code. */
+export async function importCapturedDesktop(
+  {
+    inputs,
+    values,
+    captureOutput,
+    revision,
+    root,
+    selection,
+    retainedMetadata,
+    executionStarted,
+    captureSignal,
+    lockToken,
+  }: {
+    inputs: (import("./retained-evidence.mts").ConsumedInput & { role: string })[];
+    values: Record<string, string | boolean | string[] | undefined>;
+    captureOutput: string;
+    revision: string;
+    root: string;
+    selection: { selected_scenarios: readonly string[] };
+    retainedMetadata: boolean;
+    executionStarted: Date;
+    captureSignal: AbortSignal;
+    lockToken: string;
+  },
+  importTarget: () => Promise<unknown>,
+  {
+    write = writeFile,
+    runtime = process,
+  }: {
+    write?: typeof writeFile;
+    runtime?: Pick<NodeJS.Process, "argv" | "env">;
+  } = {},
+): Promise<void> {
+  const { verifyConsumedInputs } = await import("./retained-evidence.mts");
+  for (const input of inputs.filter((input) =>
+    ["retained-artifact", "retained-metadata-read"].includes(input.binding),
+  ))
+    values[input.role] = input.retained.path;
+  const manifest = path.join(captureOutput, "prelaunch.json");
+  await write(
+    manifest,
+    JSON.stringify({
+      format_version: 1,
+      revision,
+      root,
+      selected_scenarios: selection.selected_scenarios,
+      inputs,
+      retained_metadata: retainedMetadata,
+      pre_import_for: "apps/desktop/scripts/desktop-test.mts",
+      created_at: new Date().toISOString(),
+      execution_started_at: executionStarted.toISOString(),
+      limitations: [
+        "Source helpers use cooperative live-path verification before import and after execution; retained copies alone do not prove loaded bytes",
+        "The trusted launcher/verifier is reviewed separately; this record grants no execution or merge authority",
+        "Path-sensitive or unestablished executable layouts use checked original paths; retained copies do not establish immutable consumption for those paths",
+      ],
+    }),
+    { flag: "wx", mode: 0o600 },
+  );
+  assert.ok(runtime.argv[0] && runtime.argv[1]);
+  runtime.argv = [
+    runtime.argv[0],
+    runtime.argv[1],
+    ...Object.entries(values).flatMap(([name, value]) =>
+      Array.isArray(value)
+        ? value.flatMap((entry) => [`--${name}`, entry])
+        : typeof value === "boolean"
+          ? value
+            ? [`--${name}`]
+            : []
+          : value === undefined
+            ? []
+            : [`--${name}`, String(value)],
+    ),
+  ];
+  runtime.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN = lockToken;
+  runtime.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST = manifest;
+  // Remapping arguments and writing the manifest consume no target bytes.
+  // One full verification here covers that preparation before target import.
+  await verifyConsumedInputs(inputs, { signal: captureSignal });
+  captureSignal.throwIfAborted();
+  await importTarget();
+}
+
 // Preparation owns separate build and native phases; finalization is file-only.
 // Neither may inherit the normal launcher's blanket browser admission.
-process.exitCode = args.includes("--help")
-  ? await executeDesktopTest()
-  : args.includes("--prepare-retained-package") || args.includes("--finalize-retained-package")
-    ? await executeRetainedPackageCommand()
-    : await resourceEntrypoint("browser", executeDesktopTest);
+const invoked = process.argv[1] ? await realpath(process.argv[1]).catch(() => null) : null;
+if (invoked === fileURLToPath(import.meta.url)) {
+  process.exitCode = args.includes("--help")
+    ? await executeDesktopTest()
+    : args.includes("--prepare-retained-package") || args.includes("--finalize-retained-package")
+      ? await executeRetainedPackageCommand()
+      : await resourceEntrypoint("browser", executeDesktopTest);
+}
 
 function assertAbsoluteArguments<Key extends string, Values extends Partial<Record<Key, unknown>>>(
   values: Values,
