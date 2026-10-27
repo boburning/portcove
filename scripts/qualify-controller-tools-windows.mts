@@ -930,6 +930,11 @@ async function main() {
       status: "pass",
       phase,
       source: expected,
+      tool_build_observation: {
+        scope: "builder entry through complete inventory; cold workflow setup excluded",
+        elapsed_milliseconds: built.elapsed_milliseconds,
+        phases: built.timings,
+      },
       expanded_bytes: built.manifest.files.reduce((sum, file) => sum + file.bytes, 0),
       inventory: controllerToolPlatformProfile("windows-x86_64").paths,
       actual_executables: [

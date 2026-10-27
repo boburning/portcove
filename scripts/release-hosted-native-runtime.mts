@@ -32,6 +32,11 @@ const runtimes = new WeakMap<
   {
     tools: object;
     parent: object;
+    parentSource: Awaited<ReturnType<typeof requireActualHostedNativeParentSource>>;
+    postParent?: object;
+    postSource?: Awaited<ReturnType<typeof requireActualHostedNativeParentSource>>;
+    postAttempted: boolean;
+    deadline: number;
     entry: string;
     node: { bytes: number; sha256: string };
     tool_root: string;
@@ -151,6 +156,9 @@ export async function prepareHostedNativeRuntime(
   runtimes.set(receipt, {
     tools: toolsReceipt,
     parent: parentReceipt,
+    parentSource: parent,
+    postAttempted: false,
+    deadline: parent.deadline,
     entry: executingEntry,
     node: { bytes: node.length, sha256: hash(node) },
     tool_root: tools.root,
@@ -172,11 +180,21 @@ export async function prepareHostedNativeRuntime(
 export async function requireHostedNativeRuntime(receipt: object, parentReceipt: object) {
   const state = runtimes.get(receipt);
   assert.ok(
-    state && !state.stopped && state.parent === parentReceipt,
+    state &&
+      !state.stopped &&
+      (state.parent === parentReceipt || state.postParent === parentReceipt),
     "original native runtime required",
   );
   try {
     const { tools, parent } = await sameParentTools(state.tools, state.parent);
+    state.deadline = Math.min(state.deadline, parent.deadline);
+    if (state.postParent) {
+      const post = await sameParentTools(state.tools, state.postParent);
+      assert.deepEqual(post.parent.producer, parent.producer);
+      assert.deepEqual(post.parent.configuration, parent.configuration);
+      state.deadline = Math.min(state.deadline, post.parent.deadline);
+      post.parent.recheck();
+    }
     assert.equal(tools.root, state.tool_root);
     recheckNativeRuntimeCustody(state.custody_files, state.custody);
     for (const file of state.files) {
@@ -184,6 +202,11 @@ export async function requireHostedNativeRuntime(receipt: object, parentReceipt:
       assert.equal(bytes.length, file.bytes);
       assert.equal(hash(bytes), file.sha256);
       parent.recheck();
+      state.postSource?.recheck();
+      assert.ok(
+        !state.stopped && performance.now() < state.deadline,
+        "joined native runtime stopped or expired",
+      );
     }
     assert.equal(
       hash(await readControllerToolFile(path.join(state.root, "manifest.json"), 65536)),
@@ -198,16 +221,65 @@ export async function requireHostedNativeRuntime(receipt: object, parentReceipt:
     assert.equal(binary.mode & 0o777, state.metadata.output.mode);
     recheckNativeRuntimeCustody(state.custody_files, state.custody);
     parent.recheck();
+    state.postSource?.recheck();
     assert.ok(
-      !state.stopped && performance.now() < parent.deadline,
+      !state.stopped && performance.now() < state.deadline,
       "original native runtime stopped or expired",
     );
     return {
       root: state.root,
       tools: state.tools,
-      deadline: parent.deadline,
+      deadline: state.deadline,
       authority: "none" as const,
     };
+  } catch (error) {
+    state.stopped = true;
+    throw error;
+  }
+}
+
+/** One Windows stage continuation in the original realm; never a renewed runtime. */
+export async function joinHostedWindowsPostSignRuntime(
+  receipt: object,
+  preParent: object,
+  postParent: object,
+) {
+  const state = runtimes.get(receipt);
+  assert.ok(state && state.parent === preParent, "original Windows runtime/pre parent required");
+  try {
+    assert.ok(
+      !state.stopped && !state.postAttempted && !attemptedParents.has(postParent),
+      "one original post-parent association required",
+    );
+    state.postAttempted = true;
+    attemptedParents.add(postParent);
+    await requireHostedNativeRuntime(receipt, preParent);
+    const pre = await requireActualHostedNativeParentSource(preParent),
+      post = await requireActualHostedNativeParentSource(postParent);
+    assert.equal(state.platform, "windows-x86_64");
+    assert.equal(pre.platform_label, "windows-x86_64");
+    assert.equal(post.platform_label, pre.platform_label);
+    assert.equal(pre.stage, "payload-signing");
+    assert.equal(post.stage, "release-publication");
+    assert.ok(
+      post.deadline <= pre.deadline && post.deadline <= state.deadline,
+      "post parent cannot renew the original runtime deadline",
+    );
+    assert.equal(pre.configuration.purpose, "application");
+    assert.deepEqual(post.configuration, pre.configuration);
+    assert.deepEqual(post.producer, pre.producer);
+    await sameParentTools(state.tools, postParent);
+    pre.recheck();
+    post.recheck();
+    assert.ok(!state.stopped && performance.now() < Math.min(state.deadline, post.deadline));
+    state.postParent = postParent;
+    state.postSource = post;
+    state.deadline = Math.min(state.deadline, pre.deadline, post.deadline);
+    await requireHostedNativeRuntime(receipt, postParent);
+    pre.recheck();
+    post.recheck();
+    assert.ok(!state.stopped && performance.now() < state.deadline);
+    return receipt;
   } catch (error) {
     state.stopped = true;
     throw error;
@@ -221,18 +293,20 @@ export async function hostedNativeSupportDependencies(
   parentReceipt: object,
   outputParent: string,
 ): Promise<Pick<RustRunDependencies, "rustSupportCompilerIdentity" | "prepareSupportArtifact">> {
-  const runtime = await requireHostedNativeRuntime(receipt, parentReceipt);
+  await requireHostedNativeRuntime(receipt, parentReceipt);
   const state = runtimes.get(receipt)!;
   try {
     assert.equal(await realpath(outputParent), outputParent);
     const active = () => {
-      if (state.stopped || performance.now() >= runtime.deadline) {
+      if (state.stopped || performance.now() >= state.deadline) {
         state.stopped = true;
         throw new Error("original native runtime expired");
       }
       try {
+        state.parentSource.recheck();
+        state.postSource?.recheck();
         recheckNativeRuntimeCustody(state.custody_files, state.custody);
-        if (performance.now() >= runtime.deadline)
+        if (state.stopped || performance.now() >= state.deadline)
           throw new Error("original native runtime expired");
       } catch (error) {
         state.stopped = true;

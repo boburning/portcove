@@ -454,6 +454,15 @@ namespace Portcove.NativeQualification {
     }
 
     public static class AccountLauncher {
+        // Null job queries the calling process's actual inherited supervisor job.
+        public static uint[] CurrentSupervisorProcessIds() {
+            bool member;
+            using (var current = System.Diagnostics.Process.GetCurrentProcess()) {
+                if (!Native.IsProcessInJob(current.Handle,IntPtr.Zero,out member) || !member)
+                    throw new InvalidOperationException("Original inherited supervisor job unavailable");
+            }
+            return Native.JobPids(IntPtr.Zero);
+        }
         public const string CredentialTarget = "Portcove/native-qualification/local-account/v1";
         public const string PublicProofCredentialTarget = "Portcove/public-update-proof/local-account/v1";
         public static string CredentialTargetFor(AccountConfiguration config) {

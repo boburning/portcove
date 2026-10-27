@@ -65,6 +65,32 @@ namespace Portcove.HostedNative {
     // Hosted-only proposal: existing station access is a reviewed authority delta.
     public sealed class HostedDesktop : IDisposable {
         public static bool ExecutionAuthorized { get { return true; } }
+        public static bool HostedCandidateRecoveryAuthorized { get { return false; } }
+        public static byte[] ReadCurrentStation() {
+            if (ObjectName(GetProcessWindowStation()) != "WinSta0") throw new InvalidOperationException("Original broker station required");
+            IntPtr handle = OpenWindowStationW("WinSta0", false, 0x00020000);
+            if (handle == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "Original station readback unavailable");
+            try { return ReadAcl(handle); } finally { CloseWindowStation(handle); }
+        }
+        public static bool RecoverOriginalStation(byte[] original, byte[] proposed, string owner, string candidate) {
+            if (!HostedCandidateRecoveryAuthorized) throw new InvalidOperationException("Hosted candidate recovery awaits separate owner authority");
+            if (original == null || proposed == null || original.Length < 20 || original.Length > 16384 || proposed.Length > 16384 ||
+                WindowsIdentity.GetCurrent().User.Value != owner || owner == candidate ||
+                !System.Linq.Enumerable.SequenceEqual(StationProposal(original, candidate), proposed))
+                throw new InvalidOperationException("Original station recovery identity/preimage differs");
+            if (ObjectName(GetProcessWindowStation()) != "WinSta0") throw new InvalidOperationException("Original broker station required");
+            IntPtr handle = OpenWindowStationW("WinSta0", false, 0x0006000a);
+            if (handle == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "Original recovery station unavailable");
+            try {
+                byte[] current = ReadAcl(handle);
+                if (!System.Linq.Enumerable.SequenceEqual(current, original)) {
+                    if (!System.Linq.Enumerable.SequenceEqual(current, proposed)) throw new InvalidOperationException("Station ACL changed concurrently; no recovery overwrite");
+                    WriteAcl(handle, original);
+                }
+                if (!System.Linq.Enumerable.SequenceEqual(ReadAcl(handle), original)) throw new InvalidOperationException("Original station recovery readback differs");
+                return true;
+            } finally { CloseWindowStation(handle); }
+        }
         public string Name { get; private set; }
         IntPtr station, desktop;
         byte[] before, applied;
