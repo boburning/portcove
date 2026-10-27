@@ -36,7 +36,7 @@
       "steps": [
         {
           "title": "Keep the complete player together",
-          "instruction": "Use the official Windows x64 ZIP with MarioKartSuperCircuitRecomp.exe, its libraries, assets, mods and overlay_toolchain folder together. No separate game installer is required. The Linux x64 release is an AppImage with its own upstream handoff; keep its writable working folder and original files outside the image."
+          "instruction": "Use the complete Windows x64 ZIP with MarioKartSuperCircuitRecomp.exe, libraries, assets, mods and overlay_toolchain together; no separate game installer is required. On Linux, mark the official x64 AppImage executable. Its launcher keeps writable settings and mods in the per-user data home, normally ~/.local/share/MarioKartSuperCircuitRecomp, rather than beside the AppImage. Upstream’s Linux guide covers FUSE 2 and the supported --appimage-extract-and-run fallback."
         },
         {
           "title": "Choose Play, then select any missing original files",
@@ -44,11 +44,11 @@
         },
         {
           "title": "Keep your actual saves and settings",
-          "instruction": "Normal .sav files and optional .stateN slots follow the selected original game file, unless you chose custom save/state paths. Preserve that actual folder and its .tmp, .bak and .prev-size.bak recovery siblings separately. Also keep local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, any selected local saves/, and the complete mods/ tree. The launcher save-path display does not relocate saves."
+          "instruction": "Normal .sav files and optional .stateN slots follow your selected original game file, unless you chose custom save/state paths. Preserve that actual folder and its .tmp, .bak and .prev-size.bak recovery siblings separately; the launcher save-path display does not relocate saves. On Windows, also keep local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, any selected local saves/ and the complete mods/ tree. On Linux, preserve those settings and mod choices from $XDG_DATA_HOME/MarioKartSuperCircuitRecomp, normally ~/.local/share/MarioKartSuperCircuitRecomp."
         },
         {
           "title": "Prepare updates beside your working copy",
-          "instruction": "You or upstream update this registered runtime. Keep the working player, saves, settings and complete mods while preparing a new version separately, then change the registration when ready. Upstream has changed bundled mod contents without changing their package version; preserve both copies and reconcile selections deliberately rather than overwriting them. Keep generated recomp_cache and diagnostics with their original runtime; do not carry executable caches into a new version. Portcove registration offers no managed Update, Backup or Rollback and removing it leaves all external files untouched."
+          "instruction": "You or upstream update this registered runtime. On Windows, retain the working folder and prepare the new version separately; do not carry generated recomp_cache or diagnostics into a new runtime. On Linux, different AppImage files normally share the same data home, including caches, and refresh executable/assets links there at startup. Back up that actual home and your ROM-adjacent saves before trying another AppImage; a separate AppImage file alone does not isolate your data. Upstream has changed bundled mod contents without changing their package version, so preserve both catalogs and reconcile choices deliberately rather than overwriting them. Portcove registration offers no managed Update, Backup or Rollback and removing it leaves every external file untouched."
         }
       ],
       "warnings": [],
