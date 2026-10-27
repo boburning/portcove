@@ -6,13 +6,13 @@ import { fileURLToPath } from "node:url";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import {
   collectRepositoryHealth,
-  estimateHealthRequests,
+  createHealthRequestEstimator,
   readHealthLineage,
   isHealthObservationHistory,
   isHealthIncidentHistory,
   type HealthOptions,
 } from "./check-catalog-repositories.mts";
-import { healthCatalogPortHash } from "./upstream-health-inputs.mts";
+import { healthCatalogPortHashes } from "./upstream-health-inputs.mts";
 import {
   classifyHealthConditions,
   conditionEvidence,
@@ -27,8 +27,8 @@ const repository = "boburning/portcove";
 const workflow = ".github/workflows/upstream-health.yml";
 const mainRef = "refs/heads/main";
 const checkpointBytes = 16 * 1024 * 1024;
-const maximumPorts = 4096;
-const maximumObservations = 8192;
+// Physical byte envelopes bound retained inventories; batch operation bounds stay separate.
+const catalogBytes = 4 * 1024 * 1024;
 export const healthFreshnessMs = 24 * 60 * 60 * 1000;
 
 type Collection = Awaited<ReturnType<typeof collectRepositoryHealth>>;
@@ -157,7 +157,7 @@ function catalogPorts(input: unknown): asserts input is Catalog {
   if (
     !isRecord(input) ||
     !Array.isArray(input.ports) ||
-    input.ports.length > maximumPorts ||
+    Buffer.byteLength(JSON.stringify(input)) > catalogBytes ||
     input.ports.some(
       (port: unknown) =>
         !isRecord(port) ||
@@ -182,13 +182,9 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
     !isTrustedHealthExecution(value.execution as unknown as HealthExecution) ||
     !clock(value.updated_at, now) ||
     !Array.isArray(value.attempts) ||
-    value.attempts.length > maximumPorts ||
     !Array.isArray(value.observations) ||
-    value.observations.length > maximumObservations ||
     !Array.isArray(value.port_health) ||
-    value.port_health.length > maximumPorts ||
     !Array.isArray(value.incident_history) ||
-    value.incident_history.length > maximumPorts ||
     Buffer.byteLength(JSON.stringify(value)) > checkpointBytes
   )
     throw new Error("Monitoring checkpoint has invalid identity, schema, time or resource bounds");
@@ -215,7 +211,6 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       !isRecord(observation) ||
       !isHealthObservationHistory(observation, completion) ||
       !Array.isArray(observation.port_ids) ||
-      observation.port_ids.length > maximumPorts ||
       observation.port_ids.some((id: unknown) => typeof id !== "string") ||
       new Set(observation.port_ids).size !== observation.port_ids.length ||
       !["reachable", "unknown"].includes(String(observation.status))
@@ -234,7 +229,6 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       !ids.has(port.port_id) ||
       !hash(port.health_contract_sha256) ||
       !Array.isArray(port.canonical_incidents) ||
-      port.canonical_incidents.length > 512 ||
       port.canonical_incidents.some(
         (incident: unknown) =>
           !isRecord(incident) ||
@@ -256,8 +250,7 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       historyIds.has(port.port_id) ||
       !ids.has(port.port_id) ||
       !hash(port.health_contract_sha256) ||
-      !Array.isArray(port.canonical_incidents) ||
-      port.canonical_incidents.length > 512
+      !Array.isArray(port.canonical_incidents)
     )
       throw new Error("Monitoring checkpoint contains invalid retained incident history");
     const incidents: unknown[] = port.canonical_incidents;
@@ -270,8 +263,6 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
     }
     historyIds.add(port.port_id);
   }
-  if (incidentKeys.size > maximumObservations)
-    throw new Error("Monitoring checkpoint exceeds its incident-history bound");
   return value as unknown as HealthCheckpoint;
 }
 
@@ -307,7 +298,7 @@ export async function advanceHealthMonitor(
     scope,
     policySha256,
     collect = collectRepositoryHealth,
-    estimate = estimateHealthRequests,
+    estimate: suppliedEstimate,
     now = Date.now,
     ...healthOptions
   }: MonitorOptions,
@@ -317,15 +308,15 @@ export async function advanceHealthMonitor(
   const started = now();
   const previous = validateCheckpoint(previousCheckpoint, started);
   const requested = requestedIds(input, scope);
-  // Validate the entire inventory and policy before selecting any network work.
+  // Validate the complete immutable inventory once; scope calculations retain all shared owners.
+  const preparedEstimate = suppliedEstimate
+    ? null
+    : createHealthRequestEstimator(input, healthOptions.reviewedAccounting);
+  const estimate = (catalog: unknown, ids: string[], accounting?: unknown) =>
+    suppliedEstimate ? suppliedEstimate(catalog, ids, accounting) : preparedEstimate!(ids);
   estimate(input, [], healthOptions.reviewedAccounting);
   const attempts = new Map(previous?.attempts.map((attempt) => [attempt.port_id, attempt]) ?? []);
-  const currentHashes = new Map(
-    input.ports.map((port) => [
-      port.id,
-      healthCatalogPortHash(input, port.id, healthOptions.lineageRecords ?? []),
-    ]),
-  );
+  const currentHashes = healthCatalogPortHashes(input, healthOptions.lineageRecords ?? []);
   const applicable = (id: string) => {
     const attempt = attempts.get(id);
     return attempt &&
@@ -504,10 +495,7 @@ export async function advanceHealthMonitor(
     port_health: portHealth,
     incident_history: [...incidentHistory.values()],
   };
-  if (
-    history.length > maximumObservations ||
-    Buffer.byteLength(JSON.stringify(candidate)) > checkpointBytes
-  )
+  if (Buffer.byteLength(JSON.stringify(candidate)) > checkpointBytes)
     throw new Error("Monitoring history exceeds its explicit retention bound");
   const checkpoint = isTrustedHealthExecution(execution)
     ? validateCheckpoint(candidate, completed)

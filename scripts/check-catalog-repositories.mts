@@ -21,7 +21,7 @@ import {
   HEALTH_INPUTS_VERSION,
   healthArtifactHash,
   healthEndpointHash,
-  healthCatalogPortHash,
+  healthCatalogPortHashes,
 } from "./upstream-health-inputs.mts";
 import { assessUpstreamLineage, type UpstreamLineage } from "./upstream-lineage.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -172,7 +172,7 @@ function isPriorReport(
     ((value.format_version === 2 && value.catalog_sha256 === catalogHash) ||
       value.format_version === 3) &&
     Array.isArray(value.observations) &&
-    value.observations.length <= PRIOR_REPORT_ENTRIES &&
+    Buffer.byteLength(JSON.stringify(value)) <= HEALTH_HISTORY_BYTES &&
     value.observations.every(
       (entry: unknown) =>
         isRecord(entry) &&
@@ -187,7 +187,6 @@ function isPriorReport(
       (port: unknown) =>
         isRecord(port) &&
         Array.isArray(port.canonical_incidents) &&
-        port.canonical_incidents.length <= PRIOR_REPORT_ENTRIES &&
         port.canonical_incidents.every(
           (entry: unknown) =>
             isRecord(entry) &&
@@ -392,6 +391,8 @@ class HealthFailure extends Error {
 }
 const HARD_REQUEST_CEILING: number = 320;
 const PRIOR_REPORT_ENTRIES: number = 512;
+// Retained comparison history is independent of one collection's observation cap.
+const HEALTH_HISTORY_BYTES = 16 * 1024 * 1024;
 const resourceLimits = Object.freeze({
   duration_ms: 180_000,
   request_ms: 15_000,
@@ -1058,15 +1059,20 @@ async function metadata(
   }
 }
 
+function prepareHealthInventory(input: unknown, accountingInput: unknown) {
+  assertHealthCatalog(input);
+  const catalog = structuredClone(input);
+  const reviewedAccounting = validateHealthAccountingPolicy(structuredClone(accountingInput));
+  return { catalog, reviewedAccounting, completeInventory: inventory(catalog) };
+}
+
 function prepareHealthCollection(
   input: unknown,
   portIds: string[] | null,
   accountingInput: unknown,
+  prepared = prepareHealthInventory(input, accountingInput),
 ) {
-  assertHealthCatalog(input);
-  const catalog = input;
-  const reviewedAccounting = validateHealthAccountingPolicy(accountingInput);
-  const completeInventory = inventory(catalog);
+  const { catalog, reviewedAccounting, completeInventory } = prepared;
   if (
     portIds !== null &&
     (!Array.isArray(portIds) ||
@@ -1221,6 +1227,16 @@ function prepareHealthCollection(
   };
 }
 
+/** Invocation-local immutable inventory: retain global identities without rescanning per candidate. */
+export function createHealthRequestEstimator(
+  input: unknown,
+  reviewedAccounting: unknown = accountingPolicy,
+) {
+  const prepared = prepareHealthInventory(input, reviewedAccounting);
+  return (portIds: string[] | null = null) =>
+    prepareHealthCollection(null, portIds, null, prepared).requestPlan;
+}
+
 /** Pure validated upper bound used by the rotating monitor before any request. */
 export function estimateHealthRequests(
   input: unknown,
@@ -1264,6 +1280,7 @@ export async function collectRepositoryHealth(
     requests: overflow ? 0 : requestPlan.conservative_requests,
   });
   const lineage = assessedLineage(catalog, lineageRecords);
+  const currentPortHashes = healthCatalogPortHashes(catalog, lineageRecords);
   const catalogHash = observationHash(catalog);
   const started = now();
   const previous = isPriorReport(previousReport, catalogHash, catalog.ports.length, started)
@@ -1874,7 +1891,7 @@ export async function collectRepositoryHealth(
     );
     return {
       port_id: port.id,
-      health_contract_sha256: healthCatalogPortHash(catalog, port.id, lineageRecords),
+      health_contract_sha256: currentPortHashes.get(port.id)!,
       collection_status: locations.every(collected) ? ("complete" as const) : ("partial" as const),
       original_upstream: {
         status:

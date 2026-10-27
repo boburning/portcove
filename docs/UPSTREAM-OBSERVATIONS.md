@@ -404,3 +404,20 @@ deterministic offline mapping validation in required catalog CI retains the
 complete catalog. Release checks and standalone invocation retain their full
 scope. A no-probe PR result establishes applicability only. It is not a healthy
 inventory, accepted artifact or exception to required hosted validation.
+
+### Growing monitoring inventories
+
+The monitor retains fair oldest-attempt rotation across bounded collector runs.
+The collector's 320-request and 512-observation envelopes bound one collection,
+not the logical catalog or retained cross-run history. Checkpoints use their
+existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
+or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
+including programmatic invocations. Oversized physical inputs remain refused;
+no history is silently truncated to claim complete coverage.
+
+Each invocation validates and snapshots the complete inventory once for request
+estimation. Scoped estimates retain shared-location identities and reviewed
+accounting semantics. Per-port freshness hashes likewise reuse one catalog
+projection; hash semantics and legacy checkpoints remain unchanged. These local
+optimizations do not equate repository reachability with release eligibility,
+and partial batches continue to report global health as unassessed.
