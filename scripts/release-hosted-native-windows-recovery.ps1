@@ -16,7 +16,7 @@ if((@($value.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'account_sid,b
     $env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or
     $env:GITHUB_JOB -cne 'native_windows' -or $env:GITHUB_WORKFLOW_REF -cnotmatch '^boburning/portcove/[.]github/workflows/application-update-production[.]yml@refs/tags/[^/]+$'){throw 'Original held recovery boundary differs'}
 $original=$null
-try{$original=[Diagnostics.Process]::GetProcessById([int]$value.original_owner_pid)}catch [ArgumentException]{}
+try{$original=[Diagnostics.Process]::GetProcessById([int]$value.original_owner_pid)}catch [ArgumentException]{$original=$null}
 if($original){try{if($original.StartTime.ToFileTimeUtc().ToString() -ceq $value.original_owner_created_filetime){throw 'Original owner is still live; no competing recovery'}}finally{$original.Dispose()}}
 $setup=Join-Path $PSScriptRoot 'release-hosted-native-windows-setup.cs.txt'
 if((Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant() -cne $value.setup_sha256){throw 'Original recovery helper changed'}

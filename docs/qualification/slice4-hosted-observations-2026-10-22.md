@@ -1598,3 +1598,12 @@ that exact shared import in the existing registry, which also includes its bytes
 in retained reproduction inputs. Dynamic/escaping imports remain refused; the
 13 declaration regressions and complete18-file check pass. The earlier hosted
 failure remains retained and does not qualify the repaired source.
+
+Repaired sourcead07643e passed the Windows declaration, helper and inert account
+contracts in CI40499905959/1, then failed PowerShell analysis for the owner
+`$profile` automatic-variable assignment and an empty expected-absent-process
+catch. Linux catalog also identified the two new disposable-fixture consumers
+missing from the maintained routing expectation and dependency map. The repair
+uses `$accountProfile`, explicitly keeps only ArgumentException as absent, and
+registers both cleanup consumers. All127 lifecycle/routing controls pass; no
+parser suppression, timeout extension or execution-policy change is introduced.

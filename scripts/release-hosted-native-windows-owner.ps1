@@ -131,8 +131,8 @@ try {
     $ack=Read-OwnerRequest 'account-ack.json' 2 'account_sid,binding,owner_created_filetime,owner_pid,sequence'
     if($ack.account_sid -cne $account.SID.Value){throw 'Original controller account acknowledgment differs'}
     $null=Read-OriginalAccount $false
-    $profile=[Portcove.HostedNative.Setup]::Profile($account.SID.Value)
-    Write-OwnerRecord 'account-ready.json' ([ordered]@{binding=$context.binding;sid=$account.SID.Value;profile_root=$profile;credential='memory-only';authority='none'})
+    $accountProfile=[Portcove.HostedNative.Setup]::Profile($account.SID.Value)
+    Write-OwnerRecord 'account-ready.json' ([ordered]@{binding=$context.binding;sid=$account.SID.Value;profile_root=$accountProfile;credential='memory-only';authority='none'})
     $sequence=3L
     foreach($stage in @('payload-signing','release-publication')) {
         $prepare=Read-OwnerRequest ($stage+'-prepare.json') $sequence 'active_deadline_ticks,binding,owner_created_filetime,owner_pid,sequence'
@@ -155,7 +155,7 @@ try {
         $wire=Get-Content -LiteralPath $configuration -Raw|ConvertFrom-Json
         Assert-OwnerMembers $wire 'account_name,account_sid,broker_sid,capture_root,controller_root,helper_sha256,profile_root,schema_version,work_root'
         if($wire.schema_version -ne 1 -or $wire.account_name -cne 'PortcoveNativeQual' -or $wire.account_sid -cne $account.SID.Value -or $wire.broker_sid -cne $owner -or
-            $wire.capture_root -cne $capture -or $wire.work_root -cne $work -or $wire.profile_root -cne $profile -or $wire.controller_root -cne $bridgeRoot -or $wire.helper_sha256 -cne $helperSha){throw 'Original stage account boundary differs'}
+            $wire.capture_root -cne $capture -or $wire.work_root -cne $work -or $wire.profile_root -cne $accountProfile -or $wire.controller_root -cne $bridgeRoot -or $wire.helper_sha256 -cne $helperSha){throw 'Original stage account boundary differs'}
         $workerInput=Join-Path $capture 'worker-input.json'
         if($request.worker_request_sha256 -cnotmatch '^[a-f0-9]{64}$' -or (Get-Item -LiteralPath $workerInput).Length -gt 32768 -or
             (Get-FileHash -LiteralPath $workerInput -Algorithm SHA256).Hash.ToLowerInvariant() -cne $request.worker_request_sha256){throw 'Original B request differs before account effects'}
@@ -169,7 +169,7 @@ try {
         $workerEntry=Join-Path $context.source_root 'scripts/release-native-worker.mts'
         if((Get-FileHash -LiteralPath $workerEntry -Algorithm SHA256).Hash.ToLowerInvariant() -cne $workerWire.worker_sha256){throw 'Selected B entry changed'}
         $config=[Portcove.NativeQualification.AccountConfiguration]::new()
-        $config.UserName='PortcoveNativeQual';$config.AccountSid=$account.SID.Value;$config.BrokerSid=$owner;$config.ProfileRoot=$profile;$config.WorkRoot=$work
+        $config.UserName='PortcoveNativeQual';$config.AccountSid=$account.SID.Value;$config.BrokerSid=$owner;$config.ProfileRoot=$accountProfile;$config.WorkRoot=$work
         $config.PrivateDesktop='PortcoveNative_'+$request.invocation_id.Substring(0,32)+'\Qualification'
         $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($config)
         $station=[Portcove.HostedNative.HostedDesktop]::Prepare($owner,$account.SID.Value,$capture)
