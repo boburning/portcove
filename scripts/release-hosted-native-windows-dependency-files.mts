@@ -10,7 +10,6 @@ import { inspectNativeDependencyWorkspace, nativePnpmVersion } from "./release-p
 import { lockInventory } from "./pnpm-lock-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
 
-const roots = ["node_modules", "apps/desktop/node_modules"] as const;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const noControls = (value: string) => {
   for (let index = 0; index < value.length; index++) if (value.charCodeAt(index) < 32) return false;
@@ -231,8 +230,11 @@ export async function snapshotWindowsNativeDependencies(
   assert.equal(realpathSync(source), source);
   const sourceInfo = lstatSync(source, { bigint: true });
   assert.ok(sourceInfo.isDirectory() && !sourceInfo.isSymbolicLink());
-  const pending = roots.map((name) => path.join(source, ...name.split("/")));
-  for (const filename of pending)
+  // pnpm links the workspace itself; hash every physical leaf it can expose.
+  const pending = ["node_modules", "apps/desktop"].map((name) =>
+    path.join(source, ...name.split("/")),
+  );
+  for (const filename of [...pending, path.join(source, "apps", "desktop", "node_modules")])
     assert.ok(
       lstatSync(filename).isDirectory() && !lstatSync(filename).isSymbolicLink(),
       "fixed dependency root absent or linked",
@@ -315,7 +317,7 @@ export async function snapshotWindowsNativeDependencies(
     if (record.kind === "link") {
       assert.ok(
         record.resolved && physical.has(record.resolved),
-        "dependency target outside inventoried physical graph",
+        `dependency target outside inventoried physical graph: ${JSON.stringify({ path: record.path, resolved: record.resolved })}`,
       );
       assert.equal(readlinkSync(filename), record.target);
       assert.equal(resolveLink(source, filename, active), record.resolved);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync, symlinkSync, linkSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, symlinkSync, linkSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -84,6 +84,45 @@ void test("Windows dependency snapshots refuse external aliases and source-root 
   const other = fixture(context);
   link(other, path.join(other, "node_modules/root"));
   await assert.rejects(snapshotWindowsNativeDependencies(other, deadline(), active), /source root/);
+});
+
+void test("Windows dependency snapshots hash pnpm's fixed workspace including untracked nested leaves", async (context) => {
+  const root = fixture(context),
+    workspace = path.join(root, "apps", "desktop"),
+    modules = path.join(root, "node_modules", ".pnpm", "node_modules");
+  mkdirSync(modules, { recursive: true });
+  writeFileSync(path.join(workspace, "package.json"), '{"name":"portcove-desktop-ui"}\n');
+  link(workspace, path.join(modules, "portcove-desktop-ui"));
+  const graph = await snapshotWindowsNativeDependencies(root, deadline(), active);
+  assert.ok(
+    graph.records.some(
+      (row) => row.path === path.join("apps", "desktop") && row.kind === "directory",
+    ),
+  );
+  assert.ok(
+    graph.records.some(
+      (row) => row.kind === "link" && row.resolved === path.join("apps", "desktop"),
+    ),
+  );
+  assert.ok(
+    graph.records.some(
+      (row) => row.path === path.join("apps", "desktop", "package.json") && row.kind === "file",
+    ),
+  );
+  const cache = path.join(workspace, "cache");
+  mkdirSync(cache);
+  const extra = path.join(cache, "extra.js");
+  writeFileSync(extra, "before");
+  const before = await snapshotWindowsNativeDependencies(root, deadline(), active);
+  const workspaceBefore = statSync(workspace, { bigint: true });
+  writeFileSync(extra, "change");
+  const workspaceAfter = statSync(workspace, { bigint: true });
+  assert.equal(workspaceBefore.mtimeNs, workspaceAfter.mtimeNs);
+  assert.equal(workspaceBefore.ctimeNs, workspaceAfter.ctimeNs);
+  assert.notEqual(
+    (await snapshotWindowsNativeDependencies(root, deadline(), active)).sha256,
+    before.sha256,
+  );
 });
 
 void test("Windows dependency snapshots refuse contained targets outside the inventoried graph", async (context) => {
