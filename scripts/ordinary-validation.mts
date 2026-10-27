@@ -1124,6 +1124,7 @@ for (const [file, tests] of [
     "scripts/desktop-execution-plan.mts",
     "scripts/desktop-scenarios.mts",
     "scripts/desktop-verify.mts",
+    "scripts/operation-coverage.mts",
     "scripts/testdata/desktop-execution-baseline.json",
     "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
   ].map((file): [string, string[]] => [
@@ -1133,6 +1134,7 @@ for (const [file, tests] of [
       "scripts/desktop-scenarios.test.mts",
       "scripts/desktop-verify.test.mts",
       "scripts/frontend-command-preflight.test.mts",
+      "scripts/development-evidence.test.mts",
       "scripts/native-helper-dependencies.test.mts",
       "scripts/windows-helper-checks.test.mts",
     ],
@@ -1732,6 +1734,11 @@ explicitNodeTests.set("scripts/run-rust-tests.mts", [
   "scripts/nextest-outcomes.test.mts",
 ]);
 
+for (const file of ["scripts/release-resource-observation.mts", "scripts/release-capacity.mts"])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-resource-observation.test.mts",
+  ]);
 const workflowTests = new Map([
   [
     "hosted-native-continuity.yml",
@@ -1872,7 +1879,17 @@ explicitNodeTests.set("scripts/runtime-values.mts", [
   "scripts/precommit-check.test.mts",
 ]);
 
+for (const workflow of [
+  "release.yml",
+  "application-update-production.yml",
+  "application-update-wake.yml",
+])
+  workflowTests.set(workflow, [
+    ...(workflowTests.get(workflow) ?? []),
+    "scripts/release-resource-observation.test.mts",
+  ]);
 const releaseContractTests = Object.freeze([
+  "scripts/release-resource-observation.test.mts",
   "scripts/release-hosted-native-windows-setup.test.mts",
   "scripts/release-native-runtime-custody.test.mts",
   "scripts/hosted-native-continuity.test.mts",

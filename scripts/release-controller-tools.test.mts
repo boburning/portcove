@@ -1392,6 +1392,20 @@ void test("fixed source asset preflight bounds real inventory and refuses before
   );
   assert.ok(isRecord(failure));
   assert.equal(failure.phase, "source-assets");
+  assert.ok(Array.isArray(failure.timings) && failure.timings.length >= 3);
+  let elapsed = -1;
+  for (const entry of failure.timings) {
+    assert.ok(
+      isRecord(entry) &&
+        typeof entry.phase === "string" &&
+        Number.isSafeInteger(entry.elapsed_milliseconds),
+    );
+    assert.ok(Number(entry.elapsed_milliseconds) >= elapsed);
+    elapsed = Number(entry.elapsed_milliseconds);
+  }
+  const lastTiming: unknown = failure.timings.at(-1);
+  assert.ok(isRecord(lastTiming));
+  assert.equal(lastTiming.phase, "failed");
   assert.equal(failure.failure, "tool file exceeds regular-file bound");
   assert.deepEqual(failure.source, expected);
   assert.equal(failure.automatic_retry, false);

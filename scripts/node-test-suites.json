@@ -4159,6 +4159,13 @@
         ["catalog-full-2", 1000010],
         ["release-check", 16209]
       ]
+    },
+    {
+      "file": "scripts/release-resource-observation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000011],
+        ["release-check", 16210]
+      ]
     }
   ]
 }

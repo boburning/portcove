@@ -223,6 +223,7 @@ export async function buildControllerTools(
   outputParent: string,
   expected: { commit: string; tree: string },
 ) {
+  const started = performance.now();
   expected = structuredClone(expected);
   if (process.versions.node !== controllerNodeVersion)
     throw new Error("fixed Node runtime differs");
@@ -257,6 +258,11 @@ export async function buildControllerTools(
     return result.stdout.trim();
   };
   let phase = "source-before";
+  const timings = [{ phase, elapsed_milliseconds: Math.floor(performance.now() - started) }];
+  const mark = (next: string) => {
+    phase = next;
+    timings.push({ phase, elapsed_milliseconds: Math.floor(performance.now() - started) });
+  };
   try {
     const guard = () => {
       if (
@@ -268,14 +274,14 @@ export async function buildControllerTools(
     };
     guard();
     const tools = path.join(directory, "tools");
-    phase = "source-assets";
+    mark("source-assets");
     for (const name of profile.assets)
       await readControllerToolFile(
         path.join(sourceRoot, name),
         controllerToolSourceAssetMaximumBytes,
       );
     await mkdir(tools, { mode: 0o700 });
-    phase = "fixed-native-package-manager";
+    mark("fixed-native-package-manager");
     const packageMetadata: unknown = JSON.parse(
       (await readControllerToolFile(path.join(sourceRoot, "package.json"), 65536)).toString("utf8"),
     );
@@ -296,13 +302,13 @@ export async function buildControllerTools(
         mode: name.startsWith("bin/") ? 0o700 : 0o600,
       });
     if (platform === "windows-x86_64") {
-      phase = "fixed-microsoft-webview-driver";
+      mark("fixed-microsoft-webview-driver");
       await acquireWindowsWebviewDriver(sourceRoot, tools, env);
       guard();
     }
-    phase = "fixed-node-bundles";
+    mark("fixed-node-bundles");
     await bundleControllerEntries(sourceRoot, tools, platform);
-    phase = "fixed-rust-build";
+    mark("fixed-rust-build");
     const status = await runResourceCommand(
       "rust",
       "cargo",
@@ -319,7 +325,7 @@ export async function buildControllerTools(
       { cwd: sourceRoot, environment: env },
     );
     if (status !== 0) throw new Error(`fixed controller tool build refused; retain ${directory}`);
-    phase = "fixed-native-webdriver-build";
+    mark("fixed-native-webdriver-build");
     const bootstrap: unknown = JSON.parse(
       (
         await readControllerToolFile(path.join(sourceRoot, ".config/tool-bootstrap.json"), 65536)
@@ -359,7 +365,7 @@ export async function buildControllerTools(
     if (driverStatus !== 0)
       throw new Error(`fixed native driver build refused; retain ${directory}`);
     guard();
-    phase = "tool-inventory";
+    mark("tool-inventory");
     const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
     const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
     const cli = createRequire(cliPackage);
@@ -408,9 +414,9 @@ export async function buildControllerTools(
         { flag: "wx", mode: 0o600 },
       );
     }
-    phase = "fixed-native-support-product";
+    mark("fixed-native-support-product");
     await materializeControllerNativeSupport(sourceRoot, tools, env, platform);
-    phase = "fixed-compiler-source-closure";
+    mark("fixed-compiler-source-closure");
     await materializeControllerCompilerSource(sourceRoot, tools, expected);
     guard();
     const files = [];
@@ -435,7 +441,15 @@ export async function buildControllerTools(
       flag: "wx",
       mode: 0o600,
     });
-    return { directory, tools, manifest, authority: "none" };
+    mark("complete");
+    return {
+      directory,
+      tools,
+      manifest,
+      timings,
+      elapsed_milliseconds: Math.floor(performance.now() - started),
+      authority: "none",
+    };
   } catch (error) {
     const failure = (error instanceof Error ? error.message : "unknown bootstrap refusal").slice(
       0,
@@ -446,6 +460,10 @@ export async function buildControllerTools(
       JSON.stringify({
         directory,
         phase,
+        timings: [
+          ...timings,
+          { phase: "failed", elapsed_milliseconds: Math.floor(performance.now() - started) },
+        ],
         failure,
         diagnostic: isRecord(error) && isRecord(error.diagnostic) ? error.diagnostic : null,
         source: expected,

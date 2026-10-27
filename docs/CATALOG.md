@@ -1301,6 +1301,33 @@ capture before report publication. Existing capture directories are preserved.
 `installed_ports` still counts managed installs; `registered_ports` counts
 external registrations and `reported_ports` counts both.
 
+To project actual Core offers into the existing scenario report, run
+`node scripts/desktop-verify.mts --list-scenarios --json --qualification-evidence <capture/evidence.json>`.
+The rows retain Core's allowed, held or waiting assessment, execution platform,
+exact available artifact/record identity, intended scenario producer and missing
+observations. A managed record's unknown installed platform stays unknown.
+Scenario `operation_routes` describe test coverage; they do not decide which
+operations Core offers.
+
+Repeat `--current-preflight <preflight.json>` for each operation/observation scope and
+`--acceptance-packet <completed.json>`
+to inspect receipts against the requested frozen dependencies. The owning acceptance
+verifier rechecks the completed packet and its retained artifacts. Scope lives in
+the existing binding's `execution_qualification.initial_state.offered_operation`:
+`port_id`, `operation`, `runtime_kind`, `record_id`, `availability`, `reason`,
+`platform`, `package_sha256`, `producer` and `evidence_kind`; an external record
+also binds `package_platform`. Runtime conditions must declare the same platform
+and observation kind. Kinds are `browser-fixture`, `native-harness-contract` and
+`real-installed-execution`. A receipt with missing scope or incompatible inputs
+cannot fill a missing observation. Retained execution `captured_at` orders observations, independently of packet completion.
+Missing observation times remain explicitly unordered. Current required gaps or failed
+source reviews block completeness while historical observations remain visible.
+Prerequisites remain descriptive metadata; required gaps and actual source-review
+fields provide the defined disposition checks. Empty
+or truncated inventories never imply complete native coverage. The latest compatible failure remains visible;
+an adjacent green fixture or harness result cannot replace it. This read-only
+projection grants no acceptance and inventories only the supplied receipts.
+
 The capture keeps the selected CLI's original path so sibling tool discovery
 retains its normal behavior. It records the initial SHA-256 and checks that the
 path remains a regular file with those bytes before and after every command,
