@@ -26056,7 +26056,7 @@
     {
       "id": "opengtps1-gran-turismo-2",
       "name": "OpenGTPS1 (Gran Turismo 2)",
-      "summary": "Windows Gran Turismo 2 project awaiting an upstream grant for its original code. Read the current licensing status; existing files and retained installations stay untouched.",
+      "summary": "Windows Gran Turismo 2 project awaiting an upstream grant for its original code. Read the current licensing status; your existing files stay untouched.",
       "project_url": "https://github.com/GTTeancum/OpenGTPS1",
       "issue_number": 743,
       "platforms": [
@@ -26077,7 +26077,7 @@
         "steps": [
           {
             "title": "Read the upstream licensing status",
-            "instruction": "The existing original-code permission hold is unresolved, and the current public GitHub release list is empty. Upstream’s older download references do not establish a current permitted player. Follow the linked licensing statement for changes; a future attributable grant and usable reviewed runtime/setup route can reopen acquisition review. This listing does not ask you to download or run a tool, or to remove an existing copy. Existing files, identity and retained installation contracts are preserved."
+            "instruction": "The existing original-code permission hold is unresolved, and the current public GitHub release list is empty. Upstream’s older download references do not establish a current permitted player. Follow the linked licensing statement for changes; a future attributable grant and usable reviewed runtime/setup route can reopen acquisition review. This listing does not ask you to download or run a tool, or to remove an existing copy. Your existing files stay untouched."
           }
         ],
         "warnings": [],
