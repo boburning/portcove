@@ -1619,3 +1619,43 @@ observation passed in2.8seconds. The same60second deadline, visibility/response,
 generation, raw streams and cleanup assertions remain; no account acceptance or
 station/privilege/production change follows. Fresh exact-head hosted evidence is
 required; the failed attempt is not retried or treated as native success.
+
+### October27 — fixed held Windows bootstrap connection
+
+PR3776 merged37c3580dbf15e5f58808c922846f7182d0014f11 fromf3dbbb2f
+with all five exact-head CI40502543729/1 contexts and both ordinary tool
+fixtures40502543735/1 passed. The actual squash parent6cfd/treeee2912 matches
+independent composition/readback. Both public diagnostic archives passed bounded
+ZIP/CRC, byte/digest and source readback. Windows artifact12734001340 measured
+235691ms tool building; Linux12733797204 measured148354ms at synthetic2920b318,
+whose f3+6cfd parents and treeee2912 were independently verified. Source branch
+restored; scoped534/246doctors passed. These remain source/component observations,
+with Windows account execution not_requested and native acceptance unestablished.
+
+The continuation connects a fixed public Windows bootstrap operation to that
+existing connected runner, behind another false-first execution gate. It reuses
+the original source/job admission, exact Windows tool/entry selection, original
+cross-process clock, single attempt and before/after custody/workflow checks.
+Preparation-only APIs retain their existing capture/recovery reserve; a completed
+session returns its actual final issuer/runtime deadline and does not renew it or
+require an unused preparation reserve. Closed final routing data stays below the
+original root and carries authoritynone; it cannot reconstruct a session receipt.
+
+Independent review found two terminal-clock gaps in the initial continuation:
+using the preparation deadline could widen the shorter final session deadline,
+and directory/custody checks could cross that shorter expiry before returning.
+The implementation now carries the final effective minimum deadline out of the
+original session and rechecks it after terminal work. Controlled tests retain the
+real operation selection and bounded routing files while replacing admitted
+bundle/account/provider peers. They exercise successful completion with one second
+remaining, a shortened issuer clock, expiry during final path/custody checks,
+late final owner settlement, changed role, invalid authority/path and one attempt.
+The real bootstrap/runner/session/proof gates still refuse before effects.
+
+No production workflow, active resource digest, inner budget, signing boundary,
+account setting or protected scope is activated by this entry point. Supported
+Windows runtime/driver binding, actual connected hosted qualification, measured
+whole-job fit and exact owner ratification remain pending. Existing D1/D2/D3,
+single-owner recovery,$0stop, Unknown capacity/no reservation/paid fallback,
+auditfalse/0slots and all protected/native/production/signing/publication/issuer
+provisioning holds remain; #534 stays open/Blocked and Slice5 stays excluded.

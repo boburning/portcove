@@ -313,17 +313,19 @@ async function materializeBootstrapRunner(
 /** Original hosted Windows preparation only. No account, candidate execution,
  * capture, signature, upload or successful native settlement. */
 export async function prepareFixedHostedWindowsNativeRuntime() {
-  return prepareFixedHostedWindows("prepareConfiguredHostedWindowsRuntime");
+  return runFixedHostedWindowsOperation("prepareConfiguredHostedWindowsRuntime");
 }
 
 export async function prepareFixedHostedWindowsNativeSource() {
-  const prepared = await prepareFixedHostedWindows("prepareConfiguredHostedWindowsSource");
+  const prepared = await runFixedHostedWindowsOperation("prepareConfiguredHostedWindowsSource");
   assert.ok(prepared.source, "original Windows source receipt absent");
   return prepared;
 }
 
 export async function prepareFixedHostedWindowsNativeInstallation() {
-  const prepared = await prepareFixedHostedWindows("prepareConfiguredHostedWindowsInstallation");
+  const prepared = await runFixedHostedWindowsOperation(
+    "prepareConfiguredHostedWindowsInstallation",
+  );
   assert.ok(
     prepared.source && prepared.dependencies && prepared.installation,
     "original Windows installation receipts absent",
@@ -331,12 +333,41 @@ export async function prepareFixedHostedWindowsNativeInstallation() {
   return prepared;
 }
 
-async function prepareFixedHostedWindows(
-  operation:
-    | "prepareConfiguredHostedWindowsRuntime"
-    | "prepareConfiguredHostedWindowsSource"
-    | "prepareConfiguredHostedWindowsInstallation",
-) {
+type WindowsPreparation = {
+  deadline: number;
+  tools: object;
+  parent: object;
+  runtime: object;
+  source?: object;
+  dependencies?: object;
+  installation?: object;
+};
+type WindowsSettlement = {
+  deadline: number;
+  directory: string;
+  scope: string;
+  authority: "none";
+};
+type WindowsOperations = {
+  prepareConfiguredHostedWindowsRuntime: WindowsPreparation;
+  prepareConfiguredHostedWindowsSource: WindowsPreparation;
+  prepareConfiguredHostedWindowsInstallation: WindowsPreparation;
+  runConfiguredHostedWindowsNativeJob: WindowsSettlement;
+};
+
+export const hostedWindowsBootstrapExecutionAuthorized = false;
+/** Fixed connected operation; the original source/job clock is never renewed. */
+export async function launchFixedHostedWindowsNativeJob() {
+  assert.ok(
+    hostedWindowsBootstrapExecutionAuthorized,
+    "Hosted Windows bootstrap execution awaits separate owner authority",
+  );
+  return runFixedHostedWindowsOperation("runConfiguredHostedWindowsNativeJob");
+}
+
+async function runFixedHostedWindowsOperation<Operation extends keyof WindowsOperations>(
+  operation: Operation,
+): Promise<WindowsOperations[Operation]> {
   const scope = await readActualHostedWindowsBootstrapScope("pre-sign");
   const providerDeadline = currentNativeJobDeadline(
     "windows-x86_64",
@@ -392,15 +423,7 @@ async function prepareFixedHostedWindows(
       root: string,
       deadline: number,
       entry: string,
-    ) => Promise<{
-      deadline: number;
-      tools: object;
-      parent: object;
-      runtime: object;
-      source?: object;
-      dependencies?: object;
-      installation?: object;
-    }>
+    ) => Promise<WindowsOperations[Operation]>
   >;
   active();
   recheckNativeRuntimeCustody(custodyFiles, custody);
@@ -423,7 +446,32 @@ async function prepareFixedHostedWindows(
       performance.now() < prepared.deadline,
     "original Windows issuer/runtime preparation expired",
   );
-  if (operation !== "prepareConfiguredHostedWindowsRuntime")
+  if (operation === "runConfiguredHostedWindowsNativeJob") {
+    const settlement: unknown = prepared;
+    assert.ok(exact(settlement, "authority,deadline,directory,scope"));
+    assert.equal(settlement.authority, "none");
+    assert.ok(typeof settlement.scope === "string" && settlement.scope.length <= 256);
+    assert.ok(typeof settlement.directory === "string");
+    const relative = path.relative(root, settlement.directory);
+    assert.ok(
+      relative &&
+        relative !== ".." &&
+        !relative.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relative),
+    );
+    assert.equal(await realpath(settlement.directory), settlement.directory);
+    active();
+    recheckNativeRuntimeCustody(custodyFiles, custody);
+    active();
+    assert.ok(
+      performance.now() < prepared.deadline,
+      "original Windows terminal settlement expired",
+    );
+  }
+  if (
+    operation === "prepareConfiguredHostedWindowsSource" ||
+    operation === "prepareConfiguredHostedWindowsInstallation"
+  )
     assert.ok(
       performance.now() < prepared.deadline - 210000,
       "Windows source must preserve capture/recovery reserve",
