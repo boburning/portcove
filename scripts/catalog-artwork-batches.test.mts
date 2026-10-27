@@ -935,6 +935,9 @@ void test("automatic due maintenance uses actual retained observation clocks and
     assert.equal(first.continuation.complete, true);
     const current = await prepareArtworkWorkset(fixture.catalog, options);
     assert.deepEqual(current.workset.selected_port_ids, []);
+    assert.equal(current.records.length, 2);
+    assert.ok(current.catalog.ports.every((port) => port.presentation?.artwork));
+    assert.equal(current.workset.carried_port_ids.length, 2);
     assert.equal(fixture.requests.length, 2);
     time += 29 * 24 * 60 * 60 * 1000;
     const overdue = await prepareArtworkWorkset(fixture.catalog, options);
@@ -1045,6 +1048,40 @@ void test("memoized image reuse cannot refresh the original observation clock", 
     assert.equal(downloads, 1);
     assert.equal(state.last_live_observation_at, new Date(started).toISOString());
     assert.equal(state.observed_at, new Date(started + 86400000).toISOString());
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("interrupted automatic maintenance assembles completed undelivered proposals on resume", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-due-interrupt-"));
+  const fixture = scalableArtworkFixture(3);
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    identities: {},
+    validatorIdentity: null,
+    maintenance: true,
+  };
+  try {
+    await assert.rejects(
+      prepareArtworkWorkset(fixture.catalog, {
+        ...options,
+        onProgress() {
+          throw new Error("fixture interruption");
+        },
+      }),
+      /fixture interruption/,
+    );
+    assert.equal(fixture.requests.length, 1);
+    const resumed = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(fixture.requests.length, 3);
+    assert.equal(resumed.continuation.complete, true);
+    assert.equal(resumed.records.length, 3);
+    assert.deepEqual(resumed.workset.carried_port_ids, ["scale-0"]);
+    assert.ok(resumed.catalog.ports.every((port) => port.presentation?.artwork));
+    assert.ok(fixture.catalog.ports.every((port) => !port.presentation?.artwork));
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

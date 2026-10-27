@@ -338,6 +338,25 @@ export async function prepareArtworkWorkset(
   };
   const queue: string[] = [];
   let cacheHits = 0;
+  const carried: string[] = [];
+  if (options.maintenance) {
+    const dueIds = new Set(selected);
+    for (const id of inspectedIds) {
+      const state = states.get(id);
+      if (
+        !dueIds.has(id) &&
+        state?.input_sha256 === baseKey(id, true) &&
+        state.complete &&
+        finished(state.result.record, gone) &&
+        state.last_live_observation_at !== null &&
+        now() - Date.parse(state.last_live_observation_at) < refreshMs
+      ) {
+        apply(id, state.result);
+        carried.push(id);
+        cacheHits++;
+      }
+    }
+  }
   for (const id of selected) {
     const state = states.get(id);
     if (
@@ -464,7 +483,7 @@ export async function prepareArtworkWorkset(
   output.ports = catalog.ports.map((port) => outputPorts.get(port.id)!);
   const values = [...records.values()];
   const metrics: ArtworkMetrics = {
-    ports: selected.length,
+    ports: values.length,
     reused: values.filter((record) => record.reason.startsWith("accepted-mapping")).length,
     original_reused: values.filter((record) => record.reason === "accepted-original-game-reused")
       .length,
@@ -481,6 +500,7 @@ export async function prepareArtworkWorkset(
     workset: {
       catalog_ports: catalog.ports.length,
       selected_port_ids: selected,
+      carried_port_ids: carried,
       invalidated_port_ids: invalidated,
     },
     continuation: {
@@ -491,6 +511,6 @@ export async function prepareArtworkWorkset(
         (id) => !records.has(id) || !finished(records.get(id)!, gone),
       ),
     },
-    reused: cacheHits === selected.length,
+    reused: batches === 0 && cacheHits === records.size,
   };
 }

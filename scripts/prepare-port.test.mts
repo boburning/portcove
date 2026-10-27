@@ -1432,3 +1432,69 @@ void test("artwork preparation refuses a concurrent checkpoint worker without to
     f.clean();
   }
 });
+
+void test("due maintenance resume delivers earlier undelivered record proposals", async () => {
+  const f = fixture();
+  try {
+    const source = copiedCatalog(join(f.root, "source"));
+    rmSync(join(source, "ports"), { recursive: true });
+    mkdirSync(join(source, "ports"));
+    for (const id of ["due-one", "due-two"]) {
+      writeFileSync(
+        join(source, "ports", `${id}.json`),
+        JSON.stringify({
+          format_version: 1,
+          listing: {
+            id,
+            name: id,
+            summary: "Due fixture",
+            project_url: `https://example.org/${id}`,
+          },
+        }),
+      );
+    }
+    const calls: string[] = [];
+    const options = {
+      catalogRoot: source,
+      outputDirectory: join(f.root, "output"),
+      maintenance: true,
+      artwork: {
+        inspectGame(identity: { names: string[]; project_url: string | null }) {
+          const name = identity.names[0]!;
+          calls.push(name);
+          return [
+            {
+              id: name === "due-one" ? 1 : 2,
+              name,
+              slug: name,
+              websites: [{ url: identity.project_url }],
+              cover: { id: 1, image_id: name.replaceAll("-", "") },
+            },
+          ];
+        },
+        inspectImage: batchImage,
+      },
+    };
+    await assert.rejects(
+      prepareArtworkBatch({
+        ...options,
+        onProgress() {
+          throw new Error("fixture interruption");
+        },
+      }),
+      /fixture interruption/,
+    );
+    const resumed = await prepareArtworkBatch(options);
+    assert.deepEqual(calls.sort(), ["due-one", "due-two"]);
+    assert.deepEqual(resumed.report.changed_records.sort(), ["due-one", "due-two"]);
+    assert.deepEqual(resumed.report.pending_port_ids, []);
+    const listings = JSON.parse(readFileSync(resumed.report.files.listings, "utf8")) as {
+      listings: { artwork?: unknown }[];
+    };
+    assert.equal(listings.listings.length, 2);
+    assert.ok(listings.listings.every((listing) => listing.artwork));
+    assert.ok(readCatalogSource(source).records.every((record) => !record.listing.artwork));
+  } finally {
+    f.clean();
+  }
+});
