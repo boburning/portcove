@@ -960,12 +960,17 @@ The JSON array contains `{ "target": 168, "body_file": "work/candidate.md",
 "previous_body_file": "work/original.md" }` entries. All candidates and live
 Project observations pass preflight before the first write. Each write still
 refreshes its exact preimage; concurrent changes can stop a partially applied
-batch, whose candidate, preimage, mutation and readback evidence stays under
-`work/roadmap-edit`. A batch of more than ten issues ends with one full doctor;
-smaller batches check the affected issues. A failed or inconclusive final receipt
-does not undo verified writes or authorize blind retries. Finish related Project
-field writes before claiming the final substantial-batch audit; `set-many`
-retains its own final scoped/full selection.
+batch. The input/configuration-bound metadata journal and immutable candidate,
+mutation, readback and failure evidence stay under the Git common directory's
+`portcove-locks/body-edits/`. Logical batches are independent of issue count.
+Preflight, attempted writes, verified readback, final reads and per-issue planning
+checks resume automatically after a positively observed quota reset, releasing
+operation locks while waiting. Unknown capacity and original HTTP failures stop;
+an ambiguous write is never resent without exact desired-state readback. Body
+files are read lazily with bounded regular-file checks. Reusing one authenticated
+client avoids a doctor subprocess or complete inventory per issue. Final receipts
+name the observation interval and keep global health unevaluated. Related
+Project release-planning changes retain `set-many`'s explicit full-check scope.
 
 For generated JavaScript, save an owned `.mjs` file or pass source through stdin.
 PowerShell's literal here-string preserves backticks and dollar signs:
