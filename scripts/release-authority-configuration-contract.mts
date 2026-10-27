@@ -59,6 +59,7 @@ function text(value: unknown, maximum = 184): string {
     throw new Error("release authority fixed text unavailable");
   return value;
 }
+export { minimumVersion as assertMinimumVersion };
 function minimumVersion(value: unknown, minimum: string, label = "engine") {
   const declared = text(value, 64);
   if (!/^[0-9]{1,10}(?:\.[0-9]{1,10}){1,3}$/u.test(declared))

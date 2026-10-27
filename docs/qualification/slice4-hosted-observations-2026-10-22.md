@@ -1659,3 +1659,28 @@ whole-job fit and exact owner ratification remain pending. Existing D1/D2/D3,
 single-owner recovery,$0stop, Unknown capacity/no reservation/paid fallback,
 auditfalse/0slots and all protected/native/production/signing/publication/issuer
 provisioning holds remain; #534 stays open/Blocked and Slice5 stays excluded.
+
+### October27 — early Windows driver-floor refusal
+
+The admitted Windows native runtime preparation now refuses a tool driver whose
+version is below the original selected engine minimum. Under the existing exact
+runtime/driver matching policy, that driver cannot match any native engine that
+meets the selected floor. The check reuses the already authenticated manifest-loop
+bytes, the existing closed driver-proof inspector and configuration's numeric
+minimum validator. It runs before native support, source/dependency preparation
+or account setup, with the existing one-attempt refusal and original custody,
+Node, source and deadline checks retained. Ordinary source/dependency observations
+remain separate and usable; Linux gains no extra reads or runtime-floor branch.
+
+Controlled original-provider tests exercise below-floor131/154/older155 and a
+higher admitted minimum, exact/newer driver versions, replay refusal and the old
+joined-parent/shorter-clock/permanent-stop behavior. Below-floor cases stop before
+native support preparation. No runtime installation, fallback, provider request,
+policy/digest change, increased budget or authority activation is added. This is
+an early necessary-version check, not a generic WebDriver compatibility proof or
+an observed candidate/runtime signature/custody result. A driver meeting the floor
+still needs the actual runtime version, matching driver and loaded-engine joins.
+Supported runtime/driver preparation, actual hosted native execution and measured
+whole-job fit remain unfinished. No measured savings, native acceptance, provider
+headroom, reservation or paid fallback is inferred; all existing owner holds and
+account-wide$0stop remain, #534 stays open/Blocked and Slice5 stays excluded.
