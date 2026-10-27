@@ -3876,7 +3876,6 @@ void test("native transport producers retain their actual Node consumers across 
     [
       "browser-script.mts",
       [
-        "apps/desktop/scripts/browser-script.test.mts",
         "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
         "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
       ],
@@ -3906,6 +3905,21 @@ void test("native transport producers retain their actual Node consumers across 
         head: "b".repeat(40),
         checkout: "b".repeat(40),
       });
+      if (name === "browser-script.mts") {
+        assert.equal(local.ui, true);
+        assert.ok(plan.groups.includes("frontend"));
+        assert.ok(
+          buildPlan(local).some(
+            (entry) => entry.id === "ui-tests" || entry.id === "ui-related-tests",
+          ),
+        );
+        assert.ok(!local.nodeTests.has("apps/desktop/scripts/browser-script.test.mts"));
+        assert.ok(
+          !baselineContractTests(plan, { fileExists: () => false }).includes(
+            "apps/desktop/scripts/browser-script.test.mts",
+          ),
+        );
+      }
       for (const selected of [
         local.nodeTests,
         new Set(baselineContractTests(plan, { fileExists: () => false })),

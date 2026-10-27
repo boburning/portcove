@@ -331,7 +331,6 @@ for (const [file, tests] of [
   [
     "apps/desktop/scripts/browser-script.mts",
     [
-      "apps/desktop/scripts/browser-script.test.mts",
       "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
       "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
       "scripts/native-helper-dependencies.test.mts",
