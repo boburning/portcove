@@ -298,6 +298,7 @@ export async function advanceCatalogObservations(
     observationHash({ policy: options.policyIdentity, scope: source.scope_sha256 });
   let requests = 0;
   let responseBytes = 0;
+  let operationBytes = 0;
   let unknownSizeResponses = 0;
   let notifyException = false;
   let requestStartedAt = now();
@@ -310,9 +311,14 @@ export async function advanceCatalogObservations(
     if (bytes !== null && (!Number.isSafeInteger(bytes) || bytes < 0))
       throw new ObservationFailure("invalid-metadata", "Provider response size is invalid");
     if (bytes === null) unknownSizeResponses++;
-    responseBytes += bytes ?? template.budget.response_bytes;
-    if (responseBytes > template.budget.total_bytes)
-      throw new ObservationFailure("budget", "Shared response byte envelope exhausted");
+    const charged = bytes ?? template.budget.response_bytes;
+    responseBytes += charged;
+    operationBytes += charged;
+    if (operationBytes > template.budget.total_bytes)
+      throw new ObservationFailure(
+        "budget",
+        "Source operation response byte envelope exhausted; retain accepted pages",
+      );
   };
   const observeResponse = (response: Response) => {
     sampledCostMs += Math.max(1, now() - requestStartedAt);
@@ -334,7 +340,7 @@ export async function advanceCatalogObservations(
   };
   const attempted: string[] = [];
   const completed: string[] = [];
-  const failures: { source: string; rule: string }[] = [];
+  const failures: { source: string; repository: string; rule: string; details: string }[] = [];
   const pending = sources
     .filter((source) => {
       const progress = state.sources[source.key];
@@ -416,14 +422,10 @@ export async function advanceCatalogObservations(
     return policy;
   };
   for (const [index, source] of pending.entries()) {
-    if (
-      options.signal?.aborted ||
-      now() >= deadline ||
-      responseBytes >= template.budget.total_bytes
-    )
-      break;
+    if (options.signal?.aborted || now() >= deadline) break;
     // Completed provider reads may still admit offline Core continuation while the provider is unavailable.
     if (capacity() < 1 && !state.sources[source.key]?.policy_progress) continue;
+    operationBytes = 0;
     const progress = state.sources[source.key] ?? {
       repository: source.repository,
       repository_id: null,
@@ -557,6 +559,21 @@ export async function advanceCatalogObservations(
       );
       const result = await options.withSourceLock(config, async () => {
         const priorSource = await options.load(config);
+        const position = (continuation: unknown) => {
+          if (!isRecord(continuation))
+            return observationHash({ phase: "collect", cursor: 0, pages: [] });
+          return observationHash({
+            phase: continuation.phase,
+            cursor: continuation.validation_cursor,
+            pages: isRecord(continuation.pages)
+              ? Object.entries(continuation.pages).map(([url, page]) => [
+                  url,
+                  isRecord(page) ? page.sha256 : null,
+                ])
+              : [],
+          });
+        };
+        const previousPosition = position(isRecord(priorSource) ? priorSource.continuation : null);
         const result = await advanceObservation(config, priorSource, {
           ...(options.fetch ? { fetch: options.fetch } : {}),
           ...(options.token ? { token: options.token } : {}),
@@ -628,6 +645,12 @@ export async function advanceCatalogObservations(
           project: projectAll,
           commitContinuation: (checkpoint) => options.save(config, checkpoint),
         });
+        const continuation = result.checkpoint.continuation;
+        const readProgress =
+          continuation &&
+          (Object.keys(continuation.pages).length > 0 || continuation.validation_cursor > 0) &&
+          position(continuation) !== previousPosition;
+        if (readProgress) coreProgress++;
         await options.save(config, result.checkpoint);
         // Historical projections retain their own facts/definition identities.
         // A changed configuration may have no current observation at all.
@@ -638,7 +661,7 @@ export async function advanceCatalogObservations(
       if (result.report.exception) {
         if (
           result.report.exception.rule === "budget" &&
-          (sourceRequests > 0 || coreProgress > 0) &&
+          coreProgress > 0 &&
           result.checkpoint.continuation &&
           capacity() > 0 &&
           now() < deadline
@@ -655,7 +678,15 @@ export async function advanceCatalogObservations(
           remaining = 0;
           state.provider_retry_at = result.report.exception.retry_at;
         }
-        failures.push({ source: source.key, rule: result.report.exception.rule });
+        failures.push({
+          source: source.key,
+          repository: source.repository,
+          rule: result.report.exception.rule,
+          details:
+            isRecord(result.report.exception) && typeof result.report.exception.details === "string"
+              ? result.report.exception.details
+              : "Source observation is incomplete; resume only after its recorded condition is satisfied.",
+        });
       } else {
         const sameScope = progress.completed_scope_sha256 === binding;
         const changed =
@@ -733,7 +764,15 @@ export async function advanceCatalogObservations(
       if (progress.exception_key !== key && !["budget", "cancelled"].includes(rule))
         notifyException = true;
       progress.exception_key = key;
-      failures.push({ source: source.key, rule });
+      failures.push({
+        source: source.key,
+        repository: source.repository,
+        rule,
+        details:
+          error instanceof ObservationFailure
+            ? error.message
+            : "Source operation failed before an observation could be completed; inspect its exact scope and retained execution evidence.",
+      });
     }
     await options.commit(structuredClone(state));
   }

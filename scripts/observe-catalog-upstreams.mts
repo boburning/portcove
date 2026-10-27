@@ -204,6 +204,17 @@ export async function runCatalogUpstreams(
                 "Repository identity lookup is provider-deferred",
                 error.rateLimit?.resetAt ?? null,
               );
+            if (error instanceof GitHubApiError)
+              throw new ObservationFailure(
+                error.status === 404
+                  ? "repository-unavailable"
+                  : error.status === 401 || error.status === 403
+                    ? "authentication-or-access"
+                    : "provider-transport",
+                error.status === null
+                  ? "Primary repository identity transport is unavailable; retry a bounded fresh lookup without changing the retained source."
+                  : `Primary repository identity returned HTTP ${error.status}; preserve the declared source and reconcile its current primary-provider availability.`,
+              );
             throw error;
           }
         },

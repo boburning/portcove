@@ -187,7 +187,10 @@ path. Historical fallback policies retain their own facts/definition identities
 and are explicitly held as unknown current state. No automatic acceptance,
 publication, signing or player update eligibility follows from this handoff.
 
-Shared response bytes, including identity lookups, are admitted while reading.
+Each source operation admits response bytes, including identity lookups, while
+reading. Its finite byte envelope does not cap cumulative catalog-session work:
+further bounded operations continue while actual quota and runtime remain.
+Failed reads without accepted page/Core progress are not immediately requeued.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
 A handoff that cannot fit the remaining batch stays checkpointed for a later
