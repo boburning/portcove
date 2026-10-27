@@ -17,6 +17,7 @@ import {
   observeUpstream,
   validateObserverConfig,
   validateObservationContinuation,
+  reusableProviderObservation,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -54,6 +55,7 @@ interface Checkpoint {
 }
 export interface AdvanceOptions extends Omit<ObserveOptions, "cache"> {
   project: (observation: Observation) => unknown;
+  reprojectFreshFacts?: boolean;
   catalogIds?: string[];
   commitContinuation?: (checkpoint: unknown) => void | Promise<void>;
   execution?: {
@@ -225,7 +227,51 @@ export async function advanceObservation(
   const retryClock = next.exception?.retry_at ? Date.parse(next.exception.retry_at) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
-      const result = await observeUpstream(config, {
+      let result: Awaited<ReturnType<typeof observeUpstream>> | null = null;
+      if (options.reprojectFreshFacts && next.last_complete) {
+        const retained = reusableProviderObservation(
+          config,
+          next.last_complete.observation,
+          next.last_complete.cache,
+          next.continuation,
+          now(),
+        );
+        if (retained) {
+          let covered = true;
+          if (config.format === 2) {
+            const facts = {
+              ...retained.facts,
+              releases: retained.facts.releases.map((release) => ({ ...release, assets: [] })),
+            };
+            const headers = {
+              ...retained,
+              facts,
+              facts_sha256: observationHash(facts),
+              coverage: {
+                kind: "channel-candidate-assets" as const,
+                complete_release_headers: true as const,
+                asset_release_ids: [],
+              },
+            };
+            if (!options.selectAssetReleases)
+              throw new ObservationFailure(
+                "core-binding",
+                "Current Core selection is required before provider fact reuse",
+              );
+            const selected = await options.selectAssetReleases(headers);
+            const known = new Set(retained.coverage!.asset_release_ids);
+            covered = selected.every((id) => known.has(id));
+          }
+          if (covered)
+            result = {
+              observation: retained,
+              cache: next.last_complete.cache as Awaited<
+                ReturnType<typeof observeUpstream>
+              >["cache"],
+            };
+        }
+      }
+      result ??= await observeUpstream(config, {
         ...options,
         cache: next.last_complete?.cache,
         continuation: next.continuation,

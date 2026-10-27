@@ -144,6 +144,24 @@ export async function runCatalogUpstreams(
   const artifactSizes = new Map<string, number>();
   let artifactBytes = 0;
   return await withCheckpointLock(statePath, async () => {
+    const coreEntry = await lstat(cli, { bigint: true });
+    const assertCoreEntry = async () => {
+      const current = await lstat(cli, { bigint: true });
+      if (
+        !coreEntry.isFile() ||
+        !current.isFile() ||
+        current.isSymbolicLink() ||
+        (["dev", "ino", "size", "mtimeNs", "ctimeNs"] as const).some(
+          (key) => current[key] !== coreEntry[key],
+        )
+      )
+        throw new ObservationFailure(
+          "core-identity",
+          "Core executable identity changed; retain checkpoints and rebind the next invocation",
+        );
+    };
+    const coreIdentity = await fileIdentity(cli, { signal: AbortSignal.timeout(30000) });
+    await assertCoreEntry();
     const result = await advanceCatalogObservations(
       catalog,
       await boundedJson(statePath, 32 * 1024 * 1024, true),
@@ -151,7 +169,7 @@ export async function runCatalogUpstreams(
         config,
         now,
         ...runtime.observer,
-        policyIdentity: (await fileIdentity(cli, { signal: AbortSignal.timeout(30000) })).sha256,
+        policyIdentity: coreIdentity.sha256,
         ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
         withSourceLock: (sourceConfig, operation) =>
           withCheckpointLock(path.join(directory(sourceConfig), "checkpoint.json"), operation),
@@ -218,8 +236,9 @@ export async function runCatalogUpstreams(
             throw error;
           }
         },
-        project: (portId, repositoryId, observation) =>
-          (runtime.project ?? projectObservation)(
+        project: async (portId, repositoryId, observation) => {
+          await assertCoreEntry();
+          const policy = await (runtime.project ?? projectObservation)(
             cli,
             {
               ...config,
@@ -229,7 +248,10 @@ export async function runCatalogUpstreams(
             },
             path.dirname(statePath),
             observation,
-          ),
+          );
+          await assertCoreEntry();
+          return policy;
+        },
         export: async (source, sourceConfig, observation, policies) => {
           const legacy =
             sourceConfig.format === 1 &&

@@ -14,7 +14,11 @@ import type {
   CatalogObservationOptions,
   CatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
-import { observationHash, validateObserverConfig } from "./upstream-observer.mts";
+import {
+  observationHash,
+  reusableProviderObservation,
+  validateObserverConfig,
+} from "./upstream-observer.mts";
 import { config, release } from "./fixtures/upstream-observation-fixtures.mts";
 
 function harness(requests = 256) {
@@ -624,4 +628,248 @@ void test("a refused oversized read with no accepted progress is not immediately
   assert.equal(h.network.filter((url) => url.startsWith("https:")).length, 2);
   assert.equal(result.report.failures.length, 2);
   assert.equal(result.notify_exception, false);
+});
+
+void test("a changed Core reprojects fresh complete facts without provider reads or manufactured freshness", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const network = h.network.length;
+  const freshClocks = Object.fromEntries(
+    Object.entries(first.checkpoint.sources).map(([key, value]) => [
+      key,
+      value.freshness_observed_at,
+    ]),
+  );
+  h.advanceClock(10000);
+  const originalProject = h.options.project;
+  let projections = 0;
+  const result = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    project: async (...args) => {
+      projections++;
+      return {
+        ...((await originalProject(...args)) as Record<string, unknown>),
+        current_core_fixture: true,
+      };
+    },
+  });
+  assert.equal(h.network.length, network);
+  assert.equal(result.report.requests, 0);
+  assert.equal(result.report.completed_source_keys.length, 2);
+  assert.equal(
+    projections,
+    6,
+    "all three ports receive current Core header selection and final policy projection",
+  );
+  for (const [key, progress] of Object.entries(result.checkpoint.sources)) {
+    assert.equal(progress.freshness_observed_at, freshClocks[key]);
+    assert.ok(
+      progress.last_complete_policies.every((policy) => policy.current_core_fixture === true),
+    );
+  }
+});
+
+void test("fresh fact reuse falls back to collection when current Core requires uncovered candidate assets", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const count = h.network.length;
+  const originalProject = h.options.project;
+  const result = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    project: async (...args) => {
+      const policy = (await originalProject(...args)) as {
+        projections: { channel_candidate: { id: number } }[];
+      };
+      if (args[0] === "other-port") policy.projections[0]!.channel_candidate.id = 2;
+      return policy;
+    },
+  });
+  assert.equal(result.report.completed_source_keys.length, 2);
+  assert.ok(h.network.length > count);
+  assert.ok(h.network.slice(count).every((url) => url.includes("owner/other")));
+  assert.ok(h.network.slice(count).some((url) => url.includes("releases/2/assets")));
+});
+
+void test("expired provider facts are observed again after a changed Core", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const count = h.network.length;
+  h.advanceClock(13 * 3600000);
+  const result = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+  });
+  assert.equal(result.report.completed_source_keys.length, 2);
+  assert.ok(h.network.length > count);
+  for (const [key, progress] of Object.entries(result.checkpoint.sources))
+    assert.notEqual(
+      progress.freshness_observed_at,
+      first.checkpoint.sources[key]!.freshness_observed_at,
+    );
+});
+
+void test("cancellation after a reused-facts Core call cannot retain current eligibility", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const originalProject = h.options.project;
+  const control = new AbortController();
+  const result = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    signal: control.signal,
+    project: async (...args) => {
+      const result = await originalProject(...args);
+      control.abort();
+      return result;
+    },
+  });
+  assert.equal(result.report.completed_source_keys.length, 0);
+  assert.ok(result.report.source_statuses.every((status) => !status.current_scope_complete));
+  assert.equal(result.report.requests, 0);
+});
+
+void test("current Core can reproject complete facts while the provider remains durably unavailable", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  first.checkpoint.provider_retry_at = new Date(
+    Date.parse(first.report.generated_at) + 3600000,
+  ).toISOString();
+  const count = h.network.length;
+  const next = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+  });
+  assert.equal(h.network.length, count);
+  assert.equal(next.report.completed_source_keys.length, 2);
+  assert.equal(next.checkpoint.provider_retry_at, first.checkpoint.provider_retry_at);
+});
+
+void test("provider fact reuse refuses missing page coverage, corrupt facts and changed repository identity", async () => {
+  const h = harness();
+  await advanceCatalogObservations(h.input, null, h.options);
+  const [, config, result] = h.exported[0]!;
+  const complete = result.checkpoint.last_complete!;
+  const now = Date.parse(result.report.generated_at);
+  assert.ok(
+    reusableProviderObservation(config, complete.observation, complete.cache, undefined, now),
+  );
+  const brokenCache = structuredClone(complete.cache) as {
+    pages: Record<string, { body: unknown; sha256: string; link: string; etag: string }>;
+  };
+  const assetPage = Object.keys(brokenCache.pages).find((url) => url.includes("/assets"))!;
+  delete brokenCache.pages[assetPage];
+  assert.throws(
+    () => reusableProviderObservation(config, complete.observation, brokenCache, undefined, now),
+    /incomplete page chain/,
+  );
+  const observation = structuredClone(complete.observation);
+  observation.facts_sha256 = "b".repeat(64);
+  assert.throws(
+    () => reusableProviderObservation(config, observation, complete.cache, undefined, now),
+    /facts differ/,
+  );
+  const changedConfig = { ...config, repository_id: config.repository_id + 1 };
+  assert.throws(
+    () =>
+      reusableProviderObservation(
+        changedConfig,
+        complete.observation,
+        complete.cache,
+        undefined,
+        now,
+      ),
+    /scope differs/,
+  );
+  assert.equal(
+    reusableProviderObservation(
+      config,
+      complete.observation,
+      complete.cache,
+      undefined,
+      now + config.stale_after_hours * 3600000,
+    ),
+    null,
+  );
+});
+
+void test("known changed partial provider facts cannot be replaced by an older fresh snapshot", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const [, config, result] = h.exported.find(([source]) => source.repository === "owner/other")!;
+  const state = structuredClone(result.checkpoint);
+  const proof = state.last_complete!.cache as {
+    pages: Record<string, { body: unknown; sha256: string; link: string; etag: string }>;
+  };
+  const url = Object.keys(proof.pages).find((url) => /\/releases\?/.test(url))!;
+  const page = structuredClone(proof.pages[url]!);
+  const rows = page.body as { id: number; tag_name: string }[];
+  rows.find((row) => row.id === 1)!.tag_name = "v1.1.0";
+  page.sha256 = observationHash(rows);
+  state.continuation = {
+    format: 1,
+    config_sha256: observationHash(config),
+    started_at: first.report.generated_at,
+    phase: "collect",
+    pages: { [url]: page },
+    validation_cursor: 0,
+    first_validated_at: null,
+    last_validated_at: null,
+    validation_order_sha256: null,
+    consumed: { requests: 1, response_bytes: 1, conditional_hits: 0 },
+  };
+  h.states.set(observationHash(config), state);
+  h.bumpRelease();
+  const count = h.network.length;
+  const next = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+  });
+  assert.ok(h.network.length > count);
+  const other = Object.values(next.checkpoint.sources).find(
+    (source) => source.repository === "owner/other",
+  )!;
+  assert.notEqual(
+    other.last_complete_facts_sha256,
+    Object.values(first.checkpoint.sources).find((source) => source.repository === "owner/other")!
+      .last_complete_facts_sha256,
+  );
+});
+
+void test("a Core executable changed during projection cannot publish a completed source scope", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "portcove-core-change-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness();
+  const legacy = validateObserverConfig({
+    ...config,
+    port_id: "stable-port",
+    repository: "owner/shared",
+    repository_id: 7,
+  });
+  await mkdir(path.join(root, "release"), { recursive: true });
+  await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  const cli = path.join(root, "inspector");
+  await writeFile(cli, "original mock Core identity");
+  await writeFile(path.join(root, "release/upstream-observer.json"), JSON.stringify(legacy));
+  await writeFile(
+    path.join(root, "crates/portcove-core/catalog/catalog.json"),
+    JSON.stringify({ ports: h.input.ports.slice(0, 2) }),
+  );
+  const result = await runCatalogUpstreams(["--cli", cli], {
+    root,
+    now: h.options.now!,
+    observer: { fetch: h.options.fetch! },
+    log: () => {},
+    api: { request: () => assert.fail("Legacy exact source identity needs no lookup") },
+    project: async (_cli, source, _directory, observation) => {
+      await writeFile(cli, "changed mock Core identity");
+      return h.options.project(source.port_id, source.repository_id, observation);
+    },
+  });
+  assert.equal(result.report.completed_source_keys.length, 0);
+  assert.equal(result.report.failures[0]!.rule, "core-identity");
+  assert.ok(result.report.source_statuses.every((source) => !source.current_scope_complete));
 });

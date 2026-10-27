@@ -419,12 +419,27 @@ export async function advanceCatalogObservations(
         "core-binding",
         "Core projection differs from the exact port, source or provider facts",
       );
+    if (options.signal?.aborted)
+      throw new ObservationFailure(
+        "cancelled",
+        "Observation cancelled before retaining Core projection",
+      );
     return policy;
   };
   for (const [index, source] of pending.entries()) {
     if (options.signal?.aborted || now() >= deadline) break;
     // Completed provider reads may still admit offline Core continuation while the provider is unavailable.
-    if (capacity() < 1 && !state.sources[source.key]?.policy_progress) continue;
+    const previousProgress = state.sources[source.key];
+    const reprojectFreshFacts =
+      previousProgress !== undefined &&
+      previousProgress.completed_scope_sha256 !== scopeBinding(source) &&
+      previousProgress.last_complete_facts_sha256 !== null;
+    const freshOfflineCandidate =
+      reprojectFreshFacts &&
+      previousProgress.freshness_observed_at !== null &&
+      now() - Date.parse(previousProgress.freshness_observed_at) <
+        template.stale_after_hours * 3600000;
+    if (capacity() < 1 && !previousProgress?.policy_progress && !freshOfflineCandidate) continue;
     operationBytes = 0;
     const progress = state.sources[source.key] ?? {
       repository: source.repository,
@@ -581,6 +596,7 @@ export async function advanceCatalogObservations(
           ...(options.sleep ? { sleep: options.sleep } : {}),
           now,
           catalogIds,
+          reprojectFreshFacts,
           admitRequest: () => {
             if (sourceRequests >= quantum)
               throw new ObservationFailure(
