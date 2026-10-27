@@ -2260,7 +2260,7 @@
           },
           {
             "title": "Keep current progress and the creating build for quickstates",
-            "instruction": "Before changing an external copy, close the game and back up its settings, cartridge saves, campaign companions, quickstates and thumbnails, and the separately selected original/converted packs. Quickstates require the same build and configuration; runtime rollback does not rewind saves or guarantee old-reader compatibility. Upstream or you update the external copy, which has no Portcove-managed Backup or Rollback. An older managed v0.5.3 installation keeps its retained definition; changed data coordinates remain held until a supported transition is available. Keep that working version and its data rather than deleting it to get the newer copy."
+            "instruction": "Before changing an external copy, close the game and back up its settings, cartridge saves, campaign companions, quickstates and thumbnails, and the separately selected original/converted packs. Quickstates require the same build and configuration; runtime rollback does not rewind saves or guarantee old-reader compatibility. Upstream or you update the external copy, which has no Portcove-managed Backup or Rollback. An older managed v0.5.3 copy keeps working. A version change can proceed when the extra data locations are empty; otherwise Portcove reports the conflicting paths and keeps the current copy. Keep that working version and its data rather than deleting it to get the newer copy."
           }
         ]
       },
