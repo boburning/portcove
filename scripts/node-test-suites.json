@@ -533,7 +533,7 @@
       "memberships": [
         ["catalog-full-2", 200],
         ["development-tools", 400],
-        ["windows-storage-3", 1000107]
+        ["windows-storage-3", 1000108]
       ],
       "platform_skips": [
         {
@@ -711,7 +711,7 @@
       "memberships": [
         ["catalog-full-2", 11600],
         ["release-check", 9700],
-        ["windows-storage-3", 1000108]
+        ["windows-storage-3", 1000109]
       ],
       "platform_skips": [
         {
@@ -988,7 +988,7 @@
       "memberships": [
         ["frontend-full", 50],
         ["development-tools", 5200],
-        ["windows-storage-3", 1000109]
+        ["windows-storage-3", 1000107]
       ],
       "platform_skips": [
         {
