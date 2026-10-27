@@ -944,7 +944,7 @@ async function main() {
 }
 
 async function settleDirectCli() {
-  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+  if (import.meta.main) {
     await main();
   }
 }

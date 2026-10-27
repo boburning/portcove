@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   readFileSync,
+  realpathSync,
   mkdtempSync,
   mkdirSync,
   writeFileSync,
@@ -140,7 +141,9 @@ void test("Windows driver-only preparation excludes broad development installati
 });
 
 function bootstrapFixture(t: TestContext) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces "));
+  const directory = realpathSync.native(
+    mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces ")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const project = path.join(directory, "checkout with spaces");
   const bin = path.join(directory, "commands");
