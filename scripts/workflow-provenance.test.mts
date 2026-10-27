@@ -710,6 +710,7 @@ void test("preflight and controller share the exact hosted script authority boun
     "scripts/node-platform-skips.mts",
     "scripts/node-test-suites.mts",
     "scripts/node-test-suites.json",
+    "apps/desktop/src/browser/failure-probe-contract.ts",
   ])
     assert.ok(
       isHostedLocalCheckScriptAuthority(file) && hostedLocalCheckAuthorityPaths.includes(file),

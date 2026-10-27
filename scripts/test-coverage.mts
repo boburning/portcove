@@ -151,6 +151,7 @@ function retainSources(packet: CoveragePacket) {
     "scripts/node-test-suites.json",
     "scripts/run-ui-tests.mts",
     "scripts/ui-test-selection.mts",
+    "apps/desktop/src/browser/failure-probe-contract.ts",
     "package.json",
     "pnpm-lock.yaml",
   ].map((file) => {

@@ -35,6 +35,75 @@ def has_failure(record):
     )
 
 
+# This inventory describes existing unittest guards; it never grants prerequisites.
+SKIP_ROUTES = {
+    "scripts/prepare-hosted-native-linux-installation.test.py": [
+        ("RuntimePackages.", ("linux",), "actual Linux filesystem/command contracts"),
+        ("DependencyGraph.", ("linux",), "actual Linux file/link custody contracts"),
+    ],
+    "scripts/qualify-hosted-native-linux.test.py": [
+        ("RuntimeInputFixture.", ("linux",), "actual original Linux parent identity and filesystem"),
+    ],
+    "scripts/release-hosted-native-linux-capture.test.py": [
+        ("Inventory.test_git_is_fixed_scrubbed_bounded_read_only_and_preserves_refusal", ("linux", "darwin"),
+         "Actual Linux pipe/group contract; Windows reader contracts run separately"),
+    ],
+    "apps/desktop/scripts/native-linux-public-services.test.py": [
+        ("PosixContracts.", ("linux", "darwin"), "actual POSIX file/pipe/thread behavior is required on Linux CI"),
+    ],
+    "apps/desktop/scripts/native-linux-public-network.test.py": [
+        ("ControlledPrivateRelay.", ("linux", "darwin"), "actual private pipe selector is qualified on ordinary Linux CI"),
+    ],
+    "apps/desktop/scripts/native-linux-public-fuse.test.py": [
+        ("ActualUnixDescriptors.", ("linux",), "requires actual Linux Unix descriptor transport"),
+    ],
+}
+
+
+def skip_parent(filename):
+    return "scripts/" + {
+        "prepare-hosted-native-linux-installation.test.py": "release-hosted-native-installation.test.mts",
+        "qualify-hosted-native-linux.test.py": "hosted-native-continuity.test.mts",
+    }.get(filename.name, filename.stem + ".mts")
+
+
+def skip_inventory(filename, selected, records):
+    root = Path(__file__).resolve().parent.parent
+    try:
+        source = filename.relative_to(root).as_posix()
+    except ValueError:
+        source = None
+    managed = (source is not None and filename.name.endswith(".test.py")
+               and filename.parent in (root / "scripts", root / "apps/desktop/scripts"))
+    declarations = SKIP_ROUTES.get(source, []) if managed else []
+    parent = skip_parent(filename)
+    rows, errors = [], []
+    for prefix, platforms, reason in declarations:
+        names = [name for name in selected
+                 if (name.startswith(prefix) if prefix.endswith(".") else name == prefix)]
+        if not names:
+            errors.append("Declared Python skip route disappeared: " + prefix)
+        for name in names:
+            outcomes = [item for item in records if item["kind"] == "test" and item["id"] == name]
+            rows.append({"id": name, "category": "platform", "platforms": list(platforms),
+                         "prerequisite": reason, "intended_route":
+                         ".github/workflows/ci.yml: ordinary Linux Node owner for " + parent,
+                         "intended_parent": parent,
+                         "original_skip_reason": outcomes[0]["reason"] if len(outcomes) == 1 and outcomes[0]["status"] == "skipped" else None,
+                         "observations": len(outcomes)})
+            if len(outcomes) != 1:
+                errors.append("Declared Python skip case missing or ambiguous: " + name)
+            elif (outcomes[0]["status"] == "skipped") != (sys.platform not in platforms):
+                errors.append("Python skip differs from intended platform execution: " + name)
+    declared = {row["id"] for row in rows}
+    if managed:
+        for item in records:
+            if item["status"] == "skipped" and item["id"] not in declared:
+                errors.append("Unregistered Python skip: " + item["id"])
+    return {"evaluation": "owned_suite" if managed else "unmanaged_fixture",
+            "contracts": rows, "errors": errors[:32]}
+
+
 class CaseResults(unittest.TextTestResult):
     def __init__(self, *args):
         super().__init__(*args)
@@ -163,6 +232,9 @@ def main():
             raise RuntimeError("Python suite changed during execution")
         if Path(__file__).read_bytes() != reporter_before:
             raise RuntimeError("Python reporter changed during execution")
+        skips = skip_inventory(filename, selected, result.records)
+        if skips["errors"]:
+            result.reporting_error = result.reporting_error or bounded("; ".join(skips["errors"]))
         report = {
             "format_version": 1, "runner": "python-unittest", "platform": sys.platform,
             "python": platform.python_version(), "source": str(filename),
@@ -172,6 +244,7 @@ def main():
             "exit_status": status or (1 if result.reporting_error else 0),
             "incomplete_reason": result.reporting_error,
             "duration_ms": (time.perf_counter() - started) * 1000, "cases": result.records,
+            "skip_inventory": skips,
         }
         encoded = json.dumps(report, ensure_ascii=True, allow_nan=False)
         if len(encoded.encode("utf-8")) > MAX_REPORT_BYTES:

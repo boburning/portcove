@@ -1337,6 +1337,7 @@ for (const [file, tests] of [
     ],
   ],
   ["scripts/ui-test-selection.mts", ["scripts/ui-test-selection.test.mts"]],
+  ["apps/desktop/src/browser/failure-probe-contract.ts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-ui-tests.mts", ["scripts/ui-test-selection.test.mts"]],
   ...[
     "test-coverage",
@@ -2262,6 +2263,8 @@ function classifyOnePath(
       "apps/desktop/pnpm-workspace.yaml",
       "scripts/browser-traces.ts",
       "scripts/frontend-case-observations.ts",
+      "scripts/ui-test-selection.mts",
+      "apps/desktop/src/browser/failure-probe-contract.ts",
       "scripts/viteplus-cli.mts",
       "scripts/frontend-tests.ts",
       "scripts/run-ui-tests.mts",

@@ -222,6 +222,12 @@ void test("frontend outcome reporter selects the full maintained frontend consum
   assert.ok(plan([change(file)]).groups.includes("frontend"));
 });
 
+void test("the browser skip permission input retains both frontend and ordinary policy consumers", () => {
+  const selected = plan([change("apps/desktop/src/browser/failure-probe-contract.ts")]);
+  for (const group of ["frontend", "catalog", "rust-quality"])
+    assert.ok(selected.groups.includes(group as ValidationGroup), group);
+});
+
 void test("shared frontend compiler policy selects the same required checks as the root compiler config", () => {
   const shared = validationOwnershipForPath("tsconfig.base.json");
   const root = validationOwnershipForPath("tsconfig.json");

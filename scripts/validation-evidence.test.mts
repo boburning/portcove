@@ -204,6 +204,7 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
   const cases: [string, ValidationDomain[]][] = [
     ...[
       "scripts/node-platform-skips.mts",
+      "apps/desktop/src/browser/failure-probe-contract.ts",
       "scripts/node-test-suites.mts",
       "scripts/node-test-suites.json",
     ].map((file): [string, ValidationDomain[]] => [

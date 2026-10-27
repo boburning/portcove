@@ -337,6 +337,7 @@ jobs:
           name: runtime-diagnostics-windows-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.partition }}
           path: |
             work/runtime-diagnostics/windows/
+            work/test-results/windows-rust-skip-routes/
             target/nextest/hosted-windows/junit.xml
           if-no-files-found: warn
           retention-days: 7

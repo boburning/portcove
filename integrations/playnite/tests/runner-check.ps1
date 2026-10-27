@@ -81,10 +81,23 @@ $skipRecords = @($skipped | Where-Object { $_.StartsWith('SCENARIO ') } | ForEac
 Assert-ScenarioIdentity $skipRecords $Executable
 if ($skipRecords.Count -ne 1 -or $skipRecords[0].id -ne 'compiled-cli-consumer' -or
     $skipRecords[0].status -ne 'skipped' -or $skipRecords[0].checks -ne 0 -or
+    $skipRecords[0].skip_contract.category -cne 'supervised-parent' -or
+    !$skipRecords[0].skip_contract.intended_parent -or $skipRecords[0].skip_contract.error -ne $null -or
     !$skipRecords[0].skip_reason -or !($skipped -contains 'FAIL 0 reference-client contract checks')) {
     throw "Skipped-only selection fabricated a pass or lost its reason: $skipped"
 }
 foreach ($line in $skipped) { Write-Output "RUNNER_SKIP_CONTROL_OUTPUT $line" }
+$unregistered = @(Invoke-RunnerControl $Executable @('--runner-skip-route-control') 1)
+Assert-ScenarioInventory $unregistered @('control-unregistered-skip', 'control-after-skip') @('control-unregistered-skip', 'control-after-skip') @{
+    executed = 1; skipped = 1; failed = 0; reported = 2; records_complete = $true
+}
+$unknown = @($unregistered | Where-Object { $_.StartsWith('SCENARIO ') } | ForEach-Object { $_.Substring(9) | ConvertFrom-Json })
+Assert-ScenarioIdentity $unknown $Executable
+if ($unknown[0].status -cne 'skipped' -or $unknown[0].skip_reason -cne 'Original unregistered skip' -or
+    $unknown[0].skip_contract.error -cne 'Undeclared scenario skip route' -or $unknown[1].status -cne 'passed') {
+    throw 'Undeclared skip refusal changed original outcomes or lost its later independent case.'
+}
+foreach ($line in $unregistered) { Write-Output "RUNNER_SKIP_ROUTE_CONTROL_OUTPUT $line" }
 foreach ($field in @('invocation', 'source', 'platform', 'runner', 'runtime', 'architecture')) {
     $changed = @($records | ConvertTo-Json -Depth 8 | ConvertFrom-Json)
     switch ($field) {
