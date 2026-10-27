@@ -602,6 +602,7 @@ function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
     );
     manifest_evidence = { commit: ref, blob: got.sha, status: "project-claim" };
   } catch (e) {
+    if (e instanceof DiscoveryCheckpointInterrupted) throw e;
     if (
       e instanceof GitHubApiError &&
       (["budget_exhausted", "rate_limited"].includes(e.code) ||

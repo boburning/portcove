@@ -401,3 +401,36 @@ void test("a source burst exceeds former record and pending counts within a boun
   );
   assert.equal(Object.keys(next.pending).length, 12001);
 });
+
+void test("optional-manifest checkpoint interruption cannot discard completed primary research", () => {
+  const h = primaryFixture();
+  h.setAllowance(100);
+  const persist = h.context.primaryProgress.persist;
+  let interrupted = false;
+  h.context.primaryProgress.persist = () => {
+    persist();
+    const saved = h.entries["owner/game"] as { reads: { endpoint: string }[] } | undefined;
+    if (!interrupted && saved?.reads.at(-1)?.endpoint.includes("/contents/.recomp.json?")) {
+      interrupted = true;
+      throw new Error("fixture interruption at optional manifest");
+    }
+  };
+  assert.throws(
+    () => investigateDiscoveryUpstream(h.context, "owner/game"),
+    /checkpoint interrupted/,
+  );
+  const saved = h.entries["owner/game"] as { reads: { endpoint: string }[] };
+  assert.ok(saved.reads.at(-1)!.endpoint.includes("/contents/.recomp.json?"));
+  const accepted = saved.reads
+    .map((read) => read.endpoint)
+    .filter((endpoint) => !endpoint.includes(".recomp.json"));
+  h.context.primaryProgress.persist = persist;
+  h.setAllowance(100);
+  const result = investigateDiscoveryUpstream(h.context, "owner/game");
+  assert.equal(result.releases.length, 24);
+  for (const endpoint of accepted)
+    assert.equal(
+      h.calls.filter((call) => call.endpoint === endpoint && !call.conditional).length,
+      1,
+    );
+});
