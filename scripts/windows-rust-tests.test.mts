@@ -493,11 +493,35 @@ void test("Windows Rust keeps exhaustive parallel gates without duplicate setup"
   );
   assert.match(rustTests, /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
   assert.match(rustTests, /runs-on: windows-latest/);
-  assert.match(
-    rustTests,
-    /shard:\s*\[\s*core-service-1,\s*core-service-2,\s*core-recovery,\s*core-other-1,\s*core-other-2,?\s*\]/,
+  const shardJob = workflowJob("rust_tests");
+  assert.ok(isRecord(shardJob.strategy) && isRecord(shardJob.strategy.matrix));
+  const shards = shardJob.strategy.matrix.shard;
+  assert.ok(Array.isArray(shards));
+  assert.deepEqual(
+    shards
+      .map((value: unknown) => {
+        assert.equal(typeof value, "string");
+        return String(value);
+      })
+      .toSorted(),
+    [
+      "core-service-1",
+      "core-service-2",
+      "core-recovery",
+      "core-other-1",
+      "core-other-2",
+    ].toSorted(),
   );
-  assert.match(rustTests, /needs: \[classify, qualification_core_archive\]/u);
+  assert.ok(Array.isArray(shardJob.needs));
+  assert.deepEqual(
+    shardJob.needs
+      .map((value: unknown) => {
+        assert.equal(typeof value, "string");
+        return String(value);
+      })
+      .toSorted(),
+    ["classify", "qualification_core_archive"],
+  );
   assert.match(rustTests, /windows-rust-tests\.mts run-qualification \$\{\{ matrix\.shard \}\}/u);
   assert.match(
     rustTests,
@@ -539,6 +563,9 @@ void test("Windows Rust keeps exhaustive parallel gates without duplicate setup"
   assert.doesNotMatch(windowsStorage, /continue-on-error/);
 
   assert.match(rust, /^ {4}if: always\(\)$/m);
+  const rustGate = workflowJob("rust");
+  assert.ok(Array.isArray(rustGate.needs));
+  const dependencies: unknown[] = rustGate.needs;
   for (const dependency of [
     "classify",
     "prose_checks",
@@ -552,7 +579,7 @@ void test("Windows Rust keeps exhaustive parallel gates without duplicate setup"
     "intel_tests",
     "rust_docs",
   ])
-    assert.match(rust, new RegExp(`^ {8}${dependency},?$`, "m"));
+    assert.ok(dependencies.includes(dependency), `Rust aggregate must require ${dependency}`);
   for (const dependency of [
     "qualification_core_archive",
     "rust_tests",

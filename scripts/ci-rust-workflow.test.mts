@@ -68,14 +68,22 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
   assert.match(fastRustTests, /windows-rust-tests\.mts run/u);
   assert.match(fastRustTests, /PORTCOVE_DIAGNOSTICS_SOURCE_REVISION=.*GITHUB_ENV/u);
-  assert.match(
-    fastRustQuality,
-    /uses: \.\/\.github\/actions\/setup-rust\n\s+if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\)\n\s+with:\n\s+test-fixtures: true/u,
+  const quality = workflowJob("fast_rust_quality");
+  assert.ok(Array.isArray(quality.steps));
+  const qualitySetup: unknown = quality.steps.find(
+    (step: unknown) => isRecord(step) && step.uses === "./.github/actions/setup-rust",
   );
-  assert.match(
-    fastRustTests,
-    /- name: Retain runtime diagnostics acceptance and latency evidence\n\s+if: always\(\)/u,
+  assert.ok(isRecord(qualitySetup) && isRecord(qualitySetup.with));
+  assert.equal(qualitySetup.if, "contains(fromJSON(needs.classify.outputs.groups_json), 'rust')");
+  assert.equal(qualitySetup.with["test-fixtures"], true);
+  const tests = workflowJob("fast_rust_tests");
+  assert.ok(Array.isArray(tests.steps));
+  const windowsRetained: unknown = tests.steps.find(
+    (step: unknown) =>
+      isRecord(step) && step.name === "Retain runtime diagnostics acceptance and latency evidence",
   );
+  assert.ok(isRecord(windowsRetained));
+  assert.equal(windowsRetained.if, "always()");
   const linuxFixture: Record<string, unknown> & { run: string } = workflowStep(
     "fast_rust_quality",
     "Test typed runtime diagnostics and frontend admission on Linux",

@@ -1,3 +1,5 @@
+import { workflowJobs } from "./qualification-coverage.mts";
+import { readWorkflow } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
 import { isRecord } from "./runtime-values.mts";
 import { errorCode } from "./runtime-values.mts";
@@ -8,7 +10,7 @@ import { parseDocument } from "yaml";
 import { spawnSync } from "node:child_process";
 
 import { requiredFixture } from "./ci-workflow-fixture.mts";
-import { workflow } from "./ci-workflow-fixture.mts";
+import { workflow, workflowJob } from "./ci-workflow-fixture.mts";
 import { workflowStep } from "./ci-workflow-fixture.mts";
 import { rustTests } from "./ci-workflow-fixture.mts";
 import { rustWorkspaceTests } from "./ci-workflow-fixture.mts";
@@ -22,30 +24,37 @@ import { rustDocs } from "./ci-workflow-fixture.mts";
 import { rustQuality } from "./ci-workflow-fixture.mts";
 
 void test("Linux desktop prerequisite installation is shared, bounded, and retrying", async () => {
-  const deepQuality = await readFile(
+  const deepQuality = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
-  const release = await readFile(
-    new URL("../.github/workflows/release.yml", import.meta.url),
-    "utf8",
-  );
-  const updaterRehearsal = await readFile(
+  const release = await readWorkflow(new URL("../.github/workflows/release.yml", import.meta.url));
+  const updaterRehearsal = await readWorkflow(
     new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
-    "utf8",
   );
-  const packageOwnershipRehearsal = await readFile(
+  const packageOwnershipRehearsal = await readWorkflow(
     new URL("../.github/workflows/linux-package-ownership-rehearsal.yml", import.meta.url),
-    "utf8",
   );
   const installer = await readFile(
     new URL("./install-linux-desktop-prerequisites.sh", import.meta.url),
     "utf8",
   );
-  const invocation =
-    /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
-
-  assert.equal((workflow.match(invocation) ?? []).length, 0);
+  const installerSteps = (source: string) =>
+    Object.values(workflowJobs(source))
+      .flatMap((job): unknown[] => (Array.isArray(job.steps) ? job.steps : []))
+      .filter(
+        (step: unknown): step is Record<string, unknown> & { run: string } =>
+          isRecord(step) &&
+          typeof step.run === "string" &&
+          step.run.startsWith("./scripts/install-linux-desktop-prerequisites.sh"),
+      );
+  const defaultInstall = "./scripts/install-linux-desktop-prerequisites.sh";
+  assert.equal(installerSteps(workflow).length, 3);
+  assert.equal(
+    installerSteps(workflow).filter(
+      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+    ).length,
+    0,
+  );
   const schemaInstall: Record<string, unknown> & { run: string } = workflowStep(
     "rust_quality_full",
     "Install Linux desktop schema-export prerequisites",
@@ -67,24 +76,53 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   );
   assert.equal(docsInstall["timeout-minutes"], 30);
   assert.equal(docsInstall.run, schemaInstall.run);
-  assert.equal((deepQuality.match(invocation) ?? []).length, 1);
-  assert.equal((release.match(invocation) ?? []).length, 2);
-  assert.match(
-    updaterRehearsal,
-    /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm --include-appimage-runtime/,
+  assert.equal(
+    installerSteps(deepQuality).filter(
+      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+    ).length,
+    1,
   );
-  assert.match(
-    updaterRehearsal,
-    /linux_runner:\r?\n\s+description: [^\r\n]+\r?\n\s+type: choice\r?\n\s+default: ubuntu-24\.04\r?\n\s+options: \[ubuntu-22\.04, ubuntu-24\.04\]/,
+  assert.equal(
+    installerSteps(release).filter(
+      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+    ).length,
+    2,
   );
+  assert.equal(
+    installerSteps(updaterRehearsal).filter(
+      (step) =>
+        step.run ===
+          defaultInstall + " --include-rpm --include-appimage-runtime --include-webdriver" &&
+        step["timeout-minutes"] === 15,
+    ).length,
+    1,
+  );
+  const settings: unknown = parseDocument(updaterRehearsal).toJS();
+  assert.ok(
+    isRecord(settings) &&
+      isRecord(settings.on) &&
+      isRecord(settings.on.workflow_dispatch) &&
+      isRecord(settings.on.workflow_dispatch.inputs),
+  );
+  const runner = settings.on.workflow_dispatch.inputs.linux_runner;
+  assert.ok(isRecord(runner));
+  assert.equal(runner.type, "choice");
+  assert.equal(runner.default, "ubuntu-24.04");
+  assert.deepEqual(runner.options, ["ubuntu-22.04", "ubuntu-24.04"]);
+  assert.ok(typeof runner.description === "string" && runner.description.length);
   assert.match(
     updaterRehearsal,
     /runs-on: \$\{\{ matrix\.label == 'linux-x86_64' && inputs\.linux_runner \|\| fromJSON\('[^']+'\)\[matrix\.label\] \}\}/,
   );
   assert.match(updaterRehearsal, /work\/updater-rehearsal\/linux-host-baseline\.txt/g);
-  assert.match(
-    packageOwnershipRehearsal,
-    /timeout-minutes: 30\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm --install-timeout-seconds=600 --prefer-archive-mirror/,
+  assert.equal(
+    installerSteps(packageOwnershipRehearsal).filter(
+      (step) =>
+        step.run ===
+          defaultInstall + " --include-rpm --install-timeout-seconds=600 --prefer-archive-mirror" &&
+        step["timeout-minutes"] === 30,
+    ).length,
+    1,
   );
   for (const hostedWorkflow of [
     workflow,
@@ -141,9 +179,8 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
 });
 
 void test("repository Rust setup provisions components before ordinary identity probes", async () => {
-  const setup = await readFile(
+  const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
-    "utf8",
   );
   assert.match(setup, /components: \$\{\{ steps\.repository-toolchain\.outputs\.components \}\}/);
   assert.match(
@@ -158,9 +195,8 @@ void test("repository Rust setup provisions components before ordinary identity 
 });
 
 void test("Rust setup installs the repository pin instead of an unrelated stable toolchain", async () => {
-  const setup = await readFile(
+  const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
-    "utf8",
   );
   assert.match(setup, /Get-Content rust-toolchain\.toml -Raw/);
   assert.match(setup, /toolchain: \$\{\{ steps\.repository-toolchain\.outputs\.channel \}\}/);
@@ -195,9 +231,8 @@ void test("Rust setup installs the repository pin instead of an unrelated stable
 });
 
 void test("release, rehearsal and deep audit Rust callers preserve repository pin, components, targets and caches", async (t) => {
-  const setup = await readFile(
+  const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
-    "utf8",
   );
   const toolchain = await readFile(new URL("../rust-toolchain.toml", import.meta.url), "utf8");
   const components: unknown = JSON.parse(
@@ -216,45 +251,33 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
   assert.doesNotMatch(setup, /RUSTUP_TOOLCHAIN|& (?:rustc|cargo) \+/);
   assert.doesNotMatch(toolchain, /^targets\s*=/m);
 
-  function job(source: string, name: string) {
-    const section = source.match(
-      new RegExp(`^ {2}${name}:\\r?\\n([\\s\\S]*?)(?=^ {2}\\S|$(?![\\s\\S]))`, "m"),
-    )?.[1];
-    assert.ok(section, `missing ${name} job`);
-    return section;
-  }
-
-  function steps(source: string, reference: string) {
-    const escaped = reference.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return (
-      source.match(new RegExp(`^ {6}- uses: ${escaped}\\r?\\n(?: {8}[^\\r\\n]*\\r?\\n)*`, "gm")) ??
-      []
+  const cachePin = "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0";
+  function actionSteps(owner: Record<string, unknown>, reference: string) {
+    assert.ok(Array.isArray(owner.steps));
+    const steps: unknown[] = owner.steps;
+    return steps.filter(
+      (step): step is Record<string, unknown> => isRecord(step) && step.uses === reference,
     );
   }
-
-  function assertHostSetup(section: string, cacheSetting?: string) {
-    assert.deepEqual(steps(section, "./.github/actions/setup-rust"), [
-      "      - uses: ./.github/actions/setup-rust\n",
-    ]);
+  function assertHostSetup(owner: Record<string, unknown>, cacheSetting?: string) {
+    const setupSteps = actionSteps(owner, "./.github/actions/setup-rust");
+    const caches = actionSteps(owner, cachePin);
+    assert.equal(setupSteps.length, 1);
+    assert.equal(caches.length, 1);
+    const shim = requiredFixture(setupSteps[0]),
+      cache = requiredFixture(caches[0]);
+    assert.equal(shim.with, undefined);
+    for (const step of [shim, cache]) {
+      assert.equal(step.if, undefined);
+      assert.equal(step["continue-on-error"], undefined);
+    }
+    const expected: unknown = cacheSetting ? parseDocument(cacheSetting).toJS() : {};
+    assert.deepEqual(cache.with ?? {}, expected);
     assert.doesNotMatch(
-      section,
+      JSON.stringify(owner),
       /dtolnay\/rust-toolchain|RUSTUP_TOOLCHAIN|(?:rustc|cargo) \+|rustup (?:default|override|toolchain|component|target)/,
     );
-    const cache = steps(
-      section,
-      "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3",
-    );
-    assert.deepEqual(
-      cache.map((step: string) => step.replace(/^ {10}#.*\r?\n/gm, "")),
-      [
-        "      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3\n" +
-          (cacheSetting ? `        with:\n          ${cacheSetting}\n` : ""),
-      ],
-    );
-    assert.ok(
-      section.indexOf("uses: ./.github/actions/setup-rust") <
-        section.indexOf("uses: Swatinem/rust-cache@"),
-    );
+    assert.ok(Array.isArray(owner.steps) && owner.steps.indexOf(shim) < owner.steps.indexOf(cache));
   }
 
   for (const [file, name, cacheSetting] of [
@@ -264,51 +287,42 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
     ["deep-quality.yml", "audit", "shared-key: deep-quality-ubuntu-22.04"],
   ] as const) {
     await t.test(`${file} ${name}`, async () => {
-      const source = await readFile(
-        new URL(`../.github/workflows/${file}`, import.meta.url),
-        "utf8",
-      );
-      const section = job(source, name);
-      assertHostSetup(section, cacheSetting);
+      const source = await readWorkflow(new URL(`../.github/workflows/${file}`, import.meta.url));
+      const owner = workflowJob(name, source);
+      assertHostSetup(owner, cacheSetting);
       for (const replacement of [
-        "      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c\n",
-        "      - uses: ./.github/actions/setup-rust\n        with:\n          toolchain: stable\n",
-        "      - uses: ./.github/actions/setup-rust\n        with:\n          targets: aarch64-unknown-linux-gnu\n",
-        "      - uses: ./.github/actions/setup-rust\n        with:\n          test-fixtures: true\n",
+        { uses: "dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c" },
+        { uses: "./.github/actions/setup-rust", with: { toolchain: "stable" } },
+        { uses: "./.github/actions/setup-rust", with: { targets: "aarch64-unknown-linux-gnu" } },
+        { uses: "./.github/actions/setup-rust", with: { "test-fixtures": true } },
       ]) {
-        assert.throws(() =>
-          assertHostSetup(
-            section.replace("      - uses: ./.github/actions/setup-rust\n", replacement),
-            cacheSetting,
-          ),
+        const changed = structuredClone(owner);
+        assert.ok(Array.isArray(changed.steps));
+        changed.steps = changed.steps.map((step: unknown) =>
+          isRecord(step) && step.uses === "./.github/actions/setup-rust" ? replacement : step,
         );
+        assert.throws(() => assertHostSetup(changed, cacheSetting));
       }
-      assert.throws(() =>
-        assertHostSetup(
-          section.replace(
-            "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
-            "Swatinem/rust-cache@floating",
-          ),
-          cacheSetting,
-        ),
-      );
-      if (cacheSetting)
-        assert.throws(() =>
-          assertHostSetup(section.replace(cacheSetting, "key: changed"), cacheSetting),
-        );
+      const floating = structuredClone(owner);
+      requiredFixture(actionSteps(floating, cachePin)[0]).uses = "Swatinem/rust-cache@floating";
+      assert.throws(() => assertHostSetup(floating, cacheSetting));
+      if (cacheSetting) {
+        const changed = structuredClone(owner);
+        requiredFixture(actionSteps(changed, cachePin)[0]).with = { key: "changed" };
+        assert.throws(() => assertHostSetup(changed, cacheSetting));
+      }
       if (file === "release.yml") {
         for (const [crossJob, target, key] of [
           ["build", "${{ matrix.target }}", "release-${{ matrix.label }}"],
           ["build_intel", "x86_64-apple-darwin", "release-macos-x86_64"],
         ] as const) {
-          const cross = job(source, crossJob);
-          assert.deepEqual(steps(cross, "./.github/actions/setup-rust"), [
-            `      - uses: ./.github/actions/setup-rust\n        with:\n          targets: ${target}\n`,
-          ]);
-          assert.match(
-            cross,
-            new RegExp(`shared-key: ${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`),
-          );
+          const cross = workflowJob(crossJob, source);
+          const setupSteps = actionSteps(cross, "./.github/actions/setup-rust");
+          assert.equal(setupSteps.length, 1);
+          assert.deepEqual(requiredFixture(setupSteps[0]).with, { targets: target });
+          const cache = requiredFixture(actionSteps(cross, cachePin)[0]);
+          assert.ok(isRecord(cache.with));
+          assert.equal(cache.with["shared-key"], key);
         }
       }
     });
@@ -354,11 +368,9 @@ void test("CI toolchain caches retain exact repository version authorities", asy
 });
 
 void test("Windows analyzer acquisition retains the exact pin and both mandatory gates", (t) => {
-  const body = windowsStorage.match(
-    /- name: Lint PowerShell scripts\r?\n {8}shell: pwsh\r?\n {8}run: \|\r?\n([\s\S]*)/,
-  )?.[1];
-  assert.ok(body);
-  const script = body.replace(/^ {10}/gm, "");
+  const lint = workflowStep("windows_storage", "Lint PowerShell scripts");
+  assert.equal(lint.shell, "pwsh");
+  const script = lint.run;
   assert.match(
     script,
     /Import-PowerShellDataFile -LiteralPath \.config\/powershell-resources\.psd1/,
@@ -449,14 +461,27 @@ function node {
   }
 });
 
+function windowsTemporaryStorageScript(setup: string) {
+  const action: unknown = parseDocument(setup).toJS();
+  assert.ok(isRecord(action) && isRecord(action.runs) && Array.isArray(action.runs.steps));
+  const steps: unknown[] = action.runs.steps;
+  const step = steps.find(
+    (value: unknown) => isRecord(value) && value.name === "Select Windows test temporary storage",
+  );
+  assert.ok(isRecord(step) && typeof step.run === "string");
+  return step.run;
+}
+
 void test("Windows fixture setup selects runner-owned temporary storage before compilation", async () => {
-  const setup = await readFile(
+  const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
-    "utf8",
   );
   const selection = setup.indexOf("name: Select Windows test temporary storage");
   assert.ok(selection >= 0 && selection < setup.indexOf("name: Read repository toolchain"));
   assert.match(setup, /if: runner\.os == 'Windows' && inputs\.test-fixtures == 'true'/);
+  const script = windowsTemporaryStorageScript(setup);
+  assert.match(script, /RUNNER_TEMP/);
+  assert.match(script, /GITHUB_ENV/);
   assert.match(windowsStorage, /scripts\/ci-workflow\.test\.mts/);
 });
 
@@ -468,15 +493,10 @@ void test(
     const { tmpdir } = await import("node:os");
     const path = await import("node:path");
     const { spawnSync } = await import("node:child_process");
-    const setup = await readFile(
+    const setup = await readWorkflow(
       new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
-      "utf8",
     );
-    const body = setup.match(
-      /- name: Select Windows test temporary storage[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- name:)/,
-    )?.[1];
-    assert.ok(body);
-    const script = body.replace(/^ {8}/gm, "");
+    const script = windowsTemporaryStorageScript(setup);
     const base = path.resolve(tmpdir());
     const directory = await mkdtemp(path.join(base, "portcove-ci-temp-"));
     try {

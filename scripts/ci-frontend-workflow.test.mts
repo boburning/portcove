@@ -1,3 +1,4 @@
+import { readWorkflow } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
 import { globSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -23,6 +24,7 @@ import {
   workflow,
   workflowJob,
   workflowJobSource,
+  workflowStep,
   rustQuality,
   frontend,
   dependencyReview,
@@ -58,9 +60,8 @@ function resolveBrowserUpload(config: unknown, action: unknown, id: string) {
 
 async function browserUploadConfiguration() {
   const action = parseDocument(
-    await readFile(
+    await readWorkflow(
       new URL("../.github/actions/retain-browser-diagnostics/action.yml", import.meta.url),
-      "utf8",
     ),
     { uniqueKeys: true },
   );
@@ -144,9 +145,8 @@ void test("Fallow execution provisions its pinned process-custody compiler befor
 
 void test("screenshot-only diagnostic is manual, preserves failure guards and verifies all attempt packets", async () => {
   const document = parseDocument(
-    await readFile(
+    await readWorkflow(
       new URL("../.github/workflows/browser-artifact-custody.yml", import.meta.url),
-      "utf8",
     ),
     { uniqueKeys: true },
   );
@@ -209,9 +209,8 @@ void test("screenshot-only diagnostic is manual, preserves failure guards and ve
 });
 
 void test("selective Fallow workflow has compiler custody and outer timeout headroom", async () => {
-  const text = await readFile(
+  const text = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
   const config: unknown = parseDocument(text, { uniqueKeys: true }).toJS();
   assert.ok(isRecord(config) && isRecord(config.jobs));
@@ -248,9 +247,16 @@ void test("selected full Fallow runs once before browser work and retains succes
   const full = workflowJobSource(workflow, "frontend_full");
   assert.equal(full.match(/run: node scripts\/run-fallow\.mts/g)?.length, 1);
   assert.ok(full.indexOf("run-fallow.mts") < full.indexOf("pnpm browser:bootstrap"));
-  assert.match(full, /name: Retain original Fallow reports\n +if: always\(\)/);
-  assert.match(full, /path: work\/fallow-reports\//);
-  assert.match(full, /name: fallow-full-.*\n +path: work\/fallow-reports\/\n +retention-days: 7/);
+  const owner = workflowJob("frontend_full");
+  assert.ok(Array.isArray(owner.steps));
+  const uploader: unknown = owner.steps.find(
+    (step: unknown) => isRecord(step) && step.name === "Retain original Fallow reports",
+  );
+  assert.ok(isRecord(uploader) && isRecord(uploader.with));
+  assert.equal(uploader.if, "always()");
+  assert.equal(uploader.with.path, "work/fallow-reports/");
+  assert.match(String(uploader.with.name), /^fallow-full-/u);
+  assert.equal(uploader.with["retention-days"], 7);
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const check = requiredFixture(requiredFixture(recipes.split("\nui-check:")[1]).split(/\n\S/)[0]);
   assert.equal(check.match(/run-fallow\.mts/g)?.length, 1);
@@ -271,9 +277,8 @@ void test("selected full Fallow runs once before browser work and retains succes
 });
 
 void test("manual Fallow assistance is isolated from exhaustive audit and retains originals", async () => {
-  const deep = await readFile(
+  const deep = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
   const selected = workflowJobSource(deep, "fallow_analysis");
   assert.match(selected, /if: inputs.operation == 'fallow'/);
@@ -299,10 +304,9 @@ void test("native frontend harness retains the qualified Linux target and a fail
   );
   assert.match(block, /scripts\/desktop-linux-native-session\.test\.mts/u);
   assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
-  assert.match(
-    block,
-    /- name: Test native compiler and shell integrations\n\s+working-directory: \.\n\s+run: node scripts\/run-viteplus\.mts run native:tools/u,
-  );
+  const native = workflowStep("frontend_full", "Test native compiler and shell integrations");
+  assert.equal(native["working-directory"], ".");
+  assert.equal(native.run, "node scripts/run-viteplus.mts run native:tools");
 });
 
 void test("full frontend qualification retains native scenario contracts; ordinary CI uses selected units", () => {
@@ -329,12 +333,28 @@ void test("ordinary formatting and lint have one quality owner; deep analyzers s
 });
 
 void test("frontend keeps deterministic product gates and delegates vulnerability changes", () => {
-  assert.match(frontend, /^ {4}env:\r?\n {6}npm_config_audit: "false"$/m);
-  assert.match(frontend, /args: \[--frozen-lockfile\]/);
+  const owner = workflowJob("frontend_full");
+  assert.ok(isRecord(owner.env) && Array.isArray(owner.steps));
+  assert.equal(owner.env.npm_config_audit, "false");
+  const installStep = owner.steps.findIndex(
+    (step: unknown) =>
+      isRecord(step) && isRecord(step.with) && typeof step.with["run-install"] === "string",
+  );
+  const installOwner: unknown = owner.steps[installStep];
+  assert.ok(
+    isRecord(installOwner) &&
+      isRecord(installOwner.with) &&
+      typeof installOwner.with["run-install"] === "string",
+  );
+  assert.deepEqual(parseDocument(installOwner.with["run-install"]).toJS(), {
+    args: ["--frozen-lockfile"],
+  });
   assert.match(frontend, /Install pinned recipe runner/);
-  const install = frontend.indexOf("args: [--frozen-lockfile]");
-  const verify = frontend.indexOf("node scripts/run-viteplus.mts run frontend:verify");
-  assert.ok(install >= 0 && verify > install);
+  const verify = owner.steps.findIndex(
+    (step: unknown) =>
+      isRecord(step) && step.run === "node scripts/run-viteplus.mts run frontend:verify",
+  );
+  assert.ok(installStep >= 0 && verify > installStep);
   assert.equal(frontend.match(/run frontend:verify/g)?.length, 1);
   assert.match(frontend, /lint-tools\.integration\.mts oxfmt oxlint stylelint/);
   assert.match(
@@ -366,9 +386,8 @@ void test("full frontend qualification provisions browser artifacts before compo
   assert.ok(contributor.indexOf("pnpm verify:frontend") > contributorProvision);
   assert.equal(contributor.match(/run: pnpm verify:frontend/g)?.length, 1);
   assert.doesNotMatch(contributor, /run: pnpm (?:test|check|build)\b/);
-  const deep = await readFile(
+  const deep = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
   const audit = workflowJobSource(deep, "audit");
   const install = audit.indexOf("run: pnpm install --frozen-lockfile");

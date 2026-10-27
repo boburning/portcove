@@ -1,3 +1,4 @@
+import { readWorkflow } from "./ci-workflow-fixture.mts";
 import qualificationOracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
 import { qualificationNextestRecipe } from "./qualification-nextest.mts";
 import { discoverCiPlan } from "./select-ci-plan.mts";
@@ -26,7 +27,7 @@ function requiredFixture<T>(value: T | undefined): T {
   assert.ok(value !== undefined);
   return value;
 }
-const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+const workflow = await readWorkflow(new URL("../.github/workflows/ci.yml", import.meta.url));
 
 void test("qualification inventory is nonzero and exactly covers exhaustive jobs", () => {
   const counts = validateQualificationCoverage(inventory, workflow);
@@ -488,9 +489,8 @@ void test("qualification case reporting preserves original scopes and transitive
       "--partition",
       partition,
     ]);
-  const setup = await readFile(
+  const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
-    "utf8",
   );
   const parsed: unknown = parseDocument(setup).toJS();
   assert.ok(isRecord(parsed) && isRecord(parsed.runs) && Array.isArray(parsed.runs.steps));
@@ -573,9 +573,11 @@ void test("Intel tests build once and retries preserve their attempt-scoped prod
   );
   assert.match(intelBuild, /if-no-files-found: error/);
   assert.match(intelBuild, /retention-days: 1/);
-  assert.match(intelTests, /needs: \[classify, intel_build\]/);
+  const consumer = workflowJob("intel_tests");
+  assert.deepEqual(consumer.needs, ["classify", "intel_build"]);
   assert.match(intelTests, /runs-on: macos-15-intel/);
-  assert.match(intelTests, /partition:\s*\[\s*"hash:1\/2",\s*"hash:2\/2",?\s*\]/);
+  assert.ok(isRecord(consumer.strategy) && isRecord(consumer.strategy.matrix));
+  assert.deepEqual(consumer.strategy.matrix.partition, ["hash:1/2", "hash:2/2"]);
   assert.match(
     intelTests,
     /node scripts\/qualification-nextest\.mts intel "\$\{\{ matrix\.partition \}\}"/,

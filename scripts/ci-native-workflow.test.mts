@@ -1,6 +1,8 @@
+import { readWorkflow } from "./ci-workflow-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
+import { workflowJobs } from "./qualification-coverage.mts";
 import assert from "node:assert/strict";
 
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -16,24 +18,46 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
-  const jobs = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
-  const consumers = jobs.filter((job) => /^hosted_.*\n    if:.*candidate-consumer/mu.test(job));
-  assert.deepEqual(
-    consumers.map((job: string) =>
-      requiredFixture(requiredFixture(job.match(/^hosted_[a-z]+/u))[0]),
-    ),
-    ["hosted_selected", "hosted_compiled", "hosted_history"],
+  const jobs = workflowJobs(nativeDesignCompatibilityWorkflow);
+  const consumers = Object.entries(jobs).filter(
+    ([name, job]) =>
+      name.startsWith("hosted_") &&
+      typeof job.if === "string" &&
+      job.if.includes("candidate-consumer"),
   );
-  for (const [job, minutes, phase] of [
-    [requiredFixture(consumers[0]), 60, "selected"],
-    [requiredFixture(consumers[1]), 120, "compiled"],
-    [requiredFixture(consumers[2]), 45, "native"],
+  assert.deepEqual(consumers.map(([name]) => name).sort(), [
+    "hosted_compiled",
+    "hosted_history",
+    "hosted_selected",
+  ]);
+  for (const [name, minutes, phase] of [
+    ["hosted_selected", 60, "selected"],
+    ["hosted_compiled", 120, "compiled"],
+    ["hosted_history", 45, "native"],
   ] as const) {
-    assert.match(job, new RegExp(`timeout-minutes: ${minutes}\\n`));
-    assert.match(job, /runs-on: ubuntu-24\.04/u);
-    assert.match(job, /persist-credentials: false/u);
-    assert.match(job, new RegExp(`hosted-validation ${phase}\\n`));
-    assert.doesNotMatch(job, /upload-artifact|actions\/cache|cache: pnpm/u);
+    const job = requiredFixture(jobs[name]);
+    assert.equal(job["timeout-minutes"], minutes);
+    assert.equal(job["runs-on"], "ubuntu-24.04");
+    assert.ok(Array.isArray(job.steps));
+    const steps: unknown[] = job.steps;
+    assert.ok(
+      steps.some(
+        (step) =>
+          isRecord(step) && isRecord(step.with) && step.with["persist-credentials"] === false,
+      ),
+    );
+    assert.ok(
+      steps.some(
+        (step) =>
+          isRecord(step) &&
+          typeof step.run === "string" &&
+          step.run.trim().endsWith("hosted-validation " + phase),
+      ),
+    );
+    assert.doesNotMatch(
+      workflowJobSource(nativeDesignCompatibilityWorkflow, name),
+      /upload-artifact|actions\/cache|cache: pnpm/u,
+    );
   }
 });
 
@@ -66,10 +90,13 @@ void test("hosted selected setup prepares the provider observed by preflight and
   const install = selected.indexOf("run: corepack pnpm install --frozen-lockfile");
   const preflight = selected.indexOf("hosted-validation provision");
   assert.ok(install >= 0 && install < preflight);
-  assert.match(
-    selected,
-    /working-directory: source\n        run: corepack pnpm install --frozen-lockfile/u,
+  const job = workflowJob("hosted_selected", nativeDesignCompatibilityWorkflow);
+  assert.ok(Array.isArray(job.steps));
+  const setup: unknown = job.steps.find(
+    (step: unknown) => isRecord(step) && step.run === "corepack pnpm install --frozen-lockfile",
   );
+  assert.ok(isRecord(setup));
+  assert.equal(setup["working-directory"], "source");
   assert.doesNotMatch(
     selected,
     /COREPACK_ENABLE_PROJECT_SPEC: ["']?0|COREPACK_ENABLE_NETWORK: ["']?0/u,
@@ -77,9 +104,8 @@ void test("hosted selected setup prepares the provider observed by preflight and
 });
 
 void test("hosted backup focus is manual-only, pinned, isolated and retains real evidence without billed storage", async () => {
-  const source = await readFile(
+  const source = await readWorkflow(
     new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
-    "utf8",
   );
   assert.match(source, /^ {2}workflow_dispatch:$/m);
   assert.doesNotMatch(source, /^ {2}(pull_request|push|schedule|workflow_run):/m);
@@ -97,13 +123,13 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
     windows,
     /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|upload-artifact|rust-cache|actions\/cache|cache: pnpm/,
   );
-  assert.match(
-    source,
-    /qualify:\n {4}if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
+  assert.equal(
+    requiredFixture(workflowJobs(source).qualify).if,
+    "${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}",
   );
-  assert.match(
-    windows,
-    /^ {4}if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
+  assert.equal(
+    workflowJob("backup_focus", source).if,
+    "${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner == 'windows-2022' }}",
   );
   assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
   assert.doesNotMatch(requiredFixture(windows.split("    steps:")[0]), /\$\{\{ runner\./);
