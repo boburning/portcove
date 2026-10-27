@@ -1607,3 +1607,15 @@ missing from the maintained routing expectation and dependency map. The repair
 uses `$accountProfile`, explicitly keeps only ArgumentException as absent, and
 registers both cleanup consumers. All127 lifecycle/routing controls pass; no
 parser suppression, timeout extension or execution-policy change is introduced.
+
+Sourcecc7ffd2e passed both ordinary tool fixtures40501061041/1 and the hosted
+Linux catalog, but CI40501061108/1 retained a60second inert observer refusal:
+581polls, only `inert-observer:entered`, no Forms-loaded marker, complete root/job
+settlement and observer drain. It localizes the stall to the PowerShell Add-Type
+assembly command; the deeper cause is not established. The fixed current-token
+fixture now loads the exact framework assembly identity directly, removing
+PowerShell cmdlet/module discovery from that startup path. Local actual Windows
+observation passed in2.8seconds. The same60second deadline, visibility/response,
+generation, raw streams and cleanup assertions remain; no account acceptance or
+station/privilege/production change follows. Fresh exact-head hosted evidence is
+required; the failed attempt is not retried or treated as native success.
