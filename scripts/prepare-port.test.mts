@@ -253,7 +253,7 @@ void test("preparation preserves raw prerelease flags without inferring channels
     ]) {
       assert.equal(feedback?.maintenance.observed_release_tag, "v0.3-preview-1");
       assert.equal(feedback?.maintenance.observed_provider_prerelease, expected);
-      assert.match(feedback!.maintenance.next, /Core’s channel classification/);
+      assert.match(feedback.maintenance.next, /Core’s channel classification/);
     }
   }
   assert.equal(
