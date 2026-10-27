@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -219,6 +219,16 @@ function sourceReview(value: unknown): PacketSourceReview {
   }
   return review;
 }
+function actualSourceReview(review: PacketSourceReview, sourceHead: string) {
+  return Boolean(
+    review.reviewer &&
+    review.reference &&
+    review.source_head === sourceHead &&
+    typeof review.outcome === "string" &&
+    ["passed", "failed", "unsupported"].includes(review.outcome),
+  );
+}
+
 function knownGaps(value: unknown): PacketGap[] {
   return records(value).map((record) => {
     const gap: PacketGap = { ...record };
@@ -402,7 +412,15 @@ export function inspectAcceptancePreflight(value: unknown) {
     source_review: packet.source_review,
     known_gaps: packet.known_gaps,
     prerequisites: object(value).prerequisites ?? null,
+    source_review_complete: actualSourceReview(packet.source_review, packet.bindings.source_head),
   };
+}
+
+async function readPacketJson(identity: FileIdentity): Promise<unknown> {
+  const observed = await readBoundedEvidenceFile(identity.path, identity.bytes);
+  if (observed.identity.sha256 !== identity.sha256 || observed.identity.bytes !== identity.bytes)
+    throw new Error("Packet retained artifact bytes changed");
+  return JSON.parse(observed.bytes.toString("utf8"));
 }
 
 async function verifyIdentity(identity: FileIdentity) {
@@ -444,7 +462,7 @@ async function closureProof(
   retained: readonly FileIdentity[],
   evidence: unknown,
 ): Promise<boolean> {
-  const record = object(JSON.parse(await readFile(identity.path, "utf8")));
+  const record = object(await readPacketJson(identity));
   if (record.method === "private-pid-namespace-init-normal-unshare-join") {
     // A normal PID-1 join proves kernel teardown of descendants. Driver exit
     // remains optional when closing the control pipe initiates teardown.
@@ -486,7 +504,7 @@ async function closureProof(
   ) {
     const snapshotIdentity = retained.find((item) => item.path === record.snapshot);
     if (!snapshotIdentity) return false;
-    const snapshot = object(JSON.parse(await readFile(snapshotIdentity.path, "utf8")));
+    const snapshot = object(await readPacketJson(snapshotIdentity));
     const binding = object(object(evidence).execution_binding);
     const app = records(binding.product_artifacts).find((input) => input.role === "app");
     const driver =
@@ -613,21 +631,13 @@ async function evaluateAcceptancePacket(
   const final_delivery = object(deliveryValue);
   const composition_decision =
     decisionValue === undefined || decisionValue === null ? undefined : object(decisionValue);
-  await verifyIdentity(preflightIdentity);
-  const preflight = acceptanceRecord(JSON.parse(await readFile(preflightIdentity.path, "utf8")));
+  const preflight = acceptanceRecord(await readPacketJson(preflightIdentity));
   if (preflight.format_version !== 1 || preflight.stage !== "preflight")
     throw new Error("Completion requires an actual preflight packet");
   validateBindings(preflight.bindings);
-  if (
-    !preflight.source_review.reviewer ||
-    !preflight.source_review.reference ||
-    preflight.source_review.source_head !== preflight.bindings.source_head ||
-    typeof preflight.source_review.outcome !== "string" ||
-    !["passed", "failed", "unsupported"].includes(preflight.source_review.outcome)
-  )
+  if (!actualSourceReview(preflight.source_review, preflight.bindings.source_head))
     throw new Error("Completed packet cannot retain a placeholder source review");
-  await verifyIdentity(evidence_identity);
-  const evidence = object(JSON.parse(await readFile(evidence_identity.path, "utf8")));
+  const evidence = object(await readPacketJson(evidence_identity));
   const selected = preflight.bindings.execution_qualification.scenarios;
   let observedPreflight = preflight,
     observedPreflightIdentity = preflightIdentity;
@@ -640,8 +650,7 @@ async function evaluateAcceptancePacket(
     if (!reusable?.packet)
       throw new Error("Different source-head observations require bound reusable evidence");
     const reusablePacket = identity(reusable.packet);
-    await verifyIdentity(reusablePacket);
-    const prior = acceptanceRecord(JSON.parse(await readFile(reusablePacket.path, "utf8")));
+    const prior = acceptanceRecord(await readPacketJson(reusablePacket));
     if (
       prior.evidence?.sha256 !== evidence_identity.sha256 ||
       (prior.execution_observation_source_head ?? prior.bindings.source_head) !==
@@ -651,10 +660,7 @@ async function evaluateAcceptancePacket(
     )
       throw new Error("Effective dependencies require requalification");
     observedPreflightIdentity = identity(prior.execution_preflight ?? prior.preflight);
-    await verifyIdentity(observedPreflightIdentity);
-    observedPreflight = acceptanceRecord(
-      JSON.parse(await readFile(observedPreflightIdentity.path, "utf8")),
-    );
+    observedPreflight = acceptanceRecord(await readPacketJson(observedPreflightIdentity));
   }
   const observed = optionalObject(evidence.execution_binding);
   const evidencePreflight = optionalObject(evidence.acceptance_preflight);
@@ -758,7 +764,7 @@ async function evaluateAcceptancePacket(
     const receiptPath = image.path.replace(/\.png$/u, "-capture.json");
     const receiptIdentity = retained_artifacts.find((item) => item.path === receiptPath);
     if (!receiptIdentity) throw new Error("Required image has no settled capture receipt");
-    const capture = object(JSON.parse(await readFile(receiptPath, "utf8")));
+    const capture = object(await readPacketJson(receiptIdentity));
     const capturedImage = optionalObject(capture.image);
     const observation = optionalObject(capture.observation);
     const semantic = optionalObject(observation?.semantic);

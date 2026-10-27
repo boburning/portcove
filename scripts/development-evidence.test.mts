@@ -1669,6 +1669,18 @@ void test("operation receipts retain the latest failure and separate fixture, ha
   for (const current of [
     {
       ...qualified.preflight.packet,
+      source_review: { outcome: "passed", source_head: qualified.bindings.source_head },
+    },
+    {
+      ...qualified.preflight.packet,
+      source_review: { ...qualified.source_review, reviewer: undefined },
+    },
+    {
+      ...qualified.preflight.packet,
+      source_review: { ...qualified.source_review, reference: undefined },
+    },
+    {
+      ...qualified.preflight.packet,
       source_review: { ...qualified.source_review, outcome: "failed" },
     },
     {
@@ -1686,6 +1698,13 @@ void test("operation receipts retain the latest failure and separate fixture, ha
   const incomplete = await operationCoverage(truncated, [], []);
   assert.equal(incomplete.inventory_complete, false);
   assert.equal(incomplete.observations_complete, false);
+  const missingCatalog = structuredClone(report);
+  missingCatalog.evidence.catalog.data.ports = [];
+  assert.equal(
+    (await operationCoverage(missingCatalog, [passed.identity], [qualified.preflight.packet]))
+      .inventory_complete,
+    false,
+  );
   const noAssessments = structuredClone(report);
   noAssessments.evidence.status.data[0]!.port_actions = [];
   assert.equal((await operationCoverage(noAssessments)).inventory_complete, false);
@@ -1824,5 +1843,44 @@ void test(
     assert.equal(observed.error, undefined);
     assert.equal(observed.status, 0, observed.stderr);
     assert.match(observed.stdout, /PASS bounded growth/);
+  },
+);
+
+void test(
+  "receipt revalidation bounds nested JSON proof reads before parsing",
+  { timeout: 15000 },
+  async (t) => {
+    const fixture = await packetFixture(t);
+    const completed = await completeAcceptancePacket(
+      fixture.preflight.identity,
+      fixture.completion,
+    );
+    const moduleUrl = new URL("./acceptance-packet.mts", import.meta.url).href;
+    const program = `
+    import {mock} from 'node:test';
+    import assert from 'node:assert/strict';
+    const real=await import('node:fs/promises');
+    const {default:ignored,...named}=real;
+    const preflight=${JSON.stringify(fixture.preflight.identity.path)};
+    let triggered=false;
+    mock.module('node:fs/promises',{namedExports:{...named,open:async(...args)=>{
+      if(args[0]===preflight && !triggered) { triggered=true; await real.appendFile(preflight,' '); }
+      return real.open(...args);
+    }}});
+    const {revalidateAcceptancePacket}=await import(${JSON.stringify(moduleUrl)});
+    await assert.rejects(revalidateAcceptancePacket(${JSON.stringify(completed.identity)}), /physical identity changed/);
+    assert.equal(triggered,true,'controlled nested metadata handle must execute');
+    console.log('PASS nested JSON proof mutation refused');
+  `;
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(
+      process.execPath,
+      ["--experimental-test-module-mocks", "--input-type=module", "--eval", program],
+      { env, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS nested JSON proof mutation/);
   },
 );

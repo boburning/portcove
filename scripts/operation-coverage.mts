@@ -58,7 +58,8 @@ export async function operationCoverage(
   const scopeKeys = new Set<string>();
   for (const current of currentPreflights) {
     const inspected = inspectAcceptancePreflight(current);
-    const { bindings, source_review, known_gaps, prerequisites } = inspected;
+    const { bindings, source_review, known_gaps, prerequisites, source_review_complete } =
+      inspected;
     const scope = bindings.execution_qualification.initial_state.offered_operation;
     const scoped =
       isRecord(scope) &&
@@ -96,9 +97,10 @@ export async function operationCoverage(
       scope: scoped ? scope : null,
       source_review,
       required_gaps,
-      prerequisites,
+      descriptive_prerequisites: prerequisites,
       clear:
         Boolean(scoped) &&
+        source_review_complete &&
         source_review.outcome === "passed" &&
         source_review.source_head === bindings.source_head &&
         !required_gaps.length,
@@ -215,6 +217,8 @@ export async function operationCoverage(
   });
   for (const id of catalogIds)
     if (!ports.has(id)) inventoryGaps.push(`Catalog port missing from Core status: ${id}`);
+  for (const id of ports)
+    if (!catalogIds.has(id)) inventoryGaps.push(`Core status port missing from catalog: ${id}`);
   const errors: { receipt: FileIdentity; message: string }[] = [];
   const packets: {
     identity: FileIdentity;

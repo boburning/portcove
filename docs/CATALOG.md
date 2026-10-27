@@ -1321,7 +1321,9 @@ and observation kind. Kinds are `browser-fixture`, `native-harness-contract` and
 `real-installed-execution`. A receipt with missing scope or incompatible inputs
 cannot fill a missing observation. Retained execution `captured_at` orders observations, independently of packet completion.
 Missing observation times remain explicitly unordered. Current required gaps or failed
-source reviews block completeness while historical observations remain visible. Empty
+source reviews block completeness while historical observations remain visible.
+Prerequisites remain descriptive metadata; required gaps and actual source-review
+fields provide the defined disposition checks. Empty
 or truncated inventories never imply complete native coverage. The latest compatible failure remains visible;
 an adjacent green fixture or harness result cannot replace it. This read-only
 projection grants no acceptance and inventories only the supplied receipts.
