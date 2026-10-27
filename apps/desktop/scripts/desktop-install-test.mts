@@ -75,7 +75,7 @@ function fixtureHash(port: FixturePort) {
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
-import { copyFile, lstat, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   revealDetailSection,
@@ -934,6 +934,15 @@ export async function installScenarios({
       );
       assert.ok(captured);
       liveGame = captured;
+      // Core records a managed launch after spawning the child. Process liveness
+      // alone cannot establish the file baseline used by acquisition assertions.
+      const launchMarker = path.join(active.path, ".portcove-launched");
+      await browser.wait(
+        async () =>
+          (await exists(launchMarker)) && (await readFile(launchMarker, "utf8")) === "1",
+        15_000,
+        "Core did not finish recording the owned managed launch",
+      );
       assertLive("play-started");
     };
     const publish = async (version: string, seed: number) => {
@@ -1172,7 +1181,13 @@ export async function installScenarios({
     let primaryFailure: Error | undefined;
     try {
       const v2 = await publish("2.0.0-acquisition", 0x43b9a607);
+      // A first launch records Core's .portcove-launched bookkeeping. Establish
+      // that real pre-state before testing byte preservation during acquisition.
+      await play();
+      await stopGame();
+      await rm(marker);
       const beforeV2 = await preserve();
+      observations.initial_launch = { preserved_baseline: beforeV2 };
       observations.acquire_then_play = { release: v2.release, before: beforeV2 };
       const transferV2 = await acquire(v2.release);
       observations.acquire_then_play = {
@@ -1212,8 +1227,10 @@ export async function installScenarios({
       assert.equal((await status()).staged, null);
 
       const v3 = await publish("3.0.0-acquisition", 0x7249b309);
-      const beforeV3 = await preserve();
       await play();
+      // This ordering tests acquisition of an already-running installation;
+      // launch preparation is complete before the preservation baseline.
+      const beforeV3 = await preserve();
       observations.play_then_acquire = { release: v3.release, before: beforeV3, game: liveGame };
       const transferV3 = await acquire(v3.release);
       observations.play_then_acquire = {
