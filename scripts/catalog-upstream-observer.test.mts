@@ -909,3 +909,91 @@ void test("old embedded catalog policy cannot become current eligibility for a d
     first.checkpoint.sources[sharedKey]!.last_complete_policies,
   );
 });
+
+for (const partial of [false, true]) {
+  void test(`pre-guard ${partial ? "partial policies" : "completed scope"} cannot inherit normalized definition authority`, async () => {
+    const h = harness();
+    const first = await advanceCatalogObservations(h.input, null, h.options);
+    const source = catalogObservationSources(h.input).sources.find(
+      (source) => source.repository === "owner/shared",
+    )!;
+    const retained = first.checkpoint.sources[source.key]!;
+    const oldBinding = observationHash({
+      policy: h.options.policyIdentity,
+      scope: source.scope_sha256,
+    });
+    const policies = retained.last_complete_policies.map((policy) => ({
+      ...policy,
+      catalog_definition_sha256: "f".repeat(64),
+    }));
+    retained.completed_scope_sha256 = oldBinding;
+    retained.last_complete_policies = policies;
+    retained.selection_progress = {
+      binding: oldBinding,
+      facts_sha256: retained.last_complete_facts_sha256!,
+      cursor: 2,
+      release_ids: [1, 2],
+      sha256: observationHash([1, 2]),
+    };
+    if (partial) {
+      retained.policy_progress = {
+        binding: oldBinding,
+        facts_sha256: retained.last_complete_facts_sha256!,
+        policies: policies.slice(0, 1),
+        sha256: observationHash(policies.slice(0, 1)),
+      };
+    }
+    const before = h.network.length;
+    const originalProject = h.options.project;
+    let projections = 0;
+    const next = await advanceCatalogObservations(h.input, first.checkpoint, {
+      ...h.options,
+      project: async (...args) => {
+        projections++;
+        return originalProject(...args);
+      },
+    });
+    assert.equal(h.network.length, before);
+    assert.equal(
+      projections,
+      4,
+      "both ports need new header selection and final normalized policy",
+    );
+    assert.equal(next.report.completed_source_keys.length, 1);
+    assert.notEqual(next.checkpoint.sources[source.key]!.completed_scope_sha256, oldBinding);
+    assert.ok(
+      next.checkpoint.sources[source.key]!.last_complete_policies.every(
+        (policy) =>
+          policy.catalog_definition_sha256 === h.options.definitionHash(String(policy.port_id)),
+      ),
+    );
+  });
+}
+
+void test("a mismatched retained policy in a current binding is refused before acceptance", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const source = Object.values(first.checkpoint.sources).find(
+    (source) => source.repository === "owner/shared",
+  )!;
+  const binding = source.completed_scope_sha256!;
+  const policy = {
+    ...source.last_complete_policies[0]!,
+    catalog_definition_sha256: "f".repeat(64),
+  };
+  source.completed_scope_sha256 = null;
+  source.policy_progress = {
+    binding,
+    facts_sha256: source.last_complete_facts_sha256!,
+    policies: [policy],
+    sha256: observationHash([policy]),
+  };
+  const next = await advanceCatalogObservations(h.input, first.checkpoint, h.options);
+  assert.equal(next.report.completed_source_keys.length, 0);
+  assert.equal(next.report.failures[0]!.rule, "invalid-checkpoint");
+  assert.equal(
+    next.report.source_statuses.find((source) => source.repository === "owner/shared")!
+      .current_scope_complete,
+    false,
+  );
+});

@@ -516,7 +516,10 @@ provider configuration is unchanged, the coordinator can reuse the prior complet
 provider interval and recompute every port's current Core selection and policy.
 The exact current catalog input is inspected once by Core, and every projection
 must match the resulting normalized per-port definition hash. An older embedded
-catalog cannot claim the reviewed input's eligibility. The coordinator reconstructs
+catalog cannot claim the reviewed input's eligibility. Scope identities bind a
+versioned validated contract and normalized definition hashes, so pre-guard
+completion and partial cursors are automatically reprojected. Retained per-port
+policies are also checked before cursor reuse. The coordinator reconstructs
 repository, complete release headers and covered asset collections
 from the existing bounded page proofs, verifies their identities/digests against
 the complete observation, and retains the original oldest validation clock.
