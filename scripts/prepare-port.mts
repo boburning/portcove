@@ -82,6 +82,8 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
         ? "Keep this underlying game title separate from its implementation and helper names."
         : "Supply listing.original_game_title from the canonical game identity; do not make players distinguish the player from compiler or converter helpers.",
     },
+    launch_lifetime_review:
+      "Verify that the selected process stays alive through edition dispatch and settings restarts, or uses a supported tracked handoff. A launcher that starts a successor and exits needs a non-owning route until its full lifetime is supported; do not bypass useful upstream setup to fit management.",
     data_review:
       "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route. Generated executable caches need compatible producer identity or supported invalidation, not just a declared directory or ABI label.",
     scope:
