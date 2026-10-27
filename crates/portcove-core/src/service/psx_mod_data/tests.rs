@@ -987,6 +987,14 @@ mod lifecycle {
                     "build-portcove/mods/packages/default/1.0/file",
                     b"changed same version",
                 );
+                // Model already reconciled current data so this fixture reaches
+                // backup restoration's conflict with the old package snapshot.
+                // Collection's refusal of divergent copies is tested separately.
+                write(
+                    &user,
+                    "mods/packages/default/1.0/file",
+                    b"changed same version",
+                );
             }
             // Bind this package-coexistence test to current canonical data.
             // Runtime collection versus restore review is a separate contract.
