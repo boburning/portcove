@@ -11249,12 +11249,14 @@
     {
       "id": "chrissotraidis-kartpad",
       "name": "Mario Kart Wii / KartPad (chrissotraidis)",
-      "summary": "Explore Mario Kart Wii / KartPad (chrissotraidis) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Build your own KartPad Mac app through upstream setup and keep its game data, saves and controller features.",
       "project_url": "https://github.com/chrissotraidis/kartpad",
       "issue_number": 1835,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/chrissotraidis/kartpad",
+      "platforms": [
+        "macos-aarch64"
+      ],
+      "availability": "source-only",
+      "setup_url": "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",
       "artwork": {
         "game_id": 2183,
         "cover_id": 94766,
@@ -11262,6 +11264,28 @@
         "image_sha256": "99649b10acf61fded11decddbd2ad02ddb1b91e2ebbc92123b1a5242029cf9e9",
         "game_slug": "mario-kart-wii",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "warnings": [],
+        "help_url": "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",
+        "steps": [
+          {
+            "title": "Prepare your Mac copy upstream",
+            "instruction": "On an Apple Silicon Mac with macOS 14 or newer and Xcode, use the current PadMint and choose Mario Kart Wii, your own supported PAL RMCP01 revision 0 disc and This Mac. Follow KartPad's current Mac guide and game-owned build recipe. Keep completed builds and original files. The ready-made Mac releases from 0.7.9 through 0.7.13 are a legacy alternative and receive no updates; current mobile packages are not Mac players. If a tool download fails, keep certificate verification enabled and use upstream troubleshooting or its documented manual build."
+          },
+          {
+            "title": "Keep the complete app and reuse your game data",
+            "instruction": "Move the completed KartPad app to Applications and open it using upstream macOS instructions. When it asks for game data, choose your existing matching extracted DATA folder, or copy PadMint's prepared disc folder to a location you will keep. Reuse valid remembered choices. Retro Rewind needs the exact version named by this app and its separate whole data folder; replacing mod data alone does not update translated game code. Keep upstream Data, controls, Mii and save tools."
+          },
+          {
+            "title": "Keep your actual saves and profile recoverable",
+            "instruction": "Before a rebuild or update, close KartPad and back up ~/Library/Application Support/KartPad, your chosen original-game files, and the whole enclosing Retro Rewind folder because it can hold saves beside the selected data. Keep ~/Library/Caches/KartPad and custom roots if needed, the current working app and your original disc. Changing player folders does not isolate the existing profile. Preserve the app and signing identity; do not uninstall or clear data to update."
+          },
+          {
+            "title": "Use the app or optionally register its native player",
+            "instruction": "Opening the finished app upstream is the simplest route. To keep an existing copy in Portcove, select KartPad.app/Contents/MacOS/KartPad, keep the complete app intact, and use its Contents/MacOS folder as the working directory. Save launch details without starting it, then choose Play explicitly. Upstream update notices do not replace the app: rebuild the compatible version, close the old app, preserve its profile and replace the app. You or upstream own updates and data backups; Portcove registration supplies no managed Update, Backup or Rollback, and removal leaves every external file untouched."
+          }
+        ]
       }
     },
     {
@@ -33969,12 +33993,14 @@
     {
       "id": "super-mario-sunshine-sunpad",
       "name": "Super Mario Sunshine / SunPad",
-      "summary": "Explore Super Mario Sunshine / SunPad and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare your own SunPad Mac app upstream and keep its initialized game data and saves together.",
       "project_url": "https://github.com/chrissotraidis/sunpad",
       "issue_number": 1634,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/chrissotraidis/sunpad",
+      "platforms": [
+        "macos-aarch64"
+      ],
+      "availability": "source-only",
+      "setup_url": "https://github.com/chrissotraidis/sunpad/blob/d40a0674afa7189c14bfd6ce6f099dd275b46397/README.md",
       "artwork": {
         "game_id": 1075,
         "cover_id": 524521,
@@ -33982,6 +34008,28 @@
         "image_sha256": "d24815214c09cacb6947c63015545a19f94a54eda2762365f6c234ff2be167ed",
         "game_slug": "super-mario-sunshine",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "warnings": [],
+        "help_url": "https://github.com/chrissotraidis/sunpad/blob/d40a0674afa7189c14bfd6ce6f099dd275b46397/docs/MACOS.md",
+        "steps": [
+          {
+            "title": "Build your own Mac app upstream",
+            "instruction": "On an Apple Silicon Mac with Xcode, use current PadMint, choose SunPad, your own supported Super Mario Sunshine USA revision 0 GMSE01 raw ISO or GCM image and This Mac. PadMint 0.5.5 or newer supports this target; the current game-owned recipe and upstream Mac build instructions are authoritative. The released IPA is an iPhone/iPad preparation shell, not a Mac player. Keep your personal build and original image; do not share game files or generated game modules."
+          },
+          {
+            "title": "Open the complete app through macOS",
+            "instruction": "Move the completed SunPad.app to Applications and open it through upstream macOS instructions. If the launcher asks for your own matching image, choose it and follow Extract and Play. Keep valid prepared game data and remembered choices; do not remove or reimport it unnecessarily. Keep the complete app and its launcher, controller and configuration defaults together."
+          },
+          {
+            "title": "Preserve the live SunPad profile before replacement",
+            "instruction": "Close SunPad before backing up ~/Library/Application Support/SunPad, including saves, extracted data, configuration, controller profiles and logs. Keep your original image, personal generated module and previous working app recoverable. Update using a compatible personal build while preserving app and signing identity. For iPhone/iPad or Apple TV use their separate save/export instructions; TV storage can be purged and an app reinstall is not a save restore."
+          },
+          {
+            "title": "Keep using the supported Mac app",
+            "instruction": "Use the finished SunPad app from Applications. Its launcher initializes the SunPad profile and missing defaults before starting the game, and Portcove cannot run that launcher yet. Do not select SunPadFrontend in its place or change the app environment to bypass setup. Keep the complete upstream app and your saved data recoverable. You or upstream own updates and backups; Portcove does not provide managed Update, Backup or Rollback for this route."
+          }
+        ]
       }
     },
     {
