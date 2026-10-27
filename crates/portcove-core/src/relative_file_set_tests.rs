@@ -457,3 +457,139 @@ fn capture_interruption_and_racing_destination_preserve_every_directory() {
         );
     }
 }
+
+#[test]
+fn streaming_members_hash_and_copy_directory_and_zip_in_bounded_chunks() -> Result<()> {
+    struct CheckedSink {
+        bytes: u64,
+        largest: usize,
+        digest: Sha256,
+    }
+    impl Write for CheckedSink {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.bytes += bytes.len() as u64;
+            self.largest = self.largest.max(bytes.len());
+            self.digest.update(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let root = tempfile::tempdir()?;
+    let directory = root.path().join("source");
+    fs::create_dir(&directory)?;
+    let chunk = [17_u8; 128 * 1024];
+    let mut file = fs::File::create(directory.join("DATA.GOB"))?;
+    let mut archive = zip::ZipWriter::new(fs::File::create(root.path().join("source.zip"))?);
+    archive
+        .start_file(
+            "DATA.GOB",
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored),
+        )
+        .unwrap();
+    let mut expected = Sha256::new();
+    for _ in 0..128 {
+        file.write_all(&chunk)?;
+        archive.write_all(&chunk)?;
+        expected.update(chunk);
+    }
+    file.sync_all()?;
+    drop(file);
+    archive.finish().unwrap();
+    let member = RelativeSourceMemberIdentity {
+        id: "large".into(),
+        path: "DATA.GOB".into(),
+        size: 16 * 1024 * 1024,
+        sha256: hex::encode(expected.finalize()),
+    };
+    for path in [&directory, &root.path().join("source.zip")] {
+        let checkpoints = std::cell::Cell::new(0);
+        let checkpoint = || {
+            checkpoints.set(checkpoints.get() + 1);
+            Ok(())
+        };
+        let mut input = Input::open(path, &checkpoint)?;
+        let mut sink = CheckedSink {
+            bytes: 0,
+            largest: 0,
+            digest: Sha256::new(),
+        };
+        input.copy_verified(&member, &mut sink, &checkpoint)?;
+        assert_eq!(sink.bytes, member.size);
+        assert!(sink.largest <= 128 * 1024);
+        assert_eq!(hex::encode(sink.digest.finalize()), member.sha256);
+        assert!(checkpoints.get() >= 128);
+    }
+    Ok(())
+}
+
+#[test]
+fn streaming_originals_stop_on_cancellation_and_changed_identity() -> Result<()> {
+    let root = tempfile::tempdir()?;
+    let path = root.path().join("DATA.GOB");
+    fs::write(&path, vec![7_u8; 512 * 1024])?;
+    let visits = std::cell::Cell::new(0);
+    let cancellation = crate::external_runtime::stream_single_link_metadata(
+        &path,
+        512 * 1024,
+        &|| {
+            if visits.get() > 0 {
+                return Err(PortcoveError::state("fixture cancellation"));
+            }
+            Ok(())
+        },
+        &mut |_| {
+            visits.set(visits.get() + 1);
+            Ok(())
+        },
+    )
+    .unwrap_err();
+    assert!(cancellation.to_string().contains("fixture cancellation"));
+    assert_eq!(visits.get(), 1);
+    let mut changed = false;
+    assert!(
+        crate::external_runtime::stream_single_link_metadata(
+            &path,
+            512 * 1024,
+            &|| Ok(()),
+            &mut |_| {
+                if !changed {
+                    fs::write(&path, b"changed original")?;
+                    changed = true;
+                }
+                Ok(())
+            },
+        )
+        .is_err()
+    );
+    assert_eq!(fs::read(&path)?, b"changed original");
+    Ok(())
+}
+
+#[test]
+fn streaming_cache_preserves_limit_and_link_refusals_before_payload() -> Result<()> {
+    let root = tempfile::tempdir()?;
+    let path = root.path().join("DATA.GOB");
+    fs::write(&path, b"original")?;
+    let mut visits = 0;
+    assert!(
+        crate::external_runtime::stream_single_link_metadata(&path, 1, &|| Ok(()), &mut |_| {
+            visits += 1;
+            Ok(())
+        })
+        .is_err()
+    );
+    assert_eq!(visits, 0);
+    fs::hard_link(&path, root.path().join("alias"))?;
+    assert!(
+        crate::external_runtime::stream_single_link_metadata(&path, 64, &|| Ok(()), &mut |_| {
+            visits += 1;
+            Ok(())
+        })
+        .is_err()
+    );
+    assert_eq!(visits, 0);
+    Ok(())
+}

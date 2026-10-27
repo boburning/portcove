@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, lstatSync, readFileSync, writeFileSync, rmdirSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  lstatSync,
+  readFileSync,
+  writeFileSync,
+  rmdirSync,
+  existsSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -25,6 +33,7 @@ import type {
   ArtworkPreparationOptions,
   ImageValidator,
 } from "./inspect-igdb-artwork.mts";
+import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import {
@@ -295,14 +304,22 @@ type ArtworkOptions = Pick<
   "catalogRoot" | "outputDirectory" | "identities" | "validatorCli" | "credentialsFile" | "artwork"
 >;
 
-function artworkInspector(options: ArtworkOptions, root: string) {
+function artworkInspector(options: ArtworkOptions & { signal?: AbortSignal }, root: string) {
   let imageValidator: ImageValidator | undefined;
   const validateImage: ImageValidator = (bytes) => {
     if (!options.validatorCli) throw new Error("Core image validation requires a compatible CLI.");
     imageValidator ??= createCoreImageValidator(options.validatorCli, join(root, "images"));
     return imageValidator(bytes);
   };
-  return options.artwork ?? createIgdbInspector(options.credentialsFile, validateImage);
+  return (
+    options.artwork ??
+    createIgdbInspector(
+      options.credentialsFile,
+      validateImage,
+      undefined,
+      options.signal ? { signal: options.signal } : {},
+    )
+  );
 }
 
 function preparationCosts(started: bigint) {
@@ -612,24 +629,29 @@ export async function preparePort(options: PrepareOptions) {
 /** Cover-only work on existing authored identities; no upstream metadata collection. */
 export async function prepareArtworkBatch(
   options: ArtworkOptions & {
-    selectedPortIds: readonly string[];
+    selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
+    maintenance?: boolean;
+    now?: () => number;
+    signal?: AbortSignal;
+    onProgress?: (id: string) => void | Promise<void>;
   },
 ) {
   const started = process.hrtime.bigint();
   const root = resolve(options.outputDirectory);
   const authored = readCatalogSource(options.catalogRoot);
   const known = new Set(authored.records.map((record) => record.listing.id));
-  const selected = new Set(options.selectedPortIds);
+  const selected = new Set(options.selectedPortIds ?? []);
   const refreshPortIds = options.refreshPortIds ?? [];
   if (
-    !selected.size ||
-    selected.size > 400 ||
-    selected.size !== options.selectedPortIds.length ||
+    (!options.maintenance && !selected.size) ||
+    (options.maintenance === true && options.selectedPortIds !== undefined) ||
+    selected.size !== (options.selectedPortIds?.length ?? 0) ||
     [...selected].some((id) => !known.has(id))
   )
-    throw new Error("Artwork batch requires 1 to 400 unique known stable IDs.");
+    throw new Error("Artwork batch requires unique known stable IDs or automatic due maintenance.");
   if (
+    (options.maintenance === true && refreshPortIds.length > 0) ||
     new Set(refreshPortIds).size !== refreshPortIds.length ||
     refreshPortIds.some((id) => !selected.has(id))
   )
@@ -648,23 +670,43 @@ export async function prepareArtworkBatch(
   });
   openCheckpoint(root);
   try {
-    let artworkResult = cachedValue(root, "artwork-batch", artworkKey);
-    const artworkReused = artworkResult !== undefined;
+    // Accepted whole-batch receipts remain readable until this checkpoint has per-ID progress.
+    let artworkResult =
+      !options.maintenance && !existsSync(join(root, "artwork-gone.json"))
+        ? cachedValue(root, "artwork-batch", artworkKey)
+        : undefined;
+    let artworkReused = artworkResult !== undefined;
+    if (
+      isRecord(artworkResult) &&
+      Array.isArray(artworkResult.records) &&
+      artworkResult.records.some(
+        (record: unknown) =>
+          isRecord(record) &&
+          record.reason === "accepted-mapping-retained-after-unavailable-refresh",
+      )
+    ) {
+      artworkResult = undefined;
+      artworkReused = false;
+    }
     if (artworkResult === undefined) {
       const inspector = artworkInspector(options, root);
-      const result = await prepareCatalogArtwork(acceptedArtwork, {
-        acceptedCatalog: acceptedArtwork,
-        selectedPortIds: [...selected],
-        refreshPortIds,
+      const result = await prepareArtworkWorkset(acceptedArtwork, {
+        root,
+        inspector,
         identities,
-        ...inspector,
+        validatorIdentity,
+        ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
+        refreshPortIds,
+        ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.now ? { now: options.now } : {}),
+        ...(options.signal ? { signal: options.signal } : {}),
+        ...(options.onProgress ? { onProgress: options.onProgress } : {}),
       });
       artworkResult = {
         ...result,
         ...("providerMetrics" in inspector ? { provider_metrics: inspector.providerMetrics } : {}),
       };
-      if (result.metrics.fallback === 0)
-        retainValue(root, "artwork-batch", artworkKey, artworkResult);
+      artworkReused = result.reused;
     }
     const prepared = preparedRecordOutputs(
       options,
@@ -683,16 +725,30 @@ export async function prepareArtworkBatch(
         throw new Error("Malformed artwork batch record identity.");
       if (record.mapping === null) pendingPortIds.push(record.port_id);
     }
+    if (
+      isRecord(artworkResult.continuation) &&
+      Array.isArray(artworkResult.continuation.pending_port_ids)
+    ) {
+      for (const id of artworkResult.continuation.pending_port_ids) {
+        if (typeof id !== "string" || !known.has(id))
+          throw new Error("Malformed artwork continuation scope");
+        if (!pendingPortIds.includes(id)) pendingPortIds.push(id);
+      }
+    }
     const report = {
       format_version: 1,
       route: "artwork-only",
-      selected_port_ids: [...selected],
-      refresh_port_ids: refreshPortIds,
+      selected_port_ids:
+        isRecord(artworkResult.workset) && Array.isArray(artworkResult.workset.selected_port_ids)
+          ? artworkResult.workset.selected_port_ids
+          : [...selected],
+      refresh_port_ids: options.maintenance ? "automatic-due-identities" : refreshPortIds,
+      continuation: artworkResult.continuation ?? null,
       pending_port_ids: pendingPortIds,
       ...prepared,
       preparation_costs: preparationCosts(started),
       upstream_collection: "not-requested",
-      next: "Review and copy the proposed per-ID records, regenerate, then retry only pending IDs. Use a new checkpoint for a fresh scheduled refresh of unchanged mappings.",
+      next: "Review and deliver the prepared records through the existing catalog route. Reinvoke the same logical workset after interruption or provider recovery; completed identities remain checkpointed. Use --artwork-ids @due at the existing maintenance checkpoint for automatic due selection.",
       scope:
         "Bounded cover proposals against the full authored catalog. Accepted sources, local artwork choices and delivery authority are unchanged; no upstream release investigation, download or execution.",
     };
@@ -767,7 +823,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const result = artworkIds
     ? await prepareArtworkBatch({
         ...common,
-        selectedPortIds: artworkIds.split(","),
+        ...(artworkIds === "@due"
+          ? { maintenance: true }
+          : { selectedPortIds: artworkIds.split(",") }),
         ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
       })
     : await preparePort({

@@ -445,6 +445,17 @@ size and caller-budget checks precede member admission. The normalized aggregate
 uses its own versioned SHA-256 protocol, including single-member sets. Existing
 basename file-set identities and aggregates are unchanged.
 
+Member hashing and owned staging use bounded 128 KiB chunks for directory and ZIP
+sources. Directory reads retain no-follow, single-link and before/after object
+identity checks; cache revalidation uses the same streaming path. Cancellation
+is checked between chunks. A hash or size mismatch refuses admission/publication,
+and interrupted writes stay in the existing private staging/recovery boundary.
+The 128 MiB member, 512 MiB aggregate and 256-member capability limits remain:
+the current reviewed 48-member Dark Forces representation totals 68,386,776 bytes,
+with a largest member of 14,244,049 bytes (catalog measured 2026-10-27). No reviewed
+supported representation was demonstrated to need a larger bound. Streaming
+reduces scratch allocation; it does not expand source or archive authority.
+
 The reviewed Windows TFE v1.22.420 package selects the constrained
 `tfe-dark-forces-portable-v1` initializer and requires staged-source capability
 **19** for direct manifests or **21** for GitHub discovery. The retained definition supplies executable and package rules; an exact
@@ -638,54 +649,60 @@ and bounds metadata/image requests, bytes and execution time. A valid `Retry-Aft
 on a captured metadata 429 or 503 postpones the next metadata request, preserving
 the normal 300 ms floor. All three HTTP-date forms are interpreted in UTC,
 including the zoneless asctime form, independently of the authoring host timezone.
-Decimal seconds and HTTP dates stay within the existing
-15 minute batch deadline; a pause reaching that deadline refuses further metadata
-requests without sleeping past the budget. Waits remain cancellable, failed
-identities are not retried, and uncertain failures retain eligible accepted
-metadata. Image requests retain their existing policy. Fixed OAuth, metadata and image responses
-are consumed within those byte bounds or their unfinished bodies are cancelled
-when refused, including status, content-type and early length checks. Cleanup
-does not drain rejected payloads or await an arbitrary cancellation promise;
-reader locks are released and the original result or failure is preserved.
-Request signals, deadlines, request/byte counters and authentication policy
-remain unchanged. Retained references are not fresh source-health evidence.
+Decimal seconds and HTTP dates retain the actual provider reset, including a
+pause beyond the current 15-minute operation. Such a pause refuses further
+requests without sleeping past the operation deadline. Metadata and image
+429/503 responses preserve their separate retry clocks across bounded operations.
+Waits and requests accept cancellation. Failed identities are not automatically
+retried within the logical invocation, and uncertain failures retain eligible
+accepted metadata. Fixed OAuth, metadata and image responses are consumed within
+finite byte bounds or their unfinished bodies are cancelled when refused.
+Cleanup does not drain rejected payloads or await an arbitrary cancellation
+promise; reader locks and original failures are preserved. Retained references
+are not fresh source-health evidence.
 This command prepares the cover role only;
 other roles, full backlog coverage, protected acceptance/publication and installed
 or physical-platform evidence retain their own acceptance.
 
 ### Reference and exception maintenance
 
-Use the existing catalog/onboarding maintenance checkpoint weekly. Select due
-stable port IDs oldest successful reference observation first, with stable ID as
-the tie breaker. Size the weekly worksets against the number of accepted
-references and the remaining checkpoints in a 28-day refresh target; split work
-into bounded batches when necessary. A fixed 50-ID batch is not a whole-catalog
-coverage guarantee. Provider outages or exhausted budgets retain the unobserved
-IDs as due rather than claiming the refresh completed.
-Use the existing preparation receipt and owning issue evidence for observation
-time, input digest, selected refresh IDs, outcome and next due checkpoint. Missing
-or uncertain observation dates are due, not evidence of healthy content. This is
-an operator cadence, not a new scheduler, registry or player startup task. New or
-changed identities and assessed mistakes are investigated when encountered;
-ordinary executable updates do not refresh artwork.
+Use the existing catalog/onboarding maintenance checkpoint weekly. Run
+`prepare-port.mts --artwork-ids @due --output-dir EXISTING_CHECKPOINT` to select
+missing, invalid and then oldest observed references automatically against the
+28-day refresh target. Unknown dates remain due. Explicit
+`--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
+This is the existing operator cadence, not a new scheduler or player startup task.
+Ordinary executable updates do not refresh artwork.
 
-Refresh due IDs through `prepare-port.mts` with
-`--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` and
-reuse all unaffected accepted mappings. The full input may contain up to 10,000
-records; provider work is limited to the selected workset of at most 400 IDs.
-The authoring batch mode requires an explicit workset; it does not silently
-select the entire directory. Unknown or repeated IDs and changed artwork identities outside the
-workset are refused. Results merge by stable ID. An observed exact-image Gone
-fact removes every matching output reference, including unselected records,
-without additional provider queries.
-The existing hard ceilings remain 400 selected entries, 800 metadata queries, 400 image
-queries, 32 MiB metadata, 512 MiB images, 16 MiB per image, 15 minutes overall and 15
-seconds per request. The adapter is sequential, spaces metadata starts by at least
-300 ms, authenticates once and does not retry failed requests. Stop at those
-limits, retain the incomplete receipt and resume only unobserved IDs in the next
-bounded batch. Do not call a retained mapping a successful live refresh. Reuse
-unchanged downloaded content by identity; only a changed accepted image needs new
-semantic review and affected display validation.
+A logical workset may exceed 400 IDs. The driver admits operations of at most 400
+selected IDs and adjusts subsequent admission using observed elapsed time,
+requests and image bytes. Completed identities are atomically checkpointed after
+each result under the existing preparation lock. Reinvoke the same full workset
+after interruption or provider recovery: unchanged successful IDs are reused;
+changed per-ID identity, relevant accepted-original mappings or validator bytes
+invalidate the affected result. Earlier attempt receipts remain available.
+A provider-blocked operation leaves its IDs pending while later unrelated or
+offline work continues. A fully deferred operation is never blindly retried.
+Provider Retry-After dates remain durable, and incomplete work never claims
+successful full maintenance. Retained mappings after unavailable refresh remain
+pending. Proposed records still require the existing review and delivery route.
+
+The full input retains its bounded 10,000-record authoring contract. Each provider
+operation retains 800 metadata queries, 400 image queries, 32 MiB metadata,
+512 MiB images, 16 MiB per image, 15 minutes and 15 seconds per request.
+Processing remains sequential with at least 300 ms between metadata starts,
+one lazy authentication attempt per invocation and no failed-request retries.
+A bounded 32 MiB metadata memo avoids repeated matching, image downloads and
+decoding within the logical invocation. Memo reuse retains the earliest actual
+observation clock; it cannot make old facts fresh. Per-ID checkpoint documents
+are bounded to 8 MiB and contain metadata and digests, never image payloads.
+
+Unknown or repeated IDs and changed artwork identities outside the selected
+workset are refused. Results merge by stable ID. An exact-image Gone observation
+removes every matching output reference, including unselected and checkpointed
+records, without additional provider queries. Accepted source records, user
+choices, source licensing and offline fallback stay authoritative. Only a
+changed accepted image needs new semantic review and affected display validation.
 
 Recheck the bounded missing-fact/resume exceptions at the same checkpoint; query
 again when attributable facts, asset/provider state or a previous transient
