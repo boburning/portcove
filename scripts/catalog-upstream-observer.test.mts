@@ -4,7 +4,11 @@ import { GitHubApiError } from "./github-api.mts";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runCatalogUpstreams, retireObserverConfigurations } from "./observe-catalog-upstreams.mts";
+import {
+  runCatalogUpstreams,
+  runCatalogOpportunity,
+  retireObserverConfigurations,
+} from "./observe-catalog-upstreams.mts";
 import {
   advanceObservation,
   catalogObservationDefinitionHashes,
@@ -1133,4 +1137,357 @@ void test("one fair catalog pipeline isolates GitLab failures, observes fixed pi
       .current_scope_complete,
     false,
   );
+});
+
+void test("hosted opportunity drains accepted progress without retrying failed sources or hiding initial exceptions", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  let turns = 0;
+  const failure = {
+    source: "broken",
+    repository: "owner/broken",
+    rule: "provider-transport",
+    details: "original failure",
+  };
+  const result = await continueCatalogBatches(
+    async (excluded) => {
+      assert.equal(excluded.has("broken"), turns > 0);
+      turns++;
+      return {
+        report: {
+          pending_source_keys: turns < 7 ? ["large", "broken"] : ["broken"],
+          attempted_source_keys: turns === 1 ? ["large", "broken"] : ["large"],
+          completed_source_keys: turns === 7 ? ["large"] : [],
+          failures: turns === 1 ? [failure] : [],
+          requests: 12,
+          response_bytes_charged: 120,
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: turns === 1,
+      };
+    },
+    { deadline: 100, now: () => 0 },
+  );
+  assert.equal(result.batches, 7);
+  assert.equal(result.notify_exception, true);
+  assert.equal(result.report.requests, 84);
+  assert.equal(result.report.response_bytes_charged, 840);
+  assert.deepEqual(result.report.failures, [failure]);
+  assert.deepEqual(result.report.pending_source_keys, ["broken"]);
+  assert.deepEqual(result.report.completed_source_keys, ["large"]);
+});
+
+void test("opportunity refuses unknown capacity and stops on no accepted progress, byte exhaustion, deadline and cancellation", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const batch = {
+    report: {
+      pending_source_keys: ["large"],
+      attempted_source_keys: ["large"],
+      completed_source_keys: [],
+      failures: [],
+      requests: 100,
+      response_bytes_charged: 1000,
+    },
+    made_progress: false,
+    handoff_exhausted: false,
+    notify_exception: false,
+  };
+  let calls = 0;
+  assert.equal(
+    (
+      await continueCatalogBatches(
+        async () => {
+          calls++;
+          return batch;
+        },
+        { deadline: 10, now: () => 0 },
+      )
+    ).batches,
+    1,
+  );
+  assert.equal(calls, 1);
+  assert.equal(
+    (
+      await continueCatalogBatches(
+        async () => ({ ...batch, made_progress: true, handoff_exhausted: true }),
+        { deadline: 10, now: () => 0 },
+      )
+    ).batches,
+    1,
+  );
+  let now = 0;
+  assert.equal(
+    (
+      await continueCatalogBatches(
+        async () => {
+          now = 10;
+          return { ...batch, made_progress: true };
+        },
+        { deadline: 10, now: () => now },
+      )
+    ).batches,
+    1,
+  );
+  await assert.rejects(
+    continueCatalogBatches(async () => batch, { deadline: NaN }),
+    /unavailable/,
+  );
+  const controller = new AbortController();
+  await assert.rejects(
+    continueCatalogBatches(
+      async () => {
+        controller.abort();
+        return { ...batch, made_progress: true };
+      },
+      { deadline: 10, now: () => 0, signal: controller.signal },
+    ),
+    /cancelled/,
+  );
+  await assert.rejects(
+    continueCatalogBatches(
+      async () => ({
+        ...batch,
+        report: {
+          ...batch.report,
+          failures: [
+            {
+              source: "large",
+              repository: "owner/large",
+              rule: "budget",
+              details: "large diagnostic",
+            },
+          ],
+        },
+      }),
+      { deadline: 10, now: () => 0, evidenceByteLimit: 1 },
+    ),
+    /evidence envelope/,
+  );
+});
+
+void test("accepted checkpoint advancement ignores request counts, clocks, cleared pages and sequence-only changes", async () => {
+  const {
+    acceptedObservationPosition: position,
+    acceptedObservationAdvanced: advanced,
+    catalogProgressPosition: catalogPosition,
+    catalogPositionAdvanced: catalogAdvanced,
+  } = await import("./catalog-observer-continuation.mts");
+  const a = position({ continuation: { pages: { a: {} }, validation_cursor: 0 } });
+  assert.equal(
+    advanced(
+      a,
+      position({ continuation: { pages: { a: {} }, validation_cursor: 0 }, requests: 1000 }),
+    ),
+    false,
+  );
+  assert.equal(
+    advanced(a, position({ continuation: { phase: "restart", pages: { a: {}, b: {} } } })),
+    false,
+  );
+  assert.equal(advanced(a, position({ continuation: { pages: { a: {}, b: {} } } })), true);
+  assert.equal(
+    advanced(a, position({ continuation: { pages: { a: {} }, validation_cursor: 1 } })),
+    true,
+  );
+  const baseline = catalogPosition({
+    sources: {
+      a: {
+        repository_id: 7,
+        attempted_sequence: 1,
+        next_due_at: "old",
+        selection_progress: { binding: "b", facts_sha256: "f", cursor: 1 },
+      },
+    },
+  });
+  assert.equal(
+    catalogAdvanced(
+      baseline,
+      catalogPosition({
+        sources: {
+          a: {
+            repository_id: 7,
+            attempted_sequence: 200,
+            next_due_at: "new",
+            selection_progress: { binding: "b", facts_sha256: "f", cursor: 1 },
+          },
+        },
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    catalogAdvanced(
+      baseline,
+      catalogPosition({
+        sources: {
+          a: {
+            repository_id: 7,
+            selection_progress: { binding: "b", facts_sha256: "f", cursor: 2 },
+          },
+        },
+      }),
+    ),
+    true,
+  );
+  assert.equal(
+    catalogAdvanced(
+      baseline,
+      catalogPosition({ sources: { a: { repository_id: 7, selection_progress: null } } }),
+    ),
+    false,
+  );
+});
+
+void test("hosted opportunity preserves one aggregate handoff and refuses changed catalog after accepted progress", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "catalog-opportunity-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(4);
+  await mkdir(path.join(root, "release"), { recursive: true });
+  await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  const cli = path.join(root, "inspector"),
+    catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
+  await writeFile(cli, "fixture inspector identity; native execution is mocked");
+  await writeFile(
+    path.join(root, "release/upstream-observer.json"),
+    JSON.stringify(h.options.config),
+  );
+  await writeFile(catalog, JSON.stringify(h.input));
+  const runtime = {
+    root,
+    deadline: h.options.now!() + 500000,
+    now: h.options.now!,
+    inspectCatalog: async () =>
+      new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
+    observer: { fetch: h.options.fetch!, sleep: h.options.sleep! },
+    project: async (
+      _cli: string,
+      config: Parameters<typeof h.options.load>[0],
+      _directory: string,
+      observation: Parameters<typeof h.options.project>[2],
+    ) => h.options.project(config.port_id, config.repository_id, observation),
+    api: {
+      request: (_method: string, endpoint: string) => {
+        const repository = endpoint.replace("/repos/", ""),
+          body = {
+            id: repository === "owner/shared" ? 7 : 8,
+            full_name: repository,
+            archived: false,
+          };
+        return {
+          status: 200,
+          headers: new Map<string, string>(),
+          body,
+          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+        };
+      },
+    },
+    log: () => {},
+  };
+  const result = await runCatalogOpportunity(["--cli", cli], runtime);
+  assert.ok(result.batches > 1);
+  assert.equal(result.report.pending_source_keys.length, 0);
+  const files = await readdir(result.handoff_directory);
+  assert.equal(files.length, 3);
+  const actualBytes = (
+    await Promise.all(
+      files
+        .filter((name) => name !== "summary.json")
+        .map((name) => readFile(path.join(result.handoff_directory, name))),
+    )
+  ).reduce((sum, bytes) => sum + bytes.length, 0);
+  assert.equal((result.summary as { artifact_bytes: number }).artifact_bytes, actualBytes);
+  h.advanceClock(7 * 3600000);
+  runtime.deadline = h.options.now!() + 500000;
+  let changed = false;
+  runtime.log = () => {
+    if (!changed) {
+      changed = true;
+      h.input.ports[0]!.channels = ["beta"];
+    }
+  };
+  // A changed file is detected after the collector before any subsequent batch.
+  const originalProject = runtime.project;
+  runtime.project = async (...args) => {
+    const value = await originalProject(...args);
+    await writeFile(catalog, JSON.stringify({ ...h.input, change: true }));
+    return value;
+  };
+  await assert.rejects(
+    runCatalogOpportunity(["--cli", cli], runtime),
+    /changed between bounded batches/,
+  );
+  const directories = await readdir(path.join(root, "work/upstream-observer-handoff"));
+  assert.equal(directories.length, 2);
+  const failedDirectory = directories.find(
+    (name) => path.join(root, "work/upstream-observer-handoff", name) !== result.handoff_directory,
+  )!;
+  const retained = await readdir(
+    path.join(root, "work/upstream-observer-handoff", failedDirectory),
+  );
+  assert.ok(retained.length > 1);
+  const failureSummary = JSON.parse(
+    await readFile(
+      path.join(root, "work/upstream-observer-handoff", failedDirectory, "summary.json"),
+      "utf8",
+    ),
+  ) as { coverage: string };
+  assert.match(failureSummary.coverage, /partial; operation failed/);
+});
+
+void test("Core subprocess inspection refuses an expired or unknown remaining opportunity before execution", async (t) => {
+  const { inspectCatalogDefinitions } = await import("./observe-configured-upstream.mts");
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "catalog-inspection-admission-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const deadline of [0, NaN]) {
+    await assert.rejects(
+      inspectCatalogDefinitions(path.join(root, "must-not-execute"), root, Buffer.from("{}"), {
+        deadline,
+        now: () => 1,
+      }),
+      /Core inspection admission exhausted/,
+    );
+  }
+  assert.deepEqual(await readdir(root), []);
+});
+
+void test("original failure details are published before aggregate diagnostic refusal", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const failure = {
+    source: "large",
+    repository: "owner/large",
+    rule: "provider-transport",
+    details: "original provider refusal",
+  };
+  const logged: unknown[] = [];
+  await assert.rejects(
+    continueCatalogBatches(
+      async () => ({
+        report: {
+          pending_source_keys: ["large"],
+          attempted_source_keys: ["large"],
+          completed_source_keys: [],
+          failures: [failure],
+          requests: 1,
+          response_bytes_charged: 0,
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: true,
+      }),
+      {
+        deadline: 10,
+        now: () => 0,
+        evidenceByteLimit: 1,
+        onBatch: (batch) => {
+          logged.push(...batch.report.failures);
+        },
+      },
+    ),
+    /evidence envelope/,
+  );
+  assert.deepEqual(logged, [failure]);
 });

@@ -110,6 +110,8 @@ export interface ObserveOptions {
   consumeResponseBytes?: (bytes: number | null) => void;
   fetch?: ObserverFetch;
   now?: () => number;
+  /** Absolute caller boundary may only shorten this operation. */
+  deadline?: number;
   sleep?: (milliseconds: number) => Promise<unknown>;
   token?: string;
 }
@@ -926,6 +928,12 @@ export async function observeUpstream(
     options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const started = now();
   requireFact(
+    options.deadline === undefined || Number.isFinite(options.deadline),
+    "budget",
+    "Observation opportunity is unknown",
+  );
+  const deadline = Math.min(started + config.budget.duration_ms, options.deadline ?? Infinity);
+  requireFact(
     !retained ||
       (Date.parse(retained.started_at) <= started &&
         (retained.last_validated_at === null || Date.parse(retained.last_validated_at) <= started)),
@@ -1016,7 +1024,7 @@ export async function observeUpstream(
           "cancelled",
           "Observation cancelled; retain the exact continuation",
         );
-      const remaining = config.budget.duration_ms - (now() - started);
+      const remaining = deadline - now();
       requireFact(
         remaining > 0 && consumed.requests < config.budget.requests,
         "budget",
@@ -1046,12 +1054,17 @@ export async function observeUpstream(
             "cancelled",
             "Observation cancelled; retain the exact continuation",
           );
+        if (now() >= deadline)
+          throw new ObservationFailure(
+            "budget",
+            "Observation opportunity exhausted during provider request",
+          );
         if (attempt >= config.budget.retries)
           throw new ObservationFailure(
             "transport",
             "provider transport failed within its retry budget",
           );
-        await sleep(250 * 2 ** attempt);
+        await sleep(Math.max(0, Math.min(250 * 2 ** attempt, deadline - now())));
         continue;
       }
       options.observeResponse?.(response);
@@ -1084,7 +1097,7 @@ export async function observeUpstream(
       }
       if (response.status >= 500 && attempt < config.budget.retries) {
         await response.body?.cancel();
-        await sleep(250 * 2 ** attempt);
+        await sleep(Math.max(0, Math.min(250 * 2 ** attempt, deadline - now())));
         continue;
       }
       if (response.status === 304) {
