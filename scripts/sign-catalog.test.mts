@@ -246,3 +246,60 @@ void test("offline catalog signer reports the independent escaped-envelope limit
   assert.equal(result.stdout, "");
   assert.equal(existsSync(item.output), false);
 });
+
+void test("offline capacity diagnostics count escaped growth and retain the existing byte authority", async () => {
+  const { catalogCapacity, capacityConstant } = await import("./catalog-capacity.mts");
+  const limit = capacityConstant(
+    readFileSync(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url), "utf8"),
+    "MAX_CATALOG_BYTES",
+  );
+  assert.equal(limit, 4 * 1024 * 1024);
+  const catalog = {
+    schema_version: 2,
+    ports: [{ id: "one", summary: 'Unicodeé and "quoted" text' }],
+  };
+  const small = catalogCapacity(catalog, limit, 1700000000);
+  const large = catalogCapacity(
+    {
+      ...catalog,
+      ports: Array.from({ length: 1000 }, (_, index) => ({
+        ...catalog.ports[0],
+        id: `port-${index}`,
+      })),
+    },
+    limit,
+    1700000000,
+  );
+  assert.ok(large.representative_envelope_bytes > small.representative_envelope_bytes);
+  assert.equal(large.catalog_ports, 1000);
+  assert.equal(large.signature_status, "not-created; fixed-width placeholder counted only");
+  assert.equal(large.actual_provider_traffic, "Unknown");
+  const overflow = catalogCapacity(catalog, small.representative_envelope_bytes - 1, 1700000000);
+  assert.equal(overflow.fits_representative_envelope, false);
+  assert.equal(overflow.envelope_remaining_bytes, 0);
+  assert.throws(() => capacityConstant("const B: u64 = 0;", "B"), /Invalid/);
+  assert.throws(() => capacityConstant("const B: u64 = 1; const B: u64 = 2;", "B"), /ambiguous/);
+  assert.throws(
+    () => catalogCapacity({ ports: [{ id: "same" }, { id: "same" }] }, limit, 0),
+    /unique/,
+  );
+});
+
+void test("offline capacity diagnostics match the existing publisher envelope byte representation", async (t) => {
+  const { catalogCapacity } = await import("./catalog-capacity.mts");
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  const catalog = { ports: [{ id: "fixture", summary: 'é "quoted"' }] };
+  writeFileSync(item.catalog, JSON.stringify(catalog));
+  const result = item.run([
+    "--sequence",
+    String(Number.MAX_SAFE_INTEGER),
+    "--issued-at",
+    "100",
+    "--expires-at",
+    "86500",
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  const report = catalogCapacity(catalog, 4 * 1024 * 1024, 100);
+  assert.equal(report.representative_envelope_bytes, readFileSync(item.output).length);
+});
