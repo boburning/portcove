@@ -371,8 +371,10 @@ separate from native GUI, package or release acceptance.
 ### Declared skip routes
 
 The existing Node ownership record declares `platform_skips` with stable case names,
-an optional single parent `suite`, intended platforms, prerequisites, reasons and a
-maintained producer. Other nested deferrals remain unregistered and fail closed.
+an optional single parent test or `suite`, intended platforms, prerequisites, reasons
+and a maintained producer. Declarations cover registrations through their owning
+entry file, including explicitly named imported cases; raw Node observations retain
+the defining source separately. Other nested deferrals fail closed.
 Legacy single-object declarations retain their reviewed, exclusive unfiltered
 qualification owners. Complementary route arrays add platform, prerequisite,
 supervised-parent and explicit-acceptance observations without granting file-level
