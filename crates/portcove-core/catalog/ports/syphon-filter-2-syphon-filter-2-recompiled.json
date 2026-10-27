@@ -29,7 +29,7 @@
       "steps": [
         {
           "title": "Download your system’s setup kit",
-          "instruction": "Extract the complete official kit into a separate writable folder and keep your working copy. Install Python 3. The current 0.2.0 kit uses the native Syphon_Filter_2_Recompiled setup program, replacing older SETUP.bat instructions; paths with spaces are supported. Setup can obtain upstream’s portable CMake/Ninja tool pack or use suitable tools already installed. Downloading, extracting and discovery do not run a helper, compiler or game. Windows, Linux and each Mac architecture have separate downloads; Mac executables are ad-hoc signed, not Apple notarized. Follow the selected release’s platform instructions."
+          "instruction": "Extract the complete official kit into a separate writable folder and keep your working copy. Use the wizard’s build-tool check. Windows can use upstream’s portable pack, including Python 3, or suitable installed tools. Linux and Mac require Python 3 and system C/C++ compilers; on Mac, install Apple’s Command Line Tools. The current 0.2.0 kit uses the native Syphon_Filter_2_Recompiled setup program, replacing older SETUP.bat instructions; paths with spaces are supported. If CMake or Ninja is missing, setup can obtain a portable pack for your system; Linux and Mac still need their native compilers. Downloading, extracting and discovery do not run a helper, compiler or game. Windows, Linux and each Mac architecture have separate downloads; Mac executables are ad-hoc signed, not Apple notarized. Follow the selected release’s platform instructions."
         },
         {
           "title": "Prepare both discs and your BIOS",
