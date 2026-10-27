@@ -2,7 +2,7 @@ import { errorMessage, isRecord } from "./runtime-values.mts";
 import { vectorFamilyManifest, verifyVectorFamily } from "./brand-vector-contract.mts";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -944,7 +944,8 @@ async function main() {
 }
 
 async function settleDirectCli() {
-  if (import.meta.main) {
+  const invoked = process.argv[1] ? await realpath(process.argv[1]).catch(() => null) : null;
+  if (invoked === scriptPath) {
     await main();
   }
 }
