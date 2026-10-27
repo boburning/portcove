@@ -1,3 +1,9 @@
+import {
+  partitionRustTests,
+  rustPartitionConfig,
+  assertSameRustTestIdentities,
+  validateRustTimingHints,
+} from "./rust-test-partitioning.mts";
 import type { SpawnSyncOptions } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
@@ -65,6 +71,31 @@ export function qualificationNextestRecipe(
   throw new Error("Expected workspace-other, native hash:1/1, or intel hash:1/2|hash:2/2");
 }
 
+/** Reuse the existing Rust placement authority; costs never define discovery. */
+export function qualificationIntelPlacement(complete: unknown, hints: unknown, partition: string) {
+  if (!["hash:1/2", "hash:2/2"].includes(partition))
+    throw new Error("Expected one of two Intel partitions");
+  const all = [...runnableNextestTests(complete)].sort();
+  if (!all.length) throw new Error("Qualification complete runnable inventory is empty");
+  nextestOutcomeSelection(complete, new Set(all));
+  const partitions = partitionRustTests(all, validateRustTimingHints(hints), 2);
+  if (partitions.length !== 2)
+    throw new Error("Intel qualification requires two nonempty bounded partitions");
+  const flattened = partitions.flatMap((slot) => slot.tests);
+  if (new Set(flattened).size !== flattened.length)
+    throw new Error("Duplicate Intel test placement");
+  assertSameRustTestIdentities(new Set(flattened), all, "Intel qualification union");
+  const slot = partitions.find(
+    (slot) => slot.id === Number(partition.replace("hash:", "").split("/")[0]),
+  );
+  if (!slot) throw new Error("Intel qualification partition disappeared");
+  return {
+    complete: all,
+    partitions,
+    selected: slot.tests,
+  };
+}
+
 export function qualificationNextestSelection(complete: unknown, selected: unknown) {
   const all = runnableNextestTests(complete);
   if (!all.size) throw new Error("Qualification complete runnable inventory is empty");
@@ -119,6 +150,7 @@ export function runQualificationNextest(
     status: number | null;
     error: string | null;
   }[] = [];
+  let planned: ReturnType<typeof qualificationIntelPlacement> | undefined;
   let nativeStatus: number | null = null;
   let status = 1;
   let failure: string | null = null;
@@ -147,6 +179,10 @@ export function runQualificationNextest(
     return String(result.stdout ?? "");
   };
   try {
+    const strategy =
+      mode === "intel" ? (environment.PORTCOVE_INTEL_PARTITION_STRATEGY ?? "hash-control") : null;
+    if (strategy !== null && !["duration", "hash-control"].includes(strategy))
+      throw new Error("Unknown Intel partition strategy");
     const pin = readFileSync(path.join(cwd, ".node-version"), "utf8").trim();
     if (process.versions.node !== pin)
       throw new Error("Qualification reporting requires the repository-pinned Node");
@@ -176,7 +212,15 @@ export function runQualificationNextest(
       invocation_id: randomUUID(),
       mode,
       partition: partition ?? null,
-      recipe,
+      intel_partition_strategy: strategy,
+      recipe:
+        strategy === "duration"
+          ? {
+              scope: recipe.scope,
+              selected: null,
+              selection: "deferred until complete compiled inventory",
+            }
+          : recipe,
       profile: environment.NEXTEST_PROFILE ?? "default",
       node: process.version,
       runner: version,
@@ -202,6 +246,43 @@ export function runQualificationNextest(
         "json",
       ]),
     );
+    if (strategy === "duration") {
+      if (!partition) throw new Error("Intel partition slot is unavailable");
+      const hintsBytes = readFileSync(path.join(cwd, ".config", "rust-test-timing-hints.json"));
+      const hintsFile: unknown = JSON.parse(hintsBytes.toString("utf8"));
+      if (!isRecord(hintsFile) || !isRecord(hintsFile.platforms))
+        throw new Error("Missing Intel timing hints");
+      planned = qualificationIntelPlacement(
+        complete,
+        hintsFile.platforms["macos-x86_64"],
+        partition,
+      );
+      const originalConfig = readFileSync(path.join(cwd, ".config", "nextest.toml"), "utf8");
+      const profile = environment.NEXTEST_PROFILE ?? "default";
+      if (!["default", "ci"].includes(profile))
+        throw new Error("Unsupported Intel qualification profile");
+      const config = rustPartitionConfig(originalConfig, planned.selected, profile);
+      const configPath = path.join(packet, "partition.toml");
+      writeFileSync(configPath, config, { flag: "wx" });
+      recipe.selected = [...recipe.scope, "--config-file", configPath];
+      writeFileSync(
+        path.join(packet, "placement.json"),
+        JSON.stringify(
+          {
+            format_version: 1,
+            strategy,
+            partition_slot: partition,
+            hints_sha256: createHash("sha256").update(hintsBytes).digest("hex"),
+            original_config_sha256: createHash("sha256").update(originalConfig).digest("hex"),
+            recipe,
+            ...planned,
+          },
+          null,
+          2,
+        ) + "\n",
+        { flag: "wx" },
+      );
+    }
     const selected: unknown = JSON.parse(
       execute("selected-inventory", "cargo-nextest", [
         "nextest",
@@ -212,6 +293,12 @@ export function runQualificationNextest(
       ]),
     );
     const selection = qualificationNextestSelection(complete, selected);
+    if (planned)
+      assertSameRustTestIdentities(
+        selection.outcomes.selected,
+        planned.selected,
+        "Actual Intel selected inventory",
+      );
     const skipRoutes = nextestSkipRouteInventory(
       complete,
       dependencies.skipRoutes ?? readNextestSkipRoutes(),
@@ -263,6 +350,7 @@ export function runQualificationNextest(
       "selected-inventory.stdout",
       "outcomes.log",
       "skip-routes.json",
+      ...(planned ? ["placement.json", "partition.toml"] : []),
     ];
     const hashes = files.flatMap((name) => {
       try {

@@ -146,6 +146,7 @@ const containmentContractTests = [
 const containmentInputs = new Set([
   "scripts/rust-test-impact.mts",
   "scripts/windows-rust-tests.mts",
+  "scripts/rust-test-partitioning.mts",
   "scripts/nextest-outcomes.mts",
   "scripts/nextest-outcomes-cli.mts",
   "scripts/desktop-linux-x11.mts",
@@ -1300,6 +1301,7 @@ for (const [file, tests] of [
   ],
   ...[
     "scripts/windows-rust-tests.mts",
+    "scripts/rust-test-partitioning.mts",
     "scripts/windows-qualification-rust.mts",
     "scripts/fixtures/windows-qualification-selection.json",
     ".config/rust-test-timing-hints.json",
@@ -1757,6 +1759,13 @@ for (const file of nativeCompatibilitySourcePaths)
     "scripts/release-native-source-contract.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/rust-test-partitioning.mts", [
+  ...new Set([
+    ...(explicitNodeTests.get("scripts/windows-rust-tests.mts") ?? []),
+    ...(explicitNodeTests.get("scripts/qualification-nextest.mts") ?? []),
+    "scripts/workflow-provenance.test.mts",
+  ]),
+]);
 explicitNodeTests.set("scripts/nextest-outcomes-cli.mts", [
   ...(explicitNodeTests.get("scripts/nextest-outcomes.mts") ?? []),
 ]);
@@ -2313,6 +2322,7 @@ function classifyOnePath(
     file === "deny.toml" ||
     file === ".config/rust-test-timing-hints.json" ||
     file === "scripts/windows-rust-tests.mts" ||
+    file === "scripts/rust-test-partitioning.mts" ||
     file === "scripts/windows-qualification-rust.mts" ||
     file === "scripts/fixtures/windows-qualification-selection.json" ||
     file === "scripts/nextest-outcomes.mts" ||

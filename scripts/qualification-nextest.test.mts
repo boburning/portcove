@@ -16,6 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import {
   qualificationNextestRecipe,
+  qualificationIntelPlacement,
   qualificationNextestSelection,
   runQualificationNextest,
 } from "./qualification-nextest.mts";
@@ -63,6 +64,7 @@ function packet(cwd: string) {
 function nativeControl(
   cwd: string,
   options: {
+    intelStrategy?: string;
     status?: number;
     inventory?: unknown;
     complete?: unknown;
@@ -79,55 +81,62 @@ function nativeControl(
   const calls: string[][] = [];
   const records: string[] = [];
   const invoke = () =>
-    runQualificationNextest("workspace-other", undefined, {
-      cwd,
-      skipRoutes: options.skipRoutes ?? [
-        {
-          package: "portcove-nextest-protocol",
-          test: "ignored",
-          source: "crates/portcove-nextest-protocol/src/lib.rs",
-          platforms: ["linux", "darwin", "win32"],
-          reason: "controlled native ignored fixture",
-          category: "explicit-acceptance",
+    runQualificationNextest(
+      options.intelStrategy ? "intel" : "workspace-other",
+      options.intelStrategy ? "hash:1/2" : undefined,
+      {
+        cwd,
+        skipRoutes: options.skipRoutes ?? [
+          {
+            package: "portcove-nextest-protocol",
+            test: "ignored",
+            source: "crates/portcove-nextest-protocol/src/lib.rs",
+            platforms: ["linux", "darwin", "win32"],
+            reason: "controlled native ignored fixture",
+            category: "explicit-acceptance",
+          },
+        ],
+        environment: {
+          PORTCOVE_HEAD_SHA: options.head ?? "b".repeat(40),
+          GITHUB_SHA: "a".repeat(40),
+          GITHUB_RUN_ID: "12",
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_JOB: "fixture",
+          ...(options.intelStrategy
+            ? { PORTCOVE_INTEL_PARTITION_STRATEGY: options.intelStrategy }
+            : {}),
         },
-      ],
-      environment: {
-        PORTCOVE_HEAD_SHA: options.head ?? "b".repeat(40),
-        GITHUB_SHA: "a".repeat(40),
-        GITHUB_RUN_ID: "12",
-        GITHUB_RUN_ATTEMPT: "1",
-        GITHUB_JOB: "fixture",
+        report: options.report ?? ((text) => records.push(text)),
+        ...(options.diagnostic ? { diagnostic: options.diagnostic } : {}),
+        ...(options.receiptFailure
+          ? {
+              publishReceipt() {
+                throw new Error("fixture receipt unavailable");
+              },
+            }
+          : {}),
+        spawnSync(command, args) {
+          calls.push([command, ...args]);
+          if (command === "git") return { status: 0, stdout: "a".repeat(40) + "\n" };
+          if (args[0] === "--version")
+            return {
+              status: 0,
+              stdout: options.version ?? "cargo-nextest 0.9.100 (7e6129fe2 2025-07-07)\n",
+            };
+          if (args[1] === "list")
+            return {
+              status: options.discoveryStatus ?? 0,
+              stdout: JSON.stringify(
+                args.includes("-E")
+                  ? (options.complete ?? complete())
+                  : (options.inventory ?? selected()),
+              ),
+            };
+          assert.equal(args[1], "run");
+          return { status: options.status ?? 0, stdout: options.stdout ?? fixture("passed.jsonl") };
+        },
       },
-      report: options.report ?? ((text) => records.push(text)),
-      ...(options.diagnostic ? { diagnostic: options.diagnostic } : {}),
-      ...(options.receiptFailure
-        ? {
-            publishReceipt() {
-              throw new Error("fixture receipt unavailable");
-            },
-          }
-        : {}),
-      spawnSync(command, args) {
-        calls.push([command, ...args]);
-        if (command === "git") return { status: 0, stdout: "a".repeat(40) + "\n" };
-        if (args[0] === "--version")
-          return {
-            status: 0,
-            stdout: options.version ?? "cargo-nextest 0.9.100 (7e6129fe2 2025-07-07)\n",
-          };
-        if (args[1] === "list")
-          return {
-            status: options.discoveryStatus ?? 0,
-            stdout: JSON.stringify(
-              args.includes("-E")
-                ? (options.complete ?? complete())
-                : (options.inventory ?? selected()),
-            ),
-          };
-        assert.equal(args[1], "run");
-        return { status: options.status ?? 0, stdout: options.stdout ?? fixture("passed.jsonl") };
-      },
-    });
+    );
   return { calls, records, invoke };
 }
 
@@ -326,6 +335,7 @@ void test("qualification CLI runtime closure loads without repository packages o
   for (const name of [
     "qualification-nextest.mts",
     "nextest-skip-routes.mts",
+    "rust-test-partitioning.mts",
     "nextest-outcomes.mts",
     "runtime-values.mts",
     "report-summary.mts",
@@ -361,5 +371,75 @@ void test("unexpected ignored cases fail qualification after preserving original
       readFileSync(path.join(retained.output, "skip-routes.json"), "utf8"),
     );
     assert.ok(isRecord(skips) && Array.isArray(skips.errors) && skips.errors.length === 1);
+  }
+});
+
+const intelHints = {
+  format_version: 1,
+  default_seconds: 200,
+  families: [],
+  tests: [
+    ["portcove-nextest-protocol", "passed", 400],
+    ["portcove-nextest-protocol", "failing", 300],
+  ],
+};
+void test("Intel duration hints only place complete current compiled identities once", () => {
+  const first = qualificationIntelPlacement(complete(), intelHints, "hash:1/2");
+  const second = qualificationIntelPlacement(complete(), intelHints, "hash:2/2");
+  assert.deepEqual(first.complete, second.complete);
+  assert.deepEqual([...first.selected, ...second.selected].sort(), first.complete);
+  assert.equal(new Set([...first.selected, ...second.selected]).size, first.complete.length);
+  assert.ok(first.selected[0]?.includes('"passed"'));
+  const changedHints = { ...intelHints, tests: [["obsolete-binary", "removed", 3599]] };
+  const changed = qualificationIntelPlacement(complete(), changedHints, "hash:1/2");
+  assert.deepEqual(changed.complete, first.complete);
+  assert.deepEqual(changed.partitions.flatMap((slot) => slot.tests).sort(), first.complete);
+  assert.throws(
+    () =>
+      qualificationIntelPlacement(complete(), { ...intelHints, default_seconds: 0 }, "hash:1/2"),
+    /hints/u,
+  );
+  assert.throws(
+    () => qualificationIntelPlacement(complete(), intelHints, "hash:3/3"),
+    /two Intel/u,
+  );
+});
+void test("Intel execution uses and hashes its exact derived profile and rejects selection drift", (t) => {
+  for (const drift of [false, true]) {
+    const cwd = directory(t);
+    mkdirSync(path.join(cwd, ".config"));
+    const original = readFileSync(new URL("../.config/nextest.toml", import.meta.url), "utf8");
+    writeFileSync(path.join(cwd, ".config", "nextest.toml"), original);
+    writeFileSync(
+      path.join(cwd, ".config", "rust-test-timing-hints.json"),
+      JSON.stringify({ platforms: { "macos-x86_64": intelHints } }),
+    );
+    const control = nativeControl(cwd, {
+      intelStrategy: "duration",
+      ...(drift ? { inventory: selected("failing") } : {}),
+    });
+    assert.equal(control.invoke(), drift ? 1 : 0);
+    const { output, receipt } = packet(cwd);
+    const placement = record(JSON.parse(readFileSync(path.join(output, "placement.json"), "utf8")));
+    const recipe = record(placement.recipe);
+    const argv = recipe.selected;
+    assert.ok(Array.isArray(argv));
+    assert.ok(argv.includes("--config-file"));
+    assert.ok(!argv.includes("--partition"));
+    const config = readFileSync(path.join(output, "partition.toml"), "utf8");
+    assert.equal(config.replace(/^default-filter = .*\n/mu, ""), original);
+    const request = record(JSON.parse(readFileSync(path.join(output, "request.json"), "utf8")));
+    assert.equal(record(request.recipe).selected, null);
+    if (drift) {
+      assert.match(String(receipt.failure), /Actual Intel selected inventory/u);
+      assert.ok(!control.calls.some((call) => call[2] === "run"));
+    } else {
+      const invocation = control.calls.find((call) => call[2] === "run");
+      assert.ok(invocation);
+      assert.deepEqual(invocation.slice(3, 3 + argv.length), argv);
+      assert.ok(Array.isArray(receipt.hashes));
+      const names = receipt.hashes.map((entry: unknown) => record(entry).name);
+      assert.ok(names.includes("placement.json") && names.includes("partition.toml"));
+    }
   }
 });

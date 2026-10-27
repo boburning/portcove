@@ -952,10 +952,11 @@ two-thread budget nor any configured per-test execution budget.
 This slot reservation applies within each nextest invocation; it does not
 exclude other CI partitions or unrelated host work. Signed-definition coverage
 retains full authenticated catalogs, ordinary artifact installs and corrections.
-Intel macOS
-uses two exhaustive hash partitions to keep this work off the critical path.
-This changes scheduling
-only; it does not change test execution budgets. CI caches compiled dependencies
+Intel macOS uses two exhaustive duration-balanced partitions from the shared
+Rust partitioner. Historical hints affect placement only; current compiled
+inventories own coverage. A complete hash control remains available for
+comparable measurements through Qualification. This changes scheduling only;
+it does not change test execution budgets. CI caches compiled dependencies
 after test failures so fixing a failed assertion does not require a cold rebuild.
 
 Supported local Rust validation commands serialize their heavyweight compiler

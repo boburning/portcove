@@ -11,6 +11,11 @@ on:
         required: false
         type: string
         default: "full"
+      intel_partition_strategy:
+        description: Duration placement or the complete hash control for comparable measurements.
+        required: false
+        type: string
+        default: "duration"
       force_qualification:
         description: Run the complete secret-free qualification plan.
         required: false
@@ -1051,6 +1056,8 @@ jobs:
       - name: Use the runner-owned temporary directory
         run: echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Execute Intel binaries on Intel hardware
+        env:
+          PORTCOVE_INTEL_PARTITION_STRATEGY: ${{ inputs.intel_partition_strategy || 'duration' }}
         run: node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"
       - name: Retain Intel discovery and original case outcomes
         if: always()

@@ -796,6 +796,17 @@ Cargo's executable artifacts; native Desktop parity retains its separate feature
 build. The required `rust` result waits for the build, all workers and transport
 validation. Qualification profiles and jobs retain their separate coverage.
 
+Intel qualification reuses the same partitioner in `scripts/rust-test-partitioning.mts`
+with the `platforms.macos-x86_64` historical wall-time hints. Two Intel workers
+retain all current runnable identities exactly once. A derived nextest profile
+contains only the selected identity filter; timeouts, retries and resource
+reservations remain unchanged. Each worker checks actual selected discovery
+against its planned identities and retains the complete plan, config, hashes and
+original outcomes. Legacy `hash:1/2` and `hash:2/2` labels identify worker slots;
+`intel_partition_strategy` records the actual placement. Manual Qualification
+runs accept `duration` or the complete `hash-control` for comparable measurement.
+Hints and modeled balance do not establish CPU/I/O costs or a measured speedup.
+
 Inventory/build, archive creation, transfer/setup, partition execution and
 transport build/run phases must be included when assessing total feedback time.
 Retain queue delay, cache state and summed runner time separately from elapsed
