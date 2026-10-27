@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { WebDriver, WebElement } from "selenium-webdriver";
+import { captureKeyboardTarget } from "../apps/desktop/scripts/desktop-capture-target.mts";
+import { observeVisibleTarget } from "../apps/desktop/scripts/browser-readiness.mts";
 import {
   prepareCaptureTarget,
   requireCompleteCaptureTarget,
@@ -108,17 +111,7 @@ void test("native preflight retains the exact refused observation without anothe
   const { readFile, writeFile, mkdtemp, lstat, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const path = await import("node:path");
-  const { stripTypeScriptTypes } = await import("node:module");
-  const { runInNewContext } = await import("node:vm");
-  const { errorMessage, isRecord } = await import("./runtime-values.mts");
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("async function captureKeyboardTarget(");
-  const end = source.indexOf("\nasync function ", start + 1);
-  assert.ok(start >= 0 && end > start);
-  const executable = stripTypeScriptTypes(source.slice(start, end));
+  const { isRecord } = await import("./runtime-values.mts");
   const output = await mkdtemp(path.join(tmpdir(), "portcove-native-capture-"));
   t.after(async () => {
     assert.equal(path.dirname(output), tmpdir());
@@ -141,7 +134,6 @@ void test("native preflight retains the exact refused observation without anothe
       },
       scrollIntoView() {},
     };
-    const observer = () => {};
     const observation = {
       target: `[data-capture-target="native-${name}"]`,
       target_count: 1,
@@ -150,39 +142,29 @@ void test("native preflight retains the exact refused observation without anothe
       viewport: { width: 640, height: 640 },
       ...(mode === "oversized-metadata" ? { diagnostic: "x".repeat(16384) } : {}),
     };
-    const extracted: unknown = runInNewContext(`${executable}; captureKeyboardTarget`, {
-      driverBrowser: () => ({}),
-      assert,
-      output,
-      path,
-      writeFile,
-      lstat,
-      errorMessage,
-      TextEncoder,
-      artifacts: [],
-      observeVisibleTarget: observer,
-      prepareCaptureTarget,
-      requireUnchangedCaptureTarget,
-      executeBrowserScript: async (
-        _session: unknown,
-        fn: (...args: unknown[]) => unknown,
+    const browser: Pick<WebDriver, "executeScript" | "takeScreenshot"> = {
+      async executeScript<Result>(
+        script: Parameters<WebDriver["executeScript"]>[0],
         ...args: unknown[]
-      ) => {
-        if (fn === observer) {
+      ): Promise<Result> {
+        if (script === observeVisibleTarget) {
           probes++;
-          return observation;
+          return observation as Result;
         }
-        return fn(...args);
+        assert.equal(typeof script, "function");
+        assert.ok(typeof script === "function");
+        const callback = script as (...args: unknown[]) => unknown;
+        const value: unknown = await callback(...args);
+        return value as Result;
       },
-      captureSettledVisual: async () => {
+      async takeScreenshot() {
         captures++;
         throw new Error("Unexpected screenshot");
       },
-    });
-    assert.ok(typeof extracted === "function");
-    const capture = extracted as (name: string, element: unknown) => Promise<void>;
+    };
+    const artifacts: string[] = [];
     await assert.rejects(
-      capture(name, element),
+      captureKeyboardTarget({ browser, output, artifacts }, name, element as unknown as WebElement),
       /exceeds viewport; capture identified title\/actions instead/,
     );
     assert.equal(probes, 1);

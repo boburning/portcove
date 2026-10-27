@@ -314,6 +314,10 @@ for (const [file, tests] of [
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
   ["apps/desktop/scripts/native-enlargement.mts", ["scripts/desktop-execution-plan.test.mts"]],
+  [
+    "apps/desktop/scripts/desktop-capture-target.mts",
+    ["scripts/capture-target.test.mts", "scripts/native-helper-dependencies.test.mts"],
+  ],
   ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
   ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
   [
