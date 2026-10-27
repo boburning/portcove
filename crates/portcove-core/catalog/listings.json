@@ -9812,12 +9812,17 @@
     {
       "id": "body-harvest-recompiled",
       "name": "Body Harvest: Recompiled",
-      "summary": "Explore Body Harvest: Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a permitted Body Harvest player and select your own North American cartridge dump on first Play.",
       "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
       "issue_number": 1448,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
       "artwork": {
         "game_id": 3426,
         "cover_id": 258206,
@@ -9825,7 +9830,42 @@
         "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
         "game_slug": "body-harvest",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases",
+      "original_game_title": "Body Harvest",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "BodyHarvestRecompiled-",
+          "-Windows.zip"
+        ],
+        "linux-x86-64": [
+          "BodyHarvestRecompiled-",
+          "-Linux-X64.tar.gz"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a complete permitted player",
+            "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them."
+          },
+          {
+            "title": "Select your original game on first Play",
+            "instruction": "Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
+          },
+          {
+            "title": "Preserve the actual profile and working copy",
+            "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+          },
+          {
+            "title": "Keep Flatpak data with the actual profile",
+            "instruction": "For an existing permitted Flatpak installation, follow upstream preparation and preserve the complete ~/.var/app/io.github.bodyharvestrecomp.bodyharvestrecomp folder alongside the actual profile. Its writable app area and normal/custom/portable profile can be different. Keep the working installation until its replacement is ready."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+      },
+      "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
     },
     {
       "id": "bof4-recomp-plaught-armor-breath-of-fire-iv",
@@ -10890,12 +10930,16 @@
     {
       "id": "cbfd-recompiled-sciaschi",
       "name": "Conker's Bad Fur Day: Recompiled (sciaschi)",
-      "summary": "Explore Conker's Bad Fur Day: Recompiled (sciaschi) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the sciaschi Conker player with your own USA ROM and preserve its saves, mods and save states.",
       "project_url": "https://github.com/sciaschi/CBFD-Recompiled",
       "issue_number": 1216,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/sciaschi/CBFD-Recompiled",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md",
       "artwork": {
         "game_id": 1286,
         "cover_id": 86478,
@@ -10903,17 +10947,53 @@
         "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
         "game_slug": "conker-s-bad-fur-day",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/sciaschi/CBFD-Recompiled/releases",
+      "original_game_title": "Conker's Bad Fur Day",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ConkerRecompiled-",
+          "-Windows.zip"
+        ],
+        "linux-x86-64": [
+          "ConkerRecompiled-",
+          "-Linux.tar.gz"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose this implementation’s complete player",
+            "instruction": "Use a permitted sciaschi CBFD-Recompiled copy: ConkerRecomp.exe on Windows or ConkerRecomp on Linux, with its full extracted folder as the working directory. Keep assets, runtime libraries and notices together. The separate Mods.zip contains optional mods, not the player. The upstream macOS application is a separate Apple Silicon/macOS 15-or-later route; retain its bundle and follow upstream instructions."
+          },
+          {
+            "title": "Load your USA original on first Play",
+            "instruction": "Choose Play explicitly, then Load ROM in the launcher and supply your own supported USA Conker’s Bad Fur Day dump. Upstream validates and remembers the input; the released player does not need the source-build tools. Keep this implementation separate from Conker64’s scene prototype and the distinct Reloaded player."
+          },
+          {
+            "title": "Keep the complete profile before updating",
+            "instruction": "You or upstream provide updates. Preserve the actual ConkerRecompiled profile: normally %LOCALAPPDATA%\\ConkerRecompiled, ~/.config/ConkerRecompiled or ~/Library/Application Support/ConkerRecompiled. Keep saves, stored ROM, settings, achievements, save states, logs and mods together with the working copy. portable.txt selects local data relative to the player working folder on Windows/native Linux or beside the macOS bundle; a custom/test profile can differ. Portcove does not adopt, back up, roll back or delete these external files."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md"
+      },
+      "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
     },
     {
       "id": "cdlewis-snowboardkids-recomp",
       "name": "Snowboard Kids / Snowboard Kids: Recompiled (cdlewis)",
-      "summary": "Explore Snowboard Kids / Snowboard Kids: Recompiled (cdlewis) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a permitted Snowboard Kids player and select your own North American cartridge dump on first Play.",
       "project_url": "https://github.com/cdlewis/snowboardkids-recomp",
       "issue_number": 1886,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/cdlewis/snowboardkids-recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
       "artwork": {
         "game_id": 3342,
         "cover_id": 104128,
@@ -10921,7 +11001,45 @@
         "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
         "game_slug": "snowboard-kids",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Snowboard Kids",
+      "release_url": "https://github.com/cdlewis/snowboardkids-recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SnowboardKidsRecompiled-",
+          "Windows.zip"
+        ],
+        "linux-x86-64": [
+          "SnowboardKidsRecompiled-",
+          "Linux-X64.tar.gz"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep your complete permitted player",
+            "instruction": "For an existing Windows copy you are permitted to use, select SnowboardKidsRecompiled.exe and its supplied folder. Keep the entire player folder and companions together. On Linux, use the matching native player and supplied working folder; Flatpak and macOS application bundles retain their upstream installation and launchers."
+          },
+          {
+            "title": "Select your original game on first Play",
+            "instruction": "Choose Play explicitly, then select your own supported North American Snowboard Kids ROM in the game menu. The player checks the game identity and normalizes supported byte orders. No separate extraction or compiler step is needed for the released player."
+          },
+          {
+            "title": "Preserve your actual profile when updating",
+            "instruction": "You or upstream provide updates. Keep the working copy and actual profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. On Windows/native Linux, portable.txt in the working folder stores data there; on macOS the marker belongs beside the application bundle and data stays there. Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback."
+          },
+          {
+            "title": "Keep Flatpak data alongside the actual profile",
+            "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
+          }
+        ],
+        "warnings": [
+          "Upstream lists graphics/CPU requirements and Windows runtime prerequisites. Separately published native builds are not Portcove native or gameplay qualification."
+        ],
+        "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md"
+      },
+      "download_block_reason": "The released player links cdlewis/RecompFrontend at fa4f0ca42ba2efaca631203ef1e0753f2be78985, whose applicable grant remains unestablished. The parent game-project GPL does not settle that separate component. Keep an existing copy you are permitted to use. Reconsider acquisition with an attributable compatible grant or a reviewed replacement component/package."
     },
     {
       "id": "celosia-henrykun55-shadow-of-the-colossus",
@@ -10956,12 +11074,44 @@
     {
       "id": "chameleon-twist-recompiled",
       "name": "Chameleon Twist: Recompiled",
-      "summary": "Explore Chameleon Twist: Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a permitted Chameleon Twist player with your own supported Japanese cartridge dump.",
       "project_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp",
       "issue_number": 125,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
+      "original_game_title": "Chameleon Twist",
+      "release_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ChameleonTwistJPRecompiled",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a permitted Windows copy",
+            "instruction": "For an existing prepared copy you are permitted to use, select ChameleonTwistJPRecompiled.exe with its complete extracted folder as the working directory. Keep assets and all supplied libraries together. The reviewed release offers a Windows ZIP; its inherited Linux documentation does not establish a separately published native Linux player."
+          },
+          {
+            "title": "Select the Japanese game on first Play",
+            "instruction": "Choose Play explicitly and use your own unmodified Japanese Chameleon Twist ROM in the player. It recognizes the supported game and normalizes .z64, .v64 and .n64 byte orders. A different region or modified ROM is not equivalent; no game compiler or extractor is started by Portcove."
+          },
+          {
+            "title": "Keep the whole profile and working copy",
+            "instruction": "You or upstream manage runtime updates. Preserve the complete working folder and normally %LOCALAPPDATA%\\ChameleonTwistRecompiled, including its imported game, saves and settings. portable.txt or a custom upstream location can instead put data in the working folder. Keep that actual location and originals recoverable before replacing anything. Registration and Play stay separate; Portcove does not adopt, back up, roll back or delete these external files."
+          }
+        ],
+        "warnings": [
+          "The existing managed-artifact integrity hold remains unresolved. No publisher-authenticated expected digest, curated trust approval or native/gameplay acceptance is established by these instructions."
+        ],
+        "help_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md"
+      },
+      "download_block_reason": "The v0.1 Windows ZIP still has no published independently expected SHA-256, preserving the existing artifact-integrity hold. Its pinned source also carries separately authored Chiaro font files whose applicable permission needs review; the parent GPL does not settle that scope. Keep a permitted existing copy. Reconsider fresh acquisition after the required artifact trust and affected component permissions are established or the package is appropriately replaced."
     },
     {
       "id": "chasm-the-rift-panzerchasm",
@@ -11488,12 +11638,14 @@
     {
       "id": "conker64-recompiled",
       "name": "Conker64: Recompiled",
-      "summary": "Explore Conker64: Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Follow Conker64’s scene prototype and preserve an already registered development copy.",
       "project_url": "https://github.com/Conker64Recomp/conker64-recompiled",
       "issue_number": 123,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md",
       "artwork": {
         "game_id": 1286,
         "cover_id": 86478,
@@ -11501,7 +11653,25 @@
         "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
         "game_slug": "conker-s-bad-fur-day",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/Conker64Recomp/conker64-recompiled/releases",
+      "original_game_title": "Conker's Bad Fur Day",
+      "recommended_download_channel": "beta",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Understand this scene prototype",
+            "instruction": "The published v0.1.0-beta package is the previously reviewed scene-only Conker.exe and SDL2.dll copy. It does not run the game’s recompiled logic or levels, and its package does not contain the source extraction tools. It remains on the existing useful-output hold; this guide offers no new qualified player or registration route."
+          },
+          {
+            "title": "Preserve an already registered copy",
+            "instruction": "Keep any already registered, permitted development copy, its complete folder and your own original ROM under its existing contract. Upstream identifies the Windows EEPROM location as %APPDATA%\\ConkerRecompiled\\Saves\\conker.eep. Preserve all actual settings, generated files and data before changing the copy. You or upstream own updates; Portcove does not replace, back up, roll back or delete external files."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
+      },
+      "download_block_reason": "The existing v0.1.0-beta release is a scene prototype without runnable game logic or levels; it is the same artifact covered by this port’s owner-approved useful-output hold. Reconsider fresh setup when upstream supplies a useful game runtime or a separately evidenced useful operation. Already registered permitted development copies retain their contracts."
     },
     {
       "id": "conkerlr-recomp-yacineolivier-maker-conker-live-reloaded",
@@ -12220,12 +12390,15 @@
     {
       "id": "dahsidiabdallah-conkerbfdreloaded",
       "name": "Conker's Bad Fur Day / ConkerBFDReloaded (DahSidiAbdallah)",
-      "summary": "Explore Conker's Bad Fur Day / ConkerBFDReloaded (DahSidiAbdallah) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the distinct ConkerBFDReloaded player with your own USA ROM and keep its complete profile.",
       "project_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded",
       "issue_number": 1806,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md",
       "artwork": {
         "game_id": 1286,
         "cover_id": 86478,
@@ -12233,17 +12406,52 @@
         "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
         "game_slug": "conker-s-bad-fur-day",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/releases",
+      "original_game_title": "Conker's Bad Fur Day",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ConkerBFDReloaded-",
+          "-Windows.zip"
+        ],
+        "linux-x86-64": [
+          "ConkerBFDReloaded-",
+          "-Linux.tar.gz"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the complete permitted Reloaded copy",
+            "instruction": "Select ConkerBFDReloaded.exe on Windows or ConkerBFDReloaded on Linux from your existing permitted copy. Keep the extracted folder, assets and supplied libraries together as its working directory. This implementation credits sciaschi’s CBFD-Recompiled but has its own player and profile; do not substitute the scene-only Conker64 package. Optional HD-Icons .rtz downloads are texture packs, not players."
+          },
+          {
+            "title": "Select your original game on first Play",
+            "instruction": "Choose Play explicitly and select your own supported USA Conker’s Bad Fur Day ROM in the launcher. If the Linux file picker is unavailable, use Change launch details: enter --rom on one launch-argument line and your ROM’s absolute path on the next, without surrounding quotes, then choose Play. This uses upstream’s supported --rom option. The player remembers the input and needs no separate compiler or discovered preparation helper."
+          },
+          {
+            "title": "Preserve saves, photos and generated prompts",
+            "instruction": "You or upstream provide runtime updates. Keep the complete working copy and actual profile: normally %LOCALAPPDATA%\\ConkerBFDReloaded or ~/.config/ConkerBFDReloaded. Preserve the cached ROM, saves, settings, mods, save states, Photos and generated key_prompts together, including portable/custom locations actually used. Keep the current copy until its replacement is ready. Portcove records launch details without adopting, backing up, rolling back or deleting external files."
+          }
+        ],
+        "warnings": [
+          "The Linux package instructions call the build experimental and describe only upstream WSL/software-graphics testing; this is not Portcove native or Steam Deck acceptance."
+        ],
+        "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md"
+      },
+      "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
     },
     {
       "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
       "name": "Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000)",
-      "summary": "Explore Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a permitted Beetle Adventure Racing player and choose your own supported USA cartridge dump.",
       "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
       "issue_number": 1800,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
       "artwork": {
         "game_id": 2715,
         "cover_id": 104718,
@@ -12251,7 +12459,37 @@
         "image_sha256": "cbcd2bd8f4371735cee53a83c72e5f694c09dd899c1d35ac08126389f63200e1",
         "game_slug": "beetle-adventure-racing",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Beetle Adventure Racing!",
+      "release_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "beetle-adventure-racing-recomp-",
+          "windows-x64.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a permitted Windows player",
+            "instruction": "Select beetle-adventure-racing-recomp.exe in your existing permitted copy and use its complete extracted folder as the working directory. Keep assets and all supplied companions together. The selected release is a Windows x64 alpha; debug-symbols ZIPs are not player packages."
+          },
+          {
+            "title": "Load your original game on first Play",
+            "instruction": "Choose Play, then Load ROM in the player and select your own supported USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and caches the selected game. The released player needs no downstream decompilation build or separate game-generation step."
+          },
+          {
+            "title": "Preserve the current copy and Controller Pak data",
+            "instruction": "You or upstream provide updates. Back up the whole working folder and normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, including cached ROM, Controller Pak saves, settings and bindings. portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+          }
+        ],
+        "warnings": [
+          "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification."
+        ],
+        "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md"
+      },
+      "download_block_reason": "The Windows player links vendored RecompFrontend code whose applicable permission remains unestablished. The project AGPL and licensed nested dependencies do not themselves establish a grant for that separately authored frontend. Keep an existing copy you are permitted to use. Reconsider acquisition with attributable compatible permission or an appropriately licensed replacement package."
     },
     {
       "id": "danilopaulinodasilva-kof98recomp",
@@ -38031,12 +38269,15 @@
     {
       "id": "vidanox-banjotooierecompiled",
       "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
-      "summary": "Explore Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a permitted Banjo-Tooie player and select your own USA big-endian cartridge dump.",
       "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
       "issue_number": 1795,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
       "artwork": {
         "game_id": 3418,
         "cover_id": 295556,
@@ -38044,7 +38285,41 @@
         "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
         "game_slug": "banjo-tooie",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Banjo-Tooie",
+      "release_url": "https://github.com/Vidanox/BanjoTooieRecompiled/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "BanjoTooieRecompiled-",
+          "windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "BanjoTooieRecompiled-",
+          "linux-x64.tar.gz"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the complete permitted player",
+            "instruction": "On Windows, select BanjoTooieRecompiled.exe in your existing permitted copy and keep assets plus the supplied SDL2/DXC libraries together in its working folder. On Linux, retain run.sh for upstream launch, or select the native BanjoTooieRecompiled with that extracted folder as its working directory. The wrapper supplies that folder; the native build still needs its documented Vulkan, shared-library and file-dialog portal prerequisites."
+          },
+          {
+            "title": "Choose your original cartridge dump on first Play",
+            "instruction": "Choose Play explicitly, then Select ROM and supply your own supported Banjo-Tooie USA .z64 in big-endian byte order. The documented input is a 32 MiB original cartridge dump; another region, byte order or modified image is not equivalent. The released player reads it directly, without a separate extraction or compiler step."
+          },
+          {
+            "title": "Keep your actual profile when updating",
+            "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
+          }
+        ],
+        "warnings": [
+          "Upstream calls Linux less exercised than Windows. Published packages and source claims do not establish Portcove native gameplay or real-save acceptance."
+        ],
+        "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
+      },
+      "download_block_reason": "The v1.0.1 source/package recipe links N64Recomp/RecompFrontend without an established applicable grant and includes Suplexmentary Comic NC.ttf, which upstream expressly identifies as carrying no license and an all-rights-reserved notice. The project GPL does not settle those separate works. Keep a permitted existing copy. Reconsider with attributable compatible grants or a released package replacing the affected components."
     },
     {
       "id": "viewtiful-joe-2-recompiled-goldilocks00-viewtiful-joe-2",
@@ -38613,12 +38888,30 @@
     {
       "id": "wave-race-64-recompiled",
       "name": "Wave Race 64 Recompiled",
-      "summary": "Explore Wave Race 64 Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Follow the Wave Race 64 recompilation prototype and preserve an already registered development copy.",
       "project_url": "https://github.com/chronic8000/WaveRace64Recompiled",
       "issue_number": 168,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled"
+      "availability": "source-only",
+      "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
+      "original_game_title": "Wave Race 64",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Check the current prototype status",
+            "instruction": "This upstream reports only two boxes of visual noise and publishes no player archive. It is not a useful fresh game installation. The README names an own USA Rev A Wave Race 64 .z64 dump, but BUILDING.md still contains inherited Majora’s Mask commands; do not substitute that game or treat those commands as a verified Wave Race preparation guide."
+          },
+          {
+            "title": "Preserve an already registered development copy",
+            "instruction": "Keep any already registered development copy, its complete folder, original inputs, generated files, saves and settings under its existing contract. You or upstream own its updates. This guide offers no new qualified registration or fresh player route and does not adopt, replace, back up, roll back or delete external files."
+          }
+        ],
+        "warnings": [
+          "The existing useful-output hold and Deferred state remain. Reconsider new operations when upstream demonstrates useful runnable output and supplies a title-specific preparation or player package; missing personal gameplay is not the reason for this hold."
+        ],
+        "help_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
+      },
+      "download_block_reason": "The current upstream is a renderer prototype with no published player archive and no demonstrated useful game output; its build guide still names another game. Fresh player acquisition remains on the existing useful-output hold. Reconsider when a useful runnable Wave Race player or title-specific reproducible preparation is available. Already registered development copies retain their existing contract."
     },
     {
       "id": "wave-race-blue-storm-recompiled",

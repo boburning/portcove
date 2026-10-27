@@ -1,3 +1,16 @@
+import { workflow } from "./ci-workflow-fixture.mts";
+import { workflowJobSource } from "./ci-workflow-fixture.mts";
+import { qualificationWorkflow } from "./ci-workflow-fixture.mts";
+import { rustTests } from "./ci-workflow-fixture.mts";
+import { rustWorkspaceTests } from "./ci-workflow-fixture.mts";
+import { windowsStorage } from "./ci-workflow-fixture.mts";
+import { nativeRust } from "./ci-workflow-fixture.mts";
+import { intelBuild } from "./ci-workflow-fixture.mts";
+import { intelTests } from "./ci-workflow-fixture.mts";
+import { rustDocs } from "./ci-workflow-fixture.mts";
+import { rustQuality } from "./ci-workflow-fixture.mts";
+import { frontend } from "./ci-workflow-fixture.mts";
+import { catalog } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -567,4 +580,61 @@ void test("raw Git and plan admission share strict changed-path policy", () => {
   }
   const file = "docs/name with spaces.md";
   assert.equal(parseRawDiff(Buffer.from(`${header}\0${file}\0`))[0]?.newPath, file);
+});
+
+void test("release qualification profile connects bounded matrices and skips only absent macOS coverage", () => {
+  assert.match(
+    workflow,
+    /PORTCOVE_RELEASE_PROFILE: \$\{\{ inputs\.release_profile \|\| 'full' \}\}/,
+  );
+  assert.match(
+    workflow,
+    /PORTCOVE_QUALIFICATION_CALLER: \$\{\{ inputs\.qualification_caller \|\| '' \}\}/,
+  );
+  assert.match(workflow, /PORTCOVE_CALLER_WORKFLOW: \$\{\{ inputs\.caller_workflow \|\| '' \}\}/);
+  assert.match(
+    qualificationWorkflow,
+    /release_profile: \$\{\{ inputs\.release_profile \|\| 'full' \}\}/,
+  );
+  assert.match(
+    rustDocs,
+    /include: \$\{\{ fromJSON\(needs\.classify\.outputs\.qualification_docs_matrix_json\) \}\}/,
+  );
+  for (const body of [intelBuild, intelTests])
+    assert.match(
+      body,
+      /if: needs\.classify\.outputs\.mode == 'qualification' && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\)/,
+    );
+  const portability = workflowJobSource(workflow, "frontend_portability");
+  assert.match(
+    portability,
+    /if: \(needs\.classify\.outputs\.mode == 'qualification' && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-aarch64'\)\)/,
+  );
+  const beta = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: "a".repeat(40),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+    releaseProfile: "initial-beta-win-linux",
+  });
+  assert.deepEqual(
+    qualificationMatrices(beta).native.map(({ platform }) => platform),
+    ["linux-x86_64"],
+  );
+  assert.deepEqual(
+    qualificationMatrices(beta).docs.map(({ platform }) => platform),
+    ["linux-x86_64", "windows-x86_64"],
+  );
+  for (const body of [
+    rustTests,
+    rustWorkspaceTests,
+    windowsStorage,
+    nativeRust,
+    rustDocs,
+    rustQuality,
+    frontend,
+    catalog,
+  ])
+    assert.match(body, /if: needs\.classify\.outputs\.mode == 'qualification'/);
 });

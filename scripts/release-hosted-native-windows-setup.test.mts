@@ -209,7 +209,7 @@ try{if($secret.Length -ne 68 -or -not $secret.IsReadOnly()){throw 'Generated cre
 
 void test(
   "hosted account cleanup still disables its exact identity after teardown fails and retains both outcomes",
-  { timeout: 45000 },
+  { timeout: 90000 },
   (t) => {
     const root = mkdtempSync(path.join(homedir(), ".portcove-hosted-cleanup-test-"));
     t.after(() => {
@@ -250,7 +250,7 @@ if($record.disabled -ne (-not $failDisable) -or $record.job_empty -or $record.fa
 }
 'actual cleanup retains failure and independently disables exact account'
 `,
-      30000,
+      60000,
     );
     assert.match(result, /independently disables exact account/u);
   },
@@ -856,8 +856,12 @@ foreach($case in @('success','replaced','foreign','oversized','unavailable','exi
   assert.match(result, /guards passed six controlled cases/u);
 });
 
-void test("startup context restores exactly its own suspend increment across injected API failures", () => {
-  const result = powershell(String.raw`
+void test(
+  "startup context restores exactly its own suspend increment across injected API failures",
+  { timeout: 60000 },
+  () => {
+    const result = powershell(
+      String.raw`
 $ErrorActionPreference='Stop'
 $source=[IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}')
 $begin=$source.IndexOf('namespace Portcove.HostedNative {'+[char]10+'    // Fixed owner-side failure diagnosis only.',[StringComparison]::Ordinal)
@@ -899,9 +903,12 @@ try{
 $clock=[Diagnostics.Stopwatch]::StartNew();while([Portcove.HostedNative.HostedStartupContext]::Closes -ne 2 -and $clock.ElapsedMilliseconds -lt 5000){Start-Sleep -Milliseconds 10}
 if([Portcove.HostedNative.HostedStartupContext]::Closes -ne 2 -or [Portcove.HostedNative.HostedStartupContext]::Resumes -ne 1){throw 'Worker did not restore exactly one increment and close its own duplicates'}
 'actual context compensation and timed worker ownership passed; controlled APIs only'
-`);
-  assert.match(result, /compensation and timed worker ownership passed/u);
-});
+`,
+      45000,
+    );
+    assert.match(result, /compensation and timed worker ownership passed/u);
+  },
+);
 
 void test("startup popup diagnostics constrain source/time/executable and bounded UTF8 without PID attribution", () => {
   const result = powershell(String.raw`

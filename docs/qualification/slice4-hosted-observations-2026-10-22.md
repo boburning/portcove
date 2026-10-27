@@ -1373,3 +1373,99 @@ report, proof and upload under their own provenance. The fixed inert WinSta0
 approval remains bounded to its original fixture; no arbitrary/protected grant
 is implied. Existing audit/account-qualification disables, historical failures,
 Unknown recovery states, no-spend/recovery boundaries and production hold remain.
+
+## Windows source preparation October 26
+
+The preparation-only bootstrap/runner joins one fresh source attempt to the
+original parent, runtime and its exact tools object. Matching serialized IDs
+cannot substitute another receipt. The phase is at most 90 seconds, preserving
+210 seconds for capture/recovery within the original 570-second clock. Reports,
+retained directories and partial failures grant no capability or retry. Source
+and role drift invalidate the private receipt, including concurrent readers.
+
+One attested command-only Node helper runs inside the prepared supervisor. It
+loads fixed C# source and calls only `Setup.Directory` for a fresh broker/SYSTEM
+root: no account, profile, audit, station or GUI method. Fixed public Git origin
+and commit/tree/harness pins, closed environment/configuration, private hooks and
+disabled ambient attributes constrain acquisition. Pre-checkout validation rejects
+unsupported Windows names, modes, links, submodules, streams, aliases and prefix
+collisions; every checked-out blob and the independent harness are reread.
+The fixed host Git launcher has observed hash/ACL custody, not full attestation
+of its image-supplied helper/DLL closure. Periodic inventory detects overruns;
+it supplies no hard disk quota or headroom proof. Bounded command failure JSON
+retains raw stderr bytes/identity, stage and observed exit/signal. Unknown exit
+stays unknown. The supervisor owns tree teardown; source failures retain partial
+files/logs/intent and manufacture no native-job settlement.
+
+The 23 source Node tests include nineteen controlled original-API scenarios
+inside one test and two controlled command-failure scenarios inside another.
+Together with existing bootstrap peers, 25 boundary tests pass; repository static
+checks pass. Controlled peers do not establish actual Windows/protected runtime
+observations. The ordinary Windows fixture separately attempts the source/Git/
+directory helper, exact byte readback and `account_execution: not_requested`.
+Its hosted outcome requires separate readback and grants no original capability.
+
+Adjacent feedback retained child timeouts and an incomplete-settlement fixture
+race. Readiness now awaits complete JSON. Workflow child/case budgets are 60/90
+seconds (previous child40), private-launch120/150 and runtime45/60 (previous
+children20); Windows bootstrap peers45/60 (previous child15). Private-launch
+copies the actual Node image directly, preserving private mode and full-byte
+assertions. Isolated workflow subsequently completed under60, runtime under45,
+private-launch under120, and Windows peers under45. Earlier failures remain;
+shared-host work is not proven causal. Failure diagnostics include error code,
+signal, elapsed time and case progress. Assertions, cleanup, finite limits and
+product/source deadlines remain; larger-budget passes prove only those budgets.
+Final exact-head CI and actual source-only Windows observations remain separate.
+
+Dependencies, reserved-candidate joins and capture/report/proof/upload integration
+remain. No Windows job/CLI route or protected execution is activated. Account
+qualification stays disabled, privileged audit false/zero and original inert
+approval scoped to its original source/run. Existing signing/publication/setup,
+resource/recovery/$0/Unknown availability/headroom and production holds remain.
+
+### Source component first hosted failures and scoped repair
+
+At `ed1cab862dd61714b88a16e18feefb18ca735ab6`, CI40400506550/1 failed
+only catalog: the existing cleanup-control PowerShell child reached its30-second
+harness timeout;70other observed Windows helper cases passed. Its assertions and
+mocked cleanup providers remain, with child/case budgets now60/90seconds.
+
+Ordinary tools40400506919/1 passed Linux but failed Windows before launching the
+source helper. Artifact12689151753 (13361bytes, SHA256
+`580826e52cec85ec311b4f1b5b5cec468f5d6efbec9a64161f42d55603d8cb39`)
+passed byte/digest/ZIP/CRC verification. It retains the generic single-link
+refusal over intent/system inputs; its exact offending path/cause is unknown.
+
+Controller/intent/source/attested files keep strict single-link enforcement. A
+separate no-caller-path observer covers only the fixed Git and PowerShell
+host-image executables, preserving owner, file-writer/replacement ACL, ancestry,
+exact link-count/identity/timestamps/SDDL and drift checks. It permits host-image
+hardlinks at those two paths only. NTFS hardlinks share the underlying file's
+security descriptor ([Microsoft contract](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createhardlinkw)); this does not permit alias writers.
+Diagnostics now identify exact path/type/link count and retain system metadata
+before custody checks. This is filesystem evidence, not full Git helper/DLL
+attestation or acceptance. Controlled checks preserve default hardlink refusal
+and reject system identity/ACL drift; actual Windows readback remains required.
+No account, GUI, protected authority or production/source deadline changes.
+
+### Source-only Windows observation at repaired head
+
+At `e8927e1d7dece59aae94d13801ae7a1bbb13803c`, ordinary tools/source
+40404919424/1 passed both platforms. Windows artifact12691136731 (17280bytes,
+SHA256 `325bcdb529c4d59e97207cf1c4d131ba48afb9da41116cfd78623a72403d39fb`)
+passed exact source/tree, byte/digest/ZIP/CRC and scope readback. The fresh
+directory/Git helper and independent complete source/blob/harness readback
+completed within21141milliseconds of its90-second allowance. Account execution
+was `not_requested`; dependencies were not prepared, and original protected
+parent/runtime, native and production acceptance were `not-established`.
+The recorded Git launcher had two links and PowerShell one; both were regular
+non-reparse files. This measures this run's image inputs and does not retrospectively
+identify the old generic refusal's exact path.
+
+CI40404919539/1 passed four required contexts and Windows helper contracts but
+failed Linux catalog: the separate injected startup-context C# control hit its
+15-second PowerShell child limit. That failure is retained. Its child/case
+limits are now45/60seconds; all API-failure/suspend-compensation/timed-worker
+assertions and actual two-second diagnostic join remain. This is a synthetic
+harness calibration, with no production clock or account/GUI authority change.
+The next exact-head CI/source readback cannot inherit this run's outcomes.

@@ -1,3 +1,14 @@
+import { readWorkflow } from "./ci-workflow-fixture.mts";
+import qualificationOracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
+import { qualificationNextestRecipe } from "./qualification-nextest.mts";
+import { discoverCiPlan } from "./select-ci-plan.mts";
+
+import { workflowJob } from "./ci-workflow-fixture.mts";
+import { qualityGuide } from "./ci-workflow-fixture.mts";
+import { nativeRust } from "./ci-workflow-fixture.mts";
+import { intelBuild } from "./ci-workflow-fixture.mts";
+import { intelTests } from "./ci-workflow-fixture.mts";
+import { rust } from "./ci-workflow-fixture.mts";
 import inventory from "../.github/qualification-coverage.json" with { type: "json" };
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -16,7 +27,7 @@ function requiredFixture<T>(value: T | undefined): T {
   assert.ok(value !== undefined);
   return value;
 }
-const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+const workflow = await readWorkflow(new URL("../.github/workflows/ci.yml", import.meta.url));
 
 void test("qualification inventory is nonzero and exactly covers exhaustive jobs", () => {
   const counts = validateQualificationCoverage(inventory, workflow);
@@ -456,4 +467,136 @@ void test("protected aggregates cannot ignore their own failed result", () => {
     });
     assert.throws(() => validateQualificationCoverage(inventory, ignored), /aggregate/);
   }
+});
+
+void test("qualification case reporting preserves original scopes and transitive pinned Node setup", async () => {
+  assert.deepEqual(
+    qualificationNextestRecipe("workspace-other", undefined, "/workspace").selected,
+    qualificationOracle.workspace_other.arguments,
+  );
+  assert.deepEqual(qualificationNextestRecipe("native", "hash:1/1", "/workspace").selected, [
+    "--locked",
+    "--workspace",
+    "--partition",
+    "hash:1/1",
+  ]);
+  for (const partition of ["hash:1/2", "hash:2/2"])
+    assert.deepEqual(qualificationNextestRecipe("intel", partition, "/workspace").selected, [
+      "--archive-file",
+      "work/intel-tests/intel-tests.tar.zst",
+      "--workspace-remap",
+      "/workspace",
+      "--partition",
+      partition,
+    ]);
+  const setup = await readWorkflow(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+  );
+  const parsed: unknown = parseDocument(setup).toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.runs) && Array.isArray(parsed.runs.steps));
+  const node = parsed.runs.steps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/setup-node@"),
+  ) as unknown;
+  assert.ok(isRecord(node) && isRecord(node.with));
+  assert.equal(node.if, "inputs.test-fixtures == 'true'");
+  assert.equal(node.with["node-version-file"], ".node-version");
+  for (const name of ["rust_workspace_tests", "native_rust", "intel_tests"]) {
+    const job = workflowJob(name);
+    assert.equal(job["timeout-minutes"], 120);
+    assert.ok(isRecord(job.env));
+    assert.equal(job.env.PORTCOVE_HEAD_SHA, "${{ needs.classify.outputs.head }}");
+    const steps = job.steps;
+    assert.ok(Array.isArray(steps));
+    const setupIndex = steps.findIndex(
+      (step: unknown) => isRecord(step) && step.uses === "./.github/actions/setup-rust",
+    );
+    const executeIndex = steps.findIndex(
+      (step: unknown) =>
+        isRecord(step) &&
+        typeof step.run === "string" &&
+        step.run.startsWith("node scripts/qualification-nextest.mts "),
+    );
+    assert.ok(setupIndex >= 0 && executeIndex > setupIndex);
+    const input = steps[setupIndex] as unknown;
+    assert.ok(isRecord(input) && isRecord(input.with));
+    assert.equal(input.with["test-fixtures"], true);
+    const retained = steps.find(
+      (step: unknown) =>
+        isRecord(step) && isRecord(step.with) && step.with.path === "work/test-results/",
+    ) as unknown;
+    assert.ok(isRecord(retained) && isRecord(retained.with));
+    assert.equal(retained.if, "always()");
+    assert.ok(
+      typeof retained.with.name === "string" &&
+        retained.with.name.includes("${{ github.run_attempt }}"),
+    );
+  }
+});
+
+void test("native Rust runs the full workspace on every supported Unix architecture", () => {
+  assert.match(
+    nativeRust,
+    /^ {4}name: native-rust \(\$\{\{ matrix\.platform \}\}, \$\{\{ matrix\.partition \}\}\)$/m,
+  );
+  assert.match(
+    nativeRust,
+    /include: \$\{\{ fromJSON\(needs\.classify\.outputs\.qualification_native_matrix_json\) \}\}/,
+  );
+  const full = discoverCiPlan({
+    eventName: "workflow_call",
+    checkoutSha: "a".repeat(40),
+    forceQualification: true,
+  });
+  assert.deepEqual(qualificationMatrices(full).native, [
+    { platform: "linux-x86_64", runner: "ubuntu-22.04", partition: "hash:1/1" },
+    { platform: "macos-aarch64", runner: "macos-15", partition: "hash:1/1" },
+  ]);
+  assert.match(nativeRust, /if: runner\.os == 'Linux'/);
+  assert.match(nativeRust, /echo "TMPDIR=\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
+  assert.match(nativeRust, /run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/);
+  assert.match(
+    nativeRust,
+    /node scripts\/qualification-nextest\.mts native "\$\{\{ matrix\.partition \}\}"/,
+  );
+  assert.doesNotMatch(nativeRust, /continue-on-error/);
+});
+
+void test("Intel tests build once and retries preserve their attempt-scoped producer chain", async () => {
+  assert.match(intelBuild, /runs-on: macos-15$/m);
+  assert.match(intelBuild, /targets: x86_64-apple-darwin/);
+  assert.match(
+    intelBuild,
+    /cargo nextest archive --locked --workspace --target x86_64-apple-darwin/,
+  );
+  assert.match(intelBuild, /if-no-files-found: error/);
+  assert.match(intelBuild, /retention-days: 1/);
+  const consumer = workflowJob("intel_tests");
+  assert.deepEqual(consumer.needs, ["classify", "intel_build"]);
+  assert.match(intelTests, /runs-on: macos-15-intel/);
+  assert.ok(isRecord(consumer.strategy) && isRecord(consumer.strategy.matrix));
+  assert.deepEqual(consumer.strategy.matrix.partition, ["hash:1/2", "hash:2/2"]);
+  assert.match(
+    intelTests,
+    /node scripts\/qualification-nextest\.mts intel "\$\{\{ matrix\.partition \}\}"/,
+  );
+  for (const section of [intelBuild, intelTests]) {
+    assert.match(section, /name: intel-rust-tests-\$\{\{ github\.run_attempt \}\}/);
+    assert.doesNotMatch(section, /continue-on-error/);
+  }
+  const transferGuide = await readFile(
+    new URL("../docs/reference/quality-operations.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(qualityGuide, /reference\/quality-operations\.md#consumed-intel-test-transfers/);
+  assert.match(
+    transferGuide,
+    /gh run rerun <run-id> --job <build-intel-tests-job-id> --repo boburning\/portcove/,
+  );
+  assert.match(transferGuide, /Do not use .*--failed.*Intel consumer/u);
+  assert.match(transferGuide, /never reuse an\s+artifact from an earlier attempt/u);
+  for (const job of ["intel_build", "intel_tests"])
+    assert.ok(rust.includes(`"${job}":"` + "${{ needs." + job + '.result }}"'));
 });

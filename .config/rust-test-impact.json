@@ -182,5 +182,249 @@
         }
       ]
     }
-  }
+  },
+  "ignored_routes": [
+    {
+      "source": "apps/desktop/src-tauri/tests/updater_trust_support/offline_online_qualification.rs",
+      "test": "qualification_host_consumes_offline_bootstrap_online_generations",
+      "reason": "explicit retained disposable offline/online producer packet",
+      "package": "portcove-desktop",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-cli/tests/desktop_host_diagnostics.rs",
+      "test": "desktop_host_fixture_child",
+      "reason": "invoked only as an owned child by the Desktop host qualification tests",
+      "package": "portcove-cli",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "supervised-parent",
+      "parents": ["desktop_early_failures_keep_typed_phases_and_fixed_private_safe_stderr"]
+    },
+    {
+      "source": "crates/portcove-core/src/archive_fuzz_tests.rs",
+      "test": "bounded_raw_tar_mutation_campaign",
+      "reason": "opt-in bounded raw TAR mutation campaign; see quality-operations.md",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/artwork_tests.rs",
+      "test": "live_igdb_shipwright_cover_fetches_and_reuses_bounded_thumbnail",
+      "reason": "manual live CDN qualification; run explicitly when network access is available",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/database.rs",
+      "test": "migration_lock_holder_child",
+      "reason": "invoked explicitly by migration-lock subprocess tests",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "supervised-parent",
+      "parents": [
+        "migration_lock_times_out_with_observed_owner_and_recovers_after_release",
+        "migration_lock_waits_for_release_within_its_deadline"
+      ]
+    },
+    {
+      "source": "crates/portcove-core/src/definition_compiled_client_tests.rs",
+      "test": "qualification_compiled_clients_consume_managed_corrections",
+      "reason": "explicit unchanged compiled-client correction consumption",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance",
+      "requires_qualification_fixtures": true
+    },
+    {
+      "source": "crates/portcove-core/src/definition_compiled_client_tests.rs",
+      "test": "qualification_compiled_cli_acquires_managed_artifacts",
+      "reason": "explicit unchanged compiled CLI acquisition; Desktop acceptance remains separate",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance",
+      "requires_qualification_fixtures": true
+    },
+    {
+      "source": "crates/portcove-core/src/definition_publication_connected_tests.rs",
+      "test": "actual_cli_four_role_publication_and_core_policy_correction",
+      "reason": "requires hash-pinned actual Core CLI and release-tools binaries; run explicitly after one maintained build",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/definition_repository_tests.rs",
+      "test": "qualification_adapter_conformance_definition_state",
+      "reason": "explicit compiled-adapter qualification seam",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance",
+      "requires_qualification_fixtures": true
+    },
+    {
+      "source": "crates/portcove-core/src/runtime_tests/psx_progression.rs",
+      "test": "owned_progression_fixture",
+      "reason": "isolated first-party provider, codec and builder control; invoked by parent",
+      "package": "portcove-core",
+      "platforms": ["linux", "win32"],
+      "category": "supervised-parent",
+      "parents": [
+        "unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs",
+        "retained_direct_psx_runtime_updates_through_current_provider_without_rewriting_contract"
+      ]
+    },
+    {
+      "source": "crates/portcove-core/src/source_disc_tests.rs",
+      "test": "real_owned_selected_disc_registration_preserves_originals",
+      "reason": "explicit owned real codecs; selected Core registration/import acceptance, no gameplay",
+      "package": "portcove-core",
+      "platforms": ["linux", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/source_disc_tests.rs",
+      "test": "selected_registration_fixture",
+      "reason": "owned isolated Core registration entrypoint",
+      "package": "portcove-core",
+      "platforms": ["linux", "win32"],
+      "category": "supervised-parent",
+      "parents": ["selected_registration_rejects_mixed_original_facts_and_changed_set_inventory"]
+    },
+    {
+      "source": "crates/portcove-core/src/source_disc_tests.rs",
+      "test": "real_owned_chd_decoder_matches_manual_observation",
+      "reason": "explicit owned CHD plus installed codec acceptance; not a gameplay or retail fixture",
+      "package": "portcove-core",
+      "platforms": ["linux", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/source_disc_tests.rs",
+      "test": "real_owned_gamecube_containers_match_the_original_iso_observation",
+      "reason": "explicit owned GameCube inputs plus reviewed Dolphin codec; not retail or gameplay acceptance",
+      "package": "portcove-core",
+      "platforms": ["linux", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/source_disc_tests.rs",
+      "test": "decoder_allocation_child",
+      "reason": "owned decoder allocation child selected explicitly",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "supervised-parent",
+      "parents": ["decoder_job_memory_bound_is_enforced_on_the_actual_child"]
+    },
+    {
+      "source": "crates/portcove-core/src/source_discovery_tests.rs",
+      "test": "real_owned_gamecube_containers_share_admission_and_resume_with_progress",
+      "reason": "explicit owned GCZ/WIA/RVZ and reviewed Dolphin tool; synthetic discovery acceptance",
+      "package": "portcove-core",
+      "platforms": ["linux", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/source_discovery_tests.rs",
+      "test": "real_owned_disc_set_resumes_with_fresh_members_and_manual_identity_parity",
+      "reason": "explicit owned CHD and reviewed installed codec; synthetic complete-set acceptance",
+      "package": "portcove-core",
+      "platforms": ["linux", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process/linux_tests.rs",
+      "test": "namespace_fixture_child",
+      "reason": "owned child entrypoint; run only through the supervised parent control",
+      "package": "portcove-core",
+      "platforms": ["linux"],
+      "category": "supervised-parent",
+      "parents": ["namespace_normal_completion_has_a_pidfd_bound_join"]
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process/windows.rs",
+      "test": "live_controller_panic_keeps_captured_tree_cleanup_unknown",
+      "reason": "requires separately admitted prepared live event-pump panic packet",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process/windows.rs",
+      "test": "controller_panics_preserve_failure_without_fabricating_cleanup",
+      "reason": "requires separately admitted prepared controller-panic packet",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process/windows.rs",
+      "test": "suspended_root_api_refusals_preserve_failed_custody",
+      "reason": "requires separately admitted prepared root-failure packet",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process/windows.rs",
+      "test": "dll_initialization_exceptions_reach_the_phase_bound_application_handler",
+      "reason": "requires separately admitted prepared first-party DLL packet",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process/windows.rs",
+      "test": "handle_slot_capacity_refusal_never_promotes_duplicate_lifetimes",
+      "reason": "requires separately admitted prepared first-party capacity-refusal packet",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process/windows.rs",
+      "test": "creation_capture_refusal_stays_failed_after_owned_handles_close",
+      "reason": "requires separately admitted prepared first-party capture-refusal packet",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process_tests.rs",
+      "test": "nested_supervision_fixture_child",
+      "reason": "owned child fixture selected explicitly by the nested-supervision test",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "supervised-parent",
+      "parents": ["nested_windows_supervisors_report_exact_child_lifetime_coverage"]
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process_tests.rs",
+      "test": "different_image_fixture_child",
+      "reason": "owned different-image child selected explicitly by the blocked-caller control",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "supervised-parent",
+      "parents": ["windows_different_image_child_exits_while_the_caller_checkpoint_is_blocked"]
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process_tests.rs",
+      "test": "console_image_fixture_child",
+      "reason": "requires separately admitted actual hidden console infrastructure",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "supervised-parent",
+      "parents": ["windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked"]
+    },
+    {
+      "source": "crates/portcove-core/src/tool_process_tests.rs",
+      "test": "windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked",
+      "reason": "requires separately admitted actual hidden console infrastructure",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "explicit-acceptance"
+    }
+  ]
 }

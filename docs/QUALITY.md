@@ -160,6 +160,18 @@ inventory metrics, never executed test totals.
 These inventories do not confer native, package, installed-client or release
 acceptance. The owning receipt and acceptance contracts still decide that scope.
 
+Rust qualification records ignored-case routes from `ignored_routes` in the
+existing `.config/rust-test-impact.json`. Each declaration retains its original
+reason, source, intended platforms and supervised parent cases or explicit
+acceptance route. The complete current-platform listing detects unregistered
+ignored cases, missing or ambiguous cases and parents, and platform drift.
+The workspace-other recipe excludes Core explicitly; absent feature-gated
+qualification fixtures remain `not_evaluated_feature`, not executed evidence.
+The packet retains and hashes `skip-routes.json`. Observed route inconsistencies are reported after native execution without
+replacing a nonzero native exit. Invalid declarations or pre-execution IO can
+leave the command unexecuted, with no inferred native outcome.
+These declarations never execute ignored cases or grant their prerequisites.
+
 The extra Linux diagnostics replay stays broad for diagnostics, Core, CLI,
 Desktop, shared, dependency and uncertain inputs. Only ordinary added or modified
 regular Rust files within the independent release-tool crate may omit it;

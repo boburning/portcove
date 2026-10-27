@@ -3,11 +3,38 @@
   "listing": {
     "id": "chameleon-twist-recompiled",
     "name": "Chameleon Twist: Recompiled",
-    "summary": "Explore Chameleon Twist: Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use a permitted Chameleon Twist player with your own supported Japanese cartridge dump.",
     "project_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp",
     "issue_number": 125,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
+    "original_game_title": "Chameleon Twist",
+    "release_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["ChameleonTwistJPRecompiled", ".zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a permitted Windows copy",
+          "instruction": "For an existing prepared copy you are permitted to use, select ChameleonTwistJPRecompiled.exe with its complete extracted folder as the working directory. Keep assets and all supplied libraries together. The reviewed release offers a Windows ZIP; its inherited Linux documentation does not establish a separately published native Linux player."
+        },
+        {
+          "title": "Select the Japanese game on first Play",
+          "instruction": "Choose Play explicitly and use your own unmodified Japanese Chameleon Twist ROM in the player. It recognizes the supported game and normalizes .z64, .v64 and .n64 byte orders. A different region or modified ROM is not equivalent; no game compiler or extractor is started by Portcove."
+        },
+        {
+          "title": "Keep the whole profile and working copy",
+          "instruction": "You or upstream manage runtime updates. Preserve the complete working folder and normally %LOCALAPPDATA%\\ChameleonTwistRecompiled, including its imported game, saves and settings. portable.txt or a custom upstream location can instead put data in the working folder. Keep that actual location and originals recoverable before replacing anything. Registration and Play stay separate; Portcove does not adopt, back up, roll back or delete these external files."
+        }
+      ],
+      "warnings": [
+        "The existing managed-artifact integrity hold remains unresolved. No publisher-authenticated expected digest, curated trust approval or native/gameplay acceptance is established by these instructions."
+      ],
+      "help_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md"
+    },
+    "download_block_reason": "The v0.1 Windows ZIP still has no published independently expected SHA-256, preserving the existing artifact-integrity hold. Its pinned source also carries separately authored Chiaro font files whose applicable permission needs review; the parent GPL does not settle that scope. Keep a permitted existing copy. Reconsider fresh acquisition after the required artifact trust and affected component permissions are established or the package is appropriately replaced."
   }
 }

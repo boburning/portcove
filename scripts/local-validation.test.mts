@@ -307,6 +307,7 @@ void test("qualification outcome helpers retain all direct consumers across life
     "scripts/runtime-values.mts",
     "scripts/fixtures/nextest-inventory-baseline.json",
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-skip-routes.mts",
     ".node-version",
     ".github/quality-tools.json",
   ];
@@ -345,6 +346,7 @@ void test("qualification outcome helpers retain all direct consumers across life
         [
           "scripts/qualification-nextest.mts",
           "scripts/nextest-outcomes.mts",
+          "scripts/nextest-skip-routes.mts",
           "scripts/runtime-values.mts",
         ].includes(file)
       )
@@ -607,6 +609,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/release-hosted-native-job.test.mts",
     "scripts/release-hosted-native-runner.test.mts",
     "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    "scripts/release-hosted-native-windows-source.test.mts",
     "scripts/release-routing-marker.test.mts",
     "scripts/release-native-pre-sign-report.test.mts",
     "scripts/release-native-source-provider.test.mts",
@@ -2095,12 +2098,16 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
     "scripts/ci-native-workflow.test.mts",
     "scripts/ci-release-workflow.test.mts",
     "scripts/ci-rust-workflow.test.mts",
+    "scripts/ci-workflow-fixture.test.mts",
     "scripts/ci-workflow.test.mts",
     "scripts/deep-audit-summary.test.mts",
     "scripts/native-backup-evidence.test.mts",
     "scripts/nextest-equivalence.test.mts",
+    "scripts/qualification-coverage.test.mts",
     "scripts/repository-settings.test.mts",
     "scripts/rust-toolchain-reader.test.mts",
+    "scripts/rust-validation-setup.test.mts",
+    "scripts/select-ci-plan.test.mts",
     "scripts/validation-plan.test.mts",
     "scripts/windows-rust-tests.test.mts",
   ]);
@@ -3671,6 +3678,7 @@ void test("default nextest runtime inputs retain local and hosted consumers acro
   const { baselineContractTests } = await import("./ci-baseline.mts");
   for (const file of [
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-skip-routes.mts",
     "scripts/nextest-outcomes-cli.mts",
     "scripts/run-rust-tests.mts",
     "scripts/report-summary.mts",

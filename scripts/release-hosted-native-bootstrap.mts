@@ -313,6 +313,18 @@ async function materializeBootstrapRunner(
 /** Original hosted Windows source/runtime preparation only. No account,
  * candidate, capture, signature, upload or successful native settlement. */
 export async function prepareFixedHostedWindowsNativeRuntime() {
+  return prepareFixedHostedWindows("prepareConfiguredHostedWindowsRuntime");
+}
+
+export async function prepareFixedHostedWindowsNativeSource() {
+  const prepared = await prepareFixedHostedWindows("prepareConfiguredHostedWindowsSource");
+  assert.ok(prepared.source, "original Windows source receipt absent");
+  return prepared;
+}
+
+async function prepareFixedHostedWindows(
+  operation: "prepareConfiguredHostedWindowsRuntime" | "prepareConfiguredHostedWindowsSource",
+) {
   const scope = await readActualHostedWindowsBootstrapScope("pre-sign");
   const providerDeadline = currentNativeJobDeadline(
     "windows-x86_64",
@@ -361,20 +373,26 @@ export async function prepareFixedHostedWindowsNativeRuntime() {
     active,
     "windows-x86_64",
   );
-  const worker = (await import(pathToFileURL(entry).href)) as {
-    prepareConfiguredHostedWindowsRuntime(
-      this: void,
+  const worker = (await import(pathToFileURL(entry).href)) as Record<
+    typeof operation,
+    (
       raw: unknown,
       root: string,
       deadline: number,
       entry: string,
-    ): Promise<{ deadline: number }>;
-  };
+    ) => Promise<{
+      deadline: number;
+      tools: object;
+      parent: object;
+      runtime: object;
+      source?: object;
+    }>
+  >;
   active();
   recheckNativeRuntimeCustody(custodyFiles, custody);
   await verifiedControllerToolPaths(receipt);
-  assert.equal(typeof worker.prepareConfiguredHostedWindowsRuntime, "function");
-  const prepared = await worker.prepareConfiguredHostedWindowsRuntime(
+  assert.equal(typeof worker[operation], "function");
+  const prepared = await worker[operation](
     { tools: { artifact: scope.artifact, bundle: scope.bundle } },
     root,
     providerDeadline,
@@ -391,6 +409,11 @@ export async function prepareFixedHostedWindowsNativeRuntime() {
       performance.now() < prepared.deadline,
     "original Windows issuer/runtime preparation expired",
   );
+  if (operation === "prepareConfiguredHostedWindowsSource")
+    assert.ok(
+      performance.now() < prepared.deadline - 210000,
+      "Windows source must preserve capture/recovery reserve",
+    );
   return prepared;
 }
 

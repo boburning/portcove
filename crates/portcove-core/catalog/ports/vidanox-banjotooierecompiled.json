@@ -3,12 +3,12 @@
   "listing": {
     "id": "vidanox-banjotooierecompiled",
     "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
-    "summary": "Explore Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use a permitted Banjo-Tooie player and select your own USA big-endian cartridge dump.",
     "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
     "issue_number": 1795,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
     "artwork": {
       "game_id": 3418,
       "cover_id": 295556,
@@ -16,6 +16,34 @@
       "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
       "game_slug": "banjo-tooie",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game_title": "Banjo-Tooie",
+    "release_url": "https://github.com/Vidanox/BanjoTooieRecompiled/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["BanjoTooieRecompiled-", "windows-x64.zip"],
+      "linux-x86-64": ["BanjoTooieRecompiled-", "linux-x64.tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the complete permitted player",
+          "instruction": "On Windows, select BanjoTooieRecompiled.exe in your existing permitted copy and keep assets plus the supplied SDL2/DXC libraries together in its working folder. On Linux, retain run.sh for upstream launch, or select the native BanjoTooieRecompiled with that extracted folder as its working directory. The wrapper supplies that folder; the native build still needs its documented Vulkan, shared-library and file-dialog portal prerequisites."
+        },
+        {
+          "title": "Choose your original cartridge dump on first Play",
+          "instruction": "Choose Play explicitly, then Select ROM and supply your own supported Banjo-Tooie USA .z64 in big-endian byte order. The documented input is a 32 MiB original cartridge dump; another region, byte order or modified image is not equivalent. The released player reads it directly, without a separate extraction or compiler step."
+        },
+        {
+          "title": "Keep your actual profile when updating",
+          "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
+        }
+      ],
+      "warnings": [
+        "Upstream calls Linux less exercised than Windows. Published packages and source claims do not establish Portcove native gameplay or real-save acceptance."
+      ],
+      "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
+    },
+    "download_block_reason": "The v1.0.1 source/package recipe links N64Recomp/RecompFrontend without an established applicable grant and includes Suplexmentary Comic NC.ttf, which upstream expressly identifies as carrying no license and an all-rights-reserved notice. The project GPL does not settle those separate works. Keep a permitted existing copy. Reconsider with attributable compatible grants or a released package replacing the affected components."
   }
 }
