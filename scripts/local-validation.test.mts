@@ -3858,3 +3858,58 @@ void test("resource observation ledger remains an affected consumer of every mai
       );
     }
 });
+
+void test("native transport producers retain their actual Node consumers across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const consumers: [string, string[]][] = [
+    [
+      "desktop-boundary-invoke.mts",
+      ["apps/desktop/scripts/desktop-webview-boundary.native.test.mts"],
+    ],
+    [
+      "desktop-windows-embedded-session.mts",
+      [
+        "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      ],
+    ],
+    [
+      "browser-script.mts",
+      [
+        "apps/desktop/scripts/browser-script.test.mts",
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+        "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      ],
+    ],
+  ];
+  for (const [name, tests] of consumers)
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const file = `apps/desktop/scripts/${name}`;
+      const oldPath = variant === "R-new" ? "docs/moved.md" : file;
+      const newPath = variant === "R-old" ? "docs/moved.md" : file;
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath,
+        newPath,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ ...change, path: newPath, ...(oldPath !== newPath ? { previousPath: oldPath } : {}) }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        for (const test of tests) assert.ok(selected.has(test), `${variant}: ${name} -> ${test}`);
+    }
+});

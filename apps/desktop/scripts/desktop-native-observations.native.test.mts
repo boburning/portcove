@@ -194,13 +194,37 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
+import { registerHooks, isBuiltin } from "node:module";
 import * as processes from "node:child_process";
 const [moduleUrl, application, output] = process.argv.slice(1);
-const seleniumUrl = pathToFileURL(createRequire(moduleUrl).resolve("selenium-webdriver")).href;
-const selenium = await import(seleniumUrl);
-const commands = [], fetches = [], connections = [];
+const seleniumUrl = "portcove-test:owned-listener-selenium";
+const commands = [], fetches = [], seleniumParents = [];
+const builderSource = [
+ "import assert from 'node:assert/strict'; export const connections=[];",
+ "export class Builder {",
+ "disableEnvironmentOverrides(){return this}",
+ "usingServer(value){connections.push(value);return this}",
+ "withCapabilities(value){assert.equal(value.browserName,'tauri');assert.equal(value['wdio:tauriServiceOptions'].windowLabel,'main');return this}",
+ "build(){return Promise.resolve({controlled:true})}",
+ "}",
+].join("\n");
+const hooks = registerHooks({
+ resolve(specifier, context, next) {
+  if(specifier === seleniumUrl) return {url:seleniumUrl,shortCircuit:true};
+  if(specifier === "selenium-webdriver" && context.parentURL === moduleUrl) {
+   seleniumParents.push(context.parentURL); return {url:seleniumUrl,shortCircuit:true};
+  }
+  if(!isBuiltin(specifier) && !specifier.startsWith("file:") && !specifier.startsWith(".") && !specifier.startsWith("/")) throw new Error("PACKAGE_IMPORT_REFUSED: "+specifier);
+  return next(specifier,context);
+ },
+ load(url,context,next) {
+  if(url === seleniumUrl) return {format:"module",source:builderSource,shortCircuit:true};
+  if(url.toLowerCase().includes("/node_modules/")) throw new Error("PACKAGE_FILE_REFUSED");
+  return next(url,context);
+ },
+});
+await assert.rejects(import("portcove-forbidden-package-probe"),/PACKAGE_IMPORT_REFUSED/);
+const {connections} = await import(seleniumUrl);
 const native = Object.assign(new EventEmitter(), {pid: 42, exitCode: null, signalCode: null, stdout: new PassThrough(), stderr: new PassThrough()});
 const expectedSha = createHash("sha256").update(readFileSync(application)).digest("hex");
 const spawn = (file, args, options) => {
@@ -221,17 +245,9 @@ const execFileSync = (file, args) => {
 };
 const {default: originalProcessDefault, ...originalProcesses} = processes;
 mock.module("node:child_process", {namedExports:{...originalProcesses,spawn,execFileSync},defaultExport:{...originalProcessDefault,spawn,execFileSync}});
-class Builder {
-  disableEnvironmentOverrides(){return this}
-  usingServer(value){connections.push(value);return this}
-  withCapabilities(value){assert.equal(value.browserName,"tauri");assert.equal(value["wdio:tauriServiceOptions"].windowLabel,"main");return this}
-  build(){return Promise.resolve({controlled:true})}
-}
-const {default: originalSeleniumDefault, ...originalSelenium} = selenium;
-mock.module(seleniumUrl, {namedExports:{...originalSelenium,Builder},defaultExport:{...originalSeleniumDefault,Builder}});
 assert.equal((await import("node:child_process")).spawn, spawn);
 assert.equal((await import("node:child_process")).execFileSync, execFileSync);
-assert.equal((await import(seleniumUrl)).Builder, Builder);
+assert.equal(typeof (await import(seleniumUrl)).Builder, "function");
 globalThis.fetch = async (url, options) => {
   fetches.push(url); assert.ok(options.signal instanceof AbortSignal);
   if(fetches.length === 1) throw Object.assign(new Error("controlled readiness delay"),{name:"TimeoutError"});
@@ -244,6 +260,7 @@ try {
   const api = await import(moduleUrl); session = await api.startEmbeddedInstalledSession(application, output);
   assert.deepEqual(await session.connect(), {controlled:true});
   assert.equal(fetches.length,2); assert.equal(session.statusProbes.length,2);
+  assert.deepEqual(seleniumParents,[moduleUrl]);
   assert.match(session.statusProbes[0].error,/controlled readiness delay/);
   assert.equal(session.statusProbes[1].status,200);
   assert.ok(session.startupComplete);assert.equal(session.listener.ready,true);
@@ -253,8 +270,8 @@ try {
   assert.deepEqual(commands,["SnapshotApplication","ApplicationListener","ApplicationListener","SnapshotApplication","StopApplication","Wait"]);
   process.stdout.write("controlled-host-connection-and-cleanup");
 } finally {
-  native.exitCode=0;if(session) await session.close();
-  Object.defineProperty(process,"platform",platform);
+  try { native.exitCode=0;if(session) await session.close(); }
+  finally { Object.defineProperty(process,"platform",platform); hooks.deregister(); }
 }
 `,
         new URL("./desktop-windows-embedded-session.mts", import.meta.url).href,

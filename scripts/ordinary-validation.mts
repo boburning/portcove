@@ -321,6 +321,22 @@ for (const [file, tests] of [
       "scripts/native-helper-dependencies.test.mts",
     ],
   ],
+  [
+    "apps/desktop/scripts/desktop-windows-embedded-session.mts",
+    [
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/browser-script.mts",
+    [
+      "apps/desktop/scripts/browser-script.test.mts",
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
   ["apps/desktop/scripts/native-enlargement.mts", ["scripts/desktop-execution-plan.test.mts"]],
   [
     "apps/desktop/scripts/desktop-capture-target.mts",

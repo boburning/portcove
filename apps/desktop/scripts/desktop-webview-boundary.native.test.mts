@@ -166,6 +166,23 @@ void test("native boundary entrypoint retains its imported parsed invocation rou
       .find(Boolean);
     assert.ok(imported, "Native entrypoint must import the parsed invocation transport");
     const alias = imported[1] ?? "invokeBoundary";
+    const owner = bindings
+      .map((entry) => /^\s*armBoundaryOwner(?:\s+as\s+(\w+))?\s*$/u.exec(entry))
+      .find(Boolean);
+    assert.ok(owner, "Native entrypoint must import the owner arming transport");
+    const ownerAlias = owner[1] ?? "armBoundaryOwner";
+    const armedQueues = [
+      ...code.matchAll(
+        new RegExp(
+          String.raw`await\s+[\w$]+\s*\(\s*await\s+${ownerAlias}\s*\(\s*[\w$.]+\s*\)\s*\)`,
+          "gu",
+        ),
+      ),
+    ];
+    assert.ok(
+      armedQueues.length >= 2,
+      "Delivered and abandoned owner queues must both await the imported arming transport",
+    );
     const call = new RegExp(
       String.raw`await\s+${alias}\s*\(\s*[\w$.]+\s*,\s*["']create_boundary_windows["']\s*\)`,
       "u",
@@ -176,6 +193,16 @@ void test("native boundary entrypoint retains its imported parsed invocation rou
     );
   }
   assertRoute(source);
+  assertRoute(
+    source
+      .replace(/\barmBoundaryOwner(?=[,\s}])/u, "armBoundaryOwner as renamedOwner")
+      .replace(/\barmBoundaryOwner(?=\s*\()/gu, "renamedOwner"),
+  );
+  assert.throws(
+    () =>
+      assertRoute(source.replace("queueOwner(await armBoundaryOwner(browser))", "queueOwner(0)")),
+    /both await/u,
+  );
   assertRoute(
     source.replace("as invoke", "as renamedInvoke").replace(/\binvoke(?=\s*\()/gu, "renamedInvoke"),
   );
