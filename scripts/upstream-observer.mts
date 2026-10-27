@@ -23,6 +23,8 @@ export interface ObserverConfig {
   cadence_hours: number;
   stale_after_hours: number;
   budget: ObserverBudget;
+  asset_scope?: "core-channel-candidates";
+  policy_input_sha256?: string;
 }
 export interface GithubPinScope {
   repository: string;
@@ -61,6 +63,28 @@ export interface ObserverRequestOptions {
   signal: AbortSignal;
 }
 export type ObserverFetch = (url: string, options: ObserverRequestOptions) => Promise<Response>;
+export interface ProviderObservation {
+  format: number;
+  config_sha256: string;
+  port_id: string;
+  started_at: string;
+  completed_at: string;
+  validation_started_at?: string | null;
+  facts_sha256: string;
+  facts: {
+    repository: ReturnType<typeof repositoryFact>;
+    releases: (ReturnType<typeof releaseFact> & { assets: ReturnType<typeof assetFact>[] })[];
+  };
+  consumed: { requests: number; response_bytes: number; conditional_hits: number };
+  batch_consumed?: ProviderObservation["consumed"];
+  interval_semantics?: string;
+  coverage?: {
+    kind: "channel-candidate-assets";
+    complete_release_headers: true;
+    asset_release_ids: number[];
+  };
+  authority: "provider-observation-only";
+}
 export interface ObservationContinuation {
   format: 1;
   config_sha256: string;
@@ -71,6 +95,7 @@ export interface ObservationContinuation {
   last_validated_at: string | null;
   first_validated_at: string | null;
   validation_order_sha256: string | null;
+  selected_asset_release_ids?: number[];
   consumed: { requests: number; response_bytes: number; conditional_hits: number };
 }
 export interface ObserveOptions {
@@ -78,6 +103,7 @@ export interface ObserveOptions {
   continuation?: unknown;
   onCheckpoint?: (continuation: ObservationContinuation) => void | Promise<void>;
   signal?: AbortSignal;
+  selectAssetReleases?: (headers: ProviderObservation) => Promise<readonly number[]>;
   fetch?: ObserverFetch;
   now?: () => number;
   sleep?: (milliseconds: number) => Promise<unknown>;
@@ -126,11 +152,12 @@ function assertObserverConfig(config: unknown): asserts config is ObserverConfig
       "cadence_hours",
       "stale_after_hours",
       "budget",
+      ...(isRecord(config) && config.format === 2 ? ["asset_scope", "policy_input_sha256"] : []),
     ],
     "observer configuration",
   );
   requireFact(
-    config.format === 1 &&
+    (config.format === 1 || config.format === 2) &&
       typeof config.port_id === "string" &&
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(config.port_id),
     "invalid-config",
@@ -162,6 +189,14 @@ function assertObserverConfig(config: unknown): asserts config is ObserverConfig
     "invalid-config",
     "invalid observation cadence",
   );
+  if (config.format === 2)
+    requireFact(
+      config.asset_scope === "core-channel-candidates" &&
+        typeof config.policy_input_sha256 === "string" &&
+        /^[a-f0-9]{64}$/u.test(config.policy_input_sha256),
+      "invalid-config",
+      "scoped observation requires an exact Core policy input identity",
+    );
   const limits = {
     requests: 512,
     pages_per_collection: 20,
@@ -572,6 +607,9 @@ export function validateObservationContinuation(
       "first_validated_at",
       "validation_order_sha256",
       "consumed",
+      ...(isRecord(value) && Object.hasOwn(value, "selected_asset_release_ids")
+        ? ["selected_asset_release_ids"]
+        : []),
     ],
     "observation continuation",
   );
@@ -623,6 +661,23 @@ export function validateObservationContinuation(
     "invalid-checkpoint",
     "continuation validation order is invalid",
   );
+  if (value.selected_asset_release_ids !== undefined)
+    requireFact(
+      config.format === 2 &&
+        Array.isArray(value.selected_asset_release_ids) &&
+        value.selected_asset_release_ids.every(
+          (id) => Number.isSafeInteger(id) && Number(id) > 0,
+        ) &&
+        new Set(value.selected_asset_release_ids).size === value.selected_asset_release_ids.length,
+      "invalid-checkpoint",
+      "continued Core asset selection is invalid",
+    );
+  if (config.format === 2 && value.phase === "validate")
+    requireFact(
+      Array.isArray(value.selected_asset_release_ids),
+      "invalid-checkpoint",
+      "validated scoped observation has no asset selection",
+    );
   const repositoryPath = `/repos/${config.repository}`;
   for (const [address, page] of Object.entries(value.pages)) {
     const url = new URL(address);
@@ -660,8 +715,20 @@ export function validateObservationContinuation(
 }
 
 /** Read-only provider observations. No candidate data is executed or admitted. */
-export async function observeUpstream(input: unknown, options: ObserveOptions = {}) {
+export async function observeUpstream(
+  input: unknown,
+  options: ObserveOptions = {},
+): Promise<{
+  observation: ProviderObservation;
+  cache: { format: number; config_sha256: string; pages: Record<string, CachedPage> };
+}> {
   const config = validateObserverConfig(input);
+  if (config.format === 2)
+    requireFact(
+      options.selectAssetReleases,
+      "invalid-config",
+      "scoped observation requires the maintained Core channel selector",
+    );
   const configHash = observationHash(config);
   const retained = validateObservationContinuation(options.continuation, config);
   const prior = {
@@ -974,14 +1041,74 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
       (await read(repositoryPath, null, (value) => repositoryFact(value, config))).body,
       config,
     );
-    const releases = [];
+    const headers = (await collection(`${repositoryPath}/releases`, releaseFact)).map(releaseFact);
+    let selectedAssets: Set<number> | null = null;
+    if (config.format === 2) {
+      requireFact(
+        options.selectAssetReleases,
+        "invalid-config",
+        "scoped observation requires the maintained Core channel selector",
+      );
+      const facts = { repository, releases: headers.map((header) => ({ ...header, assets: [] })) };
+      const selected = await options.selectAssetReleases({
+        format: 2,
+        config_sha256: configHash,
+        port_id: config.port_id,
+        started_at: continuation.started_at,
+        completed_at: new Date(now()).toISOString(),
+        facts_sha256: observationHash(facts),
+        facts,
+        consumed: continuation.consumed,
+        coverage: {
+          kind: "channel-candidate-assets",
+          complete_release_headers: true,
+          asset_release_ids: [],
+        },
+        interval_semantics:
+          "Inert Core channel-selection probe; not a completed provider observation",
+        authority: "provider-observation-only",
+      });
+      requireFact(
+        Array.isArray(selected) &&
+          new Set(selected).size === selected.length &&
+          selected.every(
+            (id) => Number.isSafeInteger(id) && headers.some((header) => header.id === id),
+          ),
+        "core-selection",
+        "Core requested an unknown or duplicate release identity",
+      );
+      selectedAssets = new Set(selected);
+      const ordered = [...selectedAssets].sort((a, b) => a - b);
+      if (
+        continuation.selected_asset_release_ids &&
+        observationHash(continuation.selected_asset_release_ids) !== observationHash(ordered)
+      ) {
+        continuation.phase = "collect";
+        continuation.validation_cursor = 0;
+        continuation.first_validated_at = null;
+        continuation.last_validated_at = null;
+        continuation.validation_order_sha256 = null;
+      }
+      continuation.selected_asset_release_ids = ordered;
+      for (const [url, page] of Object.entries(pages)) {
+        const id = new URL(url).pathname.match(/\/releases\/(\d+)\/assets$/u)?.[1];
+        if (id && !selectedAssets.has(Number(id))) {
+          prior[url] = page;
+          delete pages[url];
+        }
+      }
+      await retain();
+    }
+    const releases: ProviderObservation["facts"]["releases"] = [];
     const assetIds = new Set();
-    for (const raw of await collection(`${repositoryPath}/releases`, releaseFact)) {
-      const release = releaseFact(raw);
+    for (const release of headers) {
       const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
-      const assets = (
-        await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
-      ).map(normalizeAsset);
+      const assets =
+        selectedAssets && !selectedAssets.has(release.id)
+          ? []
+          : (
+              await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
+            ).map(normalizeAsset);
       for (const asset of assets) {
         if (assetIds.has(asset.id)) {
           const failure = new ObservationFailure(
@@ -1048,7 +1175,7 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
     const facts = { repository, releases };
     return {
       observation: {
-        format: 1,
+        format: config.format,
         config_sha256: configHash,
         port_id: config.port_id,
         started_at: continuation.started_at,
@@ -1056,6 +1183,15 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
         validation_started_at: continuation.first_validated_at,
         facts_sha256: observationHash(facts),
         facts,
+        ...(selectedAssets
+          ? {
+              coverage: {
+                kind: "channel-candidate-assets" as const,
+                complete_release_headers: true as const,
+                asset_release_ids: [...selectedAssets].sort((a, b) => a - b),
+              },
+            }
+          : {}),
         consumed: continuation.consumed,
         batch_consumed: consumed,
         interval_semantics:
