@@ -403,13 +403,22 @@ Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 ### Standalone package and focused build
 
 `catalog inspect-observation <port-id> <file> --repository-id <numeric-id>`
-inspects an inert format-1 GitHub observation using the embedded catalog and
+inspects an inert format-1 or scoped format-2 GitHub observation using the embedded catalog and
 shared core release policy, without network access or opening a library. Its
 machine command is `catalog.inspect-observation`; `schema export` includes the
 additive `upstream_observation_report` format-1 contract. Results distinguish
 observed facts, metadata eligibility and unassessed trust/admission. See
 [Configured upstream observations](UPSTREAM-OBSERVATIONS.md) for bounds,
 comparison inputs, hold reasons and operational evidence.
+
+For another reviewed provider, use `catalog inspect-observation <port-id> <file>
+--provider-facts`. That explicit mode accepts inert format-3 GitLab or fixed
+manifest facts and emits a version-2 provider report with actual provider
+identities. It rejects a GitHub repository-ID argument; GitHub keeps its required
+`--repository-id`. Inspection performs no network or library writes. The legacy
+`upstream_observation_report` schema remains the GitHub format-1 report contract;
+provider report versioning and evidence boundaries are described in the
+[observation contract](UPSTREAM-OBSERVATIONS.md#additional-reviewed-providers).
 
 Alpha 1 and Alpha 2 retain their published unversioned CLI archive names.
 The next-release packaging contract uses `portcove-cli-<version>-<platform>`;
