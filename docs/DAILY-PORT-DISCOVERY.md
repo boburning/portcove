@@ -626,3 +626,13 @@ and 10,000-identity/pending count ceilings. The bound applies before replacement
 including disposition receipts; oversized inputs preserve the previous checkpoint
 and remain incomplete. The journal's research-read continuation reuses that byte
 authority. No accepted observations or unresolved obligations are silently evicted.
+
+Retained lead records and frozen reconciliation inputs/output use that same
+physical envelope instead of separate 10,000-record ceilings. Each accepted
+update preserves the previous state on byte exhaustion. Frozen reconciliation
+validates and indexes the complete supplied canonical snapshot once per replay;
+path aliases, immutable IDs, game scope, closed owners and conflicts keep their
+existing meaning. A local index is not a persistent inventory, a global absence
+proof, or authority for GitHub mutations. Provider search's actual 1,000-result
+window still splits automatically; per-record evidence and identity validation
+bounds remain intact.
