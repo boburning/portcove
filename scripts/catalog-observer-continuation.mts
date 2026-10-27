@@ -150,6 +150,8 @@ export async function continueCatalogBatches<
       throw new ObservationFailure("cancelled", "Observation cancelled between bounded batches");
     const result = await operation(excluded);
     batches++;
+    // Publish original batch evidence before bounded aggregate admission can fail.
+    await onBatch(result);
     notify ||= result.notify_exception;
     requests += result.report.requests;
     bytes += result.report.response_bytes_charged;
@@ -162,14 +164,13 @@ export async function continueCatalogBatches<
         if (failureBytes > evidenceByteLimit)
           throw new ObservationFailure(
             "handoff-size",
-            "Cumulative diagnostic evidence envelope exhausted; retained per-batch reports and checkpoints remain authoritative",
+            "Cumulative diagnostic evidence envelope exhausted; original batch logs and checkpoints remain authoritative",
           );
         failures.set(key, failure);
       }
     }
     for (const failure of result.report.failures)
       if (failure.rule !== "budget") excluded.add(failure.source);
-    await onBatch(result);
     if (signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled after bounded batch");
     const more = result.report.pending_source_keys.some((key) => !excluded.has(key));

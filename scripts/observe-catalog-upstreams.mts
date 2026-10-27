@@ -526,6 +526,19 @@ export async function runCatalogOpportunity(
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
         onBatch: (batch) => {
+          for (const failure of batch.report.failures) {
+            const evidence = JSON.stringify({
+              format: 1,
+              kind: "catalog-observation-batch-failure",
+              failure,
+            });
+            if (Buffer.byteLength(evidence) > config.budget.response_bytes)
+              throw new ObservationFailure(
+                "handoff-size",
+                "An individual failure diagnostic exceeds the response envelope; checkpoint and original provider failure remain held",
+              );
+            (runtime.log ?? console.log)(evidence);
+          }
           (runtime.log ?? console.log)(
             JSON.stringify({
               format: 1,

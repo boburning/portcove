@@ -1453,3 +1453,41 @@ void test("Core subprocess inspection refuses an expired or unknown remaining op
   }
   assert.deepEqual(await readdir(root), []);
 });
+
+void test("original failure details are published before aggregate diagnostic refusal", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const failure = {
+    source: "large",
+    repository: "owner/large",
+    rule: "provider-transport",
+    details: "original provider refusal",
+  };
+  const logged: unknown[] = [];
+  await assert.rejects(
+    continueCatalogBatches(
+      async () => ({
+        report: {
+          pending_source_keys: ["large"],
+          attempted_source_keys: ["large"],
+          completed_source_keys: [],
+          failures: [failure],
+          requests: 1,
+          response_bytes_charged: 0,
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: true,
+      }),
+      {
+        deadline: 10,
+        now: () => 0,
+        evidenceByteLimit: 1,
+        onBatch: (batch) => {
+          logged.push(...batch.report.failures);
+        },
+      },
+    ),
+    /evidence envelope/,
+  );
+  assert.deepEqual(logged, [failure]);
+});

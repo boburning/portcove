@@ -859,6 +859,7 @@ export async function advanceCatalogObservations(
         };
         const previousPosition = position(isRecord(priorSource) ? priorSource.continuation : null);
         const result = await advanceObservation(config, priorSource, {
+          deadline,
           ...(options.fetch ? { fetch: options.fetch } : {}),
           ...(options.token ? { token: options.token } : {}),
           ...(options.signal ? { signal: options.signal } : {}),
