@@ -70,6 +70,15 @@ provider, and permitted existing-copy registration retains its separate consent
 and ownership checks. The authoring repair adds no prose parser or runtime policy
 registry and grants no rights over an existing copy.
 
+The independent publication trace also verified that preparation/generation
+serialize complete authored listings, the source reader/materializer transports
+exact Git blobs, and signing rebinds those bytes while semantic review receives
+complete current/prior snapshots. No ordinary reduced-field writer was found.
+Authenticated directory replacement intentionally permits a reviewed authored
+resolution to lift a condition; retaining old reasons forever would create a
+second policy authority. The delivery contract now correctly describes formats
+1/2, with format 2 required for restrictions.
+
 The production release classifier already serves managed selection and
 self-service discovery. Completed #3654/#3721/#3735 behavior is retained rather
 than rewritten. Existing cases cover stable/preview/rolling, platform streams,
