@@ -976,6 +976,8 @@ void test("qualified reviews and a running setup restart reject missing or forei
       runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
         assert,
         path,
+        performance,
+        executionPlan: { fixtures: { acquisitionJourney: false } },
         savedLibraryRecoverySession: false,
         checks: [{ scenario, outcome }],
         application: "/owned/app.exe",
