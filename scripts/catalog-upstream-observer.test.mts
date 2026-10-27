@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { GitHubApiError } from "./github-api.mts";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -315,17 +316,18 @@ void test("Core selection and policy projection resume exact per-port cursors ac
   assert.equal(h.exported.at(-1)![3].length, 40);
 });
 
-void test("shared byte admission includes identity lookups and stops unrelated HTTP after exhaustion", async () => {
+void test("source byte admission includes identity lookups while smaller unrelated sources continue", async () => {
   const h = harness();
-  h.options.repositoryId = async (_source, transport) => {
+  h.options.repositoryId = async (source, transport) => {
     transport.admitRequest();
-    transport.consumeResponseBytes(h.options.config.budget.total_bytes + 1);
-    return 7;
+    if (source.repository === "owner/shared")
+      transport.consumeResponseBytes(h.options.config.budget.total_bytes + 1);
+    return source.repository === "owner/shared" ? 7 : 8;
   };
   const result = await advanceCatalogObservations(h.input, null, h.options);
-  assert.equal(result.report.requests, 1);
-  assert.equal(h.network.length, 0);
-  assert.equal(result.report.completed_source_keys.length, 0);
+  assert.ok(result.report.requests > 1);
+  assert.ok(h.network.length > 0);
+  assert.equal(result.report.completed_source_keys.length, 1);
   assert.ok(result.report.pending_source_keys.length > 0);
   assert.equal(result.notify_exception, false);
 });
@@ -443,6 +445,23 @@ void test("operational coordinator isolates handoff files, preserves failure not
   const recovered = await runCatalogUpstreams(["--cli", cli], runtime);
   assert.equal(recovered.report.failures.length, 0);
   await assert.rejects(readFile(priorFile), { code: "ENOENT" });
+  h.input.ports.push({
+    id: "unavailable-port",
+    channels: ["stable"],
+    release: { repository: "owner/unavailable" },
+  });
+  await writeFile(catalog, JSON.stringify(h.input));
+  runtime.api.request = () => {
+    throw new GitHubApiError(
+      "command_failed",
+      "private transport detail must stay out of proposal evidence",
+      { status: 404 },
+    );
+  };
+  const unavailable = await runCatalogUpstreams(["--cli", cli], runtime);
+  assert.equal(unavailable.report.failures[0]!.rule, "repository-unavailable");
+  assert.match(unavailable.report.failures[0]!.details, /HTTP 404/);
+  assert.doesNotMatch(JSON.stringify(unavailable.report), /private transport detail/);
 });
 
 void test("retired cache cleanup preserves live snapshots, contention, foreign files and unknown ownership", async (t) => {
@@ -570,4 +589,39 @@ void test("legacy artifact retains its original report shape while shared ports 
     await readFile(path.join(result.handoff_directory, `${observationHash(legacy)}.json`), "utf8"),
   ) as Record<string, unknown>;
   assert.ok(Array.isArray(handoff.catalog_policies) && handoff.catalog_policies.length === 2);
+});
+
+void test("cumulative session bytes can exceed one source operation without unsafe reads or false completion", async () => {
+  const baseline = harness();
+  const before = await advanceCatalogObservations(baseline.input, null, baseline.options);
+  const total = before.report.response_bytes_charged;
+  const h = harness();
+  const operationLimit = Math.ceil(total * 0.75);
+  h.options.config = validateObserverConfig({
+    ...h.options.config,
+    budget: {
+      ...h.options.config.budget,
+      response_bytes: operationLimit,
+      total_bytes: operationLimit,
+    },
+  });
+  const result = await advanceCatalogObservations(h.input, null, h.options);
+  assert.equal(result.report.completed_source_keys.length, 2);
+  assert.equal(result.report.pending_source_keys.length, 0);
+  assert.ok(result.report.response_bytes_charged > operationLimit);
+  assert.equal(result.report.global_eligibility, "not-assessed");
+});
+
+void test("a refused oversized read with no accepted progress is not immediately requeued", async () => {
+  const h = harness();
+  h.options.config = validateObserverConfig({
+    ...h.options.config,
+    budget: { ...h.options.config.budget, response_bytes: 32 },
+  });
+  const result = await advanceCatalogObservations(h.input, null, h.options);
+  assert.equal(result.report.completed_source_keys.length, 0);
+  assert.equal(result.report.attempted_source_keys.length, 2);
+  assert.equal(h.network.filter((url) => url.startsWith("https:")).length, 2);
+  assert.equal(result.report.failures.length, 2);
+  assert.equal(result.notify_exception, false);
 });
