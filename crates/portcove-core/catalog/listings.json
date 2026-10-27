@@ -12479,12 +12479,14 @@
     {
       "id": "dante-s-inferno-hells-gate-recomp",
       "name": "Dante's Inferno / hells-gate-recomp",
-      "summary": "Explore Dante's Inferno / hells-gate-recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare a permitted Dante's Inferno PC player with your own Xbox 360 disc and keep its upstream launcher.",
       "project_url": "https://github.com/florinp93/hells-gate-recomp",
       "issue_number": 367,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/florinp93/hells-gate-recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md",
       "artwork": {
         "game_id": 6958,
         "cover_id": 104554,
@@ -12492,6 +12494,36 @@
         "image_sha256": "ca61d103dab3eef24365a724385500de2dbba9fd054bd004bf2a6e0724870ff3",
         "game_slug": "dante-s-inferno",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Dante's Inferno",
+      "release_url": "https://github.com/florinp93/hells-gate-recomp/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish upstream setup in a permitted copy",
+            "instruction": "Use your existing permitted Windows copy with its own upstream instructions. The installed edition uses the upstream installer; the portable ZIP has no installer and includes DantesInfernoLauncher.exe, the native player and an original-disc importer. Choose DantesInfernoLauncher.exe with its folder as the working directory when registering it. Save launch details first, then choose Play separately."
+          },
+          {
+            "title": "Import your own original through the launcher",
+            "instruction": "In the portable launcher, choose Play and deliberately accept its ISO import prompt, then select your own supported Xbox 360 Dante’s Inferno ISO. The launcher runs its bundled extract-xiso into the selected game-data directory. Portcove never invokes that tool during discovery. Keep the ISO and game data recoverable. The package’s bundled title-update patch and imported originals share game; do not overwrite a new package’s patch by copying an old whole game folder without upstream guidance."
+          },
+          {
+            "title": "Keep upstream updates and your data together",
+            "instruction": "The installed edition can offer and launch its own update installer. The portable launcher opens the upstream release page and asks for a manual portable update; it does not silently self-replace. Close the game, keep the old copy, and back up userdata, dantes_inferno.toml, dlc and your imported original data before following the matching upstream route. The reviewed portable.txt keeps normal saves/cache in userdata; custom game-data/profile locations need a separate backup. Portcove leaves the external files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [
+          "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game."
+        ],
+        "help_url": "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md"
+      },
+      "download_block_reason": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game.",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DantesInferno-",
+          "-portable.zip"
+        ]
       }
     },
     {
@@ -15725,12 +15757,16 @@
     {
       "id": "fatal-frame-mikupan",
       "name": "Fatal Frame / MikuPan",
-      "summary": "Explore Fatal Frame / MikuPan and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a permitted MikuPan player with your matching Fatal Frame PlayStation 2 game files.",
       "project_url": "https://github.com/Mikompilation/MikuPan",
       "issue_number": 346,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Mikompilation/MikuPan",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
       "artwork": {
         "game_id": 5106,
         "cover_id": 445266,
@@ -15738,6 +15774,40 @@
         "image_sha256": "2416f2d6b5f72ad7064b72b465aaa9f6bcb14d2e3d1a9a4b07b5b1943e80eaf0",
         "game_slug": "fatal-frame",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Fatal Frame",
+      "release_url": "https://github.com/Mikompilation/MikuPan/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MikuPan_windows_",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "MikuPan_linux_",
+          ".zip"
+        ]
+      },
+      "recommended_download_channel": "beta",
+      "download_block_reason": "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
+      "manual_setup": {
+        "help_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
+        "warnings": [
+          "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font."
+        ],
+        "steps": [
+          {
+            "title": "Use a permitted copy and your matching game files",
+            "instruction": "Keep an existing permitted complete native player, including its resources and libraries. The Windows player is MikuPan.exe; register it with its folder as the working directory. Save launch details, then choose Play separately. Prepare your own IMG_HD.BIN and IMG_BD.BIN from the matching Fatal Frame disc in a separate retained data folder. Default upstream builds use NTSC-U USA; PAL/EU needs the matching EU build, and the Japanese edition is unsupported. No original files or PS2 BIOS are supplied by Portcove."
+          },
+          {
+            "title": "Choose the original-data folder on first Play",
+            "instruction": "The native player asks for the folder containing the missing game files on first deliberate Play and remembers your selection. Keep that original-data folder outside any separately managed runtime so replacing a player does not replace your originals. The package is portable and has no installer. Source builds have their own CMake/dependency instructions. Linux is a separate upstream route; macOS is an experimental Apple Silicon community build with no maintained hardware coverage, not Windows qualification."
+          },
+          {
+            "title": "Back up the actual profile before updating",
+            "instruction": "You or upstream update this external copy. Close the game, keep the working folder, and extract a new permitted player separately. Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming. If SDL cannot supply a profile directory, upstream uses the local MikuPan directory instead; retain that too. Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."
+          }
+        ]
       }
     },
     {
@@ -24828,12 +24898,14 @@
     {
       "id": "need-for-speed-most-wanted-2005-xbox-360-recompiled",
       "name": "Need for Speed: Most Wanted (2005 Xbox 360 Recompiled)",
-      "summary": "Explore Need for Speed: Most Wanted (2005 Xbox 360 Recompiled) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the native Xbox 360 Most Wanted player with your own game, integrated setup and upstream save tools.",
       "project_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
       "issue_number": 1580,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/f40889ac72dc86a14f8d951201b329ad35e71882/README.md",
       "artwork": {
         "game_id": 98,
         "cover_id": 93655,
@@ -24841,6 +24913,37 @@
         "image_sha256": "25ed7f5aa7dacdb1853021d593dcc536d240f5e757ae2db568d60b33639ad23d",
         "game_slug": "need-for-speed-most-wanted",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Need for Speed: Most Wanted",
+      "release_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "NFSMW-Recomp-",
+          "Windows-x64",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/f40889ac72dc86a14f8d951201b329ad35e71882/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete upstream player",
+            "instruction": "Extract the whole Windows x64 ZIP, keeping NFSMW Recomp.exe and its data folder together. There is no installer. Register NFSMW Recomp.exe with its folder as the working directory, save the launch details, then choose Play separately. Keep the integrated launcher and both included edition players."
+          },
+          {
+            "title": "Choose your own game on first Play",
+            "instruction": "In the upstream launcher, select your own Xbox 360 Most Wanted ISO or extracted game folder. The current player recognizes PAL Spain and USA default.xex editions and selects the matching included player. Choose Play inside that launcher; it extracts a selected ISO and builds the shader library from your own disc. Valid remembered choices can be reused. Portcove does not run the player or extraction/compiler helpers during discovery."
+          },
+          {
+            "title": "Preserve the actual saves and settings",
+            "instruction": "Keep your original ISO or external game folder, the complete working copy, data/game_root, data/nfsmw.toml, data/nfsmw_trucos.txt, data/capturas and the readable data/saves copies (including current and previous saves). Actual live saves normally use Documents/nfsmw and can be separate from those readable copies. Back up the actual live profile and any custom game, update or backup folders too. A different player folder does not isolate the shared profile. After custom path changes, verify which profile the upstream save tools are using before importing or restoring; their folder is not guaranteed to match the running game."
+          },
+          {
+            "title": "Follow upstream updates with a recoverable copy",
+            "instruction": "Close both the launcher and the game before replacing files. Upstream provides update notices; keep your old copy recoverable and extract the new release separately. Let the new runtime regenerate its shader libraries and renderer caches from your own files. Keep upstream controls and save import/export/restore tools available, with separate backups of your actual profile. You or upstream own runtime updates and backups; Portcove registration provides no managed Update, Backup or Rollback. Removing the registration leaves every external file untouched."
+          }
+        ]
       }
     },
     {
