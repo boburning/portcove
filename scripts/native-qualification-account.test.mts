@@ -2,6 +2,54 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import path from "node:path";
+import { homedir } from "node:os";
+import { disposableDirectory } from "./fixtures/disposable-directory.mts";
+import { windowsSourceSystemExecutables } from "./release-native-runtime-custody.mts";
+
+void test(
+  "hosted candidate launcher and memory bridge refuse before effects under separate source holds",
+  {
+    skip: process.platform !== "win32",
+  },
+  () => {
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_HELPER))
+if ([Portcove.NativeQualification.AccountLauncher]::HostedCandidateExecutionAuthorized) { throw 'Candidate source hold changed' }
+$refused=$false
+try { [Portcove.NativeQualification.AccountLauncher]::StartHostedCandidateVerifiedInGroup($null,$null,$null,$null,$null,$null,$null,$null,$false,$null) | Out-Null }
+catch { if (-not $_.Exception.Message.Contains('awaits separate owner authority')) { throw }; $refused=$true }
+if (-not $refused) { throw 'Candidate launcher accepted an unowned group' }
+$refused=$false
+try { & ([scriptblock]::Create([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_BRIDGE))) -Configuration 'C:\portcove-nonexistent-held-input.json' -ExpectedConfigurationSha256 ('a'*64) -InvocationId ('b'*64) -HostedMemoryContext @{} }
+catch { if (-not $_.Exception.Message.Contains('awaits separate candidate execution authority')) { throw }; $refused=$true }
+if (-not $refused) { throw 'Memory bridge reached an input or credential operation' }
+Write-Output 'hosted-candidate-held-before-effects'
+`;
+    const result = spawnSync(
+      windowsSourceSystemExecutables.powershell,
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      {
+        encoding: "utf8",
+        timeout: 30000,
+        maxBuffer: 128 * 1024,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          PORTCOVE_TEST_NATIVE_HELPER: fileURLToPath(
+            new URL("./native-qualification-account.cs.txt", import.meta.url),
+          ),
+          PORTCOVE_TEST_NATIVE_BRIDGE: fileURLToPath(
+            new URL("./native-qualification-account-bridge.ps1", import.meta.url),
+          ),
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /hosted-candidate-held-before-effects/);
+  },
+);
 
 void test(
   "closed credential purpose keeps primary default and separately names public proof without reading credentials",
@@ -343,6 +391,7 @@ try {
     $start.UseShellExecute = $false; $start.CreateNoWindow = $true
     foreach ($argument in @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 30')) { $start.ArgumentList.Add($argument) }
     $start.Environment.Clear(); $start.Environment['SystemRoot'] = $env:SystemRoot
+    $group.GetType().GetMethod('BeginLaunch', [Reflection.BindingFlags]'Instance,NonPublic').Invoke($group, @($config, $start.FileName)) | Out-Null
     $process = [Diagnostics.Process]::Start($start); $roots += $process
     $group.GetType().GetMethod('Assign', [Reflection.BindingFlags]'Instance,NonPublic').Invoke($group, @($config, $process.Handle)) | Out-Null
     if ($index -eq 1) {
@@ -385,4 +434,128 @@ try {
       scope: "same-owner inert nested jobs; no logon or GUI",
     });
   },
+);
+
+function runMemoryBridgeFixture(context: test.TestContext, mutate: boolean) {
+  const outer = disposableDirectory(context, path.join(homedir(), ".pc-memory-bridge-"));
+  const script = String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_SETUP))
+Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_HELPER))
+if ([Portcove.NativeQualification.AccountLauncher]::HostedCandidateExecutionAuthorized) { throw 'Candidate launcher must stay held' }
+$owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$root=Join-Path $env:PORTCOVE_TEST_NATIVE_ROOT 'controller'
+[Portcove.HostedNative.Setup]::Directory($root,$owner,$null,$false)
+$scripts=Join-Path $root 'scripts';$null=New-Item -ItemType Directory -Path $scripts
+$bridge=Join-Path $scripts 'native-qualification-account-bridge.ps1'
+$source=[IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_BRIDGE)
+$mutation=$env:PORTCOVE_TEST_NATIVE_MUTATE -ceq 'true'
+if($mutation){
+ Add-Type 'namespace Portcove { public static class MemoryBridgeClock { public static long Now; } }'
+ [Portcove.MemoryBridgeClock]::Now=[Diagnostics.Stopwatch]::GetTimestamp()
+ $source=$source.Replace('[Diagnostics.Stopwatch]::GetTimestamp()','[Portcove.MemoryBridgeClock]::Now')
+}
+$held='$hostedCandidateExecutionAuthorized = $false'
+if($source.Split($held).Count -ne 2){throw 'Expected one shipping memory hold'}
+# Only this disposable bridge copy exercises the owner-memory loop. C# launch stays false.
+[IO.File]::WriteAllText($bridge,$source.Replace($held,'$hostedCandidateExecutionAuthorized = $true'))
+$helper=Join-Path $scripts 'native-qualification-account.cs.txt';[IO.File]::Copy($env:PORTCOVE_TEST_NATIVE_HELPER,$helper)
+$capture=Join-Path $root 'capture';[Portcove.HostedNative.Setup]::Directory($capture,$owner,$null,$false)
+$nonce='b'*64;$sid='S-1-5-21-100-200-300-9999'
+$configuration=[ordered]@{schema_version=1;broker_sid=$owner;account_sid=$sid;account_name='PortcoveNativeQual';profile_root=(Join-Path $root 'profile');work_root=(Join-Path $root 'work');capture_root=$capture;helper_sha256=(Get-FileHash $helper).Hash.ToLowerInvariant();controller_root=$root}
+$configPath=Join-Path $root 'boundary.json';[IO.File]::WriteAllText($configPath,($configuration|ConvertTo-Json -Compress))
+$configSha=(Get-FileHash $configPath).Hash.ToLowerInvariant()
+$config=[Portcove.NativeQualification.AccountConfiguration]::new();$config.UserName=$configuration.account_name;$config.AccountSid=$sid;$config.BrokerSid=$owner;$config.ProfileRoot=$configuration.profile_root;$config.WorkRoot=$configuration.work_root
+$group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($config)
+$secret=ConvertTo-SecureString 'inert-not-an-account-password' -AsPlainText -Force;$secret.MakeReadOnly()
+$initialTicks=[long][Diagnostics.Stopwatch]::GetTimestamp();if($mutation){$initialTicks=[Portcove.MemoryBridgeClock]::Now}
+$memory=@{configuration=$config;credential=$secret;deadline_ticks=($initialTicks+10L*[Diagnostics.Stopwatch]::Frequency);frequency=[long][Diagnostics.Stopwatch]::Frequency;group=$group;desktop_name=('PortcoveHosted_'+('a'*32));helper_sha256=$configuration.helper_sha256;owner_pid=$PID;owner_created_filetime=[Diagnostics.Process]::GetCurrentProcess().StartTime.ToFileTimeUtc().ToString()}
+$worker=[PowerShell]::Create();$client=$null;$pending=$null
+try {
+ $null=$worker.AddCommand($bridge).AddParameter('Configuration',$configPath).AddParameter('ExpectedConfigurationSha256',$configSha).AddParameter('InvocationId',$nonce).AddParameter('HostedMemoryContext',$memory)
+ $pending=$worker.BeginInvoke()
+ if($mutation){
+  $wait=[Diagnostics.Stopwatch]::StartNew();$statePath=Join-Path $capture 'bridge-state.json'
+  while(-not [IO.File]::Exists($statePath)){
+   if($pending.IsCompleted -or $wait.Elapsed.TotalSeconds -gt 5){throw 'Fixture bridge did not prepare'}
+   Start-Sleep -Milliseconds 25
+  }
+  $originalDeadline=$memory.deadline_ticks
+  $memory.deadline_ticks=$originalDeadline+500L*[Diagnostics.Stopwatch]::Frequency
+  $memory.desktop_name='changed-after-original-context'
+  [Portcove.MemoryBridgeClock]::Now=$originalDeadline+1L
+  if(-not $pending.AsyncWaitHandle.WaitOne(5000)){throw 'Mutated context renewed original bridge deadline'}
+  $clockRefused=$false
+  try{$null=$worker.EndInvoke($pending)}catch{if(-not $_.Exception.Message.Contains('Original hosted bridge deadline exhausted')){throw};$clockRefused=$true}
+  if(($worker.Streams.Error|Out-String).Contains('Original hosted bridge deadline exhausted')){$clockRefused=$true}
+  if(-not $clockRefused){throw 'Original clock refusal missing'}
+  $state=[IO.File]::ReadAllText($statePath)|ConvertFrom-Json
+  if($state.phase -cne 'failed' -or @($state.roots).Count -ne 0 -or -not $state.failure.Contains('Original hosted bridge deadline exhausted')){throw 'Clock failure did not preserve empty-job state'}
+  Write-Output 'memory-context-mutation-keeps-original-clock'
+  return
+ }
+ $client=[IO.Pipes.NamedPipeClientStream]::new('.','PortcoveNative_'+$nonce,[IO.Pipes.PipeDirection]::InOut,[IO.Pipes.PipeOptions]::Asynchronous)
+ $client.Connect(5000)
+ [Portcove.NativeQualification.OwnerCommandReader]::VerifyServer($client.SafePipeHandle.DangerousGetHandle(),[uint32]$PID,[long]$memory.owner_created_filetime)
+ $command=[ordered]@{schema_version=1;invocation_id=$nonce;sequence=1;operation='finish';id='fixture-empty-finish';launch=$null;target=$null}
+ $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($command|ConvertTo-Json -Compress)+[char]10);$client.Write($bytes);$client.Flush()
+ $response=[Portcove.NativeQualification.OwnerCommandReader]::ReadResponse($client)
+ if(-not $response.Wait(5000)){throw 'Bounded fixture response did not settle'}
+ $value=$response.GetAwaiter().GetResult()|ConvertFrom-Json
+ if(-not $value.value.group_empty -or $value.value.roots -ne 0){throw 'Empty fixture job did not settle'}
+ if(-not $pending.AsyncWaitHandle.WaitOne(5000)){throw 'Memory bridge runspace remains active'}
+ $null=$worker.EndInvoke($pending)
+ if($worker.HadErrors){throw ($worker.Streams.Error|Out-String)}
+ if(@($group.RemainingPids()).Count -ne 0 -or $secret.Length -ne 29){throw 'Bridge took owner resources'}
+ $state=[IO.File]::ReadAllText((Join-Path $capture 'bridge-state.json'))|ConvertFrom-Json
+ if($state.phase -cne 'settled' -or @($state.roots).Count -ne 0){throw 'Empty bridge settlement missing'}
+ Write-Output 'empty-memory-bridge-no-account-no-launch-no-credential-store'
+} finally {
+ if($client){$client.Dispose()}
+ if($pending -and -not $pending.IsCompleted){$worker.Stop()}
+ $worker.Dispose();$group.Dispose();$secret.Dispose()
+}
+`;
+  const result = spawnSync(
+    windowsSourceSystemExecutables.powershell,
+    ["-NoProfile", "-NonInteractive", "-Command", script],
+    {
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_NATIVE_ROOT: outer,
+        PORTCOVE_TEST_NATIVE_MUTATE: mutate ? "true" : "",
+        PORTCOVE_TEST_NATIVE_HELPER: fileURLToPath(
+          new URL("./native-qualification-account.cs.txt", import.meta.url),
+        ),
+        PORTCOVE_TEST_NATIVE_SETUP: fileURLToPath(
+          new URL("./release-hosted-native-windows-setup.cs.txt", import.meta.url),
+        ),
+        PORTCOVE_TEST_NATIVE_BRIDGE: fileURLToPath(
+          new URL("./native-qualification-account-bridge.ps1", import.meta.url),
+        ),
+      },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    result.stdout,
+    mutate
+      ? /memory-context-mutation-keeps-original-clock/
+      : /empty-memory-bridge-no-account-no-launch-no-credential-store/,
+  );
+}
+
+void test(
+  "owned-copy hosted memory bridge settles an empty job without credential lookup or taking owner resources",
+  { skip: process.platform !== "win32" },
+  (context) => runMemoryBridgeFixture(context, false),
+);
+void test(
+  "owned-copy hosted memory bridge cannot renew its original clock through context mutation",
+  { skip: process.platform !== "win32" },
+  (context) => runMemoryBridgeFixture(context, true),
 );

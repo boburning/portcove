@@ -133,7 +133,9 @@ For mutable release tags, keep the tag commit, current source head and any
 publisher-declared package build commit separate. A checksummed build manifest
 is a publisher source claim, not an independent reproducible-build attestation.
 Use Core's channel classification rather than a provider's prerelease flag alone;
-a nightly-named tag can be a Preview even when that flag is unset.
+a tag such as `v0.3-dutch-preview-1` selects Preview even when that flag is unset.
+Preparation feedback retains the raw observed tag and provider flag as advice; it
+does not classify a stream or override the player's saved choice.
 
 Every package hint must match for managed replacement; the shared native
 suitability check still rejects known foreign processors, platforms, supporting

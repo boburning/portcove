@@ -1,5 +1,6 @@
 /** Closed wire custody only. Parsing or preparing these bytes grants no job,
  * native, signature, archival, execution or publication authority. */
+import { inspectHostedWindowsOperatingSystem } from "./release-hosted-native-windows-host.mts";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
@@ -61,36 +62,21 @@ function hostIdentity(
   const os = raw.os;
   if (report.platform_label === "windows-x86_64") {
     exact(os, "build_number,caption,display_version,product_type,version");
-    if (selectedPlatform === hostedWindowsContinuityPlatform) {
-      if (
-        os.product_type !== 3 ||
-        typeof os.caption !== "string" ||
-        os.caption.length > 128 ||
-        !/^Microsoft Windows Server 2022(?: |$)/u.test(os.caption) ||
-        os.display_version !== "21H2" ||
-        typeof os.version !== "string" ||
-        !/^10\.0\.20348(?:\.[0-9]{1,10})?$/u.test(os.version) ||
-        os.version !== report.host.os_version ||
-        os.build_number !== "20348"
-      )
-        throw new Error("hosted native actual Windows Server continuity observation differs");
-      // Server build numbers do not establish the supported Windows client
-      // minimum. The separate client-floor acceptance remains mandatory.
-      return structuredClone(raw);
+    try {
+      inspectHostedWindowsOperatingSystem(
+        os,
+        selectedPlatform as "windows-11-26h2-x64" | typeof hostedWindowsContinuityPlatform,
+        report.host.os_version,
+        report.compatibility.minimum_os_version,
+      );
+    } catch (cause) {
+      throw new Error(
+        selectedPlatform === hostedWindowsContinuityPlatform
+          ? "hosted native actual Windows Server continuity observation differs"
+          : "hosted native actual Windows client/minimum observation differs",
+        { cause },
+      );
     }
-    if (
-      os.product_type !== 1 ||
-      typeof os.caption !== "string" ||
-      os.caption.length > 128 ||
-      !/^Microsoft Windows 11(?: |$)/u.test(os.caption) ||
-      os.display_version !== "26H2" ||
-      typeof os.version !== "string" ||
-      os.version !== report.host.os_version ||
-      !atLeast(os.version, "10.0.26200") ||
-      !atLeast(os.version, report.compatibility.minimum_os_version) ||
-      os.build_number !== os.version.split(".")[2]
-    )
-      throw new Error("hosted native actual Windows client/minimum observation differs");
   } else {
     exact(os, "id,kernel_release,version_id");
     if (

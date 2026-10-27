@@ -1,5 +1,7 @@
 /** Joins fixed native evidence. Pure reconstruction remains authority:none;
  * only the default parent/capture/source path may retain direct provenance. */
+import { inspectHostedNativeWindowsHost } from "./release-hosted-native-windows-host.mts";
+import { hostedWindowsContinuityPlatform } from "./release-native-qualification-contract.mts";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -59,6 +61,7 @@ function reconstructNativeWindowsStageReport(
   prepared: NativeStageRequest,
   raw: unknown,
   source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  hosted?: { host: unknown; nonce: string },
 ) {
   const input = record(raw),
     request = prepared.request;
@@ -188,16 +191,39 @@ function reconstructNativeWindowsStageReport(
     )
   )
     throw new Error("configured native capabilities are not supplied by maintained source");
-  if (
-    host.machine_id_sha256 !== expectedHost.machine_id_sha256 ||
-    host.architecture !== "X64" ||
-    expectedHost.minimum_platform !== "windows-11-26h2-x64" ||
-    !atLeast(host.os_version, "10.0.26200") ||
-    !atLeast(host.os_version, compatibility.minimum_os_version) ||
-    version(host.os_version).slice(0, 3).join(".") !==
-      version(runtime.operating_system).slice(0, 3).join(".")
-  )
-    throw new Error("actual minimum Windows host identity is unavailable or differs");
+  if (hosted) {
+    if (expectedHost.qualification_profile !== "fixed-hosted-native-v1")
+      throw new Error("hosted Windows profile differs");
+    const observed = inspectHostedNativeWindowsHost(
+      hosted.host,
+      hosted.nonce,
+      expectedHost.minimum_platform as
+        | "windows-11-26h2-x64"
+        | typeof hostedWindowsContinuityPlatform,
+      text(compatibility.minimum_os_version),
+    );
+    if (
+      observed.broker_sid !== expectedAccount.broker ||
+      observed.machine_id_sha256 !== expectedHost.machine_id_sha256 ||
+      observed.machine_id_sha256 !== host.machine_id_sha256 ||
+      observed.os.version !== host.os_version ||
+      host.architecture !== "X64" ||
+      version(host.os_version).slice(0, 3).join(".") !==
+        version(runtime.operating_system).slice(0, 3).join(".")
+    )
+      throw new Error("actual hosted Windows host/account/runtime observation differs");
+  } else {
+    if (
+      host.machine_id_sha256 !== expectedHost.machine_id_sha256 ||
+      host.architecture !== "X64" ||
+      expectedHost.minimum_platform !== "windows-11-26h2-x64" ||
+      !atLeast(host.os_version, "10.0.26200") ||
+      !atLeast(host.os_version, compatibility.minimum_os_version) ||
+      version(host.os_version).slice(0, 3).join(".") !==
+        version(runtime.operating_system).slice(0, 3).join(".")
+    )
+      throw new Error("actual minimum Windows host identity is unavailable or differs");
+  }
   if (
     !Array.isArray(host.engine_images) ||
     host.engine_images.length < 1 ||
@@ -304,7 +330,11 @@ function reconstructNativeWindowsStageReport(
       qualification_profile: expectedHost.qualification_profile,
       os_version: host.os_version,
       minimum_platform: expectedHost.minimum_platform,
-      execution_context: "native-windows11-26h2-account",
+      execution_context: hosted
+        ? expectedHost.minimum_platform === hostedWindowsContinuityPlatform
+          ? "native-windows-server-2022-hosted-isolated-account"
+          : "native-windows-11-26h2-hosted-isolated-account"
+        : "native-windows11-26h2-account",
       account: expectedAccount,
       loaded_engine: {
         name: "WebView2",
@@ -357,13 +387,27 @@ export function reconstructNativePreSignReport(
   if (prepared.request.stage !== "payload-signing") throw new Error("Windows pre-sign report only");
   return reconstructNativeWindowsStageReport(prepared, raw, source);
 }
+/** Pure hosted reconstruction keeps observed Server continuity separate from client acceptance. */
+export function reconstructHostedNativeWindowsPreSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  host: unknown,
+  nonce: string,
+) {
+  if (prepared.request.stage !== "payload-signing")
+    throw new Error("hosted Windows pre-sign report only");
+  return reconstructNativeWindowsStageReport(prepared, raw, source, { host, nonce });
+}
+
 /** Pure report2 reconstruction still has no provenance. The actual parent must
  * supply its privately retained successful payload verifier result separately. */
-export function reconstructNativePostSignReport(
+function reconstructWindowsPostSignReport(
   prepared: NativeStageRequest,
   raw: unknown,
   source: ReturnType<typeof inspectNativeCompatibilitySources>,
   rawCrypto: unknown,
+  hosted?: { host: unknown; nonce: string },
 ) {
   const request = prepared.request,
     crypto = record(rawCrypto),
@@ -464,7 +508,26 @@ export function reconstructNativePostSignReport(
     )
       throw new Error("native rollback registration belongs to another account");
   }
-  return reconstructNativeWindowsStageReport(prepared, raw, source);
+  return reconstructNativeWindowsStageReport(prepared, raw, source, hosted);
+}
+
+export function reconstructNativePostSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  crypto: unknown,
+) {
+  return reconstructWindowsPostSignReport(prepared, raw, source, crypto);
+}
+export function reconstructHostedNativeWindowsPostSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  crypto: unknown,
+  host: unknown,
+  nonce: string,
+) {
+  return reconstructWindowsPostSignReport(prepared, raw, source, crypto, { host, nonce });
 }
 
 const reports = new WeakMap<

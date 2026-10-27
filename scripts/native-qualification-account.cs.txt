@@ -599,6 +599,20 @@ namespace Portcove.NativeQualification {
                 throw new ArgumentException("Fixed ordinary hosted GUI boundary required");
             return StartCore(config, password, executable, arguments, directory, environment, false, group, expectedSha256, desktopName);
         }
+        // The consumed inert qualification does not authorize a candidate invocation.
+        public static bool HostedCandidateExecutionAuthorized { get { return false; } }
+        public static AccountProcess StartHostedCandidateVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, string desktopName) {
+            if (!HostedCandidateExecutionAuthorized) throw new InvalidOperationException("Hosted candidate execution awaits separate owner authority");
+            string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");
+            if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
+                Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" || Environment.GetEnvironmentVariable("GITHUB_JOB") != "native_windows" ||
+                workflow == null || !workflow.StartsWith("boburning/portcove/.github/workflows/application-update-production.yml@refs/tags/", StringComparison.Ordinal) ||
+                config.UserName != "PortcoveNativeQual" || group == null || expectedSha256 == null ||
+                !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$") ||
+                desktopName == null || !System.Text.RegularExpressions.Regex.IsMatch(desktopName, "^PortcoveHosted_[0-9a-f]{32}$"))
+                throw new ArgumentException("Fixed held hosted candidate boundary required");
+            return StartCore(config, password, executable, arguments, directory, environment, nsis, group, expectedSha256, desktopName);
+        }
         public static AccountTokenObservation ObserveBrokerToken() {
             using (var identity = WindowsIdentity.GetCurrent(TokenAccessLevels.Query))
                 return Native.ReadTokenObservation(identity.AccessToken.DangerousGetHandle());

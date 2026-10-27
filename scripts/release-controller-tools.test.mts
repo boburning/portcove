@@ -1192,6 +1192,15 @@ void test("Windows receiver binds its signed platform, producer, label, issuer a
   const root = await mkdtemp(path.join(os.tmpdir(), "windows-tool-receiver-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const f = fixture({}, "windows-x86_64");
+  for (const file of [
+    "bin/msedgedriver.exe",
+    "webview-driver.json",
+    "webview-driver-license.txt",
+    "webview-driver-eula.txt",
+    "webview-driver-notices.html",
+    "scripts/windows-webview-driver-policy.psm1",
+  ])
+    assert.ok(f.bytes.has(file), `fixed Windows admission must contain ${file}`);
   const result = await receiveControllerTools(root, f.expected, f.bundle, f.options);
   assert.equal(result.evidence_scope, "injected-provider");
   await assert.rejects(verifiedControllerToolPaths(result), /actual same-process/u);

@@ -213,6 +213,57 @@ void test("portable preparation separates complete hint observations from lifecy
   );
 });
 
+void test("preparation preserves raw prerelease flags without inferring channels or mutating choices", () => {
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "preview-fixture",
+      name: "Preview fixture",
+      summary: "Preview fixture",
+      project_url: "https://github.com/example/fixture",
+      recommended_download_channel: "stable",
+      download_asset_hints: { "windows-x86-64": ["windows", ".zip"] },
+    },
+    integration: {
+      adapter: "native-portable",
+      platforms: ["windows-x86-64"],
+      release: { asset_hints: { "windows-x86-64": ["windows", ".zip"] } },
+      persistent_paths: [],
+    },
+  };
+  const before = structuredClone(record);
+  for (const [flag, expected] of [
+    [false, false],
+    [true, true],
+    ["false", null],
+    [undefined, null],
+  ]) {
+    const facts = {
+      assets_complete: true,
+      assets: [],
+      release: {
+        endpoint: "https://api.github.com/repos/example/fixture/releases/tags/v0.3-preview-1",
+        status: "observed" as const,
+        body: { tag_name: "v0.3-preview-1", prerelease: flag },
+      },
+    };
+    for (const feedback of [
+      portablePreparationFeedback(record, facts),
+      downloadPreparationFeedback(record, facts),
+    ]) {
+      assert.equal(feedback?.maintenance.observed_release_tag, "v0.3-preview-1");
+      assert.equal(feedback?.maintenance.observed_provider_prerelease, expected);
+      assert.match(feedback.maintenance.next, /Core’s channel classification/);
+    }
+  }
+  assert.equal(
+    portablePreparationFeedback(record, { assets_complete: true, assets: [] })?.maintenance
+      .observed_provider_prerelease,
+    null,
+  );
+  assert.deepEqual(record, before);
+});
+
 const catalogRoot = join(
   dirname(dirname(fileURLToPath(import.meta.url))),
   "crates",
