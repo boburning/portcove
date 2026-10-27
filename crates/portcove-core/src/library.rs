@@ -2591,9 +2591,40 @@ impl Library {
         ports: &[(String, ReleaseChannel)],
         after_settings: impl FnOnce(),
     ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
+        self.statuses_from_with_archive_inventory(connection, ports, after_settings, false)
+    }
+
+    pub(crate) fn statuses_from_with_acquisitions_and_barrier(
+        &self,
+        connection: &Connection,
+        ports: &[(String, ReleaseChannel)],
+        after_settings: impl FnOnce(),
+    ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
+        self.statuses_from_with_archive_inventory(connection, ports, after_settings, true)
+    }
+
+    fn statuses_from_with_archive_inventory(
+        &self,
+        connection: &Connection,
+        ports: &[(String, ReleaseChannel)],
+        after_settings: impl FnOnce(),
+        include_acquisition_owners: bool,
+    ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
         let mut metrics = StatusReadMetrics::default();
-        if ports.is_empty() {
+        if ports.is_empty() && !include_acquisition_owners {
             return Ok((Vec::new(), metrics));
+        }
+        metrics.record_query();
+        let acquisitions = crate::service::game_update_acquisition::views_from(connection)?;
+        let mut ports = ports.to_vec();
+        if include_acquisition_owners {
+            let mut missing = acquisitions
+                .values()
+                .filter(|view| !ports.iter().any(|(id, _)| id == &view.port_id))
+                .map(|view| (view.port_id.clone(), view.release.channel))
+                .collect::<Vec<_>>();
+            missing.sort_by(|left, right| left.0.cmp(&right.0));
+            ports.extend(missing);
         }
         let mut port_ids = ports
             .iter()
@@ -2747,8 +2778,6 @@ impl Library {
             }
         }
 
-        metrics.record_query();
-        let acquisitions = crate::service::game_update_acquisition::views_from(connection)?;
         let statuses = ports
             .iter()
             .map(|(port_id, default_channel)| {

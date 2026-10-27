@@ -312,6 +312,7 @@ fn retained_and_staged_rows_without_settings_keep_legacy_channel() {
             .status_rows_with_recommendations(
                 &service.catalog,
                 &[(NATIVE_ID.into(), ReleaseChannel::Stable)],
+                false,
             )
             .unwrap();
         assert_eq!(statuses[0].channel, ReleaseChannel::Stable);

@@ -523,25 +523,48 @@ mod tests {
 
     #[tokio::test]
     async fn activity_apply_refuses_other_handle_file_work_before_consuming_review_or_mutating() {
-        let (_temporary, service) = fixture();
-        let before = service.status(PORT).unwrap();
-        let tree = crate::library_transfer::reviewed_tree(&service.library.versions_dir()).unwrap();
-        let review = service.plan_game_update(PORT, true).await.unwrap();
-        let grant = service
-            .authorize_game_update(PORT, true, &review.plan_sha256)
-            .await
-            .unwrap();
-        let other = Library::open(service.library.root()).unwrap();
-        let file_work = other.try_lock_port(PORT, "verify").unwrap();
+        use crate::test_fixture::{async_phase, phase};
+        let (_temporary, service) = phase("activity Apply: seed two retained runtimes", fixture);
+        let before = phase("activity Apply: baseline status", || service.status(PORT)).unwrap();
+        let tree = phase("activity Apply: baseline version tree", || {
+            crate::library_transfer::reviewed_tree(&service.library.versions_dir())
+        })
+        .unwrap();
+        let review = async_phase(
+            "activity Apply: first review",
+            service.plan_game_update(PORT, true),
+        )
+        .await
+        .unwrap();
+        let grant = async_phase(
+            "activity Apply: first authorization",
+            service.authorize_game_update(PORT, true, &review.plan_sha256),
+        )
+        .await
+        .unwrap();
+        let other = phase("activity Apply: open other client", || {
+            Library::open(service.library.root())
+        })
+        .unwrap();
+        let file_work = phase("activity Apply: other client owns file work", || {
+            other.try_lock_port(PORT, "verify")
+        })
+        .unwrap();
         assert_eq!(
-            service
-                .apply_game_update(PORT, true, &grant.token, |_| {})
-                .await
-                .unwrap_err()
-                .code,
+            async_phase(
+                "activity Apply: busy refusal",
+                service.apply_game_update(PORT, true, &grant.token, |_| {})
+            )
+            .await
+            .unwrap_err()
+            .code,
             ErrorCode::Conflict
         );
-        let after = service.status(PORT).unwrap();
+        let after = phase(
+            "activity Apply: status while file work remains owned",
+            || service.status(PORT),
+        )
+        .unwrap();
         assert_eq!(
             after.active.as_ref().unwrap().id,
             before.active.as_ref().unwrap().id
@@ -551,40 +574,76 @@ mod tests {
             before.staged.as_ref().unwrap().id
         );
         assert_eq!(
-            crate::library_transfer::reviewed_tree(&service.library.versions_dir()).unwrap(),
+            phase("activity Apply: unchanged tree while busy", || {
+                crate::library_transfer::reviewed_tree(&service.library.versions_dir())
+            })
+            .unwrap(),
             tree
         );
-        drop(file_work);
+        phase(
+            "activity Apply: release other client's file-work guard",
+            || drop(file_work),
+        );
 
-        let reopened = service_with_release(Library::open(service.library.root()).unwrap(), "v2");
+        let reopened = phase("activity Apply: reopen independent client", || {
+            service_with_release(Library::open(service.library.root()).unwrap(), "v2")
+        });
         assert!(
-            reopened
-                .apply_game_update(PORT, true, &grant.token, |_| {})
-                .await
-                .is_err()
+            async_phase(
+                "activity Apply: old client grant refused after reopen",
+                reopened.apply_game_update(PORT, true, &grant.token, |_| {})
+            )
+            .await
+            .is_err()
         );
         assert_eq!(
-            crate::library_transfer::reviewed_tree(&service.library.versions_dir()).unwrap(),
+            phase(
+                "activity Apply: unchanged tree after old grant refusal",
+                || crate::library_transfer::reviewed_tree(&service.library.versions_dir())
+            )
+            .unwrap(),
             tree
         );
         // Consuming only in this test proves the lock refusal left the original grant untouched.
-        service
-            .library
-            .consume_authorization(&grant.token, "game-update", PORT, &review.plan_sha256)
-            .unwrap();
-        let fresh = reopened.plan_game_update(PORT, true).await.unwrap();
-        let fresh_grant = reopened
-            .authorize_game_update(PORT, true, &fresh.plan_sha256)
-            .await
-            .unwrap();
+        phase(
+            "activity Apply: prove original grant was not consumed",
+            || {
+                service.library.consume_authorization(
+                    &grant.token,
+                    "game-update",
+                    PORT,
+                    &review.plan_sha256,
+                )
+            },
+        )
+        .unwrap();
+        let fresh = async_phase(
+            "activity Apply: fresh independent review",
+            reopened.plan_game_update(PORT, true),
+        )
+        .await
+        .unwrap();
+        let fresh_grant = async_phase(
+            "activity Apply: fresh independent authorization",
+            reopened.authorize_game_update(PORT, true, &fresh.plan_sha256),
+        )
+        .await
+        .unwrap();
         assert_ne!(fresh_grant.token, grant.token);
-        let activated = reopened
-            .apply_game_update(PORT, true, &fresh_grant.token, |_| {})
-            .await
-            .unwrap();
+        let activated = async_phase(
+            "activity Apply: fresh grant activates verified staged runtime",
+            reopened.apply_game_update(PORT, true, &fresh_grant.token, |_| {}),
+        )
+        .await
+        .unwrap();
         assert_eq!(activated.version, "v2");
         assert_eq!(
-            reopened.status(PORT).unwrap().previous.unwrap().version,
+            phase("activity Apply: final previous-version proof", || reopened
+                .status(PORT))
+            .unwrap()
+            .previous
+            .unwrap()
+            .version,
             "v1"
         );
     }

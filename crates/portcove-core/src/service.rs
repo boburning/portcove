@@ -889,7 +889,17 @@ impl PortcoveService {
     // Execution retains the original status checks, then verifies its rollback
     // target once under the operation lock instead of discarding that assessment.
     fn status_without_rollback_assessment(&self, port_id: &str) -> Result<PortStatus> {
-        let status_catalog = self.catalog_for_installed_fallback(port_id)?;
+        let status_catalog = match self.catalog_for_installed_fallback(port_id) {
+            Ok(catalog) => catalog,
+            Err(error) if error.code == crate::ErrorCode::NotFound => {
+                let status = self.library.status(port_id, ReleaseChannel::Stable)?;
+                if status.acquisition.is_some() {
+                    return Ok(Self::acquisition_metadata_status(status));
+                }
+                return Err(error);
+            }
+            Err(error) => return Err(error),
+        };
         let catalog = status_catalog.as_ref();
         let port = catalog.port(port_id).ok();
         let (mut statuses, metrics) = self.status_rows_with_recommendations(
@@ -898,6 +908,7 @@ impl PortcoveService {
                 port_id.to_owned(),
                 port.map_or(ReleaseChannel::Stable, default_channel),
             )],
+            false,
         )?;
         let status = statuses
             .pop()
@@ -969,7 +980,8 @@ impl PortcoveService {
             .iter()
             .map(|port| (port.id.clone(), default_channel(port)))
             .collect::<Vec<_>>();
-        let (statuses, metrics) = self.status_rows_with_recommendations(&self.catalog, &ports)?;
+        let (statuses, metrics) =
+            self.status_rows_with_recommendations(&self.catalog, &ports, true)?;
         tracing::debug!(
             port_count = statuses.len(),
             sqlite_query_count = metrics.sqlite_query_count + 1,
@@ -1018,12 +1030,17 @@ impl PortcoveService {
         &self,
         catalog: &Catalog,
         ports: &[(String, ReleaseChannel)],
+        include_acquisition_owners: bool,
     ) -> Result<(Vec<PortStatus>, crate::library::StatusReadMetrics)> {
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction()?;
-        let (mut statuses, mut metrics) = self
-            .library
-            .statuses_from_with_metrics(&transaction, ports)?;
+        let (mut statuses, mut metrics) = if include_acquisition_owners {
+            self.library
+                .statuses_from_with_acquisitions_and_barrier(&transaction, ports, || {})?
+        } else {
+            self.library
+                .statuses_from_with_metrics(&transaction, ports)?
+        };
         metrics.sqlite_query_count +=
             Self::apply_fresh_native_channel_recommendations(catalog, &transaction, &mut statuses)?;
         transaction.commit()?;
@@ -1035,11 +1052,35 @@ impl PortcoveService {
         let (mut statuses, _) = self.status_rows_with_recommendations(
             &self.catalog,
             &[(port_id.into(), default_channel(port))],
+            false,
         )?;
         statuses
             .pop()
             .map(|status| status.channel)
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))
+    }
+
+    /// An archive is display metadata, never a replacement operational definition.
+    fn acquisition_metadata_status(mut status: PortStatus) -> PortStatus {
+        status.readiness = None;
+        status.definition_operations.clear();
+        status.port_actions = [
+            PortAction::Install,
+            PortAction::Launch,
+            PortAction::Update,
+            PortAction::RegisterExternal,
+            PortAction::RemoveManaged,
+            PortAction::Rollback,
+        ]
+        .into_iter()
+        .map(|action| PortActionAssessment {
+            action,
+            availability: PortActionAvailability::Held,
+            reason: PortActionReason::DefinitionIneligible,
+            definition: None,
+        })
+        .collect();
+        status
     }
 
     fn hydrate_statuses(
@@ -1054,11 +1095,16 @@ impl PortcoveService {
             .cloned()
             .map(|source| (source.profile_id.clone(), source))
             .collect::<HashMap<_, _>>();
-        catalog
-            .ports()
-            .iter()
-            .zip(statuses)
-            .map(|(port, status)| {
+        statuses
+            .into_iter()
+            .map(|status| {
+                let port = match catalog.port(&status.port_id) {
+                    Ok(port) => port,
+                    Err(_) if status.acquisition.is_some() => {
+                        return Ok(Self::acquisition_metadata_status(status));
+                    }
+                    Err(error) => return Err(error),
+                };
                 if status
                     .external_runtime
                     .as_ref()
@@ -1128,7 +1174,6 @@ impl PortcoveService {
                 .iter()
                 .map(|port| (port.id.clone(), default_channel(port)))
                 .collect::<Vec<_>>();
-            let strict_count = ports.len();
             let strict_ids = ports
                 .iter()
                 .map(|(id, _)| id.clone())
@@ -1141,15 +1186,13 @@ impl PortcoveService {
                     .map(|listing| (listing.id.clone(), ReleaseChannel::Stable)),
             );
             let sources = Library::sources_from(&transaction)?;
-            let (mut statuses, mut metrics) = self.library.statuses_from_with_metrics_and_barrier(
-                &transaction,
-                &ports,
-                || {
+            let (mut statuses, mut metrics) = self
+                .library
+                .statuses_from_with_acquisitions_and_barrier(&transaction, &ports, || {
                     if let Some(after_status_settings) = after_status_settings.take() {
                         after_status_settings();
                     }
-                },
-            )?;
+                })?;
             metrics.sqlite_query_count += Self::apply_fresh_native_channel_recommendations(
                 &catalog,
                 &transaction,
@@ -1168,14 +1211,31 @@ impl PortcoveService {
                 consistency_attempt = attempt + 1,
                 "loaded transactional workspace read model"
             );
-            let listing_raw = statuses.clone();
+            let listing_raw = statuses
+                .iter()
+                .filter(|status| catalog.listing(&status.port_id).is_ok())
+                .cloned()
+                .collect();
             let statuses = self.hydrate_statuses(
                 &catalog,
-                statuses.into_iter().take(strict_count).collect(),
+                statuses
+                    .into_iter()
+                    .filter(|status| {
+                        strict_ids.contains(&status.port_id) || status.acquisition.is_some()
+                    })
+                    .collect(),
                 &sources,
             )?;
             let listing_statuses = self.listing_statuses_from(&catalog, &statuses, listing_raw)?;
-            let browsing = self.browsing_contexts_for_workspace(&catalog, &statuses, &sources)?;
+            // Archive-only orphan rows belong to Activity, not accepted browsing membership.
+            // Retain the browsing owner's exact current-definition identity invariant.
+            let browsing_statuses = statuses
+                .iter()
+                .filter(|status| strict_ids.contains(&status.port_id))
+                .cloned()
+                .collect::<Vec<_>>();
+            let browsing =
+                self.browsing_contexts_for_workspace(&catalog, &browsing_statuses, &sources)?;
             before_consistency_check(attempt);
             if data_version(&connection)? != observed_at_snapshot {
                 continue;

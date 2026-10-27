@@ -1,10 +1,11 @@
 use super::*;
+use crate::test_fixture::async_phase;
 use crate::{ErrorCode, ReleaseAsset};
 use std::{
     net::TcpListener,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicU8, Ordering},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 const PORT: &str = "acquisition-fixture";
@@ -27,6 +28,7 @@ struct Server {
     arrived: Arc<AtomicBool>,
     released: Arc<AtomicBool>,
     stopped: Arc<AtomicBool>,
+    phase: Arc<AtomicU8>,
     worker: Option<thread::JoinHandle<()>>,
 }
 impl Server {
@@ -37,6 +39,8 @@ impl Server {
         let arrived = Arc::new(AtomicBool::new(false));
         let released = Arc::new(AtomicBool::new(!gated));
         let stopped = Arc::new(AtomicBool::new(false));
+        let phase = Arc::new(AtomicU8::new(0));
+        let phase_worker = phase.clone();
         let a = arrived.clone();
         let r = released.clone();
         let stop = stopped.clone();
@@ -46,7 +50,10 @@ impl Server {
                     return;
                 }
                 match listener.accept() {
-                    Ok((stream, _)) => break stream,
+                    Ok((stream, _)) => {
+                        phase_worker.store(1, Ordering::SeqCst);
+                        break stream;
+                    }
                     Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                         thread::sleep(Duration::from_millis(2))
                     }
@@ -58,6 +65,7 @@ impl Server {
                 .unwrap();
             let mut request = [0; 4096];
             let _ = stream.read(&mut request);
+            phase_worker.store(2, Ordering::SeqCst);
             let _ = write!(
                 stream,
                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
@@ -65,11 +73,13 @@ impl Server {
             );
             let _ = stream.flush();
             a.store(true, Ordering::SeqCst);
+            phase_worker.store(3, Ordering::SeqCst);
             while !r.load(Ordering::SeqCst) && !stop.load(Ordering::SeqCst) {
                 thread::sleep(Duration::from_millis(2));
             }
             if !stop.load(Ordering::SeqCst) {
                 let _ = stream.write_all(&bytes);
+                phase_worker.store(4, Ordering::SeqCst);
             }
         });
         Self {
@@ -77,6 +87,7 @@ impl Server {
             arrived,
             released,
             stopped,
+            phase,
             worker: Some(worker),
         }
     }
@@ -118,6 +129,14 @@ fn catalog() -> Catalog {
     }]}).to_string()).unwrap()
 }
 struct TraceLaunch;
+struct ReleaseOwnedGameOnDrop(PathBuf);
+impl Drop for ReleaseOwnedGameOnDrop {
+    fn drop(&mut self) {
+        if let Err(error) = fs::write(&self.0, b"release owned game during fixture cleanup") {
+            eprintln!("owned game release marker cleanup failed: {error}");
+        }
+    }
+}
 impl LifecycleFaultInjector for TraceLaunch {
     fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
         eprintln!("acquisition launch fixture phase: {point:?}");
@@ -125,10 +144,22 @@ impl LifecycleFaultInjector for TraceLaunch {
     }
 }
 fn fixture(gated: bool, native: bool) -> (tempfile::TempDir, PortcoveService, Server) {
+    fixture_with_catalog(gated, native, catalog())
+}
+
+fn fixture_with_catalog(
+    gated: bool,
+    native: bool,
+    catalog: Catalog,
+) -> (tempfile::TempDir, PortcoveService, Server) {
     let temporary = tempfile::tempdir().unwrap();
-    let library = Library::open(temporary.path().join("library")).unwrap();
-    let catalog = catalog();
-    let mut active = crate::test_fixture::register_qualification_install(&library, &catalog, PORT);
+    let library = crate::test_fixture::phase("acquisition fixture: open library", || {
+        Library::open(temporary.path().join("library")).unwrap()
+    });
+    let mut active =
+        crate::test_fixture::phase("acquisition fixture: seed current runtime", || {
+            crate::test_fixture::register_qualification_install(&library, &catalog, PORT)
+        });
     if native {
         let probe = crate::test_fixture::build_probe(temporary.path());
         fs::copy(probe, active.path.join("game.exe")).unwrap();
@@ -164,7 +195,9 @@ fn fixture(gated: bool, native: bool) -> (tempfile::TempDir, PortcoveService, Se
             sha256: crate::signed_catalog::digest(&bytes),
         },
     };
-    let mut service = PortcoveService::with_provider(library, Arc::new(Provider(release))).unwrap();
+    let mut service = crate::test_fixture::phase("acquisition fixture: initialize service", || {
+        PortcoveService::with_provider(library, Arc::new(Provider(release))).unwrap()
+    });
     service.catalog = catalog;
     if native {
         service.faults = Arc::new(TraceLaunch);
@@ -172,20 +205,58 @@ fn fixture(gated: bool, native: bool) -> (tempfile::TempDir, PortcoveService, Se
     (temporary, service, server)
 }
 async fn grant(service: &PortcoveService) -> crate::DestructiveAuthorization {
-    let plan = service.plan_game_update_acquisition(PORT).await.unwrap();
-    service
-        .authorize_game_update_acquisition(PORT, &plan.plan_sha256)
-        .await
-        .unwrap()
+    let plan = async_phase(
+        "acquisition fixture: review",
+        service.plan_game_update_acquisition(PORT),
+    )
+    .await
+    .unwrap();
+    async_phase(
+        "acquisition fixture: authorize exact review",
+        service.authorize_game_update_acquisition(PORT, &plan.plan_sha256),
+    )
+    .await
+    .unwrap()
 }
-async fn arrived(server: &Server) {
-    tokio::time::timeout(Duration::from_secs(10), async {
+fn acquisition_event(event: OperationEvent) {
+    eprintln!("acquisition fixture event: {event:?}");
+}
+async fn arrived(
+    server: &Server,
+    transfer: &mut tokio::task::JoinHandle<Result<GameUpdateAcquisition>>,
+) {
+    let started = Instant::now();
+    eprintln!("test phase started: acquisition fixture HTTP arrival");
+    let observation = tokio::time::timeout(Duration::from_secs(60), async {
         while !server.arrived.load(Ordering::SeqCst) {
+            if transfer.is_finished() {
+                let result = (&mut *transfer).await;
+                panic!(
+                    "acquisition ended before its stalled HTTP request: {result:?}; server phase={}; elapsed={:?}",
+                    server.phase.load(Ordering::SeqCst),
+                    started.elapsed()
+                );
+            }
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
-    .await
-    .unwrap();
+    .await;
+    if observation.is_err() {
+        // Do not leave a detached owned transfer after a synchronization failure.
+        // Joining preserves the real Core/worker result in this failure receipt.
+        server.release();
+        transfer.abort();
+        let result = (&mut *transfer).await;
+        panic!(
+            "acquisition fixture HTTP arrival expired: server phase={}; elapsed={:?}; joined transfer={result:?}",
+            server.phase.load(Ordering::SeqCst),
+            started.elapsed()
+        );
+    }
+    eprintln!(
+        "test phase finished: acquisition fixture HTTP arrival ({:?})",
+        started.elapsed()
+    );
 }
 
 #[tokio::test]
@@ -199,7 +270,7 @@ async fn acquired_archive_survives_restart_and_requires_fresh_exclusive_apply_re
         .unwrap();
     let authorization = grant(&service).await;
     let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
         .await
         .unwrap();
     assert_eq!(acquired.phase, Phase::Acquired);
@@ -294,12 +365,12 @@ async fn launch_during_stalled_acquisition_and_finish_while_game_runs() {
     let service = Arc::new(service);
     let authorization = grant(&service).await;
     let worker_service = service.clone();
-    let transfer = tokio::spawn(async move {
+    let mut transfer = tokio::spawn(async move {
         worker_service
-            .acquire_game_update(PORT, &authorization.token, |_| {})
+            .acquire_game_update(PORT, &authorization.token, acquisition_event)
             .await
     });
-    arrived(&server).await;
+    arrived(&server, &mut transfer).await;
     let current = service.status(PORT).unwrap().active.unwrap();
     let id = service.status(PORT).unwrap().acquisition.unwrap().id;
     assert_eq!(
@@ -316,10 +387,13 @@ async fn launch_during_stalled_acquisition_and_finish_while_game_runs() {
         Phase::Acquiring
     );
     let release_game = temporary.path().join("release-game");
+    let _release_on_failure = ReleaseOwnedGameOnDrop(release_game.clone());
     let args = vec![
         "--game".into(),
         "--owned-wait".into(),
         release_game.display().to_string(),
+        "--owned-wait-seconds".into(),
+        "120".into(),
     ];
     let launch_service = service.clone();
     let (started_tx, started_rx) = tokio::sync::oneshot::channel();
@@ -349,6 +423,18 @@ async fn launch_during_stalled_acquisition_and_finish_while_game_runs() {
     let acquired = transfer.await.unwrap().unwrap();
     assert_eq!(acquired.phase, Phase::Acquired);
     assert!(!launch.is_finished());
+    let session = service
+        .library
+        .launch_sessions()
+        .unwrap()
+        .into_iter()
+        .find(|session| session.port_id == PORT && session.phase == LaunchSessionPhase::Running)
+        .expect("exact game session must remain running when acquisition completes");
+    assert_eq!(
+        crate::launch::process_identity(session.child_pid.unwrap()).unwrap(),
+        session.child_identity,
+        "the exact game child must still be alive when acquisition completes"
+    );
     let status = service.status(PORT).unwrap();
     assert_eq!(status.active.unwrap().id, current.id);
     assert!(status.staged.is_none());
@@ -358,7 +444,13 @@ async fn launch_during_stalled_acquisition_and_finish_while_game_runs() {
         ErrorCode::Conflict
     );
     fs::write(release_game, b"release").unwrap();
-    assert!(launch.await.unwrap().unwrap().successful);
+    {
+        let outcome = launch.await.unwrap().unwrap();
+        assert!(
+            outcome.successful,
+            "owned game exit must succeed: {outcome:?}"
+        );
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -366,10 +458,13 @@ async fn immutable_acquisition_can_start_after_verified_game_is_already_running(
     let (temporary, service, server) = fixture(true, true);
     let service = Arc::new(service);
     let release_game = temporary.path().join("release-game");
+    let _release_on_failure = ReleaseOwnedGameOnDrop(release_game.clone());
     let args = vec![
         "--game".into(),
         "--owned-wait".into(),
         release_game.display().to_string(),
+        "--owned-wait-seconds".into(),
+        "120".into(),
     ];
     let launch_service = service.clone();
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -396,17 +491,35 @@ async fn immutable_acquisition_can_start_after_verified_game_is_already_running(
     }
     let authorization = grant(&service).await;
     let worker_service = service.clone();
-    let transfer = tokio::spawn(async move {
+    let mut transfer = tokio::spawn(async move {
         worker_service
-            .acquire_game_update(PORT, &authorization.token, |_| {})
+            .acquire_game_update(PORT, &authorization.token, acquisition_event)
             .await
     });
-    arrived(&server).await;
+    arrived(&server, &mut transfer).await;
     server.release();
     assert_eq!(transfer.await.unwrap().unwrap().phase, Phase::Acquired);
     assert!(!launch.is_finished());
+    let session = service
+        .library
+        .launch_sessions()
+        .unwrap()
+        .into_iter()
+        .find(|session| session.port_id == PORT && session.phase == LaunchSessionPhase::Running)
+        .expect("exact game session must remain running when acquisition completes");
+    assert_eq!(
+        crate::launch::process_identity(session.child_pid.unwrap()).unwrap(),
+        session.child_identity,
+        "the exact game child must still be alive when acquisition completes"
+    );
     fs::write(release_game, b"release").unwrap();
-    assert!(launch.await.unwrap().unwrap().successful);
+    {
+        let outcome = launch.await.unwrap().unwrap();
+        assert!(
+            outcome.successful,
+            "owned game exit must succeed: {outcome:?}"
+        );
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -415,12 +528,12 @@ async fn cancellation_retains_bounded_attention_and_exact_discard_allows_retry()
     let service = Arc::new(service);
     let authorization = grant(&service).await;
     let worker_service = service.clone();
-    let task = tokio::spawn(async move {
+    let mut task = tokio::spawn(async move {
         worker_service
-            .acquire_game_update(PORT, &authorization.token, |_| {})
+            .acquire_game_update(PORT, &authorization.token, acquisition_event)
             .await
     });
-    arrived(&server).await;
+    arrived(&server, &mut task).await;
     let id = service.status(PORT).unwrap().acquisition.unwrap().id;
     service.request_cancellation(&id).unwrap();
     assert_eq!(task.await.unwrap().unwrap_err().code, ErrorCode::Cancelled);
@@ -446,7 +559,7 @@ async fn corrupt_archive_and_changed_source_definition_never_publish_runtime() {
     let (_temporary, mut service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
     let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
         .await
         .unwrap();
     let reviewed = service.plan_game_update(PORT, true).await.unwrap();
@@ -502,7 +615,7 @@ async fn foreign_members_or_wrong_resource_discard_refuse_before_removing_bytes(
     let (_temporary, service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
     let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
         .await
         .unwrap();
     let private = root(&service.library, &acquired.id).unwrap();
@@ -532,7 +645,7 @@ async fn interrupted_acquisition_becomes_attention_without_auto_preparing_or_act
     let (_temporary, service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
     let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
         .await
         .unwrap();
     let store = OperationStore::new(service.library.clone());
@@ -556,7 +669,7 @@ async fn acquisition_slot_and_bundled_asset_reservations_are_atomic_and_bounded(
     let (_temporary, service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
     let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
         .await
         .unwrap();
     let store = OperationStore::new(service.library.clone());
@@ -589,7 +702,7 @@ async fn capacity_counts_partial_rows_across_ports_and_refuses_overlong_metadata
     let (_temporary, service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
     let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
         .await
         .unwrap();
     let store = OperationStore::new(service.library.clone());
@@ -676,48 +789,77 @@ async fn capacity_counts_partial_rows_across_ports_and_refuses_overlong_metadata
 
 #[tokio::test]
 async fn acquired_archive_cannot_bypass_changed_original_source_bytes() {
-    let (temporary, mut service, _server) = fixture(false, false);
     let original = b"accepted original source fixture";
-    let source_path = temporary.path().join("original.bin");
-    fs::write(&source_path, original).unwrap();
-    let mut document = service.catalog.authoritative_document();
-    document.source_profiles=vec![serde_json::from_value(serde_json::json!({"id":"acquisition-original","label":"Original fixture input","accepted_extensions":["bin"],"accepted_sha256":[crate::signed_catalog::digest(original)]})).unwrap()];
+    let replacement = b"accepted modified source fixture";
+    assert_eq!(original.len(), replacement.len());
+    assert_ne!(
+        crate::signed_catalog::digest(original),
+        crate::signed_catalog::digest(replacement)
+    );
+    let mut document = catalog().authoritative_document();
+    document.source_profiles=vec![serde_json::from_value(serde_json::json!({"id":"acquisition-original","label":"Original fixture input","accepted_extensions":["bin"],"accepted_sha256":[crate::signed_catalog::digest(original),crate::signed_catalog::digest(replacement)]})).unwrap()];
     document.ports[0].source_profile = Some("acquisition-original".into());
-    service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
-    service
-        .register_source("acquisition-original", &source_path)
-        .unwrap();
-    let authorization = grant(&service).await;
-    let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
-        .await
-        .unwrap();
-    let reviewed = service.plan_game_update(PORT, true).await.unwrap();
-    assert!(reviewed.acquisition.is_some());
-    let consent = service
-        .authorize_game_update(PORT, true, &reviewed.plan_sha256)
-        .await
-        .unwrap();
-    fs::write(&source_path, b"changed source bytes").unwrap();
-    let error = service
-        .apply_game_update(PORT, true, &consent.token, |_| {})
-        .await
-        .unwrap_err();
-    assert!(
-        matches!(
-            error.code,
-            ErrorCode::SourceInvalid | ErrorCode::Verification
-        ),
-        "{error}"
-    );
-    assert!(service.status(PORT).unwrap().staged.is_none());
-    assert_eq!(
-        service.status(PORT).unwrap().active.unwrap().version,
-        "qualification-definition-1"
-    );
-    service
-        .discard_game_update_acquisition(PORT, &acquired.id)
-        .unwrap();
+    let source_catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    // Both controls capture this same source contract in the FIRST installation.
+    // A successful control proves that data compatibility cannot mask the hash guard.
+    for change_bytes in [false, true] {
+        let (temporary, service, _server) =
+            fixture_with_catalog(false, false, source_catalog.clone());
+        let source_path = temporary.path().join("original.bin");
+        fs::write(&source_path, original).unwrap();
+        let registered = service
+            .register_source("acquisition-original", &source_path)
+            .unwrap();
+        assert_eq!(registered.sha256, crate::signed_catalog::digest(original));
+        let authorization = grant(&service).await;
+        let acquired = service
+            .acquire_game_update(PORT, &authorization.token, acquisition_event)
+            .await
+            .unwrap();
+        let reviewed = service.plan_game_update(PORT, true).await.unwrap();
+        assert!(reviewed.acquisition.is_some());
+        let consent = service
+            .authorize_game_update(PORT, true, &reviewed.plan_sha256)
+            .await
+            .unwrap();
+        if change_bytes {
+            fs::write(&source_path, replacement).unwrap();
+            let inspection = service
+                .inspect_source("acquisition-original", &source_path)
+                .unwrap();
+            assert_eq!(
+                inspection.require_admitted_record().unwrap().sha256,
+                crate::signed_catalog::digest(replacement)
+            );
+        }
+        let result = service
+            .apply_game_update(PORT, true, &consent.token, |_| {})
+            .await;
+        if change_bytes {
+            let error = result.unwrap_err();
+            assert_eq!(error.code, ErrorCode::SourceInvalid, "{error}");
+            assert!(
+                error.message.contains("source changed since registration"),
+                "{error}"
+            );
+            assert!(service.status(PORT).unwrap().staged.is_none());
+            assert_eq!(
+                service.status(PORT).unwrap().active.unwrap().version,
+                "qualification-definition-1"
+            );
+        } else {
+            let installed = result
+                .expect("unchanged original-source control must apply through the same contract");
+            assert_eq!(installed.version, "v2");
+            assert_eq!(
+                service.status(PORT).unwrap().active.unwrap().id,
+                installed.id
+            );
+        }
+        service
+            .discard_game_update_acquisition(PORT, &acquired.id)
+            .unwrap();
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -728,12 +870,12 @@ async fn live_and_completed_acquisitions_block_library_move_with_exact_discard_r
     let source = service.library.root().to_path_buf();
     let authorization = grant(&service).await;
     let worker_service = service.clone();
-    let transfer = tokio::spawn(async move {
+    let mut transfer = tokio::spawn(async move {
         worker_service
-            .acquire_game_update(PORT, &authorization.token, |_| {})
+            .acquire_game_update(PORT, &authorization.token, acquisition_event)
             .await
     });
-    arrived(&server).await;
+    arrived(&server, &mut transfer).await;
     let acquisition = service.status(PORT).unwrap().acquisition.unwrap();
     let preview_error = service.plan_library_move(&destination).unwrap_err();
     assert_eq!(preview_error.details["acquisition_id"], acquisition.id);
@@ -790,12 +932,12 @@ async fn removing_managed_runtime_during_transfer_preserves_archive_and_never_re
     fs::write(&save, b"keep player data").unwrap();
     let authorization = grant(&service).await;
     let worker_service = service.clone();
-    let transfer = tokio::spawn(async move {
+    let mut transfer = tokio::spawn(async move {
         worker_service
-            .acquire_game_update(PORT, &authorization.token, |_| {})
+            .acquire_game_update(PORT, &authorization.token, acquisition_event)
             .await
     });
-    arrived(&server).await;
+    arrived(&server, &mut transfer).await;
     let preview = service.preview_removal(PORT).unwrap();
     let consent = service
         .authorize_removal(PORT, &preview.preview_sha256)
@@ -848,7 +990,7 @@ async fn cancellation_joins_archive_copy_before_cleanup_or_discard_lease_release
     let (_temporary, mut service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
     let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
         .await
         .unwrap();
     let reviewed = service.plan_game_update(PORT, false).await.unwrap();
@@ -911,7 +1053,7 @@ async fn interrupted_marker_publication_has_bounded_exact_owner_discard_route() 
     let (_temporary, service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
     let acquired = service
-        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
         .await
         .unwrap();
     let store = OperationStore::new(service.library.clone());
@@ -944,4 +1086,160 @@ async fn interrupted_marker_publication_has_bounded_exact_owner_discard_route() 
         .unwrap();
     assert!(!private.exists());
     assert!(service.plan_game_update_acquisition(PORT).await.is_ok());
+}
+
+#[tokio::test]
+async fn orphan_archive_remains_visible_after_install_and_catalog_removal_until_exact_discard() {
+    let (temporary, mut service, _server) = fixture(false, false);
+    let authorization = grant(&service).await;
+    let acquired = service
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
+        .await
+        .unwrap();
+    let removal = service.preview_removal(PORT).unwrap();
+    let consent = service
+        .authorize_removal(PORT, &removal.preview_sha256)
+        .unwrap();
+    service.remove(PORT, &consent.token).unwrap();
+    service.catalog =
+        Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap();
+    let statuses = service.statuses().unwrap();
+    assert_eq!(statuses.len(), 1);
+    let orphan = &statuses[0];
+    assert_eq!(orphan.port_id, PORT);
+    assert_eq!(orphan.acquisition.as_ref().unwrap().id, acquired.id);
+    assert!(orphan.active.is_none());
+    assert!(orphan.staged.is_none());
+    assert!(orphan.readiness.is_none());
+    assert!(orphan.definition_operations.is_empty());
+    assert!(
+        orphan
+            .port_actions
+            .iter()
+            .all(|action| action.availability != PortActionAvailability::Allowed)
+    );
+    assert_eq!(
+        service.status(PORT).unwrap().acquisition.unwrap().id,
+        acquired.id
+    );
+    let workspace = service.workspace_snapshot(1).unwrap();
+    let browsing = workspace
+        .browsing
+        .as_ref()
+        .expect("accepted browsing projection must remain valid alongside orphan metadata");
+    assert!(
+        browsing
+            .contexts
+            .iter()
+            .all(|context| context.port_id != PORT),
+        "orphan archive must not create a browsable membership context"
+    );
+    let row = workspace
+        .statuses
+        .iter()
+        .find(|row| row.port_id == PORT)
+        .expect("orphan acquisition must survive full workspace projection");
+    assert_eq!(row.acquisition.as_ref().unwrap().id, acquired.id);
+    assert!(
+        row.port_actions
+            .iter()
+            .all(|action| action.availability != PortActionAvailability::Allowed)
+    );
+    assert!(!workspace.catalog.ports.iter().any(|port| port.id == PORT));
+    assert!(
+        !workspace
+            .listing_catalog
+            .unwrap()
+            .listings
+            .iter()
+            .any(|listing| listing.id == PORT)
+    );
+    let destination = temporary.path().join("orphan-move");
+    assert_eq!(
+        service.plan_library_move(&destination).unwrap_err().details["acquisition_id"],
+        acquired.id
+    );
+    service
+        .discard_game_update_acquisition(PORT, &acquired.id)
+        .unwrap();
+    assert!(service.statuses().unwrap().is_empty());
+    assert!(
+        !service
+            .workspace_snapshot(1)
+            .unwrap()
+            .statuses
+            .iter()
+            .any(|row| row.port_id == PORT)
+    );
+    assert_eq!(service.status(PORT).unwrap_err().code, ErrorCode::NotFound);
+    assert!(
+        service.plan_library_move(&destination).is_ok(),
+        "discarded orphan must no longer block a fresh empty-library move plan"
+    );
+}
+
+#[tokio::test]
+async fn acquisition_inventory_does_not_restore_removed_operational_definition_or_grant_launch() {
+    let (_temporary, mut service, _server) = fixture(false, false);
+    let authorization = grant(&service).await;
+    let acquired = service
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
+        .await
+        .unwrap();
+    let active = service.status(PORT).unwrap().active.unwrap();
+    service.catalog =
+        Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap();
+    let statuses = service.statuses().unwrap();
+    let orphan = statuses.iter().find(|row| row.port_id == PORT).unwrap();
+    assert_eq!(orphan.active.as_ref().unwrap().id, active.id);
+    assert_eq!(orphan.acquisition.as_ref().unwrap().id, acquired.id);
+    assert!(orphan.definition_operations.is_empty());
+    assert!(orphan.readiness.is_none());
+    let launch = orphan
+        .port_actions
+        .iter()
+        .find(|action| action.action == PortAction::Launch)
+        .unwrap();
+    assert_eq!(launch.availability, PortActionAvailability::Held);
+    assert_eq!(launch.reason, PortActionReason::DefinitionIneligible);
+    let workspace = service.workspace_snapshot(1).unwrap();
+    assert!(workspace.statuses.iter().any(|row| {
+        row.port_id == PORT
+            && row
+                .acquisition
+                .as_ref()
+                .is_some_and(|view| view.id == acquired.id)
+    }));
+    assert!(
+        workspace
+            .browsing
+            .as_ref()
+            .expect("orphan archive cannot invalidate accepted browsing membership")
+            .contexts
+            .iter()
+            .all(|context| context.port_id != PORT)
+    );
+    // A current definition with this ID remains its own authority; archive display does not replace it.
+    service.catalog = catalog();
+    let mut document = service.catalog.authoritative_document();
+    document.ports[0].summary = "Current descriptor after the old archive was acquired".into();
+    service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let current = service.statuses().unwrap();
+    assert_eq!(current.len(), 1);
+    assert_eq!(
+        service.catalog.port(PORT).unwrap().summary,
+        "Current descriptor after the old archive was acquired"
+    );
+    assert!(
+        service
+            .plan_game_update(PORT, false)
+            .await
+            .unwrap()
+            .acquisition
+            .is_none()
+    );
+    service
+        .discard_game_update_acquisition(PORT, &acquired.id)
+        .unwrap();
+    assert_eq!(service.status(PORT).unwrap().active.unwrap().id, active.id);
 }

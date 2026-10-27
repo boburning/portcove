@@ -56,6 +56,14 @@ pub(crate) fn phase<T>(label: &str, action: impl FnOnce() -> T) -> T {
     result
 }
 
+pub(crate) async fn async_phase<T>(label: &str, action: impl std::future::Future<Output = T>) -> T {
+    let started = std::time::Instant::now();
+    eprintln!("test phase started: {label}");
+    let result = action.await;
+    eprintln!("test phase finished: {label} ({:?})", started.elapsed());
+    result
+}
+
 /// Immutable proposed metadata from the preserved rollout candidate. These
 /// inputs exercise generic provider/presentation behavior without advertising
 /// the corresponding routes as shipped catalog support.

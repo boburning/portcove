@@ -1,9 +1,9 @@
 import {
   browsePortPresentation,
   readinessPresentation,
-  cardInstallationLabel,
 } from "../features/port-actions/browse-presentation";
 import { updateNoticeHidden } from "../features/organization/organization";
+import { gameUpdateAcquisitionLabel } from "../features/port-updates/acquisition-presentation";
 import {
   OrganizationControls,
   OrganizationMenuItems,
@@ -29,7 +29,6 @@ import {
 } from "react";
 import type { CollectionLayout } from "../features/browsing/use-collection-layout";
 import {
-  ArrowRight,
   Boxes,
   CheckCircle2,
   Gamepad2,
@@ -40,7 +39,6 @@ import {
   Wrench,
 } from "lucide-react";
 import {
-  catalogSetupPresentation,
   installedCardInputPresentation,
   hasPendingSetupAction,
 } from "../features/port-actions/port-action-presentation";
@@ -52,7 +50,6 @@ import {
   mostRecentPort,
   filterOptions,
   filterPorts,
-  platformLabel,
   portReadiness,
   hasUnconfirmedLaunchInput,
   releaseChannelPresentation,
@@ -562,7 +559,7 @@ function BrowserResults({
           onSelect={onSelect}
           onLaunch={onLaunch}
           nativeSourceDrag={nativeSourceDrag}
-          view={view}
+          view="library"
         />
       ))}
     </section>
@@ -693,25 +690,30 @@ function ContinueCard({
     status.readiness.blockers.length === 0 &&
     !action.readiness.blocked;
   const trial = hasUnconfirmedLaunchInput(status, port);
+  const previouslyPlayed = status.successful_launches > 0;
   return (
     <section
-      className="continue-card mb-5 grid items-center gap-4 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
+      className="continue-card mb-5 grid min-w-0 items-center gap-4 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
       data-focus-group
       data-successful-launches={status.successful_launches}
-      aria-label={`Continue ${gameIdentityLabel(port)}`}
+      aria-label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
     >
       <ArtworkImage port={port} className="continue-art" quietFallback />
-      <div>
-        <p className="mb-1 text-xs text-pc-muted-foreground">Continue playing</p>
-        <h2 className="m-0 text-sm">{gameTitle(port)}</h2>
+      <div className="continue-identity min-w-0 wrap-anywhere">
+        <p className="mb-1 text-xs text-pc-muted-foreground">
+          {previouslyPlayed ? "Continue playing" : "Play"}
+        </p>
+        <h2 className="m-0 line-clamp-2 text-sm">{gameTitle(port)}</h2>
         {gameProjectLabel(port) && (
-          <p className="m-0 mt-1 text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</p>
+          <p className="m-0 mt-1 line-clamp-2 text-xs text-pc-muted-foreground">
+            {gameProjectLabel(port)}
+          </p>
         )}
         {trial && (
           <p className="m-0 mt-1 text-xs text-pc-warning-foreground">Compatibility unconfirmed</p>
         )}
       </div>
-      <div className="continue-actions flex flex-wrap gap-2">
+      <div className="continue-actions flex min-w-0 flex-wrap gap-2">
         <Button
           data-focusable
           variant="outline"
@@ -740,7 +742,9 @@ function ContinueCard({
               ? "Start setup"
               : trial
                 ? "Try launch"
-                : "Play again"
+                : previouslyPlayed
+                  ? "Play again"
+                  : "Play"
             : "Review launch"}
         </Button>
       </div>
@@ -766,7 +770,7 @@ type PortCardProps = {
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onLaunch?: ((portId: string) => void) | undefined;
   nativeSourceDrag: NativeSourceDragState;
-  view: View;
+  view: "library";
 };
 
 function PortCard({
@@ -785,11 +789,7 @@ function PortCard({
 }: PortCardProps) {
   const setupDescriptionId = useId();
   const resolveCardPresentation = () => {
-    const { input, state, setup } = browsePortPresentation(port, status, view, readiness);
-    const channel =
-      status?.channel && port.release && !status.external_runtime?.user_selected
-        ? releaseChannelPresentation(status.channel)
-        : undefined;
+    const { input, state } = browsePortPresentation(port, status, view, readiness);
     const release = currentUpdateSnapshot(status)?.check.release;
     const hiddenNotice = updateNoticeHidden(
       organization?.snapshot?.update_notices[port.id],
@@ -799,9 +799,9 @@ function PortCard({
     );
     const updateAvailable =
       !hiddenNotice && observedUpdateCandidate(port.id, status)?.availableAtLastCheck === true;
-    return { input, state, setup, channel, updateAvailable };
+    return { input, state, updateAvailable };
   };
-  const { input, state, setup, channel, updateAvailable } = resolveCardPresentation();
+  const { input, state, updateAvailable } = resolveCardPresentation();
   const dropEligible =
     nativeSourceDrag.active &&
     Boolean(port.source_profile) &&
@@ -809,56 +809,6 @@ function PortCard({
     !port.pendingSetup;
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
-  const className = `port-card catalog-card collection-cover @container/card relative isolate flex min-w-0 flex-col p-0 text-start text-pc-foreground transition-colors duration-(--duration-fast) hover:text-pc-interactive-foreground motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
-  const contents = (
-    <PortCardContents
-      {...{
-        port,
-        status,
-        state,
-        setup,
-        setupDescriptionId,
-        input,
-        channel,
-        updateAvailable,
-        dropEligible,
-        dropTarget,
-      }}
-      hasFavorite={Boolean(favorites)}
-      detailOrigin={detailOrigin}
-      onSelect={onSelect}
-      onLaunch={onLaunch}
-      view={view}
-    />
-  );
-  const renderFavoriteToggle = () =>
-    favorites && (
-      <Tooltip label={favorites.ids?.has(port.id) ? "Remove favorite" : "Add favorite"}>
-        <Button
-          data-focusable
-          variant={favorites.ids?.has(port.id) ? "selected" : "outline"}
-          size="icon-sm"
-          className={cn(
-            view === "library"
-              ? "shrink-0"
-              : "absolute [inset-inline-start:calc(min(100%,var(--collection-art-limit))_-_2rem)] bottom-0 z-10 bg-pc-surface",
-          )}
-          aria-label={`Favorite ${gameIdentityLabel(port)}`}
-          aria-pressed={favorites.ids?.has(port.id) ?? false}
-          disabled={!favorites.ids}
-          aria-disabled={favorites.busy}
-          onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
-        >
-          <span className={favorites.ids?.has(port.id) ? "[&_.icon]:fill-current" : undefined}>
-            <Icon glyph={Star} size="sm" />
-          </span>
-          <span className="sr-only">
-            {favorites.ids?.has(port.id) ? "Remove favorite" : "Add favorite"}
-          </span>
-        </Button>
-      </Tooltip>
-    );
-  const favoriteToggle = view === "catalog" ? renderFavoriteToggle() : undefined;
   const favoriteMenu = (
     <>
       {" "}
@@ -887,41 +837,24 @@ function PortCard({
       )}
     </>
   );
-  if (view === "library")
-    return (
-      <LibraryEntry
-        {...{
-          port,
-          status,
-          state,
-          layout,
-          detailOrigin,
-          onSelect,
-          onLaunch,
-          input,
-          setupDescriptionId,
-          updateAvailable,
-          dropEligible,
-          dropTarget,
-          favoriteMenu,
-        }}
-      />
-    );
   return (
-    <div className="relative">
-      <button
-        data-focusable
-        data-detail-origin={detailOrigin}
-        className={cn(`${className} h-full w-full`, controlFocus)}
-        aria-describedby={setup || input ? setupDescriptionId : undefined}
-        onClick={() => onSelect(port.id, detailOrigin)}
-        data-source-drop-port-id={dropEligible ? port.id : undefined}
-        data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
-      >
-        {contents}
-      </button>
-      {favoriteToggle}
-    </div>
+    <LibraryEntry
+      {...{
+        port,
+        status,
+        state,
+        layout,
+        detailOrigin,
+        onSelect,
+        onLaunch,
+        input,
+        setupDescriptionId,
+        updateAvailable,
+        dropEligible,
+        dropTarget,
+        favoriteMenu,
+      }}
+    />
   );
 }
 
@@ -1014,14 +947,10 @@ function LibraryEntry({
         <PortCardStatus
           port={port}
           status={status}
-          state={state}
-          layout={layout}
-          hasFavorite={false}
           favoriteMenu={favoriteMenu}
           detailOrigin={detailOrigin}
           onSelect={onSelect}
           onLaunch={onLaunch}
-          view="library"
           inputDescriptionId={input ? setupDescriptionId : undefined}
         />
       </div>
@@ -1037,124 +966,17 @@ function LibraryEntry({
   );
 }
 
-function PortCardContents({
-  port,
-  status,
-  state,
-  setup,
-  setupDescriptionId,
-  input,
-  channel,
-  updateAvailable,
-  dropEligible,
-  dropTarget,
-  hasFavorite,
-  detailOrigin,
-  onSelect,
-  onLaunch,
-  view,
-}: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
-  state: CardState;
-  setup?: ReturnType<typeof catalogSetupPresentation> | undefined;
-  setupDescriptionId: string;
-  input?: ReturnType<typeof installedCardInputPresentation> | undefined;
-  channel: ReturnType<typeof releaseChannelPresentation> | undefined;
-  updateAvailable?: boolean;
-  dropEligible: boolean;
-  dropTarget: boolean;
-  hasFavorite: boolean;
-  detailOrigin: string;
-}) {
-  return (
-    <>
-      {dropEligible && (
-        <span
-          className="source-drop-target pointer-events-none absolute inset-3 z-1 grid place-items-center rounded-pc-md border-2 border-dashed border-pc-interactive bg-pc-interactive/90 p-4 text-center text-sm font-bold text-pc-action-foreground"
-          aria-hidden="true"
-        >
-          {dropTarget ? "Release to check" : "Drop to check for this game"}
-        </span>
-      )}
-      <ArtworkImage
-        port={port}
-        quietFallback
-        className="card-art collection-art relative shrink-0 overflow-hidden"
-      />
-      <div className="card-content flex min-w-0 flex-1 flex-col gap-2 wrap-anywhere">
-        <h2 className="collection-title text-base leading-snug font-semibold wrap-anywhere">
-          {gameTitle(port)}
-        </h2>
-        {gameProjectLabel(port) && (
-          <p className="collection-project m-0 text-sm leading-normal text-pc-muted-foreground">
-            {gameProjectLabel(port)}
-          </p>
-        )}
-        <div className="collection-state flex flex-col items-start gap-1 text-sm">
-          <span
-            className={cn(
-              `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
-              "text-pc-muted-foreground [&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
-            )}
-          >
-            <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
-            {state.label}
-          </span>
-          {status?.staged && (
-            <span className="text-xs text-pc-interactive-foreground">Update downloaded</span>
-          )}
-          {updateAvailable && (
-            <span className="text-xs text-pc-interactive-foreground">
-              Update available at last check
-            </span>
-          )}
-          {port.upstream_status === "retired" && (
-            <span className="text-xs text-pc-warning-foreground">Retired upstream</span>
-          )}
-        </div>
-        {(setup || input) && (
-          <div id={setupDescriptionId} className="sr-only" aria-hidden="true">
-            {setup?.routes.map((route) => (
-              <p key={route.action}>
-                <strong>{route.route}: </strong>
-                {route.reason}
-              </p>
-            ))}
-            {input?.reasons.map((reason) => (
-              <p key={reason}>{reason}</p>
-            ))}
-          </div>
-        )}
-        <p className="m-0 text-xs leading-normal text-pc-muted-foreground">
-          {port.platforms.map(platformLabel).join(" · ")}
-          {channel && ` · ${channel.label} channel`}
-        </p>
-        <PortCardStatus
-          inputDescriptionId={input ? setupDescriptionId : undefined}
-          {...{ port, status, state, hasFavorite, detailOrigin, onSelect, onLaunch, view }}
-        />
-      </div>
-    </>
-  );
-}
-
 function PortCardStatus({
-  layout,
   favoriteMenu,
   inputDescriptionId,
   port,
   status,
-  state,
-  hasFavorite,
   detailOrigin,
   onSelect,
   onLaunch,
-  view,
-}: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
+}: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch"> & {
   inputDescriptionId?: string | undefined;
-  state: CardState;
-  hasFavorite: boolean;
   favoriteMenu?: ReactNode;
-  layout?: CollectionLayout;
   detailOrigin: string;
 }) {
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
@@ -1170,60 +992,43 @@ function PortCardStatus({
           ? "Finish setup"
           : "Review game";
   return (
-    <div
-      className={cn(
-        `collection-actions flex min-h-8 flex-wrap items-center gap-1 text-xs ${layout === "rows" || view === "library" ? "mt-0 pt-0" : "mt-auto pt-2"} ${view === "library" ? "justify-end" : "justify-between border-t border-pc-border"}`,
-        hasFavorite && (view === "library" ? "ps-8" : "pe-9"),
-      )}
-    >
-      {view === "catalog" && (
-        <strong className="font-semibold text-[var(--color-text-secondary)]">
-          {cardInstallationLabel(port, status)}
-        </strong>
-      )}
-      {view === "library" ? (
-        <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
-          {!canLaunch && (
-            <Button
-              data-focusable
-              variant="outline"
-              size="sm"
-              className="library-card-action"
-              aria-label={`${reviewLabel}: ${gameIdentityLabel(port)}`}
-              aria-describedby={inputDescriptionId}
-              data-detail-origin={reviewOrigin}
-              onClick={() => onSelect(port.id, reviewOrigin)}
-            >
-              {reviewLabel}
-            </Button>
-          )}
-          {canLaunch && (
-            <Button
-              data-focusable
-              variant="primary"
-              size="sm"
-              className="library-card-action"
-              disabled={Boolean(action.busy)}
-              focusableWhenDisabled={Boolean(action.busy)}
-              aria-busy={Boolean(action.busy)}
-              title={action.assessment.reason}
-              onClick={() => onLaunch?.(port.id)}
-            >
-              {status?.readiness?.pending_setup
-                ? "Start setup"
-                : hasUnconfirmedLaunchInput(status, port)
-                  ? "Try launch"
-                  : "Play"}
-            </Button>
-          )}
-          <PortCardActionMenu {...{ favoriteMenu, port, status, onSelect, overflowOrigin }} />
-        </span>
-      ) : (
-        <span className="inline-flex items-center gap-1 text-[var(--color-interactive-text-strong)]">
-          {state.action}
-          <Icon glyph={ArrowRight} size="sm" />
-        </span>
-      )}
+    <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
+      <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
+        {!canLaunch && (
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            className="library-card-action"
+            aria-label={`${reviewLabel}: ${gameIdentityLabel(port)}`}
+            aria-describedby={inputDescriptionId}
+            data-detail-origin={reviewOrigin}
+            onClick={() => onSelect(port.id, reviewOrigin)}
+          >
+            {reviewLabel}
+          </Button>
+        )}
+        {canLaunch && (
+          <Button
+            data-focusable
+            variant="primary"
+            size="sm"
+            className="library-card-action"
+            disabled={Boolean(action.busy)}
+            focusableWhenDisabled={Boolean(action.busy)}
+            aria-busy={Boolean(action.busy)}
+            title={action.assessment.reason}
+            onClick={() => onLaunch?.(port.id)}
+          >
+            {status?.readiness?.pending_setup
+              ? "Start setup"
+              : hasUnconfirmedLaunchInput(status, port)
+                ? "Try launch"
+                : "Play"}
+          </Button>
+        )}
+        <PortCardActionMenu {...{ favoriteMenu, port, status, onSelect, overflowOrigin }} />
+      </span>
     </div>
   );
 }
@@ -1632,7 +1437,12 @@ function LibraryEntryState({
         <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
         {state.label}
       </span>
-      {(status?.staged || updateAvailable) && (
+      {status?.acquisition && (
+        <span className="text-pc-interactive-foreground">
+          {gameUpdateAcquisitionLabel(status.acquisition.phase)}
+        </span>
+      )}
+      {(status?.staged || status?.acquisition || updateAvailable) && (
         <Button
           variant="link"
           size="sm"
@@ -1640,7 +1450,11 @@ function LibraryEntryState({
           data-detail-origin={`${detailOrigin}:update`}
           onClick={() => onSelect(port.id, `${detailOrigin}:update`, "updates")}
         >
-          {status?.staged ? "Review downloaded update" : "Review update seen at last check"}
+          {status?.staged
+            ? "Review prepared update"
+            : status?.acquisition
+              ? "Review update archive"
+              : "Review update seen at last check"}
         </Button>
       )}
       {status?.staged && updateAvailable && (

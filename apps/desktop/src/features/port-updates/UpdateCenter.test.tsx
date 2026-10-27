@@ -433,7 +433,7 @@ describe("update center presentation", () => {
     expect(html).toContain("No current tasks in these records");
     expect(html).toContain("Finished records are in History");
     expect(html).toContain(
-      "Installs, updates, verification, restored versions, copied installations, and failures will appear here.",
+      "Installs, updates, checks and items needing attention appear here. Finished records are in History.",
     );
     expect(html.toLowerCase()).not.toContain("adopt");
     expect(html).not.toContain("No operations recorded yet");

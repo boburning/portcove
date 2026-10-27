@@ -581,3 +581,32 @@ slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 [profile.hosted-windows]
 test-threads = 4
 junit.path = "junit.xml"
+
+# v58 expanded fixture receipt bcb45de3-dfa3-4505-9e92-531bfd0d3751 retained
+# exact30.143/30.218s cutoffs in full reviewed acquisition/apply/source cases.
+# Full reviewed acquisition/apply/source controls remain bounded90s.
+# Preserve assertions, two workers and zero retries. These are harness bounds,
+# not product performance guarantees; later failed receipts remain retained.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & (test(/^service::game_update_acquisition::tests::acquired_archive_cannot_bypass_changed_original_source_bytes$/) | test(/^service::game_update_acquisition::tests::acquired_archive_survives_restart_and_requires_fresh_exclusive_apply_review$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# v58 Core expanded4 (/tmp/portcove-v58-core-expanded4.log) retained exact
+# 30.013–33.270s ordinary cutoffs and 10s HTTP-arrival synchronization failures.
+# Only these observed cases, plus the cancellation control sharing that helper,
+# receive90s. Arrival is finite60s and observes/joins early worker failure.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & (test(/^service::game_update_acquisition::tests::live_and_completed_acquisitions_block_library_move_with_exact_discard_resume$/) | test(/^service::game_update_acquisition::tests::orphan_archive_remains_visible_after_install_and_catalog_removal_until_exact_discard$/) | test(/^service::game_update_acquisition::tests::removing_managed_runtime_during_transfer_preserves_archive_and_never_resurrects_it$/) | test(/^service::game_update_acquisition::tests::cancellation_retains_bounded_attention_and_exact_discard_allows_retry$/) | test(/^service::game_update_review::tests::activity_apply_refuses_other_handle_file_work_before_consuming_review_or_mutating$/) | test(/^service::game_update_review::tests::an_unverified_retained_plan_cannot_authorize_execution$/) | test(/^service::game_update_review::tests::cancellation_and_invalid_retained_bytes_preserve_the_active_version$/) | test(/^service::game_update_review::tests::reviewed_stage_and_activation_are_explicit_and_ignore_saved_automatic_policy$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# The same receipt retained native and marker cases terminated at160.035/146.696s.
+# Finite180s permits diagnosis and owned-worker cleanup; no load-only cause is
+# asserted. The exact native controls use a120s owned child gate (other probe
+# callers retain10s), coherent with60s arrival and review/verification overhead.
+# Phase receipts distinguish setup, review, durable reservation and HTTP transfer.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & (test(/^service::game_update_acquisition::tests::immutable_acquisition_can_start_after_verified_game_is_already_running$/) | test(/^service::game_update_acquisition::tests::launch_during_stalled_acquisition_and_finish_while_game_runs$/) | test(/^service::game_update_acquisition::tests::interrupted_marker_publication_has_bounded_exact_owner_discard_route$/))'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"

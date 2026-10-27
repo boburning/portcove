@@ -13,6 +13,7 @@ import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
+import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import { SteamEntryControl } from "./SteamEntry";
 import { AuthoredPreparationGuidance, ExternalRuntimeControl } from "./ExternalRuntime";
 import {
@@ -128,6 +129,7 @@ interface DetailPanelProps {
   prepare?: RunPreparation | undefined;
   cancellableActivities?: ActivityRecord[] | undefined;
   port: PortDefinition;
+  displayPort?: CatalogEntry | undefined;
   status?: PortStatus | undefined;
   installPlan?: InstallPlan | undefined;
   backups?: BackupRecord[];
@@ -328,6 +330,7 @@ export function DetailPanel(props: DetailPanelProps) {
       )}
       perform={props.perform}
       prepare={props.prepare}
+      displayPort={props.displayPort}
       port={port}
       status={status}
       stagedVersion={status?.staged?.version}
@@ -383,6 +386,7 @@ function DetailBody(model: {
   perform?: Perform | undefined;
   prepare?: RunPreparation | undefined;
   port: PortDefinition;
+  displayPort?: CatalogEntry | undefined;
   status?: PortStatus | undefined;
   stagedVersion?: string | undefined;
   sources: SourceControls;
@@ -430,7 +434,7 @@ function DetailBody(model: {
   });
   return (
     <DetailLayout
-      port={model.port}
+      port={model.displayPort ?? model.port}
       projectUrl={model.port.project_url}
       openSupport={model.openSupport}
       overviewRequirements={<DetailRequirementsFacts model={model} external={external} />}

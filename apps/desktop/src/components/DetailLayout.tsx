@@ -95,8 +95,9 @@ export function DetailLayout({
     catalogHeader,
     heroVisible && allowCatalogHeader,
   );
-  const heroImage =
-    headerArtwork.image ?? (allowCatalogHeader ? catalogHeaderArtwork.image : undefined);
+  const usingCatalogHeader = Boolean(allowCatalogHeader && catalogHeaderArtwork.image);
+  const heroArtwork = usingCatalogHeader ? catalogHeaderArtwork : headerArtwork;
+  const heroImage = heroArtwork.image;
   const [pending, setPending] = useState<{
     section: DetailSection;
     targetId?: string | undefined;
@@ -188,9 +189,7 @@ export function DetailLayout({
               alt=""
               loading="lazy"
               decoding="async"
-              onError={
-                headerArtwork.image ? headerArtwork.onImageError : catalogHeaderArtwork.onImageError
-              }
+              onError={heroArtwork.onImageError}
             />
           </div>
         )}
@@ -300,9 +299,9 @@ export function DetailLayout({
           </p>
         </div>
       </div>
-      {!headerArtwork.image && heroImage && catalogHeader && (
+      {usingCatalogHeader && catalogHeaderArtwork.media && (
         <div className="mt-2">
-          <MediaCredit media={catalogHeader} />
+          <MediaCredit media={catalogHeaderArtwork.media} />
         </div>
       )}
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}

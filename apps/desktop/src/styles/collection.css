@@ -53,6 +53,7 @@
     min-height: 2.8em;
     margin-block-start: 12px;
     overflow: hidden;
+    overflow-wrap: anywhere;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
@@ -124,6 +125,10 @@
   .collection-cover .library-entry-footer {
     width: min(100%, var(--collection-art-limit));
   }
+  .collection-cover .library-entry-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
   .library-entry-footer .collection-state {
     flex: 1 1 6rem;
     min-block-size: 32px;
@@ -137,12 +142,6 @@
     min-block-size: 32px;
     padding-inline: 8px;
     font-size: var(--text-xs);
-  }
-  .catalog-card .card-content {
-    width: min(100%, var(--collection-art-limit));
-  }
-  .catalog-card .collection-title {
-    margin-block-start: 0;
   }
   .collection-rows {
     max-width: max(840px, 52.5rem);
@@ -239,6 +238,9 @@
     }
   }
   @container collection (max-width: 46em) {
+    .discover-game {
+      --collection-art-limit: 148px;
+    }
     .collection-row {
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px 16px;

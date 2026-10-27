@@ -5,7 +5,8 @@ import type { LibraryOrganization, PortStatus } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { observedUpdateCandidate } from "../browsing/update-query-context";
 import { updateNoticeHidden } from "../organization/organization";
-import type { browsePortPresentation } from "./browse-presentation";
+import { gameUpdateAcquisitionLabel } from "../port-updates/acquisition-presentation";
+import { cardInstallationLabel, type browsePortPresentation } from "./browse-presentation";
 
 /** Exact-port cached facts and descriptions, shared by singleton discovery and comparison. */
 export function BrowsePortObservations({
@@ -33,13 +34,19 @@ export function BrowsePortObservations({
     !hiddenNotice && observedUpdateCandidate(port.id, status)?.availableAtLastCheck === true;
   return (
     <div className="discover-observations grid gap-1 text-xs">
+      <span className="text-pc-muted-foreground">{cardInstallationLabel(port, status)}</span>
       <span
         className={`readiness ${state.tone} inline-flex items-start gap-1.5 font-medium text-pc-muted-foreground [&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground`}
       >
         <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
         {state.label}
       </span>
-      {status?.staged && <span className="text-pc-interactive-foreground">Update downloaded</span>}
+      {status?.staged && <span className="text-pc-interactive-foreground">Update prepared</span>}
+      {status?.acquisition && (
+        <span className="text-pc-interactive-foreground">
+          {gameUpdateAcquisitionLabel(status.acquisition.phase)}
+        </span>
+      )}
       {updateAvailable && (
         <span className="text-pc-interactive-foreground">Update available at last check</span>
       )}

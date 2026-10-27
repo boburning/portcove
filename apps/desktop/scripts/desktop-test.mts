@@ -123,6 +123,7 @@ import {
   nativeGameFileFolderPicker,
 } from "./desktop-native-confirmation.mts";
 import { installScenarios } from "./desktop-install-test.mts";
+import type { AcquisitionGameObserver } from "./desktop-install-test.mts";
 import { hostPublicationScenario } from "./desktop-host-publication-test.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
@@ -635,6 +636,7 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
           "native-reviewed-steam-batch-add",
           "native-host-publication-recovery",
           "native-game-update-review",
+          "native-update-acquisition-lifecycle",
           "native-selected-setup-completion",
           "native-preliminary-source-review",
           "native-retained-contract-repair-state",
@@ -1649,17 +1651,25 @@ async function restartApplication(
     await connect();
     return driverBrowser();
   }
-  if (savedLibraryRecoverySession || selectedSetupRestart || hostPublicationSession) {
-    if (!preferencesRecoverySession && !hostPublicationSession)
+  const acquisitionRestart = Boolean(executionPlan.fixtures.acquisitionJourney);
+  if (
+    savedLibraryRecoverySession ||
+    selectedSetupRestart ||
+    hostPublicationSession ||
+    acquisitionRestart
+  ) {
+    if (!preferencesRecoverySession && !hostPublicationSession && !acquisitionRestart)
       assert.equal(
         prepareWhileStopped,
         undefined,
         "Identity-bound restart cannot rewrite fixture state",
       );
-    const inventory = captureBackupFocusCleanup(selectedSetupRestart ? name : cleanupName);
+    const inventory = captureBackupFocusCleanup(
+      selectedSetupRestart || acquisitionRestart ? name : cleanupName,
+    );
     validateBackupFocusInventory(
       readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
-      selectedSetupRestart,
+      selectedSetupRestart || acquisitionRestart,
     );
     await required(browser).quit();
     browser = undefined;
@@ -1962,6 +1972,56 @@ interface RestartObservation {
   fixture_prepared_while_stopped?: boolean;
   reconnected_at?: string;
 }
+// Read-only identity evidence through the existing owned driver-tree observer.
+// An exact executable under the isolated library is required; no PID/name-only ownership.
+const acquisitionGameObserver: AcquisitionGameObserver = {
+  capture(executable, name) {
+    assert.equal(process.platform, "win32");
+    assert.ok(executionPlan.fixtures.acquisitionJourney && identityBoundSession);
+    const canonical = (value: string) =>
+      path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase();
+    const relative = path.relative(canonical(library), canonical(executable));
+    assert.ok(
+      relative && !relative.startsWith("..") && !path.isAbsolute(relative),
+      "Only an executable inside the owned fixture library may be observed",
+    );
+    assert.match(name, /^[a-z0-9-]+$/u);
+    const snapshot = path.join(output, `${name}-processes.json`);
+    const captured = observeNativeSession("SnapshotDriverTree", snapshot);
+    artifacts.push(snapshot);
+    assert.deepEqual(captured.driver, ownedSession.driver, "Captured driver identity changed");
+    validateBackupFocusInventory(captured, true);
+    const candidates = captured.processes.filter(
+      (entry) => canonical(entry.path) === canonical(executable),
+    );
+    assert.ok(candidates.length <= 1, "Owned game executable has ambiguous live identities");
+    const identity = candidates[0];
+    return identity ? { identity, snapshot } : null;
+  },
+  observe(game, name) {
+    assert.match(name, /^[a-z0-9-]+$/u);
+    const current = observeNativeSession("Observe", game.snapshot);
+    const gameProcess = current.processes.find(
+      (entry) =>
+        entry.pid === game.identity.pid &&
+        entry.path === game.identity.path &&
+        entry.started_filetime === game.identity.started_filetime,
+    );
+    assert.ok(
+      gameProcess,
+      "Exact captured game identity disappeared from its own observation inventory",
+    );
+    const receipt = path.join(output, `${name}-observation.json`);
+    writeFileSync(
+      receipt,
+      JSON.stringify({ identity: game.identity, observation: current }, null, 2) + "\n",
+      { flag: "wx" },
+    );
+    artifacts.push(receipt);
+    return gameProcess.state;
+  },
+};
+
 function observeNativeSession<Mode extends NativeSessionMode>(
   mode: Mode,
   snapshot: string,
@@ -2427,6 +2487,7 @@ try {
       preliminarySetupJourney: Boolean(executionPlan.fixtures.preliminarySetupJourney),
       hashResumeJourney: Boolean(executionPlan.fixtures.hashResumeJourney),
       completionJourney: executionPlan.fixtures.completionJourney,
+      acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
@@ -4535,6 +4596,9 @@ try {
             interruptApplication,
             closeApplication,
             captureLivePreparation,
+            ...(executionPlan.fixtures.acquisitionJourney
+              ? { ownedGameProcess: acquisitionGameObserver }
+              : {}),
             chooseOwnedLibrary: nativeConfirmation({
               application,
               getDriverPid: () => required(required(driver).pid),

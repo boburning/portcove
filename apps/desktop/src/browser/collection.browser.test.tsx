@@ -214,6 +214,16 @@ for (const theme of ["dark", "light"]) {
   it(`keeps distinct identities, bounded art and shared actions in ${theme} covers and rows`, async () => {
     localStorage.clear();
     await page.viewport(1600, 1000);
+    const snapshot = desktopApi.workspaceSnapshot;
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async (generation) => {
+      const workspace = await snapshot(generation);
+      return {
+        ...workspace,
+        statuses: workspace.statuses.map((status) =>
+          status.port_id === "collection-0" ? { ...status, channel: "beta" as const } : status,
+        ),
+      };
+    });
     await mount(theme);
     const entries = [...document.querySelectorAll<HTMLElement>(".collection-entry")];
     expect(document.querySelector('[aria-label="Search results"]')?.textContent).toBe(
@@ -269,16 +279,20 @@ for (const theme of ["dark", "light"]) {
     }
     for (const image of document.querySelectorAll(".collection-art img"))
       expect(getComputedStyle(image).objectFit).toBe("contain");
-    expect(entries[3]!.textContent).toContain("Review downloaded update");
+    expect(entries[3]!.textContent).toContain("Review prepared update");
     expect(entries[3]!.querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entries[4]!.textContent).toContain("Game files missing");
     expect(entries[4]!.querySelector(".collection-actions")?.textContent).toContain("Review game");
-    expect(entries[0]!.textContent).not.toContain("Stable");
+    expect(entries[0]!.querySelector(".library-entry-chips")?.textContent).toContain("Stable");
+    expect(entries[0]!.querySelector(".library-entry-chips")?.textContent).not.toContain("Preview");
+    expect(entries[0]!.querySelector(".collection-state")?.textContent).toContain(
+      "Selected update channel: Preview",
+    );
     const firstRow = entries.filter(
       (entry) =>
         Math.abs(entry.getBoundingClientRect().top - entries[0]!.getBoundingClientRect().top) < 1,
     );
-    expect(firstRow).toHaveLength(5);
+    expect(firstRow).toHaveLength(6);
     for (const entry of firstRow) {
       const state = entry.querySelector(".collection-state")!.getBoundingClientRect();
       const action = entry.querySelector(".collection-actions")!.getBoundingClientRect();
@@ -368,8 +382,21 @@ it("keeps the lean visible Discover label in its natural name when artwork fails
     .click();
   await expect.poll(() => document.querySelectorAll("[data-discover-port-ids]").length).toBe(12);
   await expect
-    .poll(() => document.querySelector(".artwork-image-note")?.textContent)
-    .toContain("Image unavailable");
+    .element(
+      page
+        .getByRole("region", { name: "Discover games", exact: true })
+        .getByText("Image unavailable", { exact: true })
+        .first(),
+    )
+    .toBeVisible();
+  const identity = document.querySelector<HTMLButtonElement>(".discover-game-identity")!;
+  expect(identity.textContent).not.toContain("Image unavailable");
+  expect(identity.querySelector(".collection-art svg")).not.toBeNull();
+  expect(identity.getAttribute("aria-label")).toContain(
+    [".collection-title", ".collection-project"]
+      .map((selector) => identity.querySelector(selector)!.textContent.trim())
+      .join(" "),
+  );
   const labels = await axe.run(document.querySelector("main")!, {
     runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
   });

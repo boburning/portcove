@@ -1774,8 +1774,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     let activate = !args.stage && status.update_policy != UpdatePolicy::Stage;
                     let mut progress = progress_renderer(mode, service.catalog());
                     let port_id = status.port_id;
-                    if mode == OutputMode::Human {
-                        for notice in service.catalog().port(&port_id)?.preservation_notices() {
+                    if mode == OutputMode::Human
+                        && let Ok(port) = service.catalog().port(&port_id)
+                    {
+                        for notice in port.preservation_notices() {
                             println!("{notice}");
                         }
                     }

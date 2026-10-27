@@ -2090,3 +2090,32 @@ it("keeps Core-permitted launch available while original bytes await an explicit
   expect(html).not.toContain("Locate game files");
   expect(html).not.toContain("Review game preparation");
 });
+
+it("uses descriptive display metadata only in the shared detail shell", () => {
+  const displayPort = {
+    ...port,
+    name: "Display project",
+    source_profile: "display-only-source",
+    presentation: {
+      installation_method: "portable-package" as const,
+      source_requirements: [],
+      saves_and_settings: "external-user-owned" as const,
+    },
+  };
+  const html = renderToStaticMarkup(
+    <DetailPanel
+      port={port}
+      displayPort={displayPort}
+      status={{ ...portStatus(), active: installRecord() }}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  const heroStart = html.indexOf('class="detail-hero"');
+  const tabsStart = html.indexOf('class="detail-tabs');
+  expect(html.slice(heroStart, tabsStart)).toContain("Display project");
+  expect(detailSection(html, "manage")).toContain(`Uninstall ${port.name}`);
+  expect(detailSection(html, "manage")).not.toContain("Uninstall Display project");
+  expect(detailSection(html, "files")).not.toContain('id="source-display-only-source"');
+});

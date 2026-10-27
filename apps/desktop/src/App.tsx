@@ -1528,6 +1528,7 @@ function SelectedPortPanel({
         )
       }
       port={model.port}
+      displayPort={model.entry}
       status={model.status}
       installPlan={installPlanning.plan}
       backups={backups.backups}

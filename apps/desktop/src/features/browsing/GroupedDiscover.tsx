@@ -1,8 +1,9 @@
 import type { useFavorites } from "../favorites/use-favorites";
 import { SaveGameButton, type Organization } from "../organization/OrganizationControls";
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, GitCompareArrows, Star } from "lucide-react";
-import { ArtworkImage } from "../../components/Artwork";
+import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
+import { useArtwork, useArtworkVisibility } from "../../artwork";
 import { ExternalLink } from "../../components/ExternalLink";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
@@ -107,125 +108,19 @@ export function GroupedDiscover({
         className="port-grid collection-covers @container/collection grid w-full"
         data-focus-group
       >
-        {groups.map((group) => {
-          const first = group.matchingPorts[0]!;
-          const status = statuses.get(first.id);
-          const exact = group.matchingPorts.length === 1;
-          const observation = browsePortPresentation(first, status, "catalog");
-          const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
-          const describedBy =
-            exact && (observation.input || observation.setup) ? descriptionId : undefined;
-          const dropEligible =
-            group.ports.length === 1 && sourceDropEligible(first, status, nativeSourceDrag);
-          const dropTarget = dropEligible && nativeSourceDrag.targetPortId === first.id;
-          const detailOrigin = `catalog:card:${first.id}`;
-          return (
-            <article
-              key={group.id}
-              className={`discover-game relative min-w-0${dropTarget ? " outline-3 outline-offset-2 outline-pc-ring" : ""}`}
-              aria-label={
-                exact
-                  ? `${gameIdentityLabel(first)}. ${observation.state.label}.`
-                  : `${gameTitle(first)}. ${group.ports.length} separate port projects; ${group.matchingPorts.length} matching.`
-              }
-              aria-describedby={describedBy}
-              data-source-drop-port-id={dropEligible ? first.id : undefined}
-              data-source-drop-profile-id={dropEligible ? first.source_profile : undefined}
-              data-discover-port-ids={JSON.stringify(group.ports.map((port) => port.id))}
-              data-discover-matching-port-ids={JSON.stringify(
-                group.matchingPorts.map((port) => port.id),
-              )}
-            >
-              <Button
-                variant="ghost"
-                className="discover-game-identity grid w-full justify-items-start p-0 text-start"
-                data-focusable
-                data-detail-origin={detailOrigin}
-                aria-label={
-                  exact
-                    ? `${gameIdentityLabel(first)}. ${observation.state.label}. ${memberLabel(first, status)}`
-                    : undefined
-                }
-                aria-describedby={describedBy}
-                onClick={(event) =>
-                  group.matchingPorts.length === 1
-                    ? open(first, detailOrigin)
-                    : compare(group, event.currentTarget)
-                }
-              >
-                <ArtworkImage port={first} className="collection-art" quietFallback />
-                <h2 className="collection-title text-base font-semibold">{gameTitle(first)}</h2>
-                <p className="collection-project text-xs text-pc-muted-foreground">
-                  {group.ports.length === 1
-                    ? gameProjectLabel(first) || first.name
-                    : `${group.ports.length} separate port projects`}
-                </p>
-              </Button>
-              {exact && <IdentityChips port={first} />}
-              {exact ? (
-                <>
-                  {group.ports.length > 1 && (
-                    <p className="text-xs text-pc-muted-foreground">
-                      Matching port: {gameProjectLabel(first) || first.name}
-                    </p>
-                  )}
-                  <BrowsePortObservations
-                    port={first}
-                    status={status}
-                    observation={observation}
-                    descriptionId={descriptionId}
-                    noticeChoice={organization?.snapshot?.update_notices[first.id]}
-                  />
-                </>
-              ) : (
-                <p className="text-xs text-pc-muted-foreground">
-                  Compare the matching ports for their own setup requirements and installation
-                  status.
-                </p>
-              )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {group.ports.length === 1 && favorite(first)}
-                <SaveGameButton port={first} groupPorts={group.ports} organization={organization} />
-                <Button
-                  data-focusable
-                  variant="outline"
-                  size="sm"
-                  data-detail-origin={`${detailOrigin}:details`}
-                  aria-describedby={describedBy}
-                  onClick={(event) =>
-                    group.matchingPorts.length === 1
-                      ? open(first, `${detailOrigin}:details`)
-                      : compare(group, event.currentTarget)
-                  }
-                >
-                  {group.matchingPorts.length === 1
-                    ? memberLabel(first, statuses.get(first.id))
-                    : "Compare ports"}
-                  <ArrowRight aria-hidden="true" />
-                </Button>
-                {group.ports.length > 1 && group.matchingPorts.length === 1 && (
-                  <Button
-                    data-focusable
-                    size="sm"
-                    variant="ghost"
-                    onClick={(event) => compare(group, event.currentTarget)}
-                  >
-                    <GitCompareArrows aria-hidden="true" />
-                    Compare all {group.ports.length}
-                  </Button>
-                )}
-              </div>
-              {dropEligible && (
-                <div
-                  aria-hidden="true"
-                  className="source-drop-target pointer-events-none absolute inset-0 grid place-items-center rounded-pc-md border-2 border-dashed border-pc-interactive bg-pc-interactive/90 p-3 text-center text-sm font-bold text-pc-action-foreground"
-                >
-                  {dropTarget ? "Release to check" : "Drop to check for this game"}
-                </div>
-              )}
-            </article>
-          );
-        })}
+        {groups.map((group) => (
+          <DiscoverGameCard
+            key={group.id}
+            group={group}
+            statuses={statuses}
+            descriptionPrefix={descriptionPrefix}
+            nativeSourceDrag={nativeSourceDrag}
+            organization={organization}
+            favorite={favorite}
+            open={open}
+            compare={compare}
+          />
+        ))}
       </section>
       <Dialog
         open={Boolean(comparison)}
@@ -314,6 +209,146 @@ export function GroupedDiscover({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function DiscoverGameCard({
+  group,
+  statuses,
+  descriptionPrefix,
+  nativeSourceDrag,
+  organization,
+  favorite,
+  open,
+  compare,
+}: {
+  group: GameGroup;
+  statuses: ReadonlyMap<string, PortStatus>;
+  descriptionPrefix: string;
+  nativeSourceDrag: NativeSourceDragState;
+  organization?: Organization | undefined;
+  favorite: (port: CatalogEntry) => ReactNode;
+  open: (port: CatalogEntry, originKey: string) => void;
+  compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
+}) {
+  const first = group.matchingPorts[0]!;
+  const status = statuses.get(first.id);
+  const exact = group.matchingPorts.length === 1;
+  const observation = browsePortPresentation(first, status, "catalog");
+  const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
+  const describedBy = exact && (observation.input || observation.setup) ? descriptionId : undefined;
+  const dropEligible =
+    group.ports.length === 1 && sourceDropEligible(first, status, nativeSourceDrag);
+  const dropTarget = dropEligible && nativeSourceDrag.targetPortId === first.id;
+  const detailOrigin = `catalog:card:${first.id}`;
+  const firstProject = gameProjectLabel(first) || first.name;
+  const projectLabel =
+    group.ports.length === 1 ? firstProject : `${group.ports.length} separate port projects`;
+  const { element: artworkElement, visible } = useArtworkVisibility();
+  const { display: artwork } = useArtwork(first.id, "cover", visible);
+  const artworkNotice = artworkDisplayNotice(artwork);
+  return (
+    <article
+      key={group.id}
+      className={`discover-game relative min-w-0${dropTarget ? " outline-3 outline-offset-2 outline-pc-ring" : ""}`}
+      aria-label={
+        exact
+          ? `${gameIdentityLabel(first)}. ${observation.state.label}.`
+          : `${gameTitle(first)}. ${group.ports.length} separate port projects; ${group.matchingPorts.length} matching.`
+      }
+      aria-describedby={describedBy}
+      data-source-drop-port-id={dropEligible ? first.id : undefined}
+      data-source-drop-profile-id={dropEligible ? first.source_profile : undefined}
+      data-discover-port-ids={JSON.stringify(group.ports.map((port) => port.id))}
+      data-discover-matching-port-ids={JSON.stringify(group.matchingPorts.map((port) => port.id))}
+    >
+      <Button
+        variant="ghost"
+        className="discover-game-identity grid w-full justify-items-start p-0 text-start"
+        data-focusable
+        data-detail-origin={detailOrigin}
+        aria-label={
+          exact
+            ? `${gameTitle(first)} ${projectLabel}. ${group.ports.length > 1 ? `Matching port: ${firstProject}. ` : ""}${observation.state.label}. ${memberLabel(first, status)}`
+            : undefined
+        }
+        aria-describedby={describedBy}
+        onClick={(event) =>
+          group.matchingPorts.length === 1
+            ? open(first, detailOrigin)
+            : compare(group, event.currentTarget)
+        }
+      >
+        <ArtworkFrame
+          element={artworkElement}
+          display={artwork}
+          identityArtwork
+          className="collection-art"
+        />
+        <h2 className="collection-title text-base font-semibold">{gameTitle(first)}</h2>{" "}
+        <p className="collection-project text-xs text-pc-muted-foreground">{projectLabel}</p>
+      </Button>
+      {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
+      {exact && <IdentityChips port={first} />}
+      {exact ? (
+        <>
+          {group.ports.length > 1 && (
+            <p className="text-xs text-pc-muted-foreground">Matching port: {firstProject}</p>
+          )}
+          <BrowsePortObservations
+            port={first}
+            status={status}
+            observation={observation}
+            descriptionId={descriptionId}
+            noticeChoice={organization?.snapshot?.update_notices[first.id]}
+          />
+        </>
+      ) : (
+        <p className="text-xs text-pc-muted-foreground">
+          Compare the matching ports for their own setup requirements and installation status.
+        </p>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {group.ports.length === 1 && favorite(first)}
+        <SaveGameButton port={first} groupPorts={group.ports} organization={organization} />
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          data-detail-origin={`${detailOrigin}:details`}
+          aria-describedby={describedBy}
+          onClick={(event) =>
+            group.matchingPorts.length === 1
+              ? open(first, `${detailOrigin}:details`)
+              : compare(group, event.currentTarget)
+          }
+        >
+          {group.matchingPorts.length === 1
+            ? memberLabel(first, statuses.get(first.id))
+            : "Compare ports"}
+          <ArrowRight aria-hidden="true" />
+        </Button>
+        {group.ports.length > 1 && group.matchingPorts.length === 1 && (
+          <Button
+            data-focusable
+            size="sm"
+            variant="ghost"
+            onClick={(event) => compare(group, event.currentTarget)}
+          >
+            <GitCompareArrows aria-hidden="true" />
+            Compare all {group.ports.length}
+          </Button>
+        )}
+      </div>
+      {dropEligible && (
+        <div
+          aria-hidden="true"
+          className="source-drop-target pointer-events-none absolute inset-0 grid place-items-center rounded-pc-md border-2 border-dashed border-pc-interactive bg-pc-interactive/90 p-3 text-center text-sm font-bold text-pc-action-foreground"
+        >
+          {dropTarget ? "Release to check" : "Drop to check for this game"}
+        </div>
+      )}
+    </article>
   );
 }
 

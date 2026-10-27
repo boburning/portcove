@@ -16,6 +16,7 @@ import {
   releaseChannelPresentation,
 } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
+import { gameUpdateAcquisitionLabel } from "../features/port-updates/acquisition-presentation";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
 import { installPlanActionLabel } from "../install-plan-presentation";
@@ -100,6 +101,7 @@ function useGameUpdateControl({
   gameName,
   reviewScope,
   status,
+  archiveOnly: requestedArchiveOnly = false,
 }: {
   portId: string;
   generation: number;
@@ -108,11 +110,13 @@ function useGameUpdateControl({
   perform?: Perform | undefined;
   compact?: boolean;
   primary?: boolean;
-  gameName?: string;
+  gameName?: string | undefined;
   currentVersion?: string | undefined;
   status?: PortStatus | undefined;
+  archiveOnly?: boolean;
   reviewScope?: { active: boolean; claim: () => void; current: () => boolean };
 }) {
+  const archiveOnly = requestedArchiveOnly || Boolean(status && !status.active);
   const owner = useOperationPresentation();
   const target = { kind: "port" as const, id: portId, label: gameName ?? portId };
   const applyContext = targetInvocationContext("Update game", target, generation);
@@ -128,8 +132,11 @@ function useGameUpdateControl({
     ? Boolean(pendingInvocationConflict(owner.pending, acquireContext))
     : fallbackBusy;
   const [intent, setIntent] = useState<UpdateIntent>("install");
-  const [reviewedPlan, setPlan] = useState<GameUpdatePlan>();
-  const plan = reviewScope?.active === false ? undefined : reviewedPlan;
+  // A returned plan and its reviewed intent are one snapshot. Changing the
+  // requested intent cannot reinterpret the previous preview during a read.
+  const [reviewedPlan, setPlan] = useState<{ plan: GameUpdatePlan; intent: UpdateIntent }>();
+  const reviewSnapshot = reviewScope?.active === false ? undefined : reviewedPlan;
+  const plan = reviewSnapshot?.plan;
   const [pendingState, setPending] = useState(false);
   const pending = pendingState && reviewScope?.active !== false;
   const [applying, setApplying] = useState(false);
@@ -159,7 +166,7 @@ function useGameUpdateControl({
   const [discardReview, setDiscardReview] = useState<GameUpdateAcquisition>();
   const selectedIntent =
     !plan && !pending && hasRetainedArchive && intent === "download" ? "prepare" : intent;
-  const downloadOnly = intent === "download";
+  const downloadOnly = (reviewSnapshot?.intent ?? intent) === "download";
   const busy = downloadOnly ? acquireBusy : exclusiveBusy;
   const requests = useRef(new LatestRequestGeneration());
   const pendingRequest = useRef(false);
@@ -184,6 +191,7 @@ function useGameUpdateControl({
   );
   const dismissReview = () => setPlan(undefined);
   const review = async (nextIntent: UpdateIntent = selectedIntent) => {
+    if (archiveOnly) return;
     if (
       pendingRequest.current ||
       executionRequest.current ||
@@ -211,7 +219,7 @@ function useGameUpdateControl({
           ? await desktopApi.planGameUpdateAcquisition(portId, generation)
           : await desktopApi.planGameUpdate(portId, nextIntent === "install", generation);
       if (requests.current.isCurrent(current) && (reviewScope?.current() ?? true)) {
-        setPlan(value);
+        setPlan({ plan: value, intent: nextIntent });
       }
     } catch (error) {
       if (requests.current.isCurrent(current) && (reviewScope?.current() ?? true)) {
@@ -226,6 +234,7 @@ function useGameUpdateControl({
     }
   };
   const execute = async (selection: UpdateExecution) => {
+    if (archiveOnly && selection.kind !== "discard") return;
     const acquiring = selection.kind === "acquire";
     const executionBusy = acquiring ? acquireBusy : exclusiveBusy;
     if (
@@ -368,6 +377,7 @@ function useGameUpdateControl({
     }
   };
   return {
+    archiveOnly,
     intent,
     selectedIntent,
     setIntent,
@@ -421,6 +431,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
   const discardHeading = useRef<HTMLHeadingElement>(null);
   const actionRegion = useRef<HTMLElement>(null);
   const {
+    archiveOnly,
     plan,
     pending,
     applying,
@@ -550,8 +561,14 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
     </DialogFooter>
   );
   return (
-    <section ref={actionRegion} tabIndex={-1} aria-label="Review game update">
-      {!compact && <h3>Game update</h3>}
+    <section
+      ref={actionRegion}
+      tabIndex={-1}
+      aria-label={
+        archiveOnly ? `Manage archive for ${gameName ?? props.portId}` : "Review game update"
+      }
+    >
+      {!compact && <h3>{archiveOnly ? "Update archive" : "Game update"}</h3>}
       {completionNeedsRefresh && (
         <p role="status" className="my-3 text-xs text-pc-muted-foreground">
           The last command completed. Current library state still needs a successful refresh. A
@@ -613,7 +630,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
             )}
         </section>
       )}
-      {!plan && (
+      {!archiveOnly && !plan && (
         <ChoiceSelect<UpdateIntent>
           label="What would you like to do?"
           value={selectedIntent}
@@ -628,20 +645,22 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
           ]}
         />
       )}
-      <Button
-        ref={reviewButton}
-        data-focusable
-        className={plan ? "hidden" : undefined}
-        hidden={Boolean(plan)}
-        variant={compact || props.primary === false ? "outline" : "primary"}
-        disabled={
-          (selectedIntent === "download" ? acquireBusy : exclusiveBusy) || pending || !perform
-        }
-        onClick={() => void review()}
-      >
-        {pending ? "Checking update…" : "Review game update"}
-      </Button>
-      {plan && reviewScope?.active !== false && (
+      {!archiveOnly && (
+        <Button
+          ref={reviewButton}
+          data-focusable
+          className={plan ? "hidden" : undefined}
+          hidden={Boolean(plan)}
+          variant={compact || props.primary === false ? "outline" : "primary"}
+          disabled={
+            (selectedIntent === "download" ? acquireBusy : exclusiveBusy) || pending || !perform
+          }
+          onClick={() => void review()}
+        >
+          {pending ? "Checking update…" : "Review game update"}
+        </Button>
+      )}
+      {!archiveOnly && plan && reviewScope?.active !== false && (
         <Dialog
           open
           onOpenChange={(nextOpen) => {
@@ -775,16 +794,6 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       {!plan && failure && <GameUpdateFailure value={failure.value} />}
     </section>
   );
-}
-
-export function gameUpdateAcquisitionLabel(phase: GameUpdateAcquisition["phase"]) {
-  const labels: Record<GameUpdateAcquisition["phase"], string> = {
-    acquiring: "Downloading archive",
-    verifying: "Verifying archive",
-    acquired: "Archive downloaded",
-    attention_required: "Archive needs attention",
-  };
-  return Object.hasOwn(labels, phase) ? labels[phase] : "Archive status unavailable";
 }
 
 function GameUpdateFailure({ value }: { value: unknown }) {

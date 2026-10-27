@@ -2993,8 +2993,12 @@ private paths and members before removing only owned files. A live transfer or
 Apply lease conflicts; foreign, linked or ambiguous contents are retained for
 review. Cancellation retains bounded partial state for this explicit discard
 route. Discarding the retained acquisition permits a new download review and
-leaves installed runtimes and player data intact. These private byte records do
-not broaden metadata export or portable installation authority. A live worker
+leaves installed runtimes and player data intact. Archive-owner rows remain visible in bounded Core status and workspace
+inventories even after the managed install and catalog entry disappear. Such
+orphan rows expose only existing metadata and held operations; they do not
+synthesize a listing, operational definition, or launch permission. Exact-ID
+discard remains available without a current catalog entry. These private byte
+records do not broaden metadata export or portable installation authority. A live worker
 retains its ordinary shared library lease; an actual whole-library move cannot
 acquire exclusive access until every source handle is closed. Move preview and
 execution also refuse any retained acquisition journal, including a completed

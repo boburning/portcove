@@ -182,16 +182,22 @@ pub(crate) fn require_capacity(
 pub(crate) fn views_from(
     connection: &Connection,
 ) -> Result<HashMap<String, GameUpdateAcquisition>> {
-    let mut statement = connection.prepare("SELECT port_id,update_acquisition_json FROM lifecycle_operations WHERE kind='acquire_update' LIMIT 257")?;
+    let mut statement = connection.prepare("SELECT id,port_id,update_acquisition_json FROM lifecycle_operations WHERE kind='acquire_update' LIMIT 257")?;
     let rows = statement.query_map([], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, Option<String>>(2)?,
+        ))
     })?;
     let mut result = HashMap::new();
     for row in rows {
-        let (port_id, json) = row?;
+        let (id, port_id, json) = row?;
         let payload = decode_journal(json.as_deref())?
             .ok_or_else(|| PortcoveError::verification("acquisition state is missing"))?;
-        if payload.view.port_id != port_id
+        if payload.view.id != id
+            || Uuid::parse_str(&id).is_err()
+            || payload.view.port_id != port_id
             || result.len() >= MAX_RECORDS
             || result.insert(port_id, payload.view).is_some()
         {
@@ -265,6 +271,13 @@ impl PortcoveService {
         authorization: &str,
         mut emit: impl FnMut(OperationEvent),
     ) -> Result<GameUpdateAcquisition> {
+        #[cfg(test)]
+        let observed = std::time::Instant::now();
+        #[cfg(test)]
+        eprintln!(
+            "immutable acquisition phase: activity ownership ({:?})",
+            observed.elapsed()
+        );
         let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::DownloadPackage,
             ActivityTargetKind::Port,
@@ -276,9 +289,13 @@ impl PortcoveService {
         let result = async {
             let _acquisition_owner = self.library.try_lock_update_acquisition(port_id)?;
             let reviewed = {
+                #[cfg(test)]
+                eprintln!("immutable acquisition phase: fresh review ({:?})", observed.elapsed());
                 let reviewed = operation
                     .interruptible(self.plan_game_update_locked(port_id, false))
                     .await?;
+                #[cfg(test)]
+                eprintln!("immutable acquisition phase: current-runtime verification and authorization ({:?})", observed.elapsed());
                 self.require_acquisition_plan(&reviewed)?;
                 self.library.consume_authorization(
                     authorization,
@@ -308,6 +325,8 @@ impl PortcoveService {
                     assets: assets_for(&reviewed.plan),
                 });
                 store.put(&mut record)?;
+                #[cfg(test)]
+                eprintln!("immutable acquisition phase: bounded reservation persisted ({:?})", observed.elapsed());
                 journal = Some(record);
                 reviewed
             }; // Only private transfer remains; launch keeps its ordinary exclusive lock.
@@ -341,6 +360,8 @@ impl PortcoveService {
                 &private.join("owner.pending"),
                 &private.join("owner.json"),
             )?;
+            #[cfg(test)]
+            eprintln!("immutable acquisition phase: private ownership durable; provider resolution ({:?})", observed.elapsed());
             let port = self.catalog.port(port_id)?;
             let resolution = self
                 .resolve_reviewed_update_acquisition(port, &reviewed.plan.release, &operation)
@@ -357,9 +378,13 @@ impl PortcoveService {
                 qualification,
             };
             let installer = Installer::new(self.library.clone())?;
+            #[cfg(test)]
+            eprintln!("immutable acquisition phase: immutable transfer ({:?})", observed.elapsed());
             installer
                 .acquire_immutable(&request, &private, &operation, &mut emit)
                 .await?;
+            #[cfg(test)]
+            eprintln!("immutable acquisition phase: archive verification and durability ({:?})", observed.elapsed());
             record
                 .update_acquisition
                 .as_mut()
@@ -377,6 +402,8 @@ impl PortcoveService {
             crate::durability::sync_publication(private.parent().expect("acquisition parent"))?;
             // Atomically close cancellation before publishing the completed byte identity.
             operation.begin_publication()?;
+            #[cfg(test)]
+            eprintln!("immutable acquisition phase: acquired publication ({:?})", observed.elapsed());
             let payload = record.update_acquisition.as_mut().expect("journal");
             payload.view.phase = Phase::Acquired;
             payload.view.updated_at = Library::now();

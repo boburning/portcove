@@ -4,6 +4,7 @@ import type { PortStatus } from "./transport-types.generated";
 import type * as Generated from "./transport-types.generated";
 
 export type { ReleaseChannel } from "./transport-types.generated";
+export type { OriginalGameIdentity } from "./transport-types.generated";
 export type {
   CatalogMediaAsset,
   CatalogMediaRole,

@@ -164,7 +164,7 @@ it("keeps Favorites in the entry menu and restores filter focus when its last re
     exact: true,
   });
   await more.click();
-  await userEvent.keyboard("{ArrowDown}");
+  await userEvent.keyboard("Add");
   await expect
     .element(page.getByRole("menuitem", { name: "Add to favorites", exact: true }))
     .toHaveFocus();
@@ -230,6 +230,71 @@ it("opens Continue playing details and restores its exact trigger after Back", a
   expect(target.closest(".continue-card")).not.toBeNull();
   expect(target.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
 });
+
+it.each([
+  { theme: "dark", width: 390, text: "100%" },
+  { theme: "light", width: 390, text: "100%" },
+  { theme: "dark", width: 640, text: "200%" },
+  { theme: "light", width: 640, text: "200%" },
+])(
+  "keeps unbroken Continue identity and Play reachable in $theme at $width with $text text",
+  async ({ theme, width, text }) => {
+    await page.viewport(width, 780);
+    document.documentElement.style.fontSize = text;
+    const snapshot = workspace("collection");
+    const port = snapshot.catalog.ports[0]!;
+    const title =
+      "The Very Long Voyage Beyond the Northern Sea — Édition complète / 完全版 " +
+      "UnbrokenIdentity".repeat(12);
+    const project = "Community project " + "UnbrokenProject".repeat(12);
+    port.name = project;
+    port.presentation = { ...port.presentation!, original_game_title: title };
+    snapshot.statuses[0]!.last_launched_at = 1;
+    snapshot.statuses[0]!.successful_launches = 1;
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    const launch = vi
+      .spyOn(desktopApi, "launch")
+      .mockResolvedValue({ processId: null, sessionId: "compact-identity-return" });
+    await mount(theme);
+    const continuation = page.getByRole("region", {
+      name: `Continue ${title} · ${project}`,
+      exact: true,
+    });
+    await expect.element(continuation).toBeVisible();
+    await expect
+      .element(continuation.getByRole("heading", { name: title, exact: true }))
+      .toHaveAccessibleName(title);
+    await expect
+      .element(continuation.getByText(project, { exact: true }))
+      .toHaveTextContent(project);
+    const identity = continuation.element().querySelector<HTMLElement>(".continue-identity")!;
+    expect(identity.scrollWidth).toBeLessThanOrEqual(identity.clientWidth + 1);
+    for (const layout of ["Covers", "Compact rows"]) {
+      await page.getByRole("button", { name: layout, exact: true }).click();
+      document.querySelector<HTMLButtonElement>(`[data-detail-game-id="${port.id}"]`)!.focus();
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+      expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+    }
+    await continuation.getByRole("button", { name: "View details", exact: true }).click();
+    await expect
+      .element(page.getByRole("heading", { name: title, exact: true }))
+      .toHaveAccessibleName(title);
+    await expect.element(page.getByText(`Port project: ${project}`, { exact: true })).toBeVisible();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    const play = continuation.getByRole("button", { name: "Play again", exact: true });
+    await expect.element(play).toBeEnabled();
+    play.element().scrollIntoView({ block: "nearest" });
+    const bounds = play.element().getBoundingClientRect();
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(innerWidth + 1);
+    expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
+    play.element().focus();
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => launch.mock.calls).toEqual([[port.id, "", 1]]);
+  },
+);
 
 for (const theme of ["dark", "light"]) {
   it(`keeps ${theme} scrolled row action focus and browsing context through live resizing`, async () => {

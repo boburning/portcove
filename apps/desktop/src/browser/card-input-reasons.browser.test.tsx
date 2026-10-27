@@ -210,8 +210,8 @@ it.each([
         .toMatchTextContent(
           name === "Staged ready"
             ? view === "library"
-              ? "Review downloaded update"
-              : "Update downloaded"
+              ? "Review prepared update"
+              : "Update prepared"
             : "Ready to play",
         );
     }

@@ -2,7 +2,8 @@ import { ArtworkImage } from "./Artwork";
 import { FailureDetails } from "./FailureDetails";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { RecoveryReview } from "./RecoveryReview";
-import { GameUpdateControl, gameUpdateAcquisitionLabel } from "./GameUpdates";
+import { GameUpdateControl } from "./GameUpdates";
+import { gameUpdateAcquisitionLabel } from "../features/port-updates/acquisition-presentation";
 import type { Perform } from "../features/operations/use-operation-state";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import { focusAndReveal } from "../focus";
@@ -184,6 +185,12 @@ function useUpdateCenter({
     return () => window.clearInterval(interval);
   }, []);
   const installed = ports.filter((port) => statuses.get(port.id)?.active);
+  const managedUpdateIds = new Set(installed.map((port) => port.id));
+  // Core projects retained acquisition statuses independently of catalog or
+  // active-runtime membership. Do not require a synthetic operational definition.
+  const retainedArchives = [...statuses.values()].filter(
+    (status) => status.acquisition && !managedUpdateIds.has(status.port_id),
+  );
   const external = ports.filter((port) => {
     const status = statuses.get(port.id);
     return !status?.active && status?.external_runtime;
@@ -272,6 +279,7 @@ function useUpdateCenter({
     setReviewingUpdate,
     updateReviewOwner,
     installed,
+    retainedArchives,
     external,
     byPort,
     savedByPort,
@@ -354,7 +362,12 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
               ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
           </p>
         )}
-        {model.installed.length === 0 ? (
+        {model.installed.length === 0 && model.retainedArchives.length > 0 ? (
+          <p className="mb-5 text-sm text-pc-muted-foreground">
+            No managed installations can be updated here. Retained archives can still be reviewed
+            and discarded below.
+          </p>
+        ) : model.installed.length === 0 ? (
           <EmptyState
             icon={RefreshCw}
             eyebrow="UPDATE CENTER"
@@ -511,6 +524,47 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
               );
             })}
           </div>
+        )}
+        {model.retainedArchives.length > 0 && (
+          <section className="mt-7" aria-label="Retained update archives">
+            <h3 className="mb-3 text-base">Retained update archives</h3>
+            <p className="mb-4 text-sm text-pc-muted-foreground">
+              Archives remain recorded separately from installations. These records offer archive
+              cleanup; preparing or installing an update requires an available managed installation
+              and a fresh review.
+            </p>
+            <div className="grid gap-4" data-focus-group>
+              {model.retainedArchives.map((status) => {
+                const entry = model.activityPorts.find((port) => port.id === status.port_id);
+                const displayName = entry ? gameIdentityLabel(entry) : undefined;
+                return (
+                  <article
+                    key={status.port_id}
+                    data-retained-update-archive-port-id={status.port_id}
+                    className="min-w-0 rounded-pc-lg border border-pc-border bg-pc-surface p-5"
+                  >
+                    <h4 className="text-base">{displayName ?? status.port_id}</h4>
+                    {displayName && (
+                      <p className="mt-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
+                        {status.port_id}
+                      </p>
+                    )}
+                    <GameUpdateControl
+                      portId={status.port_id}
+                      gameName={displayName}
+                      generation={model.generation}
+                      policy={status.update_policy}
+                      busy={Boolean(model.busy)}
+                      perform={model.perform}
+                      status={status}
+                      archiveOnly
+                      compact
+                    />
+                  </article>
+                );
+              })}
+            </div>
+          </section>
         )}
         {model.external.length > 0 && (
           <section className="external-update-section mt-6" aria-label="Externally updated games">

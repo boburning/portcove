@@ -281,6 +281,18 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-update-acquisition-lifecycle",
+    "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, and retained cancellation is discarded after reviewed uninstall.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      dependencies: ["install-commit-refresh-recovery"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-install-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-staged-update-composition",
     "A real staged update keeps the installed version playable and activation beside Play at compact and wide sizes.",
     {
@@ -706,6 +718,11 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "linux")
   )
     throw new Error("native-linux-interrupted-preparation requires one standalone Linux scenario");
+  if (
+    uniqueRequested.includes("native-update-acquisition-lifecycle") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-update-acquisition-lifecycle requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-preliminary-selected-setup")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-preliminary-selected-setup requires one exact standalone scenario");
@@ -847,6 +864,8 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Three immutable upgrades, two owned live launches, reviews and positive exit joins.
+  if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle")) return 720_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
