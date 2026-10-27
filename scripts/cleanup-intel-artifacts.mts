@@ -193,7 +193,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const options = parseCleanupArgs(process.argv.slice(2));
     if (process.env.GITHUB_REPOSITORY && process.env.GITHUB_REPOSITORY !== repository)
       throw new Error("cleanup is restricted to boburning/portcove");
-    console.log(JSON.stringify(cleanup(new GitHubApiClient(createGitHubRunner()), options), null, 2));
+    console.log(
+      JSON.stringify(cleanup(new GitHubApiClient(createGitHubRunner()), options), null, 2),
+    );
   } catch (error) {
     console.error(errorMessage(error));
     process.exitCode = 1;
