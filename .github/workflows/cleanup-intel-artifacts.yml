@@ -7,6 +7,11 @@ on:
   schedule:
     - cron: "43 * * * *"
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Optional exact run ID for manual cleanup, including higher rerun attempts"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -33,4 +38,14 @@ jobs:
       - name: Remove only verified consumed Intel transfers
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/cleanup-intel-artifacts.mts --apply
+          PORTCOVE_INTEL_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.run_id || '' }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ] && [ -z "$PORTCOVE_INTEL_RUN_ID" ]; then
+            echo "Workflow completion omitted its run ID; refusing unscoped cleanup" >&2
+            exit 1
+          fi
+          if [ -n "$PORTCOVE_INTEL_RUN_ID" ]; then
+            node scripts/cleanup-intel-artifacts.mts --apply --run-id "$PORTCOVE_INTEL_RUN_ID"
+          else
+            node scripts/cleanup-intel-artifacts.mts --apply
+          fi
