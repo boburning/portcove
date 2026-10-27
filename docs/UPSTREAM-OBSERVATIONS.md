@@ -7,19 +7,31 @@ publish definitions, install updates, or execute upstream instructions.
 
 ## Scope and cadence
 
-`release/upstream-observer.json` configures the existing `shipwright` catalog
-entry and GitHub repository `HarbourMasters/Shipwright`, numeric ID `472575717`.
-Changing that repository identity fails closed. The core projection covers
-every platform in the embedded definition and game Stable, Preview and Rolling
-channels; unsupported channels remain visible with a hold reason. These game
-channels are distinct from the application's Stable/Preview channels.
+`release/upstream-observer.json` retains the reviewed `shipwright` baseline,
+GitHub repository `HarbourMasters/Shipwright`, numeric ID `472575717`, and finite
+operation budgets. The scheduled coordinator discovers GitHub release sources
+from the reviewed embedded catalog. Ports sharing an exact repository use one
+provider collection and separate Core projections; channel, platform, artifact,
+checksum and adapter policy never transfer between ports. Unsupported providers
+remain held with an explicit capability/resume reason; user-prepared sources do
+not acquire an executable-update owner through observation.
+
+A new source establishes its numeric identity from fresh primary-provider metadata
+or genuinely equivalent fresh trusted upstream-health repository observations.
+The baseline persists before further reads. A conflicting identity is held rather
+than silently rebaselined. Health facts can save that metadata lookup, but cannot
+stand in for complete release headers, candidate assets, Core eligibility or bytes.
+Invalid optional health evidence is preserved and falls back to a fresh primary
+lookup; conflicting trusted identities remain held.
 
 The `Configured upstream observer` workflow requests observations at 00:17,
 06:17, 12:17 and 18:17 UTC. Hosted scheduling can be delayed or skipped; this is
-a requested cadence, not a delivery guarantee. A report is stale after twelve
-hours without a complete observation. Every other catalog entry is explicitly
-unmonitored. Manual dispatch is available for diagnosis and produces separately
-attributed evidence; it does not prove scheduled execution.
+a requested cadence, not a delivery guarantee. The configured baseline retains
+its cadence and twelve-hour freshness bound. Catalog sources use durable fair
+turns, activity observations and staleness to admit work within the same job.
+Unknown activity uses the existing cadence; measured change intervals may defer
+quieter sources only inside the freshness margin. Manual dispatch remains
+separately attributed and does not prove scheduled execution.
 
 ## Bounded interface and policy
 
@@ -65,8 +77,9 @@ The format-2 configuration binds `asset_scope: core-channel-candidates` and a
 set during continuation resets the validation cursor and discards irrelevant
 asset pages from the active scope. Retained conditional representations may save
 bytes but cannot establish current coverage. This interface adds no artifact
-verification, signing or protected admission authority. The catalog-wide
-coordinator and its hosted acceptance remain separate delivery work.
+verification, signing or protected admission authority. The catalog coordinator
+supplies the selector through the maintained Core inspector. Hosted and protected
+acceptance remain distinct from deterministic orchestration fixtures.
 
 Each platform/channel projection retains the latest observed release, its
 channel candidate, latest metadata-eligible asset, and hold reasons. Core's
@@ -144,6 +157,57 @@ it never replaces the successful checkpoint or becomes an eligible candidate.
 All platform projections remain in the retained snapshot during a provider
 failure, and no catalog entry is removed.
 
+## Catalog scheduling and definition-delivery handoff
+
+`node scripts/observe-catalog-upstreams.mts --cli PATH_TO_PORTCOVE` uses the same
+source checkpoints, transports, atomic replacement and locks. Its bounded
+`work/upstream-observer/catalog/checkpoint.json` records source turns, numeric
+identity, scope/freshness, actual provider backoff and Core continuation. Current
+per-port catalog inputs and the observed inspector-binary digest bind completion
+and both Core cursors. A changed scope cannot inherit old freshness. Completed
+header selections and per-port final projections survive runtime interruption
+without repeating completed Core calls. Provider and Core clocks are never
+manufactured by a later resume.
+
+Request admission uses received provider capacity with a five-percent reserve,
+observed request cost, remaining runtime and fair source turns. Unknown quota uses
+the existing finite request envelope; it is not assumed available. Quantum/runtime
+exhaustion has no provider retry clock. Actual depletion and provider retry
+responses defer the shared provider until its reset. A budget-limited source with
+progress can receive another turn automatically while capacity remains. A failure
+isolates its source. New non-budget exceptions fail the job once; continuing
+exceptions and normal continuation remain visible without repeated notifications.
+
+The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
+one `report.json` and its existing consumer/configuration binding. Catalog reports
+use a separate, uniquely owned handoff directory for each invocation, exported as
+`catalog-upstream-observations-RUN-ATTEMPT`. It contains inert observations and
+per-port Core policies for #246's existing supplied-observation → bounded-candidate
+path. Historical fallback policies retain their own facts/definition identities
+and are explicitly held as unknown current state. No automatic acceptance,
+publication, signing or player update eligibility follows from this handoff.
+
+Shared response bytes, including identity lookups, are admitted while reading.
+The new handoff has the existing sixteen-MiB response envelope as its aggregate
+byte budget, with four MiB reserved for the summary and one-day artifact retention.
+A handoff that cannot fit the remaining batch stays checkpointed for a later
+automatic batch. An individual handoff exceeding the physical response envelope
+is explicitly held for a reviewed framed-handoff capability; it is not reported
+as export-complete or retried immediately. An
+oversized diagnostic summary reports omission counts and the runtime-checkpoint
+digest instead of claiming complete exported coverage. The legacy artifact keeps
+its existing seven-day retention. Unique handoff directories prevent old outputs
+from being uploaded as a later invocation's evidence.
+
+Retired configuration caches are removed only after replacement, under their
+existing exact checkpoint locks and validated configuration identities. Current
+and last-complete fallback configurations, contended locks, foreign metadata and
+unrelated files are retained. Interrupted cleanup is idempotent and resumes from
+the controller's retired-configuration journal. Each source/controller checkpoint
+retains the thirty-two-MiB byte bound; there is no growing per-revision cache list
+or new storage service. Cache eviction and unavailable physical storage still
+provide no durability guarantee.
+
 ## Resource bounds and availability evidence
 
 The configured per-batch bounds are 256 API requests and ten newly read pages
@@ -164,14 +228,16 @@ Only checkpoint/report files enter the observation cache, scoped by config and
 ref; interrupted locks and temporary files do not. Reports have seven-day
 artifact retention. GitHub manages cache quotas and evicts unused cache entries;
 cache availability is not durable storage or an availability guarantee. Each
-saved observation checkpoint/report pair is bounded to 64 MiB before cache
-compression; standard repository CI/billing limits still apply. Rust build
+legacy observation checkpoint/report pair is bounded to 64 MiB before cache
+compression. Catalog cache size depends on the observed source workset within the
+existing per-file bounds; standard repository CI/billing limits and the account's
+$0 stop still apply. No paid fallback or spending setting is introduced. Rust build
 caches remain separate from observation evidence.
 
 Same-day compatible-client availability is a 24-hour engineering objective with
 an **unknown baseline**. Reports identify UTC upstream publication clocks and
-observation intervals, one monitored repository, unmonitored entries and all
-holds. Protected acceptance, definition publication and compatible-client
+observation intervals, assessed and pending source scopes, unsupported entries
+and all holds. Protected acceptance, definition publication and compatible-client
 availability clocks remain null, and measured end-to-end samples remain zero
 until #246 integrates those stages. Initial historical inventory, unmonitored
 upstreams and unintegrated downstream stages are explicit exclusions, not

@@ -163,6 +163,8 @@ function validateCheckpoint(
     );
 }
 
+export { validateCheckpoint as validateObserverCheckpoint };
+
 function exceptionFor(
   error: unknown,
   prior: CheckpointException | null,
@@ -368,7 +370,11 @@ export async function advanceObservation(
   return { checkpoint: next, report, notify_exception: changedException };
 }
 
-async function boundedJson(filename: string, maximum: number, optional = false): Promise<unknown> {
+export async function boundedJson(
+  filename: string,
+  maximum: number,
+  optional = false,
+): Promise<unknown> {
   let handle;
   try {
     handle = await open(filename, "r");
@@ -392,7 +398,7 @@ async function boundedJson(filename: string, maximum: number, optional = false):
   }
 }
 
-async function atomicJson(filename: string, value: unknown) {
+export async function atomicJson(filename: string, value: unknown) {
   await assertOwnedUnlinkedPath(repositoryRoot, filename, "observer output");
   const temporary = `${filename}.${randomUUID()}.next`;
   const contents = JSON.stringify(value);
@@ -430,6 +436,51 @@ export async function withCheckpointLock<T>(
   } finally {
     await handle.close();
     await rm(lockPath);
+  }
+}
+
+export async function projectObservation(
+  cli: string,
+  config: ObserverConfig,
+  directory: string,
+  observation: Observation,
+): Promise<unknown> {
+  const input = path.join(directory, `observation-${randomUUID()}.json`);
+  await mkdir(path.dirname(input), { recursive: true });
+  try {
+    await writeFile(input, JSON.stringify(observation), { flag: "wx" });
+    const output = execFileSync(
+      cli,
+      [
+        "--json",
+        "catalog",
+        "inspect-observation",
+        config.port_id,
+        input,
+        "--repository-id",
+        String(config.repository_id),
+      ],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 30_000,
+        maxBuffer: 4 * 1024 * 1024,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    const envelope: unknown = JSON.parse(output);
+    if (
+      !isRecord(envelope) ||
+      envelope.command !== "catalog.inspect-observation" ||
+      envelope.ok !== true
+    )
+      throw new ObservationFailure(
+        "core-policy",
+        "core did not return a successful observation inspection",
+      );
+    return envelope.data;
+  } finally {
+    await rm(input, { force: true });
   }
 }
 
@@ -502,45 +553,8 @@ async function main(args: string[]) {
     )
       throw new Error("configured upstream differs from the existing catalog owner");
     const cli = path.resolve(parsed.get("--cli") ?? "");
-    const project = async (observation: Observation): Promise<unknown> => {
-      const input = path.join(path.dirname(statePath), `observation-${randomUUID()}.json`);
-      await mkdir(path.dirname(input), { recursive: true });
-      try {
-        await writeFile(input, JSON.stringify(observation), { flag: "wx" });
-        const output = execFileSync(
-          cli,
-          [
-            "--json",
-            "catalog",
-            "inspect-observation",
-            config.port_id,
-            input,
-            "--repository-id",
-            String(config.repository_id),
-          ],
-          {
-            encoding: "utf8",
-            windowsHide: true,
-            timeout: 30_000,
-            maxBuffer: 4 * 1024 * 1024,
-            stdio: ["ignore", "pipe", "pipe"],
-          },
-        );
-        const envelope: unknown = JSON.parse(output);
-        if (
-          !isRecord(envelope) ||
-          envelope.command !== "catalog.inspect-observation" ||
-          envelope.ok !== true
-        )
-          throw new ObservationFailure(
-            "core-policy",
-            "core did not return a successful observation inspection",
-          );
-        return envelope.data;
-      } finally {
-        await rm(input, { force: true });
-      }
-    };
+    const project = (observation: Observation) =>
+      projectObservation(cli, config, path.dirname(statePath), observation);
     const execution = {
       kind: ["schedule", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? "")
         ? process.env.GITHUB_EVENT_NAME
@@ -556,6 +570,31 @@ async function main(args: string[]) {
     const result = await advanceObservation(config, checkpoint, {
       ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
       project,
+      ...(config.format === 2
+        ? {
+            selectAssetReleases: async (headers: Observation) => {
+              const projection = await project(headers);
+              if (!isRecord(projection) || !Array.isArray(projection.projections))
+                throw new ObservationFailure(
+                  "core-binding",
+                  "Core candidate selection is unavailable",
+                );
+              return [
+                ...new Set(
+                  projection.projections.flatMap((item: unknown) =>
+                    isRecord(item) &&
+                    Array.isArray(item.hold_reasons) &&
+                    !item.hold_reasons.includes("channel-not-offered") &&
+                    isRecord(item.channel_candidate) &&
+                    Number.isSafeInteger(item.channel_candidate.id)
+                      ? [Number(item.channel_candidate.id)]
+                      : [],
+                  ),
+                ),
+              ];
+            },
+          }
+        : {}),
       execution,
       commitContinuation: (checkpoint) => atomicJson(statePath, checkpoint),
       catalogIds: ports.map((port) => {
