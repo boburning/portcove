@@ -449,7 +449,7 @@ pub fn inspect_upstream_observation(
         repository_id,
         adapter: port.adapter,
         facts_sha256: digest,
-        catalog_definition_sha256: json_digest(&serde_json::to_value(port)?)?,
+        catalog_definition_sha256: crate::catalog::observation_definition_sha256(port)?,
         observed_at: document["completed_at"]
             .as_str()
             .expect("validated clock")

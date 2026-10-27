@@ -430,66 +430,57 @@ pub(crate) struct HttpCacheEntry {
     pub body: String,
 }
 
-// The current catalog has 200 selector slots. Two conditional metadata rows per
-// slot fit with headroom, while 64 MiB permits an average 128 KiB response.
-const HTTP_CACHE_MAX_ENTRIES: usize = 512;
-const HTTP_CACHE_MAX_BODY_BYTES: u64 = 64 * 1024 * 1024;
+// Account for the actual response and its key/index/validator metadata instead
+// of evicting small responses at a catalog-size-derived row count. The fixed
+// per-row reserve bounds empty/tiny records and leaves conservative SQLite
+// overhead headroom; this is a charged-record budget, not a whole database cap.
+const HTTP_CACHE_MAX_RECORD_BYTES: u64 = 64 * 1024 * 1024;
+const HTTP_CACHE_RECORD_RESERVE_BYTES: u64 = 4096;
 const HTTP_CACHE_MAX_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
+const HTTP_CACHE_RECORD_BYTES_SQL: &str = "length(CAST(body AS BLOB)) + 2 * length(CAST(url AS BLOB)) + COALESCE(length(CAST(etag AS BLOB)), 0) + COALESCE(length(CAST(last_modified AS BLOB)), 0) + ?1";
 
 fn prune_http_cache(connection: &Connection) -> Result<()> {
     prune_http_cache_with_limits(
         connection,
-        HTTP_CACHE_MAX_ENTRIES,
-        HTTP_CACHE_MAX_BODY_BYTES,
+        HTTP_CACHE_MAX_RECORD_BYTES,
         HTTP_CACHE_MAX_AGE_SECONDS,
     )
 }
 
 fn prune_http_cache_with_limits(
     connection: &Connection,
-    max_entries: usize,
-    max_body_bytes: u64,
+    max_record_bytes: u64,
     max_age_seconds: i64,
 ) -> Result<()> {
     connection.execute(
         "DELETE FROM github_http_cache WHERE updated_at < unixepoch() - ?1",
         [max_age_seconds],
     )?;
-    let entries: u64 =
-        connection.query_row("SELECT COUNT(*) FROM github_http_cache", [], |row| {
-            row.get(0)
-        })?;
-    let max_entries = u64::try_from(max_entries)
-        .map_err(|_| PortcoveError::state("HTTP cache entry limit overflow"))?;
-    if entries > max_entries {
-        let excess = entries - max_entries;
-        connection.execute(
-            "DELETE FROM github_http_cache
-             WHERE rowid IN (
-               SELECT rowid FROM github_http_cache
-               ORDER BY updated_at ASC, rowid ASC
-               LIMIT ?1
-             )",
-            [excess],
-        )?;
-    }
-    let mut body_bytes: u64 = connection.query_row(
-        "SELECT COALESCE(SUM(length(CAST(body AS BLOB))), 0) FROM github_http_cache",
-        [],
+    let retained_bytes: u64 = connection.query_row(
+        &format!("SELECT COALESCE(SUM({HTTP_CACHE_RECORD_BYTES_SQL}), 0) FROM github_http_cache"),
+        [HTTP_CACHE_RECORD_RESERVE_BYTES],
         |row| row.get(0),
     )?;
-    while body_bytes > max_body_bytes {
-        let (url, size): (String, u64) = connection.query_row(
-            "SELECT url, length(CAST(body AS BLOB))
-             FROM github_http_cache
-             ORDER BY updated_at ASC, rowid ASC
-             LIMIT 1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
-        connection.execute("DELETE FROM github_http_cache WHERE url=?1", [url])?;
-        body_bytes -= size;
+    if retained_bytes <= max_record_bytes {
+        return Ok(());
     }
+    // A single uncacheable response must not evict smaller useful responses.
+    connection.execute(
+        &format!("DELETE FROM github_http_cache WHERE {HTTP_CACHE_RECORD_BYTES_SQL} > ?2"),
+        params![HTTP_CACHE_RECORD_RESERVE_BYTES, max_record_bytes],
+    )?;
+    connection.execute(
+        &format!(
+            "DELETE FROM github_http_cache WHERE rowid IN (
+            SELECT rowid FROM (
+                SELECT rowid, SUM({HTTP_CACHE_RECORD_BYTES_SQL}) OVER (
+                    ORDER BY updated_at DESC, rowid DESC ROWS UNBOUNDED PRECEDING
+                ) AS retained_bytes FROM github_http_cache
+            ) WHERE retained_bytes > ?2
+        )"
+        ),
+        params![HTTP_CACHE_RECORD_RESERVE_BYTES, max_record_bytes],
+    )?;
     Ok(())
 }
 
@@ -3502,7 +3493,7 @@ mod tests {
     }
 
     #[test]
-    fn http_cache_pruning_enforces_age_entry_and_byte_limits() {
+    fn http_cache_pruning_enforces_age_and_charged_record_limits() {
         let temporary = tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();
         let connection = library.connection().unwrap();
@@ -3519,7 +3510,9 @@ mod tests {
                 )
                 .unwrap();
         }
-        prune_http_cache_with_limits(&connection, 3, 8, 1_000_000_000).unwrap();
+        let two_records =
+            2 * (HTTP_CACHE_RECORD_RESERVE_BYTES + 2 * "https://example.test/b".len() as u64 + 4);
+        prune_http_cache_with_limits(&connection, two_records, 1_000_000_000).unwrap();
         let urls = connection
             .prepare("SELECT url FROM github_http_cache ORDER BY url")
             .unwrap()
@@ -3533,6 +3526,75 @@ mod tests {
                 "https://example.test/b".to_owned(),
                 "https://example.test/c".to_owned(),
             ]
+        );
+    }
+
+    #[test]
+    fn http_cache_keeps_a_thousand_small_responses_within_the_existing_resource_envelope() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        for index in 0..1000 {
+            connection.execute("INSERT INTO github_http_cache(url, etag, last_modified, body, updated_at) VALUES (?1, ?2, ?3, ?4, unixepoch())",
+                params![format!("https://api.github.com/repos/example/port-{index}/releases"), "observed-etag", "Tue, 27 Oct 2026 00:00:00 GMT", "{\"id\":1,\"releases\":[]}"]).unwrap();
+        }
+        prune_http_cache(&connection).unwrap();
+        let rows: u64 = connection
+            .query_row("SELECT COUNT(*) FROM github_http_cache", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(rows, 1000);
+        let charged: u64 = connection
+            .query_row(
+                &format!("SELECT SUM({HTTP_CACHE_RECORD_BYTES_SQL}) FROM github_http_cache"),
+                [HTTP_CACHE_RECORD_RESERVE_BYTES],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(charged < HTTP_CACHE_MAX_RECORD_BYTES);
+        let cached = library
+            .http_cache("https://api.github.com/repos/example/port-0/releases")
+            .unwrap()
+            .unwrap();
+        assert_eq!(cached.etag.as_deref(), Some("observed-etag"));
+        assert_eq!(
+            cached.last_modified.as_deref(),
+            Some("Tue, 27 Oct 2026 00:00:00 GMT")
+        );
+        assert_eq!(cached.body, "{\"id\":1,\"releases\":[]}");
+    }
+
+    #[test]
+    fn http_cache_charges_utf8_metadata_and_excludes_oversized_rows_without_collateral_eviction() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        for (url, etag, body) in [
+            ("small", "é", "é".to_owned()),
+            ("oversized", "", "x".repeat(8192)),
+        ] {
+            connection.execute("INSERT INTO github_http_cache(url, etag, body, updated_at) VALUES (?1, ?2, ?3, unixepoch())", params![url, etag, body]).unwrap();
+        }
+        let cost: u64 = connection
+            .query_row(
+                &format!(
+                    "SELECT {HTTP_CACHE_RECORD_BYTES_SQL} FROM github_http_cache WHERE url='small'"
+                ),
+                [HTTP_CACHE_RECORD_RESERVE_BYTES],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(cost, HTTP_CACHE_RECORD_RESERVE_BYTES + 2 * 5 + 2 + 2);
+        prune_http_cache_with_limits(&connection, cost, HTTP_CACHE_MAX_AGE_SECONDS).unwrap();
+        assert!(library.http_cache("small").unwrap().is_some());
+        assert!(library.http_cache("oversized").unwrap().is_none());
+        assert_eq!(
+            connection
+                .query_row("SELECT count(*) FROM github_http_cache", [], |row| row
+                    .get::<_, u64>(0))
+                .unwrap(),
+            1
         );
     }
 

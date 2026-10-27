@@ -28,6 +28,8 @@ pub struct CatalogProposalInspection {
 pub struct CatalogProposalPortInspection {
     pub port_id: String,
     pub definition_sha256: String,
+    /// Canonical normalized definition identity used by observation projections.
+    pub observation_definition_sha256: String,
     pub check: &'static str,
     /// Hashes declared records; evidence references remain unauthenticated.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
@@ -42,6 +44,14 @@ pub struct Catalog {
     user_selected_listing: bool,
     definition_snapshot: Option<(Arc<crate::definition_projection::DefinitionSnapshot>, u64)>,
     definition_selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
+}
+
+/// Share the observation contract without changing legacy proposal receipt hashes.
+pub(crate) fn observation_definition_sha256(port: &PortDefinition) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut canonical = serde_json::to_value(port)?;
+    canonical.sort_all_objects();
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&canonical)?)))
 }
 
 impl Catalog {
@@ -61,6 +71,7 @@ impl Catalog {
                 Ok(CatalogProposalPortInspection {
                     port_id: port.id.clone(),
                     definition_sha256: hex::encode(Sha256::digest(serde_json::to_vec(port)?)),
+                    observation_definition_sha256: observation_definition_sha256(port)?,
                     check: "catalog-declared-contract-validation",
                     curated_record_sha256: port
                         .release
@@ -104,7 +115,10 @@ impl Catalog {
     }
 
     pub fn from_json(value: &str) -> Result<Self> {
-        let mut document: CatalogDocument = serde_json::from_str(value)?;
+        Self::from_document(serde_json::from_str(value)?)
+    }
+
+    pub(crate) fn from_document(mut document: CatalogDocument) -> Result<Self> {
         match document.schema_version {
             1 => {
                 if document.source_catalog.is_some() {
@@ -1819,6 +1833,17 @@ mod tests {
             assert_eq!(
                 checked.definition_sha256,
                 hex::encode(Sha256::digest(serde_json::to_vec(port).unwrap()))
+            );
+            let mut canonical = serde_json::to_value(port).unwrap();
+            canonical.sort_all_objects();
+            assert_eq!(
+                checked.observation_definition_sha256,
+                hex::encode(Sha256::digest(serde_json::to_vec(&canonical).unwrap()))
+            );
+            // Field-order serialization is a different, retained legacy contract.
+            assert_ne!(
+                checked.observation_definition_sha256,
+                checked.definition_sha256
             );
             assert_eq!(checked.check, "catalog-declared-contract-validation");
         }
