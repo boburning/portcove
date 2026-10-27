@@ -1,4 +1,10 @@
 import { isRecord, errorCode, errorMessage } from "./runtime-values.mts";
+export const discoveryCheckpointBytes = 32 * 1024 * 1024;
+function boundCheckpoint<T>(value: T): T {
+  if (Buffer.byteLength(JSON.stringify(value)) > discoveryCheckpointBytes)
+    throw new Error("Discovery checkpoint byte envelope exceeded; preserve prior progress");
+  return value;
+}
 interface SuccessfulSource {
   completed_at: string;
   evidence: string;
@@ -82,7 +88,7 @@ function disposition(value: unknown): DispositionReceipt {
   return parsed;
 }
 function checkpoint(value: unknown): DiscoveryCheckpoint {
-  const state = object(value, "Discovery checkpoint");
+  const state = object(boundCheckpoint(value), "Discovery checkpoint");
   if (state.format !== 1) throw new Error("Unsupported discovery checkpoint");
   const sources = Object.fromEntries(
     Object.entries(object(state.sources, "Checkpoint sources")).map(([id, value]) => {
@@ -316,7 +322,7 @@ export function advanceDiscovery(stateValue: unknown, runValue: unknown): Discov
       !Array.isArray(source.records)
     )
       throw new Error("Complete source requires evidence and terminal pagination");
-    if (source.records.length > 2000) throw new Error("Source record budget exceeded");
+    boundCheckpoint(source);
     if (source.snapshot_kind !== undefined && source.snapshot_kind !== "rolling-feed")
       throw new Error("Invalid source snapshot kind");
     const previous = Object.hasOwn(state.sources, sourceId) ? state.sources[sourceId] : undefined;
@@ -379,12 +385,8 @@ export function advanceDiscovery(stateValue: unknown, runValue: unknown): Discov
       hashes: source.snapshot_kind === "rolling-feed" ? { ...previous?.hashes, ...hashes } : hashes,
       ...(source.snapshot_kind === "rolling-feed" ? { snapshot_kind: "rolling-feed" } : {}),
     };
-    if (Object.keys(next.sources[sourceId].hashes).length > 10000)
-      throw new Error("Rolling source identity capacity exceeded; retain old checkpoint");
   }
-  if (Object.keys(next.pending).length > 10000)
-    throw new Error("Pending budget exceeded; retain old checkpoint and resume");
-  return next;
+  return boundCheckpoint(next);
 }
 
 export function recordDisposition(
@@ -398,7 +400,7 @@ export function recordDisposition(
   const next = structuredClone(state);
   next.receipts[id] = receipt;
   delete next.pending[id];
-  return next;
+  return boundCheckpoint(next);
 }
 
 export function rotatingRecheck(

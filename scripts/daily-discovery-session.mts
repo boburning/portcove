@@ -133,6 +133,7 @@ interface Journal {
   checkpoint_preimage?: string;
   backoff_until?: string;
   lead_state?: LeadState;
+  research_progress?: Record<string, unknown>;
 }
 const object = (v: unknown): Record<string, unknown> => {
   if (!isRecord(v)) throw new Error("Expected structured discovery message");
@@ -336,6 +337,10 @@ export class DiscoverySession {
       delivery: "none",
       coverage: "unknown",
       sources: [],
+      research_progress:
+        isRecord(previous) && previous.research_progress !== undefined
+          ? object(previous.research_progress)
+          : {},
       candidates:
         previous === undefined ? {} : (object(previous).candidates as Record<string, Candidate>),
       evidence:
@@ -445,6 +450,16 @@ export class DiscoverySession {
       api: this.client.api,
       budget: this.budget,
       http,
+      primaryProgress: { entries: this.journal.research_progress!, persist: () => this.persist() },
+      acceptSource: (source) => {
+        this.journal.sources = this.journal.sources.filter((value) => value.id !== source.id);
+        this.journal.sources.push(source);
+        this.checkpoint = advanceDiscovery(this.checkpoint, {
+          observed_at: new Date().toISOString(),
+          sources: [source],
+        });
+        this.persist();
+      },
       save: (name, value) => this.save(name, value),
     };
   }
@@ -646,8 +661,9 @@ export class DiscoverySession {
       file,
       requests: this.budget.usage.requests - before.requests,
       bytes: this.budget.usage.bytes - before.bytes,
-      observed_at: this.journal.started_at,
+      observed_at: data.observed_at ?? this.journal.started_at,
     };
+    delete this.journal.research_progress![repoName(data.metadata.full_name).toLowerCase()];
     const lead = this.leads.records[String(data.metadata.id)];
     if (lead) {
       if (lead.repository.toLowerCase() !== text(data.metadata.full_name).toLowerCase())
@@ -1327,7 +1343,7 @@ export class DiscoverySession {
       };
     }
     try {
-      this.journal.sources.push(...collectDiscoverySources(this.source, this.checkpoint));
+      collectDiscoverySources(this.source, this.checkpoint);
     } finally {
       this.budget.reserve = reserve;
     }
@@ -1566,6 +1582,7 @@ export class DiscoverySession {
               ? observationHash(fresh.text)
               : null
             : material(fresh as ReturnType<typeof investigateDiscoveryUpstream>);
+          if (!old.url) delete this.journal.research_progress![old.repository.toLowerCase()];
           if (current !== old.material) {
             c.status = "needs-review";
             this.persist();

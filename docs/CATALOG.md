@@ -482,10 +482,12 @@ the same entry point with a selected workset:
 node scripts/prepare-port.mts --artwork-ids fragglet-sdl-sopwith,faxanadu-recomp --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/cover-preparation
 ```
 
-This mode reads the complete per-ID source catalog and accepts 1–400 unique known
-IDs per invocation. It collects no upstream repository/release facts. Two bounded
-worksets can cover a 522-record directory; provider request, byte and time ceilings
-remain unchanged. Optional `--identities` and `--credentials-file` work as in
+This mode reads the complete per-ID source catalog and accepts a logical workset
+of unique known IDs, automatically continuing through bounded operations of at
+most 400 identities. It collects no upstream repository/release facts. A
+522-record directory needs one logical specification; accepted per-ID progress
+resumes after interruption. Provider request, byte and time ceilings remain
+unchanged. Optional `--identities` and `--credentials-file` work as in
 single-record preparation. `--refresh-artwork ID,OTHER_ID` refreshes only IDs in
 the selected workset; otherwise accepted mappings are reused. Project, issue,
 record, release and route options cannot be mixed into an artwork-only batch.

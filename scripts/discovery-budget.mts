@@ -214,7 +214,13 @@ export function createDiscoveryTransport(
   token: string,
   worker = fileURLToPath(new URL("./discovery-http.mts", import.meta.url)),
 ) {
-  const request = (method: string, url: string, body?: string, binary = false) => {
+  const request = (
+    method: string,
+    url: string,
+    body?: string,
+    binary = false,
+    conditionalEtag?: string,
+  ) => {
     const left = budget.remaining();
     budget.admit(1, 1);
     const target = new URL(url);
@@ -231,7 +237,17 @@ export function createDiscoveryTransport(
     const maxRequests = Math.min(5, left.requests);
     const timeout = Math.min(20000, left.milliseconds);
     const response = spawnSync(process.execPath, [worker], {
-      input: JSON.stringify({ method, url, body, binary, token, cap, maxRequests, timeout }),
+      input: JSON.stringify({
+        method,
+        url,
+        body,
+        binary,
+        token,
+        cap,
+        maxRequests,
+        timeout,
+        conditionalEtag,
+      }),
       encoding: "utf8",
       windowsHide: true,
       timeout: timeout + 1000,
@@ -346,7 +362,15 @@ export function createDiscoveryTransport(
     const url = new URL(endpoint, "https://api.github.com/");
     if (url.origin !== "https://api.github.com") throw new Error("Unexpected GitHub API origin");
     const method = graphql ? "POST" : (args[args.indexOf("--method") + 1] ?? "GET");
-    const response = request(method, url.href, input);
+    let etag: string | undefined;
+    for (let index = 0; index < args.length; index++)
+      if (args[index] === "--header") {
+        const header = args[++index];
+        if (!header?.startsWith("If-None-Match: ") || etag !== undefined)
+          throw new Error("Discovery supports only one scoped conditional read header");
+        etag = header.slice("If-None-Match: ".length);
+      }
+    const response = request(method, url.href, input, false, etag);
     const included = `HTTP/2 ${response.status}\n${Object.entries(response.headers)
       .map(([k, v]) => `${k}: ${v}`)
       .join("\n")}\n\n${response.text}`;

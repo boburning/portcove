@@ -1,4 +1,10 @@
-import { GitHubApiClient } from "./github-api.mts";
+import {
+  DiscoveryPrimaryReads,
+  discoveryNextPage,
+  DiscoveryCheckpointInterrupted,
+} from "./discovery-primary-progress.mts";
+import type { DiscoveryPrimaryProgress } from "./discovery-primary-progress.mts";
+import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import { readFileSync } from "node:fs";
 import { observationHash } from "./upstream-observer.mts";
 import { releaseFingerprint } from "./discovery-checkpoint.mts";
@@ -36,6 +42,8 @@ export interface SourceContext {
   budget: DiscoveryBudget;
   http: ReturnType<typeof createDiscoveryTransport>;
   save: (name: string, value: unknown) => void;
+  primaryProgress?: DiscoveryPrimaryProgress;
+  acceptSource?: (source: CollectedSource) => void;
 }
 export function collectRecompBoardSource(
   c: Pick<SourceContext, "http" | "save">,
@@ -71,7 +79,22 @@ export function collectRecompBoardSource(
   };
 }
 function list(c: SourceContext, endpoint: string, label: string) {
-  return c.api.paginateRest(endpoint, { identity: (v) => rec(v).id, label });
+  const records: unknown[] = [];
+  const identities = new Set<unknown>();
+  let next: string | null = endpoint;
+  while (next) {
+    const response = c.api.request("GET", next);
+    if (!Array.isArray(response.body)) throw new Error(`${label} response is incomplete`);
+    for (const value of response.body) {
+      const id = rec(value).id;
+      if (!Number.isSafeInteger(id) || Number(id) < 1 || identities.has(id))
+        throw new Error(`${label} contains missing or duplicate identities`);
+      identities.add(id);
+      records.push(value);
+    }
+    next = discoveryNextPage(response, endpoint, next);
+  }
+  return records;
 }
 function metadata(c: SourceContext, repo: string) {
   const meta = rec(c.api.request("GET", `repos/${repoName(repo)}`).body);
@@ -123,9 +146,20 @@ export function collectDiscoverySources(
   c: SourceContext,
   known: DiscoveryCheckpoint,
 ): CollectedSource[] {
-  const result: CollectedSource[] = [collectQuiver(c)];
+  const result: CollectedSource[] = [];
+  const accept = (source: CollectedSource) => {
+    result.push(source);
+    c.acceptSource?.(source);
+  };
+  const queues: {
+    jobs: { id: string; evidence: string; run: () => void }[];
+    finish: () => void;
+  }[] = [];
+  const now = c.budget.now();
+  const due = (changed: boolean, checked: string) =>
+    changed || !checked || now - Date.parse(checked) >= 7 * 86400000;
   const fail = (id: string, evidence: string, error: unknown) =>
-    result.push({
+    accept({
       id,
       status: "inaccessible",
       evidence,
@@ -134,6 +168,11 @@ export function collectDiscoverySources(
       records: [],
       error: errorMessage(error),
     });
+  try {
+    accept(collectQuiver(c));
+  } catch (error) {
+    fail("quiver", "https://github.com/Paroxy/Quiver", error);
+  }
   for (const repo of ["SirDiabo/GHLAppList"] as const) {
     try {
       const meta = metadata(c, repo);
@@ -146,7 +185,7 @@ export function collectDiscoverySources(
         const data = rec(got.data);
         const entries = data.apps ?? Object.values(data).flat();
         if (!Array.isArray(entries)) throw new Error("Malformed registry entries");
-        result.push({
+        accept({
           id,
           status: "complete",
           evidence: got.evidence,
@@ -169,7 +208,7 @@ export function collectDiscoverySources(
     const ref = commit(c, meta);
     const got = content(c, repo, "index.json", ref);
     c.save("retcomm-index", got);
-    result.push({
+    accept({
       id: "retcomm-index",
       status: "complete",
       evidence: got.evidence,
@@ -211,7 +250,7 @@ export function collectDiscoverySources(
         });
       }
     }
-    result.push({
+    accept({
       id: "retcomm-tree",
       status: "complete",
       evidence: got.evidence,
@@ -225,34 +264,48 @@ export function collectDiscoverySources(
         a.checked.localeCompare(b.checked) ||
         a.file.localeCompare(b.file),
     );
-    for (const t of titles.slice(0, 8)) {
-      const manifest = content(c, repo, t.file, ref);
-      c.save(t.key, manifest);
-      result.push({
+    const pending = titles.filter((t) => due(t.changed, t.checked));
+    const finished = new Set<string>();
+    queues.push({
+      jobs: pending.map((t) => ({
         id: t.key,
-        status: "complete",
-        evidence: manifest.evidence,
-        next_page: null,
-        truncated: false,
-        records: [
-          { key: t.file, fingerprint: observationHash(manifest.data) },
-          { key: `blob:${t.file}`, fingerprint: observationHash(t.sha) },
-        ],
-        platform: t.platform,
-        blob: manifest.blob,
-      });
-    }
-    result.push({
-      id: "retcomm-manifest-coverage",
-      status: titles.filter((t) => t.changed).length > 8 ? "partial" : "complete",
-      evidence: got.evidence,
-      next_page: null,
-      truncated: false,
-      records: [],
-      uncollected: Math.max(0, titles.filter((t) => t.changed).length - 8),
-      next_path: titles[8]?.file ?? null,
-      next_action:
-        "Changed manifests first, then oldest checked manifest; pending research remains separate",
+        evidence: `https://github.com/${repo}/blob/${ref}/${t.file}`,
+        run: () => {
+          const manifest = content(c, repo, t.file, ref);
+          if (manifest.blob !== t.sha)
+            throw new Error("RetComM content differs from the exact tree blob");
+          c.save(t.key, manifest);
+          accept({
+            id: t.key,
+            status: "complete",
+            evidence: manifest.evidence,
+            next_page: null,
+            truncated: false,
+            records: [
+              { key: t.file, fingerprint: observationHash(manifest.data) },
+              { key: `blob:${t.file}`, fingerprint: observationHash(t.sha) },
+            ],
+            platform: t.platform,
+            blob: manifest.blob,
+          });
+          finished.add(t.file);
+        },
+      })),
+      finish: () => {
+        const remaining = pending.filter((t) => !finished.has(t.file));
+        accept({
+          id: "retcomm-manifest-coverage",
+          status: remaining.length ? "partial" : "complete",
+          evidence: got.evidence,
+          next_page: null,
+          truncated: false,
+          records: [],
+          uncollected: remaining.length,
+          next_path: remaining[0]?.file ?? null,
+          next_action:
+            "Exact changed/missing and seven-day overdue manifests; completed per-file blob positions persist before continuing",
+        });
+      },
     });
   } catch (e) {
     fail("retcomm-collection", "https://github.com/RetroPortingToolKit/Retro-Catalog", e);
@@ -277,32 +330,53 @@ export function collectDiscoverySources(
         (old(a)?.completed_at ?? "").localeCompare(old(b)?.completed_at ?? "")
       );
     });
-    for (const entry of entries.slice(0, 8)) {
-      const file = str(entry.path);
-      const id = `portforge-${observationHash(file).slice(0, 12)}`;
-      const got = content(c, str(meta.full_name), file, ref);
-      c.save(id, got);
-      result.push({
-        id,
-        status: "complete",
-        evidence: got.evidence,
-        next_page: null,
-        truncated: false,
-        records: [
-          { key: file, fingerprint: observationHash(got.data) },
-          { key: `blob:${file}`, fingerprint: observationHash(entry.sha) },
-        ],
-      });
-    }
-    result.push({
-      id: "portforge-tree",
-      status: tree.truncated === false ? "complete" : "partial",
-      evidence: `https://github.com/${str(meta.full_name)}/tree/${ref}`,
-      next_page: null,
-      truncated: tree.truncated !== false,
-      records: entries.map((n) => ({ key: str(n.path), fingerprint: observationHash(n.sha) })),
-      inspected_paths: entries.slice(0, 8).map((n) => n.path),
-      next_path: entries[8]?.path ?? null,
+    const pending = entries.filter((entry) => {
+      const old = known.sources[`portforge-${observationHash(entry.path).slice(0, 12)}`];
+      return due(
+        old?.hashes[`blob:${str(entry.path)}`] !== observationHash(entry.sha),
+        old?.completed_at ?? "",
+      );
+    });
+    const finished = new Set<string>();
+    queues.push({
+      jobs: pending.map((entry) => ({
+        id: `portforge-${observationHash(entry.path).slice(0, 12)}`,
+        evidence: `https://github.com/${str(meta.full_name)}/blob/${ref}/${str(entry.path)}`,
+        run: () => {
+          const file = str(entry.path);
+          const id = `portforge-${observationHash(file).slice(0, 12)}`;
+          const got = content(c, str(meta.full_name), file, ref);
+          if (got.blob !== entry.sha)
+            throw new Error("PortForge content differs from the exact tree blob");
+          c.save(id, got);
+          accept({
+            id,
+            status: "complete",
+            evidence: got.evidence,
+            next_page: null,
+            truncated: false,
+            records: [
+              { key: file, fingerprint: observationHash(got.data) },
+              { key: `blob:${file}`, fingerprint: observationHash(entry.sha) },
+            ],
+          });
+          finished.add(file);
+        },
+      })),
+      finish: () => {
+        const remaining = pending.filter((entry) => !finished.has(str(entry.path)));
+        accept({
+          id: "portforge-tree",
+          status: tree.truncated === false && !remaining.length ? "complete" : "partial",
+          evidence: `https://github.com/${str(meta.full_name)}/tree/${ref}`,
+          next_page: null,
+          truncated: tree.truncated !== false,
+          records: entries.map((n) => ({ key: str(n.path), fingerprint: observationHash(n.sha) })),
+          inspected_paths: [...finished],
+          uncollected: remaining.length,
+          next_path: remaining[0]?.path ?? null,
+        });
+      },
     });
   } catch (e) {
     fail("portforge", "https://github.com/zamiba/portforge-mediaitems", e);
@@ -313,7 +387,7 @@ export function collectDiscoverySources(
       "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports",
     );
     c.save("pcgamingwiki", page);
-    result.push({
+    accept({
       id: "pcgamingwiki",
       status: page.status === 200 ? "partial" : "inaccessible",
       evidence: "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports",
@@ -330,9 +404,34 @@ export function collectDiscoverySources(
     fail("pcgamingwiki", "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports", e);
   }
   try {
-    result.push(collectRecompBoardSource(c, known));
+    accept(collectRecompBoardSource(c, known));
   } catch (e) {
     fail("recomp-board-feed", "https://recomp.fyi/feed.xml", e);
+  }
+  let exhausted = false;
+  try {
+    while (queues.some((queue) => queue.jobs.length)) {
+      for (const queue of queues) {
+        const job = queue.jobs.shift();
+        if (!job) continue;
+        try {
+          c.budget.admit(1, 1);
+          job.run();
+        } catch (error) {
+          if (
+            error instanceof GitHubApiError &&
+            ["budget_exhausted", "rate_limited"].includes(error.code)
+          ) {
+            exhausted = true;
+            break;
+          }
+          fail(job.id, job.evidence, error);
+        }
+      }
+      if (exhausted) break;
+    }
+  } finally {
+    for (const queue of queues) queue.finish();
   }
   return result;
 }
@@ -416,6 +515,31 @@ export function consumeConfiguredObserver(c: SourceContext) {
 }
 export function investigateDiscoveryUpstream(c: SourceContext, repository: string) {
   const meta = metadata(c, repository);
+  if (!c.primaryProgress) return investigatePrimary(c, meta);
+  const repo = str(meta.full_name);
+  if (
+    repo.toLowerCase() !== repository.toLowerCase() ||
+    !Number.isSafeInteger(meta.id) ||
+    Number(meta.id) < 1
+  )
+    throw new Error("Research repository identity changed; independent continuity review required");
+  const reads = new DiscoveryPrimaryReads(c.api, repo, Number(meta.id), c.primaryProgress);
+  const api = Object.create(c.api) as GitHubApiClient;
+  api.request = (_method, endpoint) => ({
+    ...reads.request(endpoint),
+    rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
+  });
+  try {
+    const data = investigatePrimary({ ...c, api }, meta);
+    const observed_at = reads.finish();
+    return { ...data, observed_at };
+  } catch (error) {
+    if (!(error instanceof GitHubApiError) && !(error instanceof DiscoveryCheckpointInterrupted))
+      reads.discard();
+    throw error;
+  }
+}
+function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
   const repo = str(meta.full_name);
   const releases = list(
     c,
@@ -478,9 +602,19 @@ export function investigateDiscoveryUpstream(c: SourceContext, repository: strin
     );
     manifest_evidence = { commit: ref, blob: got.sha, status: "project-claim" };
   } catch (e) {
+    if (
+      e instanceof GitHubApiError &&
+      (["budget_exhausted", "rate_limited"].includes(e.code) ||
+        e.status === 429 ||
+        e.status === 403 ||
+        e.status === 401 ||
+        (e.status !== null && e.status >= 500))
+    )
+      throw e;
     manifest_evidence = { commit: ref, status: "unavailable-or-invalid", error: errorMessage(e) };
   }
   return {
+    observed_at: undefined as string | undefined,
     metadata: meta,
     releases,
     selected,
