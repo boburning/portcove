@@ -704,7 +704,7 @@ export function isHealthObservationHistory(
     !historyHash(value.observation_contract_sha256) ||
     !historyClock(value.observed_at, completed) ||
     !Array.isArray(value.port_ids) ||
-    value.port_ids.length > 4096 ||
+    Buffer.byteLength(JSON.stringify(value)) > HEALTH_HISTORY_BYTES ||
     !value.port_ids.every(historyPortId) ||
     new Set(value.port_ids).size !== value.port_ids.length ||
     (value.release_ref !== undefined && !historyText(value.release_ref, 200)) ||
@@ -1074,7 +1074,12 @@ function prepareHealthInventory(input: unknown, accountingInput: unknown) {
   assertHealthCatalog(input);
   const catalog = structuredClone(input);
   const reviewedAccounting = validateHealthAccountingPolicy(structuredClone(accountingInput));
-  return { catalog, reviewedAccounting, completeInventory: inventory(catalog) };
+  return {
+    catalog,
+    reviewedAccounting,
+    completeInventory: inventory(catalog),
+    portById: new Map(catalog.ports.map((port) => [port.id, port])),
+  };
 }
 
 function prepareHealthCollection(
@@ -1083,21 +1088,22 @@ function prepareHealthCollection(
   accountingInput: unknown,
   prepared = prepareHealthInventory(input, accountingInput),
 ) {
-  const { catalog, reviewedAccounting, completeInventory } = prepared;
+  const { catalog, reviewedAccounting, completeInventory, portById } = prepared;
   if (
     portIds !== null &&
     (!Array.isArray(portIds) ||
       new Set(portIds).size !== portIds.length ||
-      portIds.some((id) => !catalog.ports.some((port) => port.id === id)))
+      portIds.some((id) => !portById.has(id)))
   )
     throw new Error("Scoped health requires unique existing port IDs");
+  const selectedIds = portIds === null ? null : new Set(portIds);
   const selectedPorts = catalog.ports.filter(
-    (port) => portIds === null || portIds.includes(port.id),
+    (port) => selectedIds === null || selectedIds.has(port.id),
   );
   // Keep all shared-location identities and maintenance declarations in a probe.
   // Selecting one port must not erase another port's unaccounted condition.
   const records = completeInventory.records.filter(
-    (record) => portIds === null || record.port_ids.some((id) => portIds.includes(id)),
+    (record) => selectedIds === null || record.port_ids.some((id) => selectedIds.has(id)),
   );
   if (portIds !== null) {
     const order = new Map(portIds.map((id, index) => [id, index]));
@@ -1106,7 +1112,7 @@ function prepareHealthCollection(
     records.sort((left, right) => rank(left) - rank(right));
   }
   const directPorts = completeInventory.directPorts.filter(
-    (id) => portIds === null || portIds.includes(id),
+    (id) => selectedIds === null || selectedIds.has(id),
   );
   // Reviewed identities bind the artifact they describe, independently of UI
   // metadata and other platforms. Format 1 remains readable for old fixtures.
@@ -1116,7 +1122,7 @@ function prepareHealthCollection(
     platform?: string,
     endpoint?: { role: "project" | "acquisition"; provider: string; repository: string },
   ) => {
-    const port = requiredValue(catalog.ports.find((entry) => entry.id === id));
+    const port = requiredValue(portById.get(id));
     const hash =
       reviewedAccounting.format_version === 1
         ? portContract(port)
@@ -1225,6 +1231,7 @@ function prepareHealthCollection(
   return {
     catalog,
     reviewedAccounting,
+    portById,
     selectedPorts,
     records,
     directPorts,
@@ -1282,6 +1289,7 @@ export async function collectRepositoryHealth(
   const {
     catalog,
     reviewedAccounting,
+    portById,
     selectedPorts,
     records,
     directPorts,
@@ -1428,7 +1436,7 @@ export async function collectRepositoryHealth(
           )
           .map((role) =>
             healthEndpointHash(
-              requiredValue(catalog.ports.find((port) => port.id === id)),
+              requiredValue(portById.get(id)),
               role,
               record.provider,
               record.repository,
@@ -1542,9 +1550,7 @@ export async function collectRepositoryHealth(
       record.port_ids.every(
         (id) =>
           record.original_upstream_port_ids?.includes(id) &&
-          ["retired", "superseded", "abandoned"].includes(
-            catalog.ports.find((port) => port.id === id)?.upstream_status ?? "",
-          ),
+          ["retired", "superseded", "abandoned"].includes(portById.get(id)?.upstream_status ?? ""),
       );
     const pinPresent = record.pin_assessment?.status === "provider-reported-pin-present";
     const pinObserved = record.pin_assessment?.status === "provider-reported-pin-observed";

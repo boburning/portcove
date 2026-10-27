@@ -3644,9 +3644,9 @@ function requiredOption(options: Readonly<Record<string, unknown>>, name: string
   return value;
 }
 
-function roadmapLockPath() {
+export function roadmapLockPath(root = projectRoot) {
   const result = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
-    cwd: projectRoot,
+    cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,

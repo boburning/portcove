@@ -221,6 +221,35 @@ retained diagnostics. The continuation adds no daemon, hosted queue, credential
 or Project permission. Cancellation while waiting leaves durable progress; resume
 the same specification rather than editing away completed rows.
 
+Issue-body batches use the same common Roadmap lock and bounded atomic journal
+publication, with an additional specification lock for same-operation ownership.
+An 8 MiB specification references lazily read bounded regular UTF-8 body files;
+the 32 MiB metadata journal is keyed by the exact specification path in the Git
+common directory. Complete input/configuration hashes and numeric issue
+identities bind staged preflight, uncertain writes, verified bodies, resumption
+reads, final body reads and per-issue planning checks. Candidate and actual
+mutation/readback evidence and original failures remain in the operation's
+journal directory. A changed specification requires reconciliation, not a new
+permission to resend prior writes.
+
+Every candidate passes preflight before mutation. Actual writes retain the
+standard body's fresh preimage and current targeted Project validation. An
+exact desired body observed after preflight is an idempotent completion without
+PATCH. A prior ambiguous write must be observed at its exact target; an original
+from-value never authorizes automatic resend. Previously verified reversals stop
+new writes, and final reads/scoped checks retain their completed positions across
+quota windows. Receipts describe independently observed intervals, not an atomic
+global snapshot. Only positively observed pre-admission quota resets wait and
+resume automatically, after releasing both locks. Unknown capacity, HTTP errors,
+conflicts and ambiguous writes retain failures and stop. One shared authenticated
+client supplies scoped validation and quota observations; no process per issue or
+count-triggered global inventory is required.
+
+Scoped checks accept complete requested and direct-related worksets independently
+of the former 100-record count, within an 8 MiB input and 32 MiB retained-evidence
+envelope. Oversized scopes fail as incomplete; independently bounded smaller
+scopes remain usable and cannot establish global health.
+
 `roadmap.mts set-many` and `pr-delivery.mts watch|merge` retain their human
 output by default. `--json` emits one schema-versioned operation envelope on
 stdout with `planned`, `succeeded`, `partial`, `unknown` or `failed` status;
@@ -726,9 +755,7 @@ the actual authorization and quota responses in the diagnostic receipt.
 `set`, `set-many`, port intake/normalization and promotion perform affected checks
 automatically. Exact item IDs resolve directly even when the Project listing
 omits them. Draft field-only updates retain complete direct identity and field
-readback without claiming canonical issue coverage. Substantial changes select a
-full doctor: batches touching more than ten distinct items, Target release or
-Release commitment transitions, and explicit schema reconciliation. Release
+readback without claiming canonical issue coverage. Assignment count never selects a global audit. Target release or Release commitment transitions and explicit schema reconciliation retain a full doctor. Release
 `readiness` and immutable readiness `snapshot` commands also require the full
 doctor. An explicit doctor without `--issue` remains an on-demand full audit.
 

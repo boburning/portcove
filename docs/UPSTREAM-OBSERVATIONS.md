@@ -443,6 +443,13 @@ Incident keys bind the port, location, operation, rule and relevant observation
 contract. Unchanged conditions retain first-seen time and recurrence without a
 new notification; material changes and freshly observed recovery are separate.
 
+Shared location observations retain all applicable catalog port identities within
+the existing 16 MiB history envelope, independently of the former 4,096-ID count.
+The immutable inventory compiles its port-identity lookup once. Resource admission
+uses indexed membership for growing selected worksets rather than repeatedly
+scanning every catalog record for every selected ID. This changes neither the
+request estimate nor endpoint ownership, coverage or trust semantics.
+
 The checkpoint keeps a separate `incident_history` within its existing 16 MiB
 physical limit. An inconclusive 503
 does not erase a prior 404: a later matching 404 retains its original first-seen
