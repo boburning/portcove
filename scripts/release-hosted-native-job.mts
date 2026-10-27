@@ -1,4 +1,4 @@
-/** Fixed original-process Linux pre-sign pipeline and public upload handoff.
+/** Fixed original-process native pipeline and public upload handoff.
  * This does not dispatch a job, upload, admit a proof, or activate production. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -27,7 +27,12 @@ import { prepareActualHostedLinuxNativeStageReport } from "./release-native-linu
 import {
   signActualHostedLinuxNativeProof,
   requireActualHostedLinuxNativeProof,
+  signActualHostedWindowsNativeProof,
+  requireActualHostedWindowsNativeProof,
 } from "./release-hosted-native-proof-producer.mts";
+import { requireActualHostedWindowsStage } from "./release-hosted-native-windows-session.mts";
+import { captureActualHostedNativeWindowsInvocation } from "./release-hosted-native-windows-capture.mts";
+import { prepareActualHostedWindowsNativeStageReport } from "./release-native-pre-sign-report.mts";
 import { readHostedNativeProofArtifact } from "./release-hosted-native-artifact.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
@@ -36,10 +41,12 @@ import { isRecord } from "./runtime-values.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const keys = ["subject", "report", "capture", "bundle"] as const;
+type Platform = "linux-x86_64" | "windows-x86_64";
 type Proof = Awaited<ReturnType<typeof requireActualHostedLinuxNativeProof>>;
 const pending = new WeakMap<
   object,
   {
+    platform: Platform;
     proof: object;
     ready: Buffer;
     original: Proof;
@@ -84,7 +91,7 @@ export async function prepareActualHostedLinuxPreSignJob(
   const capture = await captureActualHostedNativeLinuxInvocation(request, runtime);
   const report = await prepareActualHostedLinuxNativeStageReport(capture);
   const proof = await signActualHostedLinuxNativeProof(report);
-  return prepareUpload(proof, "payload-signing");
+  return prepareUpload(proof, "payload-signing", "linux-x86_64");
 }
 
 export async function prepareActualHostedLinuxPostSignJob(
@@ -112,11 +119,28 @@ export async function prepareActualHostedLinuxPostSignJob(
   const capture = await captureActualHostedNativeLinuxInvocation(request, runtime);
   const report = await prepareActualHostedLinuxNativeStageReport(capture);
   const proof = await signActualHostedLinuxNativeProof(report);
-  return prepareUpload(proof, "release-publication");
+  return prepareUpload(proof, "release-publication", "linux-x86_64");
 }
 
-async function prepareUpload(proof: object, stage: "payload-signing" | "release-publication") {
-  const original = await requireActualHostedLinuxNativeProof(proof);
+/** Only the original Windows session can choose and execute its next stage. */
+export async function prepareActualHostedWindowsStageJob(stageReceipt: object) {
+  const stage = await requireActualHostedWindowsStage(stageReceipt);
+  const capture = await captureActualHostedNativeWindowsInvocation(stageReceipt);
+  const report = await prepareActualHostedWindowsNativeStageReport(capture);
+  const proof = await signActualHostedWindowsNativeProof(report);
+  return prepareUpload(proof, stage.kind, "windows-x86_64");
+}
+async function originalProof(proof: object, platform: Platform) {
+  return platform === "linux-x86_64"
+    ? requireActualHostedLinuxNativeProof(proof)
+    : requireActualHostedWindowsNativeProof(proof);
+}
+async function prepareUpload(
+  proof: object,
+  stage: "payload-signing" | "release-publication",
+  platform: Platform,
+) {
+  const original = await originalProof(proof, platform);
   assert.equal(original.stage, stage);
   const ready = Buffer.from(
     JSON.stringify({
@@ -135,15 +159,17 @@ async function prepareUpload(proof: object, stage: "payload-signing" | "release-
   );
   await retain(path.join(original.directory, "native-upload-ready.json"), ready);
   // Recheck after publication; a partially completed handoff is never retried.
-  await requireActualHostedLinuxNativeProof(proof);
+  await originalProof(proof, platform);
   const receipt = Object.freeze({
     kind:
-      stage === "payload-signing"
-        ? "original-hosted-linux-pre-sign-upload"
-        : "original-hosted-linux-post-sign-upload",
+      platform === "linux-x86_64"
+        ? stage === "payload-signing"
+          ? "original-hosted-linux-pre-sign-upload"
+          : "original-hosted-linux-post-sign-upload"
+        : `original-hosted-windows-${stage}-upload`,
     authority: "none",
   });
-  pending.set(receipt, { proof, ready, original, attempted: false, stage });
+  pending.set(receipt, { platform, proof, ready, original, attempted: false, stage });
   return {
     receipt,
     ready_file: path.join(original.directory, "native-upload-ready.json"),
@@ -160,18 +186,31 @@ export async function readBackActualHostedLinuxPreSignUpload(
   receipt: object,
   acknowledgement: unknown,
 ) {
-  return readBackUpload(receipt, acknowledgement, "payload-signing");
+  return readBackUpload(receipt, acknowledgement, "payload-signing", "linux-x86_64");
 }
 export function readBackActualHostedLinuxPostSignUpload(receipt: object, acknowledgement: unknown) {
-  return readBackUpload(receipt, acknowledgement, "release-publication");
+  return readBackUpload(receipt, acknowledgement, "release-publication", "linux-x86_64");
+}
+export function readBackActualHostedWindowsPreSignUpload(
+  receipt: object,
+  acknowledgement: unknown,
+) {
+  return readBackUpload(receipt, acknowledgement, "payload-signing", "windows-x86_64");
+}
+export function readBackActualHostedWindowsPostSignUpload(
+  receipt: object,
+  acknowledgement: unknown,
+) {
+  return readBackUpload(receipt, acknowledgement, "release-publication", "windows-x86_64");
 }
 async function readBackUpload(
   receipt: object,
   acknowledgement: unknown,
   stage: "payload-signing" | "release-publication",
+  platform: Platform,
 ) {
   const state = pending.get(receipt);
-  if (!state || state.attempted || state.stage !== stage)
+  if (!state || state.platform !== platform || state.attempted || state.stage !== stage)
     throw new Error("original native upload requires explicit recovery");
   state.attempted = true;
   let phase = "acknowledgement";
@@ -182,7 +221,7 @@ async function readBackUpload(
     const artifactSha256 = acknowledgement.sha256;
     assert.ok(Number.isSafeInteger(artifactId) && Number(artifactId) > 0);
     assert.ok(typeof artifactSha256 === "string" && /^[a-f0-9]{64}$/u.test(artifactSha256));
-    const original = await requireActualHostedLinuxNativeProof(state.proof);
+    const original = await originalProof(state.proof, platform);
     assert.equal(original.directory, state.original.directory);
     assert.ok(
       (
@@ -213,7 +252,7 @@ async function readBackUpload(
           controller_revision: original.producer.controller_revision,
           run_id: original.producer.run_id,
           run_attempt: original.producer.run_attempt,
-          platform_label: "linux-x86_64",
+          platform_label: platform,
           stage,
         },
         original.directory,
@@ -229,7 +268,7 @@ async function readBackUpload(
         result.files[key].equals(original.files[key]),
         "uploaded native proof differs from original capture",
       );
-    await requireActualHostedLinuxNativeProof(state.proof);
+    await originalProof(state.proof, platform);
     remaining();
     const readback = {
       schema_version: 1,
@@ -243,7 +282,7 @@ async function readBackUpload(
       path.join(original.directory, "native-upload-readback.json"),
       Buffer.from(JSON.stringify(readback)),
     );
-    await requireActualHostedLinuxNativeProof(state.proof);
+    await originalProof(state.proof, platform);
     return readback;
   } catch {
     try {

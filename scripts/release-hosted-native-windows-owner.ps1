@@ -43,6 +43,23 @@ function Read-OwnerRequest([string]$Name,[long]$Sequence,[string]$Keys) {
         Start-Sleep -Milliseconds 50
     }
 }
+function Close-OwnerWorker([Diagnostics.Process]$Worker,$Monitor,[long]$DeadlineTicks,[long]$Frequency,$Cleanup) {
+    try {
+        if(-not $Worker.HasExited){$Worker.Kill($true)}
+        if(-not $Worker.WaitForExit(5000)){$Cleanup.Add('B broker exit unobserved')}
+    }catch{$Cleanup.Add('B broker cleanup unavailable')}
+    finally {
+        if($Monitor) {
+            try {
+                $remaining=[Math]::Min(6000,[Math]::Max(0,[long](($DeadlineTicks-[Diagnostics.Stopwatch]::GetTimestamp())*1000L/$Frequency)))
+                if($remaining -le 0 -or -not $Monitor.Completion.Wait([int]$remaining)){$Cleanup.Add('B monitor retention incomplete; original handle retained')}
+                else{$null=$Monitor.Completion.GetAwaiter().GetResult()}
+            }catch{$Cleanup.Add('B failure stream/exit retention unavailable')}
+        }
+        # A still-running observer retains its process handle until original owner exit.
+        if(-not $Monitor -or $Monitor.Completion.IsCompleted){$Worker.Dispose()}
+    }
+}
 function Read-OriginalAccount([bool]$Enabled) {
     $current=Get-LocalUser -SID $account.SID -ErrorAction Stop
     if($current.SID.Value -cne $account.SID.Value -or $current.Name -cne 'PortcoveNativeQual' -or
@@ -104,7 +121,7 @@ if($start.full_deadline_ticks -cnotmatch '^[1-9][0-9]{0,18}$' -or $start.active_
 $fullDeadlineTicks=[long]$start.full_deadline_ticks;$activeDeadlineTicks=[long]$start.active_deadline_ticks
 if($fullDeadlineTicks-$sample -gt 570L*$frequency -or $fullDeadlineTicks-$activeDeadlineTicks -ne 30L*$frequency){throw 'Original cleanup reserve/clock differs'}
 Assert-OwnerController
-$account=$null;$password=$null;$station=$null;$group=$null;$worker=$null;$failure='';$cleanup=[Collections.Generic.List[string]]::new()
+$account=$null;$password=$null;$station=$null;$group=$null;$worker=$null;$workerMonitor=$null;$failure='';$cleanup=[Collections.Generic.List[string]]::new()
 $description='Portcove hosted native '+$context.binding
 try {
     if(Get-LocalUser -Name 'PortcoveNativeQual' -ErrorAction SilentlyContinue){throw 'Existing qualification account cannot be adopted'}
@@ -173,10 +190,12 @@ try {
             $system=[Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)
             $environment=@{SystemRoot=$system;WINDIR=$system;PATH=((Split-Path $workerNode)+';C:\Program Files\Git\cmd;'+(Join-Path $system 'System32'));PATHEXT='.EXE';USERPROFILE=$context.root;HOME=$context.root;TEMP=$context.root;TMP=$context.root}
             foreach($name in $environment.Keys){$startInfo.Environment[$name]=$environment[$name]}
+            $workerMonitor=$null
             $worker=[Diagnostics.Process]::Start($startInfo)
             $workerCreated=$worker.StartTime.ToFileTimeUtc().ToString()
             $outputCapture=[Portcove.NativeQualification.NativePipeCapture]::new($worker.StandardOutput.BaseStream)
             $errorCapture=[Portcove.NativeQualification.NativePipeCapture]::new($worker.StandardError.BaseStream)
+            $workerMonitor=[Portcove.NativeQualification.OwnedBrokerChildMonitor]::new($worker,$outputCapture,$errorCapture,$capture,$fullDeadlineTicks)
             $members=@([Portcove.NativeQualification.AccountLauncher]::CurrentSupervisorProcessIds())
             if($worker.HasExited -or $members -notcontains $PID -or $members -notcontains $worker.Id){throw 'B did not inherit the original prepared supervisor job'}
             Write-OwnerRecord ($stage+'-worker.json') ([ordered]@{binding=$context.binding;stage=$stage;pid=$worker.Id;created_filetime=$workerCreated;owner_pid=$PID;owner_created_filetime=$ownerCreated;image=$workerNode;request_sha256=$request.worker_request_sha256;supervisor_job_pids=$members;authority='none'})
@@ -189,6 +208,8 @@ try {
             if($station){$station.Dispose();if(-not $station.Restored){throw 'Stage station restoration not observed'};$station=$null}
         }
         if(-not $worker -or -not $worker.HasExited -or $worker.ExitCode -ne 0){throw 'B worker exit was not observed successful'}
+        $monitorWait=[Math]::Min(6000,[Math]::Max(0,[long](($fullDeadlineTicks-[Diagnostics.Stopwatch]::GetTimestamp())*1000L/$frequency)))
+        if($monitorWait -le 0 -or -not $workerMonitor.Completion.Wait([int]$monitorWait) -or -not $workerMonitor.Completion.GetAwaiter().GetResult()){throw 'B worker observation did not settle successful'}
         foreach($captureTask in @($outputCapture,$errorCapture)) {
             $remaining=[Math]::Min(5000,[Math]::Max(0,[long](($fullDeadlineTicks-[Diagnostics.Stopwatch]::GetTimestamp())*1000L/$frequency)))
             if($remaining -le 0 -or -not $captureTask.Completion.Wait([int]$remaining)){throw 'B output EOF unobserved inside original deadline'}
@@ -209,7 +230,7 @@ try {
 }catch {
     $failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))
 }finally {
-    if($worker){try{if(-not $worker.HasExited){$worker.Kill($true)};if(-not $worker.WaitForExit(5000)){$cleanup.Add('B broker exit unobserved')}}catch{$cleanup.Add('B broker cleanup unavailable')}finally{$worker.Dispose()}}
+    if($worker){Close-OwnerWorker $worker $workerMonitor $fullDeadlineTicks $frequency $cleanup}
     if($account){try{Disable-OriginalAccount}catch{$cleanup.Add('account disable/readback unavailable')}}
     if($group){try{$group.Dispose()}catch{$cleanup.Add('stage group cleanup unavailable')}}
     if($station){try{$station.Dispose();if(-not $station.Restored){$cleanup.Add('station restoration unobserved')}}catch{$cleanup.Add('station restoration unavailable')}}

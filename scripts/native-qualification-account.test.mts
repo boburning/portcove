@@ -559,3 +559,92 @@ void test(
   { skip: process.platform !== "win32" },
   (context) => runMemoryBridgeFixture(context, true),
 );
+
+void test(
+  "owned broker monitor retains early and acknowledged worker failures without waiting for bridge or account effects",
+  { skip: process.platform !== "win32", timeout: 30000 },
+  (context) => {
+    const root = disposableDirectory(context, path.join(homedir(), ".pc-broker-monitor-"));
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_HELPER))
+$tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_NATIVE_OWNER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'Owner source parser failed'}
+$function=$ast.Find({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Close-OwnerWorker'},$false)
+if(-not $function){throw 'Actual owner worker cleanup boundary missing'}
+. ([scriptblock]::Create($function.Extent.Text))
+$results=@()
+foreach($case in @('before-ready','after-ack','early-membership-refusal','early-zero','deadline')) {
+ $root=Join-Path $env:PORTCOVE_TEST_NATIVE_ROOT $case;$null=New-Item -ItemType Directory -Path $root
+ if($case -ceq 'after-ack'){[IO.File]::WriteAllText((Join-Path $root 'worker-start.json'),'owned current-token fixture acknowledgment')}
+ $code=if($case -ceq 'deadline'){"process.stderr.write('deadline');setTimeout(()=>{},10000)"}elseif($case -ceq 'early-zero'){'process.exit(0)'}else{"process.stderr.write('$case');process.exit(7)"}
+ $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$env:PORTCOVE_TEST_NATIVE_NODE;$start.WorkingDirectory=$root
+ $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+ $start.ArgumentList.Add('-e');$start.ArgumentList.Add($code)
+ $child=[Diagnostics.Process]::Start($start);$closed=$false;$pidValue=$child.Id
+ try {
+  $created=$child.StartTime.ToFileTimeUtc().ToString()
+  $output=[Portcove.NativeQualification.NativePipeCapture]::new($child.StandardOutput.BaseStream)
+  $workerError=[Portcove.NativeQualification.NativePipeCapture]::new($child.StandardError.BaseStream)
+  $deadline=[Diagnostics.Stopwatch]::GetTimestamp()+$(if($case -ceq 'deadline'){1L}else{10L})*[Diagnostics.Stopwatch]::Frequency
+  $clock=[Diagnostics.Stopwatch]::StartNew()
+  $monitor=[Portcove.NativeQualification.OwnedBrokerChildMonitor]::new($child,$output,$workerError,$root,$deadline)
+  if($case -ceq 'early-membership-refusal'){
+    if(-not $child.WaitForExit(5000)){throw 'Fixed early failure did not exit'}
+    $cleanup=[Collections.Generic.List[string]]::new()
+    try{throw 'inert membership refusal'}catch{Close-OwnerWorker $child $monitor $deadline ([Diagnostics.Stopwatch]::Frequency) $cleanup;$closed=$true}
+    if($cleanup.Count){throw ($cleanup -join ';')}
+  }
+  if(-not $monitor.Completion.Wait(8000) -or $monitor.Completion.GetAwaiter().GetResult()){throw 'Worker failure monitor did not refuse promptly'}
+  $record=Get-Content -LiteralPath (Join-Path $root 'worker-failure.json') -Raw|ConvertFrom-Json
+  if($record.pid -ne $pidValue -or $record.created_filetime -cne $created -or $record.authority -cne 'none'){throw 'Original monitored generation differs'}
+  $stderr=[IO.File]::ReadAllText((Join-Path $root 'worker-failure.stderr.bin'))
+  if($case -in @('before-ready','after-ack','early-membership-refusal') -and ($record.exit_code -ne 7 -or $record.reason -cne 'nonzero' -or $stderr -cne $case)){throw 'Exact failure stderr/exit was lost'}
+  if($case -ceq 'early-zero' -and $record.reason -cne 'early-zero'){throw 'Zero exit without protocol result was accepted'}
+  if($case -ceq 'deadline' -and $record.reason -cne 'deadline'){throw 'Original monotonic deadline was renewed'}
+  $results+=@{case=$case;reason=$record.reason;elapsed_ms=$clock.ElapsedMilliseconds;scope='current-token process/streams only; no account, station, installer or credential effects'}
+ }finally{if(-not $closed){if(-not $child.HasExited){$child.Kill($true)};if(-not $child.WaitForExit(5000)){throw 'Owned fixture child exit unobserved'};$child.Dispose()}}
+}
+ConvertTo-Json -InputObject $results -Depth 4 -Compress
+`;
+    const result = spawnSync(
+      windowsSourceSystemExecutables.powershell,
+      [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      {
+        env: {
+          ...process.env,
+          PORTCOVE_TEST_NATIVE_HELPER: fileURLToPath(
+            new URL("./native-qualification-account.cs.txt", import.meta.url),
+          ),
+          PORTCOVE_TEST_NATIVE_ROOT: root,
+          PORTCOVE_TEST_NATIVE_OWNER: fileURLToPath(
+            new URL("./release-hosted-native-windows-owner.ps1", import.meta.url),
+          ),
+          PORTCOVE_TEST_NATIVE_NODE: process.execPath,
+        },
+        encoding: "utf8",
+        timeout: 25000,
+        maxBuffer: 16384,
+        windowsHide: true,
+      },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    const observed = JSON.parse(result.stdout) as {
+      case: string;
+      reason: string;
+      elapsed_ms: number;
+    }[];
+    assert.deepEqual(
+      observed.map((item) => item.case),
+      ["before-ready", "after-ack", "early-membership-refusal", "early-zero", "deadline"],
+    );
+    assert.ok(observed.every((item) => item.elapsed_ms < 8000));
+  },
+);

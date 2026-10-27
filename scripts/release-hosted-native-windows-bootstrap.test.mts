@@ -156,3 +156,26 @@ console.log('controlled Windows preparation passed');
     );
   },
 );
+
+void test("Windows connected execution and proof holds refuse before preparation, credentials or provider requests", (t) => {
+  fixture(
+    t,
+    String.raw`
+import assert from 'node:assert/strict';
+import {readdir} from 'node:fs/promises';
+let requests=0;globalThis.fetch=()=>{requests++;throw Error('provider request forbidden')};
+const runner=await import(${JSON.stringify(new URL("./release-hosted-native-runner.mts", import.meta.url).href)});
+assert.equal(runner.hostedWindowsNativeJobExecutionAuthorized,false);
+await assert.rejects(runner.runConfiguredHostedWindowsNativeJob({},process.argv[1],performance.now()+1000,'foreign'),/awaits separate owner authority/);
+const session=await import(${JSON.stringify(new URL("./release-hosted-native-windows-session.mts", import.meta.url).href)});
+assert.equal(session.hostedWindowsSessionExecutionAuthorized,false);
+await assert.rejects(session.startActualHostedWindowsSession({}),/authority/);
+await assert.rejects(session.refuseActualHostedWindowsSession({},Error('foreign')),/Original Windows session/);
+const proof=await import(${JSON.stringify(new URL("./release-hosted-native-proof-producer.mts", import.meta.url).href)});
+assert.equal(proof.hostedWindowsProofExecutionAuthorized,false);
+await assert.rejects(proof.signActualHostedWindowsNativeProof({}),/awaits separate owner authority/);
+assert.equal(requests,0);assert.deepEqual(await readdir(process.argv[1]),[]);
+console.log('controlled Windows preparation passed; held connection refused before effects');
+`,
+  );
+});

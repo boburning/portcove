@@ -30,7 +30,7 @@ import {
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { runResourceCommand } from "./resource-command.mts";
-import { runRustTests } from "./run-rust-tests.mts";
+import { runRustTests, type RustRunDependencies } from "./run-rust-tests.mts";
 import {
   hostedWindowsOwnerDeadline,
   hostedWindowsWorkerAbi,
@@ -58,7 +58,7 @@ const attempts = new WeakSet<object>();
 type Installation = Awaited<ReturnType<typeof requireActualHostedWindowsInstallation>>;
 type Parent = Awaited<ReturnType<typeof requireActualHostedNativeParentSource>>;
 type State = {
-  supervisor?: { pid: number; identity: string };
+  supervisor?: { pid: number | undefined; identity?: string };
   installation: object;
   setupSource: Buffer;
   recoverySource: Buffer;
@@ -264,6 +264,42 @@ async function recheck(state: State) {
   active(state);
 }
 
+function captureOwnerSupervisor(
+  state: State,
+  ownerOutput: readonly number[],
+): NonNullable<RustRunDependencies["spawn"]> {
+  return (command, childArgs, childOptions) => {
+    assert.ok(!state.supervisor, "Exactly one original supervisor spawn required");
+    const child = spawn(command, [...childArgs], {
+      ...childOptions,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    // Return the child to runRustTests before any fallible identity lookup.
+    state.supervisor = { pid: child.pid };
+    for (const [stream, index] of [
+      [child.stdout, 0],
+      [child.stderr, 1],
+    ] as const) {
+      let retained = 0;
+      stream.on("data", (bytes: Buffer) => {
+        try {
+          const count = Math.min(bytes.length, Math.max(0, 65536 - retained));
+          if (count) writeSync(ownerOutput[index]!, bytes.subarray(0, count));
+          retained += bytes.length;
+          assert.ok(retained <= 65536);
+        } catch (error) {
+          state.error ??= error;
+          state.signal.emit("SIGTERM");
+        }
+      });
+      stream.on("error", (error) => {
+        state.error ??= error;
+        state.signal.emit("SIGTERM");
+      });
+    }
+    return child;
+  };
+}
 export async function startActualHostedWindowsSession(installationReceipt: object) {
   assert.ok(
     hostedWindowsSessionExecutionAuthorized,
@@ -394,7 +430,6 @@ export async function startActualHostedWindowsSession(installationReceipt: objec
   const ownerOutput = ["owner.stdout.bin", "owner.stderr.bin"].map((name) =>
     openSync(path.join(root, name), "wx", 0o600),
   );
-  let outputFailure: unknown;
   state.running = runResourceCommand(
     "analysis",
     windowsSourceSystemExecutables.powershell,
@@ -420,41 +455,7 @@ export async function startActualHostedWindowsSession(installationReceipt: objec
           ...support,
           tempRoot: root,
           signalTarget: signal,
-          spawn: (command, childArgs, childOptions) => {
-            assert.ok(!state.supervisor, "Exactly one original supervisor spawn required");
-            const child = spawn(command, [...childArgs], {
-              ...childOptions,
-              stdio: ["pipe", "pipe", "pipe"],
-            });
-            assert.ok(child.pid);
-            const identity = readProcessIdentity(child.pid);
-            assert.ok(identity);
-            state.supervisor = { pid: child.pid, identity };
-            for (const [stream, index] of [
-              [child.stdout, 0],
-              [child.stderr, 1],
-            ] as const) {
-              let retained = 0;
-              stream.on("data", (bytes: Buffer) => {
-                try {
-                  const count = Math.min(bytes.length, Math.max(0, 65536 - retained));
-                  if (count) writeSync(ownerOutput[index]!, bytes.subarray(0, count));
-                  retained += bytes.length;
-                  assert.ok(retained <= 65536);
-                } catch (error) {
-                  outputFailure ??= error;
-                  state.error ??= error;
-                  signal.emit("SIGTERM");
-                }
-              });
-              stream.on("error", (error) => {
-                outputFailure ??= error;
-                state.error ??= error;
-                signal.emit("SIGTERM");
-              });
-            }
-            return child;
-          },
+          spawn: captureOwnerSupervisor(state, ownerOutput),
         }),
     },
   );
@@ -466,7 +467,6 @@ export async function startActualHostedWindowsSession(installationReceipt: objec
   void state.running.then(
     (status) => {
       state.status = status;
-      state.error ??= outputFailure;
     },
     (error) => {
       state.error = error;
@@ -492,8 +492,10 @@ export async function startActualHostedWindowsSession(installationReceipt: objec
     );
     const pid = Number(value.owner_pid);
     assert.equal(filetime(readProcessIdentity(pid), pid), value.owner_created_filetime);
-    assert.ok(state.supervisor);
-    assert.equal(readProcessIdentity(state.supervisor.pid), state.supervisor.identity);
+    assert.ok(state.supervisor && state.supervisor.pid);
+    const supervisorIdentity = readProcessIdentity(state.supervisor.pid);
+    assert.ok(supervisorIdentity);
+    state.supervisor.identity = supervisorIdentity;
     await inspectChildLineage(
       state,
       pid,
@@ -712,6 +714,21 @@ async function readWorkerRecord(
     file = path.join(stage.directory, name + ".json");
   while (true) {
     active(state);
+    try {
+      const failure = await readControllerToolFile(
+        path.join(stage.directory, "worker-failure.json"),
+        16384,
+      );
+      const observed: unknown = JSON.parse(failure.toString("utf8"));
+      assert.ok(
+        isRecord(observed) && observed.schema_version === 1 && observed.authority === "none",
+      );
+      throw new Error(
+        "Original B worker refused; retain bounded worker-failure streams and exit evidence",
+      );
+    } catch (error) {
+      if (!["ENOENT", "EBUSY", "EACCES"].includes(errorCode(error) ?? "")) throw error;
+    }
     try {
       const info = await lstat(marker);
       assert.ok(info.isFile() && !info.isSymbolicLink() && info.nlink === 1 && info.size <= 64);
@@ -1420,6 +1437,13 @@ async function recoverState(state: State) {
   });
 }
 
+/** Failure only: a downstream capture/upload refusal stops the original owner and recovery once. */
+export async function refuseActualHostedWindowsSession(receipt: object, error: unknown) {
+  const state = sessions.get(receipt);
+  assert.ok(state, "Original Windows session required to refuse execution");
+  await failSession(state, error);
+}
+
 async function failSession(state: State, error: unknown) {
   state.stopped = true;
   state.signal.emit("SIGTERM");
@@ -1474,8 +1498,10 @@ export async function requireActualHostedWindowsStage(receipt: object) {
       source_root: state.prepared.root,
       candidate: stage.candidate,
       tools: state.prepared.tools,
+      tool_paths: state.tools,
+      system_custody: new Map(state.prepared.system_custody),
       runtime: state.prepared.runtime,
-      parent: state.prepared.parent,
+      parent: stage.parent,
       deadline: state.deadline,
       authority: "none",
     });
@@ -1484,6 +1510,35 @@ export async function requireActualHostedWindowsStage(receipt: object) {
     await failSession(state, error);
     throw error;
   }
+}
+async function recheckTerminalSettlement(state: State) {
+  const current = () => {
+    assertControllerBootstrapEnvironment();
+    state.parent.recheck();
+    assert.ok(
+      !state.stopped &&
+        state.status === 0 &&
+        state.error === undefined &&
+        performance.now() < state.deadline,
+      "Original terminal settlement expired or revoked",
+    );
+  };
+  current();
+  recheckNativeRuntimeCustody(state.files, state.custody);
+  await requireActualHostedWindowsDependencies(state.prepared.dependencies);
+  const runtime = await requireHostedNativeRuntime(state.prepared.runtime, state.prepared.parent);
+  state.deadline = Math.min(state.deadline, runtime.deadline);
+  await requireActualHostedNativeParentSource(state.prepared.parent);
+  if (state.postParent) await requireActualHostedNativeParentSource(state.postParent);
+  recheckNativeRuntimeCustody(state.files, state.custody);
+  current();
+  const identity = readProcessIdentity(state.owner.pid);
+  assert.notEqual(
+    identity && filetime(identity, state.owner.pid),
+    state.owner.created,
+    "Original owner exit unobserved",
+  );
+  current();
 }
 export async function finishActualHostedWindowsSession(receipt: object) {
   const state = sessions.get(receipt);
@@ -1507,7 +1562,9 @@ export async function finishActualHostedWindowsSession(receipt: object) {
         record.cleanup_failures.length === 0 &&
         record.credential_disposed === true,
     );
+    await recheckTerminalSettlement(state);
     await inspectOriginalHostedWindowsAccount(state, false);
+    await recheckTerminalSettlement(state);
     state.stopped = true;
     return Object.freeze({
       directory: state.root,
