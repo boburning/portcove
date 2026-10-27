@@ -211,11 +211,15 @@ if(command==="pnpm") {
  process.exit(process.cwd()===process.env.PCV_TEST_PROJECT?0:94);
 }
 if(command==="rustc") {if(process.env.PCV_TEST_MISSING_RUST)process.exit(1);console.log("rustc "+manifest.rust.channel+" (fixture)");process.exit(0)}
-if(command==="cargo") {console.log(args[0]==="nextest"?"cargo-nextest "+manifest.tools.find(t=>t.id==="cargo-nextest").version:"fixture component");process.exit(0)}
+if(command==="cargo") {
+ if(args[0]==="nextest"&&process.env.PCV_TEST_MISSING_NEXTEST)process.exit(1);
+ if(args[0]==="binstall"&&process.env.PCV_TEST_TOOL_INSTALL_FAILURE) {console.error("fixture pinned tool install failed");process.exit(74)}
+ console.log(args[0]==="nextest"?"cargo-nextest "+manifest.tools.find(t=>t.id==="cargo-nextest").version:"fixture component");process.exit(0);
+}
 process.exit(73);
 `,
   );
-  for (const command of ["node", "pnpm", "rustc", "cargo", "rustup", "aqua"]) {
+  for (const command of ["node", "pnpm", "rustc", "cargo", "cargo-binstall", "rustup", "aqua"]) {
     const name = path.join(bin, command + (process.platform === "win32" ? ".cmd" : ""));
     const text =
       process.platform === "win32"
@@ -276,6 +280,7 @@ void test(
     ]);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
+    assert.match(result.stdout, /Requested pinned Portcove tools are ready \(frontend\)\./);
     const calls = fixture.calls();
     assert.deepEqual(
       calls.map((call) => call[0]),
@@ -307,6 +312,7 @@ void test(
     let start = fixture.calls().length;
     const warm = fixture.run("bash", args);
     assert.equal(warm.status, 0, warm.stderr);
+    assert.match(warm.stdout, /Requested pinned Portcove tools are ready \(frontend\)\./);
     const warmCalls = fixture.calls().slice(start);
     assert.deepEqual(
       warmCalls.filter((call) => ["pnpm", "hooks", "doctor"].includes(call[0] ?? "")),
@@ -337,7 +343,7 @@ void test(
 void test(
   "POSIX Core warm setup selects only nextest; failed Rust acquisition preserves prior state",
   { skip: process.platform === "win32" },
-  (t) => {
+  async (t) => {
     const fixture = bootstrapFixture(t);
     const result = fixture.run("bash", ["scripts/bootstrap-quality-tools.sh", "--profile", "core"]);
     assert.equal(result.status, 0, result.stderr);
@@ -356,6 +362,25 @@ void test(
       { PCV_TEST_MISSING_RUST: "1" },
     );
     assert.equal(failed.status, 73, failed.stderr);
+    const beforeMissingTool = fixture.calls().length;
+    const missingTool = fixture.run(
+      "bash",
+      ["scripts/bootstrap-quality-tools.sh", "--profile", "core"],
+      { PCV_TEST_MISSING_NEXTEST: "1", PCV_TEST_TOOL_INSTALL_FAILURE: "1" },
+    );
+    assert.equal(missingTool.status, 74, missingTool.stderr);
+    assert.match(missingTool.stderr, /fixture pinned tool install failed/);
+    const selected = (await developmentCapabilityPlan("core")).setup.cargo_tools;
+    assert.equal(selected.length, 1);
+    const failedToolCalls = fixture.calls().slice(beforeMissingTool);
+    assert.deepEqual(failedToolCalls.at(-1), [
+      "cargo",
+      "binstall",
+      "--no-confirm",
+      "--locked",
+      `${selected[0]!.crate}@${selected[0]!.version}`,
+    ]);
+    assert.ok(!failedToolCalls.some((call) => call[0] === "doctor"));
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
     assert.ok(!fixture.calls().some((call) => ["aqua", "pnpm"].includes(call[0] ?? "")));
   },

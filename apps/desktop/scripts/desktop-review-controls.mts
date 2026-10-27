@@ -2,6 +2,7 @@ import type { WebDriver, WebElement, Locator } from "selenium-webdriver";
 import type { PortDefinition } from "../src/transport-types.generated.js";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
+import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 // Shared native review interactions; visibility waits never bypass product consent.
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
@@ -56,26 +57,6 @@ export async function openCatalogPortAfterRefresh(
   );
   await clearCatalogFilters(browser);
   await selectCatalogPort(browser, port.id);
-}
-
-/** Observe exact port membership; a grouped card is not an installation identity. */
-export function decodeDiscoverPortIds(value: string | null): string[] {
-  const ids: unknown = JSON.parse(value ?? "null");
-  assert.ok(Array.isArray(ids), "Discover group lost its exact port identities");
-  const candidates: unknown[] = ids;
-  const validated = candidates.map((id) => {
-    assert.ok(
-      typeof id === "string" && id.length > 0,
-      "Discover group lost its exact port identities",
-    );
-    return id;
-  });
-  assert.equal(
-    new Set(validated).size,
-    validated.length,
-    "Discover group repeated a port identity",
-  );
-  return validated;
 }
 
 export async function catalogPortGroup(browser: WebDriver, portId: string): Promise<WebElement> {
@@ -522,4 +503,7 @@ export async function captureAccessibilityReport(
   assertNoAccessibilityViolations(accessibility);
 }
 
-export { assertReviewFieldPresentation } from "./desktop-review-presentation.mts";
+export {
+  assertReviewFieldPresentation,
+  decodeDiscoverPortIds,
+} from "./desktop-review-presentation.mts";
