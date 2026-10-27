@@ -21,6 +21,8 @@ it.each([
   ["back up data", "saves"],
   ["restore backup", "saves"],
   ["run reviewed game update", "versions"],
+  ["acquire_game_update", "versions"],
+  ["discard_game_update_acquisition", "versions"],
   ["activate staged update", "versions"],
   ["prepare game data", "files"],
   ["verify", "manage"],

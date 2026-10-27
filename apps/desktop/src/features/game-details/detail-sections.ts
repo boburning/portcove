@@ -16,6 +16,8 @@ export function detailWorkSection(operation: string): DetailSection {
     [
       "check",
       "run reviewed game update",
+      "acquire_game_update",
+      "discard_game_update_acquisition",
       "activate staged update",
       "rollback",
       "channel",

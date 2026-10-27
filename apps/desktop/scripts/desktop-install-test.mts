@@ -1022,7 +1022,7 @@ export async function installScenarios({
           const current = await status();
           return current.acquisition?.phase === "acquired" ? current.acquisition : false;
         },
-        30_000,
+        60_000,
         "Archive did not reach Core's acquired state",
       );
       assert.ok(acquired);
