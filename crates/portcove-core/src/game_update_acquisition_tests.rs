@@ -850,6 +850,80 @@ async fn foreign_members_or_wrong_resource_discard_refuse_before_removing_bytes(
 }
 
 #[tokio::test]
+async fn journal_staging_identity_survives_canonical_reopen_without_admitting_foreign_paths() {
+    let (temporary, service, _server) = fixture(false, false);
+    let authorization = grant(&service).await;
+    let acquired = service
+        .acquire_game_update(PORT, &authorization.token, acquisition_event)
+        .await
+        .unwrap();
+    let record = OperationStore::new(service.library.clone())
+        .get(&acquired.id)
+        .unwrap()
+        .unwrap();
+    let private = root(&service.library, &acquired.id).unwrap();
+    let original = fs::read(file(&private, 0)).unwrap();
+    let reopened = Library::open(fs::canonicalize(service.library.root()).unwrap()).unwrap();
+    let observed = OperationStore::new(reopened.clone())
+        .get(&acquired.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(observed.id, acquired.id);
+    assert_eq!(observed.paths.staging, record.paths.staging);
+    assert_eq!(
+        observed.update_acquisition.unwrap().view.phase,
+        Phase::Acquired
+    );
+
+    let foreign = temporary.path().join("foreign-acquisitions");
+    fs::create_dir(&foreign).unwrap();
+    for staging in [
+        None,
+        Some(PathBuf::from("downloads/update-acquisition-v1").join(&acquired.id)),
+        Some(foreign.clone()),
+        Some(foreign.join(&acquired.id)),
+    ] {
+        let mut changed = record.clone();
+        changed.paths.staging = staging;
+        let error = validate_journal(&reopened, &changed).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Verification, "{error:?}");
+    }
+    assert!(!foreign.join(&acquired.id).exists());
+
+    // A reserved owned leaf can be absent before transfer starts, but is never created by validation.
+    let mut reserved = record.clone();
+    reserved.id = Uuid::new_v4().to_string();
+    reserved.update_acquisition.as_mut().unwrap().view.id = reserved.id.clone();
+    reserved.update_acquisition.as_mut().unwrap().view.phase = Phase::Acquiring;
+    let missing_owned = root(&reopened, &reserved.id).unwrap();
+    reserved.paths.staging = Some(missing_owned.clone());
+    validate_journal(&reopened, &reserved).unwrap();
+    assert!(!missing_owned.exists());
+
+    #[cfg(unix)]
+    {
+        let link = temporary.path().join("linked-acquisition");
+        std::os::unix::fs::symlink(&private, &link).unwrap();
+        let mut linked = record.clone();
+        linked.paths.staging = Some(link);
+        let error = validate_journal(&reopened, &linked).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict, "{error:?}");
+        assert!(error.message.contains("symlink"));
+    }
+    assert_eq!(fs::read(file(&private, 0)).unwrap(), original);
+    service
+        .discard_game_update_acquisition(PORT, &acquired.id)
+        .unwrap();
+    assert!(!private.exists());
+    assert!(
+        OperationStore::new(reopened)
+            .get(&acquired.id)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[tokio::test]
 async fn interrupted_acquisition_becomes_attention_without_auto_preparing_or_activating() {
     let (_temporary, service, _server) = fixture(false, false);
     let authorization = grant(&service).await;
@@ -1087,7 +1161,11 @@ async fn live_and_completed_acquisitions_block_library_move_with_exact_discard_r
     arrived(&server, &mut transfer).await;
     let acquisition = service.status(PORT).unwrap().acquisition.unwrap();
     let preview_error = service.plan_library_move(&destination).unwrap_err();
-    assert_eq!(preview_error.details["acquisition_id"], acquisition.id);
+    assert_eq!(
+        preview_error.details.get("acquisition_id"),
+        Some(&acquisition.id),
+        "{preview_error:?}"
+    );
     assert_eq!(
         PortcoveService::move_library(&source, &destination, "unreviewed")
             .unwrap_err()
@@ -1110,13 +1188,28 @@ async fn live_and_completed_acquisitions_block_library_move_with_exact_discard_r
     );
     let provider = service.releases.clone();
     let catalog = service.catalog.clone();
+    let retained = OperationStore::new(service.library.clone())
+        .get(&acquired.id)
+        .unwrap()
+        .unwrap();
+    eprintln!(
+        "completed acquisition move guard: service_handles={}; source={source:?}; canonical_source={:?}; retained_staging={:?}",
+        Arc::strong_count(&service),
+        fs::canonicalize(&source).unwrap(),
+        retained.paths.staging
+    );
     drop(service);
     // With all shared handles gone, the retained journal still refuses absolute-path transfer.
     let error = PortcoveService::move_library(&source, &destination, "unreviewed").unwrap_err();
-    assert_eq!(error.details["acquisition_id"], acquired.id);
     assert_eq!(
-        error.details["recovery_action"],
-        "discard_game_update_acquisition"
+        error.details.get("acquisition_id"),
+        Some(&acquired.id),
+        "{error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("discard_game_update_acquisition"),
+        "{error:?}"
     );
     assert!(!destination.exists());
     let library = Library::open(&source).unwrap();

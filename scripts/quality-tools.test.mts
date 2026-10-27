@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,7 +34,7 @@ function requiredFixture<T>(value: T | undefined): T {
 }
 
 void test("quality-tool help is inert with no manifest or external tools", (t) => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-quality-help-"));
+  const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-quality-help-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "scripts"));
   for (const file of ["quality-tools.mts", "runtime-values.mts"])
@@ -82,7 +82,7 @@ void test("quality manifest diagnostics retain the invalid field and tool identi
 });
 
 void test("quality-tool CLI preserves machine output and diagnoses unknown, failed and mismatched tools", (t) => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-quality-cli-"));
+  const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-quality-cli-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "scripts"));
   mkdirSync(path.join(root, ".github"));

@@ -103,9 +103,19 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
             .checked_add(asset.size)
             .ok_or_else(|| PortcoveError::verification("acquisition capacity overflow"))
     })?;
+    let staging_matches = match operation.paths.staging.as_deref() {
+        Some(staging) if staging.is_absolute() => {
+            refuse_symlink_ancestors(staging)?;
+            let expected = root(library, &operation.id)?;
+            // Reopening a Windows library through its verbatim alias keeps the same owner.
+            crate::path::normalized_absolute(staging, "acquisition staging")?
+                == crate::path::normalized_absolute(&expected, "owned acquisition staging")?
+        }
+        _ => false,
+    };
     if operation.id != payload.view.id
         || operation.port_id != payload.view.port_id
-        || operation.paths.staging.as_ref() != Some(&root(library, &operation.id)?)
+        || !staging_matches
         || operation.phase != LifecyclePhase::Preparing
         || operation.activate
         || operation.install.is_some()

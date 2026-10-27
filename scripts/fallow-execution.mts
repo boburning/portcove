@@ -13,6 +13,8 @@ export interface FallowCapture {
   phase: "analysis" | "format";
   timeoutMilliseconds: number;
   identity: unknown;
+  /** Optional admission deadline; the payload clock still starts after admission. */
+  queueDeadline?: number;
 }
 const root = fileURLToPath(new URL("../", import.meta.url));
 const worker = fileURLToPath(new URL("./fallow-capture-worker.mts", import.meta.url));
@@ -66,6 +68,7 @@ export async function executeFallow(
       cwd: typeof options.cwd === "string" ? options.cwd : root,
       exclusive: [frontendOutputResource(root)],
       executionTimeoutMilliseconds: capture.timeoutMilliseconds,
+      ...(capture.queueDeadline === undefined ? {} : { queueDeadline: capture.queueDeadline }),
       onExecutionTimeout: () => {
         timedOut = true;
       },
