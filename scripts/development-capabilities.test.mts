@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   readFileSync,
+  realpathSync,
   mkdtempSync,
   mkdirSync,
   writeFileSync,
@@ -140,7 +141,9 @@ void test("Windows driver-only preparation excludes broad development installati
 });
 
 function bootstrapFixture(t: TestContext) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces "));
+  const directory = realpathSync.native(
+    mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces ")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const project = path.join(directory, "checkout with spaces");
   const bin = path.join(directory, "commands");
@@ -194,6 +197,7 @@ if(command==="node") {
   if(process.env.PCV_TEST_HOOK_FAILURE) {console.error("fixture hook refresh failed");process.exit(71)}
   process.exit(0);
  }
+ if(path.basename(args[0]??"")==="development-capabilities.mts"&&process.env.PCV_TEST_PLATFORM)args.push("--platform",process.env.PCV_TEST_PLATFORM);
  const result=spawnSync(${JSON.stringify(process.execPath)},args,{stdio:"inherit",env:process.env});process.exit(result.status??1);
 }
 log([command,...args]);
@@ -209,7 +213,8 @@ if(command==="cargo") {console.log(args[0]==="nextest"?"cargo-nextest "+manifest
 process.exit(73);
 `,
   );
-  for (const command of ["node", "pnpm", "rustc", "cargo", "rustup", "aqua"]) {
+  const commandNames = ["node", "pnpm", "rustc", "cargo", "rustup", "aqua"];
+  for (const command of commandNames) {
     const name = path.join(bin, command + (process.platform === "win32" ? ".cmd" : ""));
     const text =
       process.platform === "win32"
@@ -218,28 +223,70 @@ process.exit(73);
     writeFileSync(name, text);
     chmodSync(name, 0o755);
   }
+  const shellProbe = path.join(directory, "resolve-commands.sh");
+  writeFileSync(
+    shellProbe,
+    'for name; do builtin type -t "$name"; builtin type -P "$name"; done\n',
+  );
+  const powershellProbe = path.join(directory, "resolve-commands.ps1");
+  writeFileSync(
+    powershellProbe,
+    "$ErrorActionPreference='Stop'; $args | ForEach-Object { $item=Get-Command $_ -ErrorAction Stop; [pscustomobject]@{kind=[string]$item.CommandType;path=$item.Source} } | ConvertTo-Json -Compress",
+  );
   return {
     project,
     caller: directory,
     marker,
     run(command: string, args: string[], extra: NodeJS.ProcessEnv = {}, cwd = project) {
+      const environment = {
+        ...process.env,
+        PATH: bin + path.delimiter + process.env.PATH,
+        GITHUB_ACTIONS: "false",
+        PORTCOVE_CONTAINER_GUEST: "",
+        PORTCOVE_RESOURCE_RESERVATION: "",
+        PCV_TEST_LOG: log,
+        PCV_TEST_PROJECT: project,
+        PORTCOVE_SHARED_TOOL_CACHE: path.join(directory, "cache/portcove"),
+        XDG_CACHE_HOME: path.join(directory, "cache"),
+        LOCALAPPDATA: path.join(directory, "cache"),
+        ...extra,
+      };
+      const probe = spawnSync(
+        command,
+        command === "pwsh"
+          ? ["-NoProfile", "-File", powershellProbe, ...commandNames]
+          : [shellProbe, ...commandNames],
+        {
+          cwd: project,
+          env: environment,
+          encoding: "utf8",
+          timeout: 5000,
+          maxBuffer: 64 * 1024,
+        },
+      );
+      assert.ifError(probe.error);
+      assert.equal(probe.status, 0, probe.stderr);
+      const lines = probe.stdout.trim().split(/\r?\n/u);
+      const observed: unknown =
+        command === "pwsh"
+          ? JSON.parse(probe.stdout)
+          : commandNames.map((_, index) => ({
+              kind: lines[index * 2],
+              path: lines[index * 2 + 1],
+            }));
+      assert.deepEqual(
+        observed,
+        commandNames.map((name) => ({
+          kind: command === "pwsh" ? "Application" : "file",
+          path: path.join(bin, name + (process.platform === "win32" ? ".cmd" : "")),
+        })),
+        "Mocked mutation commands must resolve to the exact disposable executables",
+      );
       return spawnSync(command, args, {
         cwd,
         encoding: "utf8",
         timeout: 15000,
-        env: {
-          ...process.env,
-          PATH: bin + path.delimiter + process.env.PATH,
-          GITHUB_ACTIONS: "false",
-          PORTCOVE_CONTAINER_GUEST: "",
-          PORTCOVE_RESOURCE_RESERVATION: "",
-          PCV_TEST_LOG: log,
-          PCV_TEST_PROJECT: project,
-          PORTCOVE_SHARED_TOOL_CACHE: path.join(directory, "cache/portcove"),
-          XDG_CACHE_HOME: path.join(directory, "cache"),
-          LOCALAPPDATA: path.join(directory, "cache"),
-          ...extra,
-        },
+        env: environment,
       });
     },
     calls() {
@@ -449,5 +496,27 @@ void test(
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Node 0\.0\.1 is required/);
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
+  },
+);
+
+void test(
+  "Darwin frontend's empty tool selection preserves cold and warm setup without tool acquisition",
+  { skip: process.platform === "win32" },
+  (t) => {
+    const fixture = bootstrapFixture(t);
+    for (let index = 0; index < 2; index++) {
+      const result = fixture.run(
+        "bash",
+        ["scripts/bootstrap-quality-tools.sh", "--profile", "frontend"],
+        { PCV_TEST_PLATFORM: "darwin" },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
+    }
+    const calls = fixture.calls();
+    assert.ok(!calls.some((call) => ["rustc", "cargo", "rustup", "aqua"].includes(call[0]!)));
+    assert.equal(calls.filter((call) => call[0] === "pnpm" && call[1] === "install").length, 2);
+    assert.equal(calls.filter((call) => call[0] === "hooks").length, 2);
+    assert.equal(calls.filter((call) => call[0] === "doctor").length, 2);
   },
 );

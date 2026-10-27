@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseDocument } from "yaml";
 import { assertNoDuplicateRustSetup } from "./ci-workflow-fixture.mts";
@@ -45,7 +45,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs/promises";
 import { mock } from "node:test";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 const { parseDocument, stringify } = createRequire(__REQUIRE_FROM__)("yaml");
 const { default: originalDefault, ...originalNamed } = fs;
 const isCiWorkflow = value => /[\\/]workflows[\\/]ci\.yml$/.test(value);
@@ -110,7 +110,7 @@ mock.module("node:fs/promises", { namedExports: { ...originalNamed, readFile }, 
           [
             "--experimental-test-module-mocks",
             "--import",
-            preload,
+            pathToFileURL(preload).href,
             "--test",
             "--test-reporter=tap",
             "--test-concurrency=1",

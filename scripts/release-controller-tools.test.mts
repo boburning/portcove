@@ -457,6 +457,24 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(context.status, 2, context.stderr);
   assert.match(context.stderr, /fixed payload\/context controller refused/);
   assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const contextHelp = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-signing-controller.bundle.mjs"), "--help"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    },
+  );
+  assert.equal(contextHelp.status, 2, contextHelp.stderr);
+  assert.match(contextHelp.stderr, /fixed payload\/context controller refused/u);
+  assert.equal(
+    contextHelp.stdout,
+    "",
+    "An imported metadata CLI must not execute inside another bundle entry",
+  );
+
   const budget = spawnSync(
     process.execPath,
     [

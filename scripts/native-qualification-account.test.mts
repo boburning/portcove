@@ -464,6 +464,12 @@ $capture=Join-Path $root 'capture';[Portcove.HostedNative.Setup]::Directory($cap
 $nonce='b'*64;$sid='S-1-5-21-100-200-300-9999'
 $configuration=[ordered]@{schema_version=1;broker_sid=$owner;account_sid=$sid;account_name='PortcoveNativeQual';profile_root=(Join-Path $root 'profile');work_root=(Join-Path $root 'work');capture_root=$capture;helper_sha256=(Get-FileHash $helper).Hash.ToLowerInvariant();controller_root=$root}
 $configPath=Join-Path $root 'boundary.json';[IO.File]::WriteAllText($configPath,($configuration|ConvertTo-Json -Compress))
+# An elevated CI token may default new file owners to Administrators; exercise the shipping user-owner boundary.
+foreach($ownedFile in @($bridge,$helper,$configPath)){
+ $acl=Get-Acl -LiteralPath $ownedFile
+ $acl.SetOwner([Security.Principal.SecurityIdentifier]::new($owner))
+ Set-Acl -LiteralPath $ownedFile -AclObject $acl
+}
 $configSha=(Get-FileHash $configPath).Hash.ToLowerInvariant()
 $config=[Portcove.NativeQualification.AccountConfiguration]::new();$config.UserName=$configuration.account_name;$config.AccountSid=$sid;$config.BrokerSid=$owner;$config.ProfileRoot=$configuration.profile_root;$config.WorkRoot=$configuration.work_root
 $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($config)
@@ -477,7 +483,8 @@ try {
  if($mutation){
   $wait=[Diagnostics.Stopwatch]::StartNew();$statePath=Join-Path $capture 'bridge-state.json'
   while(-not [IO.File]::Exists($statePath)){
-   if($pending.IsCompleted -or $wait.Elapsed.TotalSeconds -gt 5){throw 'Fixture bridge did not prepare'}
+   if($pending.IsCompleted){$null=$worker.EndInvoke($pending);throw ('Fixture bridge exited before prepare: '+($worker.Streams.Error|Out-String))}
+   if($wait.Elapsed.TotalSeconds -gt 5){throw 'Fixture bridge did not prepare within its finite fixture wait'}
    Start-Sleep -Milliseconds 25
   }
   $originalDeadline=$memory.deadline_ticks
@@ -495,7 +502,10 @@ try {
   return
  }
  $client=[IO.Pipes.NamedPipeClientStream]::new('.','PortcoveNative_'+$nonce,[IO.Pipes.PipeDirection]::InOut,[IO.Pipes.PipeOptions]::Asynchronous)
- $client.Connect(5000)
+ try{$client.Connect(5000)}catch{
+  if($pending.IsCompleted){$null=$worker.EndInvoke($pending);throw ('Fixture bridge exited before connection: '+($worker.Streams.Error|Out-String))}
+  throw
+ }
  [Portcove.NativeQualification.OwnerCommandReader]::VerifyServer($client.SafePipeHandle.DangerousGetHandle(),[uint32]$PID,[long]$memory.owner_created_filetime)
  $command=[ordered]@{schema_version=1;invocation_id=$nonce;sequence=1;operation='finish';id='fixture-empty-finish';launch=$null;target=$null}
  $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($command|ConvertTo-Json -Compress)+[char]10);$client.Write($bytes);$client.Flush()

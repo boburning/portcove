@@ -3,7 +3,16 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  symlinkSync,
+  unlinkSync,
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -98,6 +107,9 @@ void test("release tool help works before inputs, dependencies, network, or outp
     return target;
   }
   for (const name of ["runtime-values.mts", "brand-vector-contract.mts"]) copyTool(name);
+  const aliasRoot = fixtureRoot + "-alias";
+  symlinkSync(fixtureRoot, aliasRoot, process.platform === "win32" ? "junction" : "dir");
+  t.after(() => unlinkSync(aliasRoot));
   const preload = path.join(fixtureRoot, "deny-network.mjs");
   writeFileSync(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
   for (const name of [
@@ -105,27 +117,30 @@ void test("release tool help works before inputs, dependencies, network, or outp
     "check-retcomm-upstreams.mts",
     "qualification-report.mts",
   ]) {
-    const script = copyTool(name);
-    const result = spawnSync(
-      process.execPath,
-      ["--import", pathToFileURL(preload).href, script, "--help"],
-      {
-        cwd: fixtureRoot,
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 10000,
-        env: {
-          ...process.env,
-          PATH: "",
-          RETCOMM_CATALOG_DIR: path.join(fixtureRoot, "missing-upstream"),
+    copyTool(name);
+    for (const invokedRoot of [fixtureRoot, aliasRoot]) {
+      const script = path.join(invokedRoot, "scripts", name);
+      const result = spawnSync(
+        process.execPath,
+        ["--import", pathToFileURL(preload).href, script, "--help"],
+        {
+          cwd: fixtureRoot,
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 10000,
+          env: {
+            ...process.env,
+            PATH: "",
+            RETCOMM_CATALOG_DIR: path.join(fixtureRoot, "missing-upstream"),
+          },
         },
-      },
-    );
-    assert.equal(result.status, 0, `${name}: ${result.stderr}`);
-    assert.match(result.stdout, /Usage:/u);
-    assert.match(result.stdout, /Example:/u);
-    assert.match(result.stdout, /--help/u);
-    assert.equal(result.stderr, "");
+      );
+      assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+      assert.match(result.stdout, /Usage:/u);
+      assert.match(result.stdout, /Example:/u);
+      assert.match(result.stdout, /--help/u);
+      assert.equal(result.stderr, "");
+    }
   }
   assert.deepEqual(readdirSync(fixtureRoot).sort(), ["deny-network.mjs", "scripts"]);
 });
