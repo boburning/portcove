@@ -31,7 +31,7 @@
         },
         {
           "title": "Keep upstream updates and your data together",
-          "instruction": "The installed edition can offer and launch its own update installer. The portable launcher opens the upstream release page and asks for a manual portable update; it does not silently self-replace. Close the game, keep the old copy, and back up userdata, dantes_inferno.toml, dlc and your imported original data before following the matching upstream route. The reviewed portable.txt keeps normal saves/cache in userdata; custom game-data/profile locations need a separate backup. Portcove leaves the external files untouched and supplies no managed Update, Backup or Rollback."
+          "instruction": "The installed edition can offer and launch its own update installer. The portable launcher opens the upstream release page and asks for a manual portable update; it does not silently self-replace. Close the game, keep the old copy, and back up userdata, dantes_inferno.toml, dlc and your imported original data before following the matching upstream route. With portable.txt present, normal saves/cache use userdata. Without portable mode, including normal installed copies, the default live profile is Documents/dantes_inferno; if Documents is blocked, the player can fall back to the dantes_inferno folder under LocalAppData. Back up the actual live profile, plus any custom game-data/profile locations. Portcove leaves the external files untouched and supplies no managed Update, Backup or Rollback."
         }
       ],
       "warnings": [
