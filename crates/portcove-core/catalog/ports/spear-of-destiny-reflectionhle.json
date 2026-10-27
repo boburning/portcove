@@ -3,13 +3,40 @@
   "listing": {
     "id": "spear-of-destiny-reflectionhle",
     "name": "Spear of Destiny (ReflectionHLE)",
-    "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Spear of Destiny game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
+    "summary": "Use Spear of Destiny with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "Spear of Destiny",
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-    "issue_number": 2689
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+    "issue_number": 2689,
+    "release_url": "https://github.com/ReflectionHLE/ReflectionHLE/releases",
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original DOS edition",
+          "instruction": "Use your complete matching DOS Spear folder, including SPEAR.EXE and its SOD/SD data. The upstream version tables distinguish the original game and mission packs. Preserve each owned mission and its matching files; Wolfenstein WL6 files are not Spear data. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+        },
+        {
+          "title": "Register the upstream Windows player",
+          "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+        },
+        {
+          "title": "Preserve the shared profile and each game version",
+          "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+        },
+        {
+          "title": "Keep upstream update ownership",
+          "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["reflectionhle-win64-", ".zip"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
