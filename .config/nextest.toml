@@ -618,3 +618,12 @@ success-output = "immediate"
 platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# CI 40375581507/a1 reached recovery reopen at 24.280s before the 30.115s
+# cutoff. Preserve all restore assertions and zero retries; give only this
+# progressing Windows fixture 60s, without changing product deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"

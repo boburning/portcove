@@ -134,6 +134,15 @@ it does not establish original-byte identity or compatibility.
 
 ## Discovery listings and user-owned setup
 
+Upstream observation, metadata eligibility, accepted artifact integrity,
+published definition, installed operability and qualification at a stated scope
+are separate evidence states. A later state requires its own evidence; an observed
+release or valid definition does not prove the package, runtime or game works.
+Completed #245/#254/#397/#398 components remain credited. #177 owns discovery,
+#247 scoped release health, #246 production definition delivery, #534 protected
+provisioning, #2926 port adoption/maintenance and #251 game-centered comparison.
+Canonical port issues retain port-specific facts; GitHub Projects owns planning.
+
 `catalog/ports/<id>.json` is the authored authority for one stable project
 identity. Deterministic assembly emits the strict operational catalog and a
 separately versioned descriptive listing directory. A listing grants no managed

@@ -311,8 +311,12 @@ class DependencyGraph(unittest.TestCase):
                 (source / "apps/desktop/package.json").write_text('{}')
                 workspace = b"packages: [apps/desktop]\n"
                 (source / "pnpm-workspace.yaml").write_bytes(workspace)
+                for filename in ("package.json", "apps/desktop/package.json", "pnpm-workspace.yaml"):
+                    (source / filename).chmod(0o644)
+                fixture_uid = os.getuid() or 1001
                 executable = root / "pnpm"
                 executable.write_bytes(b"inert executable fixture")
+                executable.chmod(0o644)
                 settings = {"pnpm": {"path": str(executable), "bytes": executable.stat().st_size,
                             "sha256": hashlib.sha256(executable.read_bytes()).hexdigest()},
                             "workspace_sha256": hashlib.sha256(workspace).hexdigest(), "patches": []}
@@ -346,18 +350,19 @@ class DependencyGraph(unittest.TestCase):
                         raise RuntimeError("provider refusal after partial progress")
                     return ""
                 with patch.object(installation, "WORKSPACE", root), patch.object(installation, "fence"), \
-                        patch.object(installation.os, "getuid", return_value=1001), \
+                        patch.object(installation.os, "getuid", return_value=fixture_uid), \
                         patch.object(installation, "verify_installed_source"), \
                         patch.object(installation, "inspect_plan"), \
                         patch.object(installation.os, "scandir", side_effect=changing_scan), \
                         patch.object(installation, "command", side_effect=invoke):
+                    fixture_plan = {**plan(), "broker_uid": fixture_uid}
                     if refused:
                         with self.assertRaisesRegex(RuntimeError, "partial progress"):
-                            installation.prepare_source_dependencies(plan(), settings)
+                            installation.prepare_source_dependencies(fixture_plan, settings)
                     else:
-                        self.assertTrue(installation.prepare_source_dependencies(plan(), settings)["dependencies_prepared"])
+                        self.assertTrue(installation.prepare_source_dependencies(fixture_plan, settings)["dependencies_prepared"])
                     with self.assertRaisesRegex(RuntimeError, "retained dependency"):
-                        installation.prepare_source_dependencies(plan(), settings)
+                        installation.prepare_source_dependencies(fixture_plan, settings)
                 self.assertTrue((root / "native-dependency-home/intent.json").is_file())
                 self.assertTrue((source / "node_modules").is_dir())
                 self.assertEqual(len(calls), 2)

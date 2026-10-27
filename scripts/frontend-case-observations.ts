@@ -5,6 +5,8 @@ import { writeSync } from "node:fs";
 import path from "node:path";
 import type { Reporter, TestCase, TestModule, TestSuite } from "vite-plus/test/node";
 import { isRecord } from "./runtime-values.mts";
+import { declaredUiSkip } from "./ui-test-selection.mts";
+import { browserTraceProbe } from "../apps/desktop/src/browser/failure-probe-contract.ts";
 
 /** Bounded diagnostics; public runner results and exits retain their authority. */
 export function createFrontendCaseObservations(
@@ -47,7 +49,9 @@ export function createFrontendCaseObservations(
     observed = 0,
     invalid = 0,
     omitted = 0,
-    bytes = 0;
+    bytes = 0,
+    unexpectedSkips = 0;
+  const missingSkipRoutes: { file: string | null; cases: readonly string[] }[] = [];
   let seen = new WeakSet<TestCase>();
   let seenContainers = new WeakSet<TestModule | TestSuite>();
   const record = (kind: "test" | "module" | "suite", row: Record<string, unknown>) => {
@@ -85,6 +89,10 @@ export function createFrontendCaseObservations(
           ? { line: integer(test.location.line), column: integer(test.location.column) }
           : null;
       const errors = result.errors ?? [];
+      const declaration = declaredUiSkip(test.module.moduleId, path.join(root, "apps/desktop"));
+      const contract = declaration?.cases.includes(test.fullName) ? declaration : null;
+      const expectedSkip = contract !== null && environment[browserTraceProbe.environment] !== "1";
+      if (result.state === "skipped" && !expectedSkip) unexpectedSkips++;
       record("test", {
         definition_id:
           file && name
@@ -101,6 +109,8 @@ export function createFrontendCaseObservations(
         outcome: result.state,
         mode: test.options.mode,
         skip_reason: result.state === "skipped" ? text(result.note, 1024) : null,
+        skip_contract: contract,
+        unexpected_skip: result.state === "skipped" && !expectedSkip,
         duration_ms: duration(diagnostic?.duration),
         start_time_ms: duration(diagnostic?.startTime),
         retry_count: integer(diagnostic?.retryCount),
@@ -118,12 +128,15 @@ export function createFrontendCaseObservations(
     try {
       const errors = container.errors();
       const module = container.type === "module" ? container : container.module;
+      const unexpectedSkip = container.type === "suite" && container.state() === "skipped";
+      if (unexpectedSkip) unexpectedSkips++;
       record(container.type, {
         file: relative(module.moduleId),
         project: text(container.project.name, 256),
         runner_id: text(container.id, 256),
         name: container.type === "suite" ? text(container.fullName, 1024) : null,
         outcome: container.state(),
+        unexpected_skip: unexpectedSkip,
         duration_ms: container.type === "module" ? duration(container.diagnostic().duration) : null,
         errors: errors.slice(0, 2).map((error) => failure(error)),
         omitted_errors: Math.max(0, errors.length - 2),
@@ -135,7 +148,8 @@ export function createFrontendCaseObservations(
   return {
     onTestRunStart() {
       invocation = randomUUID();
-      index = observed = invalid = omitted = bytes = 0;
+      index = observed = invalid = omitted = bytes = unexpectedSkips = 0;
+      missingSkipRoutes.length = 0;
       seen = new WeakSet();
       seenContainers = new WeakSet();
     },
@@ -145,6 +159,16 @@ export function createFrontendCaseObservations(
     onTestRunEnd(modules, errors, reason) {
       try {
         for (const module of modules) {
+          const declaration = declaredUiSkip(module.moduleId, path.join(root, "apps/desktop"));
+          if (declaration) {
+            const names = new Set([...module.children.allTests()].map((test) => test.fullName));
+            const missing = declaration.cases.filter((name) => !names.has(name));
+            if (missing.length) {
+              if (missingSkipRoutes.length < 16)
+                missingSkipRoutes.push({ file: relative(module.moduleId), cases: missing });
+              else omitted++;
+            }
+          }
           for (const test of module.children.allTests()) emit(test);
           for (const suite of module.children.allSuites()) emitContainer(suite);
           emitContainer(module);
@@ -167,6 +191,8 @@ export function createFrontendCaseObservations(
           observed,
           invalid,
           omitted,
+          unexpected_skips: unexpectedSkips,
+          missing_skip_routes: missingSkipRoutes,
           bytes,
           unhandled_errors: errors.length,
           original_unhandled_errors: errors.slice(0, 2).map((error) => failure(error)),

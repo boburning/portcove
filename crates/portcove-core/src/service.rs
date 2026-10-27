@@ -3166,15 +3166,7 @@ impl PortcoveService {
             let qualification = self.installed_mutability_qualification(&existing)?;
             Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
             reporter.operation.begin_publication()?;
-            self.collect_active_user_data_if_launched(&port.id)?;
-            if let Some(active) = &status.active {
-                self.require_portable_target_transition(active, &existing)?;
-            }
-            self.restore_user_data_to(port, &existing.path)?;
-            if let Some(active) = &status.active {
-                self.require_portable_target_transition(active, &existing)?;
-            }
-            Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
+            self.prepare_retained_install_data(&existing)?;
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
             return Ok(existing);
@@ -3752,15 +3744,7 @@ impl PortcoveService {
         let mut activation = crate::recovery::ActivationOperation::decode(self, &lifecycle)?;
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
-            self.collect_active_user_data_if_launched(port_id)?;
-            if let Some(active) = &status.active {
-                self.require_portable_target_transition(active, &staged)?;
-            }
-            self.restore_user_data_to(&port, &staged.path)?;
-            if let Some(active) = &status.active {
-                self.require_portable_target_transition(active, &staged)?;
-            }
-            Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
+            self.prepare_retained_install_data(&staged)?;
             let commit = activation.prepare_commit(self, &mut lifecycle)?;
             let activated = self.library.activate_staged(port_id)?;
             commit.persist(&store)?;

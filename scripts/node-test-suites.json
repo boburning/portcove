@@ -50,7 +50,7 @@
     "windows-storage-3": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },

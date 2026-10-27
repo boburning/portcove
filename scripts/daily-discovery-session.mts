@@ -126,6 +126,8 @@ interface Journal {
   evidence: Record<string, Evidence>;
   notes: unknown[];
   doctor?: unknown;
+  doctors?: unknown[];
+  global_doctor_pending?: boolean;
   baseline_completed_at?: string;
   checkpoint?: DiscoveryCheckpoint;
   checkpoint_preimage?: string;
@@ -339,6 +341,12 @@ export class DiscoverySession {
       evidence:
         previous === undefined ? {} : (object(previous).evidence as Record<string, Evidence>),
       notes: [],
+      ...(isRecord(previous) && previous.global_doctor_pending === true
+        ? { global_doctor_pending: true }
+        : {}),
+      ...(isRecord(previous) && Array.isArray(previous.doctors)
+        ? { doctors: previous.doctors }
+        : {}),
       ...(isRecord(cache) && typeof cache.baseline_completed_at === "string"
         ? { baseline_completed_at: cache.baseline_completed_at }
         : {}),
@@ -602,9 +610,9 @@ export class DiscoverySession {
     }
     const cost = discoveryDeliveryCost(
       this.inventory,
-      Object.values(this.journal.candidates).filter(
-        (c) => !["delivered", "held", "superseded"].includes(c.status),
-      ),
+      Object.values(this.journal.candidates)
+        .filter((c) => !["delivered", "held", "superseded"].includes(c.status))
+        .slice(0, 1),
     );
     this.budget.reserveDelivery(cost.requests, cost.bytes);
     this.persist();
@@ -624,7 +632,8 @@ export class DiscoverySession {
     };
   }
   research(repository: string) {
-    if (++this.deepInvestigations > 12) throw new Error("Deep investigation limit reached");
+    this.budget.admit(1, 1);
+    this.deepInvestigations++;
     const before = { requests: this.budget.usage.requests, bytes: this.budget.usage.bytes };
     const data = investigateDiscoveryUpstream(this.source, repoName(repository));
     const fingerprint = material(data);
@@ -653,7 +662,9 @@ export class DiscoverySession {
     return { id, file, material: fingerprint };
   }
   search(query: string) {
-    if (++this.searches > 6 || query.length > 500) throw new Error("Lead-search bound exceeded");
+    if (query.length > 500) throw new Error("Lead-search query bound exceeded");
+    this.budget.admit(1, 1);
+    this.searches++;
     const response = this.source.api.request(
       "GET",
       `search/repositories?q=${encodeURIComponent(query)}&sort=updated&per_page=${leadPageSize}`,
@@ -706,7 +717,11 @@ export class DiscoverySession {
     this.leadCollectionAttempted = true;
     this.leadFamilies ??= new Set();
     this.deferredLeadFamilies ??= new Set();
-    for (let turn = 0; turn < leadSearchFamilyCount * 6 && this.searches < 6; turn++) {
+    // A full idle rotation terminates even when every family is current, capped or
+    // deferred. Successful pages reset it; request/time/byte admission bounds work.
+    let idleTurns = 0;
+    while (idleTurns < leadSearchFamilyCount) {
+      idleTurns++;
       const plan = nextLeadPage(this.leads, this.journal.started_at);
       if (this.deferredLeadFamilies.has(plan.family)) {
         this.leads.next_family = advanceLeadFamily(this.leads.next_family);
@@ -790,6 +805,7 @@ export class DiscoverySession {
       }
       this.leadFamilies.add(plan.family);
       this.leadPages++;
+      idleTurns = 0;
       this.persist();
     }
     for (const lead of pendingLeads(this.leads, this.knownLeadUrls())
@@ -995,6 +1011,7 @@ export class DiscoverySession {
         candidate,
       ]
         .filter((c) => !["delivered", "held", "superseded"].includes(c.status))
+        .slice(0, 1)
         .map((c) => ({
           ...c,
           requests: c.evidence_ids.reduce(
@@ -1334,15 +1351,33 @@ export class DiscoverySession {
     };
   }
   recheck() {
+    const records = sourceProvenancePortIssues(this.inventory.issues);
+    const revision = (issue: (typeof records)[number]) =>
+      typeof issue.id === "string" &&
+      typeof issue.body === "string" &&
+      typeof issue.updatedAt === "string" &&
+      Number.isFinite(Date.parse(issue.updatedAt))
+        ? observationHash({ id: issue.id, body: issue.body, updated_at: issue.updatedAt })
+        : null;
+    const due = () => {
+      const checked: Record<string, string> = {};
+      for (const issue of records) {
+        const id = String(issue.number);
+        const hash = revision(issue);
+        const clock = this.checkpoint.checked[id];
+        if (hash && clock && this.checkpoint.checked_revisions?.[id] === hash) checked[id] = clock;
+      }
+      return rotatingRecheck(
+        records.map((issue) => Number(issue.number)),
+        checked,
+        new Date().toISOString(),
+        0,
+      ).overdue;
+    };
     if (!this.leadWorkComplete()) {
       const deferred = {
         checked: [] as number[],
-        overdue: rotatingRecheck(
-          sourceProvenancePortIssues(this.inventory.issues).map((i) => Number(i.number)),
-          this.checkpoint.checked,
-          new Date().toISOString(),
-          50,
-        ).overdue,
+        overdue: due(),
         phase: "quiet-recheck",
         status: "deferred",
         reason:
@@ -1353,13 +1388,7 @@ export class DiscoverySession {
       this.persist();
       return deferred;
     }
-    const records = sourceProvenancePortIssues(this.inventory.issues);
-    const plan = rotatingRecheck(
-      records.map((i) => Number(i.number)),
-      this.checkpoint.checked,
-      new Date().toISOString(),
-      Math.max(0, 50 - this.quietAttempts),
-    );
+    const plan = { selected: due() };
     const checked: number[] = [];
     for (const id of plan.selected) {
       const left = this.budget.remaining();
@@ -1407,7 +1436,13 @@ export class DiscoverySession {
               : "Unknown historical identity; relocation cannot inherit qualification",
         });
         this.checkpoint.checked[id] = new Date().toISOString();
+        this.checkpoint.checked_revisions ??= {};
+        const hash = revision(issue);
+        if (hash) this.checkpoint.checked_revisions[id] = hash;
+        else delete this.checkpoint.checked_revisions[id];
         checked.push(id);
+        // Persist every completed operation before attempting the next provider read.
+        this.persist();
       } catch (e) {
         this.journal.coverage = "partial";
         this.journal.notes.push({ issue: id, error: errorMessage(e) });
@@ -1420,15 +1455,7 @@ export class DiscoverySession {
       }
     }
     this.persist();
-    return {
-      checked,
-      overdue: rotatingRecheck(
-        records.map((i) => Number(i.number)),
-        this.checkpoint.checked,
-        new Date().toISOString(),
-        50,
-      ).overdue,
-    };
+    return { checked, overdue: due() };
   }
   leadWorkComplete() {
     const pending = pendingLeads(this.leads, this.knownLeadUrls());
@@ -1443,12 +1470,72 @@ export class DiscoverySession {
     );
   }
   async apply() {
-    const candidates = Object.values(this.journal.candidates)
-      .filter((c) =>
+    const delivered: { id: string; issue: number | undefined; readback: string | undefined }[] = [];
+    while (true) {
+      const pending = Object.values(this.journal.candidates).filter((c) =>
         ["reviewed", "create-attempted", "created", "doctor-pending"].includes(c.status),
-      )
-      .slice(0, 5);
-    if (!candidates.length) return { applied: 0 };
+      );
+      if (!pending.length) {
+        if (this.journal.global_doctor_pending) await this.applyBatch([]);
+        return {
+          delivered,
+          pending: Object.values(this.journal.candidates).filter(
+            (c) => !["delivered", "held", "superseded"].includes(c.status),
+          ).length,
+        };
+      }
+      if (new Set(pending.map((c) => c.created_issue ?? c.issue ?? c.id)).size > 10) {
+        this.journal.global_doctor_pending = true;
+        this.persist();
+      }
+      // Admit a prefix of the unchanged logical journal; callers never split it.
+      // Readback and the applicable doctor finish each independently safe batch.
+      this.budget.reserve = { requests: 0, bytes: 0 };
+      this.checkProviderCapacity(0);
+      const left = this.budget.remaining();
+      let count = 0;
+      for (let size = 1; size <= pending.length; size++) {
+        const cost = discoveryDeliveryCost(
+          this.inventory,
+          pending.slice(0, size).map((c) => ({
+            ...c,
+            requests: c.evidence_ids.reduce(
+              (sum, id) => sum + (this.journal.evidence[id]?.requests ?? 0),
+              0,
+            ),
+            bytes: c.evidence_ids.reduce(
+              (sum, id) => sum + (this.journal.evidence[id]?.bytes ?? 0),
+              0,
+            ),
+          })),
+        );
+        if (cost.requests > left.requests || cost.bytes > left.bytes || left.milliseconds <= 0)
+          break;
+        try {
+          this.budget.requireProviderCapacity(cost.requests);
+        } catch (error) {
+          if (!(error instanceof GitHubApiError)) throw error;
+          break;
+        }
+        count = size;
+      }
+      if (!count) {
+        this.journal.delivery = "pending";
+        this.journal.notes.push({
+          phase: "delivery",
+          status: "deferred",
+          next_candidate: pending[0]!.id,
+          resume:
+            "Resume the retained journal in the next admitted run; do not recapture or split candidates",
+        });
+        this.persist();
+        return { delivered, pending: pending.length };
+      }
+      const result = await this.applyBatch(pending.slice(0, count));
+      delivered.push(...result.delivered);
+    }
+  }
+  async applyBatch(candidates: Candidate[]) {
     const cost = discoveryDeliveryCost(
       this.inventory,
       candidates.map((c) => ({
@@ -1557,7 +1644,7 @@ export class DiscoverySession {
               throw new Error(
                 "Canonical duplicate or independent-implementation conflict; capture held",
               );
-            if (++this.intakeAttempts > 5) throw new Error("Daily new-issue bound exhausted");
+            this.intakeAttempts++;
             const issue = discoveryPost(
               c,
               () =>
@@ -1646,25 +1733,35 @@ export class DiscoverySession {
       const deliveredIssues = candidates
         .map((candidate) => candidate.created_issue ?? candidate.issue)
         .filter((number): number is number => typeof number === "number");
-      const fullDoctor = new Set(deliveredIssues).size > 10;
-      const doctor = !deliveredIssues.length
-        ? { scope: "none", global_health: "not_evaluated", reason: "no roadmap changes" }
-        : fullDoctor
-          ? await runDoctor(this.client.config, this.client, {
-              quiet: true,
-              inventory: this.inventory,
-            })
+      const finalBatch = !Object.values(this.journal.candidates).some(
+        (candidate) =>
+          !candidates.includes(candidate) &&
+          ["reviewed", "create-attempted", "created", "doctor-pending"].includes(candidate.status),
+      );
+      const fullDoctor =
+        new Set(deliveredIssues).size > 10 ||
+        (this.journal.global_doctor_pending === true && (finalBatch || candidates.length === 0));
+      const doctor = fullDoctor
+        ? await runDoctor(this.client.config, this.client, {
+            quiet: true,
+            inventory: this.inventory,
+          })
+        : !deliveredIssues.length
+          ? { scope: "none", global_health: "not_evaluated", reason: "no roadmap changes" }
           : await runScopedDoctor(this.client.config, this.client, {
               issues: deliveredIssues,
               inventory: this.inventory,
             });
-      this.save("doctor", doctor);
+      const doctorName = `doctor-${randomUUID()}`;
+      this.save(doctorName, doctor);
       this.journal.doctor = {
-        status: deliveredIssues.length ? "passed" : "not_run",
-        scope: !deliveredIssues.length ? "none" : fullDoctor ? "global" : "issues",
+        status: fullDoctor || deliveredIssues.length ? "passed" : "not_run",
+        scope: fullDoctor ? "global" : !deliveredIssues.length ? "none" : "issues",
         head: this.head,
-        evidence: path.join(this.runDir, "doctor.json"),
+        evidence: path.join(this.runDir, `${doctorName}.json`),
       };
+      (this.journal.doctors ??= []).push(this.journal.doctor);
+      if (fullDoctor) delete this.journal.global_doctor_pending;
       for (const c of candidates)
         if (c.status === "doctor-pending") {
           c.status = "delivered";
@@ -1674,10 +1771,14 @@ export class DiscoverySession {
                 outcome: c.kind === "intake" ? "intake-complete" : "updated",
                 issue: c.created_issue ?? c.issue,
                 readback: c.readback,
-                evidence: path.join(this.runDir, "doctor.json"),
+                evidence: path.join(this.runDir, `${doctorName}.json`),
               });
         }
-      this.journal.delivery = "complete";
+      this.journal.delivery = Object.values(this.journal.candidates).some(
+        (c) => !["delivered", "held", "superseded"].includes(c.status),
+      )
+        ? "pending"
+        : "complete";
       this.persist();
       return {
         delivered: candidates.map((c) => ({
@@ -1692,6 +1793,15 @@ export class DiscoverySession {
     }
   }
   async finish(error?: unknown) {
+    if (!error && this.journal.global_doctor_pending) {
+      try {
+        // A held or re-reviewed final candidate cannot erase prior substantial
+        // changes' global obligation. An empty batch performs only validation.
+        await this.applyBatch([]);
+      } catch (failure) {
+        error = failure;
+      }
+    }
     if (!error && !this.journal.doctor) {
       try {
         this.budget.delivery = true;
@@ -1723,7 +1833,7 @@ export class DiscoverySession {
     );
     this.journal.status = error
       ? "failed"
-      : pending || !this.leadWorkComplete()
+      : pending || this.journal.global_doctor_pending || !this.leadWorkComplete()
         ? "deferred"
         : this.journal.collection_done
           ? "completed"
