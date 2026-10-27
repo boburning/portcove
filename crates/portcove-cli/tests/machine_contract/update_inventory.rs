@@ -1,12 +1,25 @@
 //! Compiled CLI read/dispatch continuity for metadata-only archive owners.
 use portcove_core::{ArtifactIdentity, InstallRecord, Library, Platform, ReleaseChannel};
 use serde_json::{Value, json};
-use std::{fs, path::Path};
+use std::{fs, io::BufRead, path::Path, process::Stdio, time::Instant};
 
 #[test]
 fn unknown_archive_owner_remains_readable_and_update_all_keeps_independent_refusals() {
     const UNKNOWN: &str = "unknown-retained-archive-owner";
-    const KNOWN: &str = "shipwright";
+    const KNOWN: &str = "render96ex";
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    assert_eq!(
+        catalog.port(KNOWN).unwrap().release.provider,
+        portcove_core::ReleaseSource::UserPrepared,
+        "the known control must use a real no-acquisition route, never a network provider"
+    );
+    let known_refusal = format!(
+        "{} has a user-prepared runtime; Portcove does not acquire it",
+        catalog.port(KNOWN).unwrap().name
+    );
+    // Missing catalog identity requires verified retained metadata first. This
+    // intentional inert registration fails its artifact guard before lookup.
+    let orphan_refusal = "install has no valid immutable artifact identity";
     let temporary = tempfile::tempdir().unwrap();
     let library_path = temporary.path().join("library");
     let library = Library::open(&library_path).unwrap();
@@ -52,18 +65,27 @@ fn unknown_archive_owner_remains_readable_and_update_all_keeps_independent_refus
             "phase":"attention_required","created_at":1,"updated_at":1},
         "definition_sha256":"a".repeat(64),"assets":[asset],
     });
-    // An interrupted bounded journal is fixture input, not a synthetic descriptor or grant.
-    let database = rusqlite::Connection::open(library_path.join("portcove.sqlite3")).unwrap();
-    database.execute(
+    // Production creates Activity before its journal, and history retention protects
+    // lifecycle-owned rows. Preserve that invariant in this interrupted fixture.
+    // These records are fixture input, never a synthetic descriptor or grant.
+    let mut database = rusqlite::Connection::open(library_path.join("portcove.sqlite3")).unwrap();
+    let transaction = database.transaction().unwrap();
+    transaction.execute(
+        "INSERT INTO activity_history(id,operation,target_kind,target_id,status,message,started_at,finished_at)
+         VALUES (?1,'download_package','port',?2,'failed','Fixture archive transfer interrupted; no runtime publication',1,1)",
+        rusqlite::params![id,UNKNOWN],
+    ).unwrap();
+    transaction.execute(
         "INSERT INTO lifecycle_operations(id,kind,port_id,phase,staging_path,created_at,updated_at,update_acquisition_json)
          VALUES (?1,'acquire_update',?2,'preparing',?3,1,1,?4)",
         rusqlite::params![id,UNKNOWN,private.to_str().unwrap(),journal.to_string()],
     ).unwrap();
+    transaction.commit().unwrap();
     drop(database);
-    let known_guard = library.try_lock_port(KNOWN, "verify").unwrap();
     let invoke = |arguments: &[&str]| {
         eprintln!("compiled CLI inventory phase: {arguments:?}");
-        let output = std::process::Command::new(super::cli_binary())
+        let started = Instant::now();
+        let mut child = std::process::Command::new(super::cli_binary())
             .env(
                 "PORTCOVE_PREFERENCES",
                 temporary.path().join("preferences.json"),
@@ -72,11 +94,43 @@ fn unknown_archive_owner_remains_readable_and_update_all_keeps_independent_refus
             .env_remove("PORTCOVE_GITHUB_TOKEN")
             .env_remove("GH_TOKEN")
             .env_remove("GITHUB_TOKEN")
+            .arg("--technical-details")
             .arg("--library")
             .arg(&library_path)
             .args(arguments)
-            .output()
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
             .unwrap();
+        // Preserve bounded live child progress even if the outer harness expires.
+        // Keep complete stderr in Output for the existing exact result assertions.
+        let stderr = child.stderr.take().unwrap();
+        let progress = std::thread::spawn(move || {
+            let mut reader = std::io::BufReader::new(stderr);
+            let mut captured = Vec::new();
+            let mut line = Vec::new();
+            let mut messages = 0;
+            while reader.read_until(b'\n', &mut line).unwrap() != 0 {
+                if messages < 8 {
+                    eprintln!(
+                        "compiled CLI child progress: {}",
+                        String::from_utf8_lossy(&line[..line.len().min(1024)])
+                    );
+                }
+                captured.extend_from_slice(&line);
+                line.clear();
+                messages += 1;
+            }
+            captured
+        });
+        let mut output = child.wait_with_output().unwrap();
+        output.stderr = progress.join().unwrap();
+        eprintln!(
+            "compiled CLI inventory finished: {arguments:?}; elapsed={:?}; status={}",
+            started.elapsed(),
+            output.status
+        );
         assert!(output.status.success(), "{arguments:?}: {output:?}");
         output
     };
@@ -86,6 +140,7 @@ fn unknown_archive_owner_remains_readable_and_update_all_keeps_independent_refus
     assert!(rows.iter().any(|row| row["port_id"] == KNOWN));
     let orphan = rows.iter().find(|row| row["port_id"] == UNKNOWN).unwrap();
     assert_eq!(orphan["acquisition"]["id"], id);
+    assert_eq!(orphan["acquisition"]["phase"], "attention_required");
     assert!(orphan["readiness"].is_null());
     let actions = orphan["port_actions"].as_array().unwrap();
     assert!(!actions.is_empty());
@@ -108,18 +163,63 @@ fn unknown_archive_owner_remains_readable_and_update_all_keeps_independent_refus
         "{human}"
     );
     assert!(human.contains(KNOWN) && human.contains(UNKNOWN), "{human}");
+    assert!(
+        human.contains("This operation is not supported for the current selection."),
+        "{human}"
+    );
+    assert!(
+        human.contains("Required verification did not pass."),
+        "{human}"
+    );
+    assert!(
+        human.contains(&known_refusal) && human.contains(orphan_refusal),
+        "{human}"
+    );
     let machine = invoke(&["--json", "--non-interactive", "update", "--all"]);
     let machine: Value = serde_json::from_slice(&machine.stdout).unwrap();
     let outcomes = machine["data"].as_array().unwrap();
     assert_eq!(outcomes.len(), 2);
-    for (port_id, code) in [(KNOWN, "conflict"), (UNKNOWN, "not_found")] {
+    for (port_id, code, message, key, summary) in [
+        (
+            KNOWN,
+            "unsupported",
+            known_refusal.as_str(),
+            "operation_unsupported",
+            "This operation is not supported for the current selection.",
+        ),
+        (
+            UNKNOWN,
+            "verification",
+            orphan_refusal,
+            "verification_failed",
+            "Required verification did not pass.",
+        ),
+    ] {
         let row = outcomes
             .iter()
             .find(|row| row["port_id"] == port_id)
             .unwrap();
+        eprintln!(
+            "compiled CLI exact refusal: port={port_id}; code={}; message={}; presentation={}",
+            row["error"]["code"],
+            row["error"]["message"],
+            row["error"]["presentation"]["presentation_key"]
+        );
         assert_eq!(row["ok"], false);
         assert!(row["result"].is_null());
-        assert_eq!(row["error"]["code"], code, "{row}");
+        assert_eq!(
+            row["error"],
+            json!({
+                "code":code,"message":message,"details":{},
+                "presentation":{
+                    "presentation_key":key,"summary":summary,"tone":"error",
+                    "mutation_state":"unknown","phase":null,
+                    "recovery_actions":["review_current_state","view_technical_details"],
+                    "technical_message":message,"technical_context":{},
+                },
+            }),
+            "{row}"
+        );
     }
     assert_eq!(fs::read(private.join("owner.json")).unwrap(), marker);
     assert_eq!(fs::read(private.join("0.archive")).unwrap(), partial);
@@ -145,5 +245,4 @@ fn unknown_archive_owner_remains_readable_and_update_all_keeps_independent_refus
             b"unchanged"
         );
     }
-    drop(known_guard);
 }

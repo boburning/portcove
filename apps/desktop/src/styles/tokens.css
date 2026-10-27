@@ -276,8 +276,8 @@
 
     /* Warm controller-plastic surfaces with graphite typography. */
     --color-bg: var(--n64-white);
-    --color-bg-navigation: var(--n64-gray-50);
-    --color-bg-elevated: var(--n64-gray-100);
+    --color-bg-navigation: #eae9e3;
+    --color-bg-elevated: #fffefa;
     --color-bg-raised: var(--n64-gray-200);
     --color-bg-hover: var(--n64-gray-200);
     --color-bg-active: var(--n64-gray-300);

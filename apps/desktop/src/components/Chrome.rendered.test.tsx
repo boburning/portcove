@@ -173,7 +173,8 @@ describe("desktop components", () => {
       );
       expect(toolbar).toContain('aria-label="Current location"');
     }
-    for (const header of [library, updates, settings])
+    expect(settings).toContain("App preferences and library settings.");
+    for (const header of [library, updates])
       expect(header).not.toContain('class="page-description"');
   });
 

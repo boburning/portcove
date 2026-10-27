@@ -402,3 +402,89 @@ it("keeps the lean visible Discover label in its natural name when artwork fails
   });
   expect(labels.violations).toEqual([]);
 });
+
+it.each(["dark", "light"])(
+  "aligns six %s Discover frames, identity areas, metadata and exact-port actions",
+  async (theme) => {
+    await page.viewport(1600, 1000);
+    await mount(theme);
+    await page.getByRole("button", { name: "Discover", exact: true }).click();
+    await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(12);
+    const cards = [...document.querySelectorAll<HTMLElement>(".discover-game")];
+    const first = cards[0]!;
+    const row = cards.filter(
+      (card) => Math.abs(card.getBoundingClientRect().top - first.getBoundingClientRect().top) < 1,
+    );
+    expect(row).toHaveLength(6);
+    const frame = first.querySelector(".collection-art")!.getBoundingClientRect();
+    expect(frame.width).toBeGreaterThanOrEqual(175);
+    expect(frame.width).toBeLessThanOrEqual(220);
+    for (const card of row) {
+      const artwork = card.querySelector(".collection-art")!.getBoundingClientRect();
+      expect(Math.abs(artwork.width - frame.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(artwork.height - frame.height)).toBeLessThanOrEqual(1);
+      expect(artwork.height / artwork.width).toBeCloseTo(1.5);
+      for (const selector of [
+        ".collection-title",
+        ".collection-project",
+        ".discover-game-metadata",
+        ".discover-game-observation",
+        '[data-detail-origin$=":details"]',
+      ]) {
+        const expected = first.querySelector(selector)!.getBoundingClientRect();
+        const actual = card.querySelector(selector)!.getBoundingClientRect();
+        expect(Math.abs(actual.top - expected.top)).toBeLessThanOrEqual(1);
+      }
+    }
+    await expect
+      .poll(() => row.filter((card) => card.querySelector(".collection-art img")).length)
+      .toBeGreaterThan(2);
+    for (const image of document.querySelectorAll(".discover-game .collection-art img"))
+      expect(getComputedStyle(image).objectFit).toBe("contain");
+    const action = first.querySelector<HTMLButtonElement>('[data-detail-origin$=":details"]')!;
+    await userEvent.click(action);
+    await expect
+      .poll(() =>
+        document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
+      )
+      .toBe("collection-0");
+  },
+);
+
+it.each(["dark", "light"])(
+  "keeps %s compact Discover identity and metadata on the same reading edge",
+  async (theme) => {
+    await page.viewport(390, 844);
+    await mount(theme);
+    const navigation = page.getByRole("button", { name: "Open navigation", exact: true });
+    if (navigation.query()) await navigation.click();
+    await page.getByRole("button", { name: "Discover", exact: true }).click();
+    await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(12);
+    const cards = [...document.querySelectorAll<HTMLElement>(".discover-game")];
+    for (const card of cards) {
+      const left = card.getBoundingClientRect().left;
+      for (const selector of [
+        ".collection-art",
+        ".collection-title",
+        ".collection-project",
+        ".discover-game-metadata",
+        ".discover-game-observation",
+        ".discover-game-actions",
+      ])
+        expect(
+          Math.abs(card.querySelector(selector)!.getBoundingClientRect().left - left),
+        ).toBeLessThanOrEqual(1.5);
+      expect(card.getBoundingClientRect().right).toBeLessThanOrEqual(innerWidth + 1);
+    }
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    const first = cards[0]!;
+    await userEvent.click(
+      first.querySelector<HTMLButtonElement>('[data-detail-origin$=":details"]')!,
+    );
+    await expect
+      .poll(() =>
+        document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
+      )
+      .toBe("collection-0");
+  },
+);

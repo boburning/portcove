@@ -33,6 +33,7 @@ import {
   Settings,
   Search,
   Palette,
+  Plus,
   FolderOpen,
   Plug,
   Info,
@@ -88,6 +89,7 @@ import { Tooltip } from "./ui/tooltip";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
+import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
 import { LanguageSettings } from "./LanguageSettings";
 import {
   settingsCategories,
@@ -146,7 +148,10 @@ export function Sidebar({
             aria-current={view === item.view ? "page" : undefined}
             variant={view === item.view ? "selected" : "ghost"}
             size="lg"
-            className="group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 p-[var(--space-2)_var(--space-3)] text-start whitespace-normal"
+            className={cn(
+              "group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 border-transparent p-[var(--space-2)_var(--space-3)] text-start font-normal whitespace-normal after:hidden",
+              view !== item.view && "text-pc-muted-foreground",
+            )}
             onClick={() => {
               setView(item.view);
               setNavigationOpen(false);
@@ -156,7 +161,7 @@ export function Sidebar({
             <span className="nav-label min-w-0 flex-1">{item.label}</span>
             {item.view === "library" && (
               <b
-                className="rounded-pc-md bg-pc-surface-muted px-2 py-0.5 text-xs text-pc-foreground"
+                className="rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal text-pc-muted-foreground"
                 aria-label={`${installedCount} in library`}
               >
                 {installedCount}
@@ -177,16 +182,13 @@ export function Sidebar({
       data-focus-region="sidebar"
     >
       <div className="sidebar-compact-header items-center gap-3">
-        <BrandAvatar />
-        <span className="min-w-0 flex-1 font-semibold">
-          {items.find((item) => item.view === view)?.label}
-        </span>
         <Tooltip label="Navigation">
           <Button
             ref={navigationTrigger}
             data-focusable
-            variant="outline"
+            variant="ghost"
             size="icon"
+            className="shrink-0 text-pc-muted-foreground"
             aria-label="Open navigation"
             aria-haspopup="dialog"
             aria-expanded={navigationOpen}
@@ -195,6 +197,10 @@ export function Sidebar({
             <Icon glyph={MenuIcon} />
           </Button>
         </Tooltip>
+        <BrandAvatar />
+        <span className="min-w-0 flex-1 truncate font-semibold">
+          {items.find((item) => item.view === view)?.label}
+        </span>
       </div>
       <div className="sidebar-desktop">
         <div className="brand flex items-center gap-3 p-[0_var(--space-2)_var(--space-7)]">
@@ -282,6 +288,7 @@ export function PageHeader({
   portCount,
   libraryCount,
   onOpenCommands,
+  onAddGames,
 }: {
   view: View;
   query: string;
@@ -289,15 +296,19 @@ export function PageHeader({
   portCount?: number;
   libraryCount?: number | undefined;
   onOpenCommands?: () => void;
+  onAddGames?: (() => void) | undefined;
 }) {
   const copy = pageCopy(view, portCount ?? 0);
   return (
     <header
       data-library-header={view === "library" || undefined}
       data-search-header={view === "catalog" || undefined}
-      className="page-header mb-5 flex flex-wrap items-start justify-between gap-4"
+      className={cn(
+        "page-header mb-5 flex flex-wrap items-start justify-between gap-4",
+        view === "settings" && "mb-8",
+      )}
     >
-      <div>
+      <div className="min-w-0 flex-1">
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
           <p className="mt-2 mb-0 text-sm text-pc-muted-foreground">
@@ -315,6 +326,18 @@ export function PageHeader({
         data-focus-group
       >
         {view === "catalog" && <PortSearch query={query} setQuery={setQuery} />}
+        {onAddGames && (
+          <Button
+            data-focusable
+            data-add-games-trigger
+            variant="outline"
+            className="max-[42rem]:min-h-8 max-[42rem]:px-2 max-[42rem]:text-xs"
+            onClick={onAddGames}
+          >
+            <Icon glyph={Plus} />
+            Add games
+          </Button>
+        )}
         {onOpenCommands && (
           <Tooltip label={`Commands · ${commandShortcut("K")}`}>
             <Button
@@ -372,7 +395,7 @@ export function WorkspaceToolbar({
         data-detail-origin={`command-trigger:${view}`}
         variant="outline"
         size="sm"
-        className="command-trigger shrink-0 gap-2 text-pc-muted-foreground"
+        className="command-trigger shrink-0 gap-2 font-normal text-pc-muted-foreground"
         onClick={onOpenCommands}
         aria-label={`Commands ${commandShortcut("K")}: open command palette`}
       >
@@ -398,6 +421,7 @@ function pageCopy(view: View, portCount: number) {
     },
     settings: {
       title: "Settings",
+      description: "App preferences and library settings.",
     },
   };
   return copy[view];
@@ -1390,7 +1414,7 @@ function SourceState({
 function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefined }) {
   const preference = appearance?.preference ?? "system";
   const resolvedTheme = appearance?.resolvedTheme ?? "dark";
-  const options: ThemePreference[] = ["system", "dark", "light"];
+  const options: ThemePreference[] = ["dark", "light", "system"];
   const resolvedLabel = resolvedTheme === "light" ? "Light" : "Dark";
   const status =
     preference === "system"
@@ -1399,19 +1423,20 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
   return (
     <SettingsRow className="appearance-card" data-focus-group>
       <h2>Color theme</h2>
+      <p>Use a light theme, a dark theme, or your system setting.</p>
       <RadioGroup
         value={preference}
         onValueChange={(value) => {
           if (options.includes(value)) appearance?.setPreference(value);
         }}
-        className="appearance-options grid w-full max-w-xl grid-cols-1 gap-3 @min-[22rem]/row:grid-cols-3"
+        className="appearance-options grid w-full max-w-[40.625rem] grid-cols-3 gap-3"
         aria-label="Color theme"
       >
         {options.map((option) => (
           <ThemeOption key={option} option={option} />
         ))}
       </RadioGroup>
-      <p>{status}.</p>
+      <p className="theme-status text-xs text-pc-muted-foreground">{status}.</p>
     </SettingsRow>
   );
 }
@@ -1434,27 +1459,21 @@ function AboutCard() {
           Install, update, and play native game ports. Portcove keeps track of your library,
           installed versions, saved file locations, and recovery information.
         </p>
-        <dl className="my-5 grid grid-cols-3 gap-2 max-[65rem]:grid-cols-1">
-          <div className="min-w-0 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3">
-            <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
-              Version
-            </dt>
+        <dl className="my-5 grid grid-cols-1 gap-4 @min-[32rem]/section:grid-cols-3">
+          <div className="min-w-0 border-b border-pc-border py-3">
+            <dt className="text-xs text-pc-muted-foreground">Version</dt>
             <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               {desktopPackage.version}
             </dd>
           </div>
-          <div className="min-w-0 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3">
-            <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
-              Built with
-            </dt>
+          <div className="min-w-0 border-b border-pc-border py-3">
+            <dt className="text-xs text-pc-muted-foreground">Built with</dt>
             <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               Tauri 2 · Rust · React
             </dd>
           </div>
-          <div className="min-w-0 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3">
-            <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
-              License
-            </dt>
+          <div className="min-w-0 border-b border-pc-border py-3">
+            <dt className="text-xs text-pc-muted-foreground">License</dt>
             <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               MIT or Apache-2.0
             </dd>
@@ -1526,7 +1545,7 @@ function ThemeOption({ option }: { option: ThemePreference }) {
     <Radio.Root
       data-focusable
       value={option}
-      className={`theme-option grid min-w-0 cursor-pointer justify-items-start gap-2 rounded-pc-md border border-pc-border p-2 text-sm font-semibold text-pc-muted-foreground data-checked:border-pc-ring data-checked:bg-pc-selection data-checked:text-pc-selection-foreground ${controlFocus}`}
+      className={`theme-option grid min-w-0 cursor-pointer justify-items-start gap-2 rounded-pc-md border-2 border-pc-border p-2 text-sm font-normal text-pc-muted-foreground data-checked:border-pc-interactive data-checked:text-pc-foreground ${controlFocus}`}
     >
       <span className="theme-preview" data-preview={option} aria-hidden="true">
         <i />
@@ -1644,7 +1663,7 @@ export function SettingsView(props: SettingsViewProps) {
 
   const renderCategoryNavigation = () => (
     <nav
-      className="settings-section-index sticky top-0 z-10 flex flex-wrap items-start gap-1 bg-pc-background py-2 min-[65rem]:flex-col"
+      className="settings-section-index sticky top-0 z-10 flex min-w-0 flex-nowrap items-start gap-1 overflow-x-auto bg-pc-background py-2 min-[65rem]:flex-col min-[65rem]:overflow-visible"
       aria-label="Settings categories"
       data-focus-group
     >
@@ -1654,7 +1673,10 @@ export function SettingsView(props: SettingsViewProps) {
           data-focusable
           variant={selectedCategory === id ? "selected" : "ghost"}
           size="sm"
-          className="max-w-full justify-start text-start whitespace-normal min-[65rem]:w-full"
+          className={cn(
+            "max-w-full shrink-0 justify-start gap-2.5 border-transparent text-start font-normal whitespace-nowrap after:hidden min-[65rem]:w-full min-[65rem]:whitespace-normal",
+            selectedCategory !== id && "text-pc-muted-foreground",
+          )}
           aria-current={selectedCategory === id ? "page" : undefined}
           aria-controls={`settings-${id}`}
           onClick={() => {
@@ -1823,7 +1845,7 @@ export function SettingsView(props: SettingsViewProps) {
     </SettingsSection>
   );
   return (
-    <section className="settings-grid grid max-w-[72rem] items-start gap-6 min-[65rem]:grid-cols-[10rem_minmax(0,1fr)]">
+    <section className="settings-grid grid max-w-[62rem] items-start gap-8 min-[65rem]:grid-cols-[11.875rem_minmax(0,47.5rem)]">
       {renderCategoryNavigation()}
       <div className="min-w-0">
         <SettingsSection
@@ -1881,7 +1903,7 @@ function SettingsSection({
     <section
       id={`settings-${id}`}
       hidden={!active}
-      className={cn("settings-section @container/section gap-[15px]", active ? "grid" : "hidden")}
+      className={cn("settings-section @container/section gap-6", active ? "grid" : "hidden")}
       data-settings-group={id}
       aria-labelledby={headingId}
     >
@@ -1898,9 +1920,7 @@ function SettingsSection({
         </p>
         {action}
       </div>
-      <div className="settings-section-content overflow-hidden rounded-pc-lg border border-pc-border bg-pc-surface">
-        {children}
-      </div>
+      <div className="settings-section-content min-w-0">{children}</div>
     </section>
   );
 }
@@ -1982,14 +2002,14 @@ export function LibrarySelectionCard({
           : "Selection unavailable";
   return (
     <SettingsRow className="" data-focus-group>
-      <p className="m-0 text-sm text-pc-muted-foreground">Entire library</p>
       <h2>Library at startup</h2>
-      <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 [overflow-wrap:anywhere] text-[var(--color-interactive-text)]">
+      <p className="m-0 text-sm text-pc-muted-foreground">Entire library · {source}</p>
+      <code className="block rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         {selection?.root ?? "Unavailable"}
       </code>
       <p>
-        {source}. Opening another library does not move your files. The library you open uses its
-        own game install folder settings.
+        Opening another library does not move your files. The library you open uses its own game
+        install folder settings.
       </p>
       <ActionRow>
         <Button
@@ -2105,11 +2125,11 @@ function HostReadiness({
 }) {
   return (
     <SettingsRow className="col-span-full min-h-0">
-      <p className="m-0 text-sm text-pc-muted-foreground">On this device</p>
       <h2 className="flex items-center gap-2" id="disc-tools-heading" tabIndex={-1}>
         <Icon glyph={Wrench} />
         Disc tools
       </h2>
+      <p className="m-0 text-sm text-pc-muted-foreground">On this device</p>
       {Boolean(failure) && <p role="alert">Couldn’t check disc tools.</p>}
       {doctor ? (
         <>
@@ -2125,7 +2145,7 @@ function HostReadiness({
               {doctor.registered_source_count} sources
             </span>
           </p>
-          <div className="mb-4 grid grid-cols-2 gap-2">
+          <div className="mb-4 grid grid-cols-1 gap-2 @min-[32rem]/section:grid-cols-2">
             {doctor.host_tools.map((tool) => (
               <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
             ))}
@@ -2367,12 +2387,12 @@ function StorageCard({
     available <= total;
   return (
     <SettingsRow className="storage-card" data-focus-group>
-      <p className="m-0 text-sm text-pc-muted-foreground">Current library</p>
       <h2 className="flex items-center gap-2">
         <Icon glyph={HardDrive} />
         Files and capacity
       </h2>
-      <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 [overflow-wrap:anywhere] text-[var(--color-interactive-text)]">
+      <p className="m-0 text-sm text-pc-muted-foreground">Current library</p>
+      <code className="block rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         {libraryRoot || "Loading…"}
       </code>
       {measurable ? (
@@ -2413,7 +2433,24 @@ function jumpToSettingsSection(id: string) {
     const heading = document.getElementById(`settings-${id}-heading`);
     if (!heading || heading.closest("[hidden]")) return;
     heading.focus({ preventScroll: true });
-    heading.scrollIntoView({ block: "start" });
+    heading.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const navigation = heading
+      .closest(".settings-grid")
+      ?.querySelector<HTMLElement>(".settings-section-index");
+    const workspace = heading.closest<HTMLElement>('[data-focus-region="workspace"]');
+    if (!navigation || !workspace || getComputedStyle(navigation).position !== "sticky") return;
+    const target = heading.getBoundingClientRect();
+    const strip = navigation.getBoundingClientRect();
+    // Wide category navigation sits beside the heading. Only a sticky strip
+    // above the same reading column can cover its focus outline.
+    if (target.left >= strip.right || target.right <= strip.left) return;
+    const focusStyle = getComputedStyle(heading);
+    const outlineRoom =
+      Math.max(0, Number.parseFloat(focusStyle.outlineWidth)) +
+      Math.max(0, Number.parseFloat(focusStyle.outlineOffset));
+    const covered = strip.bottom + outlineRoom - target.top;
+    if (covered > 0 && strip.top < target.bottom)
+      scrollWorkspaceTo(workspace, workspaceScrollTop(workspace) - covered);
   });
 }
 

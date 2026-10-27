@@ -40,6 +40,15 @@ for (const width of [320, 576]) {
       const commands = page
         .getByRole("button", { name: /^Commands .*open command palette$/ })
         .element();
+      const compactHeader = document.querySelector<HTMLElement>(".sidebar-compact-header")!;
+      const headerBox = compactHeader.getBoundingClientRect();
+      const commandBox = commands.getBoundingClientRect();
+      const sidebarBox = document.querySelector<HTMLElement>(".sidebar")!.getBoundingClientRect();
+      expect(document.querySelectorAll(".command-trigger")).toHaveLength(1);
+      expect(commandBox.top).toBeGreaterThanOrEqual(headerBox.top - 1);
+      expect(commandBox.bottom).toBeLessThanOrEqual(headerBox.bottom + 1);
+      expect(commandBox.right).toBeLessThanOrEqual(sidebarBox.right);
+      expect(heading.getBoundingClientRect().top - sidebarBox.bottom).toBeLessThanOrEqual(40);
       expect(commands.getBoundingClientRect().top).toBeLessThan(
         heading.getBoundingClientRect().bottom,
       );
@@ -152,3 +161,59 @@ it.each([320, 576])(
     await expect.element(navigation).toHaveFocus();
   },
 );
+
+for (const theme of ["light", "dark"]) {
+  it(`keeps ${theme} desktop Settings in a readable divided column with controls below the theme introduction`, async () => {
+    await page.viewport(1600, 1000);
+    transport = installInteractiveTransport("collection", (message) => {
+      throw new Error(message);
+    });
+    initializeLocalization(["en"]);
+    document.documentElement.dataset.theme = theme;
+    await render(
+      <LocalizationProvider api={desktopApi}>
+        <App />
+      </LocalizationProvider>,
+    );
+    await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect
+      .element(page.getByRole("heading", { name: "Color theme", exact: true }))
+      .toBeVisible();
+    const content = document.querySelector<HTMLElement>(
+      "#settings-appearance .settings-section-content",
+    )!;
+    const article = page
+      .getByRole("heading", { name: "Color theme", exact: true })
+      .element()
+      .closest("article")!;
+    const choices = page.getByRole("radiogroup", { name: "Color theme", exact: true }).element();
+    expect(content.getBoundingClientRect().width).toBeLessThanOrEqual(761);
+    expect(getComputedStyle(content).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(content).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(article).paddingLeft).toBe("0px");
+    expect(getComputedStyle(article).borderBottomWidth).toBe("1px");
+    expect(choices.getBoundingClientRect().left).toBeCloseTo(
+      article.getBoundingClientRect().left,
+      0,
+    );
+    expect(choices.getBoundingClientRect().top).toBeGreaterThan(
+      page
+        .getByRole("heading", { name: "Color theme", exact: true })
+        .element()
+        .getBoundingClientRect().bottom,
+    );
+    const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
+    expect(categories.element().querySelectorAll("button")).toHaveLength(7);
+    await categories.getByRole("button", { name: "Library and storage", exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Choose another library", exact: true }))
+      .toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();
+    const library = document.querySelector<HTMLElement>(
+      "#settings-library-storage .settings-section-content",
+    )!;
+    expect(library.getBoundingClientRect().width).toBeLessThanOrEqual(761);
+    expect(getComputedStyle(library).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  });
+}

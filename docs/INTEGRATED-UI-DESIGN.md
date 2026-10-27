@@ -59,12 +59,13 @@ Primary guidance used for concrete decisions: [WCAG reflow](https://www.w3.org/W
 
 ### Layout and task state refinements
 
-The compact Library readiness choice uses the query-area container, so it appears
-when that area's effective reading width is at most 46em. The wide choices and
-compact choice never compete in the keyboard order. Narrow navigation uses a
-compact current-destination header and a named Base UI Dialog sheet. The full
-desktop sidebar and icon rail remain at desktop widths; resize closes the sheet
-and restores focus to the visible destination.
+Library keeps one named Readiness choice at every width. Above 20rem through 32rem
+of query-area width, only its decorative prefix is omitted; its accessible label
+remains. Below 42rem, navigation uses a compact current-destination header and a
+named Base UI Dialog sheet. The existing Commands trigger shares that header
+without a duplicate or second toolbar row. The full desktop sidebar and icon rail
+remain at desktop widths; resize closes the sheet and restores focus to the
+visible destination.
 Narrow collection art is capped at 160 CSS pixels; scrolling remains intentional.
 Activity rows keep one keyed parent across attention/running/recent grouping so
 settlement preserves focus and open diagnostics.
@@ -75,6 +76,12 @@ validation result; operation failures remain separate notices. Required theme
 selection uses controlled radios, and shared checkboxes retain full label hit areas.
 Add games uses an editable Combobox keyed by port ID; search text and the selected
 port remain distinct drafts, including a selected port outside filtered results.
+
+Settings uses open rows separated by rules. Wide layouts place an 11.875rem category
+column beside a reading column bounded at 47.5rem; below 65rem the categories form
+one horizontally scrollable strip. All seven panels stay mounted to preserve
+drafts and operations. Category focus reveals the selected heading and its outline
+below any sticky category strip, scrolling the existing workspace only as far as needed.
 
 Every production dialog selects its initial field, review heading or safe action
 through Base UI initialFocus. The old autofocus markers have no remaining role.
@@ -99,9 +106,11 @@ language instead of inventing another download.
 
 Library uses one named Readiness picker at every width. Favorites remains an
 independent toggle; Filters retains declared dimensions, active chips and reset.
-A second command row groups Add games and scoped Collection commands, with the
-labeled cover/row choice opposite. Inactive Favorites and view choices use quiet
-controls; selected controls retain the independent selected cue. Core projections,
+Add games sits beside the Library heading. Scoped Collection commands and the
+cover/row choice share the retrieval toolbar. Compact layouts display Rows while
+retaining the full Compact rows accessible name. Inactive Favorites and view
+choices use quiet controls; selection preserves ordinary font weight and width,
+with blue fill and an underline distinct from the gold focus outline. Core projections,
 counts, filtering, Steam selection scope and browsing-return owners are unchanged.
 
 Ready text and its check use the semantic success foreground in covers, rows and
@@ -139,6 +148,9 @@ keeps projects separate. Counts distinguish known game groups from ungrouped
 projects and matching ports. Source-edition systems and target operating systems
 are independent facets, joined with every offered Stable/Beta/Rolling channel on
 the same eligible port/context. Preview remains the Beta display label.
+Contained 2:3 frames stay independent of text height; neighboring cards share
+identity, metadata, observation and action bands. Facet choices wrap at natural
+widths without stretching to match adjacent groups.
 
 One Filters panel preserves advanced production predicates, active removable
 chips and search-preserving Clear. Library keeps exact installation identities,

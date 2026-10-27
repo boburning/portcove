@@ -62,6 +62,45 @@ function groupedCollectionSnapshot() {
   return snapshot;
 }
 
+it.each([
+  ["dark", 390],
+  ["light", 390],
+  ["dark", 320],
+  ["light", 320],
+] as const)(
+  "keeps compact %s/%ipx Library game-led and restores its heading intake action",
+  async (theme, width) => {
+    await page.viewport(width, 844);
+    const snapshot = workspace("collection");
+    snapshot.statuses[0]!.last_launched_at = 1;
+    snapshot.statuses[0]!.successful_launches = 1;
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    await mount(theme);
+    await expect
+      .poll(() => {
+        const cover = document
+          .querySelector<HTMLElement>(".collection-art")!
+          .getBoundingClientRect();
+        return Math.max(0, Math.min(innerHeight, cover.bottom) - Math.max(0, cover.top));
+      })
+      .toBeGreaterThanOrEqual(160);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
+    const add = document.querySelector<HTMLButtonElement>(
+      "[data-library-header] [data-add-games-trigger]",
+    )!;
+    expect(add).not.toBeNull();
+    add.focus();
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(page.getByRole("heading", { name: "Add games", exact: true }))
+      .toBeVisible();
+    await page.getByRole("button", { name: "Back to library", exact: true }).click();
+    await expect
+      .poll(() => document.activeElement?.hasAttribute("data-add-games-trigger"))
+      .toBe(true);
+  },
+);
+
 it("groups retrieval, preserves independent duplicate-port launch targets and states the Steam selection scope", async () => {
   await page.viewport(1366, 768);
   await mount();

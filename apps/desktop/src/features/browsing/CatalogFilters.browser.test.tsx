@@ -136,6 +136,50 @@ afterEach(async () => {
   await cleanup();
   host.remove();
   vi.unstubAllGlobals();
+  delete document.documentElement.dataset.theme;
+});
+
+it.each([
+  { theme: "dark", width: 1600 },
+  { theme: "light", width: 1600 },
+  { theme: "dark", width: 390 },
+  { theme: "light", width: 390 },
+])("keeps $theme facet options compact and wrapping at $width", async ({ theme, width }) => {
+  await page.viewport(width, 1000);
+  document.documentElement.dataset.theme = theme;
+  await render();
+  await click("Filters (0)");
+  await page.getByText("Advanced filters", { exact: true }).click();
+  const panel = page.getByRole("region", { name: "Filter options", exact: true });
+  const options = [...panel.element().querySelectorAll<HTMLButtonElement>("fieldset button")];
+  expect(options.length).toBeGreaterThan(20);
+  for (const option of options) {
+    expect(option.getBoundingClientRect().height).toBeLessThanOrEqual(48);
+    expect(option.scrollWidth).toBeLessThanOrEqual(option.clientWidth + 1);
+  }
+  await click("Windows (2)");
+  await click("Preview (1)");
+  expect(current).toMatchObject({ platforms: ["windows-x86-64"], channels: ["beta"] });
+  await expect
+    .element(
+      page
+        .getByRole("group", { name: "Target OS", exact: true })
+        .getByRole("button", { name: /^Windows/ }),
+    )
+    .toHaveAttribute("aria-pressed", "true");
+  await expect
+    .element(
+      page
+        .getByRole("group", { name: "Release channels", exact: true })
+        .getByRole("button", { name: /^Preview/ }),
+    )
+    .toHaveAttribute("aria-pressed", "true");
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("button", { name: "Filters (2)", exact: true }))
+    .toHaveFocus();
+  await expect.element(panel).not.toBeInTheDocument();
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
 });
 it("starts with ordinary filters and exposes technical groups on request", async () => {
   await render();

@@ -623,6 +623,9 @@ function useWorkspace(props: WorkspaceProps) {
         setQuery={ui.setQuery}
         portCount={model.entries.length}
         libraryCount={data.catalog ? model.overview.installed : undefined}
+        onAddGames={
+          ui.view === "library" && model.overview.installed > 0 ? openAddGames : undefined
+        }
       />
     ));
   const renderPreferenceFailure = () =>

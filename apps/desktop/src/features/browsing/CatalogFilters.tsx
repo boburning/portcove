@@ -249,7 +249,7 @@ export function CatalogFilters({
               Additional restored filters remain active. Reset {view} filters to remove them.
             </p>
           )}
-          <div className="catalog-filter-groups">
+          <div className="catalog-filter-groups items-start">
             {groups
               .filter((group) =>
                 ["originalSystems", "platforms", "channels", "membership", "portOptions"].includes(
@@ -263,7 +263,7 @@ export function CatalogFilters({
             onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
           >
             <summary className="cursor-pointer py-2 font-medium">Advanced filters</summary>
-            <div className="catalog-filter-groups pt-3">
+            <div className="catalog-filter-groups items-start pt-3">
               {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
               {groups
                 .filter(
@@ -328,7 +328,7 @@ export function CatalogFilters({
 
   function renderGroup(group: FilterGroup) {
     return (
-      <fieldset key={group.key} className="grid gap-2">
+      <fieldset key={group.key} className="grid min-w-0 content-start items-start gap-2">
         <legend className="mb-2 font-medium">{group.label}</legend>
         {group.key === "platforms" && (
           <p>
@@ -359,7 +359,7 @@ export function CatalogFilters({
             Shows recorded needs for the current installation. Unavailable details remain unknown.
           </p>
         )}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-start gap-2">
           {group.values.map((value) => (
             <ChipButton
               style={identityStyle(

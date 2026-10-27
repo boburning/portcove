@@ -64,6 +64,24 @@ it("keeps the actual workspace Commands trigger available on compact detail navi
   expect(labels.violations).toEqual([]);
 });
 
+it("keeps the Library Add games action on the heading's existing return-focus target", async () => {
+  await page.viewport(1280, 720);
+  const onAddGames = vi.fn();
+  await render(
+    <PageHeader
+      view="library"
+      query=""
+      setQuery={() => {}}
+      libraryCount={12}
+      onAddGames={onAddGames}
+    />,
+  );
+  const add = page.getByRole("button", { name: "Add games", exact: true });
+  expect(add.element().hasAttribute("data-add-games-trigger")).toBe(true);
+  await add.click();
+  expect(onAddGames).toHaveBeenCalledTimes(1);
+});
+
 it("retains an explicitly requested standalone PageHeader Commands control", async () => {
   const onOpenCommands = vi.fn();
   await render(

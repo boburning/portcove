@@ -19,15 +19,19 @@ Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter
 chips, counts and reset stay with the existing browsing projection. First use
-omits retrieval controls. Add games and the labeled view choice remain visible.
-Collection commands retains its explicit selection scope, including filtered-out
-entries in supported Steam commands.
+omits retrieval controls. Add games sits beside the Library heading; scoped
+Collection commands and Covers/Compact rows share the retrieval toolbar. At
+compact widths the visible Rows label retains its full Compact rows accessible
+name. Readiness keeps its accessible label when its decorative prefix is omitted
+above 20rem through 32rem of query width. Collection commands retains its explicit
+selection scope, including filtered-out entries in supported Steam commands.
 
-Covers use content-driven columns with a 14rem preferred minimum, 12rem when the
-window is at most 800px high and 11rem at most 680px high, always limited by the
-available width. Whole-image 2:3 artwork caps at 220, 180 and 160 CSS pixels at
-those respective heights. Narrow artwork still caps at 160px below 28em of
-collection width. Titles reserve two ordinary lines and expand on focus; port
+Covers use content-driven columns with a 180px preferred minimum, reduced to
+160px when the window is at most 680px high, always limited by the available
+width. Whole-image 2:3 artwork caps at 220 CSS pixels ordinarily, 180px when the
+window is at most 800px high and 160px at most 680px high. Text enlargement
+reflows text without increasing those artwork bounds. Narrow artwork still caps
+at 160px below 28em of collection width. Titles reserve two ordinary lines and expand on focus; port
 labels wrap completely. Full identity wraps below 40em. The action follows each
 entry's state instead of being pushed away by the tallest neighboring exception.
 No fixed column count, crop inference or provider mapping is implied.
@@ -64,6 +68,8 @@ one eligible port/context. Clear filters preserves search; Escape and Done retur
 focus to Filters. Source systems without reviewed metadata say Not specified.
 Identity chips use the v58 decorative Lucide/palette mappings; semantic readiness,
 warning, failure, selection and focus retain their own tokens.
+Facet choices wrap at their natural width and align to the start of each group;
+neighboring groups do not stretch them into equal-height tiles.
 
 Geist, semantic tokens, the existing controls and the one persisted/native sizing
 authority remain shared. Enlarged text may wrap and scroll; it never authorizes
@@ -211,8 +217,8 @@ build targets, operating-system minima or publication qualification.
 - Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
 - Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
-- Graphite and warm controller-gray surfaces carry most of the interface. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
-- Selected state and focus are deliberately different: blue and a bottom-line marker communicate state; a gold outline communicates the current keyboard or controller target. The marker remains present in both themes and forced colors without changing the control's dimensions.
+- Graphite and warm controller-gray surfaces carry most of the interface. In the light theme, navigation is darker than the warm workspace and elevated surfaces are brighter. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
+- Selected state and focus are deliberately different: shared selected buttons use blue fill and a bottom-line marker with a transparent border; destination and Settings category navigation use the fill and current-page semantics. A gold outline communicates the current keyboard or controller target independently. Selecting an ordinary control preserves its regular font weight and geometry; forced colors retain a visible state cue.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use gradients, glass, blur, neon glow, scanlines, or pixel-interface typography.
 - The bundled Geist variable font is the intended default interface typeface, with an intentional monospace stack for technical content and offline system/script fallbacks coordinated with #203. The desktop must not make a network request to render its interface.
 - A second token interchange format is unnecessary while CSS has one runtime consumer. If a demonstrated second consumer later needs exchange, evaluate the then-current Design Tokens Community Group format without treating a community-group specification as a W3C Recommendation or manually maintaining competing CSS and JSON authorities.
@@ -221,10 +227,11 @@ build targets, operating-system minima or publication qualification.
 
 Interface size is one profile-local whole-interface control in Appearance with
 100/125/150/175/200/250/300/400 percent presets and Ctrl/Command plus/minus/zero.
-It preserves the active library, drafts and browsing context. Below 48rem
-effective width, primary navigation wraps above the workspace in one vertical
-reading flow. Keep task controls in that flow rather than sticking them over
-content. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
+It preserves the active library, drafts and browsing context. Below 42rem
+effective width, a compact current-destination header and navigation sheet precede
+the workspace in one vertical reading flow. The existing Commands trigger shares
+that header without a second toolbar row or duplicate trigger. Keep task controls
+in the workspace flow. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
 the controller, persistence and native/browser evidence boundaries.
 
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
@@ -479,7 +486,7 @@ The scrolling workspace fills the available window width. Library and Catalog
 grids use that width to add columns as the window grows; the 1600x1000 reference
 does not impose a maximum collection width or column count. Artwork is
 bounded at 220 CSS pixels, or 160 pixels when the viewport is at most 680 pixels high;
-tracks can shrink below the shared 14rem preferred minimum
+tracks can shrink below their 180px preferred minimum (160px in short windows)
 when the available width requires it. Library and Catalog share artwork geometry
 independent of title/status height. Text enlargement reflows text around the bounds;
 native WebView zoom enlarges the whole interface. Text-heavy workspaces retain a readable inner
@@ -619,10 +626,14 @@ but focus, controller navigation, compact layouts, and safety information must
 remain intact. Infrequent maintenance and technical controls use progressive
 disclosure without becoming hidden safety state. Settings uses Appearance,
 Library and storage, Game files, Updates, Integrations, Advanced, and About
-categories. Keep their navigation visible beside the selected panel on wide
-windows and wrapping above it at smaller widths. Category changes hide rather
+categories. Wide layouts use an 11.875rem category column beside a reading column
+bounded at 47.5rem. Below 65rem, navigation becomes one horizontally scrollable
+category strip above the panel. Settings rows use open surfaces and dividing
+rules rather than a surrounding card for every group. Category changes hide rather
 than unmount panels, preserving unsaved drafts and pending operations; they do
-not persist settings or cancel work. Move focus to the selected heading. Direct
+not persist settings or cancel work. Focus the selected heading and reveal its
+outline below any sticky category strip, using the existing workspace scroll owner
+only as far as needed. Direct
 recovery links select the owning category before focusing its relevant control.
 The sidebar About entry opens About directly. Updates explains application/game
 updates and the bundled game catalog; optional custom catalog trust controls
@@ -742,7 +753,7 @@ compact (4rem) and Add games visible at the supported minimum window, including
 the initial application-update choice notice. Filtered no-results retains its
 reset and filtering controls; hiding first-use tools must not clear preferences.
 
-Library's contextual Add games action and empty-state primary action open the
+Library's heading Add games action and empty-state primary action open the
 same in-flow workspace. Keep source choice, current port identity and the next
 review action together. Start with three intentions: choose a game or port,
 find games in a folder, or use an existing installation. Show only the selected
@@ -761,6 +772,10 @@ quiet game symbol as Library and Detail. Do not infer crop bounds or replace
 provider/user-selected artwork. Titles and project/variant identity follow the
 frame without reserving three empty title lines. The existing card activation
 and keyboard return still target the exact port, not its shared original title.
+Neighboring Discover cards share identity, metadata, observation and action bands
+through a row subgrid; long identity or status text does not shift one card's
+actions into another card's metadata band. Artwork remains contained and bounded
+independently of that text.
 
 ### Game-data preparation review
 

@@ -3921,6 +3921,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       sourceJourney: null,
       preliminaryJourney: null,
       completionJourney: false as const,
+      get acquisitionWaitPath(): never {
+        return assert.fail("Preflight must not read acquisition fixture paths");
+      },
+      holdArtifact: (): never => assert.fail("Preflight must not hold an artifact transfer"),
       get url(): never {
         return assert.fail("Preflight must not read fixture URLs");
       },
@@ -3931,6 +3935,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     interruptApplication: async () => assert.fail("Context preflight must not interrupt"),
     closeApplication: async () => assert.fail("Context preflight must not close"),
     captureLivePreparation: () => assert.fail("Context preflight must not capture"),
+    // Full-profile registration has no native acquisition observer authority.
+    ownedGameProcess: undefined,
     chooseOwnedLibrary: async () => assert.fail("Context preflight must not choose a library"),
     chooseGameFileFolder: undefined,
   };

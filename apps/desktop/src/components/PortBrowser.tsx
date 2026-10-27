@@ -451,7 +451,7 @@ function SteamBatchLibraryAction({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <details className="text-xs text-pc-muted-foreground">
+      <details className="collection-tools text-xs text-pc-muted-foreground" data-focus-group>
         <summary data-focusable className="cursor-pointer py-2">
           Collection commands
         </summary>
@@ -693,7 +693,7 @@ function ContinueCard({
   const previouslyPlayed = status.successful_launches > 0;
   return (
     <section
-      className="continue-card mb-5 grid min-w-0 items-center gap-4 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
+      className="continue-card mb-4 grid min-w-0 items-center gap-4 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
       data-focus-group
       data-successful-launches={status.successful_launches}
       aria-label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
@@ -718,6 +718,7 @@ function ContinueCard({
           data-focusable
           variant="outline"
           size="lg"
+          className="max-[42rem]:min-h-9"
           data-detail-origin={`library:continue-details:${port.id}`}
           onClick={() => details(port.id, `library:continue-details:${port.id}`)}
         >
@@ -727,6 +728,7 @@ function ContinueCard({
           data-focusable
           variant="primary"
           size="lg"
+          className="max-[42rem]:min-h-9"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
           disabled={launchable && Boolean(action.busy)}
           focusableWhenDisabled={launchable && Boolean(action.busy)}
@@ -1349,13 +1351,14 @@ function BrowserCollectionTools({
 >) {
   return (
     !model.firstUseEmpty && (
-      <div className="library-query-tools mb-5 flex flex-wrap items-center gap-3" data-focus-group>
+      <div className="library-query-tools mb-4 flex flex-wrap items-center gap-2" data-focus-group>
         {model.view === "library" && model.setQuery && (
           <PortSearch query={model.query} setQuery={model.setQuery} library />
         )}
         {renderFilters()}
         {!model.composedLibrary && renderDeclaredFilters()}
         {renderSort()}
+        {renderSteamBatch()}
         {model.view === "library" && setCollectionLayout && (
           <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">
             <span className="self-center text-xs text-pc-muted-foreground">View</span>
@@ -1365,38 +1368,28 @@ function BrowserCollectionTools({
                 variant={model.collectionLayout === layout ? "selected" : "ghost"}
                 size="sm"
                 aria-pressed={model.collectionLayout === layout}
+                aria-label={layout === "rows" ? "Compact rows" : undefined}
                 data-focusable
                 onClick={() => setCollectionLayout(layout)}
               >
-                {layout === "covers" ? "Covers" : "Compact rows"}
+                {layout === "covers" ? (
+                  "Covers"
+                ) : (
+                  <>
+                    <span className="max-[42rem]:hidden">Compact rows</span>
+                    <span className="hidden max-[42rem]:inline">Rows</span>
+                  </>
+                )}
               </Button>
             ))}
           </div>
         )}
-        {model.view === "library" && !model.firstUseEmpty && (
-          <div
-            className="collection-tools flex basis-full flex-wrap items-center gap-3"
-            data-focus-group
-          >
-            {model.onBrowseCatalog && model.overview.installed > 0 && (
-              <Button
-                data-focusable
-                data-add-games-trigger
-                variant="outline"
-                onClick={model.onBrowseCatalog}
-              >
-                Add games
-              </Button>
-            )}
-            {renderSteamBatch()}
-            {model.collectionLayoutFailure && (
-              <p role="status" className="basis-full text-end text-xs text-pc-muted-foreground">
-                {model.collectionLayoutFailure === "read"
-                  ? "The saved collection view could not be read. Covers are shown."
-                  : "This collection view is available for this session; it could not be saved."}
-              </p>
-            )}
-          </div>
+        {model.view === "library" && model.collectionLayoutFailure && (
+          <p role="status" className="basis-full text-end text-xs text-pc-muted-foreground">
+            {model.collectionLayoutFailure === "read"
+              ? "The saved collection view could not be read. Covers are shown."
+              : "This collection view is available for this session; it could not be saved."}
+          </p>
         )}
       </div>
     )

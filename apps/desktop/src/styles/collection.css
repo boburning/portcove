@@ -77,16 +77,27 @@
     border-radius: var(--radius-md);
     overflow: hidden;
   }
+  .discover-grid {
+    align-items: stretch;
+  }
   .discover-game {
     display: grid;
-    align-content: start;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: subgrid;
+    grid-row: span 4;
+    justify-self: start;
+    width: min(100%, var(--collection-art-limit));
     gap: var(--space-2);
   }
   .discover-game > * {
-    max-inline-size: var(--collection-art-limit);
+    min-inline-size: 0;
+    max-inline-size: 100%;
   }
   .discover-game-identity {
     align-content: start;
+  }
+  .discover-game-personal-actions {
+    min-block-size: var(--control-height-sm);
   }
   .discover-game .collection-title {
     margin-block-start: var(--space-3);
@@ -228,6 +239,11 @@
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
     }
   }
+  @container library-query (20rem < width <= 32rem) {
+    .collection-readiness [data-slot="select-trigger"] > span[aria-hidden="true"] {
+      display: none;
+    }
+  }
   @container library-query (max-width: 32rem) {
     .library-query-tools .filter-row {
       flex-basis: 100%;
@@ -257,6 +273,11 @@
     .collection-row .collection-actions {
       grid-column: 2;
       grid-row: 1 / 4;
+    }
+  }
+  @container library-query (max-width: 46em) {
+    .discover-grid {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
     }
   }
   @container collection (max-width: 28em) {

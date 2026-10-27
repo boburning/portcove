@@ -105,7 +105,7 @@ export function GroupedDiscover({
       </p>
       <section
         aria-label="Discover games"
-        className="port-grid collection-covers @container/collection grid w-full"
+        className="port-grid discover-grid collection-covers @container/collection grid w-full"
         data-focus-group
       >
         {groups.map((group) => (
@@ -264,7 +264,7 @@ function DiscoverGameCard({
     >
       <Button
         variant="ghost"
-        className="discover-game-identity grid w-full justify-items-start p-0 text-start"
+        className="discover-game-identity grid w-full min-w-0 grid-cols-1 justify-start justify-items-stretch gap-0 p-0 text-start"
         data-focusable
         data-detail-origin={detailOrigin}
         aria-label={
@@ -285,32 +285,40 @@ function DiscoverGameCard({
           identityArtwork
           className="collection-art"
         />
-        <h2 className="collection-title text-base font-semibold">{gameTitle(first)}</h2>{" "}
+        <h2 className="collection-title text-base leading-snug font-semibold">
+          {gameTitle(first)}
+        </h2>{" "}
         <p className="collection-project text-xs text-pc-muted-foreground">{projectLabel}</p>
       </Button>
-      {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
-      {exact && <IdentityChips port={first} />}
-      {exact ? (
-        <>
-          {group.ports.length > 1 && (
-            <p className="text-xs text-pc-muted-foreground">Matching port: {firstProject}</p>
-          )}
-          <BrowsePortObservations
-            port={first}
-            status={status}
-            observation={observation}
-            descriptionId={descriptionId}
-            noticeChoice={organization?.snapshot?.update_notices[first.id]}
-          />
-        </>
-      ) : (
-        <p className="text-xs text-pc-muted-foreground">
-          Compare the matching ports for their own setup requirements and installation status.
-        </p>
-      )}
-      <div className="mt-3 flex flex-wrap gap-2">
-        {group.ports.length === 1 && favorite(first)}
-        <SaveGameButton port={first} groupPorts={group.ports} organization={organization} />
+      <div className="discover-game-metadata grid content-start gap-2">
+        {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
+        {exact && <IdentityChips port={first} />}
+      </div>
+      <div className="discover-game-observation grid content-start gap-1">
+        {exact ? (
+          <>
+            {group.ports.length > 1 && (
+              <p className="text-xs text-pc-muted-foreground">Matching port: {firstProject}</p>
+            )}
+            <BrowsePortObservations
+              port={first}
+              status={status}
+              observation={observation}
+              descriptionId={descriptionId}
+              noticeChoice={organization?.snapshot?.update_notices[first.id]}
+            />
+          </>
+        ) : (
+          <p className="text-xs text-pc-muted-foreground">
+            Compare the matching ports for their own setup requirements and installation status.
+          </p>
+        )}
+      </div>
+      <div className="discover-game-actions grid content-start justify-items-start gap-2">
+        <div className="discover-game-personal-actions flex flex-wrap items-start gap-2">
+          {group.ports.length === 1 && favorite(first)}
+          <SaveGameButton port={first} groupPorts={group.ports} organization={organization} />
+        </div>
         <Button
           data-focusable
           variant="outline"

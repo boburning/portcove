@@ -58,7 +58,7 @@ export function OrganizationControls({
   const snapshot = organization.snapshot;
   return (
     <div
-      className="mb-4 flex basis-full flex-wrap items-center gap-2"
+      className="mb-3 flex basis-full flex-wrap items-center gap-2"
       aria-label={discover ? "Discover collections" : "Library collections"}
     >
       {[["all", "All games"], ...(discover ? [["saved", "Saved"]] : [["hidden", "Hidden"]])].map(
