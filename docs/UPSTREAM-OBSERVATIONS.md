@@ -333,8 +333,8 @@ validated main push, scheduled or manual executions of this repository's workflo
 may replace it and save the main cache. PRs may read that comparison history but
 never update it. The checkpoint records execution identity, health and policy
 hashes, observation clocks, collection status and incident material facts. It is
-bounded to 16 MiB, 4,096 ports and 8,192 observations, written atomically under an
-exclusive lock. Cache loss starts a new comparison baseline; cache retention
+bounded to 16 MiB and written atomically under an exclusive lock. Historical
+cardinality does not impose a second limit inside that physical envelope. Cache loss starts a new comparison baseline; cache retention
 provides no durability or observation-frequency guarantee.
 
 The report states the total inventory, ports assessed this run, deferred and
@@ -352,8 +352,8 @@ Incident keys bind the port, location, operation, rule and relevant observation
 contract. Unchanged conditions retain first-seen time and recurrence without a
 new notification; material changes and freshly observed recovery are separate.
 
-The checkpoint keeps a separate `incident_history`, bounded to 8,192 incidents
-overall and 512 per port within its existing 16 MiB limit. An inconclusive 503
+The checkpoint keeps a separate `incident_history` within its existing 16 MiB
+physical limit. An inconclusive 503
 does not erase a prior 404: a later matching 404 retains its original first-seen
 time and recurrence. Only the latest conditions appear as current in `port_health`
 and the summary. History is removed on matching endpoint or metadata assessment
@@ -422,3 +422,20 @@ deterministic offline mapping validation in required catalog CI retains the
 complete catalog. Release checks and standalone invocation retain their full
 scope. A no-probe PR result establishes applicability only. It is not a healthy
 inventory, accepted artifact or exception to required hosted validation.
+
+### Growing monitoring inventories
+
+The monitor retains fair oldest-attempt rotation across bounded collector runs.
+The collector's 320-request and 512-observation envelopes bound one collection,
+not the logical catalog or retained cross-run history. Checkpoints use their
+existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
+or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
+including programmatic invocations. Oversized physical inputs remain refused;
+no history is silently truncated to claim complete coverage.
+
+Each invocation validates and snapshots the complete inventory once for request
+estimation. Scoped estimates retain shared-location identities and reviewed
+accounting semantics. Per-port freshness hashes likewise reuse one catalog
+projection; hash semantics and legacy checkpoints remain unchanged. These local
+optimizations do not equate repository reachability with release eligibility,
+and partial batches continue to report global health as unassessed.
