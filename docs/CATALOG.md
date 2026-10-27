@@ -1627,6 +1627,12 @@ qualification records must not be added to that migration.
 
 Use one thin preparation entry point for a new or updated record:
 
+Shared upstream families retain complete independent per-ID records. The existing
+authoring tests compare Raze's shared package/platform/profile/update facts and
+Namco's common upstream/platform links. Original-file requirements, canonical
+issues, identities and independently reviewed acquisition restrictions stay local
+to each record. These checks add no runtime inheritance or shared policy registry.
+
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation

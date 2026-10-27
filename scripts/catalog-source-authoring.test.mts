@@ -9,13 +9,85 @@ import {
   checkedAuthoredPort,
   parseCatalogSource,
 } from "./catalog-authoring.mts";
+import type { AuthoredPort } from "./catalog-authoring.mts";
 
 import {
   requiredFixture,
   fixtureJson,
   fixtureCatalog,
   catalogRoot,
+  record as fixtureRecord,
+  records as fixtureRecords,
 } from "./fixtures/catalog-generator-fixtures.mts";
+
+void test("shared upstream family facts stay consistent while game and permission facts remain independent", () => {
+  const source = readCatalogSource(catalogRoot);
+  const razeUrl = "https://github.com/ZDoom/Raze";
+  const namcoUrl = "https://github.com/spacestate1/namco22-decompile";
+  const families = source.records.filter((entry) =>
+    [razeUrl, namcoUrl].includes(entry.listing.project_url),
+  );
+  const check = (records: readonly AuthoredPort[]) => {
+    for (const [url, count] of [
+      [razeUrl, 7],
+      [namcoUrl, 5],
+    ] as const) {
+      const family = records.filter((entry) => entry.listing.project_url === url);
+      assert.equal(family.length, count, `Retain the reviewed independent identities for ${url}`);
+      const first = requiredFixture(family[0]).listing;
+      for (const { listing } of family) {
+        for (const field of ["platforms", "availability", "setup_url", "release_url"] as const)
+          assert.deepEqual(listing[field], first[field], `${listing.id}: shared ${field}`);
+        if (url === razeUrl) {
+          for (const field of ["download_asset_hints", "recommended_download_channel"] as const)
+            assert.deepEqual(listing[field], first[field], `${listing.id}: shared ${field}`);
+          const steps = fixtureRecords(fixtureRecord(listing.manual_setup).steps);
+          const expected = fixtureRecords(fixtureRecord(first.manual_setup).steps);
+          assert.equal(steps.length, 4);
+          assert.deepEqual(
+            steps.slice(2),
+            expected.slice(2),
+            `${listing.id}: shared profile and update ownership`,
+          );
+        }
+      }
+    }
+  };
+  check(families);
+  for (const field of [
+    "platforms",
+    "availability",
+    "setup_url",
+    "release_url",
+    "download_asset_hints",
+    "recommended_download_channel",
+    "profile",
+  ] as const) {
+    const changed = structuredClone(families);
+    const listing = requiredFixture(
+      changed.find((entry) => entry.listing.project_url === razeUrl),
+    ).listing;
+    if (field === "platforms") listing.platforms = ["windows-x86-64"];
+    else if (field === "availability") listing.availability = "unavailable";
+    else if (field === "download_asset_hints") listing.download_asset_hints = {};
+    else if (field === "recommended_download_channel")
+      listing.recommended_download_channel = "beta";
+    else if (field === "profile")
+      requiredFixture(fixtureRecords(fixtureRecord(listing.manual_setup).steps)[2]).instruction =
+        "Wrong profile.";
+    else listing[field] = "https://example.invalid/unrelated";
+    assert.throws(() => check(changed), /shared/, field);
+  }
+  const independent = structuredClone(families);
+  for (const { listing } of independent) {
+    listing.name += listing.id;
+    listing.issue_number = (listing.issue_number ?? 1) + 10000;
+    listing.download_block_reason = `An independently reviewed condition for ${listing.id}.`;
+    const steps = fixtureRecords(fixtureRecord(listing.manual_setup).steps);
+    requiredFixture(steps[0]).instruction = `Original-file requirements for ${listing.id}.`;
+  }
+  check(independent);
+});
 
 void test("per-port source projects all accepted operations unchanged and listing-only records stay inert", () => {
   const source = readCatalogSource(catalogRoot);

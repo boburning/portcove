@@ -4,8 +4,12 @@ This is the successor design for #245. It does not extend signed catalog format
 1, admit a new port, provision a publisher, or activate automatic delivery.
 `portcove-core` remains the sole definition, admission and lifecycle authority.
 The CLI and Tauri expose its outcomes; React and external clients present them.
-The Project owns scheduling, #397 owns client implementation, #398 observes
-upstreams, and #246 owns the protected publication and unchanged-client proof.
+The Project owns scheduling. Completed #245/#397/#398 components supply the
+design, compatible client and configured observer; completed #254 supplies bounded
+authoring tooling. #177 owns continued discovery and normalized observations,
+#247 scoped release-health incidents/recovery, and #246 the actual protected
+publication and unchanged-client journey. #534 retains provisioning acceptance;
+component fixtures do not complete either production outcome.
 
 ## Implemented engine capability negotiation
 
