@@ -58,6 +58,12 @@ are independent: the game can ask for original files on first launch while
 Portcove continues to replace its runtime. A launcher that replaces its own
 runtime instead uses the non-owning existing-installation route.
 
+Verify that the selected process stays alive through edition dispatch and
+settings-triggered restarts, or uses a supported tracked handoff. A launcher that
+starts a successor and exits can end Core's supervision while the game still
+uses its files. Keep that upstream-owned route non-owning until its full lifetime
+can be tracked; bypassing useful setup or settings is not a management fix.
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;
@@ -866,9 +872,12 @@ description. The Wave Race pilot requires an empty `portable.txt` beside its
 executable, in addition to the extracted upstream ZIP files.
 Optional `presentation.manual_setup` supplies authored `steps` (one to eight
 objects with nonempty `title` and `instruction`), up to eight essential `warnings`,
-and an optional HTTPS `help_url` without credentials. These are presentation
-facts, never executable recipes or evidence that a step was completed. Current
-prepared routes supply them separately from the retained `manual_preparation`
+and an optional HTTPS `help_url` without credentials. Include `warnings: []`
+when no warning is needed; omitting the required array does not produce a
+Core-readable guide. Use preparation's Core inspector
+or the required catalog checks to validate the complete projection. These
+presentation facts are never executable recipes or evidence that a step was
+completed. Current prepared routes supply them separately from the retained `manual_preparation`
 compatibility and technical notes. Older definitions keep their prose fallback.
 Clients keep warnings visible, show numbered steps, and disclose the longer notes
 without parsing free-form prose or changing file/operation authority.
