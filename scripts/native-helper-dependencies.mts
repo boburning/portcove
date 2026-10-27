@@ -81,6 +81,7 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   ]),
 });
 export const nativeHelperSharedSources = Object.freeze([
+  helper("desktop-capture-target.mts"),
   "apps/desktop/test/capture-target.ts",
   // Fixed read-only Python modules loaded from hash-checked captured bytes by
   // the public init/services branch. Capture is source custody, not execution.
