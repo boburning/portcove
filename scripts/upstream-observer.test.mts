@@ -922,3 +922,102 @@ void test("Core-bounded release shapes continue past the former single-run reque
   // The projection callback is a fixture; actual compiled-Core and hosted
   // observations remain distinct evidence even though these shapes fit its caps.
 });
+
+void test("scoped candidate assets reuse complete headers without fetching irrelevant historical assets", async () => {
+  const make = () => {
+    const server = fixture();
+    server.replies.get(`${root}/releases?per_page=100&page=1`).body = [
+      release(3),
+      release(2),
+      release(1),
+    ];
+    for (const id of [2, 3]) {
+      const value = asset(id * 10);
+      value.browser_download_url = value.browser_download_url.replace("v1.0.0", `v${id}.0.0`);
+      server.replies.set(`${root}/releases/${id}/assets?per_page=100&page=1`, { body: [value] });
+    }
+    return server;
+  };
+  const complete = make();
+  await observeUpstream(config, { fetch: complete.fetch });
+  assert.equal(complete.requests.length, 10);
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: observationHash({ channels: ["stable"] }),
+  });
+  const server = make();
+  const result = await observeUpstream(scoped, {
+    fetch: server.fetch,
+    selectAssetReleases: async (headers) => {
+      assert.equal(headers.format, 2);
+      assert.deepEqual(headers.coverage?.asset_release_ids, []);
+      assert.ok(headers.facts.releases.every((release) => release.assets.length === 0));
+      // Only the transport choice is mocked here. Rust tests exercise real Core
+      // candidate selection and refusal of incomplete asset coverage.
+      return [3];
+    },
+  });
+  assert.equal(server.requests.length, 6);
+  assert.equal(result.observation.format, 2);
+  assert.deepEqual(result.observation.coverage?.asset_release_ids, [3]);
+  assert.deepEqual(
+    result.observation.facts.releases.map((release) => release.assets.length),
+    [1, 0, 0],
+  );
+  assert.ok(server.requests.every((request) => !/releases\/[12]\/assets/u.test(request.url)));
+  await assert.rejects(
+    observeUpstream(scoped, {
+      fetch: async () => assert.fail("missing selector reached provider"),
+    }),
+    /maintained Core channel selector/,
+  );
+});
+
+void test("scoped asset selection resumes bounded batches and automatically rechecks changed Core choices", async () => {
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    budget: { ...config.budget, requests: 2 },
+  });
+  const server = fixture();
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [release(2), release(1)];
+  const value = asset(20);
+  value.browser_download_url = value.browser_download_url.replace("v1.0.0", "v2.0.0");
+  server.replies.set(`${root}/releases/2/assets?per_page=100&page=1`, { body: [value] });
+  const first = await advanceObservation(scoped, null, {
+    fetch: server.fetch,
+    project,
+    selectAssetReleases: async () => [1],
+  });
+  assert.deepEqual(first.checkpoint.continuation?.selected_asset_release_ids, [1]);
+  let checkpoint: unknown = first.checkpoint;
+  let completed = false;
+  for (let batch = 0; batch < 8; batch++) {
+    const before = server.requests.length;
+    const result = await advanceObservation(scoped, checkpoint, {
+      fetch: server.fetch,
+      project,
+      selectAssetReleases: async () => [2],
+    });
+    assert.ok(server.requests.length - before <= 2);
+    checkpoint = result.checkpoint;
+    if (result.report.transition === "initial-baseline") {
+      assert.deepEqual(objectFixture(result.report.observation?.coverage).asset_release_ids, [2]);
+      completed = true;
+      break;
+    }
+    assert.equal(result.report.observation, null);
+  }
+  assert.equal(completed, true);
+  const refused = await advanceObservation(scoped, null, {
+    fetch: fixture().fetch,
+    project,
+    selectAssetReleases: async () => [1, 1],
+  });
+  assert.equal(refused.report.exception?.rule, "core-selection");
+  assert.equal(refused.report.observation, null);
+});

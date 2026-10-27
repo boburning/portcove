@@ -50,6 +50,24 @@ catalog and applies the existing core channel/asset rules. It opens no library
 and performs no network requests. The format-1 result is exported by
 `schema export` as `upstream_observation_report`.
 
+Format 2 adds explicit `channel-candidate-assets` coverage for catalog-scale
+observation. It retains every release header in provider order and identifies
+which release IDs have complete asset collections. An inert header-only probe
+asks the same Core projection for channel candidates; the observer then collects
+only those asset collections and revalidates all consumed pages. Missing candidate
+coverage produces `release-asset-observation-incomplete`, never metadata eligibility.
+Unknown, repeated or foreign coverage IDs and asset payloads outside declared
+coverage are refused. Format 1 retains its existing full-asset semantics; existing
+clients and the configured Shipwright workflow continue to use that format.
+
+The format-2 configuration binds `asset_scope: core-channel-candidates` and a
+`policy_input_sha256` to the maintained selection inputs. A changed Core candidate
+set during continuation resets the validation cursor and discards irrelevant
+asset pages from the active scope. Retained conditional representations may save
+bytes but cannot establish current coverage. This interface adds no artifact
+verification, signing or protected admission authority. The catalog-wide
+coordinator and its hosted acceptance remain separate delivery work.
+
 Each platform/channel projection retains the latest observed release, its
 channel candidate, latest metadata-eligible asset, and hold reasons. Core's
 existing prerelease policy recognizes RC/preview tags even when the provider's

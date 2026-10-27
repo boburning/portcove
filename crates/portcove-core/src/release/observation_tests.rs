@@ -430,3 +430,80 @@ fn observations_reject_changed_bytes_scope_identity_and_invalid_clocks() -> Resu
     );
     Ok(())
 }
+
+#[test]
+fn scoped_observations_keep_core_channel_selection_and_require_asset_coverage() -> Result<()> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    port.platforms = vec![Platform::WindowsX86_64];
+    port.channels = vec![
+        ReleaseChannel::Stable,
+        ReleaseChannel::Beta,
+        ReleaseChannel::Rolling,
+    ];
+    port.release.rolling_tag = Some("devbuild".into());
+    let mut document = envelope(vec![
+        release(3, "1.1-rc5"),
+        release(2, "1.0.0"),
+        release(1, "devbuild"),
+    ])?;
+    document["format"] = json!(2);
+    document["coverage"] = json!({ "kind": "channel-candidate-assets", "complete_release_headers": true, "asset_release_ids": [] });
+    for release in document["facts"]["releases"].as_array_mut().unwrap() {
+        release["assets"] = json!([]);
+    }
+    document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+    let headers = inspect(&port, &document)?;
+    for (projection, expected) in headers.projections.iter().zip([2, 3, 1]) {
+        assert_eq!(projection.channel_candidate.as_ref().unwrap().id, expected);
+        assert!(projection.latest_eligible.is_none());
+        assert_eq!(
+            projection.hold_reasons,
+            ["release-asset-observation-incomplete"]
+        );
+    }
+    document["facts"]["releases"][1] = release(2, "1.0.0");
+    document["coverage"]["asset_release_ids"] = json!([2]);
+    document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+    let scoped = inspect(&port, &document)?;
+    assert_eq!(
+        scoped.projections[0]
+            .latest_eligible
+            .as_ref()
+            .unwrap()
+            .release_id,
+        2
+    );
+    assert!(scoped.projections[1].latest_eligible.is_none());
+    assert!(scoped.projections[2].latest_eligible.is_none());
+    assert_eq!(
+        scoped.eligibility_scope,
+        "core-release-metadata-scoped-assets"
+    );
+    assert!(!scoped.evidence.provider_authenticated);
+    assert!(!scoped.evidence.artifact_bytes_verified);
+    assert!(!scoped.evidence.catalog_admission_assessed);
+    Ok(())
+}
+
+#[test]
+fn scoped_observations_refuse_ambiguous_coverage_and_unassessed_asset_payloads() -> Result<()> {
+    let port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    let mut document = envelope(vec![release(1, "1.0.0")])?;
+    document["format"] = json!(2);
+    for coverage in [
+        json!(null),
+        json!({ "kind": "channel-candidate-assets", "complete_release_headers": false, "asset_release_ids": [1] }),
+        json!({ "kind": "channel-candidate-assets", "complete_release_headers": true, "asset_release_ids": [1, 1] }),
+        json!({ "kind": "channel-candidate-assets", "complete_release_headers": true, "asset_release_ids": [2] }),
+        json!({ "kind": "channel-candidate-assets", "complete_release_headers": true, "asset_release_ids": [] }),
+        json!({ "kind": "channel-candidate-assets", "complete_release_headers": true, "asset_release_ids": [1], "ignore_missing": true }),
+    ] {
+        document["coverage"] = coverage;
+        assert!(inspect(&port, &document).is_err());
+    }
+    document["coverage"] = json!({ "kind": "channel-candidate-assets", "complete_release_headers": true, "asset_release_ids": [1] });
+    assert!(inspect(&port, &document).is_ok());
+    document["format"] = json!(3);
+    assert!(inspect(&port, &document).is_err());
+    Ok(())
+}

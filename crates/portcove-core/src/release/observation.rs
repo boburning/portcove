@@ -203,10 +203,71 @@ fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> R
     Ok(())
 }
 
+fn observation_asset_coverage(document: &Value) -> Result<Option<HashSet<u64>>> {
+    if document["format"] == 1 {
+        return Ok(None);
+    }
+    let coverage = document["coverage"]
+        .as_object()
+        .ok_or_else(|| PortcoveError::verification("scoped observation is missing coverage"))?;
+    if coverage.len() != 3
+        || coverage.get("kind").and_then(Value::as_str) != Some("channel-candidate-assets")
+        || coverage
+            .get("complete_release_headers")
+            .and_then(Value::as_bool)
+            != Some(true)
+    {
+        return Err(PortcoveError::verification(
+            "scoped observation coverage is invalid",
+        ));
+    }
+    let releases = document["facts"]["releases"].as_array().ok_or_else(|| {
+        PortcoveError::verification("scoped observation release headers are invalid")
+    })?;
+    let ids = coverage
+        .get("asset_release_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            PortcoveError::verification("scoped observation asset coverage is invalid")
+        })?;
+    if ids.len() > releases.len() {
+        return Err(PortcoveError::verification(
+            "scoped observation coverage exceeds its release headers",
+        ));
+    }
+    let mut covered = HashSet::new();
+    for value in ids {
+        let id = metadata_identity(value)?;
+        if !covered.insert(id)
+            || !releases
+                .iter()
+                .any(|release| release["id"].as_u64() == Some(id))
+        {
+            return Err(PortcoveError::verification(
+                "scoped observation repeats or invents asset coverage",
+            ));
+        }
+    }
+    for release in releases {
+        let id = metadata_identity(&release["id"])?;
+        if !covered.contains(&id)
+            && release["assets"]
+                .as_array()
+                .is_none_or(|assets| !assets.is_empty())
+        {
+            return Err(PortcoveError::verification(
+                "unassessed release assets must be empty",
+            ));
+        }
+    }
+    Ok(Some(covered))
+}
+
 fn project_channel(
     port: &PortDefinition,
     releases: &[ObservedRelease],
     facts: &Value,
+    covered_assets: Option<&HashSet<u64>>,
     platform: Platform,
     channel: ReleaseChannel,
 ) -> ChannelObservation {
@@ -237,6 +298,12 @@ fn project_channel(
         return output;
     };
     if !output.hold_reasons.is_empty() {
+        return output;
+    }
+    if covered_assets.is_some_and(|covered| !covered.contains(&candidate.id)) {
+        output
+            .hold_reasons
+            .push("release-asset-observation-incomplete".into());
         return output;
     }
     let asset = match choose_asset(port, platform, &candidate.provider.assets) {
@@ -302,7 +369,7 @@ pub fn inspect_upstream_observation(
     }
     let bytes = read_bounded_regular(path, 4 * 1024 * 1024)?;
     let document: Value = serde_json::from_slice(&bytes)?;
-    if document["format"] != 1
+    if (document["format"] != 1 && document["format"] != 2)
         || document["authority"] != "provider-observation-only"
         || document["port_id"] != port.id
     {
@@ -325,6 +392,7 @@ pub fn inspect_upstream_observation(
         ));
     }
     validate_facts(facts, port, repository_id)?;
+    let covered_assets = observation_asset_coverage(&document)?;
     let releases: Vec<ObservedRelease> = serde_json::from_value(facts["releases"].clone())?;
     let projections = port
         .platforms
@@ -335,7 +403,16 @@ pub fn inspect_upstream_observation(
                 ReleaseChannel::Beta,
                 ReleaseChannel::Rolling,
             ]
-            .map(|channel| project_channel(port, &releases, facts, *platform, channel))
+            .map(|channel| {
+                project_channel(
+                    port,
+                    &releases,
+                    facts,
+                    covered_assets.as_ref(),
+                    *platform,
+                    channel,
+                )
+            })
         })
         .collect();
     Ok(UpstreamObservationReport {
@@ -350,7 +427,12 @@ pub fn inspect_upstream_observation(
             .as_str()
             .expect("validated clock")
             .into(),
-        eligibility_scope: "core-release-metadata".into(),
+        eligibility_scope: if covered_assets.is_some() {
+            "core-release-metadata-scoped-assets"
+        } else {
+            "core-release-metadata"
+        }
+        .into(),
         evidence: ObservationEvidence {
             provider_authenticated: false,
             artifact_bytes_verified: false,
