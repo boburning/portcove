@@ -718,6 +718,187 @@ export function validateObservationContinuation(
   return value as unknown as ObservationContinuation;
 }
 
+/** Reconstruct a previously complete provider snapshot from its bounded page proofs.
+ * This does not reuse eligibility or refresh its original provider observation clock.
+ */
+export function reusableProviderObservation(
+  input: unknown,
+  observation: unknown,
+  cache: unknown,
+  continuation: unknown,
+  now: number,
+): ProviderObservation | null {
+  const config = validateObserverConfig(input);
+  if (!observation || !cache) return null;
+  requireFact(
+    isRecord(observation),
+    "invalid-checkpoint",
+    "Retained provider observation is malformed",
+  );
+  const configHash = observationHash(config);
+  requireFact(
+    observation.authority === "provider-observation-only" &&
+      observation.format === config.format &&
+      observation.config_sha256 === configHash &&
+      observation.port_id === config.port_id,
+    "invalid-checkpoint",
+    "Retained provider scope differs",
+  );
+  const started = timestamp(observation.started_at, "observation start");
+  const completed = timestamp(observation.completed_at, "observation completion");
+  const validated =
+    observation.validation_started_at == null
+      ? completed
+      : timestamp(observation.validation_started_at, "observation validation");
+  requireFact(
+    Date.parse(started) <= Date.parse(validated) &&
+      Date.parse(validated) <= Date.parse(completed) &&
+      Date.parse(completed) <= now,
+    "invalid-checkpoint",
+    "Retained provider clocks differ",
+  );
+  if (now - Date.parse(validated) >= config.stale_after_hours * 3600000) return null;
+  const proof = validateObservationContinuation(
+    {
+      format: 1,
+      config_sha256: configHash,
+      started_at: started,
+      phase: "collect",
+      pages: validatedCache(cache, configHash),
+      validation_cursor: 0,
+      last_validated_at: null,
+      first_validated_at: null,
+      validation_order_sha256: null,
+      consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
+    },
+    config,
+  )!;
+  const pending = validateObservationContinuation(continuation, config);
+  if (pending?.phase === "restart") return null;
+  if (
+    pending &&
+    Object.entries(pending.pages).some(
+      ([url, page]) =>
+        !proof.pages[url] ||
+        proof.pages[url].sha256 !== page.sha256 ||
+        proof.pages[url].link !== page.link,
+    )
+  )
+    return null;
+  const root = `/repos/${config.repository}`;
+  const repositoryPage = proof.pages[`${apiRoot}${root}`];
+  requireFact(
+    repositoryPage,
+    "invalid-checkpoint",
+    "Complete provider snapshot has no repository proof",
+  );
+  const repository = repositoryFact(repositoryPage.body, config);
+  const collection = (pathname: string) => {
+    const records: unknown[] = [];
+    for (let index = 1; ; index++) {
+      const page = proof.pages[`${apiRoot}${pathname}?per_page=100&page=${index}`];
+      requireFact(
+        page && Array.isArray(page.body) && page.body.length <= 100,
+        "invalid-checkpoint",
+        "Complete provider snapshot has an incomplete page chain",
+      );
+      records.push(...(page.body as unknown[]));
+      if (!nextPage(page.link, pathname, index, config)) return records;
+    }
+  };
+  const releases = collection(`${root}/releases`).map((value) => ({
+    ...releaseFact(value),
+    assets: [] as ReturnType<typeof assetFact>[],
+  }));
+  const releaseIds = new Set(releases.map((release) => release.id));
+  requireFact(
+    releaseIds.size === releases.length,
+    "invalid-checkpoint",
+    "Complete provider snapshot repeats release identities",
+  );
+  let selected = [...releaseIds];
+  if (config.format === 2) {
+    const coverage = observation.coverage;
+    requireFact(
+      isRecord(coverage) &&
+        coverage.kind === "channel-candidate-assets" &&
+        coverage.complete_release_headers === true &&
+        Array.isArray(coverage.asset_release_ids),
+      "invalid-checkpoint",
+      "Retained scoped provider coverage is incomplete",
+    );
+    const ids: unknown[] = coverage.asset_release_ids;
+    requireFact(
+      ids.every((id) => Number.isSafeInteger(id) && Number(id) > 0 && releaseIds.has(Number(id))) &&
+        new Set(ids).size === ids.length,
+      "invalid-checkpoint",
+      "Retained provider coverage has unknown or repeated release identities",
+    );
+    selected = ids.map(Number);
+  }
+  const assets = new Set<number>();
+  for (const release of releases) {
+    if (!selected.includes(release.id)) continue;
+    release.assets = collection(`${root}/releases/${release.id}/assets`).map((value) =>
+      assetFact(value, config, release.tag_name),
+    );
+    for (const asset of release.assets) {
+      requireFact(
+        !assets.has(asset.id),
+        "invalid-checkpoint",
+        "Complete provider snapshot repeats asset identities",
+      );
+      assets.add(asset.id);
+    }
+  }
+  const facts = { repository, releases };
+  requireFact(
+    observationHash(facts) === observation.facts_sha256 &&
+      observationHash(observation.facts) === observation.facts_sha256,
+    "invalid-checkpoint",
+    "Complete provider facts differ from their validated page proofs",
+  );
+  const consumed = observation.consumed;
+  requireFact(
+    isRecord(consumed) &&
+      [consumed.requests, consumed.response_bytes, consumed.conditional_hits].every(
+        (value) => Number.isSafeInteger(value) && Number(value) >= 0,
+      ),
+    "invalid-checkpoint",
+    "Retained provider accounting is invalid",
+  );
+  return {
+    format: config.format,
+    config_sha256: configHash,
+    port_id: config.port_id,
+    started_at: started,
+    completed_at: completed,
+    ...(typeof observation.validation_started_at === "string"
+      ? { validation_started_at: validated }
+      : {}),
+    facts_sha256: observationHash(facts),
+    facts,
+    ...(config.format === 2
+      ? {
+          coverage: {
+            kind: "channel-candidate-assets",
+            complete_release_headers: true,
+            asset_release_ids: selected,
+          },
+        }
+      : {}),
+    consumed: {
+      requests: Number(consumed.requests),
+      response_bytes: Number(consumed.response_bytes),
+      conditional_hits: Number(consumed.conditional_hits),
+    },
+    batch_consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
+    interval_semantics:
+      "Previously complete validated provider interval reused without refreshing its clock; eligibility is recomputed under current Core",
+    authority: "provider-observation-only",
+  };
+}
+
 /** Read-only provider observations. No candidate data is executed or admitted. */
 export async function observeUpstream(
   input: unknown,

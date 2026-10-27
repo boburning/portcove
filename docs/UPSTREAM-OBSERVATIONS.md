@@ -508,3 +508,32 @@ accounting semantics. Per-port freshness hashes likewise reuse one catalog
 projection; hash semantics and legacy checkpoints remain unchanged. These local
 optimizations do not equate repository reachability with release eligibility,
 and partial batches continue to report global health as unassessed.
+
+### Current Core projection of fresh provider facts
+
+A changed Core binary or catalog policy invalidates prior eligibility. When the
+provider configuration is unchanged, the coordinator can reuse the prior complete
+provider interval and recompute every port's current Core selection and policy.
+The exact current catalog input is inspected once by Core, and every projection
+must match the resulting normalized per-port definition hash. An older embedded
+catalog cannot claim the reviewed input's eligibility. Scope identities bind a
+versioned validated contract and normalized definition hashes, so pre-guard
+completion and partial cursors are automatically reprojected. Retained per-port
+policies are also checked before cursor reuse. The coordinator reconstructs
+repository, complete release headers and covered asset collections
+from the existing bounded page proofs, verifies their identities/digests against
+the complete observation, and retains the original oldest validation clock.
+Reprojection never makes an old provider fact fresh. Normal cadence/expiry still
+requires provider checks.
+
+Current Core must select candidates from the complete header universe, and every
+selected release must have complete validated asset coverage. Missing coverage
+returns to the ordinary incremental collection path. Corrupt or missing page
+proofs refuse reuse; changed known partial pages, restarted collections and
+expired facts use ordinary observation. Old policy and acceptance output cannot
+become current eligibility. Current per-port projection cursors remain durable,
+including while provider capacity is unavailable, and cancellation refuses a
+projection before it is retained. Core executable object/size/time identity is
+checked around hashing and each inspection so a changed executable cannot inherit
+the invocation's policy identity. This adds no provider, queue, database, artifact
+trust or protected admission authority.

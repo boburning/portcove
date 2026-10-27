@@ -256,6 +256,7 @@ export interface CatalogObservationOptions extends Pick<
   now?: () => number;
   config: ObserverConfig;
   policyIdentity: string;
+  definitionHash: (portId: string) => string;
   withSourceLock: <T>(config: ObserverConfig, operation: () => Promise<T>) => Promise<T>;
   load: (config: ObserverConfig) => Promise<unknown>;
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
@@ -291,11 +292,24 @@ export async function advanceCatalogObservations(
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
   const template = validateObserverConfig(options.config);
-  if (!/^[a-f0-9]{64}$/u.test(options.policyIdentity))
+  const policyIdentity = options.policyIdentity;
+  if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
+  const definitions = new Map(
+    sources.flatMap((source) =>
+      source.ports.map((port) => [port.id, options.definitionHash(port.id)] as const),
+    ),
+  );
+  if ([...definitions.values()].some((value) => !/^[a-f0-9]{64}$/u.test(value)))
+    throw new Error("Normalized current Core definition identities are required");
   const deadline = now() + template.budget.duration_ms;
   const scopeBinding = (source: ObservableSource) =>
-    observationHash({ policy: options.policyIdentity, scope: source.scope_sha256 });
+    observationHash({
+      contract: "normalized-current-catalog-core-policy-v1",
+      policy: policyIdentity,
+      scope: source.scope_sha256,
+      definitions: source.ports.map((port) => [port.id, definitions.get(port.id)]),
+    });
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;
@@ -413,18 +427,34 @@ export async function advanceCatalogObservations(
       policy.port_id !== portId ||
       policy.repository_id !== repositoryId ||
       policy.facts_sha256 !== observation.facts_sha256 ||
-      !Array.isArray(policy.projections)
+      !Array.isArray(policy.projections) ||
+      policy.catalog_definition_sha256 !== definitions.get(portId)
     )
       throw new ObservationFailure(
         "core-binding",
-        "Core projection differs from the exact port, source or provider facts",
+        "Core projection differs from the exact reviewed catalog definition, port, source or provider facts",
+      );
+    if (options.signal?.aborted)
+      throw new ObservationFailure(
+        "cancelled",
+        "Observation cancelled before retaining Core projection",
       );
     return policy;
   };
   for (const [index, source] of pending.entries()) {
     if (options.signal?.aborted || now() >= deadline) break;
     // Completed provider reads may still admit offline Core continuation while the provider is unavailable.
-    if (capacity() < 1 && !state.sources[source.key]?.policy_progress) continue;
+    const previousProgress = state.sources[source.key];
+    const reprojectFreshFacts =
+      previousProgress !== undefined &&
+      previousProgress.completed_scope_sha256 !== scopeBinding(source) &&
+      previousProgress.last_complete_facts_sha256 !== null;
+    const freshOfflineCandidate =
+      reprojectFreshFacts &&
+      previousProgress.freshness_observed_at !== null &&
+      now() - Date.parse(previousProgress.freshness_observed_at) <
+        template.stale_after_hours * 3600000;
+    if (capacity() < 1 && !previousProgress?.policy_progress && !freshOfflineCandidate) continue;
     operationBytes = 0;
     const progress = state.sources[source.key] ?? {
       repository: source.repository,
@@ -533,7 +563,8 @@ export async function advanceCatalogObservations(
             (policy, index) =>
               policy.port_id !== source.ports[index]?.id ||
               policy.repository_id !== config.repository_id ||
-              policy.facts_sha256 !== observation.facts_sha256,
+              policy.facts_sha256 !== observation.facts_sha256 ||
+              policy.catalog_definition_sha256 !== definitions.get(String(policy.port_id)),
           )
         )
           throw new ObservationFailure(
@@ -581,6 +612,7 @@ export async function advanceCatalogObservations(
           ...(options.sleep ? { sleep: options.sleep } : {}),
           now,
           catalogIds,
+          reprojectFreshFacts,
           admitRequest: () => {
             if (sourceRequests >= quantum)
               throw new ObservationFailure(
