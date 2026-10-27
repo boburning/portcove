@@ -373,12 +373,20 @@ export async function observeProviderSource(
         !isRecord(project) ||
         project.path_with_namespace !== source.repository ||
         !Number.isSafeInteger(project.id) ||
-        Number(project.id) < 1 ||
-        typeof project.archived !== "boolean"
+        Number(project.id) < 1
       )
         throw new ObservationFailure(
           "repository-identity",
           "GitLab project identity differs from the reviewed source",
+        );
+      if (
+        project.archived !== undefined &&
+        project.archived !== null &&
+        typeof project.archived !== "boolean"
+      )
+        throw new ObservationFailure(
+          "provider-metadata",
+          "GitLab archive state is malformed; no active-state assumption is permitted",
         );
       await options.bindIdentity?.(Number(project.id));
     });
@@ -411,7 +419,7 @@ export async function observeProviderSource(
         );
     }
     facts = {
-      project,
+      project: { ...project, archived: project.archived ?? null },
       releases,
       packages,
       package_files: files,

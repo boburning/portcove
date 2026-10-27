@@ -212,6 +212,30 @@ mod tests {
         );
         assert!(report.get("repository_id").is_none());
         assert_eq!(report["evidence"]["artifact_bytes_verified"], false);
+        let mut unknown_archive = facts.clone();
+        unknown_archive["project"]
+            .as_object_mut()
+            .unwrap()
+            .remove("archived");
+        let unknown_report = inspect(port, unknown_archive, "gitlab").unwrap();
+        let unknown_windows = unknown_report["projections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| {
+                p["channel"] == "stable"
+                    && p["platform"]
+                        == serde_json::to_value(crate::Platform::WindowsX86_64).unwrap()
+            })
+            .unwrap();
+        assert_eq!(
+            unknown_windows["latest_eligible"],
+            windows["latest_eligible"]
+        );
+        assert!(unknown_report["provider_identity"]["archived"].is_null());
+        let mut malformed_archive = facts.clone();
+        malformed_archive["project"]["archived"] = json!("false");
+        assert!(inspect(port, malformed_archive, "gitlab").is_err());
         let mut incomplete = facts.clone();
         incomplete["package_files"] = json!({});
         let held = inspect(port, incomplete, "gitlab").unwrap();
