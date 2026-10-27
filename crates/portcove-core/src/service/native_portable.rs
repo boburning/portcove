@@ -1272,7 +1272,7 @@ mod tests {
         let staged = service.status(ID).unwrap().staged.unwrap();
         assert!(
             service
-                .prepare_recovered_psx_activation(&staged)
+                .prepare_retained_install_data(&staged)
                 .unwrap_err()
                 .message
                 .contains("Mod packages need review")
