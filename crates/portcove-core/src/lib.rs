@@ -70,7 +70,9 @@ mod portability_authority;
 mod portable_tree;
 mod preparation;
 mod process;
+mod provider_observation;
 mod providers;
+pub use provider_observation::inspect_provider_observation;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;

@@ -13,6 +13,7 @@ import {
   atomicJson,
   boundedJson,
   projectObservation,
+  projectProviderObservation,
   inspectCatalogDefinitions,
   withCheckpointLock,
   validateObserverCheckpoint,
@@ -95,6 +96,8 @@ export async function runCatalogUpstreams(
     now?: () => number;
     observer?: Pick<ObserveOptions, "fetch" | "sleep" | "signal">;
     project?: typeof projectObservation;
+    projectProvider?: typeof projectProviderObservation;
+    providerFetch?: typeof fetch;
     inspectCatalog?: typeof inspectCatalogDefinitions;
     api?: GitHubRestReader;
     log?: (value: string) => void;
@@ -245,6 +248,55 @@ export async function runCatalogUpstreams(
               );
             throw error;
           }
+        },
+        ...(runtime.providerFetch ? { providerFetch: runtime.providerFetch } : {}),
+        projectProvider: async (portId, observation) => {
+          await assertCoreEntry();
+          const report = await (runtime.projectProvider ?? projectProviderObservation)(
+            cli,
+            portId,
+            path.dirname(statePath),
+            observation,
+          );
+          await assertCoreEntry();
+          return report;
+        },
+        exportProvider: async (source, observations, policies) => {
+          const filename = path.join(handoffDirectory, `${source.key}.json`);
+          const report = {
+            format: 2,
+            authority: "provider-observation-only",
+            provider: source.provider,
+            execution: {
+              kind: process.env.GITHUB_EVENT_NAME ?? "local",
+              source_commit: process.env.GITHUB_SHA ?? null,
+              run_id: process.env.GITHUB_RUN_ID ?? null,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
+            },
+            source_port_ids: source.ports.map((p) => p.id),
+            observations,
+            catalog_policies: policies,
+            catalog_policies_scope: "complete-current-Core-projections",
+            unassessed_current_port_ids: [],
+            artifact_bytes_verified: false,
+            catalog_admission_assessed: false,
+            player_update_eligibility_assessed: false,
+            protected_publication: "not-authorized",
+          };
+          const bytes = Buffer.byteLength(JSON.stringify(report));
+          if (bytes > handoffByteLimit)
+            throw new ObservationFailure(
+              "handoff-size",
+              "Provider source handoff exceeds the physical byte envelope; complete checkpoint retained",
+            );
+          if (artifactBytes - (artifactSizes.get(filename) ?? 0) + bytes > handoffByteLimit)
+            throw new ObservationFailure(
+              "budget",
+              "Provider handoff envelope exhausted; completed source retained for continuation",
+            );
+          await atomicJson(filename, report);
+          artifactBytes += bytes - (artifactSizes.get(filename) ?? 0);
+          artifactSizes.set(filename, bytes);
         },
         project: async (portId, repositoryId, observation) => {
           await assertCoreEntry();

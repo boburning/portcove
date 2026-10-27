@@ -349,6 +349,13 @@
       ]
     },
     {
+      "file": "scripts/provider-release-observation.test.mts",
+      "memberships": [
+        ["catalog-full", 1202],
+        ["repository-tools", 403]
+      ]
+    },
+    {
       "file": "scripts/check-catalog-repositories.test.mts",
       "memberships": [
         ["windows-storage-3", 200],

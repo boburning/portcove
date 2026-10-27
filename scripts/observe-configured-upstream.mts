@@ -587,6 +587,21 @@ export async function projectObservation(
   );
 }
 
+export async function projectProviderObservation(
+  cli: string,
+  portId: string,
+  directory: string,
+  observation: Record<string, unknown>,
+): Promise<unknown> {
+  return inspectCoreJson(
+    cli,
+    directory,
+    Buffer.from(JSON.stringify(observation)),
+    "catalog.inspect-observation",
+    (input) => ["--json", "catalog", "inspect-observation", portId, input, "--provider-facts"],
+  );
+}
+
 async function main(args: string[]) {
   const parsed = new Map<string, string>();
   for (let index = 0; index < args.length; index += 2) {

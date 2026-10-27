@@ -41,7 +41,7 @@ function harness(requests = 256) {
       {
         id: "held-port",
         channels: ["stable"],
-        release: { provider: "gitlab", repository: "owner/held" },
+        release: { provider: "user-prepared", repository: "owner/held" },
       },
     ],
   };
@@ -147,7 +147,7 @@ void test("reviewed declarations share provider collection while keeping port-sp
     plan.sources.find((source) => source.repository === "owner/shared")!.ports.length,
     2,
   );
-  assert.match(plan.held[0]!.reason, /gitlab/);
+  assert.match(plan.held[0]!.reason, /user-prepared/);
   const result = await advanceCatalogObservations(h.input, null, h.options);
   assert.equal(result.report.completed_source_keys.length, 2);
   assert.equal(result.report.global_eligibility, "not-assessed");
@@ -1031,5 +1031,106 @@ void test("observation bindings use the canonical normalized Core hash and retai
   assert.throws(
     () => catalogObservationDefinitionHashes({ ...receipt, input_sha256: "c".repeat(64) }, bytes),
     /exact reviewed input/,
+  );
+});
+
+void test("one fair catalog pipeline isolates GitLab failures, observes fixed pins and preserves numeric identities across refresh", async () => {
+  const h = harness();
+  const gitlab = {
+    id: "gitlab-port",
+    channels: ["stable"],
+    release: { provider: "gitlab", repository: "owner/lab" },
+  };
+  const direct = {
+    id: "direct-port",
+    channels: ["stable"],
+    release: {
+      provider: "direct-manifest",
+      direct: { windows: { url: "https://example.org/pin.zip" } },
+    },
+  };
+  const catalog = { ports: [...h.input.ports, gitlab, direct] };
+  let projectId = 27,
+    fail = true;
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    definitionHash: (id) => observationHash(catalog.ports.find((port) => port.id === id)),
+    providerFetch: async (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      if (url.origin === "https://example.org")
+        return new Response(null, { headers: { "content-length": "123" } });
+      if (fail) throw new Error("isolated GitLab failure");
+      return new Response(
+        JSON.stringify(
+          url.pathname.endsWith("lab")
+            ? { id: projectId, path_with_namespace: "owner/lab", archived: false }
+            : [],
+        ),
+        {
+          headers: {
+            etag: '"fixed"',
+            "x-page": url.searchParams.get("page") ?? "1",
+            "x-per-page": "100",
+            "x-next-page": "",
+          },
+        },
+      );
+    },
+    projectProvider: async (id, observation) => ({
+      format: 2,
+      port_id: id,
+      catalog_definition_sha256: observationHash(catalog.ports.find((port) => port.id === id)),
+      facts_sha256: observation.facts_sha256,
+      projections: [],
+    }),
+    exportProvider: async () => {},
+  };
+  const first = await advanceCatalogObservations(catalog, null, options);
+  assert.equal(first.report.total_sources, 4);
+  assert.equal(first.report.completed_source_keys.length, 3);
+  assert.ok(first.report.failures.some((failure) => failure.rule === "provider-transport"));
+  fail = false;
+  const second = await advanceCatalogObservations(catalog, first.checkpoint, options);
+  const source = catalogObservationSources(catalog).sources.find(
+    (source) => source.provider === "gitlab",
+  )!;
+  assert.equal(second.checkpoint.sources[source.key]!.repository_id, 27);
+  assert.equal(second.report.pending_source_keys.length, 0);
+  const legacy = structuredClone(second.checkpoint);
+  const oldProgress = legacy.sources[source.key]!.provider_progress!;
+  oldProgress.format = 1;
+  for (const read of oldProgress.reads) {
+    delete read.page;
+    delete read.per_page;
+    read.next ??= "";
+    read.sha256 = observationHash({
+      url: read.url,
+      method: read.method,
+      body: read.body,
+      status: read.status,
+      next: read.next,
+      content_length: read.content_length,
+    });
+  }
+  legacy.sources[source.key]!.completed_scope_sha256 = "0".repeat(64);
+  const migrated = await advanceCatalogObservations(catalog, legacy, options);
+  assert.equal(migrated.checkpoint.sources[source.key]!.provider_progress!.format, 2);
+  assert.equal(migrated.checkpoint.sources[source.key]!.provider_previous_progress!.format, 1);
+  assert.equal(migrated.checkpoint.sources[source.key]!.repository_id, 27);
+  assert.equal(migrated.report.pending_source_keys.length, 0);
+  (gitlab.release as Record<string, unknown>).asset_hints = { windows: ["new-reviewed-hint"] };
+  const changedScope = await advanceCatalogObservations(catalog, second.checkpoint, options);
+  assert.equal(changedScope.report.pending_source_keys.length, 0);
+  assert.ok(changedScope.checkpoint.sources[source.key]!.provider_previous_progress);
+  assert.equal(changedScope.checkpoint.sources[source.key]!.repository_id, 27);
+  projectId = 28;
+  h.advanceClock(7 * 3600000);
+  const replaced = await advanceCatalogObservations(catalog, changedScope.checkpoint, options);
+  assert.ok(replaced.report.failures.some((failure) => failure.rule === "repository-identity"));
+  assert.equal(replaced.checkpoint.sources[source.key]!.repository_id, 27);
+  assert.equal(
+    replaced.report.source_statuses.find((status) => status.repository === "owner/lab")!
+      .current_scope_complete,
+    false,
   );
 });
