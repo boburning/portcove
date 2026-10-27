@@ -6,10 +6,7 @@
     "summary": "Play Mario Kart: Super Circuit with your own matching GBA game and BIOS.",
     "project_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
     "issue_number": 285,
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/blob/d551cfc2893f01c089f918a625ec184af571ad60/README.md",
     "artwork": {
@@ -23,14 +20,8 @@
     "release_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "MarioKartSuperCircuitRecomp-windows-x64-",
-        ".zip"
-      ],
-      "linux-x86-64": [
-        "MarioKartSuperCircuitRecomp-linux-x86_64-",
-        ".AppImage"
-      ]
+      "windows-x86-64": ["MarioKartSuperCircuitRecomp-windows-x64-", ".zip"],
+      "linux-x86-64": ["MarioKartSuperCircuitRecomp-linux-x86_64-", ".AppImage"]
     },
     "manual_setup": {
       "steps": [

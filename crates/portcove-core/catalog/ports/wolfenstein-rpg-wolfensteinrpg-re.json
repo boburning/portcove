@@ -6,10 +6,7 @@
     "summary": "Play Wolfenstein RPG with your own matching original iOS game data.",
     "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
     "issue_number": 371,
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md",
     "artwork": {
@@ -23,14 +20,8 @@
     "release_url": "https://github.com/Erick194/WolfensteinRPG-RE/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "linux-x86-64": [
-        "WolfensteinRPG-x86_64",
-        ".AppImage"
-      ],
-      "windows-x86-64": [
-        "WolfensteinRPG.v",
-        ".zip"
-      ]
+      "linux-x86-64": ["WolfensteinRPG-x86_64", ".AppImage"],
+      "windows-x86-64": ["WolfensteinRPG.v", ".zip"]
     },
     "manual_setup": {
       "steps": [
