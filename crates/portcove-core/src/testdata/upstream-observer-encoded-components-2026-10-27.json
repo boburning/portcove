@@ -1,0 +1,251 @@
+{
+  "evidence_scope": "Selected public release metadata retained by hosted observer runs40468283742/1 and40468873486/1; no artifact download or trust admission.",
+  "cases": [
+    {
+      "port_id": "gen1recomp",
+      "repository_id": 1304486109,
+      "facts": {
+        "repository": {
+          "id": 1304486109,
+          "full_name": "bryanthaboi/gen1recomp",
+          "archived": false
+        },
+        "releases": [
+          {
+            "id": 424509720,
+            "tag_name": "v0.3.97",
+            "draft": false,
+            "prerelease": false,
+            "created_at": "2026-10-26T16:29:19Z",
+            "published_at": "2026-10-26T16:42:12Z",
+            "assets": [
+              {
+                "id": 678789636,
+                "name": "gen1recomp++-0.3.97-ios.ipa",
+                "size": 44714538,
+                "state": "uploaded",
+                "digest": "sha256:13d834471d01016e3297efe3ce81dd3bad97bbea26259e6ffd795ac12c5b52ba",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp%2B%2B-0.3.97-ios.ipa",
+                "created_at": "2026-10-26T16:42:07Z",
+                "updated_at": "2026-10-26T16:42:08Z"
+              },
+              {
+                "id": 678789549,
+                "name": "gen1recomp-0.3.97-android.apk",
+                "size": 46470248,
+                "state": "uploaded",
+                "digest": "sha256:7a436ebbb7c7682cfd3dcc35bd7a8229f767728ebe931c70f616e93a329417b8",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-android.apk",
+                "created_at": "2026-10-26T16:42:04Z",
+                "updated_at": "2026-10-26T16:42:06Z"
+              },
+              {
+                "id": 678789546,
+                "name": "gen1recomp-0.3.97-linux-arm64.AppImage",
+                "size": 62781960,
+                "state": "uploaded",
+                "digest": "sha256:348f587b70198c81cc9464c7a4799153f6ad3fa2ccc7cdf16411d331a95a4a25",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-linux-arm64.AppImage",
+                "created_at": "2026-10-26T16:42:04Z",
+                "updated_at": "2026-10-26T16:42:06Z"
+              },
+              {
+                "id": 678789542,
+                "name": "gen1recomp-0.3.97-linux-x86_64.AppImage",
+                "size": 39421120,
+                "state": "uploaded",
+                "digest": "sha256:f44f0c360201cffed8477ec0951c33123d892aa81f47093fcbf76e6ba9a7313a",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-linux-x86_64.AppImage",
+                "created_at": "2026-10-26T16:42:04Z",
+                "updated_at": "2026-10-26T16:42:06Z"
+              },
+              {
+                "id": 678789552,
+                "name": "gen1recomp-0.3.97-linux.flatpak",
+                "size": 39587640,
+                "state": "uploaded",
+                "digest": "sha256:3f849228dc074c5a1ae2b94c2ce52c2c722f5aa32e008bd7f265d9a38cddf189",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-linux.flatpak",
+                "created_at": "2026-10-26T16:42:04Z",
+                "updated_at": "2026-10-26T16:42:06Z"
+              },
+              {
+                "id": 678789551,
+                "name": "gen1recomp-0.3.97-macos.zip",
+                "size": 49715161,
+                "state": "uploaded",
+                "digest": "sha256:9bfd909823315a60a329872b08e00d8e4c94f7d6726f0f62765ecc3bcfd8a2d8",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-macos.zip",
+                "created_at": "2026-10-26T16:42:04Z",
+                "updated_at": "2026-10-26T16:42:06Z"
+              },
+              {
+                "id": 678789647,
+                "name": "gen1recomp-0.3.97-ps4.pkg",
+                "size": 88866816,
+                "state": "uploaded",
+                "digest": "sha256:80cf7ad939c014c6004ca9a9a879442b556608c465e597b59e12389ea676fc30",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-ps4.pkg",
+                "created_at": "2026-10-26T16:42:07Z",
+                "updated_at": "2026-10-26T16:42:10Z"
+              },
+              {
+                "id": 678789679,
+                "name": "gen1recomp-0.3.97-rg34xxsp-stockos64-mod.zip",
+                "size": 48747213,
+                "state": "uploaded",
+                "digest": "sha256:bb96bf6b69fdd26d4d72d06b32dd74231d0d7d017bb0a7b7bf2b651a84f4a70c",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-rg34xxsp-stockos64-mod.zip",
+                "created_at": "2026-10-26T16:42:07Z",
+                "updated_at": "2026-10-26T16:42:10Z"
+              },
+              {
+                "id": 678789729,
+                "name": "gen1recomp-0.3.97-sbc-portmaster.zip",
+                "size": 48767235,
+                "state": "uploaded",
+                "digest": "sha256:c2f62a30cc8fc99509dbb581f86ab17b50e65031f3d52f7134c08dbf192798f7",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-sbc-portmaster.zip",
+                "created_at": "2026-10-26T16:42:09Z",
+                "updated_at": "2026-10-26T16:42:11Z"
+              },
+              {
+                "id": 678789646,
+                "name": "gen1recomp-0.3.97-switch.zip",
+                "size": 37485450,
+                "state": "uploaded",
+                "digest": "sha256:e725c65154ec2c1a97e2d87a1d9a0a70912d486b95427bec80b3434ddfffe2e8",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-switch.zip",
+                "created_at": "2026-10-26T16:42:07Z",
+                "updated_at": "2026-10-26T16:42:09Z"
+              },
+              {
+                "id": 678789547,
+                "name": "gen1recomp-0.3.97-windows.zip",
+                "size": 39650119,
+                "state": "uploaded",
+                "digest": "sha256:e05472b4fd5fd1a2fb56343990f1ec57fc88f0d424baafbda8f50dc5e1cbea01",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-windows.zip",
+                "created_at": "2026-10-26T16:42:04Z",
+                "updated_at": "2026-10-26T16:42:08Z"
+              },
+              {
+                "id": 678789654,
+                "name": "gen1recomp-0.3.97-xbox-uwp.zip",
+                "size": 40505688,
+                "state": "uploaded",
+                "digest": "sha256:b9ee3d0b84206d2a9df0dc3f2480ee84f66ecc4fa1fe65cd5b298e9034941d1d",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97-xbox-uwp.zip",
+                "created_at": "2026-10-26T16:42:07Z",
+                "updated_at": "2026-10-26T16:42:10Z"
+              },
+              {
+                "id": 678789758,
+                "name": "gen1recomp-0.3.97.love",
+                "size": 31227538,
+                "state": "uploaded",
+                "digest": "sha256:eed7e0945d244085241ba27c42e037e8714bcbeb6712e52c25a58fc7aaf3ed8c",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/gen1recomp-0.3.97.love",
+                "created_at": "2026-10-26T16:42:09Z",
+                "updated_at": "2026-10-26T16:42:11Z"
+              },
+              {
+                "id": 678789773,
+                "name": "sha256sums.txt",
+                "size": 1182,
+                "state": "uploaded",
+                "digest": "sha256:84f66d6955f4c7cc38017d0e143e02bf6e54009f554e462b16bc82126523036e",
+                "browser_download_url": "https://github.com/bryanthaboi/gen1recomp/releases/download/v0.3.97/sha256sums.txt",
+                "created_at": "2026-10-26T16:42:10Z",
+                "updated_at": "2026-10-26T16:42:10Z"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "port_id": "snowboard-kids-2-recomp",
+      "repository_id": 1136986611,
+      "facts": {
+        "repository": {
+          "id": 1136986611,
+          "full_name": "cdlewis/snowboardkids2-recomp",
+          "archived": false
+        },
+        "releases": [
+          {
+            "id": 373150700,
+            "tag_name": "v2.0.0+alpha3",
+            "draft": false,
+            "prerelease": true,
+            "created_at": "2026-08-19T15:14:21Z",
+            "published_at": "2026-08-19T15:25:41Z",
+            "assets": [
+              {
+                "id": 520996218,
+                "name": "SnowboardKids2Recompiled-Flatpak-X64-Release.flatpak",
+                "size": 7660696,
+                "state": "uploaded",
+                "digest": "sha256:35bf51cd21e6c598c0d8bb36bdfaa898e890c91d5ab898b8ca8b717905dd1c82",
+                "browser_download_url": "https://github.com/cdlewis/snowboardkids2-recomp/releases/download/v2.0.0%2Balpha3/SnowboardKids2Recompiled-Flatpak-X64-Release.flatpak",
+                "created_at": "2026-08-19T15:14:26Z",
+                "updated_at": "2026-08-19T15:14:27Z"
+              },
+              {
+                "id": 520996216,
+                "name": "SnowboardKids2Recompiled-Linux-ARM64-Release.tar.gz",
+                "size": 9998802,
+                "state": "uploaded",
+                "digest": "sha256:34687a96f1180c8a84d8901d2cf9f332172b8f4f8868a2e793f95043947f43e3",
+                "browser_download_url": "https://github.com/cdlewis/snowboardkids2-recomp/releases/download/v2.0.0%2Balpha3/SnowboardKids2Recompiled-Linux-ARM64-Release.tar.gz",
+                "created_at": "2026-08-19T15:14:26Z",
+                "updated_at": "2026-08-19T15:14:27Z"
+              },
+              {
+                "id": 520996217,
+                "name": "SnowboardKids2Recompiled-Linux-X64-Release.tar.gz",
+                "size": 10113733,
+                "state": "uploaded",
+                "digest": "sha256:d18fd6857deb349a48bf8d6102ba88cbbda303a78ad2dbd93754029d835459ba",
+                "browser_download_url": "https://github.com/cdlewis/snowboardkids2-recomp/releases/download/v2.0.0%2Balpha3/SnowboardKids2Recompiled-Linux-X64-Release.tar.gz",
+                "created_at": "2026-08-19T15:14:26Z",
+                "updated_at": "2026-08-19T15:14:27Z"
+              },
+              {
+                "id": 521013020,
+                "name": "SnowboardKids2Recompiled-macOS-Release.zip",
+                "size": 20590529,
+                "state": "uploaded",
+                "digest": "sha256:4839a97ec503ae1fd7d4f5290c51636f37f7ea966770ba86dda0e063f3ed8af6",
+                "browser_download_url": "https://github.com/cdlewis/snowboardkids2-recomp/releases/download/v2.0.0%2Balpha3/SnowboardKids2Recompiled-macOS-Release.zip",
+                "created_at": "2026-08-19T15:29:50Z",
+                "updated_at": "2026-08-19T15:29:52Z"
+              },
+              {
+                "id": 520996219,
+                "name": "SnowboardKids2Recompiled-PDB-RelWithDebInfo.pdb",
+                "size": 91455488,
+                "state": "uploaded",
+                "digest": "sha256:18d9414821a41935e1294ce397c78637a37b75218ebed6b34fe2d49519929fab",
+                "browser_download_url": "https://github.com/cdlewis/snowboardkids2-recomp/releases/download/v2.0.0%2Balpha3/SnowboardKids2Recompiled-PDB-RelWithDebInfo.pdb",
+                "created_at": "2026-08-19T15:14:26Z",
+                "updated_at": "2026-08-19T15:14:31Z"
+              },
+              {
+                "id": 520996215,
+                "name": "SnowboardKids2Recompiled-Windows-RelWithDebInfo.zip",
+                "size": 19637596,
+                "state": "uploaded",
+                "digest": "sha256:fb0a7bd597e9f069b6f28c44498c8c5c8427aae1c70ee59fbccdb07007372cbd",
+                "browser_download_url": "https://github.com/cdlewis/snowboardkids2-recomp/releases/download/v2.0.0%2Balpha3/SnowboardKids2Recompiled-Windows-RelWithDebInfo.zip",
+                "created_at": "2026-08-19T15:14:26Z",
+                "updated_at": "2026-08-19T15:14:28Z"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

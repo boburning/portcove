@@ -97,6 +97,32 @@ fn observation_timestamp(value: &Value) -> Option<time::OffsetDateTime> {
     })
 }
 
+// Provider paths may escape a literal '+' (or another byte) in a release
+// component. Compare exactly one decoding within each existing path segment;
+// an encoded separator must never create a new repository or release boundary.
+fn encoded_segment_matches(encoded: &str, expected: &str) -> bool {
+    let mut bytes = encoded.bytes();
+    for expected in expected.bytes() {
+        let Some(mut observed) = bytes.next() else {
+            return false;
+        };
+        if observed == b'%' {
+            let (Some(high), Some(low)) = (bytes.next(), bytes.next()) else {
+                return false;
+            };
+            let (Some(high), Some(low)) = ((high as char).to_digit(16), (low as char).to_digit(16))
+            else {
+                return false;
+            };
+            observed = ((high << 4) | low) as u8;
+        }
+        if observed != expected {
+            return false;
+        }
+    }
+    bytes.next().is_none()
+}
+
 fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> Result<()> {
     if repository_id == 0
         || facts["repository"]["id"].as_u64() != Some(repository_id)
@@ -170,16 +196,17 @@ fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> R
                 .and_then(|url| reqwest::Url::parse(url).ok())
                 .ok_or_else(|| PortcoveError::verification("observation asset URL is invalid"))?;
             let repository = port.release.repository.split('/').collect::<Vec<_>>();
-            let mut expected = reqwest::Url::parse("https://github.com").expect("static URL");
-            expected
-                .path_segments_mut()
-                .expect("static hierarchical URL")
-                .extend(
-                    repository
-                        .iter()
-                        .copied()
-                        .chain(["releases", "download", tag, name]),
-                );
+            let mut segments = url.path_segments().into_iter().flatten();
+            let path_matches = repository
+                .iter()
+                .copied()
+                .chain(["releases", "download", tag, name])
+                .all(|expected| {
+                    segments
+                        .next()
+                        .is_some_and(|observed| encoded_segment_matches(observed, expected))
+                })
+                && segments.next().is_none();
             if url.scheme() != "https"
                 || url.host_str() != Some("github.com")
                 || url.port().is_some()
@@ -188,7 +215,7 @@ fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> R
                 || url.query().is_some()
                 || url.fragment().is_some()
                 || repository.len() != 2
-                || url != expected
+                || !path_matches
                 || asset["state"].as_str() != Some("uploaded")
                 || asset["size"]
                     .as_u64()
