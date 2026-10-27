@@ -64,6 +64,7 @@ interface PortAttempt {
   policy_sha256: string;
   attempted_at: string;
   scheduling_attempted_at: string | null;
+  freshness_observed_at?: string;
   collection_status: "complete" | "partial";
 }
 
@@ -79,6 +80,11 @@ interface HealthCheckpoint {
   observations: Observation[];
   port_health: PortHealth[];
   incident_history: IncidentHistory[];
+  continuation?: {
+    policy_sha256: string;
+    port_contracts: { port_id: string; health_contract_sha256: string }[];
+    observations: Observation[];
+  };
 }
 
 interface MonitorReport {
@@ -109,6 +115,18 @@ interface MonitorReport {
     latest_collection_status: "complete" | "partial";
   })[];
   collection: Collection;
+  session?: {
+    batches: {
+      batch: number;
+      requests: number;
+      response_bytes: number;
+      status: string;
+      selected_port_ids: string[];
+    }[];
+    requests: number;
+    response_bytes: number;
+    deadline: string;
+  };
 }
 
 interface MonitorOptions extends Omit<HealthOptions, "portIds" | "previousReport"> {
@@ -116,6 +134,8 @@ interface MonitorOptions extends Omit<HealthOptions, "portIds" | "previousReport
   scope: HealthMonitorScope;
   policySha256: string;
   collect?: typeof collectRepositoryHealth;
+  continueDueOnly?: boolean;
+  persistProgress?: (checkpoint: HealthCheckpoint) => Promise<void>;
   estimate?: (
     input: unknown,
     portIds: string[],
@@ -198,6 +218,8 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       !hash(attempt.health_contract_sha256) ||
       !hash(attempt.policy_sha256) ||
       !clock(attempt.attempted_at, completion) ||
+      (attempt.freshness_observed_at !== undefined &&
+        !clock(attempt.freshness_observed_at, Date.parse(attempt.attempted_at))) ||
       (attempt.scheduling_attempted_at !== null &&
         !clock(attempt.scheduling_attempted_at, Date.parse(attempt.attempted_at))) ||
       !["complete", "partial"].includes(String(attempt.collection_status))
@@ -262,6 +284,37 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       incidentKeys.add(incident.key);
     }
     historyIds.add(port.port_id);
+  }
+  if (value.continuation !== undefined) {
+    const pending = value.continuation;
+    if (
+      !isRecord(pending) ||
+      !hash(pending.policy_sha256) ||
+      !Array.isArray(pending.port_contracts) ||
+      !Array.isArray(pending.observations)
+    )
+      throw new Error("Monitoring continuation has invalid bindings");
+    const owners = new Set<string>();
+    for (const owner of pending.port_contracts) {
+      if (
+        !isRecord(owner) ||
+        typeof owner.port_id !== "string" ||
+        owners.has(owner.port_id) ||
+        !hash(owner.health_contract_sha256)
+      )
+        throw new Error("Monitoring continuation has invalid owner contracts");
+      owners.add(owner.port_id);
+    }
+    const keys = new Set<string>();
+    for (const record of pending.observations) {
+      if (
+        !isHealthObservationHistory(record, completion) ||
+        record.port_ids.some((id) => !owners.has(id)) ||
+        keys.has(locationKey(record))
+      )
+        throw new Error("Monitoring continuation has invalid observation evidence");
+      keys.add(locationKey(record));
+    }
   }
   return value as unknown as HealthCheckpoint;
 }
@@ -336,6 +389,8 @@ export async function advanceHealthMonitor(
     policySha256,
     collect = collectRepositoryHealth,
     estimate: suppliedEstimate,
+    persistProgress,
+    continueDueOnly = false,
     now = Date.now,
     ...healthOptions
   }: MonitorOptions,
@@ -364,12 +419,14 @@ export async function advanceHealthMonitor(
   };
   const due = requested
     .filter((id) => {
-      if (execution.event !== "push" || !isTrustedHealthExecution(execution)) return true;
+      if ((!continueDueOnly && execution.event !== "push") || !isTrustedHealthExecution(execution))
+        return true;
       const attempt = applicable(id);
       return (
         !attempt ||
         attempt.collection_status === "partial" ||
-        started - Date.parse(attempt.attempted_at) >= healthFreshnessMs
+        started - Date.parse(attempt.freshness_observed_at ?? attempt.attempted_at) >=
+          healthFreshnessMs
       );
     })
     .sort((left, right) => {
@@ -382,13 +439,23 @@ export async function advanceHealthMonitor(
   const selected: string[] = [];
   const oversized: string[] = [];
   for (const id of due) {
-    const plan = estimate(input, [...selected, id], healthOptions.reviewedAccounting);
+    const plan = estimate(
+      input,
+      [...selected.filter((value) => !oversized.includes(value)), id],
+      healthOptions.reviewedAccounting,
+    );
     if (plan.status === "admitted" && plan.conservative_requests <= plan.hard_ceiling)
       selected.push(id);
     else {
       const single = estimate(input, [id], healthOptions.reviewedAccounting);
-      if (single.status !== "admitted" || single.conservative_requests > single.hard_ceiling)
+      if (
+        single.hard_ceiling > 0 &&
+        (single.status !== "admitted" || single.conservative_requests > single.hard_ceiling)
+      ) {
+        // One oversized scope gets a bounded endpoint turn alongside smaller scopes.
+        if (!oversized.length) selected.push(id);
         oversized.push(id);
+      } else if (single.hard_ceiling <= 0) oversized.push(id);
     }
   }
   const selectedSet = new Set(selected);
@@ -405,11 +472,57 @@ export async function advanceHealthMonitor(
           ),
           port_health: previous.incident_history.filter((port) => selectedSet.has(port.port_id)),
         };
+  const pending = previous?.continuation;
+  const pendingOwners = new Map(
+    pending?.port_contracts.map((owner) => [owner.port_id, owner.health_contract_sha256]) ?? [],
+  );
+  const resumable = new Map<string, Observation>();
+  for (const record of previous?.observations ?? [])
+    if (record.port_ids.every((id) => applicable(id)?.collection_status === "partial"))
+      resumable.set(locationKey(record), record);
+  if (pending?.policy_sha256 === policySha256)
+    for (const record of pending.observations)
+      if (record.port_ids.every((id) => pendingOwners.get(id) === currentHashes.get(id)))
+        resumable.set(locationKey(record), record);
+  const progress = new Map(resumable);
+  const persistObservation = async (record: Observation) => {
+    progress.set(locationKey(record), record);
+    if (!persistProgress || !isTrustedHealthExecution(execution)) return;
+    const current = new Date(now()).toISOString();
+    const partial: HealthCheckpoint = {
+      format_version: 1,
+      authority: "upstream-observation-history-only",
+      repository,
+      ref: mainRef,
+      workflow,
+      execution,
+      updated_at: current,
+      attempts: previous?.attempts ?? [],
+      observations: previous?.observations ?? [],
+      port_health: previous?.port_health ?? [],
+      incident_history: previous?.incident_history ?? [],
+      continuation: {
+        policy_sha256: policySha256,
+        port_contracts: [...currentHashes].map(([port_id, health_contract_sha256]) => ({
+          port_id,
+          health_contract_sha256,
+        })),
+        observations: [...progress.values()].filter((value) =>
+          value.port_ids.every((id) => currentHashes.has(id)),
+        ),
+      },
+    };
+    validateCheckpoint(partial, now());
+    await persistProgress(partial);
+  };
   const collection = await collect(input, {
     ...healthOptions,
     now,
     portIds: selected,
     previousReport: comparison,
+    incremental: true,
+    resumeObservations: [...resumable.values()],
+    onObservation: persistObservation,
   });
   const completed = now();
   if (!clock(collection.completed_at, completed))
@@ -487,6 +600,9 @@ export async function advanceHealthMonitor(
       health_contract_sha256: currentHashes.get(id)!,
       policy_sha256: policySha256,
       attempted_at: collection.completed_at,
+      freshness_observed_at: locations.length
+        ? locations.map((record) => record.observed_at).toSorted()[0]!
+        : collection.completed_at,
       // Deferred tails must get a turn before recently attempted ports when
       // wall-clock or provider limits stop a request-admitted batch early.
       scheduling_attempted_at: whollyDeferred
@@ -513,7 +629,10 @@ export async function advanceHealthMonitor(
   for (const port of input.ports) {
     const attempt = applicable(port.id);
     if (!attempt) inventory.unmonitored_port_ids.push(port.id);
-    else if (completed - Date.parse(attempt.attempted_at) > healthFreshnessMs)
+    else if (
+      completed - Date.parse(attempt.freshness_observed_at ?? attempt.attempted_at) >
+      healthFreshnessMs
+    )
       inventory.stale_port_ids.push(port.id);
     else if (attempt.collection_status === "complete")
       inventory.fresh_complete_port_ids.push(port.id);
@@ -531,6 +650,18 @@ export async function advanceHealthMonitor(
     observations: history,
     port_health: portHealth,
     incident_history: [...incidentHistory.values()],
+    ...(pending && {
+      continuation: {
+        policy_sha256: policySha256,
+        port_contracts: [...currentHashes].map(([port_id, health_contract_sha256]) => ({
+          port_id,
+          health_contract_sha256,
+        })),
+        observations: [...progress.values()].filter((record) =>
+          record.port_ids.every((id) => !selectedSet.has(id) && currentHashes.has(id)),
+        ),
+      },
+    }),
   };
   if (Buffer.byteLength(JSON.stringify(candidate)) > checkpointBytes)
     throw new Error("Monitoring history exceeds its explicit retention bound");
@@ -559,7 +690,10 @@ export async function advanceHealthMonitor(
         observed_this_run: selectedSet.has(port.port_id),
         changed_in_this_run: selectedSet.has(port.port_id) && incident.notify,
         freshness:
-          completed - Date.parse(attempt.attempted_at) > healthFreshnessMs ? "stale" : "fresh",
+          completed - Date.parse(attempt.freshness_observed_at ?? attempt.attempted_at) >
+          healthFreshnessMs
+            ? "stale"
+            : "fresh",
         latest_collection_status: attempt.collection_status,
       }));
     }),
@@ -569,11 +703,87 @@ export async function advanceHealthMonitor(
     checkpoint,
     report,
     summary: renderHealthMonitorSummary(report),
-    exitCode: collection.collection_status === "complete" && oversized.length === 0 ? 0 : 1,
+    exitCode:
+      collection.collection_status === "complete" && oversized.every((id) => selectedSet.has(id))
+        ? 0
+        : 1,
     retcomm_port_ids: input.ports
       .filter((port) => selectedSet.has(port.id) && port.adapter === "psx-recomp-managed")
       .map((port) => port.id),
   };
+}
+
+/** Automatically drain admitted endpoint batches within the caller's actual runtime. */
+export async function drainHealthMonitor(
+  input: unknown,
+  checkpoint: unknown,
+  options: MonitorOptions & {
+    sessionDeadline: number;
+    onBatch?: (result: Awaited<ReturnType<typeof advanceHealthMonitor>>) => Promise<void>;
+  },
+) {
+  const { sessionDeadline, onBatch, ...monitorOptions } = options;
+  const now = monitorOptions.now ?? Date.now;
+  const started = now();
+  if (!Number.isFinite(sessionDeadline) || sessionDeadline <= started)
+    throw new Error("Health session runtime unavailable");
+  let state = checkpoint;
+  let count = 0;
+  let requests = 0;
+  let responseBytes = 0;
+  const retcommIds = new Set<string>();
+  let result: Awaited<ReturnType<typeof advanceHealthMonitor>>;
+  const batches: {
+    batch: number;
+    requests: number;
+    response_bytes: number;
+    status: string;
+    selected_port_ids: string[];
+  }[] = [];
+  do {
+    result = await advanceHealthMonitor(input, state, {
+      ...monitorOptions,
+      continueDueOnly: count > 0,
+      operationDeadline: sessionDeadline,
+      sessionStartedAt: started,
+    });
+    for (const id of result.retcomm_port_ids) retcommIds.add(id);
+    result.retcomm_port_ids = [...retcommIds];
+    count += 1;
+    requests += result.report.collection.consumed.requests;
+    responseBytes += result.report.collection.consumed.response_bytes;
+    batches.push({
+      batch: count,
+      requests: result.report.collection.consumed.requests,
+      response_bytes: result.report.collection.consumed.response_bytes,
+      status: result.report.collection.collection_status,
+      selected_port_ids: result.report.batch.selected_port_ids,
+    });
+    result.report.session = {
+      batches,
+      requests,
+      response_bytes: responseBytes,
+      deadline: new Date(sessionDeadline).toISOString(),
+    };
+    result.summary = renderHealthMonitorSummary(result.report);
+    await onBatch?.(result);
+    state = result.checkpoint;
+    const budgetTail = result.report.collection.observations.some(
+      (record) => record.reason === "budget",
+    );
+    const more = result.report.batch.deferred_port_ids.length > 0 || budgetTail;
+    const progress =
+      result.report.collection.consumed.requests > 0 ||
+      result.report.collection.observations.some(
+        (record) =>
+          !record.metadata_reused &&
+          !record.attempted &&
+          record.provider === "unlocated-historical" &&
+          record.reason === "release-identity-unavailable",
+      );
+    if (!state || !more || !progress || now() >= sessionDeadline) break;
+  } while (now() < sessionDeadline);
+  return result;
 }
 
 function cell(value: string | number | boolean | null | undefined): string {
@@ -596,8 +806,13 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
     "",
     `Inventory history: ${inventory.fresh_complete_port_ids.length} recent complete collections; ${inventory.fresh_partial_port_ids.length} recent partial attempts; ${inventory.stale_port_ids.length} stale; ${inventory.unmonitored_port_ids.length} without applicable observations. Freshness window: 24 hours.`,
     "",
-    `Requests: ${collection.consumed.requests}/${collection.request_plan.conservative_requests} planned; hard ceiling ${collection.request_plan.hard_ceiling}. Observation records: ${collection.request_plan.observation_records}/${collection.request_plan.observation_ceiling}. ${report.previous_checkpoint}.`,
+    `Requests: ${collection.consumed.requests}/${collection.request_plan.conservative_requests} planned; hard ceiling ${collection.request_plan.hard_ceiling}. Logical observation records: ${collection.request_plan.observation_records}; new-location operation ceiling ${collection.request_plan.observation_ceiling}. ${report.previous_checkpoint}.`,
   ];
+  if (report.session)
+    lines.push(
+      "",
+      `Session: ${report.session.batches.length} independently bounded batches; ${report.session.requests} requests and ${report.session.response_bytes} response bytes. Endpoint clocks retain their original observation times; complete coverage is a freshness window, not an atomic global snapshot.`,
+    );
   if (incidents.length)
     lines.push(
       "",
@@ -638,7 +853,7 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
   if (batch.oversized_port_ids.length)
     lines.push(
       "",
-      `**A single port exceeds the collection budget:** ${batch.oversized_port_ids.map(cell).join(", ")}. Its obligations remain unassessed.`,
+      `**Scopes requiring endpoint continuation:** ${batch.oversized_port_ids.map(cell).join(", ")}. Each admitted operation is bounded; incomplete obligations remain visible.`,
     );
   if (!batch.selected_port_ids.length)
     lines.push(
@@ -721,6 +936,13 @@ async function main(): Promise<void> {
   const reportPath = path.join(directory, "report.json");
   const summaryPath = path.join(directory, "summary.md");
   const execution = executionFromEnvironment();
+  let publishedCheckpoint = false;
+  const persistCheckpoint = async (value: HealthCheckpoint) => {
+    await atomicJson(checkpoint, value);
+    if (!publishedCheckpoint && process.env.GITHUB_OUTPUT)
+      await appendFile(process.env.GITHUB_OUTPUT, "checkpoint_updated=true\n");
+    publishedCheckpoint = true;
+  };
   await withCheckpointLock(checkpoint, async () => {
     try {
       const mode = process.env.HEALTH_MODE;
@@ -734,21 +956,31 @@ async function main(): Promise<void> {
         path.join(root, "crates/portcove-core/catalog/catalog.json"),
         4 * 1024 * 1024,
       );
-      const result = await advanceHealthMonitor(
+      const deadline =
+        process.env.HEALTH_DEADLINE_MS === undefined && !execution.actions
+          ? Date.now() + 180000
+          : Number(process.env.HEALTH_DEADLINE_MS);
+      const result = await drainHealthMonitor(
         catalog,
         await boundedJson(checkpoint, checkpointBytes, true),
         {
+          sessionDeadline: deadline,
           execution,
           scope: { mode, port_ids: (process.env.HEALTH_PORT_IDS ?? "").split(",").filter(Boolean) },
           policySha256: observationHash(policy),
           reviewedAccounting: policy,
           lineageRecords: await readHealthLineage(catalog),
           githubToken: process.env.GITHUB_TOKEN,
+          persistProgress: persistCheckpoint,
+          onBatch: async (value) => {
+            if (value.checkpoint) await persistCheckpoint(value.checkpoint);
+            await atomicJson(reportPath, value.report);
+          },
         },
       );
       // A saved checkpoint is historical comparison evidence, including failures.
       // PR diagnostics never mutate the trusted main checkpoint.
-      if (result.checkpoint) await atomicJson(checkpoint, result.checkpoint);
+      if (result.checkpoint) await persistCheckpoint(result.checkpoint);
       await atomicJson(reportPath, result.report);
       await assertOwnedUnlinkedPath(path.join(root, "work"), summaryPath, "monitor summary");
       await writeFile(summaryPath, result.summary);
@@ -762,7 +994,7 @@ async function main(): Promise<void> {
       console.log(result.summary);
       process.exitCode = result.exitCode;
     } catch (error) {
-      await atomicJson(reportPath, {
+      await atomicJson(publishedCheckpoint ? path.join(directory, "failure.json") : reportPath, {
         format_version: 1,
         authority: "upstream-monitoring-only",
         execution,

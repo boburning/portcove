@@ -375,26 +375,47 @@ Format-1 policy fixtures retain their earlier interpretation.
 ## Bounded batches and retained history
 
 The coordinator validates the complete inventory and accounting policy before
-network work. It selects ports oldest-attempt-first, keeping the conservative
-request forecast within the fixed **320-request hard ceiling** and each batch
-within 512 observation records. Each network-capable location
-reserves one request, each qualifying release-pin location up to three additional
-metadata reads and each reviewed source archive up to two. Successful reuse,
-redirects and backoff are never speculative budget credits. Unselected ports
-are deferred explicitly; a single port exceeding either ceiling remains unassessed
-and fails the collection rather than disappearing from the denominator.
+network work. It selects ports oldest-attempt-first and admits at most one
+individually oversized port alongside normally fitting scopes. Within that
+scope, locations rotate fairly across owners and oldest actual attempts. Each
+operation permits at most **320 requests**, **512 newly assessed locations**,
+three minutes, fifteen seconds per request, one MiB per response and sixteen MiB
+consumed response bytes. Compatible completed locations may be replayed from the
+validated checkpoint without spending another operation slot or request; their
+original clocks remain unchanged. Coverage exceeding an operation envelope is
+partial until every location has an applicable completed observation.
 
-The standalone full collector still refuses all network work if its selected
-inventory exceeds either ceiling. The coordinator avoids that all-inventory cliff
-by rotating bounded batches. Neither path can raise the ceiling through catalog
-content, environment variables or caller options. Collection remains sequential,
-with zero retries, three minutes total, fifteen seconds per request, one MiB per
-response and sixteen MiB consumed response bytes. Rate limits defer that provider
-while other providers may continue. A complete HTTP 200 repository response can
-serve another identical endpoint during the same collection; failed, redirected,
-partial and historical responses cannot supply this cache. Old and relocated
-endpoints stay distinct. The configured Shipwright observer retains its separate
-bounds and scheduling.
+Each network-capable location reserves one request, each qualifying release-pin
+location up to three additional metadata reads and each reviewed source archive
+up to two. Unproven reuse is never a speculative budget credit. Successful
+same-operation repository metadata can serve identical endpoints. Actual GitHub
+and GitLab quota headers preserve a five-percent provider reserve (at least one
+request); provider reset and Retry-After clocks defer related reads without
+blocking unrelated providers. Unknown capacity retains the finite request
+bootstrap. Failed reads are not retried within the same logical job.
+
+The standalone full collector keeps its strict preflight refusal when the
+selected logical inventory exceeds either historical ceiling. The maintained
+workflow uses incremental admission instead: completed locations are checkpointed
+atomically after each operation, under the existing lock and 16 MiB envelope.
+Continuation binds the accounting policy and exact per-owner health contracts.
+Changed contracts discard incompatible reuse; corrupt or future evidence fails
+closed. An interrupted process can resume accepted locations without resetting
+numeric identity baselines. A PR cannot write trusted history.
+
+The ten-minute hosted deadline remains. A deadline anchored at the first job step
+allows up to nine minutes for preparation and automatic bounded collector batches,
+leaving one minute for history/artifact retention and cleanup. Observed main run
+40462280230 used roughly twelve seconds for preparation and two seconds for
+retention. The separate RetComM check retains at most two sequential 15-second
+request deadlines per title (titles run concurrently); selected IDs accumulate
+across all health batches. This reserve is operational headroom, not a claimed worst-case service
+guarantee. The coordinator drains while work and productive capacity remain,
+without a fixed logical batch count. It persists every completed batch, retains
+failed conditions, and stops on exhausted runtime, provider backoff or lack of
+progress. Later runs resume the same authoritative history. Summaries distinguish
+the final batch from aggregate session API consumption and never claim an atomic
+global health snapshot or verified artifact bytes.
 
 `work/upstream-health/checkpoint.json` is a bounded history of per-port attempts,
 location observations and incidents, not a fresh full-inventory report. Only
@@ -495,7 +516,7 @@ inventory, accepted artifact or exception to required hosted validation.
 ### Growing monitoring inventories
 
 The monitor retains fair oldest-attempt rotation across bounded collector runs.
-The collector's 320-request and 512-observation envelopes bound one collection,
+The collector's 320-request and 512-new-location envelopes bound one operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
 or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
