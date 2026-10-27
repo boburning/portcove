@@ -537,3 +537,11 @@ projection before it is retained. Core executable object/size/time identity is
 checked around hashing and each inspection so a changed executable cannot inherit
 the invocation's policy identity. This adds no provider, queue, database, artifact
 trust or protected admission authority.
+
+Catalog proposal receipts retain the legacy field-order `definition_sha256` and
+add `observation_definition_sha256`, the normalized recursively sorted identity
+shared with Core observation projections. Observation binding requires this
+explicit canonical field; the two hashes are not interchangeable. Both remain
+inert declarations, without trust or publication authority. This preserves old
+proposal consumers while preventing serialization-order mismatches from holding
+otherwise valid current Core projections.

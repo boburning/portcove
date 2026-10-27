@@ -528,6 +528,11 @@ export async function inspectCatalogDefinitions(cli: string, directory: string, 
     "catalog.inspect-proposal",
     (input) => ["--json", "catalog", "inspect-proposal", input],
   );
+  return catalogObservationDefinitionHashes(report, bytes);
+}
+
+/** Both hashes remain distinct contracts; observation guards require the canonical one. */
+export function catalogObservationDefinitionHashes(report: unknown, bytes: Buffer) {
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   if (
     !isRecord(report) ||
@@ -546,15 +551,15 @@ export async function inspectCatalogDefinitions(cli: string, directory: string, 
     if (
       !isRecord(port) ||
       typeof port.port_id !== "string" ||
-      typeof port.definition_sha256 !== "string" ||
-      !/^[a-f0-9]{64}$/u.test(port.definition_sha256) ||
+      typeof port.observation_definition_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(port.observation_definition_sha256) ||
       hashes.has(port.port_id)
     )
       throw new ObservationFailure(
         "core-binding",
         "Core catalog receipt has invalid or duplicate definition identities",
       );
-    hashes.set(port.port_id, port.definition_sha256);
+    hashes.set(port.port_id, port.observation_definition_sha256);
   }
   return hashes;
 }
