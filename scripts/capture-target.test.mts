@@ -203,7 +203,7 @@ void test("the real native entrypoint delegates capture context and arguments to
     assert.ok(imported, "Native entrypoint must import the capture helper");
     const alias = imported[1] ?? "captureKeyboardTarget";
     const wrapper = new RegExp(
-      String.raw`async\s+function\s+\w+\s*\(\s*(?<name>\w+)\s*,\s*(?<element>\w+)\s*,\s*(?<scenario>\w+)\s*=\s*["']keyboard-layout["']\s*,?\s*\)\s*\{\s*return[ \t]+(?:await\s+)?${alias}\s*\(\s*\{(?<context>[^{}]*)\}\s*,\s*\k<name>\s*,\s*\k<element>\s*,\s*\k<scenario>\s*,?\s*\)\s*;?\s*\}`,
+      String.raw`async\s+function\s+captureKeyboardTarget\s*\(\s*(?<name>\w+)\s*,\s*(?<element>\w+)\s*,\s*(?<scenario>\w+)\s*=\s*["']keyboard-layout["']\s*,?\s*\)\s*\{\s*return[ \t]+(?:await\s+)?${alias}\s*\(\s*\{(?<context>[^{}]*)\}\s*,\s*\k<name>\s*,\s*\k<element>\s*,\s*\k<scenario>\s*,?\s*\)\s*;?\s*\}`,
       "u",
     ).exec(code);
     assert.ok(wrapper?.groups, "Native capture wrapper must forward all three arguments");
@@ -212,9 +212,9 @@ void test("the real native entrypoint delegates capture context and arguments to
       .map((part) => part.trim())
       .filter(Boolean);
     assert.equal(properties.length, 3);
-    assert(properties.some((value) => /^browser\s*:\s*\w+\s*\(\s*\)$/u.test(value)));
-    assert(properties.some((value) => /^output(?:\s*:\s*\w+)?$/u.test(value)));
-    assert(properties.some((value) => /^artifacts(?:\s*:\s*\w+)?$/u.test(value)));
+    assert(properties.some((value) => /^browser\s*:\s*driverBrowser\s*\(\s*\)$/u.test(value)));
+    assert(properties.some((value) => /^output(?:\s*:\s*output)?$/u.test(value)));
+    assert(properties.some((value) => /^artifacts(?:\s*:\s*artifacts)?$/u.test(value)));
     return wrapper[0];
   }
   const erased = stripTypeScriptTypes(source, { mode: "strip" });
@@ -232,6 +232,30 @@ void test("the real native entrypoint delegates capture context and arguments to
         ),
       ),
     /must forward/,
+  );
+  for (const [from, to] of [
+    [/\boutput\b/u, "output: anotherDirectory"],
+    [/\bartifacts\b/u, "artifacts: anotherArray"],
+    [/driverBrowser\(\)/u, "unrelatedBrowser()"],
+  ] as const)
+    assert.throws(() => delegation(erased.replace(wrapper, wrapper.replace(from, to))));
+  assert.throws(
+    () =>
+      delegation(
+        erased.replace(
+          wrapper,
+          wrapper.replace("function captureKeyboardTarget", "function decoyCapture"),
+        ),
+      ),
+    /must forward/,
+  );
+  delegation(
+    erased.replace(
+      wrapper,
+      wrapper
+        .replace(/\boutput\b/u, "output: output")
+        .replace(/\bartifacts\b/u, "artifacts: artifacts"),
+    ),
   );
   delegation(
     source
