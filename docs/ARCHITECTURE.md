@@ -270,6 +270,16 @@ including retained-runtime preflight for explicit restore; its historical module
 and receipt names do not restrict the policy to PS1. A policy change is a data
 contract change, never inferred from a persistent folder or current catalog.
 
+Normal initialized data collection also preflights complete-package conflicts
+before copying other declared data and rechecks the captured mod trees immediately
+before their normal mirror. A conflict preserves both copies and can leave
+post-Play collection pending until deliberate resolution; recovery retries the
+same boundary. Collection keeps its existing mirror semantics for deliberate
+package removals and ordinary state, rather than resurrecting canonical-only
+versions. This does not reserve new namespaces in historical contracts, change
+receipts or give older clients the stronger preflight. Collection remains a
+resumable sequence, not an atomic transaction across every declared data path.
+
 ## Source import journal interpretation
 
 Source import admits publication through the existing atomic cancellation boundary

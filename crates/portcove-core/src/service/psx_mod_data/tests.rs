@@ -165,6 +165,32 @@ fn common_package_requires_the_complete_identical_tree_before_any_restore() {
 }
 
 #[test]
+fn late_collection_package_edits_refuse_without_mutating_either_tree() {
+    for destination_edit in [false, true] {
+        let (_temporary, source, destination, _) = trees();
+        let plan = ModRestore::prepare(&source, &destination).unwrap();
+        write(
+            if destination_edit {
+                &destination
+            } else {
+                &source
+            },
+            "packages/bundled/1.0/package.toml",
+            b"edit after the initial collection preflight",
+        );
+        let source_before = snapshot(&source, &|| Ok(())).unwrap();
+        let destination_before = snapshot(&destination, &|| Ok(())).unwrap();
+        let failure = plan.require_unchanged(&|| Ok(())).unwrap_err();
+        assert!(failure.message.contains("changed after preflight"));
+        assert_eq!(snapshot(&source, &|| Ok(())).unwrap(), source_before);
+        assert_eq!(
+            snapshot(&destination, &|| Ok(())).unwrap(),
+            destination_before
+        );
+    }
+}
+
+#[test]
 fn type_case_and_nonpackage_roots_are_refused_without_changing_state() {
     for change in ["type", "case", "root", "package-leaf"] {
         let (_temporary, source, destination, _) = trees();
@@ -412,6 +438,177 @@ mod lifecycle {
         };
         library.register_install(&install, active).unwrap();
         install
+    }
+
+    #[test]
+    fn played_collection_preserves_removal_intent_and_preflights_before_other_data() {
+        let (temporary, service, catalog) = fixture();
+        let install = register(&service, &catalog, "v1", true, None);
+        let runtime = install.path.join("build-portcove");
+        let canonical = service.library.user_dir(ID);
+        for version in ["1.0", "2.0"] {
+            write(
+                &canonical,
+                &format!("mods/packages/player/{version}/manifest.toml"),
+                version.as_bytes(),
+            );
+        }
+        write(&canonical, "mods/state.toml", b"initial choice");
+        service
+            .restore_user_data_to(catalog.port(ID).unwrap(), &install.path)
+            .unwrap();
+        // Upstream remove_version deletes an inactive version directory.
+        fs::remove_dir_all(runtime.join("mods/packages/player/2.0")).unwrap();
+        write(&runtime, "mods/state.toml", b"deliberate current choice");
+        write(
+            &runtime,
+            "mods/installed/readme.txt",
+            b"ordinary historical folder",
+        );
+        write(&runtime, "saves/current.sav", b"current save");
+        fs::write(
+            install.path.join(LAUNCH_MARKER),
+            b"fixture marker, no game run",
+        )
+        .unwrap();
+        let before = snapshot(&runtime, &|| Ok(())).unwrap();
+        service
+            .collect_user_data_from_install(ID, &install.path)
+            .unwrap();
+        assert_eq!(snapshot(&runtime, &|| Ok(())).unwrap(), before);
+        assert!(!canonical.join("mods/packages/player/2.0").exists());
+        assert_eq!(
+            fs::read(canonical.join("mods/state.toml")).unwrap(),
+            b"deliberate current choice"
+        );
+        assert_eq!(
+            fs::read(canonical.join("mods/installed/readme.txt")).unwrap(),
+            b"ordinary historical folder"
+        );
+        fs::remove_file(runtime.join("mods/state.toml")).unwrap();
+        fs::remove_dir_all(runtime.join("mods/packages/player/1.0")).unwrap();
+        service
+            .collect_user_data_from_install(ID, &install.path)
+            .unwrap();
+        assert!(!canonical.join("mods/state.toml").exists());
+        assert!(!canonical.join("mods/packages/player/1.0").exists());
+        let new = register(&service, &catalog, "v2", false, None);
+        write(
+            &new.path,
+            "build-portcove/mods/packages/new-default/1.0/manifest.toml",
+            b"new default",
+        );
+        service.activate_staged(ID).unwrap();
+        assert!(
+            !new.path
+                .join("build-portcove/mods/packages/player/1.0")
+                .exists()
+        );
+        service.rollback(ID).unwrap();
+        assert!(!runtime.join("mods/packages/player/1.0").exists());
+        assert!(!runtime.join("mods/packages/player/2.0").exists());
+        write(
+            &runtime,
+            "mods/packages/player/1.0/manifest.toml",
+            b"current package",
+        );
+        service
+            .collect_user_data_from_install(ID, &install.path)
+            .unwrap();
+        write(
+            &runtime,
+            "mods/packages/player/1.0/manifest.toml",
+            b"different same version",
+        );
+        write(
+            &runtime,
+            "saves/current.sav",
+            b"save must not publish before conflict",
+        );
+        let before = snapshot(&canonical, &|| Ok(())).unwrap();
+        let failure = service
+            .collect_user_data_from_install(ID, &install.path)
+            .unwrap_err();
+        assert!(failure.message.contains("same package ID/version"));
+        assert!(failure.details["source_path"].contains("manifest.toml"));
+        assert!(failure.details["destination_path"].contains("manifest.toml"));
+        assert_eq!(snapshot(&canonical, &|| Ok(())).unwrap(), before);
+        let activity = service
+            .library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some(ID),
+            )
+            .unwrap();
+        let now = Library::now();
+        service
+            .library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: ID.into(),
+                install_id: install.id.clone(),
+                install_root: install.path.clone(),
+                owner_kind: crate::LaunchOwnerKind::Managed,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: LaunchSessionPhase::Collecting,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        assert!(
+            service
+                .recover_launch_session(&activity.id)
+                .unwrap_err()
+                .message
+                .contains("same package ID/version")
+        );
+        assert_eq!(snapshot(&canonical, &|| Ok(())).unwrap(), before);
+        assert_eq!(
+            service
+                .library
+                .active_launch_session(&activity.id)
+                .unwrap()
+                .unwrap()
+                .phase,
+            LaunchSessionPhase::Collecting
+        );
+        assert!(service.library.try_lock_port(ID, "update").is_err());
+        let preserved = temporary.path().join("preserved-canonical-package");
+        fs::rename(canonical.join("mods/packages/player/1.0"), &preserved).unwrap();
+        service.recover_launch_session(&activity.id).unwrap();
+        assert!(
+            service
+                .library
+                .active_launch_session(&activity.id)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            fs::read(preserved.join("manifest.toml")).unwrap(),
+            b"current package"
+        );
+        assert_eq!(
+            fs::read(canonical.join("mods/packages/player/1.0/manifest.toml")).unwrap(),
+            b"different same version"
+        );
+        assert_eq!(
+            fs::read(canonical.join("saves/current.sav")).unwrap(),
+            b"save must not publish before conflict"
+        );
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, install.id);
+        // Recovery releases launch preparation; this fixture still lacks PS1 input.
+        let missing = service
+            .prepare_launch_for_install(catalog.port(ID).unwrap(), &install, None, None)
+            .unwrap_err();
+        assert!(missing.message.contains("verified source"), "{missing}");
     }
 
     #[test]
