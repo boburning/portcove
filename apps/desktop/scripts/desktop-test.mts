@@ -56,11 +56,13 @@ import {
   nativeSessionScript,
   readNativeProcessSnapshot,
   readNativeSessionObservation,
+  assertNativeApplicationInventory,
 } from "./desktop-owned-native-session.mts";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
 import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-session.mts";
 import { inspectIsolatedNativeLinuxBinding } from "./native-linux-isolated-plan.mts";
 import { createHash } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { get as httpGet } from "node:http";
 import {
   connectLinuxInspector,
@@ -623,7 +625,55 @@ function stopBackupFocusDriver() {
   driver = undefined;
 }
 
-function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQualified = false) {
+let acquisitionLaunchProofCount = 0;
+function acquisitionLaunchSessions(deadline: number) {
+  const game = ownedSession.game;
+  if (!game) return [];
+  const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
+  let ids: string[];
+  try {
+    const rows = database
+      .prepare("SELECT id FROM launch_sessions WHERE port_id = ? ORDER BY started_at, id LIMIT 17")
+      .all(game.installation.port_id);
+    assert.ok(rows.length <= 16, "Owned acquisition launch inventory exceeded its fixture bound");
+    ids = rows.map((row) => {
+      assert.equal(typeof row.id, "string");
+      return String(row.id);
+    });
+  } finally {
+    database.close();
+  }
+  const command = ownedFixtureCommand(
+    { cli: required(values["preparation-cli"]), library, output },
+    (file, args, options) => {
+      const remaining = Math.floor(deadline - performance.now());
+      assert.ok(remaining > 0, "Owned supervisor evidence exceeded the native capture budget");
+      return spawnCommand(file, args, { ...options, timeout: remaining });
+    },
+  );
+  const sessions = ids.map((id) => {
+    const session = transportValue("launch_request", command(["launch", "show", id]));
+    assert.ok(session, "Captured owned launch record disappeared");
+    return session;
+  });
+  const receipt = path.join(
+    output,
+    `acquisition-launch-binding-${++acquisitionLaunchProofCount}.json`,
+  );
+  writeFileSync(
+    receipt,
+    JSON.stringify({ game, previous_games: ownedSession.games, sessions }, null, 2) + "\n",
+    { flag: "wx" },
+  );
+  artifacts.push(receipt);
+  return sessions;
+}
+
+function validateBackupFocusInventory(
+  captured: NativeProcessSnapshot,
+  requireQualified = false,
+  deadline = performance.now() + 10_000,
+) {
   if (
     requireQualified ||
     savedLibraryRecoverySession ||
@@ -652,14 +702,25 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
         ].includes(check.scenario) && check.outcome === "passed",
     )
   ) {
-    assert.equal(
-      captured.processes.filter(
-        (entry) =>
-          path.resolve(entry.path).toLowerCase() === path.resolve(application).toLowerCase(),
-      ).length,
-      1,
-      "Successful native qualification requires one captured application",
-    );
+    if (executionPlan.fixtures.acquisitionJourney) {
+      const connectedApplication = ownedSession.requireApplication(captured);
+      assertNativeApplicationInventory(
+        captured,
+        connectedApplication,
+        ownedSession.game,
+        acquisitionLaunchSessions(deadline),
+        ownedSession.games,
+      );
+    } else {
+      assert.equal(
+        captured.processes.filter(
+          (entry) =>
+            path.resolve(entry.path).toLowerCase() === path.resolve(application).toLowerCase(),
+        ).length,
+        1,
+        "Successful native qualification requires one captured application",
+      );
+    }
     assert.ok(
       captured.processes.some(
         (entry) => path.basename(entry.path).toLowerCase() === "msedgewebview2.exe",
@@ -1525,6 +1586,15 @@ async function connect() {
     async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
     30_000,
   );
+  if (executionPlan.fixtures.acquisitionJourney) {
+    const snapshot = path.join(
+      output,
+      `acquisition-connected-${connectedLaunches + 1}-processes.json`,
+    );
+    const captured = observeNativeSession("Snapshot", snapshot);
+    artifacts.push(snapshot);
+    ownedSession.bindApplication(captured, application);
+  }
   connectedLaunches++;
 }
 
@@ -1881,9 +1951,10 @@ interface RestartObservation {
 // Read-only identity evidence through the existing owned driver-tree observer.
 // An exact executable under the isolated library is required; no PID/name-only ownership.
 const acquisitionGameObserver: AcquisitionGameObserver = {
-  capture(executable, name) {
+  capture(game, name) {
     assert.equal(process.platform, "win32");
     assert.ok(executionPlan.fixtures.acquisitionJourney && identityBoundSession);
+    const { executable } = game;
     const canonical = (value: string) =>
       path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase();
     const relative = path.relative(canonical(library), canonical(executable));
@@ -1891,18 +1962,30 @@ const acquisitionGameObserver: AcquisitionGameObserver = {
       relative && !relative.startsWith("..") && !path.isAbsolute(relative),
       "Only an executable inside the owned fixture library may be observed",
     );
+    const installed = path.relative(canonical(game.installation.path), canonical(executable));
+    assert.ok(
+      installed && !installed.startsWith("..") && !path.isAbsolute(installed),
+      "Observed game must belong to its exact expected installation",
+    );
+    ownedSession.game = { executable, installation: { ...game.installation } };
     assert.match(name, /^[a-z0-9-]+$/u);
+    const deadline = performance.now() + 10_000;
     const snapshot = path.join(output, `${name}-processes.json`);
     const captured = observeNativeSession("SnapshotDriverTree", snapshot);
     artifacts.push(snapshot);
     assert.deepEqual(captured.driver, ownedSession.driver, "Captured driver identity changed");
-    validateBackupFocusInventory(captured, true);
+    ownedSession.requireApplication(captured);
     const candidates = captured.processes.filter(
       (entry) => canonical(entry.path) === canonical(executable),
     );
     assert.ok(candidates.length <= 1, "Owned game executable has ambiguous live identities");
     const identity = candidates[0];
-    return identity ? { identity, snapshot } : null;
+    // A supervisor can exist before its game and Core record publication. No capture qualifies yet.
+    if (!identity) return null;
+    validateBackupFocusInventory(captured, true, deadline);
+    if (!ownedSession.games.some((previous) => previous.installation.id === game.installation.id))
+      ownedSession.games.push({ executable, installation: { ...game.installation } });
+    return { identity, snapshot };
   },
   observe(game, name) {
     assert.match(name, /^[a-z0-9-]+$/u);

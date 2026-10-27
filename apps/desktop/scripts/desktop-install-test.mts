@@ -10,7 +10,7 @@ import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
-import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
+import type { CapturedNativeProcess, NativeManagedGame } from "./desktop-owned-native-session.mts";
 import type {
   ActivityStatus,
   InstallRecord,
@@ -25,7 +25,7 @@ export interface OwnedAcquisitionGame {
   snapshot: string;
 }
 export interface AcquisitionGameObserver {
-  capture(executable: string, name: string): OwnedAcquisitionGame | null;
+  capture(game: NativeManagedGame, name: string): OwnedAcquisitionGame | null;
   observe(game: OwnedAcquisitionGame, name: string): "running" | "exited";
 }
 interface InstallContext extends ScenarioContext {
@@ -787,7 +787,7 @@ export async function installScenarios({
     };
     const gates: ReturnType<InstallFixture["holdArtifact"]>[] = [];
     let liveGame: OwnedAcquisitionGame | undefined;
-    let pendingGameExecutable: string | undefined;
+    let pendingGame: NativeManagedGame | undefined;
     let observationIndex = 0;
     const evidenceName = (name: string) => `acquisition-${name}-${++observationIndex}`;
     const status = async () =>
@@ -885,9 +885,8 @@ export async function installScenarios({
     };
     const stopGame = async () => {
       await writeFile(marker, "release owned game\n");
-      if (!liveGame && pendingGameExecutable) {
-        liveGame =
-          observer.capture(pendingGameExecutable, evidenceName("cleanup-capture")) ?? undefined;
+      if (!liveGame && pendingGame) {
+        liveGame = observer.capture(pendingGame, evidenceName("cleanup-capture")) ?? undefined;
         assert.ok(
           liveGame,
           "Launch was attempted without a captured identity; marker released, but positive game-exit evidence is inconclusive",
@@ -915,17 +914,21 @@ export async function installScenarios({
         "Core launch activity did not settle after owned game exit",
       );
       liveGame = undefined;
-      pendingGameExecutable = undefined;
+      pendingGame = undefined;
     };
     const play = async () => {
       assert.equal(await exists(marker), false, "Each owned launch requires an unreleased marker");
       const current = await status();
       const active = required(current.active);
       const executable = path.resolve(active.path, active.selected_executable);
-      pendingGameExecutable = executable;
+      const game = {
+        executable,
+        installation: { id: active.id, port_id: active.port_id, path: active.path },
+      };
+      pendingGame = game;
       await click("Play");
       const captured = await browser.wait(
-        () => observer.capture(executable, evidenceName("live-game")),
+        () => observer.capture(game, evidenceName("live-game")),
         20_000,
         "Play did not start the exact owned installed executable",
       );
