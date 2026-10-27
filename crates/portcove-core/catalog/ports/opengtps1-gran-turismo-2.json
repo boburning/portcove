@@ -3,12 +3,12 @@
   "listing": {
     "id": "opengtps1-gran-turismo-2",
     "name": "OpenGTPS1 (Gran Turismo 2)",
-    "summary": "Explore OpenGTPS1 (Gran Turismo 2) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Windows Gran Turismo 2 project awaiting an upstream grant for its original code. Read the current licensing status; your existing files stay untouched.",
     "project_url": "https://github.com/GTTeancum/OpenGTPS1",
     "issue_number": 743,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/GTTeancum/OpenGTPS1",
+    "platforms": ["windows-x86-64"],
+    "availability": "source-only",
+    "setup_url": "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md",
     "artwork": {
       "game_id": 1597,
       "cover_id": 93687,
@@ -16,6 +16,17 @@
       "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
       "game_slug": "gran-turismo-2",
       "match_kind": "underlying-game"
+    },
+    "download_block_reason": "The upstream README states that no license has been granted for original OpenGTPS1 code. The existing canonical permission hold remains: an attributable grant for that code and a reviewed usable player/setup route are required before Portcove can offer acquisition. Licenses of vendored components do not grant rights to the whole project.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Read the upstream licensing status",
+          "instruction": "The existing original-code permission hold is unresolved, and the current public GitHub release list is empty. Upstream’s older download references do not establish a current permitted player. Follow the linked licensing statement for changes; a future attributable grant and usable reviewed runtime/setup route can reopen acquisition review. This listing does not ask you to download or run a tool, or to remove an existing copy. Your existing files stay untouched."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md"
     }
   }
 }
