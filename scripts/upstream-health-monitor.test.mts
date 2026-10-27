@@ -794,3 +794,68 @@ void test("the hosted workflow saves main history only and retains reports on un
       );
   }
 });
+
+void test("catalog coverage progresses beyond one collector and history batch without claiming global health", async () => {
+  const input = catalog(641);
+  let checkpoint: Awaited<ReturnType<typeof advanceHealthMonitor>>["checkpoint"] = null;
+  const assessed = new Set<string>();
+  for (let batch = 0; batch < 3; batch++) {
+    const result = await advanceHealthMonitor(
+      input,
+      checkpoint,
+      options({ now: () => epoch + batch * 1000 }),
+    );
+    checkpoint = result.checkpoint;
+    assert.ok(result.report.collection.consumed.requests <= 320);
+    for (const id of result.report.batch.selected_port_ids) assessed.add(id);
+    assert.equal(result.report.collection.scope.global_health, "not assessed");
+    if (batch === 0) assert.ok(result.report.inventory.unmonitored_port_ids.length > 0);
+  }
+  assert.equal(assessed.size, 641);
+  assert.ok(checkpoint!.observations.length > 512);
+  assert.equal(checkpoint!.attempts.length, 641);
+  const resumed = await advanceHealthMonitor(
+    input,
+    checkpoint,
+    options({ scope: { mode: "none", port_ids: [] }, now: () => epoch + 4000 }),
+  );
+  assert.equal(resumed.report.inventory.fresh_complete_port_ids.length, 641);
+  assert.equal(resumed.checkpoint!.observations.length, 641);
+});
+
+void test("physical byte envelopes replace catalog and historical cardinality ceilings", async () => {
+  const empty = await advanceHealthMonitor(
+    catalog(4097),
+    null,
+    options({ scope: { mode: "none", port_ids: [] } }),
+  );
+  assert.equal(empty.report.inventory.unmonitored_port_ids.length, 4097);
+  const initial = await advanceHealthMonitor(catalog(), null, options());
+  const history = structuredClone(initial.checkpoint!);
+  history.observations = Array.from({ length: 8193 }, (_, index) => ({
+    ...history.observations[0]!,
+    repository: `owner/history-${index}`,
+  }));
+  const resumed = await advanceHealthMonitor(
+    catalog(),
+    history,
+    options({ scope: { mode: "none", port_ids: [] } }),
+  );
+  assert.equal(resumed.checkpoint!.observations.length, 8193);
+  const recollected = await advanceHealthMonitor(
+    catalog(),
+    resumed.checkpoint,
+    options({ now: () => epoch + 1000 }),
+  );
+  assert.equal(recollected.report.collection.collection_status, "complete");
+  assert.equal(recollected.report.collection.consumed.requests, 1);
+  assert.equal(recollected.checkpoint!.observations.length, 1);
+  await assert.rejects(
+    advanceHealthMonitor({ ...catalog(), extra: "x".repeat(4 * 1024 * 1024) }, null, options()),
+    /bounded catalog/,
+  );
+  await assert.rejects(
+    advanceHealthMonitor(catalog(), { ...history, extra: "x".repeat(16 * 1024 * 1024) }, options()),
+    /resource bounds/,
+  );
+});

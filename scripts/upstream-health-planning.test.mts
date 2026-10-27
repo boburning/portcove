@@ -295,7 +295,7 @@ void test("overflow preserves static missing-release and conflicting-identity cl
   assert.ok(report.observations.every((r) => !r.attempted && !r.accounted_for));
 });
 
-void test("malformed inventories refuse before requests and prior-report bounds remain independently 512", async () => {
+void test("malformed inventories refuse before requests and historical byte bounds are independent of collection counts", async () => {
   const catalog = { ports: [capacityPort("history-bound")] };
   for (const bad of [
     null,
@@ -315,6 +315,13 @@ void test("malformed inventories refuse before requests and prior-report bounds 
   const first = await collectRepositoryHealth(catalog, { fetch: fetch404 });
   assert.equal(first.limits.requests, 1);
   assert.equal(requiredFixture(first.port_health[0]).canonical_incidents.length, 1);
+  await assert.rejects(
+    collectRepositoryHealth(catalog, {
+      previousReport: { ...first, extra: "x".repeat(16 * 1024 * 1024) },
+      fetch: () => assert.fail("Oversized history must refuse before requests"),
+    }),
+    /Invalid historical health comparison/,
+  );
   for (const count of [512, 513]) {
     for (const field of ["observations", "incidents"]) {
       const prior = structuredClone(first);
@@ -330,25 +337,11 @@ void test("malformed inventories refuse before requests and prior-report bounds 
               requiredFixture(requiredFixture(first.port_health[0]).canonical_incidents[0]),
             ),
         );
-      if (count > 512) {
-        await assert.rejects(
-          collectRepositoryHealth(catalog, {
-            previousReport: prior,
-            fetch: fetch404,
-          }),
-          /Invalid historical health comparison/,
-        );
-        continue;
-      }
       const report = await collectRepositoryHealth(catalog, {
         previousReport: prior,
         fetch: fetch404,
       });
-      assert.equal(
-        report.previous_report,
-        count === 512 ? "matching observation history" : "mismatched or incomplete; not reused",
-        field,
-      );
+      assert.equal(report.previous_report, "matching observation history", field);
       assert.equal(requiredFixture(report.observations[0]).reason, "inaccessible-or-missing");
       assert.equal(report.outcome, "incomplete");
     }
