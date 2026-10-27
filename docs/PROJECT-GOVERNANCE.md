@@ -180,14 +180,29 @@ boundary. That transport owns response headers, quota evidence and generic Link
 pagination, while this Roadmap client continues to own Project schema,
 completeness, mutation and readback decisions.
 
-Bulk Project field transitions retain a 100-assignment specification ceiling
-but execute in verified chunks of at most 25 assignments. Before every chunk,
+Bulk Project field transitions admit logical specifications independently of
+assignment count and execute in verified chunks of at most 25 assignments.
+Final multi-item readback uses the same finite item bound. A streamed 8 MiB
+regular-file input envelope bounds parsing; it is not a 100-assignment quota. Before every chunk,
 the client accepts only the declared source or already-applied target value,
-samples the current GraphQL quota and preserves a recovery reserve. Every
+samples the current GraphQL quota and preserves a recovery reserve based on
+bounded chunk costs, replacing the initial proportional estimate with actual
+observed read costs. The entire logical preflight cost is not charged as a
+per-chunk reserve. Every
 mutation is read back before the next chunk; an ambiguous response is never
 retried blindly. A partial run stops safely and the same specification can be
-resumed because already-applied targets are reconciled explicitly. Full
-readback and the applicable scoped or full Roadmap check remain the final success gate.
+resumed because already-applied targets are reconciled explicitly. Applied runs
+retain an atomic progress journal under the Git common directory's
+`portcove-locks/set-many/`, keyed by the absolute specification path. It binds
+exact specification bytes, validated configuration and resolved
+Project/item/field/option identities,
+records attempts before send and verified fields after readback. Resume the same
+specification; never edit it to remove completed rows. Changed inputs, identities,
+concurrent reversal of verified values or unresolved ambiguous writes stop before
+further mutation. An ambiguous field must first be observed at its exact desired
+target; it is never automatically resent. Journals retain a finite 32 MiB storage
+envelope and do not replace live Project state. Full readback and the applicable
+scoped or full Roadmap check remain the final success gate.
 
 `roadmap.mts set-many` and `pr-delivery.mts watch|merge` retain their human
 output by default. `--json` emits one schema-versioned operation envelope on
@@ -206,7 +221,12 @@ the resolved targets, already-applied transitions, observed GraphQL cost and
 required reserve. Apply validates every target before one bounded mutation,
 reads back each field exactly, and runs one final affected-record check. A current value equal
 to `to` is an idempotent resume; any value other than `from` or `to` aborts the
-whole batch before mutation. Keep a batch at or below 100 field assignments.
+whole batch before mutation. Larger logical updates continue through verified
+chunks automatically; quota exhaustion retains progress for the same-specification
+resume after provider capacity returns. Read-only plans do not create progress
+journals. Keep completed and failed evidence when reconciling a changed
+specification or an unresolved write; a new file is not permission to overwrite
+concurrent owner changes.
 
 Live Roadmap commands serialize through an owned lock in the repository's
 shared Git common directory, so sibling worktrees cannot independently consume
