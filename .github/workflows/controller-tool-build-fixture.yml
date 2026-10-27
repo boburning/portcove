@@ -9,6 +9,10 @@ on:
       - scripts/github-*.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
+      - scripts/release-windows-webview-driver.mts
+      - scripts/release-windows-webview-driver.test.mts
+      - scripts/windows-webview-driver-policy.psm1
+      - scripts/bounded-zip.mts
       - scripts/release-hosted-native-windows-setup.ps1
       - scripts/release-hosted-native-windows-setup.cs.txt
       - scripts/release-hosted-native-windows-audit.cs.txt
@@ -41,6 +45,10 @@ on:
       - scripts/release-controller-tool*.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
+      - scripts/release-windows-webview-driver.mts
+      - scripts/release-windows-webview-driver.test.mts
+      - scripts/windows-webview-driver-policy.psm1
+      - scripts/bounded-zip.mts
       - scripts/release-hosted-native-windows-setup.ps1
       - scripts/release-hosted-native-windows-setup.cs.txt
       - scripts/release-hosted-native-windows-audit.cs.txt

@@ -22,6 +22,7 @@ import {
 } from "./release-controller-tools.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { qualifyNativePnpmRuntime } from "./release-pnpm-runtime.mts";
+import { inspectWindowsWebviewDriverProof } from "./release-windows-webview-driver.mts";
 import {
   inspectNativeRuntimeCustody,
   recheckNativeRuntimeCustody,
@@ -557,6 +558,36 @@ async function main() {
     const driver = invoke("tauri-driver.exe", ["--help"]);
     assert.equal(driver.status, 0);
     assert.match(driver.stdout, /tauri-driver/u);
+    phase = "actual-Microsoft-WebViewDriver";
+    const edgeProof: unknown = JSON.parse(
+        (
+          await readControllerToolFile(path.join(built.tools, "webview-driver.json"), 16384)
+        ).toString("utf8"),
+      ),
+      edgeBinary = await readControllerToolFile(
+        path.join(built.tools, "bin/msedgedriver.exe"),
+        64 * 1024 ** 2,
+      ),
+      edgePolicy = await readControllerToolFile(
+        path.join(built.tools, "scripts/windows-webview-driver-policy.psm1"),
+        16384,
+      ),
+      edgeFacts = inspectWindowsWebviewDriverProof(edgeProof, edgeBinary, edgePolicy),
+      edge = invoke("msedgedriver.exe", ["--version"]);
+    assert.equal(edge.status, 0, edge.stderr);
+    assert.ok(edge.stdout.trim().startsWith(`Microsoft Edge WebDriver ${edgeFacts.version} (`));
+    recheckNativeRuntimeCustody(files, custody);
+    await record("windows-webview-driver.json", {
+      source: expected,
+      proof: edgeProof,
+      observed_version: edge.stdout.trim(),
+      executable: edgeFacts.executable,
+      account_execution: "not_requested",
+      scope:
+        "source-builder signature-before-version and independent same-byte tool observation only",
+      native_acceptance: "not-established",
+      authority: "none",
+    });
     phase = "actual-Tauri-addon";
     const addon = invoke("node.exe", [
       "-e",
@@ -906,6 +937,7 @@ async function main() {
         "portcove.exe",
         "portcove-release-tools.exe",
         "tauri-driver.exe",
+        "msedgedriver.exe",
         "pnpm.exe",
         "tauri-addon.node",
       ],

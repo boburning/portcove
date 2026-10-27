@@ -528,3 +528,22 @@ void test("deep audit evidence retains audit status without privilege changes", 
   assert.equal(bundle.with["compression-level"], 6);
   assert.equal(bundle.with["if-no-files-found"], "error");
 });
+
+void test("ordinary controller tool rebuilds cover Windows driver acquisition and parser policy", async () => {
+  const workflow = await readWorkflow(
+    new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
+  );
+  const settings: unknown = parseDocument(workflow).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.on));
+  for (const trigger of ["pull_request", "push"]) {
+    const section = settings.on[trigger];
+    assert.ok(isRecord(section) && Array.isArray(section.paths));
+    for (const file of [
+      "scripts/release-windows-webview-driver.mts",
+      "scripts/release-windows-webview-driver.test.mts",
+      "scripts/windows-webview-driver-policy.psm1",
+      "scripts/bounded-zip.mts",
+    ])
+      assert.ok(section.paths.includes(file), `${trigger}/${file}`);
+  }
+});
