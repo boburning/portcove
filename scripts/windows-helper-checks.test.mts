@@ -1143,3 +1143,15 @@ foreach($required in @('Mount-DiskImage','Dismount-DiskImage','Connect-PreparedP
     });
   },
 );
+
+void test("operation-report helper changes preserve the Windows consumer route", () => {
+  const file = "scripts/operation-coverage.mts";
+  for (const change of [
+    { oldPath: file, newPath: file },
+    { oldPath: "", newPath: file },
+    { oldPath: file, newPath: "" },
+    { oldPath: file, newPath: "scripts/renamed-operation-report.mts" },
+    { oldPath: "scripts/old-operation-report.mts", newPath: file },
+  ])
+    assert.equal(windowsHelperChecksRequired({ mode: "fast", changes: [change] }), true);
+});

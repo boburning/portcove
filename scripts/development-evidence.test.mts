@@ -1,9 +1,12 @@
+import { operationCoverage, readCoverageInput } from "./operation-coverage.mts";
 import { runInNewContext as runBrowserProbe } from "node:vm";
 import { isRecord } from "./runtime-values.mts";
 import {
   writeAcceptancePreflight,
   completeAcceptancePacket,
   reusableAcceptanceScenarios,
+  compatibleAcceptanceScenarios,
+  revalidateAcceptancePacket,
   parseAcceptancePreflightContext,
 } from "./acceptance-packet.mts";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
@@ -885,7 +888,11 @@ void test("timed-out capture joins the blocked filesystem worker without publish
   );
 });
 
-async function packetFixture(t: TestContext) {
+async function packetFixture(
+  t: TestContext,
+  scenario = "review",
+  operation?: Record<string, unknown>,
+) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-packet-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
@@ -904,13 +911,17 @@ async function packetFixture(t: TestContext) {
     product_artifacts: [{ ...identity, role: "app" }],
     harness_inputs: [{ ...identity, role: "harness-fixture" }],
     execution_qualification: {
-      runtime_conditions: { platform: "fixture", display: "virtual" },
+      runtime_conditions: {
+        platform: operation?.platform ?? "fixture",
+        display: "virtual",
+        ...(operation ? { observation_kind: operation.evidence_kind } : {}),
+      },
       fixture_identities: [],
-      initial_state: { isolated: true },
-      requirements: [{ id: "finite-fixture", required_scenarios: ["review"] }],
-      scenarios: ["review"],
+      initial_state: { isolated: true, ...(operation ? { offered_operation: operation } : {}) },
+      requirements: [{ id: "finite-fixture", required_scenarios: [scenario] }],
+      scenarios: [scenario],
       acceptance_criteria: [
-        { id: "readable-review", scenarios: ["review"], required_images: ["review.png"] },
+        { id: "readable-review", scenarios: [scenario], required_images: ["review.png"] },
       ],
     },
   };
@@ -939,7 +950,7 @@ async function packetFixture(t: TestContext) {
     capture,
     JSON.stringify({
       outcome: "captured",
-      scenario: "review",
+      scenario: scenario,
       image: imageIdentity,
       observation: {
         semantic: { ready: true },
@@ -969,9 +980,10 @@ async function packetFixture(t: TestContext) {
     evidenceFile,
     JSON.stringify({
       format_version: 3,
+      captured_at: new Date().toISOString(),
       revision: head,
       outcome: "passed",
-      selected_scenarios: ["review"],
+      selected_scenarios: [scenario],
       setup_checks: [{ scenario: "setup", outcome: "passed" }],
       acceptance_preflight: preflight.identity,
       execution_binding: {
@@ -980,13 +992,13 @@ async function packetFixture(t: TestContext) {
         build_inputs: bindings.build_inputs,
         execution_qualification: bindings.execution_qualification,
       },
-      checks: [{ scenario: "review", outcome: "passed" }],
+      checks: [{ scenario: scenario, outcome: "passed" }],
       artifacts,
     }),
   );
   const completion: AcceptanceCompletionContext = {
     evidence_identity: await fileIdentity(evidenceFile),
-    outcomes: [{ scenario: "review", outcome: "passed" }],
+    outcomes: [{ scenario: scenario, outcome: "passed" }],
     retained_artifacts: artifacts,
     process_closure: {
       outcome: "passed",
@@ -1511,3 +1523,306 @@ void test("retained metadata read binds validated bytes even after the original 
     "Private Linux native drivers cannot be assumed relocatable",
   );
 });
+
+void test("completed packet readback revalidates artifacts and refuses a forged aggregate", async (t) => {
+  const fixture = await packetFixture(t);
+  const completed = await completeAcceptancePacket(fixture.preflight.identity, fixture.completion);
+  const { observation_captured_at, ...revalidated } = await revalidateAcceptancePacket(
+    completed.identity,
+  );
+  assert.equal(typeof observation_captured_at, "string");
+  assert.deepEqual(revalidated, completed.packet);
+  await writeFile(
+    completed.identity.path,
+    JSON.stringify({ ...completed.packet, qualification_complete: false }),
+  );
+  await assert.rejects(
+    revalidateAcceptancePacket(await fileIdentity(completed.identity.path)),
+    /differs from revalidated evidence/,
+  );
+  await writeFile(completed.identity.path, JSON.stringify(completed.packet));
+  await writeFile(fixture.completion.retained_artifacts[0]!.path, "changed retained image");
+  await assert.rejects(
+    revalidateAcceptancePacket(await fileIdentity(completed.identity.path)),
+    /retained artifact bytes changed|bound/,
+  );
+});
+
+void test("offered-operation coverage preserves missing identities and Core holds without inventing routes", async () => {
+  const report = {
+    report_format: 1,
+    captured_at: "2026-10-27T00:00:00Z",
+    cli_sha256: "a".repeat(64),
+    evidence: {
+      doctor: { ok: true, data: { platform: "linux-x86_64" } },
+      status: {
+        ok: true,
+        data: [
+          {
+            port_id: "new-port",
+            active: null,
+            port_actions: [
+              { action: "install", availability: "held", reason: "definition_ineligible" },
+              { action: "launch", availability: "not_offered", reason: "not_installed" },
+              { action: "future_action", availability: "waiting", reason: "assessment_incomplete" },
+            ],
+          },
+        ],
+      },
+    },
+  };
+  const coverage = await operationCoverage(report);
+  assert.equal(coverage.rows.length, 2);
+  assert.equal(coverage.rows[0]!.availability, "held");
+  assert.equal(coverage.rows[0]!.package.installed_platform, null);
+  assert.equal(coverage.rows[0]!.missing_identity, true);
+  assert.equal(coverage.rows[1]!.missing_producer, true);
+  assert(
+    coverage.rows.every((row) => row.latest_compatible_receipt === null && row.missing_observation),
+  );
+  assert.equal(coverage.observations_complete, false);
+  const status = report.evidence.status.data[0]!;
+  await assert.rejects(
+    operationCoverage({
+      ...report,
+      evidence: { ...report.evidence, status: { ok: true, data: [{ port_id: status.port_id }] } },
+    }),
+    /inventory is missing/,
+  );
+  await assert.rejects(
+    operationCoverage({
+      ...report,
+      evidence: { ...report.evidence, status: { ok: true, data: [status, status] } },
+    }),
+    /Duplicate Core port/,
+  );
+});
+
+void test("operation receipts retain the latest failure and separate fixture, harness and installed observations", async (t) => {
+  const scenario = "native-reviewed-backup-restore-and-delete";
+  const scope = {
+    port_id: "fixture-port",
+    operation: "backup_create",
+    runtime_kind: "managed",
+    record_id: "install-1",
+    availability: "allowed",
+    reason: "available",
+    platform: "linux-x86_64",
+    package_sha256: createHash("sha256").update("product").digest("hex"),
+    producer: scenario,
+    evidence_kind: "real-installed-execution",
+  };
+  const qualified = await packetFixture(t, scenario, scope);
+  const passed = await completeAcceptancePacket(qualified.preflight.identity, qualified.completion);
+  const broken = await packetFixture(t, scenario, scope);
+  const failure = await broken.rebindEvidence(broken.preflight, {
+    outcome: "failed",
+    checks: [{ scenario, outcome: "failed" }],
+  });
+  const failed = await completeAcceptancePacket(broken.preflight.identity, {
+    ...failure,
+    outcomes: [{ scenario, outcome: "failed" }],
+    outcome_review: { ...failure.outcome_review, outcome: "failed" },
+  });
+  assert.equal(failed.packet.qualification_complete, false);
+  const fixtureReceipts = [];
+  const fixtureContexts = [];
+  for (const evidence_kind of ["browser-fixture", "native-harness-contract"]) {
+    const fixture = await packetFixture(t, scenario, { ...scope, evidence_kind });
+    fixtureContexts.push(fixture.preflight.packet);
+    fixtureReceipts.push(
+      (await completeAcceptancePacket(fixture.preflight.identity, fixture.completion)).identity,
+    );
+  }
+  const report = {
+    report_format: 1,
+    captured_at: "2026-10-27T00:00:00Z",
+    cli_sha256: scope.package_sha256,
+    evidence: {
+      catalog: { ok: true, data: { ports: [{ id: scope.port_id }] } },
+      doctor: { ok: true, data: { platform: scope.platform } },
+      status: {
+        ok: true,
+        data: [
+          {
+            port_id: scope.port_id,
+            active: { id: scope.record_id, artifact: { sha256: scope.package_sha256 } },
+            port_actions: [
+              { action: scope.operation, availability: scope.availability, reason: scope.reason },
+            ],
+          },
+        ],
+      },
+    },
+  };
+  await writeFile(
+    passed.identity.path,
+    JSON.stringify({ ...passed.packet, completed_at: "2099-01-01T00:00:00Z" }),
+  );
+  passed.identity = await fileIdentity(passed.identity.path);
+  const greenOnly = await operationCoverage(
+    report,
+    [passed.identity],
+    [qualified.preflight.packet],
+  );
+  assert.equal(greenOnly.observations_complete, true);
+  for (const current of [
+    {
+      ...qualified.preflight.packet,
+      source_review: { ...qualified.source_review, outcome: "failed" },
+    },
+    {
+      ...qualified.preflight.packet,
+      known_gaps: [{ id: "mandatory-observation", required: true }],
+    },
+  ]) {
+    const blocked = await operationCoverage(report, [passed.identity], [current]);
+    assert.equal(blocked.rows[0]!.mandatory_observation, "recorded");
+    assert.equal(blocked.requested_preflights[0]!.clear, false);
+    assert.equal(blocked.observations_complete, false);
+  }
+  const truncated = structuredClone(report);
+  truncated.evidence.status.data = [];
+  const incomplete = await operationCoverage(truncated, [], []);
+  assert.equal(incomplete.inventory_complete, false);
+  assert.equal(incomplete.observations_complete, false);
+  const noAssessments = structuredClone(report);
+  noAssessments.evidence.status.data[0]!.port_actions = [];
+  assert.equal((await operationCoverage(noAssessments)).inventory_complete, false);
+  const empty = await operationCoverage({
+    ...report,
+    evidence: {
+      ...report.evidence,
+      catalog: { ok: true, data: { ports: [] } },
+      status: { ok: true, data: [] },
+    },
+  });
+  assert.equal(empty.coverage_state, "empty");
+  assert.equal(empty.observations_complete, false);
+  const coverage = await operationCoverage(
+    report,
+    [failed.identity, passed.identity, ...fixtureReceipts],
+    [qualified.preflight.packet],
+  );
+  assert.equal(coverage.receipt_validation_errors.length, 0);
+  assert.equal(coverage.rows[0]!.latest_compatible_receipt!.receipt.sha256, failed.identity.sha256);
+  assert.equal(coverage.rows[0]!.mandatory_observation, "failed");
+  assert.equal(coverage.observations_complete, false);
+  assert.equal(coverage.supplied_receipts.length, 4);
+  const allKinds = await operationCoverage(
+    report,
+    [passed.identity, ...fixtureReceipts],
+    [qualified.preflight.packet, ...fixtureContexts],
+  );
+  assert.deepEqual(Object.keys(allKinds.rows[0]!.observations_by_kind).sort(), [
+    "browser-fixture",
+    "native-harness-contract",
+    "real-installed-execution",
+  ]);
+  await assert.rejects(
+    operationCoverage(
+      report,
+      [passed.identity],
+      [qualified.preflight.packet, qualified.preflight.packet],
+    ),
+    /Duplicate requested operation scope/,
+  );
+
+  assert.equal(coverage.supplied_receipts[2]!.compatible_scenarios.length, 0);
+  assert.deepEqual(
+    compatibleAcceptanceScenarios(failed.packet, qualified.preflight.packet).compatible,
+    [scenario],
+  );
+  assert.equal(
+    reusableAcceptanceScenarios(failed.packet, qualified.preflight.packet).reusable.length,
+    0,
+  );
+  const differentPlatform = structuredClone(report);
+  differentPlatform.evidence.doctor.data.platform = "windows-x86_64";
+  assert.equal(
+    (await operationCoverage(differentPlatform, [passed.identity], [qualified.preflight.packet]))
+      .rows[0]!.mandatory_observation,
+    "missing",
+  );
+  const differentPackage = structuredClone(report);
+  differentPackage.evidence.status.data[0]!.active.artifact.sha256 = "e".repeat(64);
+  assert.equal(
+    (await operationCoverage(differentPackage, [passed.identity], [qualified.preflight.packet]))
+      .rows[0]!.mandatory_observation,
+    "missing",
+  );
+  const undated = await packetFixture(t, scenario, scope);
+  const undatedContext = await undated.rebindEvidence(undated.preflight, { captured_at: null });
+  const undatedReceipt = await completeAcceptancePacket(undated.preflight.identity, undatedContext);
+  const ambiguous = await operationCoverage(
+    report,
+    [passed.identity, undatedReceipt.identity],
+    [qualified.preflight.packet],
+  );
+  assert.equal(ambiguous.rows[0]!.mandatory_observation, "incomplete");
+  assert.equal(ambiguous.rows[0]!.latest_compatible_receipt, null);
+  const noNative = await operationCoverage(report, fixtureReceipts, [qualified.preflight.packet]);
+  assert.equal(noNative.rows[0]!.mandatory_observation, "missing");
+  await writeFile(
+    path.join(qualified.directory, "nearby-green.json"),
+    JSON.stringify({
+      stage: "completed",
+      qualification_complete: true,
+      completed_at: new Date().toISOString(),
+    }),
+  );
+  const green = await readCoverageInput(path.join(qualified.directory, "nearby-green.json"));
+  const refused = await operationCoverage(report, [green.identity], [qualified.preflight.packet]);
+  assert.equal(refused.receipt_validation_errors.length, 1);
+  assert.equal(refused.rows[0]!.mandatory_observation, "missing");
+});
+
+void test(
+  "bounded evidence metadata reads pin one ordinary handle across growth and replacement",
+  { timeout: 15000 },
+  async (t) => {
+    const { readBoundedEvidenceFile } = await import("./development-evidence.mts");
+    const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-bounded-read-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const file = path.join(directory, "metadata.json");
+    await writeFile(file, "{}");
+    const result = await readBoundedEvidenceFile(file, 2);
+    assert.equal(result.bytes.toString(), "{}");
+    assert.deepEqual(result.identity, await fileIdentity(file));
+    await assert.rejects(readBoundedEvidenceFile(file, 1), /bounded/);
+    await assert.rejects(readBoundedEvidenceFile(file, 0), /finite byte bound/);
+    await assert.rejects(readBoundedEvidenceFile(directory, 16), /regular file/);
+    const moduleUrl = new URL("./development-evidence.mts", import.meta.url).href;
+    const child = `
+    import {mock} from 'node:test';
+    import assert from 'node:assert/strict';
+    import {spawnSync} from 'node:child_process';
+    const real=await import('node:fs/promises');
+    const {default:ignored,...named}=real;
+    const file=${JSON.stringify(file)};
+    for(const mode of ['growth',...(process.platform==='linux'?['fifo']:[])]) {
+      await real.writeFile(file,'{}');
+      const control=mock.module('node:fs/promises',{namedExports:{...named,open:async(...args)=>{
+        if(mode==='growth') await real.appendFile(file,'x');
+        else { await real.unlink(file); const made=spawnSync('mkfifo',[file]); assert.equal(made.status,0); }
+        return real.open(...args);
+      }}});
+      try {
+        const {readBoundedEvidenceFile}=await import(${JSON.stringify(moduleUrl)}+'?bounded-control='+mode);
+        await assert.rejects(readBoundedEvidenceFile(file,16),/physical identity changed/);
+      } finally { control.restore(); await real.unlink(file); }
+    }
+    console.log('PASS bounded growth and ordinary-file replacement controls');
+  `;
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const observed = spawnSync(
+      process.execPath,
+      ["--experimental-test-module-mocks", "--input-type=module", "--eval", child],
+      { env, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
+    );
+    assert.equal(observed.error, undefined);
+    assert.equal(observed.status, 0, observed.stderr);
+    assert.match(observed.stdout, /PASS bounded growth/);
+  },
+);

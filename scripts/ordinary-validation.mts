@@ -1124,6 +1124,7 @@ for (const [file, tests] of [
     "scripts/desktop-execution-plan.mts",
     "scripts/desktop-scenarios.mts",
     "scripts/desktop-verify.mts",
+    "scripts/operation-coverage.mts",
     "scripts/testdata/desktop-execution-baseline.json",
     "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
   ].map((file): [string, string[]] => [
@@ -1133,6 +1134,7 @@ for (const [file, tests] of [
       "scripts/desktop-scenarios.test.mts",
       "scripts/desktop-verify.test.mts",
       "scripts/frontend-command-preflight.test.mts",
+      "scripts/development-evidence.test.mts",
       "scripts/native-helper-dependencies.test.mts",
       "scripts/windows-helper-checks.test.mts",
     ],
