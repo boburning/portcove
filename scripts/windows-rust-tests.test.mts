@@ -9,11 +9,14 @@ import { rustClippy } from "./ci-workflow-fixture.mts";
 import { windowsStorage } from "./ci-workflow-fixture.mts";
 import { rust } from "./ci-workflow-fixture.mts";
 import { rustQuality } from "./ci-workflow-fixture.mts";
+import { workflow } from "./ci-workflow-fixture.mts";
+import { workflowJobs } from "./qualification-coverage.mts";
 import assert from "node:assert/strict";
 
 import { readFile, mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
@@ -26,6 +29,8 @@ import {
   windowsPartitionConfig,
   readWindowsQualificationCorePacket,
   qualificationBinaryListDigest,
+  writeWindowsRustSkipRoutes,
+  windowsRustSkipResultsDirectory,
 } from "./windows-rust-tests.mts";
 import oracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
 import {
@@ -35,6 +40,106 @@ import {
   reusedQualificationArguments,
   nextestListArguments,
 } from "./windows-qualification-rust.mts";
+
+void test("both Windows consumer jobs always retain their actual skip packet directory", () => {
+  const relative = path
+    .relative(fileURLToPath(new URL("../", import.meta.url)), windowsRustSkipResultsDirectory)
+    .replaceAll("\\", "/");
+  let consumers = 0;
+  for (const job of Object.values(workflowJobs(workflow))) {
+    const steps: unknown[] = Array.isArray(job.steps) ? job.steps : [];
+    if (
+      !steps.some(
+        (step) =>
+          isRecord(step) &&
+          typeof step.run === "string" &&
+          step.run.includes("windows-rust-tests.mts run"),
+      )
+    )
+      continue;
+    consumers++;
+    assert.ok(
+      steps.some((step) => {
+        if (
+          !isRecord(step) ||
+          step.if !== "always()" ||
+          typeof step.uses !== "string" ||
+          !step.uses.startsWith("actions/upload-artifact@") ||
+          !isRecord(step.with) ||
+          typeof step.with.path !== "string"
+        )
+          return false;
+        return step.with.path.split(/\r?\n/u).some((line) => {
+          const prefix = line.trim().replace(/\/$/u, "");
+          return prefix.length > 0 && (relative === prefix || relative.startsWith(prefix + "/"));
+        });
+      }),
+      "Windows skip packet would be lost from the worker artifacts",
+    );
+  }
+  assert.equal(consumers, 2);
+});
+
+void test("Windows skip packets bind compiled inventory and retain missing-parent refusals", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "portcove-windows-skip-routes-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const identity = qualificationPacketFixture().identity;
+  const inventory = {
+    "test-count": 2,
+    "rust-suites": {
+      core: {
+        "package-name": "portcove-core",
+        "binary-id": "core",
+        status: "listed",
+        testcases: {
+          parent: { ignored: false, "filter-match": { status: "matches" } },
+          child: { ignored: true, "filter-match": { status: "matches" } },
+        },
+      },
+    },
+  };
+  const route = {
+    package: "portcove-core",
+    source: "crates/portcove-core/src/tests.rs",
+    test: "child",
+    platforms: ["win32"],
+    category: "supervised-parent" as const,
+    parents: ["parent"],
+    reason: "Owned by the supervised parent",
+  };
+  const routes = [route, { ...route, package: "portcove-cli" }];
+  assert.deepEqual(
+    writeWindowsRustSkipRoutes(directory, inventory, identity, { coreOnly: true, routes }),
+    [],
+  );
+  const bytes = await readFile(path.join(directory, "skip-routes.json"));
+  const report = JSON.parse(bytes.toString()) as {
+    identity: unknown;
+    contracts: { intended_parents: string[] }[];
+    complete_inventory_sha256: string;
+  };
+  assert.deepEqual(report.identity, identity);
+  const complete = await readFile(path.join(directory, "skip-routes.inventory.json"));
+  assert.deepEqual(JSON.parse(complete.toString()), inventory);
+  assert.equal(
+    report.complete_inventory_sha256,
+    createHash("sha256").update(complete).digest("hex"),
+  );
+  assert.equal(report.contracts[0]?.intended_parents.length, 1);
+  assert.equal(
+    (await readFile(path.join(directory, "skip-routes.sha256"), "utf8")).trim(),
+    createHash("sha256").update(bytes).digest("hex"),
+  );
+  const missing = structuredClone(inventory);
+  delete (missing["rust-suites"].core.testcases as Record<string, unknown>).parent;
+  missing["test-count"] = 1;
+  const refused = path.join(directory, "refused");
+  await mkdir(refused);
+  assert.match(
+    writeWindowsRustSkipRoutes(refused, missing, identity, { coreOnly: true, routes }).join(";"),
+    /parent route/,
+  );
+});
 
 void test("qualification Core retains the frozen pre-change executable argv for every worker and phase", () => {
   assert.equal(oracle.baseline, "34954b7358c4d8c73e4ec5b5dd2cbe7fdf6376dc");

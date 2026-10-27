@@ -172,6 +172,29 @@ replacing a nonzero native exit. Invalid declarations or pre-execution IO can
 leave the command unexecuted, with no inferred native outcome.
 These declarations never execute ignored cases or grant their prerequisites.
 
+Windows archive consumers retain the same compiled skip-route observations under
+`work/test-results/windows-rust-skip-routes/`, including the complete native listing,
+its hash, the source/run binding, report and report hash. Both ordinary and Core
+worker artifacts retain that directory after failure. Route errors are reported
+after native execution; an original native failure remains primary.
+
+The stdlib Python reporter classifies the existing owned-suite platform guards and
+names their maintained Node parents. Owned unknown skips, missing declarations and
+contradictory observations make reporting incomplete while preserving unittest's
+original status, reasons and errors. The reader reconciles route counts and reasons
+against original cases. Copied and controlled reporting fixtures remain framework
+evidence. The C# runner similarly names the compiled CLI scenario's explicit
+`check.ps1 -Cli -Library` parent; an undeclared skip refuses reporting without
+rewriting the original skipped outcome or preventing later independent scenarios.
+
+The browser trace probe is an explicit diagnostic that deliberately fails when
+enabled. Its exact case, prerequisite and intended artifact-custody producer are
+recorded separately from original Vitest outcomes. Focused UI selection refuses
+undeclared skipped cases, including a skip beside a surviving pass. The bounded
+default frontend observer remains passive: it reports `unexpected_skips` and
+`missing_skip_routes` without replacing the public runner's native authority.
+These fields never establish installed, native or release acceptance.
+
 The extra Linux diagnostics replay stays broad for diagnostics, Core, CLI,
 Desktop, shared, dependency and uncertain inputs. Only ordinary added or modified
 regular Rust files within the independent release-tool crate may omit it;

@@ -13,9 +13,10 @@ import {
 import path from "node:path";
 import { inspectBoundedZip } from "../../../scripts/bounded-zip.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
+import { browserTraceProbe } from "../src/browser/failure-probe-contract.ts";
 
-export const probeName = "retains an intentional browser UI failure trace";
-export const probeFailure = "PORTCOVE_EXPECTED_BROWSER_TRACE_FAILURE";
+export const probeName = browserTraceProbe.name;
+export const probeFailure = browserTraceProbe.failure;
 
 function probeArtifactMetadata(file: string, physical: string, limit: number) {
   const expected = lstatSync(file, { bigint: true });
