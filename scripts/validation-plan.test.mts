@@ -577,3 +577,29 @@ void test("both version runtime adapters inherit protected policy across lifecyc
     }
   }
 });
+
+void test("shared Rust partitioner retains producer protection and selection across every lifecycle edit", () => {
+  const producer = "scripts/windows-rust-tests.mts";
+  const helper = "scripts/rust-test-partitioning.mts";
+  const original = validationOwnershipForPath(producer);
+  const actual = validationOwnershipForPath(helper);
+  assert.ok(actual.areas.includes("policy") && actual.areas.includes("rust"));
+  assert.equal(actual.unknown, false);
+  assert.deepEqual(actual.groups, original.groups);
+  assert.deepEqual(actual.platforms, original.platforms);
+  assert.equal(actual.qualificationRequired, true);
+  for (const values of [
+    {},
+    { status: "A", oldMode: "000000" },
+    { status: "D", newMode: "000000" },
+    { status: "R100", newPath: "docs/moved.md" },
+    { status: "R100", oldPath: "docs/moved.md" },
+  ]) {
+    const selected = plan([change(helper, values)]);
+    const prior = plan([change(producer, values)]);
+    assert.equal(selected.mode, prior.mode);
+    assert.equal(selected.qualification_required, prior.qualification_required);
+    assert.deepEqual(selected.groups, prior.groups);
+    assert.deepEqual(selected.platforms, prior.platforms);
+  }
+});

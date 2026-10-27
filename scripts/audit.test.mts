@@ -308,6 +308,7 @@ void test("candidate coverage constants cannot authorize their own reduced trans
     "scripts/qualification-rustdoc.mts",
     "scripts/rustdoc-outcomes.mts",
     "scripts/qualification-nextest.mts",
+    "scripts/rust-test-partitioning.mts",
     "scripts/nextest-outcomes.mts",
     "scripts/nextest-skip-routes.mts",
     "scripts/report-summary.mts",

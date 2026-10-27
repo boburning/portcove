@@ -163,6 +163,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/report-summary.mts",
       "scripts/retained-evidence.mts",
       "scripts/runtime-values.mts",
+      "scripts/rust-test-partitioning.mts",
       "scripts/rustdoc-outcomes.mts",
       "scripts/upstream-lineage.mts",
       "scripts/validation-platforms.mts",
