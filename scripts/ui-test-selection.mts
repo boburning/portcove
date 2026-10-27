@@ -4,7 +4,7 @@ import type { TestModule, TestCase } from "vite-plus/test/node";
 import { browserTraceProbe } from "../apps/desktop/src/browser/failure-probe-contract.ts";
 
 type TestObservation = Pick<TestCase, "fullName"> & {
-  result(): Pick<ReturnType<TestCase["result"]>, "state"> & { note?: string };
+  result(): Pick<ReturnType<TestCase["result"]>, "state"> & { note?: string | undefined };
 };
 export type UiModuleObservation = Pick<TestModule, "moduleId" | "state" | "ok"> & {
   children: { allTests(): Iterable<TestObservation> };

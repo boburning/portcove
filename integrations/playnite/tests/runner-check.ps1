@@ -82,7 +82,7 @@ Assert-ScenarioIdentity $skipRecords $Executable
 if ($skipRecords.Count -ne 1 -or $skipRecords[0].id -ne 'compiled-cli-consumer' -or
     $skipRecords[0].status -ne 'skipped' -or $skipRecords[0].checks -ne 0 -or
     $skipRecords[0].skip_contract.category -cne 'supervised-parent' -or
-    !$skipRecords[0].skip_contract.intended_parent -or $skipRecords[0].skip_contract.error -ne $null -or
+    !$skipRecords[0].skip_contract.intended_parent -or $null -ne $skipRecords[0].skip_contract.error -or
     !$skipRecords[0].skip_reason -or !($skipped -contains 'FAIL 0 reference-client contract checks')) {
     throw "Skipped-only selection fabricated a pass or lost its reason: $skipped"
 }
