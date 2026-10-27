@@ -23,7 +23,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import timers from "node:timers/promises";
 
-interface ArtworkPort extends Record<string, unknown> {
+export interface ArtworkPort extends Record<string, unknown> {
   id: string;
   name?: unknown;
   project_url?: unknown;
@@ -45,7 +45,7 @@ interface PreparedArtworkCatalog extends ArtworkCatalog {
 function assertPreparedArtwork(catalog: ArtworkCatalog): asserts catalog is PreparedArtworkCatalog {
   for (const port of catalog.ports) {
     const artwork = port.presentation?.artwork;
-    if (artwork !== undefined && !validMapping(artwork))
+    if (artwork !== undefined && !validArtworkMapping(artwork))
       throw new Error("Prepared artwork does not satisfy its mapping contract.");
   }
 }
@@ -100,7 +100,7 @@ interface SelectedCover {
   checks: ArtworkChecks;
   reused_original?: true;
 }
-interface ArtworkRecord {
+export interface ArtworkRecord {
   port_id: string;
   role: "cover";
   reason: string;
@@ -108,7 +108,7 @@ interface ArtworkRecord {
   checks: ArtworkChecks | null;
   exceptions: ArtworkException[];
 }
-interface ArtworkMetrics {
+export interface ArtworkMetrics {
   ports: number;
   reused: number;
   original_reused: number;
@@ -126,6 +126,13 @@ export interface ArtworkPreparationOptions {
   refreshPortIds?: readonly string[];
   inspectGame?: (identity: DeclaredIdentity) => unknown;
   inspectImage?: (imageId: string, remainingBytes: number) => unknown;
+  signal?: AbortSignal;
+  knownGoneImageIds?: readonly string[];
+  onRecord?: (
+    record: ArtworkRecord,
+    port: ArtworkPort,
+    goneImages: readonly string[],
+  ) => void | Promise<void>;
 }
 interface ArtworkContext extends ArtworkPreparationOptions {
   acceptedPorts: ArtworkPort[];
@@ -177,16 +184,27 @@ export function readArtworkJson(file: string, maximum = 8 * 1024 * 1024) {
 export function readArtworkInput(file: string, maximum = 8 * 1024 * 1024) {
   const fd = openSync(file, "r");
   try {
-    if (!fstatSync(fd).isFile()) throw new Error("Artwork input must be a regular file.");
-    const buffer = Buffer.alloc(maximum + 1);
+    const before = fstatSync(fd);
+    if (!before.isFile()) throw new Error("Artwork input must be a regular file.");
+    if (before.size > maximum) throw new Error("Artwork input exceeds its byte contract.");
+    const buffer = Buffer.alloc(before.size + 1);
     let length = 0;
     for (;;) {
       const read = readSync(fd, buffer, length, buffer.length - length, null);
       length += read;
       if (length > maximum) throw new Error("Artwork input exceeds its byte contract.");
+      if (length > before.size) throw new Error("Artwork input changed while being read.");
       if (!read) break;
     }
     try {
+      const after = fstatSync(fd);
+      if (
+        after.size !== before.size ||
+        after.mtimeMs !== before.mtimeMs ||
+        after.ctimeMs !== before.ctimeMs ||
+        length !== before.size
+      )
+        throw new Error("Artwork input changed while being read.");
       const bytes = Buffer.from(buffer.subarray(0, length));
       const document: unknown = JSON.parse(bytes.toString("utf8"));
       return { document, bytes };
@@ -373,7 +391,7 @@ function identifiedGame(
     : { reason: eligible.length > 1 ? "identity-not-unique" : "identity-mismatch" };
 }
 
-function validMapping(value: unknown): value is IgdbArtwork {
+export function validArtworkMapping(value: unknown): value is IgdbArtwork {
   return (
     isRecord(value) &&
     positiveId(value.game_id) &&
@@ -397,7 +415,7 @@ function reusableMapping(
     port.source_profile !== accepted.source_profile ||
     JSON.stringify(port.underlying_game ?? null) !==
       JSON.stringify(accepted.underlying_game ?? null) ||
-    !validMapping(accepted.presentation?.artwork)
+    !validArtworkMapping(accepted.presentation?.artwork)
   )
     return null;
   const mapping = accepted.presentation.artwork;
@@ -412,6 +430,47 @@ function reusableMapping(
   )
     return null;
   return structuredClone(mapping);
+}
+
+export class ArtworkBatchExhausted extends Error {
+  constructor(message = "Artwork bounded provider batch exhausted.") {
+    super(message);
+  }
+}
+
+/** Only the current port and equivalent accepted original-game mappings affect its preparation. */
+export function artworkPreparationInput(
+  port: ArtworkPort,
+  accepted: ArtworkCatalog,
+  identities: unknown,
+) {
+  const supplied = isRecord(identities) ? identities[port.id] : undefined;
+  const underlying = isRecord(supplied)
+    ? (supplied.underlying_game ?? port.underlying_game)
+    : port.underlying_game;
+  let original: DeclaredIdentity | null = null;
+  try {
+    if (underlying) original = declaredIdentity(underlying, "underlying-game");
+  } catch {
+    /* The raw declaration remains bound and produces the existing refusal. */
+  }
+  const mappings = accepted.ports
+    .map((entry) => entry.presentation?.artwork)
+    .filter(
+      (mapping) =>
+        validArtworkMapping(mapping) &&
+        mapping.match_kind === "underlying-game" &&
+        mapping.game_id === original?.game_id &&
+        mapping.game_slug === original?.slug,
+    );
+  return {
+    port,
+    accepted: accepted.ports.find((entry) => entry.id === port.id) ?? null,
+    supplied: supplied ?? null,
+    accepted_original_candidates: [
+      ...new Map(mappings.map((mapping) => [JSON.stringify(mapping), mapping])).values(),
+    ],
+  };
 }
 
 function exception(kind: IgdbArtworkMatch, reason: string): ArtworkException {
@@ -451,7 +510,7 @@ function acceptedOriginal(declared: DeclaredIdentity, context: ArtworkContext) {
     .map((port) => port.presentation?.artwork)
     .filter(
       (mapping): mapping is IgdbArtwork =>
-        validMapping(mapping) &&
+        validArtworkMapping(mapping) &&
         !context.goneImages.has(mapping.image_id) &&
         mapping.match_kind === "underlying-game" &&
         mapping.game_id === declared.game_id &&
@@ -509,8 +568,16 @@ async function selectCover(
   let matches;
   try {
     matches = await context.games.get(key);
-  } catch {
-    exceptions.push(exception(kind, "identity-provider-unavailable"));
+  } catch (error) {
+    if (context.signal?.aborted) throw error;
+    exceptions.push(
+      exception(
+        kind,
+        error instanceof ArtworkBatchExhausted
+          ? "batch-provider-budget-exhausted"
+          : "identity-provider-unavailable",
+      ),
+    );
     return null;
   }
   const identified = identifiedGame(matches, declared);
@@ -550,16 +617,26 @@ async function selectCover(
   let content;
   try {
     content = await context.images.get(imageId);
+    context.signal?.throwIfAborted();
     if (!content) throw new Error("Image observation disappeared.");
   } catch (error) {
     if (isRecord(error) && goneImageObservations.get(error) === imageId) {
       context.goneImages.add(imageId);
       exceptions.push(goneImageException(kind, imageId));
     } else {
-      exceptions.push(exception(kind, "image-unavailable-or-invalid"));
+      if (context.signal?.aborted) throw error;
+      exceptions.push(
+        exception(
+          kind,
+          error instanceof ArtworkBatchExhausted
+            ? "batch-provider-budget-exhausted"
+            : "image-unavailable-or-invalid",
+        ),
+      );
     }
     return null;
   }
+  context.goneImages.delete(imageId);
   return {
     mapping: {
       game_id: game.id,
@@ -582,7 +659,7 @@ function applyGoneImageFallbacks(
   const invalidated: string[] = [];
   for (const port of catalog.ports) {
     const mapping = port.presentation?.artwork;
-    if (!validMapping(mapping)) continue;
+    if (!validArtworkMapping(mapping)) continue;
     if (!mapping || !context.goneImages.has(mapping.image_id)) continue;
     if (!port.presentation) throw new Error("Artwork output relationship disappeared.");
     delete port.presentation.artwork;
@@ -640,6 +717,12 @@ export async function prepareCatalogArtwork(
   ) {
     throw new Error("Artwork catalogs require at most10000 unique stable port ids.");
   }
+  if (
+    options.knownGoneImageIds &&
+    (Buffer.byteLength(JSON.stringify(options.knownGoneImageIds)) > 8 * 1024 * 1024 ||
+      options.knownGoneImageIds.some((id) => !matchesString(imagePattern, id)))
+  )
+    throw new Error("Invalid bounded exact-image Gone observations.");
   const result = structuredClone(catalog);
   const accepted = new Map((options.acceptedCatalog?.ports ?? []).map((port) => [port.id, port]));
   const selectedIds = options.selectedPortIds ?? catalog.ports.map((port) => port.id);
@@ -659,7 +742,7 @@ export async function prepareCatalogArtwork(
     refreshing: false,
     games: new Map(),
     images: new Map(),
-    goneImages: new Set(),
+    goneImages: new Set(options.knownGoneImageIds ?? []),
     acceptedPorts: options.acceptedCatalog?.ports ?? [],
     metrics: {
       ports: workset.size,
@@ -673,7 +756,14 @@ export async function prepareCatalogArtwork(
     },
   };
   const records: ArtworkRecord[] = [];
+  const completed = async (record: ArtworkRecord, port: ArtworkPort) => {
+    records.push(record);
+    await options.onRecord?.(structuredClone(record), structuredClone(port), [
+      ...context.goneImages,
+    ]);
+  };
   for (const port of result.ports) {
+    options.signal?.throwIfAborted();
     const rawSupplied = isRecord(options.identities) ? options.identities[port.id] : undefined;
     const supplied = isRecord(rawSupplied) ? rawSupplied : undefined;
     const reused = reusableMapping(port, accepted.get(port.id), supplied);
@@ -689,14 +779,17 @@ export async function prepareCatalogArtwork(
     }
     if (reused && !refresh.has(port.id)) {
       port.presentation = { ...port.presentation, artwork: reused };
-      records.push({
-        port_id: port.id,
-        role: "cover",
-        reason: "accepted-mapping-reused",
-        mapping: reused,
-        checks: { scope: "retained-accepted-mapping", download_repeated: false },
-        exceptions: [],
-      });
+      await completed(
+        {
+          port_id: port.id,
+          role: "cover",
+          reason: "accepted-mapping-reused",
+          mapping: reused,
+          checks: { scope: "retained-accepted-mapping", download_repeated: false },
+          exceptions: [],
+        },
+        port,
+      );
       context.metrics.reused++;
       continue;
     }
@@ -717,14 +810,17 @@ export async function prepareCatalogArtwork(
     if (!selected && reused && !context.goneImages.has(reused.image_id)) {
       port.presentation = { ...port.presentation, artwork: reused };
       context.metrics.reused++;
-      records.push({
-        port_id: port.id,
-        role: "cover",
-        reason: "accepted-mapping-retained-after-unavailable-refresh",
-        mapping: reused,
-        checks: { scope: "retained-accepted-mapping", live_refresh_passed: false },
-        exceptions,
-      });
+      await completed(
+        {
+          port_id: port.id,
+          role: "cover",
+          reason: "accepted-mapping-retained-after-unavailable-refresh",
+          mapping: reused,
+          checks: { scope: "retained-accepted-mapping", live_refresh_passed: false },
+          exceptions,
+        },
+        port,
+      );
       continue;
     }
     if (selected) {
@@ -735,20 +831,23 @@ export async function prepareCatalogArtwork(
       if (port.presentation) delete port.presentation.artwork;
       context.metrics.fallback++;
     }
-    records.push({
-      port_id: port.id,
-      role: "cover",
-      reason: selected
-        ? selected.reused_original
-          ? "accepted-original-game-reused"
-          : selected.mapping.match_kind === "port"
-            ? "exact-port-cover"
-            : "exact-original-game-cover"
-        : "generated-fallback",
-      mapping: selected?.mapping ?? null,
-      checks: selected?.checks ?? null,
-      exceptions,
-    });
+    await completed(
+      {
+        port_id: port.id,
+        role: "cover",
+        reason: selected
+          ? selected.reused_original
+            ? "accepted-original-game-reused"
+            : selected.mapping.match_kind === "port"
+              ? "exact-port-cover"
+              : "exact-original-game-cover"
+          : "generated-fallback",
+        mapping: selected?.mapping ?? null,
+        checks: selected?.checks ?? null,
+        exceptions,
+      },
+      port,
+    );
   }
   // A later refreshed record can observe Gone for an earlier reused mapping.
   // Apply that exact-image fact to every output reference without extra requests.
@@ -885,10 +984,12 @@ export function createIgdbInspector(
   credentialsFile: string | null | undefined,
   validateImage: ImageValidator,
   fetchImpl: ArtworkFetch = fetch,
+  control: { signal?: AbortSignal } = {},
 ) {
   let tokenPromise: Promise<{ clientId: string; token: string }> | undefined;
   let lastGameRequest = 0;
   let gameRetryAt = 0;
+  let imageRetryAt = 0;
   const metrics = {
     authentication_requests: 0,
     game_requests: 0,
@@ -896,10 +997,15 @@ export function createIgdbInspector(
     metadata_bytes: 0,
     image_bytes: 0,
   };
-  const deadline = Date.now() + 15 * 60 * 1000;
+  let deadline = Date.now() + 15 * 60 * 1000;
+  let baseline = { ...metrics };
+  const used = (key: keyof typeof metrics) => metrics[key] - baseline[key];
   const signal = () => {
-    if (Date.now() >= deadline) throw new Error("Artwork provider batch deadline reached.");
-    return AbortSignal.timeout(Math.min(15000, Math.max(1, deadline - Date.now())));
+    control.signal?.throwIfAborted();
+    if (Date.now() >= deadline)
+      throw new ArtworkBatchExhausted("Artwork provider batch deadline reached.");
+    const timeout = AbortSignal.timeout(Math.min(15000, Math.max(1, deadline - Date.now())));
+    return control.signal ? AbortSignal.any([control.signal, timeout]) : timeout;
   };
   const credentials = () => readIgdbCredentials(resolveIgdbCredentialsFile(credentialsFile));
   async function waitForMetadata() {
@@ -907,10 +1013,27 @@ export function createIgdbInspector(
       const now = Date.now();
       const due = Math.max(lastGameRequest + 300, gameRetryAt);
       if (now >= deadline || due >= deadline)
-        throw new Error("Artwork provider batch deadline reached.");
+        throw new ArtworkBatchExhausted("Artwork provider batch deadline reached.");
       if (due <= now) return;
       await timers.setTimeout(due - now, undefined, {
-        signal: AbortSignal.timeout(deadline - now),
+        signal: control.signal
+          ? AbortSignal.any([control.signal, AbortSignal.timeout(deadline - now)])
+          : AbortSignal.timeout(deadline - now),
+      });
+    }
+  }
+  async function waitForImages() {
+    for (;;) {
+      control.signal?.throwIfAborted();
+      const now = Date.now();
+      if (now >= deadline || imageRetryAt >= deadline)
+        throw new ArtworkBatchExhausted(
+          "Artwork image provider remains deferred beyond this operation",
+        );
+      if (imageRetryAt <= now) return;
+      const timeout = AbortSignal.timeout(deadline - now);
+      await timers.setTimeout(imageRetryAt - now, undefined, {
+        signal: control.signal ? AbortSignal.any([control.signal, timeout]) : timeout,
       });
     }
   }
@@ -945,15 +1068,37 @@ export function createIgdbInspector(
   }
   return {
     providerMetrics: metrics,
+    ...(control.signal ? { signal: control.signal } : {}),
+    restoreProviderBackoff(metadata: number, image: number) {
+      gameRetryAt = Math.max(gameRetryAt, metadata);
+      imageRetryAt = Math.max(imageRetryAt, image);
+    },
+    batchStatus: () => ({
+      deadline,
+      metadata_retry_at: gameRetryAt > Date.now() ? new Date(gameRetryAt).toISOString() : null,
+      image_retry_at: imageRetryAt > Date.now() ? new Date(imageRetryAt).toISOString() : null,
+      retry_at:
+        Math.max(gameRetryAt, imageRetryAt) > Date.now()
+          ? new Date(Math.max(gameRetryAt, imageRetryAt)).toISOString()
+          : null,
+      used: Object.fromEntries(
+        Object.keys(metrics).map((key) => [key, used(key as keyof typeof metrics)]),
+      ),
+    }),
+    beginBatch() {
+      // Completed operations keep their original signals; authentication and provider pacing survive.
+      baseline = { ...metrics };
+      deadline = Date.now() + 15 * 60 * 1000;
+    },
     async inspectGame(identity: unknown): Promise<unknown> {
       const verified = declaredIdentity(identity);
       const auth = await token();
-      if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
-        throw new Error("Artwork metadata budget reached.");
+      if (used("game_requests") >= 800 || used("metadata_bytes") >= 32 * 1024 * 1024)
+        throw new ArtworkBatchExhausted("Artwork metadata budget reached.");
       await waitForMetadata();
       // Another caller can consume the shared budget while this request waits.
-      if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
-        throw new Error("Artwork metadata budget reached.");
+      if (used("game_requests") >= 800 || used("metadata_bytes") >= 32 * 1024 * 1024)
+        throw new ArtworkBatchExhausted("Artwork metadata budget reached.");
       const requestSignal = signal();
       lastGameRequest = Date.now();
       metrics.game_requests++;
@@ -981,14 +1126,14 @@ export function createIgdbInspector(
         if (response.status === 429 || response.status === 503)
           gameRetryAt = Math.max(
             gameRetryAt,
-            metadataRetryAt(response.headers.get("retry-after"), Date.now(), deadline),
+            metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15),
           );
         if (!response.ok) throw new Error("IGDB identity request unavailable.");
         return JSON.parse(
           (
             await readBounded(
               response,
-              Math.min(1024 * 1024, 32 * 1024 * 1024 - metrics.metadata_bytes),
+              Math.min(1024 * 1024, 32 * 1024 * 1024 - used("metadata_bytes")),
               (bytes) => {
                 metrics.metadata_bytes += bytes;
               },
@@ -1001,14 +1146,21 @@ export function createIgdbInspector(
     },
     async inspectImage(imageId: string, remainingBytes = maximumBatchBytes) {
       if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
-      if (metrics.image_requests >= 400 || metrics.image_bytes >= maximumBatchBytes)
-        throw new Error("Artwork image budget reached.");
+      if (used("image_requests") >= 400 || used("image_bytes") >= maximumBatchBytes)
+        throw new ArtworkBatchExhausted("Artwork image budget reached.");
+      await waitForImages();
+      const requestSignal = signal();
       metrics.image_requests++;
       const response = await fetchImpl(
         `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`,
-        { redirect: "error", signal: signal() },
+        { redirect: "error", signal: requestSignal },
       );
       try {
+        if (
+          (response.status === 429 || response.status === 503) &&
+          response.headers.get("retry-after") !== null
+        )
+          imageRetryAt = metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15);
         if (response.status === 410) {
           const error = new Error("IGDB image is gone.");
           goneImageObservations.set(error, imageId);
@@ -1018,7 +1170,7 @@ export function createIgdbInspector(
           throw new Error("IGDB image unavailable.");
         const bytes = await readBounded(
           response,
-          Math.min(maximumImageBytes, remainingBytes, maximumBatchBytes - metrics.image_bytes),
+          Math.min(maximumImageBytes, remainingBytes, maximumBatchBytes - used("image_bytes")),
           (length) => {
             metrics.image_bytes += length;
           },

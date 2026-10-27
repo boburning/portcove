@@ -1238,12 +1238,7 @@ void test("batch selection and mixed CLI modes fail before provider work or chec
   const f = fixture();
   try {
     const ids = readCatalogSource(catalogRoot).records.map((record) => record.listing.id);
-    for (const selectedPortIds of [
-      [],
-      [ids[0]!, ids[0]!],
-      ["not-a-known-port"],
-      ids.slice(0, 401),
-    ]) {
+    for (const selectedPortIds of [[], [ids[0]!, ids[0]!], ["not-a-known-port"]]) {
       await assert.rejects(
         prepareArtworkBatch({
           catalogRoot,
@@ -1251,7 +1246,7 @@ void test("batch selection and mixed CLI modes fail before provider work or chec
           selectedPortIds,
           artwork: { inspectGame: () => assert.fail("invalid selection reached provider") },
         }),
-        /1 to 400 unique known/,
+        /unique known stable IDs/,
       );
       assert.deepEqual(readdirSync(f.root), []);
     }
@@ -1400,6 +1395,40 @@ void test("malformed candidate and unowned output directories fail without chang
       /repository root/,
     );
   } finally {
+    f.clean();
+  }
+});
+
+void test("artwork preparation refuses a concurrent checkpoint worker without touching its progress", async () => {
+  const f = fixture();
+  const entry = readCatalogSource(catalogRoot).records[0]!;
+  const outputDirectory = join(f.root, "output");
+  let held = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    const first = prepareArtworkBatch({
+      catalogRoot,
+      outputDirectory,
+      selectedPortIds: [entry.listing.id],
+      onProgress: async () => {
+        held = true;
+        await gate;
+      },
+    });
+    while (!held) await new Promise((resolve) => setImmediate(resolve));
+    await assert.rejects(
+      prepareArtworkBatch({ catalogRoot, outputDirectory, selectedPortIds: [entry.listing.id] }),
+      /EEXIST/,
+    );
+    assert.ok(readdirSync(outputDirectory).includes("active.lock"));
+    release();
+    await first;
+    assert.ok(!readdirSync(outputDirectory).includes("active.lock"));
+  } finally {
+    release();
     f.clean();
   }
 });

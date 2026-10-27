@@ -345,3 +345,33 @@ for (const retryAfter of [
     assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
   });
 }
+
+void test("bounded provider operations resume after the actual quota reset without reauthentication", async (context) => {
+  const fixture = await capturedMetadataBackoff(context, { retryAfter: "3600" });
+  assert.equal(
+    fixture.inspector.batchStatus().metadata_retry_at,
+    new Date(providerClockStart + 3600000).toISOString(),
+  );
+  fixture.inspector.beginBatch();
+  await assert.rejects(fixture.request(102), /batch deadline/);
+  assert.equal(fixture.calls.length, 1);
+  context.mock.timers.tick(3600000);
+  fixture.inspector.beginBatch();
+  await fixture.request(102);
+  assert.equal(fixture.calls.length, 2);
+  assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
+});
+
+void test("explicit cancellation refuses provider operations before transport admission", async () => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const control = new AbortController();
+  control.abort();
+  const inspector = createIgdbInspector(
+    null,
+    () => assert.fail("cancelled operation cannot decode"),
+    async () => assert.fail("cancelled operation cannot send"),
+    { signal: control.signal },
+  );
+  await assert.rejects(inspector.inspectImage("cancelled"), { name: "AbortError" });
+  assert.equal(inspector.providerMetrics.image_requests, 0);
+});
