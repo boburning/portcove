@@ -20804,6 +20804,31 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Super Metroid",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Preserve the older copy and exact original",
+              "instruction": "Use your own exact unchanged headerless Super Metroid (Japan, USA) original, SHA-256 12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72. Keep the original unchanged outside the new player folder and place a matching copy named game.sfc in that folder. A headered, modified or other-region file is a different input. No original is supplied or downloaded; upstream handles its input recognition. Portcove registration does not authenticate this original or package. Keep every older runtime and its complete data separately; these instructions do not upgrade or adopt them."
+            },
+            {
+              "title": "Prepare the separate Preview player",
+              "instruction": "Open the linked v0.3.16 Preview release page and use its official Windows x64 ZIP in a new writable folder. Keep SuperMetroidSNESRecomp.exe, packaged config.ini, assets, framework pins, notices and all other companions together inside supermetroid-0.3.16-windows-x64. Use the packaged defaults without old configuration, states, mods, donor assets or developer/path overrides. Finish upstream setup deliberately. Register that folder’s SuperMetroidSNESRecomp.exe with the same containing folder as working directory and two literal argument lines: --rom then game.sfc. Do not select replay_diagnostic.py or a source/build helper as the player."
+            },
+            {
+              "title": "Keep the new data separate",
+              "instruction": "Ordinary upstream data anchors beside the executable in this writable copy. Preserve the whole new folder, its original copy, configuration, SRAM, states, screenshots, mods manifests and logs/replay sidecars with all game copies closed. Do not copy old states, save folders or profiles into it, share data folders with the old runtime, or point --config at retained data. A separate Preview download or changed launch argument does not prove old/new state compatibility or migrate progress. Keep the creating runtime for every existing state."
+            },
+            {
+              "title": "Use explicit Play and upstream ownership",
+              "instruction": "You and upstream own this external package and its data. Play is explicit; removing its Portcove registration preserves the external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable for this copy. Settings changes can restart into a successor game window while the initial registered process exits. Do not rely on that initial process’s completion as proof that every game copy has stopped: close all windows/processes before copying or replacing runtime or data. Keep the shipped PolyForm Noncommercial and dependency notices; do not run Generate & rebuild, debug/replay helpers or extra mods as part of these instructions. A Portcove library containing any managed installation of this identity cannot also attach this external copy. Keep that managed installation and use the new upstream copy directly, or register only in a separate library with no managed installation, other registration or pending launch for this identity. Do not remove an older managed runtime or kept data just to enable registration."
+            }
+          ],
+          "warnings": [
+            "This guide is bounded to the linked upstream v0.3.16 Preview. The existing managed package policy remains unchanged. Other builds need their own source, setup, data and lifetime assessment.",
+            "Snapshot identity/preflight rejection is not old-state compatibility, populated-data adoption or a complete managed lifetime. Preserve older runtimes and all data."
+          ],
+          "help_url": "https://github.com/mstan/SuperMetroidRecomp/releases/tag/v0.3.16"
+        },
         "artwork": {
           "game_id": 1103,
           "cover_id": 265426,
