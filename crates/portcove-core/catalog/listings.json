@@ -30238,7 +30238,12 @@
             "title": "Review upstream limits before explicit Play",
             "instruction": "Maintenance has ceased; known bugs and incomplete cup/Gym Leader Castle coverage remain. The tagged source keeps its SS Anne launcher and game in the player process, and starts unauthenticated loopback debug control at 127.0.0.1:4371, including input/memory mutation and quit; PSR_DEBUG_PORT changes the valid port rather than disabling it. No network/debug isolation is claimed. User-selected trust requires your explicit review and consent. Upstream/user own preparation and replacement; preserve complete actual runtime/data first. Core offers registration, explicit supervised Play and reviewed registration-only removal; managed Install/Update/Backup/Rollback/migration/external deletion remain unavailable."
           }
-        ]
+        ],
+        "warnings": [
+          "This route only registers a permitted, already working external player. Core does not acquire or extract the selected archive, authenticate the original, or provide managed maintenance or save/state compatibility.",
+          "The inspected tagged source starts unauthenticated loopback debug control. Transfer Pak and GB Tower can write separately configured cartridge saves; preserve the actual paths and creating runtimes. No actual game or Transfer Pak execution has been qualified."
+        ],
+        "help_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta"
       },
       "platforms": [
         "windows-x86-64"

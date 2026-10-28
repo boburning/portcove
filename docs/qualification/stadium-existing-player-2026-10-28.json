@@ -201,5 +201,5 @@
     "Source-to-binary equivalence, signing/protected acceptance and Supported"
   ],
   "trust_boundary": "Only a permitted working existing runtime. OS/archive refusals remain in force; no security exclusions or protection changes.",
-  "record_sha256": "a96964c560284feb00713f9b025003a061a86700ceca17d55b7bd25b4b554c8d"
+  "record_sha256": "ebdcda7638688403c80caaf7bc0943002089a7a9292b0220c1edcff61f09ac79"
 }
