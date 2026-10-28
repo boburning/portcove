@@ -24,13 +24,18 @@ function Read-LaunchBytes([string]$Path,[int]$Maximum){
     try{if($stream.Length -lt 1 -or $stream.Length -gt $Maximum){throw 'Diagnostic launch input exceeds bound'};$bytes=[byte[]]::new([int]$stream.Length);$stream.ReadExactly($bytes);if($stream.ReadByte() -ne -1 -or $stream.Length -ne $bytes.Length){throw 'Diagnostic launch input changed'};return ,$bytes}finally{$stream.Dispose()}
 }
 $utf8=[Text.UTF8Encoding]::new($false,$true)
+# Resolve one PATH-first application before any diagnostic control-directory effect.
+$nodeCommand=Get-Command node -CommandType Application -ErrorAction Stop | Select-Object -First 1
+$node=$nodeCommand.Source
+if($node -isnot [string] -or -not [IO.Path]::IsPathFullyQualified($node) -or [IO.Path]::GetFileName($node) -cne 'node.exe'){throw 'Fixed existing Node24.22.1 runtime required'}
+$nodeItem=Get-Item -LiteralPath $node -Force
+if($nodeItem.PSIsContainer -or ($nodeItem.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Original regular Node executable required'}
+if((& $node --version|Out-String).Trim() -cne 'v24.22.1' -or $LASTEXITCODE -ne 0){throw 'Fixed existing Node24.22.1 runtime required'}
 $setupBytes=Read-LaunchBytes (Join-Path $source 'scripts/release-hosted-native-windows-setup.cs.txt') 131072
 Add-Type -TypeDefinition $utf8.GetString($setupBytes)
 $control=Join-Path $env:RUNNER_TEMP 'portcove-hosted-windows-connected-diagnostic'
 $broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 [Portcove.HostedNative.Setup]::Directory($control,$broker,'',$false)
-$node=(Get-Command node -CommandType Application).Source
-if([IO.Path]::GetFileName($node) -cne 'node.exe' -or (& $node --version|Out-String).Trim() -cne 'v24.22.1' -or $LASTEXITCODE -ne 0){throw 'Fixed existing Node24.22.1 runtime required'}
 $closed=[ordered]@{}
 foreach($name in @('SystemRoot','WINDIR','PATH','PATHEXT','USERPROFILE','HOME','TEMP','TMP','LOCALAPPDATA','RUNNER_TEMP','RUNNER_TRACKING_ID','RUSTUP_HOME','CARGO_HOME','PORTCOVE_SHARED_TOOL_CACHE','PORTCOVE_RESOURCE_RESERVATION','PORTCOVE_RESOURCE_PROCESS_TOKEN','PORTCOVE_HEAVY_RUST_LOCK_TOKEN','GITHUB_ACTIONS','RUNNER_ENVIRONMENT','GITHUB_REPOSITORY','GITHUB_JOB','GITHUB_WORKFLOW_REF','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','GITHUB_EVENT_NAME','PORTCOVE_HOSTED_PLATFORM','PORTCOVE_HOSTED_OBSERVATION_ONLY','PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC')){
     $value=[Environment]::GetEnvironmentVariable($name,'Process')
