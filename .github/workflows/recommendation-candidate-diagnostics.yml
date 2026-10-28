@@ -24,10 +24,10 @@ jobs:
         with:
           version-file: pnpm-workspace.yaml
           node-version-file: .node-version
-          run-install: args: [--frozen-lockfile, --ignore-scripts]
+          run-install: "args: [--frozen-lockfile, --ignore-scripts]"
       - uses: ./.github/actions/setup-rust
         with:
-          test-fixtures: false
+          test-fixtures: "false"
       - name: Collect public Rust dependencies and pinned formatter
         shell: bash
         run: |
@@ -40,7 +40,7 @@ jobs:
             cp -a "$CARGO_HOME/git" "$RUNNER_TEMP/feedback/cargo/git"
             find "$RUNNER_TEMP/feedback/cargo/git" -type f -name config -exec sh -c 'for path do git config --file "$path" --remove-section http 2>/dev/null || true; done' sh {} +
           fi
-          cp "$(command -v node)" "$RUNNER_TEMP/feedback/node/node"
+          cp "$(node -p 'process.execPath')" "$RUNNER_TEMP/feedback/node/node"
           rustc --version --verbose > "$RUNNER_TEMP/feedback/rust-version.txt"
           git rev-parse HEAD > "$RUNNER_TEMP/feedback/revision.txt"
           tar -C "$RUNNER_TEMP/feedback" -czf "$RUNNER_TEMP/recommendation-feedback-tools.tar.gz" rust cargo node rust-version.txt revision.txt
