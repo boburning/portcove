@@ -410,6 +410,7 @@ void test("opt-in Rust coverage inputs retain contracts across lifecycle and ren
     "scripts/quality-tools.mts",
     "scripts/resource-command.mts",
     "scripts/resource-capacity.mts",
+    "scripts/prepared-file-replacement.mts",
     "scripts/runtime-values.mts",
   ]) {
     for (const change of [

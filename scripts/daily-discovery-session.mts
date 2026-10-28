@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
+import { replacePreparedFileSync } from "./prepared-file-replacement.mts";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -6,7 +7,7 @@ import { runScopedDoctor, doctorFailureDiagnostics } from "./roadmap-scoped.mts"
 import { createInterface } from "node:readline";
 import { Transform } from "node:stream";
 import { spawnSync } from "node:child_process";
-import { isRecord, errorMessage, errorCode } from "./runtime-values.mts";
+import { isRecord, errorMessage } from "./runtime-values.mts";
 import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import {
   discoveryPost,
@@ -146,27 +147,7 @@ const text = (v: unknown) => {
 export function atomic(file: string, value: unknown) {
   const temp = `${file}.${randomUUID()}.next`;
   writeFileSync(temp, JSON.stringify(value, null, 2), { flag: "wx" });
-  const deadline = performance.now() + 1000;
-  const waiter = new Int32Array(new SharedArrayBuffer(4));
-  for (let attempt = 0; ; attempt++) {
-    try {
-      renameSync(temp, file);
-      return;
-    } catch (error) {
-      const remaining = deadline - performance.now();
-      if (
-        process.platform !== "win32" ||
-        !["EPERM", "EACCES", "EBUSY"].includes(errorCode(error) ?? "") ||
-        attempt >= 40 ||
-        remaining <= 0
-      )
-        throw error;
-      // Retry only replacement of these already prepared bytes. Never unlink the
-      // old target. Persistent failure retains both files and the original error.
-      // This local wait counts toward the unchanged discovery session deadline.
-      Atomics.wait(waiter, 0, 0, Math.min(25, remaining));
-    }
-  }
+  replacePreparedFileSync(temp, file);
 }
 const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =>
   observationHash({
