@@ -245,16 +245,28 @@ export async function waitHistorySessionExit(inventory: Pick<HistoryInventory, "
   let remaining: number[];
   do {
     remaining = [];
+    const unreaped_terminal: { captured: HistoryProcess; observed: HistoryProcess }[] = [];
     for (const entry of inventory.processes) {
       const current = await readHistoryProcess(entry.pid);
-      if (current?.start_ticks === entry.start_ticks) remaining.push(entry.pid);
+      if (current?.start_ticks !== entry.start_ticks) continue;
+      assert.equal(current.pid, entry.pid);
+      // A matching-birth zombie has positively exited execution, but its parent
+      // has not reaped it. Preserve that distinction instead of claiming absence.
+      if (current.state === "Z") unreaped_terminal.push({ captured: entry, observed: current });
+      else remaining.push(entry.pid);
     }
     if (!remaining.length)
-      return { all_exited: true, observed_at: new Date().toISOString(), captured: inventory };
+      return {
+        all_exited: true,
+        all_reaped: unreaped_terminal.length === 0,
+        unreaped_terminal,
+        observed_at: new Date().toISOString(),
+        captured: inventory,
+      };
     await new Promise((resolve) => setTimeout(resolve, 100));
   } while (Date.now() < deadline);
   throw new Error(
-    `Captured history processes did not disappear within 5 seconds: ${remaining.join(", ")}`,
+    `Captured history processes did not exit within 5 seconds: ${remaining.join(", ")}`,
   );
 }
 

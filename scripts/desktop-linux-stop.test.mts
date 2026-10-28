@@ -301,3 +301,91 @@ void test("forced Linux recovery invalidates the session and requires positive j
     }
   }
 });
+
+void test("history exit distinguishes exact terminal identities from reaping, live states and uncertainty", async () => {
+  const historySource = await readFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = historySource.indexOf("export async function waitHistorySessionExit(");
+  const end = historySource.indexOf("// The repository-level", start);
+  assert.ok(start >= 0 && end > start);
+  const waitSource = historySource.slice(start, end).replace("export ", "");
+  const captured = {
+    pid: 41,
+    parent: 1,
+    group: 41,
+    start_ticks: "100",
+    state: "S",
+    executable: "/owned/application",
+  };
+  const zombie = { ...captured, state: "Z", executable: null };
+  const other = { ...captured, pid: 42 };
+  const readError = new Error("procfs identity unreadable");
+  for (const observation of [
+    "zombie",
+    "absent",
+    "reused",
+    "all-absent",
+    "all-reused",
+    "live",
+    "unknown",
+    "read-error",
+    "wrong-pid",
+  ]) {
+    let elapsed = 0;
+    const context = {
+      assert,
+      Date: class extends Date {
+        static override now() {
+          return elapsed;
+        }
+      },
+      setTimeout: (callback: () => void) => {
+        elapsed += 1000;
+        callback();
+      },
+      readHistoryProcess: async (pid: number) => {
+        if (observation === "read-error") throw readError;
+        if (observation === "all-absent") return null;
+        if (observation === "all-reused") return { ...other, pid, state: "Z", start_ticks: "101" };
+        if (pid === captured.pid) return zombie;
+        if (observation === "absent") return null;
+        if (observation === "reused") return { ...other, state: "Z", start_ticks: "101" };
+        if (observation === "wrong-pid") return { ...zombie, pid: 99 };
+        return {
+          ...other,
+          state: observation === "zombie" ? "Z" : observation === "unknown" ? "?" : "R",
+          executable: null,
+        };
+      },
+    };
+    runInNewContext(`${waitSource}\nglobalThis.wait = waitHistorySessionExit;`, context);
+    const wait: unknown = Reflect.get(context, "wait");
+    assert.ok(typeof wait === "function");
+    const invoke = () =>
+      Promise.resolve(Reflect.apply(wait, undefined, [{ processes: [captured, other] }]));
+    if (["live", "unknown"].includes(observation)) {
+      await assert.rejects(invoke(), /did not exit within 5 seconds: 42/);
+    } else if (observation === "read-error") {
+      await assert.rejects(invoke(), (error) => error === readError);
+    } else if (observation === "wrong-pid") {
+      await assert.rejects(invoke(), /Expected values to be strictly equal/);
+    } else {
+      const result = object(await invoke());
+      assert.equal(result.all_exited, true);
+      assert.equal(result.all_reaped, observation.startsWith("all-"));
+      assert.deepEqual(
+        JSON.parse(JSON.stringify(result.unreaped_terminal)),
+        observation.startsWith("all-")
+          ? []
+          : observation === "zombie"
+            ? [
+                { captured, observed: zombie },
+                { captured: other, observed: { ...other, state: "Z", executable: null } },
+              ]
+            : [{ captured, observed: zombie }],
+      );
+    }
+  }
+});

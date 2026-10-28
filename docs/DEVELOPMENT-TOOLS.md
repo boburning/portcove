@@ -2213,6 +2213,10 @@ Linux cache restarts reuse the existing driver birth-identity and descendant-exi
 observations. Cache fixture changes and replacement startup wait for the complete
 captured process set to exit, so a surviving server cannot supply a session with
 the previous environment. Unknown exit refuses the restart and preserves failure.
+Matching-birth Linux zombies count as exited execution and are retained as exact
+`unreaped_terminal` observations with `all_reaped: false`. They cannot serve the
+old session. Reaping remains a separate outer-supervisor cleanup observation;
+these restart receipts do not claim complete process disappearance.
 
 The native harness opens application windows, takes focus and sends keyboard
 input in the current desktop session. Its isolated files do not isolate the
