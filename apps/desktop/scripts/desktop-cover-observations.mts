@@ -5,6 +5,24 @@ import { createServer } from "node:http";
 import type { Socket } from "node:net";
 import path from "node:path";
 
+export function assertDefaultCoverPresentation(image: {
+  background: string;
+  identitySurface: boolean;
+  surfaceBackground: string;
+  objectFit: string;
+  fallbackPalette: boolean;
+}) {
+  if (image.identitySurface)
+    assert.ok(image.surfaceBackground, "Identity surface token is present");
+  assert.equal(
+    image.background,
+    image.identitySurface ? image.surfaceBackground : "rgba(0, 0, 0, 0)",
+    "Artwork matte follows its surface",
+  );
+  assert.equal(image.objectFit, "contain", "The complete original cover remains visible");
+  assert.equal(image.fallbackPalette, false, "Real images do not inherit placeholder colors");
+}
+
 /** Select observation scope only; Core's accepted catalog still owns mappings. */
 export function selectDefaultCoverIds(
   ports: readonly { id: string; presentation?: { artwork?: unknown } | null }[],

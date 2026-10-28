@@ -2,6 +2,7 @@ import {
   createImageRefusal,
   restoreCacheAfterObservation,
   selectDefaultCoverIds,
+  assertDefaultCoverPresentation,
   type WithheldCover,
 } from "./desktop-cover-observations.mts";
 import { revealDetailSection, selectCatalogPort } from "./desktop-review-controls.mts";
@@ -25,6 +26,8 @@ interface CoverImage {
   width: number;
   height: number;
   background: string;
+  identitySurface: boolean;
+  surfaceBackground: string;
   objectFit: string;
   fallbackPalette: boolean;
 }
@@ -81,7 +84,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { WebDriver, By, Key, until } from "selenium-webdriver";
+import { WebDriver, By, until } from "selenium-webdriver";
 
 // Explicit opt-in live CDN exercise; excluded from routine offline qualification.
 export async function defaultCoverScenario({
@@ -208,31 +211,23 @@ export async function defaultCoverScenario({
               const frame = document.querySelector(selector);
               const img = frame?.querySelector("img");
               if (!frame || !img) throw new Error("Rendered cover elements disappeared");
+              const style = getComputedStyle(frame);
               return {
                 width: img.naturalWidth,
                 height: img.naturalHeight,
-                background: getComputedStyle(frame).backgroundColor,
+                background: style.backgroundColor,
+                identitySurface: frame.classList.contains("[--art-color:var(--color-bg-subtle)]"),
+                surfaceBackground: style.getPropertyValue("--color-bg-subtle").trim(),
                 objectFit: getComputedStyle(img).objectFit,
-                fallbackPalette: [...frame.classList].some((name) => /^palette-\d+$/.test(name)),
+                fallbackPalette: [...frame.classList].some(
+                  (name) =>
+                    /^palette-\d+$/.test(name) || name.startsWith("[--art-color:var(--color-art-"),
+                ),
               };
             },
             selector,
           );
-          assert.equal(
-            rendered.background,
-            "rgba(0, 0, 0, 0)",
-            "Artwork matte follows its surface",
-          );
-          assert.equal(
-            rendered.objectFit,
-            "contain",
-            "The complete original cover remains visible",
-          );
-          assert.equal(
-            rendered.fallbackPalette,
-            false,
-            "Real images do not inherit placeholder colors",
-          );
+          assertDefaultCoverPresentation(rendered);
           return rendered;
         };
         for (const [pass, theme, size] of coverPasses(cacheConditions)) {
@@ -381,7 +376,8 @@ async function missingCacheNegativeControl({
   );
   await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
   const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
-  await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
+  await search.clear();
+  await search.sendKeys(port.name);
   const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
   await browser.wait(until.elementLocated(By.css(selector)), 10_000);
   await browser.wait(
@@ -448,7 +444,8 @@ async function inspectCoverPass({
     assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
     await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
-    await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
+    await search.clear();
+    await search.sendKeys(port.name);
     const started = performance.now();
     const selector = `[data-detail-origin="catalog:card:${id}"]`;
     const card = await browser.wait(until.elementLocated(By.css(selector)), 10_000);

@@ -12,11 +12,32 @@ import {
   createImageRefusal,
   restoreCacheAfterObservation,
   selectDefaultCoverIds,
+  assertDefaultCoverPresentation,
 } from "./desktop-cover-observations.mts";
 import {
   parseDesktopHarnessOptions,
   resolveDesktopHarnessSelection,
 } from "../../../scripts/desktop-execution-plan.mts";
+
+void test("real cover presentation keeps neutral identity surfaces and rejects generated mattes", () => {
+  const image = {
+    background: "rgba(25, 26, 29, 0.04)",
+    identitySurface: true,
+    surfaceBackground: "rgba(25, 26, 29, 0.04)",
+    objectFit: "contain",
+    fallbackPalette: false,
+  };
+  assertDefaultCoverPresentation(image);
+  assertDefaultCoverPresentation({
+    ...image,
+    background: "rgba(0, 0, 0, 0)",
+    identitySurface: false,
+  });
+  assert.throws(() => assertDefaultCoverPresentation({ ...image, background: "red" }));
+  assert.throws(() => assertDefaultCoverPresentation({ ...image, fallbackPalette: true }));
+  assert.throws(() => assertDefaultCoverPresentation({ ...image, objectFit: "cover" }));
+  assert.throws(() => assertDefaultCoverPresentation({ ...image, surfaceBackground: "" }));
+});
 
 void test("focused cover observations bind an exact mapped set and preserve the full default", () => {
   const ports = [
