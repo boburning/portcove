@@ -481,7 +481,17 @@ export async function observeDesktopHarnessInputs({
     assert.ok(isRecord(parsed), "Harness observation must be an object");
     runnerMetadata = parsed;
   }
-  return { inputs, runnerMetadata };
+  // Runner phases remain observations; they never enlarge retained custody.
+  const phases = runnerMetadata.phases;
+  assert.ok(phases === undefined || Array.isArray(phases));
+  const metadataPhases =
+    phases === undefined
+      ? []
+      : phases.map((value: unknown) => {
+          assert.ok(isRecord(value));
+          return value;
+        });
+  return { inputs, runnerMetadata, metadataPhases };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

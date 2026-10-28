@@ -13,6 +13,45 @@ import { stripTypeScriptTypes } from "node:module";
 import { parseAst } from "vite-plus";
 import { isRecord } from "./runtime-values.mts";
 
+function* nodes(value: unknown): Generator<Record<string, unknown>> {
+  if (Array.isArray(value)) {
+    for (const child of value) yield* nodes(child);
+  } else if (isRecord(value)) {
+    if (typeof value.type === "string") yield value;
+    for (const child of Object.values(value)) yield* nodes(child);
+  }
+}
+const identifier = (value: unknown) =>
+  isRecord(value) && value.type === "Identifier" && typeof value.name === "string"
+    ? value.name
+    : undefined;
+const literal = (value: unknown) =>
+  isRecord(value) && value.type === "Literal" ? value.value : undefined;
+const awaited = (value: unknown) =>
+  isRecord(value) &&
+  value.type === "AwaitExpression" &&
+  isRecord(value.argument) &&
+  value.argument.type === "CallExpression"
+    ? value.argument
+    : undefined;
+const args = (value: Record<string, unknown> | undefined): unknown[] =>
+  value && Array.isArray(value.arguments) ? value.arguments : [];
+function range(node: unknown) {
+  assert.ok(isRecord(node));
+  assert.ok(typeof node.start === "number" && Number.isInteger(node.start));
+  assert.ok(typeof node.end === "number" && Number.isInteger(node.end));
+  assert.ok(node.start >= 0 && node.end > node.start);
+  return { start: node.start, end: node.end };
+}
+function edit(code: string, changes: { start: number; end: number; text: string }[]) {
+  return changes
+    .sort((left, right) => right.start - left.start)
+    .reduce(
+      (result, change) => result.slice(0, change.start) + change.text + result.slice(change.end),
+      code,
+    );
+}
+
 void test("native boundary entrypoint retains its imported parsed invocation route", async () => {
   const source = stripTypeScriptTypes(
     await readFile(
@@ -24,29 +63,6 @@ void test("native boundary entrypoint retains its imported parsed invocation rou
   // Normative wiring only; imported-module and serialized-callback tests own behavior.
   // Parse executable syntax with the already pinned frontend parser so comments,
   // aliases, declaration position and layout cannot masquerade as an owner gate.
-  function* nodes(value: unknown): Generator<Record<string, unknown>> {
-    if (Array.isArray(value)) {
-      for (const child of value) yield* nodes(child);
-    } else if (isRecord(value)) {
-      if (typeof value.type === "string") yield value;
-      for (const child of Object.values(value)) yield* nodes(child);
-    }
-  }
-  const identifier = (value: unknown) =>
-    isRecord(value) && value.type === "Identifier" && typeof value.name === "string"
-      ? value.name
-      : undefined;
-  const literal = (value: unknown) =>
-    isRecord(value) && value.type === "Literal" ? value.value : undefined;
-  const awaited = (value: unknown) =>
-    isRecord(value) &&
-    value.type === "AwaitExpression" &&
-    isRecord(value.argument) &&
-    value.argument.type === "CallExpression"
-      ? value.argument
-      : undefined;
-  const args = (value: Record<string, unknown> | undefined): unknown[] =>
-    value && Array.isArray(value.arguments) ? value.arguments : [];
   function route(code: string) {
     const syntax = [...nodes(parseAst(code))];
     const declarations = syntax.filter(
@@ -97,20 +113,6 @@ void test("native boundary entrypoint retains its imported parsed invocation rou
       observed.creation,
       "Native boundary fixture creation must use the imported parsed transport",
     );
-  }
-  function range(node: Record<string, unknown>) {
-    assert.ok(typeof node.start === "number" && Number.isInteger(node.start));
-    assert.ok(typeof node.end === "number" && Number.isInteger(node.end));
-    assert.ok(node.start >= 0 && node.end > node.start);
-    return { start: node.start, end: node.end };
-  }
-  function edit(code: string, changes: { start: number; end: number; text: string }[]) {
-    return changes
-      .sort((left, right) => right.start - left.start)
-      .reduce(
-        (result, change) => result.slice(0, change.start) + change.text + result.slice(change.end),
-        code,
-      );
   }
   function renamed(code: string, exported: string, alias: string) {
     const observed = route(code),
@@ -217,4 +219,185 @@ void test("native boundary behavior executes before optional package installatio
   assert.match(result.stdout, /^# tests 3$/mu);
   assert.match(result.stdout, /^# pass 3$/mu);
   assert.match(result.stdout, /^# skipped 0$/mu);
+});
+
+void test("native harness awaits imported phase observations before execution admission", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const program: unknown = parseAst(code);
+    assert.ok(isRecord(program) && Array.isArray(program.body));
+    const syntax = [...nodes(program)];
+    const declarations = syntax.filter(
+      (node) =>
+        node.type === "ImportDeclaration" &&
+        literal(node.source) === "../../../scripts/native-helper-dependencies.mts",
+    );
+    const declaration = declarations[0];
+    assert.ok(declaration, "Import the observation owner");
+    const specifiers = declarations.flatMap((node) => {
+      assert.ok(Array.isArray(node.specifiers));
+      return node.specifiers.filter(isRecord);
+    });
+    const imported = specifiers.find(
+      (node) =>
+        (identifier(node.imported) ?? literal(node.imported)) === "observeDesktopHarnessInputs",
+    );
+    assert.ok(imported, "Import the observation owner");
+    const alias = identifier(imported.local);
+    assert.ok(alias);
+    const observations = program.body.filter(isRecord).flatMap((statement) => {
+      if (statement.type !== "VariableDeclaration" || !Array.isArray(statement.declarations))
+        return [];
+      return statement.declarations.filter(isRecord).filter((declaration) => {
+        const call = awaited(declaration.init);
+        return identifier(call?.callee) === alias;
+      });
+    });
+    assert.equal(observations.length, 1, "Await the observation owner at initial top-level read");
+    const observation = observations[0];
+    assert.ok(observation && isRecord(observation.id) && observation.id.type === "ObjectPattern");
+    const properties = observation.id.properties;
+    assert.ok(Array.isArray(properties));
+    for (const name of ["inputs", "runnerMetadata", "metadataPhases"]) {
+      assert.ok(
+        properties
+          .filter(isRecord)
+          .some((node) => identifier(node.key) === name && identifier(node.value)),
+        "Consume observed " + name,
+      );
+    }
+    const admissionImport = syntax
+      .filter(
+        (node) =>
+          node.type === "ImportDeclaration" &&
+          literal(node.source) === "../../../scripts/retained-evidence.mts",
+      )
+      .flatMap((node) => (Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : []))
+      .find(
+        (node) => (identifier(node.imported) ?? literal(node.imported)) === "executionAdmission",
+      );
+    assert.ok(admissionImport, "Retain the existing execution admission owner");
+    const admissionAlias = identifier(admissionImport.local);
+    const admissions = program.body
+      .filter(isRecord)
+      .flatMap((statement) =>
+        statement.type === "VariableDeclaration" && Array.isArray(statement.declarations)
+          ? statement.declarations
+              .filter(isRecord)
+              .filter(
+                (node) =>
+                  isRecord(node.init) &&
+                  node.init.type === "CallExpression" &&
+                  identifier(node.init.callee) === admissionAlias,
+              )
+          : [],
+      );
+    assert.equal(admissions.length, 1, "Retain initial execution admission");
+    const admission = admissions[0];
+    assert.ok(admission);
+    assert.ok(
+      range(observation).end < range(admission).start,
+      "Observe phases before execution admission",
+    );
+    return {
+      imported,
+      observation,
+      admission,
+      admissionImport,
+      declaration,
+      syntax,
+      functions: program.body
+        .filter(isRecord)
+        .filter((node) => node.type === "FunctionDeclaration"),
+    };
+  }
+  const actual = route(source);
+  const call = awaited(actual.observation.init);
+  assert.ok(call && isRecord(call.callee));
+  route(
+    edit(source, [
+      { ...range(actual.imported), text: "observeDesktopHarnessInputs as $observePhases" },
+      { ...range(call.callee), text: "$observePhases" },
+    ]),
+  );
+  route(
+    'import { nativeHelperDependencies as unusedRegistry } from "../../../scripts/native-helper-dependencies.mts";\n' +
+      source,
+  );
+  route(
+    edit(source, [
+      { ...range(actual.imported), text: '"observeDesktopHarnessInputs" as $quotedObservation' },
+      { ...range(call.callee), text: "$quotedObservation" },
+    ]),
+  );
+  const declaration = range(actual.declaration);
+  route(
+    edit(source, [{ ...declaration, text: "/* import reordered */" }]) +
+      "\n" +
+      source.slice(declaration.start, declaration.end),
+  );
+  const observation = range(actual.observation);
+  const missing = edit(source, [{ ...observation, text: "ignoredObservation = {}" }]);
+  assert.throws(() => route(missing), /Await the observation owner/u);
+  assert.throws(
+    () => route(missing + "\n/* " + source.slice(observation.start, observation.end) + " */"),
+    /Await the observation owner/u,
+  );
+  assert.ok(isRecord(actual.observation.init));
+  assert.throws(
+    () =>
+      route(
+        edit(source, [
+          {
+            ...range(actual.observation.init),
+            text: source.slice(range(call).start, range(call).end),
+          },
+        ]),
+      ),
+    /Await the observation owner/u,
+  );
+  assert.throws(
+    () => route(edit(source, [{ ...range(call.callee), text: "unreviewedObservation" }])),
+    /Await the observation owner/u,
+  );
+  const admission = range(actual.admission);
+  assert.throws(
+    () =>
+      route(
+        "const " +
+          source.slice(admission.start, admission.end) +
+          ";\n" +
+          edit(source, [{ ...admission, text: "unusedAdmission = undefined" }]),
+      ),
+    /before execution admission/u,
+  );
+  const admissionCall = actual.admission.init;
+  assert.ok(isRecord(admissionCall) && isRecord(admissionCall.callee));
+  route(
+    edit(source, [
+      { ...range(actual.admissionImport), text: "executionAdmission as $admitExecution" },
+      { ...range(admissionCall.callee), text: "$admitExecution" },
+    ]),
+  );
+  // Moving declarations does not execute their bodies earlier.
+  const functions = actual.functions;
+  const last = functions.at(-1);
+  assert.ok(last);
+  const moved = range(last);
+  route(
+    source.slice(moved.start, moved.end) +
+      "\n" +
+      edit(source, [{ ...moved, text: "/* declaration moved */" }]),
+  );
+  assert.ok(isRecord(actual.observation.id));
+  assert.throws(
+    () =>
+      route(
+        edit(source, [{ ...range(actual.observation.id), text: "{ inputs, runnerMetadata }" }]),
+      ),
+    /Consume observed metadataPhases/u,
+  );
 });
