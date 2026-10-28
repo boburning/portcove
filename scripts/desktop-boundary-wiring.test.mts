@@ -501,6 +501,7 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
     );
     function route(code: string, seamName = policy.seam) {
       const syntax = [...nodes(parseAst(code))];
+      let inventory: Record<string, unknown> | undefined;
       function exportedFunction(name: string) {
         const exports = syntax.filter((node) => node.type === "ExportNamedDeclaration");
         const direct = exports.find(
@@ -579,6 +580,9 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
           inventories.length > 0 && inventories.every((index) => index > settlement),
           "Settle recovery before Activity inventory reads",
         );
+        const firstInventory = inventories[0];
+        assert.ok(firstInventory !== undefined);
+        inventory = statements[firstInventory];
       } else {
         const closure = body.find(
           (node) =>
@@ -598,15 +602,19 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
           "Await every artwork observation in the scenario",
         );
       }
-      return { syntax, owner, calls };
+      return { syntax, owner, calls, inventory };
     }
     const actual = route(source);
     const ownerAlias = "$locallyRenamedScenario";
+    const ownerExport = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === actual.owner,
+    );
+    assert.ok(ownerExport);
     route(
-      edit(source, [{ ...range(actual.owner.id), text: ownerAlias }]).replace(
-        "export async function " + ownerAlias,
-        "async function " + ownerAlias,
-      ) +
+      edit(source, [
+        { ...range(actual.owner.id), text: ownerAlias },
+        { start: range(ownerExport).start, end: range(actual.owner).start, text: "" },
+      ]) +
         "\nexport {" +
         ownerAlias +
         " as " +
@@ -618,18 +626,16 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
     );
     assert.ok(seam);
     const alias = "$testedOwnerSeam";
+    const seamExport = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
+    );
+    assert.ok(seamExport);
     const renamed = edit(source, [
       { ...range(seam.id), text: alias },
+      { start: range(seamExport).start, end: range(seam).start, text: "" },
       ...actual.calls.map((node) => ({ ...range(node.callee), text: alias })),
     ]);
-    route(
-      renamed.replace("export async function " + alias, "async function " + alias) +
-        "\nexport {" +
-        alias +
-        " as " +
-        policy.seam +
-        "};",
-    );
+    route(renamed + "\nexport {" + alias + " as " + policy.seam + "};");
     // A moved declaration and formatting preserve the same executable binding.
     const exportedSeam = actual.syntax.find(
       (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
@@ -683,7 +689,8 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
       );
       assert.ok(recoveryDeclaration);
       const selected = range(recoveryDeclaration);
-      const endOfInventory = source.indexOf(";", selected.end) + 1;
+      assert.ok(actual.inventory);
+      const endOfInventory = range(actual.inventory).end;
       assert.ok(endOfInventory > selected.end);
       assert.throws(
         () =>
