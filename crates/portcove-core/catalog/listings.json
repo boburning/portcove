@@ -8604,24 +8604,76 @@
     {
       "id": "baldur-s-gate-ii-original-gemrb",
       "name": "Baldur's Gate II (original) (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Baldur's Gate II (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
+      "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate II (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/gemrb/gemrb",
-      "issue_number": 2629
+      "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+      "issue_number": 2629,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use a complete installed original Baldur’s Gate II: Shadows of Amn working copy, with Throne of Bhaal only if you own and installed it. Enhanced Edition files and the trivial demo do not supply the original edition. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [
+          "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
+        ],
+        "help_url": "https://gemrb.org/Install.html"
+      }
     },
     {
       "id": "baldur-s-gate-original-gemrb",
       "name": "Baldur's Gate (original) (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Baldur's Gate (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
+      "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/gemrb/gemrb",
-      "issue_number": 2628
+      "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+      "issue_number": 2628,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use a complete installed original Baldur’s Gate working copy, including its original resources and any deliberately installed expansion. Enhanced Edition files and the bundled trivial demo are different inputs. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg1. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [
+          "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
+        ],
+        "help_url": "https://gemrb.org/Install.html"
+      }
     },
     {
       "id": "banjo-kazooie-nuts-bolts-renut",
@@ -9262,13 +9314,15 @@
     {
       "id": "blake-stone-aliens-of-gold-bstone",
       "name": "Blake Stone: Aliens of Gold (Bstone)",
-      "summary": "Upstream route: Source port for both games with signed desktop release archives. Limits: Established two-game source-port route; each game has separate data-version requirements. Upstream platforms: Windows release archives and portable desktop source builds; exact archive CPU architectures remain unknown in frozen evidence. Original data: Own supported Aliens of Gold v1.0/v2.0/v2.1/v3.0 data: BS1 for shareware or BS6 for retail, as specified in Bstone file table. Planet Strike VSI data is a different game. Portcove setup/gameplay not verified.",
+      "summary": "Set up Blake Stone: Aliens of Gold through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Blake Stone: Aliens of Gold",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2555,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/bibendovsky/bstone",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
       "artwork": {
         "game_id": 8489,
         "cover_id": 116133,
@@ -9276,18 +9330,44 @@
         "image_sha256": "6477f0c464c6d067b0583b3a2c6969bea5be49823e22a4b99a62ac317159a3bf",
         "game_slug": "blake-stone-aliens-of-gold",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/bibendovsky/bstone/releases",
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --aog as a separate argument to choose this game. Use --aog_sw instead when deliberately choosing supported shareware."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
       }
     },
     {
       "id": "blake-stone-planet-strike-bstone",
       "name": "Blake Stone: Planet Strike (Bstone)",
-      "summary": "Upstream route: Source port for both games with signed desktop release archives. Limits: Established two-game source-port route; each game has separate data-version requirements. Upstream platforms: Windows release archives and portable desktop source builds; exact archive CPU architectures remain unknown in frozen evidence. Original data: Own Blake Stone: Planet Strike retail data files with VSI suffixes, following Bstone required-assets table. Aliens of Gold BS1/BS6 shareware/retail data does not substitute for Planet Strike. Portcove setup/gameplay not verified.",
+      "summary": "Set up Blake Stone: Planet Strike through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Blake Stone: Planet Strike",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2556,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/bibendovsky/bstone",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
       "artwork": {
         "game_id": 8490,
         "cover_id": 95891,
@@ -9295,6 +9375,30 @@
         "image_sha256": "08ea6ddb988d8c4bfce3b29ecf994d7ee9d899dbec6f51c2bc6eed8323c3fdd7",
         "game_slug": "blake-stone-planet-strike",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/bibendovsky/bstone/releases",
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --ps as a separate argument to choose this game."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
       }
     },
     {
@@ -10660,12 +10764,14 @@
     {
       "id": "cannon-fodder-2-open-fodder",
       "name": "Cannon Fodder 2 (Open Fodder)",
-      "summary": "Upstream route: Native engine supports retail releases and Amiga demos; Windows installer available. Limits: Confirm supported edition per game and clean source-data setup. Upstream platforms: Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown. Original data: Supply Cannon Fodder 2 data from an upstream-supported Amiga or DOS CD release; Cannon Fodder 1/demo data does not provide this game. Exact language/revision requirements remain Unknown in the retained README. Portcove setup/gameplay not verified.",
+      "summary": "Set up Cannon Fodder 2 through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Cannon Fodder 2",
       "project_url": "https://github.com/OpenFodder/openfodder",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenFodder/openfodder",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
       "artwork": {
         "game_id": 11986,
         "cover_id": 226288,
@@ -10674,18 +10780,78 @@
         "game_slug": "cannon-fodder-2",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2642
+      "issue_number": 2642,
+      "release_url": "https://github.com/OpenFodder/openfodder/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OpenFodder-Installer.exe"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "For the documented DOS CD route, copy all files from your own Cannon Fodder 2 CD/GOG installation into OpenFodder/Data/Dos2_CD, not just CF_ENG.DAT. Keep the matching upstream Campaigns data pack. Cannon Fodder 1 and its demos do not supply this game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "The official Windows EXE is the upstream installer. Run setup deliberately, choose its data destination and complete the campaign/data layout, then register the installed OpenFodder.exe with its installation folder as working directory. Do not select the installer, bundled VC runtime setup or uninstaller as the player. The Campaigns data pack is required even when original retail data is present. Use the upstream campaign menu to select this game."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
+      }
     },
     {
       "id": "cannon-fodder-open-fodder",
       "name": "Cannon Fodder (Open Fodder)",
-      "summary": "Upstream route: Native engine supports retail releases and Amiga demos; Windows installer available. Limits: Confirm supported edition per game and clean source-data setup. Upstream platforms: Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown. Original data: Supply Cannon Fodder data from an upstream-supported Amiga, Amiga CD32 or DOS CD release. Included cover-disk/PC demos provide their limited demo content, not the full retail game. Exact language/revision requirements remain Unknown in the retained README. Portcove setup/gameplay not verified.",
+      "summary": "Set up Cannon Fodder through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Cannon Fodder",
       "project_url": "https://github.com/OpenFodder/openfodder",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenFodder/openfodder",
-      "issue_number": 2641
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
+      "issue_number": 2641,
+      "release_url": "https://github.com/OpenFodder/openfodder/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OpenFodder-Installer.exe"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "For the documented DOS CD route, copy your own Cannon Fodder CF_ENG.DAT into OpenFodder/Data/Dos_CD. Keep the matching upstream Campaigns data pack. Included demos provide limited demo content, not the retail game. Supported Amiga/CD32 preparation has separate instructions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "The official Windows EXE is the upstream installer. Run setup deliberately, choose its data destination and complete the campaign/data layout, then register the installed OpenFodder.exe with its installation folder as working directory. Do not select the installer, bundled VC runtime setup or uninstaller as the player. The Campaigns data pack is required even when original retail data is present. Use the upstream campaign menu to select this game."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
+      }
     },
     {
       "id": "cannonball-dx-outrun",
@@ -13476,24 +13642,72 @@
     {
       "id": "descent-dxx-rebirth",
       "name": "Descent (DXX-Rebirth)",
-      "summary": "Upstream route: Official README states full compatibility with both games and expansions. Limits: No binary assets on last GitHub release; resolve official current package source. Upstream platforms: Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown. Original data: Original-data contract remains Unknown in the retained DXX-Rebirth README for Descent. Establish the selected game's accepted retail/shareware/demo edition, patch/revision and required data location before offering setup. Descent and Descent II are distinct inputs; package availability is separate from supplying the corresponding game data. Portcove setup/gameplay not verified.",
+      "summary": "Set up Descent through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-      "issue_number": 2652
+      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
+      "issue_number": 2652,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your own Descent descent.hog and descent.pig. The documented PC/Mac Descent shareware is a limited alternative. Descent II data does not supply Descent. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d1x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
+      }
     },
     {
       "id": "descent-ii-dxx-rebirth",
       "name": "Descent II (DXX-Rebirth)",
-      "summary": "Upstream route: Official README states full compatibility with both games and expansions. Limits: No binary assets on last GitHub release; resolve official current package source. Upstream platforms: Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown. Original data: Original-data contract remains Unknown in the retained DXX-Rebirth README for Descent II. Establish the selected game's accepted retail/shareware/demo edition, patch/revision and required data location before offering setup. Descent and Descent II are distinct inputs; package availability is separate from supplying the corresponding game data. Portcove setup/gameplay not verified.",
+      "summary": "Set up Descent II through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent II",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-      "issue_number": 2653
+      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
+      "issue_number": 2653,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your own retail descent2.hog, descent2.ham, descent2.s22 and all six alien1/alien2/fire/groupa/ice/water PIG files. Optional movies stay optional. The separate documented PC/Mac Descent II demo uses its own complete demo set; Descent I shareware does not supply this game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d2x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
+      }
     },
     {
       "id": "dethrace-labs-dethrace",
@@ -13559,24 +13773,57 @@
     {
       "id": "diablo-devilutionx",
       "name": "Diablo (DevilutionX)",
-      "summary": "Upstream route: Mature native port with desktop packages and explicit original-data setup. Limits: Established Diablo/Hellfire engine; separate game data and shareware limits apply. Portcove gameplay/lifecycle untested. Upstream platforms: Official desktop runtime packages for Windows/Linux/macOS. README documents Windows x86-64, Linux x86/x86-64/AArch64 and macOS x86-64 build jobs; selected package architectures require asset selection. Original data: Own Diablo DIABDAT.MPQ, or upstream-supported spawn.mpq for limited Diablo shareware play. Hellfire expansion files are not needed for base Diablo; full-game qualification is separate from shareware. Portcove setup/gameplay not verified.",
+      "summary": "Set up Diablo through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Diablo",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2563,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/diasurgical/DevilutionX"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
+      "release_url": "https://github.com/diasurgical/DevilutionX/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "devilutionx-windows-x86_64.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use DIABDAT.MPQ from your own original PC Diablo CD or installation. The documented SPAWN.MPQ shareware provides limited shareware content only. Keep the packaged devilutionx.mpq; optional fonts and voice packs have separate upstream requirements. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Extract the complete official Windows x86_64 ZIP and keep devilutionx.exe, devilutionx.mpq and all runtime companions together. A GOG installation may be detected; otherwise supply the matching MPQs beside the player or in the actual data directory described by upstream. Register devilutionx.exe inside its wrapper, using that same folder as working directory. Use the documented single argument --diablo to select this entry’s game even when both games’ files are present."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "The Windows data/profile location is normally %APPDATA%/diasurgical/devilution, with upstream portable/path overrides depending on the selected setup. Preserve the actual configuration, character saves and MPQ locations as well as the working copy, with all players closed before changing versions. Diablo and Hellfire modes have different original-data and save semantics. No automatic character conversion or cross-version save guarantee is supplied by registration."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
+      }
     },
     {
       "id": "diablo-hellfire-devilutionx",
       "name": "Diablo: Hellfire (DevilutionX)",
-      "summary": "Upstream route: Mature native port with desktop packages and explicit original-data setup. Limits: Established Diablo/Hellfire engine; separate game data and shareware limits apply. Portcove gameplay/lifecycle untested. Upstream platforms: Official desktop runtime packages for Windows/Linux/macOS. README documents Windows x86-64, Linux x86/x86-64/AArch64 and macOS x86-64 build jobs; selected package architectures require asset selection. Original data: Own Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware spawn.mpq does not supply the Hellfire expansion. Portcove setup/gameplay not verified.",
+      "summary": "Set up Diablo: Hellfire through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Diablo: Hellfire",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2564,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/diasurgical/DevilutionX",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
       "artwork": {
         "game_id": 8175,
         "cover_id": 95334,
@@ -13584,6 +13831,35 @@
         "image_sha256": "f25ea27b3ab864556a725c9b3bbb13a00d0ff763c747f3fb8815c2154fc70dba",
         "game_slug": "diablo-hellfire",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/diasurgical/DevilutionX/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "devilutionx-windows-x86_64.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Extract the complete official Windows x86_64 ZIP and keep devilutionx.exe, devilutionx.mpq and all runtime companions together. A GOG installation may be detected; otherwise supply the matching MPQs beside the player or in the actual data directory described by upstream. Register devilutionx.exe inside its wrapper, using that same folder as working directory. Use the documented single argument --hellfire to select this entry’s game even when both games’ files are present."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "The Windows data/profile location is normally %APPDATA%/diasurgical/devilution, with upstream portable/path overrides depending on the selected setup. Preserve the actual configuration, character saves and MPQ locations as well as the working copy, with all players closed before changing versions. Diablo and Hellfire modes have different original-data and save semantics. No automatic character conversion or cross-version save guarantee is supplied by registration."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
       }
     },
     {
@@ -14253,13 +14529,45 @@
     {
       "id": "doom-3-classic-dhewm3",
       "name": "Doom 3 (classic) (dhewm3)",
-      "summary": "Upstream route: Established Doom 3 source port with Windows and Linux release assets. Limits: Established Doom 3 classic source port; BFG unsupported and game patch1.3.1 required upstream. Upstream platforms: Official Windows binaries are x86/32-bit per README; Windows x86-64 source build documented. Linux releases and Linux/macOS source builds documented; selected non-Windows archive CPU unknown. Original data: Own original classic Doom3 base/*.pk4 files. Use the engine-required patched classic version. Doom3 BFG Edition files are unsupported. Portcove setup/gameplay not verified.",
+      "summary": "Set up Doom 3 (classic) through its upstream dhewm3 player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Doom 3 (classic)",
       "project_url": "https://github.com/dhewm/dhewm3",
       "issue_number": 2567,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/dhewm/dhewm3"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
+      "release_url": "https://github.com/dhewm/dhewm3/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "dhewm3-1.",
+          "_win32.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your original classic Doom 3 data patched to 1.3.1: base/pak000.pk4 through pak008.pk4. BFG Edition is a different product and is not supported by dhewm3. Preserve your original installation; use a separate prepared working copy or the explicit fs_basepath option. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This is the reviewed 32-bit Windows player, not an x64 artifact; the existing Windows registration route supports PE32. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://dhewm3.org/#how-to-install"
+      }
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
@@ -14275,13 +14583,45 @@
     {
       "id": "doom-3-resurrection-of-evil-classic-dhewm3",
       "name": "Doom 3: Resurrection of Evil (classic) (dhewm3)",
-      "summary": "Upstream route: Established Doom 3 source port with Windows and Linux release assets. Limits: Established Doom 3 classic source port; BFG unsupported and game patch1.3.1 required upstream. Upstream platforms: Official Windows binaries are x86/32-bit per README; Windows x86-64 source build documented. Linux releases and Linux/macOS source builds documented; selected non-Windows archive CPU unknown. Original data: Own original classic Doom3 base/*.pk4 files and Resurrection of Evil d3xp/*.pk4 expansion files. Doom3 BFG Edition files are unsupported. Portcove setup/gameplay not verified.",
+      "summary": "Set up Doom 3: Resurrection of Evil (classic) through its upstream dhewm3 player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
       "project_url": "https://github.com/dhewm/dhewm3",
       "issue_number": 2568,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/dhewm/dhewm3"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
+      "release_url": "https://github.com/dhewm/dhewm3/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "dhewm3-1.",
+          "_win32.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use classic Doom 3 patched to 1.3.1 base/pak000.pk4 through pak008.pk4 plus your Resurrection of Evil d3xp/pak000.pk4 and pak001.pk4. Expansion files alone and BFG Edition do not provide this route. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This is the reviewed 32-bit Windows player, not an x64 artifact; the existing Windows registration route supports PE32. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them. To select Resurrection of Evil, add three more argument lines: +set, fs_game, d3xp."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://dhewm3.org/#how-to-install"
+      }
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
@@ -19756,12 +20096,14 @@
     {
       "id": "icewind-dale-ii-gemrb",
       "name": "Icewind Dale II (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Icewind Dale II game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
+      "summary": "Set up Icewind Dale II through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale II",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/gemrb/gemrb",
+      "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
         "game_id": 876,
         "cover_id": 84552,
@@ -19770,17 +20112,43 @@
         "game_slug": "icewind-dale-ii",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2631
+      "issue_number": 2631,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use a complete installed original Icewind Dale II working copy. Icewind Dale I, Enhanced Edition and the included trivial demo are different inputs. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=iwd2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [
+          "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
+        ],
+        "help_url": "https://gemrb.org/Install.html"
+      }
     },
     {
       "id": "icewind-dale-original-gemrb",
       "name": "Icewind Dale (original) (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Icewind Dale (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
+      "summary": "Set up Icewind Dale (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/gemrb/gemrb",
+      "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
         "game_id": 753,
         "cover_id": 84545,
@@ -19789,7 +20157,31 @@
         "game_slug": "icewind-dale",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2630
+      "issue_number": 2630,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use a complete installed original Icewind Dale working copy. Keep Heart of Winter/Trials of the Luremaster only with their matching installed data; do not invent those expansions from the base game or substitute Enhanced Edition data. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=auto. For original Icewind Dale, let this build recognize the installed iwd/how expansion combination; do not force an absent expansion. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [
+          "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
+        ],
+        "help_url": "https://gemrb.org/Install.html"
+      }
     },
     {
       "id": "ico-pc-nathanialf",
@@ -28258,12 +28650,14 @@
     {
       "id": "planescape-torment-original-gemrb",
       "name": "Planescape: Torment (original) (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Planescape: Torment (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
+      "summary": "Set up Planescape: Torment (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Planescape: Torment (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/gemrb/gemrb",
+      "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
         "game_id": 832,
         "cover_id": 161291,
@@ -28272,7 +28666,31 @@
         "game_slug": "planescape-torment",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2632
+      "issue_number": 2632,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use a complete installed original Planescape: Torment working copy. Enhanced Edition and the included trivial demo do not supply this target. Preserve the chosen language and patches with that working copy. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [
+          "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
+        ],
+        "help_url": "https://gemrb.org/Install.html"
+      }
     },
     {
       "id": "poka-poka-jm5557-monster-hunter-diary-poka-poka-felyne-village-g",
@@ -35891,12 +36309,14 @@
     {
       "id": "the-elder-scrolls-iii-morrowind-openmw",
       "name": "The Elder Scrolls III: Morrowind (OpenMW)",
-      "summary": "Upstream route: Morrowind, Tribunal and Bloodmoon main quests completable upstream; official desktop packages. Limits: Upstream says Morrowind/Tribunal/Bloodmoon main quests completable; engine-specific saves/mod compatibility remain separate. Upstream platforms: Official Windows/Linux/macOS runtime packages/source builds; selected artifact CPU architectures unknown in frozen research. README OS floors include Windows10 and macOS14.8. Original data: Requires owned Morrowind data; preserve engine-specific saves and mod compatibility. Portcove setup/gameplay not verified.",
+      "summary": "Set up The Elder Scrolls III: Morrowind through its upstream openmw player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "The Elder Scrolls III: Morrowind",
       "project_url": "https://github.com/OpenMW/openmw",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenMW/openmw",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenMW/openmw/blob/f4bec41444214a7903bebd178389ca22ca13f646/README.md",
       "artwork": {
         "game_id": 56,
         "cover_id": 120073,
@@ -35905,7 +36325,37 @@
         "game_slug": "the-elder-scrolls-iii-morrowind",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2616
+      "issue_number": 2616,
+      "release_url": "https://github.com/OpenMW/openmw/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OpenMW-",
+          "-Windows-x64.exe"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your own installed Morrowind Data Files and Morrowind.ini through the OpenMW installation wizard. Tribunal and Bloodmoon need their own corresponding installed data and deliberate load order. Console originals and saves are not interchangeable PC inputs. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "The official Windows EXE is an installer, not the game to register. Complete upstream setup, run the OpenMW wizard/launcher deliberately to locate Morrowind.ini and Data Files, and choose the desired content/mod order. Then register the installed openmw.exe with its installation folder as working directory. Keep openmw-launcher.exe for setup and mod/profile choices; discovery does not run that wizard automatically."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Windows normally keeps OpenMW configuration, logs, saves and screenshots under the actual Documents/My Games/OpenMW folder. Custom configuration/user-data paths and external mod/data directories remain part of your setup. Preserve those actual locations, selected originals and load order with the player closed before upstream updates. OpenMW saves and original-engine saves are separate formats; keep their creating runtime rather than assuming conversion."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://openmw.readthedocs.io/en/latest/manuals/installation/index.html"
+      }
     },
     {
       "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
@@ -38189,34 +38639,84 @@
     {
       "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
       "name": "UFO: Enemy Unknown / X-COM: UFO Defense (OpenXcom)",
-      "summary": "Upstream route: Official README supports both original games and unmodified retail resources. Limits: Established recreation of two original XCOM games; original vanilla data and separate game identities. Upstream platforms: Official Windows/Linux/macOS download/build routes; no GitHub Release assets. Selected package CPU architectures unknown in frozen research. Original data: Use official downloads; no GitHub Releases returned. Separate game identities, original vanilla data required. Portcove setup/gameplay not verified.",
+      "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",
       "project_url": "https://github.com/OpenXcom/OpenXcom",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/OpenXcom/OpenXcom",
-      "issue_number": 2619
+      "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
+      "issue_number": 2619,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your own complete unmodified original UFO/XCOM data folders. XcomUtil-modified originals can fail. Copy the original subfolders into OpenXcom’s UFO subdirectory, keeping their hierarchy; TFTD files are not UFO data. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Complete original-data and game selection through upstream before saving the player entry. Register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://openxcom.org/"
+      }
     },
     {
       "id": "ultima-vii-part-two-serpent-isle-exult",
       "name": "Ultima VII Part Two: Serpent Isle (Exult)",
-      "summary": "Upstream route: Official documentation says both games completable; established engine. Limits: Upstream says both UltimaVII games completable; stable release selection and independent game saves remain. Upstream platforms: Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots. Original data: Own original Ultima VII Part Two: Serpent Isle game data for this Exult target. The corresponding add-on is optional, not required to run the base game. Retained README does not pin accepted localization/revision or a minimum file manifest. Portcove setup/gameplay not verified.",
+      "summary": "Set up Ultima VII Part Two: Serpent Isle through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII Part Two: Serpent Isle",
       "project_url": "https://github.com/exult/exult",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/exult/exult",
-      "issue_number": 2622
+      "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
+      "issue_number": 2622,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your installed original Serpent Isle data, especially its complete STATIC folder. Silver Seed is optional and remains a separately owned add-on. Black Gate data does not supply Serpent Isle. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://exult.info/docs.html"
+      }
     },
     {
       "id": "ultima-vii-the-black-gate-exult",
       "name": "Ultima VII: The Black Gate (Exult)",
-      "summary": "Upstream route: Official documentation says both games completable; established engine. Limits: Upstream says both UltimaVII games completable; stable release selection and independent game saves remain. Upstream platforms: Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots. Original data: Own original Ultima VII: The Black Gate game data for this Exult target. The corresponding add-on is optional, not required to run the base game. Retained README does not pin accepted localization/revision or a minimum file manifest. Portcove setup/gameplay not verified.",
+      "summary": "Set up Ultima VII: The Black Gate through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII: The Black Gate",
       "project_url": "https://github.com/exult/exult",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/exult/exult",
+      "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
       "artwork": {
         "game_id": 6165,
         "cover_id": 139615,
@@ -38225,7 +38725,29 @@
         "game_slug": "ultima-vii-the-black-gate",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2621
+      "issue_number": 2621,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your installed original Black Gate data, especially its complete STATIC folder. Forge of Virtue is optional and remains a separately owned add-on. Serpent Isle data does not supply Black Gate. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://exult.info/docs.html"
+      }
     },
     {
       "id": "umjamlamrecomp-njh-1001-um-jammer-lammy",
@@ -41112,12 +41634,14 @@
     {
       "id": "x-com-terror-from-the-deep-openxcom",
       "name": "X-COM: Terror from the Deep (OpenXcom)",
-      "summary": "Upstream route: Official README supports both original games and unmodified retail resources. Limits: Established recreation of two original XCOM games; original vanilla data and separate game identities. Upstream platforms: Official Windows/Linux/macOS download/build routes; no GitHub Release assets. Selected package CPU architectures unknown in frozen research. Original data: Use official downloads; no GitHub Releases returned. Separate game identities, original vanilla data required. Portcove setup/gameplay not verified.",
+      "summary": "Set up X-COM: Terror from the Deep through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "X-COM: Terror from the Deep",
       "project_url": "https://github.com/OpenXcom/OpenXcom",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/OpenXcom/OpenXcom",
+      "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
       "artwork": {
         "game_id": 25,
         "cover_id": 106682,
@@ -41126,7 +41650,29 @@
         "game_slug": "x-com-terror-from-the-deep",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2620
+      "issue_number": 2620,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use this original game and edition",
+            "instruction": "Use your own complete unmodified original TFTD/TFD data folders. Copy the original subfolders into OpenXcom’s TFTD subdirectory, keeping their hierarchy. UFO/XCOM files do not supply this game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          },
+          {
+            "title": "Prepare upstream and select the real player",
+            "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Choose a build that documents TFTD support; an old UFO-only release is insufficient. Complete original-data and game selection through upstream before saving the player entry. Register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
+          },
+          {
+            "title": "Keep the actual original and player data",
+            "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://openxcom.org/"
+      }
     },
     {
       "id": "x-men-destiny-xmd-recompiled",
