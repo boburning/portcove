@@ -265,7 +265,18 @@ async function openAdvancedFilters(name: string) {
     await userEvent.click(page.getByText("Advanced filters", { exact: true }));
 }
 async function closeFilters() {
-  if (document.querySelector("[data-slot=checkbox]")) await userEvent.keyboard("{Escape}");
+  const field = document.querySelector<HTMLButtonElement>(
+    '.catalog-filter-panel button[aria-haspopup="dialog"][aria-expanded="true"]',
+  );
+  if (field) await userEvent.keyboard("{Escape}");
+  await expect
+    .poll(() =>
+      document.querySelector(
+        '.catalog-filter-panel button[aria-haspopup="dialog"][aria-expanded="true"]',
+      ),
+    )
+    .toBeNull();
+  await expect.poll(() => field === null || document.activeElement === field).toBe(true);
   await userEvent.keyboard("{Escape}");
   await expect
     .element(page.getByRole("region", { name: "Filter options", exact: true }))

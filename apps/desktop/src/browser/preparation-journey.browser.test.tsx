@@ -119,7 +119,11 @@ it.each(["orchard", "summit"])(
     expect(
       document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
     ).toBe(portId);
-    await page.getByRole("button", { name: "Play", exact: true }).click();
+    const play = page.elementLocator(
+      document.querySelector<HTMLButtonElement>(".detail-header-actions [data-launch-action]")!,
+    );
+    await expect.element(play).toHaveAccessibleName("Play");
+    await play.click();
     await expect.poll(() => launch.mock.calls[0]).toEqual([portId, "", 1]);
     expect(document.body.textContent).not.toContain("You can now play");
   },

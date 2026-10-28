@@ -3,12 +3,15 @@ import { page, userEvent } from "vite-plus/test/browser";
 
 /** Open the actual field, preserving the containing panel and its independent query. */
 export async function openFilterField(label: string) {
+  const selected = page.getByRole("button", { name: new RegExp(`^${label}:`) });
   const group = globalThis.document.querySelector(`fieldset[aria-label="${label}"]`);
-  if (group && group.getBoundingClientRect().height > 0) return;
-  const close = [...globalThis.document.querySelectorAll<HTMLButtonElement>("button")].find(
-    (node) => /^Close .+ choices$/.test(node.getAttribute("aria-label") ?? ""),
-  );
-  if (close) await userEvent.click(close);
+  if (
+    group &&
+    group.getBoundingClientRect().height > 0 &&
+    selected.element().getAttribute("aria-expanded") === "true"
+  )
+    return;
+  await closeOpenFilterField();
   const trigger = page.getByRole("button", { name: new RegExp(`^${label}:`) });
   const rawTrigger = [...globalThis.document.querySelectorAll<HTMLButtonElement>("button")].find(
     (node) => node.getAttribute("aria-label")?.startsWith(`${label}:`),
@@ -36,13 +39,21 @@ export async function filterChoice(name: string) {
 }
 
 export async function openAdvancedFilters() {
-  const close = [...globalThis.document.querySelectorAll<HTMLButtonElement>("button")].find(
-    (node) => /^Close .+ choices$/.test(node.getAttribute("aria-label") ?? ""),
-  );
-  if (close) await userEvent.click(close);
+  await closeOpenFilterField();
   const trigger = page.getByRole("button", { name: /^Filters \(\d+\)$/ });
   await expect.element(trigger).toBeVisible();
   if (trigger.element().getAttribute("aria-expanded") !== "true") await trigger.click();
   const advanced = page.getByText("Advanced filters", { exact: true });
   if (!advanced.element().closest("details")?.open) await advanced.click();
+}
+
+async function closeOpenFilterField() {
+  const trigger = globalThis.document.querySelector<HTMLButtonElement>(
+    '.catalog-filter-panel button[aria-haspopup="dialog"][aria-expanded="true"]',
+  );
+  if (!trigger) return;
+  const label = trigger.getAttribute("aria-label")!.split(":")[0];
+  await page.getByRole("button", { name: `Close ${label} choices`, exact: true }).click();
+  await expect.element(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect.element(trigger).toHaveFocus();
 }
