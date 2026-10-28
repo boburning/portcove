@@ -335,6 +335,7 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-default-cover.native.test.mts",
       "apps/desktop/scripts/desktop-reload.native.test.mts",
       "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-real-runtime.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
@@ -1211,6 +1212,14 @@ for (const [file, tests] of [
   [
     "apps/desktop/scripts/desktop-qualification-history-test.mts",
     ["scripts/desktop-scenarios.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-host-publication-test.mts",
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+    ],
   ],
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
   [

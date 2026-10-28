@@ -723,3 +723,63 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
     }
   }
 });
+
+void test("publication scenario retains its exported path observation callers", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-host-publication-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const syntax = [...nodes(parseAst(code))];
+    return ["recordRedirectedPublicationWrite", "assertPublicationImportReadback"].map((name) => {
+      const exported = syntax.filter((node) => node.type === "ExportNamedDeclaration");
+      const alias = exported
+        .flatMap((node) => (Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : []))
+        .find((node) => (identifier(node.exported) ?? literal(node.exported)) === name);
+      const declaration = exported.find(
+        (node) => isRecord(node.declaration) && identifier(node.declaration.id) === name,
+      );
+      const local = alias ? identifier(alias.local) : declaration ? name : undefined;
+      assert.ok(local, "Retain the publication observation owner " + name);
+      const waiting = syntax.filter((node) => identifier(awaited(node)?.callee) === local);
+      const calls = waiting.map((node) => {
+        const call = awaited(node);
+        assert.ok(call);
+        return call;
+      });
+      assert.equal(calls.length, 1, "Consume the publication observation owner " + name);
+      return { name, local, calls, waiting };
+    });
+  }
+  for (const owner of route(source)) {
+    const alias = "$publicationObservation";
+    route(source.replaceAll(owner.name, alias) + "\nexport {" + alias + " as " + owner.name + "};");
+    const bypass = edit(
+      source,
+      owner.calls.map((node) => ({ ...range(node.callee), text: "unreviewedObservation" })),
+    );
+    const unawaited = edit(
+      source,
+      owner.waiting.map((node, index) => {
+        const call = range(owner.calls[index]);
+        return { ...range(node), text: source.slice(call.start, call.end) };
+      }),
+    );
+    assert.throws(() => route(unawaited), /Consume the publication observation owner/u);
+
+    assert.throws(() => route(bypass), /Consume the publication observation owner/u);
+    assert.throws(
+      () =>
+        route(
+          bypass +
+            "\n/* " +
+            source.slice(range(owner.calls[0]).start, range(owner.calls[0]).end) +
+            " */",
+        ),
+      /Consume the publication observation owner/u,
+    );
+  }
+});
