@@ -3,28 +3,31 @@
 This optional local-first contract updates metadata for the embedded catalog. No publisher key, production private key, server, account, or scheduled fetch is configured by default. Local files work without a network; an explicitly requested HTTPS fetch carries no Portcove/GitHub credential and follows no redirects. The optional advisory relay and desktop self-updater are separate features.
 
 This is the implemented format-1 contract. The [independent definition delivery
-contract](DEFINITION-DELIVERY.md) specifies the successor's authority, admission,
-retention and recovery boundaries. The planned successor in
-[#245](https://github.com/boburning/portcove/issues/245) and
-[#246](https://github.com/boburning/portcove/issues/246) adds policy-based new
-definitions and routine automatic publication to already-capable clients.
-That work must retain exact installed definitions/contracts, isolate unsupported
-entries, bind protected acceptance to exact inputs, and define offline, expiry,
-revocation and recovery behavior. It does not weaken or retrofit this format's
+contract](DEFINITION-DELIVERY.md) owns the successor's authority, admission,
+retention and recovery boundaries. Completed
+[#245](https://github.com/boburning/portcove/issues/245),
+[#397](https://github.com/boburning/portcove/issues/397),
+[#398](https://github.com/boburning/portcove/issues/398) and
+[#254](https://github.com/boburning/portcove/issues/254) supply the accepted design,
+compatible client loader, configured upstream observer and bounded authoring.
+Their delivered components and fixture evidence remain distinct from
+[#246](https://github.com/boburning/portcove/issues/246)'s pending protected
+production journey and [#534](https://github.com/boburning/portcove/issues/534)'s
+pending provisioning acceptance. They do not weaken or retrofit this format's
 embedded-contract restrictions. No live automatic admission is enabled here.
 
-The successor's client-loading phase is tracked in
-[#397](https://github.com/boburning/portcove/issues/397); #246 retains the complete
-protected acceptance/publication outcome, with configured upstream observations
-from [#398](https://github.com/boburning/portcove/issues/398). Their future proofs
-retain exact definition content and referenced source/execution/persistence
-contracts for installed, staged, previous and adopted versions, together with
-relevant artifact, runtime/tool, platform and source identities. A remote URL or
-digest alone cannot preserve an installed contract. Migration preserves existing
-catalog availability and isolates unsupported new semantics. Observation has no
-signing or admission authority, and availability never authorizes installation,
-trust expansion or data migration. These are planned requirements, not changes
-to the format-1 behavior below.
+#246's remaining minimum observes a new operational definition, its next actual
+eligible artifact and a safe compatible correction on one exact unchanged
+capable installed client through actual protected acceptance, signing,
+publication and public readback. Authenticated descriptive listing delivery
+does not grant execution or installation capability. Existing components retain
+exact definition content and referenced source/execution/persistence contracts
+for installed, staged, previous and adopted versions, together with relevant
+artifact, runtime/tool, platform and source identities. A remote URL or digest
+alone cannot preserve an installed contract. Migration preserves existing catalog
+availability and isolates unsupported new semantics. Observation has no signing
+or admission authority, and availability never authorizes installation, trust
+expansion or data migration. The format-1 behavior below remains unchanged.
 
 ## Publisher format
 
