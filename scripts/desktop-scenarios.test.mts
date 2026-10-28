@@ -1061,9 +1061,11 @@ void test("external tree hash is ordered, byte-sensitive and refuses unsafe path
   assert.throws(() => externalFixtureTreeDigest(new Map([["../outside", Buffer.from("x")]])));
 });
 
-void test("external picker observation leaves immutable Tauri internals untouched and preserves failures", () => {
-  async function observeOriginalPicker() {
-    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-unmodified-"));
+void test("external picker observation leaves immutable Tauri internals untouched and preserves failures", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-unmodified-"));
+  // The parent retains cleanup ownership even when the controlled child times out.
+  t.after(() => rm(root, { recursive: true, force: true }));
+  async function observeOriginalPicker(root: string) {
     try {
       for (const refused of [false, true]) {
         const output = path.join(root, refused ? "refused" : "cancelled");
@@ -1187,14 +1189,13 @@ void test("external picker observation leaves immutable Tauri internals untouche
   );
   const program = `
     import path from 'node:path';
-    import os from 'node:os';
-    import {mkdtemp,mkdir,rm} from 'node:fs/promises';
+    import {mkdir,rm} from 'node:fs/promises';
     import {runInNewContext} from 'node:vm';
     const {isRecord} = await import(new URL('../../../scripts/runtime-values.mts',entry).href);
     const {createExternalRuntimeFixture,externalRuntimePickerObservation} = await import(entry);
     const object = ${object.toString()};
     const sourceFunction = ${sourceFunction.toString()};
-    await (${observeOriginalPicker.toString()})();
+    await (${observeOriginalPicker.toString()})(${JSON.stringify(root)});
   `;
   runDesktopModuleFixture(entry, program);
 });
