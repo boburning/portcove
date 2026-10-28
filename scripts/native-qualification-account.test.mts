@@ -63,11 +63,12 @@ void test("actual bridge entry separates held production from fixed diagnostic s
   assert.ok(boundary > 0);
   const prefix = source.slice(0, boundary);
   assert.equal(prefix.split("$hostedCandidateExecutionAuthorized = $false").length, 2);
-  assert.equal(prefix.split("$hostedDiagnosticCandidateExecutionAuthorized = $false").length, 2);
+  assert.equal(prefix.split("$hostedDiagnosticCandidateExecutionAuthorized = $true").length, 2);
   const script = String.raw`
 $ErrorActionPreference='Stop'
 $original=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:PORTCOVE_TEST_BRIDGE_PREFIX))
-$activated=$original.Replace('$hostedDiagnosticCandidateExecutionAuthorized = $false','$hostedDiagnosticCandidateExecutionAuthorized = $true')
+$held=$original.Replace('$hostedDiagnosticCandidateExecutionAuthorized = $true','$hostedDiagnosticCandidateExecutionAuthorized = $false')
+$activated=$original
 # Inert entry-only fixture. No owner identity, ACL, credential, account, group or candidate operation is evaluated.
 $activated=$activated.Replace('[Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT','$false')
 $activated+=";Write-Output 'entry-only-diagnostic-accepted'"
@@ -81,8 +82,8 @@ function Invoke-Entry([string]$code,$memory,[string]$expected) {
 }
 $fixed=@{};($env:PORTCOVE_TEST_ACTUAL_A_ENVIRONMENT|ConvertFrom-Json).PSObject.Properties|ForEach-Object{$fixed[$_.Name]=[string]$_.Value}
 foreach($key in $fixed.Keys){[Environment]::SetEnvironmentVariable($key,$fixed[$key])}
-Invoke-Entry $original @{} 'awaits separate candidate execution authority'
-Invoke-Entry $original @{diagnostic=$true} 'awaits separate diagnostic execution authority'
+Invoke-Entry $held @{} 'awaits separate candidate execution authority'
+Invoke-Entry $held @{diagnostic=$true} 'awaits separate diagnostic execution authority'
 Invoke-Entry $activated @{} 'awaits separate candidate execution authority'
 Invoke-Entry $activated @{diagnostic=$false} 'Fixed diagnostic memory scope required'
 Invoke-Entry $activated @{diagnostic='true'} 'Fixed diagnostic memory scope required'
@@ -563,9 +564,10 @@ if($mutation){
  $source=$source.Replace('[Diagnostics.Stopwatch]::GetTimestamp()','[Portcove.MemoryBridgeClock]::Now')
 }
 $diagnostic=$env:PORTCOVE_TEST_NATIVE_DIAGNOSTIC -ceq 'true'
-$held=if($diagnostic){'$hostedDiagnosticCandidateExecutionAuthorized = $false'}else{'$hostedCandidateExecutionAuthorized = $false'}
+$held=if($diagnostic){'$hostedDiagnosticCandidateExecutionAuthorized = $true'}else{'$hostedCandidateExecutionAuthorized = $false'}
 if($source.Split($held).Count -ne 2){throw 'Expected one shipping memory hold'}
-# Only this disposable bridge copy exercises the owner-memory loop. C# launch stays false.
+# Only this disposable bridge copy exercises the owner-memory loop; no candidate launch occurs.
+# The C# production launcher remains false. The diagnostic uses its actual scoped source gate.
 [IO.File]::WriteAllText($bridge,$source.Replace($held,$held.Replace('$false','$true')))
 $helper=Join-Path $scripts 'native-qualification-account.cs.txt';[IO.File]::Copy($env:PORTCOVE_TEST_NATIVE_HELPER,$helper)
 $capture=Join-Path $root 'capture';[Portcove.HostedNative.Setup]::Directory($capture,$owner,$null,$false)

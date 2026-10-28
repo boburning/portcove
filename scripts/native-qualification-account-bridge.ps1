@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 $hostedMode = $null -ne $HostedMemoryContext
 if ($hostedMode) {
     $hostedCandidateExecutionAuthorized = $false
-    $hostedDiagnosticCandidateExecutionAuthorized = $false
+    $hostedDiagnosticCandidateExecutionAuthorized = $true
     $diagnosticMemoryMode = $HostedMemoryContext -is [hashtable] -and $HostedMemoryContext.ContainsKey('diagnostic')
     if ($diagnosticMemoryMode) {
         if ($HostedMemoryContext.diagnostic -isnot [bool] -or -not $HostedMemoryContext.diagnostic) { throw 'Fixed diagnostic memory scope required' }
