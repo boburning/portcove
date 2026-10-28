@@ -12,6 +12,7 @@ import test from "node:test";
 import { parse } from "yaml";
 import {
   admitProductionController,
+  admitProductionWindowsToolBootstrap,
   maximumProductionControllerWorkflowBytes,
   readProductionControllerWorkflowBytes,
   admitProductionInputReader,
@@ -59,6 +60,7 @@ import {
   capacityExecutorRolesForPurpose,
   capacityExecutorJobProfile,
   controllerOidcSubject,
+  hostedNativeJobProfile,
 } from "./assembler-job-identity.mts";
 import { performance } from "node:perf_hooks";
 import {
@@ -1979,5 +1981,233 @@ void test("workflow reader and admission share a finite 96KiB bound, including a
   } finally {
     t.mock.restoreAll();
     syncBuiltinESMExports();
+  }
+});
+
+void test("Windows source bootstrap retains the existing bounded source authority without appointing a runtime caller from raw data", () => {
+  const bounded = {
+      ...policy,
+      schema_version: 2,
+      mode: "bounded-application-release",
+      authority_configuration_sha256: "b".repeat(64),
+      grant_sha256: "c".repeat(64),
+    },
+    env = { ...environment, GITHUB_JOB: "tool_bootstrap_windows" };
+  const admitted = admitProductionWindowsToolBootstrap(JSON.stringify(bounded), env, source);
+  requireAdmittedProductionSource(admitted, "tool_bootstrap_windows", "application");
+  assert.match(admitted.qualification, /no candidate acceptance/u);
+  assert.throws(
+    () => requireAdmittedProductionSource({ ...admitted }, "tool_bootstrap_windows", "application"),
+    /original unchanged/u,
+  );
+  for (const changed of [
+    { ...env, GITHUB_JOB: "windows-tools" },
+    { ...env, GITHUB_RUN_ATTEMPT: "2" },
+    { ...env, GITHUB_REF_PROTECTED: "false" },
+    { ...env, GITHUB_SHA: "d".repeat(40) },
+  ])
+    assert.throws(() =>
+      admitProductionWindowsToolBootstrap(JSON.stringify(bounded), changed, source),
+    );
+  assert.throws(
+    () => admitProductionWindowsToolBootstrap(raw, env, source),
+    /bounded application bootstrap/u,
+  );
+});
+
+void test("native provider allocation comes only from the original branded workflow literal and preserves the provider start", async () => {
+  const { admittedNativeProviderMaximumMilliseconds: maximum, nativeOriginalJobDeadline } =
+    await import("./release-signing-job-budget.mts");
+  const { stripTypeScriptTypes } = await import("node:module"),
+    { runInNewContext } = await import("node:vm");
+  const currentIdentity = {
+    run_id: "987654",
+    run_attempt: 1,
+    controller_revision: policy.revision,
+    controller_ref: policy.execution_ref,
+  };
+  const fixture = (
+    platform: "linux-x86_64" | "windows-x86_64",
+    minutes: number,
+    substitute?: (text: string) => string,
+  ) => {
+    const job = productionHostedNativeJob(platform, "payload-signing");
+    const text = `name: fixture\njobs:\n  setup:\n    steps:\n      - &a1\n        run: echo fixed\n  ${job}:\n    timeout-minutes: ${minutes}\n    steps:\n      - *a1\n`;
+    const bytes = Buffer.from(substitute ? substitute(text) : text),
+      bounded = {
+        ...policy,
+        schema_version: 2,
+        mode: "bounded-application-release",
+        workflow_sha256: createHash("sha256").update(bytes).digest("hex"),
+        authority_configuration_sha256: "b".repeat(64),
+        grant_sha256: "c".repeat(64),
+      };
+    return {
+      bytes,
+      source: admitProductionNativeParent(
+        JSON.stringify(bounded),
+        { ...environment, GITHUB_JOB: job, PORTCOVE_EXECUTION_PURPOSE: "application" },
+        bytes,
+        platform,
+        "payload-signing",
+      ),
+    };
+  };
+  const moduleText = await readFile(
+      new URL("./release-signing-job-budget.mts", import.meta.url),
+      "utf8",
+    ),
+    functions =
+      moduleText.slice(
+        moduleText.indexOf("function signingOriginalJobDeadline("),
+        moduleText.indexOf("export function tufOriginalJobDeadline("),
+      ) +
+      moduleText.slice(
+        moduleText.indexOf("function nativeClockRole("),
+        moduleText.indexOf("/** One original shared observer allocation"),
+      ),
+    program = stripTypeScriptTypes(
+      functions.replace(/^export /gmu, "") +
+        "\ncurrentNativeJobDeadline(selectedPlatform,identity,'fixed',processDeadline,receipt,workflowBytes)",
+      { mode: "transform" },
+    );
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const job = productionHostedNativeJob(platform, "payload-signing");
+    for (const minutes of [10, 25, 35]) {
+      const f = fixture(platform, minutes);
+      assert.equal(maximum(platform, f.source, f.bytes, currentIdentity), minutes * 60000 - 30000);
+      const now = Date.parse("2026-10-28T12:00:00Z"),
+        mono = 1000;
+      const inventory = {
+        total_count: 1,
+        jobs: [
+          {
+            id: 1,
+            name: hostedNativeJobProfile(platform).job,
+            run_id: 987654,
+            run_attempt: 1,
+            head_sha: policy.revision,
+            status: "in_progress",
+            started_at: new Date(now - 10000).toISOString(),
+          },
+        ],
+      };
+      let observedNow = now;
+      const sandbox = {
+        selectedPlatform: platform,
+        identity: currentIdentity,
+        processDeadline: 1e9,
+        receipt: f.source,
+        workflowBytes: f.bytes,
+        requireAdmittedProductionSource,
+        Buffer,
+        Uint8Array,
+        maximumProductionControllerWorkflowBytes,
+        createHash,
+        isRecord,
+        hostedNativeJobProfile,
+        Date: { now: () => observedNow, parse: Date.parse },
+        performance: { now: () => mono },
+        process: {
+          env: {
+            GITHUB_RUN_ID: "987654",
+            GITHUB_RUN_ATTEMPT: "1",
+            GITHUB_SHA: policy.revision,
+            GITHUB_REF: policy.execution_ref,
+          },
+        },
+        createGitHubRunner: () => () => {},
+        GitHubApiClient: class {
+          request() {
+            return { status: 200, body: inventory };
+          }
+        },
+      };
+      const first: unknown = runInNewContext(program, sandbox);
+      assert.equal(first, mono + minutes * 60000 - 30000 - 10000);
+      observedNow += 20000;
+      assert.equal(
+        runInNewContext(program, sandbox),
+        Number(first) - 20000,
+        "A later read cannot renew provider.started_at",
+      );
+      sandbox.processDeadline = 1500;
+      assert.equal(
+        runInNewContext(program, sandbox),
+        1500,
+        "An existing earlier owner/process deadline only shortens the provider window",
+      );
+      assert.throws(() =>
+        maximum(
+          platform,
+          JSON.parse(JSON.stringify(f.source)) as unknown,
+          f.bytes,
+          currentIdentity,
+        ),
+      );
+      assert.throws(() =>
+        maximum(
+          platform,
+          f.source,
+          Buffer.concat([f.bytes, Buffer.from("# changed")]),
+          currentIdentity,
+        ),
+      );
+      for (const changed of [
+        { run_id: "123" },
+        { run_attempt: 2 },
+        { controller_revision: "f".repeat(40) },
+        { controller_ref: "refs/tags/other" },
+      ])
+        assert.throws(() =>
+          maximum(platform, f.source, f.bytes, { ...currentIdentity, ...changed }),
+        );
+    }
+    for (const substitute of [
+      (text: string) => text.replace(`  ${job}:`, `  '${job}':`),
+      (text: string) => text.replace(`  ${job}:`, `  ${job}: &job`),
+      (text: string) => text.replace(`  ${job}:`, `   ${job}:`),
+      (text: string) => text + `  ${job}:\n    timeout-minutes: 25\n`,
+      (text: string) =>
+        text.replace("    timeout-minutes: 25", "    <<: *a1\n    timeout-minutes: 25"),
+      (text: string) =>
+        text.replace("    timeout-minutes: 25", "    timeout-minutes: 25\n    timeout-minutes: 35"),
+      (text: string) => text.replace("    timeout-minutes: 25", '    "timeout-minutes": 25'),
+      (text: string) => text.replace("    timeout-minutes: 25", '    timeout-minutes: "25"'),
+      (text: string) => text.replace("    timeout-minutes: 25", "    timeout-minutes: *a1"),
+      (text: string) =>
+        text.replace("    timeout-minutes: 25", "    timeout-minutes: ${{ inputs.override }}"),
+      (text: string) => text.replace("    timeout-minutes: 25", "     timeout-minutes: 25"),
+      (text: string) => text.replace("    timeout-minutes: 25", "    timeout-minutes: 361"),
+    ]) {
+      const f = fixture(platform, 25, substitute);
+      assert.throws(() => maximum(platform, f.source, f.bytes, currentIdentity));
+    }
+    const provider = {
+      total_count: 1,
+      jobs: [
+        {
+          id: 1,
+          name: hostedNativeJobProfile(platform).job,
+          run_id: 987654,
+          run_attempt: 1,
+          head_sha: policy.revision,
+          status: "in_progress",
+          started_at: "2026-10-28T11:59:50Z",
+        },
+      ],
+    };
+    assert.equal(
+      Reflect.apply(nativeOriginalJobDeadline, null, [
+        platform,
+        provider,
+        currentIdentity,
+        Date.parse("2026-10-28T12:00:00Z"),
+        1000,
+        35 * 60000,
+      ]),
+      561000,
+      "Extra unbranded JSON/caller maxima cannot extend the legacy fixture API",
+    );
   }
 });

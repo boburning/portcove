@@ -697,6 +697,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
+    "scripts/renovate-engine-probe.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = readdirSync(path.join(root, "scripts"))
@@ -3919,8 +3920,25 @@ void test("native transport producers retain their actual Node consumers across 
       "apps/desktop/scripts/desktop-artwork-correction-test.mts",
     ].map((file): [string, string[]] => [
       file,
-      ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+      [
+        "scripts/desktop-scenarios.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+        ...(file === "apps/desktop/scripts/desktop-preparation-test.mts"
+          ? ["scripts/capture-target.test.mts"]
+          : []),
+      ],
     ]),
+    [
+      "apps/desktop/scripts/desktop-source-dialog-test.mts",
+      ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    ],
+    [
+      "scripts/release-immutable-publication.mts",
+      [
+        "scripts/release-pending-release-recovery.test.mts",
+        "scripts/release-immutable-publication.test.mts",
+      ],
+    ],
     [
       "scripts/fixtures/desktop-module-fixture.mts",
       [
@@ -3928,10 +3946,12 @@ void test("native transport producers retain their actual Node consumers across 
         "apps/desktop/scripts/desktop-default-cover.native.test.mts",
         "apps/desktop/scripts/desktop-reload.native.test.mts",
         "scripts/desktop-scenarios.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
         "scripts/desktop-execution-plan.test.mts",
         "scripts/desktop-real-runtime.test.mts",
         "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
         "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+        "scripts/capture-target.test.mts",
       ],
     ],
   ];

@@ -3,12 +3,11 @@
   "listing": {
     "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
     "name": "Pokémon Stadium / SS Anne / PokemonStadiumRecomp",
-    "summary": "Explore Pokémon Stadium / SS Anne / PokemonStadiumRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register your already working SS Anne Pokémon Stadium US v1.0 player. Upstream setup, runtime replacement and all game and Transfer Pak data remain yours.",
     "project_url": "https://github.com/mstan/PokemonStadiumRecomp",
     "issue_number": 331,
-    "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/PokemonStadiumRecomp",
+    "setup_url": "https://github.com/mstan/PokemonStadiumRecomp/blob/fb68669321b02ba8eb7e5743d04079d252bd466f/README.md",
     "artwork": {
       "game_id": 2289,
       "cover_id": 91957,
@@ -16,6 +15,63 @@
       "image_sha256": "313a80282d458179c2eb1f5d0a2c0e5fb3a173c1920727a166cf9ae41b930416",
       "game_slug": "pokemon-stadium",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Pokémon Stadium",
+    "release_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the exact originals and complete data",
+          "instruction": "Use your own Pokémon Stadium US v1.0 original: canonical big-endian .z64 is 33554432 bytes, MD5 ed1378bc12115f71209a77844965ba50. Upstream also documents .n64/.v64 input; Rev A/v1.1 is incompatible. Optional Game Boy/Color Transfer Pak games and saves are separate user-owned inputs. No originals or cartridge data are supplied by Portcove."
+        },
+        {
+          "title": "Choose a working upstream Windows folder",
+          "instruction": "Use an already permitted, working Windows x64 upstream-prepared v0.4.7-beta folder with PokemonStadiumRecomp.exe, all DLLs, assets and packaged GPL/component notices. This route registers an existing prepared folder; Portcove does not acquire or extract this package. Keep any archive or operating-system trust refusal in force; do not change protection settings to make the runtime pass. Select the actual PokemonStadiumRecomp.exe and its containing folder as working directory, then use its integrated SS Anne setup/PLAY screen. Keep all companions rather than selecting a helper or an isolated EXE."
+        },
+        {
+          "title": "Preserve runtime and separate cartridge coordinates",
+          "instruction": "Preserve the complete executable/working folder: rom.cfg, launcher.cfg, the registered configuration/FlashRAM store, actual logs/crash reports and all other created files. launcher.cfg p1_rom/p1_save through p4_rom/p4_save resolve relative to the executable folder or as absolute paths. PSR_TRANSFER_PAK_P1_ROM/SAVE through P4 override them. Transfer Pak and GB Tower can write these separate cartridge saves during Play; keep complete original/safe writable copies, configured paths, creating runtimes and saves together. Registration/removal does not adopt, copy, migrate or delete these files; no save/state compatibility or managed backup is promised."
+        },
+        {
+          "title": "Review upstream limits before explicit Play",
+          "instruction": "Maintenance has ceased; known bugs and incomplete cup/Gym Leader Castle coverage remain. The tagged source keeps its SS Anne launcher and game in the player process, and starts unauthenticated loopback debug control at 127.0.0.1:4371, including input/memory mutation and quit; PSR_DEBUG_PORT changes the valid port rather than disabling it. No network/debug isolation is claimed. User-selected trust requires your explicit review and consent. Upstream/user own preparation and replacement; preserve complete actual runtime/data first. Core offers registration, explicit supervised Play and reviewed registration-only removal; managed Install/Update/Backup/Rollback/migration/external deletion remain unavailable."
+        }
+      ],
+      "warnings": [
+        "This route only registers a permitted, already working external player. Core does not acquire or extract the selected archive, authenticate the original, or provide managed maintenance or save/state compatibility.",
+        "The inspected tagged source starts unauthenticated loopback debug control. Transfer Pak and GB Tower can write separately configured cartridge saves; preserve the actual paths and creating runtimes. No actual game or Transfer Pak execution has been qualified."
+      ],
+      "help_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "mstan/PokemonStadiumRecomp",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use an already permitted, working Windows x64 upstream-prepared v0.4.7-beta folder with PokemonStadiumRecomp.exe, all DLLs, assets and packaged GPL/component notices. This route registers an existing prepared folder; Portcove does not acquire or extract this package. Keep any archive or operating-system trust refusal in force; do not change protection settings to make the runtime pass. Select the actual PokemonStadiumRecomp.exe and its containing folder as working directory, then use its integrated SS Anne setup/PLAY screen. Keep all companions rather than selecting a helper or an isolated EXE. Preserve the complete executable/working folder: rom.cfg, launcher.cfg, the registered configuration/FlashRAM store, actual logs/crash reports and all other created files. launcher.cfg p1_rom/p1_save through p4_rom/p4_save resolve relative to the executable folder or as absolute paths. PSR_TRANSFER_PAK_P1_ROM/SAVE through P4 override them. Transfer Pak and GB Tower can write these separate cartridge saves during Play; keep complete original/safe writable copies, configured paths, creating runtimes and saves together. Registration/removal does not adopt, copy, migrate or delete these files; no save/state compatibility or managed backup is promised. Maintenance has ceased; known bugs and incomplete cup/Gym Leader Castle coverage remain. The tagged source keeps its SS Anne launcher and game in the player process, and starts unauthenticated loopback debug control at 127.0.0.1:4371, including input/memory mutation and quit; PSR_DEBUG_PORT changes the valid port rather than disabling it. No network/debug isolation is claimed. User-selected trust requires your explicit review and consent. Upstream/user own preparation and replacement; preserve complete actual runtime/data first. Core offers registration, explicit supervised Play and reviewed registration-only removal; managed Install/Update/Backup/Rollback/migration/external deletion remain unavailable."
     }
   }
 }

@@ -58,7 +58,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "https://github.com/JACoders/OpenJK",
+      "repository": "JACoders/OpenJK",
       "user_prepared": {
         "windows-x86-64": {
           "trust": "user-selected",

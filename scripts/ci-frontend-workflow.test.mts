@@ -593,6 +593,7 @@ for (const closeFails of [false, true]) {
 void test("native recovery and Unix custody changes retain macOS no-global portability coverage", () => {
   const job = workflowJob("frontend_portability");
   assert.equal(job["runs-on"], "macos-26");
+  assert.equal(job["timeout-minutes"], 25);
   assert.ok(typeof job.if === "string");
   const ordinaryInputs = Array.from(
     job.if.matchAll(/contains\(needs\.classify\.outputs\.files_json, '([^']+)'\)/gu),
@@ -707,7 +708,10 @@ void test("full frontend tasks stop after a failed unit stage and propagate brow
     await writeFile(path.join(root, "events.txt"), "");
     const result = spawnSync(cli.command, [...cli.args, "-C", root, "run", "frontend:tests"], {
       encoding: "utf8",
-      timeout: 15_000,
+      // This outer fixture starts Vite+ and its unit/browser leaf processes in
+      // a cold synthetic workspace. Hosted parallel contracts reached the old
+      // 15s harness ceiling; retain finite startup headroom and all gate checks.
+      timeout: 60_000,
       windowsHide: true,
     });
     assert.ifError(result.error);

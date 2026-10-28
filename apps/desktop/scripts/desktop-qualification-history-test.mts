@@ -105,6 +105,39 @@ interface HistoryInventory {
   driver: HistoryProcess;
   processes: HistoryProcess[];
 }
+export function assertHistoryRestoration(
+  restored: unknown,
+  nativeRaw: unknown,
+  { scenarioFailed, windowError }: { scenarioFailed: boolean; windowError?: unknown },
+) {
+  const rawRestoration = object(restored);
+  assert.ok(typeof rawRestoration.restored === "boolean");
+  const restoration: HistoryRestoration = {
+    ...rawRestoration,
+    restored: rawRestoration.restored,
+  };
+  if (rawRestoration.installed !== undefined) {
+    assert.ok(typeof rawRestoration.installed === "boolean");
+    restoration.installed = rawRestoration.installed;
+  }
+  for (const key of ["snapshots", "reports"] as const) {
+    const count = rawRestoration[key];
+    if (count !== undefined) {
+      assert.ok(typeof count === "number" && Number.isSafeInteger(count) && count >= 0);
+      restoration[key] = count;
+    }
+  }
+  assert.equal(restoration.restored, true);
+  if (!scenarioFailed && restoration.installed !== false)
+    assert.ok(required(restoration.snapshots) > 0 && required(restoration.reports) > 0);
+  assert.equal(restoration.error, undefined);
+  assert.equal(windowError, undefined);
+  const nativeReply = object(nativeRaw);
+  assert.equal(nativeReply.ok, true);
+  assert.ok(Array.isArray(nativeReply.value));
+  assert.equal(nativeReply.value.length, 0, "Synthetic responses must not register source data");
+}
+
 export async function readHistoryProcess(
   pid: string | number,
   {
@@ -751,38 +784,6 @@ export async function qualificationHistoryScenario({
         .catch((error: unknown) => ({ restored: false, error: errorMessage(error) }));
       // Keep raw replies before checking them: malformed transport results must
       // not prevent the independent window/source cleanup or its evidence.
-      function validateRestoration(restored: unknown, nativeRaw: unknown) {
-        const rawRestoration = object(restored);
-        assert.ok(typeof rawRestoration.restored === "boolean");
-        const restoration: HistoryRestoration = {
-          ...rawRestoration,
-          restored: rawRestoration.restored,
-        };
-        if (rawRestoration.installed !== undefined) {
-          assert.ok(typeof rawRestoration.installed === "boolean");
-          restoration.installed = rawRestoration.installed;
-        }
-        for (const key of ["snapshots", "reports"] as const) {
-          const count = rawRestoration[key];
-          if (count !== undefined) {
-            assert.ok(typeof count === "number" && Number.isSafeInteger(count) && count >= 0);
-            restoration[key] = count;
-          }
-        }
-        assert.equal(restoration.restored, true);
-        if (!observation.failure && restoration.installed !== false)
-          assert.ok(required(restoration.snapshots) > 0 && required(restoration.reports) > 0);
-        assert.equal(restoration.error, undefined);
-        assert.equal(observation.window_restoration_error, undefined);
-        const nativeReply = object(nativeRaw);
-        assert.equal(nativeReply.ok, true);
-        assert.ok(Array.isArray(nativeReply.value));
-        assert.equal(
-          nativeReply.value.length,
-          0,
-          "Synthetic responses must not register source data",
-        );
-      }
       observation.restoration = restored;
       await browser
         .manage()
@@ -807,7 +808,10 @@ export async function qualificationHistoryScenario({
           }
         : { raw_reply: nativeRaw };
       try {
-        validateRestoration(restored, nativeRaw);
+        assertHistoryRestoration(restored, nativeRaw, {
+          scenarioFailed: Boolean(observation.failure),
+          windowError: observation.window_restoration_error,
+        });
       } catch (error) {
         validationFailure = { error };
         observation.restoration_validation_failure = { message: errorMessage(error) };

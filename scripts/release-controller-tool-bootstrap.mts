@@ -4,6 +4,10 @@ import { homedir } from "node:os";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  prepareAdmittedWindowsBootstrapRuntime,
+  prepareAdmittedWindowsNativeRuntime,
+} from "./release-windows-bootstrap-runtime.mts";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
 import { prepareControllerToolPredicate } from "./release-controller-tool-admission.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
@@ -26,7 +30,10 @@ try {
     throw new Error("Windows tool bootstrap is application-only");
   if (
     process.argv.length !== 3 ||
-    (mode !== "build" && mode !== "bind-upload") ||
+    (mode !== "build" &&
+      mode !== "bind-upload" &&
+      mode !== "prepare-windows-runtime" &&
+      mode !== "prepare-windows-native-runtime") ||
     !process.env.RUNNER_TEMP ||
     !path.isAbsolute(process.env.RUNNER_TEMP)
   )
@@ -42,7 +49,11 @@ try {
   const commit = process.env.PORTCOVE_CONTROLLER_REVISION;
   if (!commit || !/^[a-f0-9]{40}$/u.test(commit))
     throw new Error("independently fixed controller revision required");
-  if (mode === "build") {
+  if (mode === "prepare-windows-runtime" || mode === "prepare-windows-native-runtime") {
+    if (!windows) throw new Error("Fixed Windows runtime bootstrap only");
+    if (mode === "prepare-windows-runtime") await prepareAdmittedWindowsBootstrapRuntime();
+    else await prepareAdmittedWindowsNativeRuntime();
+  } else if (mode === "build") {
     if (process.env.GH_TOKEN || process.env.GITHUB_TOKEN)
       throw new Error("no GitHub read/write credential is needed during compilation");
     const tree = execFileSync("git", ["rev-parse", `${commit}^{tree}`], {

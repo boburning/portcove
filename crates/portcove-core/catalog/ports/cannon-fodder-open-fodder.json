@@ -6,7 +6,6 @@
     "summary": "Set up Cannon Fodder through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Cannon Fodder",
     "project_url": "https://github.com/OpenFodder/openfodder",
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
     "issue_number": 2641,
@@ -49,5 +48,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "OpenFodder/openfodder",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "For the documented DOS CD route, copy your own Cannon Fodder CF_ENG.DAT into OpenFodder/Data/Dos_CD. Keep the matching upstream Campaigns data pack. Included demos provide limited demo content, not the retail game. Supported Amiga/CD32 preparation has separate instructions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. The official Windows EXE is the upstream installer. Run setup deliberately, choose its data destination and complete the campaign/data layout, then register the installed OpenFodder.exe with its installation folder as working directory. Do not select the installer, bundled VC runtime setup or uninstaller as the player. The Campaigns data pack is required even when original retail data is present. Use the upstream campaign menu to select this game. The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+    }
   }
 }

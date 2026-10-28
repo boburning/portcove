@@ -6,7 +6,6 @@
     "summary": "Use Commander Keen 4 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "Commander Keen 4",
     "project_url": "https://github.com/sulix/omnispeak",
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
     "issue_number": 2648,
@@ -49,5 +48,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "sulix/omnispeak",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your own Keen 4 v1.4 EGA GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 with the matching Omnispeak episode support files. The documented Keen 4 v1.4 EGA shareware is a limited alternative for this episode only. CGA, v1.0 and other unsupported revisions are not interchangeable. Keep original files and their version intact. Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 4. Copy the contents of data/keen4 beside omnispeak.exe, along with your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 4, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately. Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+    }
   }
 }

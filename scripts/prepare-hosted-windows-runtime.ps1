@@ -1,6 +1,7 @@
 param([AllowEmptyString()][string]$InspectVersion, [switch]$UseStandaloneInstaller)
 $ErrorActionPreference = 'Stop'
 $taskRepo = Split-Path -Parent $PSScriptRoot
+# portcove-supported-runtime-prelude-begin
 $taskFloorSource = Get-Content -LiteralPath (Join-Path $taskRepo 'apps/desktop/src-tauri/src/runtime_support.rs') -Raw
 $taskFloorMatch = [regex]::Match($taskFloorSource, '(?s)#\[cfg\(windows\)\]\s*const ENGINE_FLOOR: &\[u32\] = &\[(\d+), (\d+), (\d+), (\d+)\];')
 if (-not $taskFloorMatch.Success) { throw 'Reviewed Windows engine floor unavailable' }
@@ -8,6 +9,7 @@ $taskFloor = ($taskFloorMatch.Groups[1..4] | ForEach-Object Value) -join '.'
 function Test-EngineVersion([string]$Value) {
     $Value -cmatch '^\d+\.\d+\.\d+\.\d+$' -and [version]$Value -ge [version]$taskFloor
 }
+# portcove-supported-runtime-prelude-end
 if ($PSBoundParameters.ContainsKey('InspectVersion')) {
     if ($UseStandaloneInstaller) { throw 'Version inspection and standalone preparation are separate operations' }
     @{ scope='declared-version-only; no host observation or installation'; minimum=$taskFloor; eligible=(Test-EngineVersion $InspectVersion) } | ConvertTo-Json
@@ -40,6 +42,7 @@ if ($UseStandaloneInstaller) {
     $taskStandaloneExecutionAuthorized = $false
     if (-not $taskStandaloneExecutionAuthorized) { throw 'Standalone runtime preparation awaits separately reviewed source/storage and execution authority' }
 }
+# portcove-supported-runtime-effects-begin
 function Get-StandaloneRuntimeSource {
     # Exact previously observed official input, not an accepted runtime version or execution grant.
     [ordered]@{
@@ -195,3 +198,4 @@ try {
     $taskReceipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $taskReceiptPath
 }
 exit 0
+# portcove-supported-runtime-effects-end

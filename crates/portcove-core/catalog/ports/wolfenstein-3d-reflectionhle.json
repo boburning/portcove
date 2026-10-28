@@ -6,7 +6,6 @@
     "summary": "Use Wolfenstein 3D with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "Wolfenstein 3D",
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
     "issue_number": 2688,
@@ -49,5 +48,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "ReflectionHLE/ReflectionHLE",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your complete original DOS Wolfenstein 3D folder with WOLF3D.EXE and the matching WL1 or WL6 data. Shareware, registered and publisher revisions are separate launcher entries with exact size/CRC checks. Spear of Destiny and remastered/console data are not this game. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+    }
   }
 }

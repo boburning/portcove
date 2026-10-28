@@ -47,7 +47,17 @@ function rows(workflow: string, bytes: Buffer) {
             timeout,
           )
         : null;
-    const values = alternatives ? [Number(alternatives[1]), Number(alternatives[2])] : null;
+    const purposeAlternatives =
+      typeof timeout === "string"
+        ? /^\$\{\{\s*inputs\.publication_purpose\s*==\s*'application'\s*&&\s*([1-9][0-9]*)\s*\|\|\s*([1-9][0-9]*)\s*\}\}$/u.exec(
+            timeout,
+          )
+        : null;
+    const values = alternatives
+      ? [Number(alternatives[1]), Number(alternatives[2])]
+      : purposeAlternatives
+        ? [Number(purposeAlternatives[1]), Number(purposeAlternatives[2])]
+        : null;
     if (values) assert.ok(values.every((value) => Number.isSafeInteger(value) && value <= 360));
     // GitHub's documented job default is360; reusable jobs retain their own declarations.
     const maximum =
@@ -64,6 +74,9 @@ function rows(workflow: string, bytes: Buffer) {
       name: typeof raw.name === "string" ? raw.name : key,
       maximum_job_minutes: maximum,
       timeout_alternatives: values,
+      purpose_maximum_job_minutes: purposeAlternatives
+        ? { application: values![0]!, "catalog-publication": values![1]! }
+        : null,
       timeout_origin:
         timeout === undefined
           ? typeof raw.uses === "string"
@@ -71,7 +84,9 @@ function rows(workflow: string, bytes: Buffer) {
             : "provider-default360"
           : typeof timeout === "number"
             ? "explicit"
-            : "expression-branch-not-selected",
+            : purposeAlternatives
+              ? "explicit-purpose-branches"
+              : "expression-branch-not-selected",
       timeout_expression: typeof timeout === "string" ? timeout : null,
       reusable: typeof raw.uses === "string" ? raw.uses : null,
       runners: raw["runs-on"] ?? null,
@@ -90,12 +105,21 @@ export function observeReleaseResources(production: Buffer, wake: Buffer, candid
     candidateRows = rows("release.yml", candidate);
   const inputs = (key: string) =>
     key.includes("protection_observation") || key === "classification_writer";
-  const application = productionRows.filter((row) => !row.key.startsWith("catalog_"));
+  const forPurpose = (
+    row: (typeof productionRows)[number],
+    purpose: "application" | "catalog-publication",
+  ) => ({
+    ...row,
+    maximum_job_minutes: row.purpose_maximum_job_minutes?.[purpose] ?? row.maximum_job_minutes,
+  });
+  const application = productionRows
+    .filter((row) => !row.key.startsWith("catalog_"))
+    .map((row) => forPurpose(row, "application"));
   const selected = (keys: string[]) =>
     keys.map((key) => {
       const row = productionRows.find((row) => row.key === key);
       assert.ok(row, `missing declared resource job ${key}`);
-      return row;
+      return forPurpose(row, "catalog-publication");
     });
   const catalog = [...selected(catalogReaders), ...selected(catalogObservers)];
   const sum = (items: typeof productionRows) => {
