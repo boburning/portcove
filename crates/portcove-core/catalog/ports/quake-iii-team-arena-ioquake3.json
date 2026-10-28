@@ -3,12 +3,12 @@
   "listing": {
     "id": "quake-iii-team-arena-ioquake3",
     "name": "Quake III: Team Arena (ioquake3)",
-    "summary": "Upstream route: Official ioquake3 Windows/macOS/Linux build from ioquake3.org/get-it; own Quake III Arena / Team Arena PK3 data. Limits: Mature native engine for original Quake III and Team Arena. Original game data remains proprietary; no GitHub Releases returned, confirm current packaging. Upstream platforms: Official Windows/Linux/macOS builds at ioquake3.org; Linux x86-64 explicitly supported. macOS Universal2 Intel x86-64/Apple-Silicon ARM64 and legacy Universal1 builds are separately documented. Original data: Original game data remains proprietary; no GitHub Releases returned, confirm current packaging. Portcove setup/gameplay not verified.",
+    "summary": "Prepare Quake III: Team Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Quake III: Team Arena",
     "project_url": "https://github.com/ioquake/ioq3",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ioquake/ioq3",
+    "setup_url": "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md",
     "artwork": {
       "game_id": 6634,
       "cover_id": 91490,
@@ -17,7 +17,32 @@
       "game_slug": "quake-iii-team-arena",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2702
+    "issue_number": 2702,
+    "release_url": "https://ioquake3.org/get-it/",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original game",
+          "instruction": "Use your own Quake III Arena baseq3/pak0.pk3 and the matching official patch PK3s (pak1 through pak8). Team Arena additionally requires your own missionpack/pak0.pk3 and matching missionpack patch files; Arena alone is not the expansion. Preserve the original installation; prepare a separate working data copy."
+        },
+        {
+          "title": "Prepare upstream and select the player",
+          "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 and missionpack as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. Select the expansion with three separate argument lines: +set, fs_game, missionpack. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
+        },
+        {
+          "title": "Preserve the actual player data",
+          "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+        }
+      ],
+      "warnings": [
+        "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
+      ],
+      "help_url": "https://ioquake3.org/help/players-guide/"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -4,6 +4,8 @@ export type InvocationContext = {
   target: { kind: "port" | "source" | "library" | "application"; id: string; label: string };
   libraryGeneration: number;
   exclusionScope: "target" | "library" | "application";
+  /** Permanently bounded API contracts; event phase strings never grant compatibility. */
+  operation?: "acquire_game_update" | "launch" | undefined;
   /** Only an identity supplied by an owned API/record, never inferred from events. */
   activityId?: string;
 };
@@ -22,7 +24,14 @@ function invocationContextsConflict(left: InvocationContext, right: InvocationCo
   if (left.exclusionScope === "application" || right.exclusionScope === "application") return true;
   if (left.libraryGeneration !== right.libraryGeneration) return false;
   if (left.exclusionScope === "library" || right.exclusionScope === "library") return true;
-  return left.target.kind === right.target.kind && left.target.id === right.target.id;
+  if (left.target.kind !== right.target.kind || left.target.id !== right.target.id) return false;
+  if (
+    left.target.kind === "port" &&
+    ((left.operation === "acquire_game_update" && right.operation === "launch") ||
+      (right.operation === "acquire_game_update" && left.operation === "launch"))
+  )
+    return false;
+  return true;
 }
 
 export function pendingInvocationConflict(

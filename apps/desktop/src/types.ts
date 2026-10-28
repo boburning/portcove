@@ -4,6 +4,8 @@ import type { PortStatus } from "./transport-types.generated";
 import type * as Generated from "./transport-types.generated";
 
 export type { ReleaseChannel } from "./transport-types.generated";
+export type { OriginalGameIdentity } from "./transport-types.generated";
+export type { CatalogMediaAsset } from "./transport-types.generated";
 
 export type { UpdatePolicy } from "./transport-types.generated";
 
@@ -36,6 +38,8 @@ export type CapabilityDocument = Generated.TransportOutputs["capabilities"];
 export type DefinitionCapabilityReport = Generated.TransportOutputs["definition_capability_report"];
 export type DefinitionCapabilityRequest = Requests.TransportInputs["definition_capability_request"];
 export type LibraryIdentity = Generated.TransportOutputs["library_identity"];
+export type LibraryOrganization = Generated.TransportOutputs["desktop_library_organization"];
+export type OrganizationChange = Requests.TransportInputs["desktop_organization_change"];
 export type ArtworkState = Generated.TransportOutputs["artwork_state"];
 export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
 export type ArtworkSlot = ArtworkState["choice"]["slot"];
@@ -45,6 +49,7 @@ export type { InstallRecord } from "./transport-types.generated";
 export type PreparationPlan = Generated.TransportOutputs["preparation_plan"];
 export type PreparationCleanupPreview = Generated.TransportOutputs["preparation_cleanup_preview"];
 export type GameUpdatePlan = Generated.TransportOutputs["game_update_plan"];
+export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
 
 export type { SourceHealth } from "./transport-types.generated";
 

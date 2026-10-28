@@ -7,6 +7,7 @@ import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
+export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
 export const controllerToolEntries = Object.freeze([
@@ -23,6 +24,7 @@ export const controllerToolEntries = Object.freeze([
   "release-controller-job",
   "release-hosted-native-runner",
   "release-hosted-native-worker",
+  "release-hosted-native-windows-source",
   "release-native-keyless-assembly",
 ] as const);
 /** These child entry paths are part of the existing driver's/supervisor's ABI. */
@@ -74,6 +76,18 @@ const windowsAssets = Object.freeze([
   "release/package-policy.json",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+  "scripts/release-hosted-native-windows-setup.ps1",
+  "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/release-hosted-native-windows-audit.cs.txt",
+  "scripts/native-qualification-account.cs.txt",
+  "scripts/native-qualification-account-bridge.ps1",
+  "scripts/native-qualification-account-client.ps1",
+  "scripts/native-qualification-runtime-observation.psm1",
+  "scripts/release-hosted-native-windows-owner.ps1",
+  "scripts/release-hosted-native-windows-recovery.ps1",
+  "scripts/native-qualification-account-registry.ps1",
+  "scripts/fixtures/native-account-gui-probe.ps1",
+  "scripts/windows-webview-driver-policy.psm1",
 ] as const);
 const windowsPaths = Object.freeze(
   [
@@ -82,6 +96,11 @@ const windowsPaths = Object.freeze(
     "bin/portcove-release-tools.exe",
     "bin/tauri-addon.node",
     "bin/tauri-driver.exe",
+    "bin/msedgedriver.exe",
+    "webview-driver.json",
+    "webview-driver-license.txt",
+    "webview-driver-eula.txt",
+    "webview-driver-notices.html",
     "bin/pnpm.exe",
     "pnpm-license.txt",
     "pnpm-notices.txt",
@@ -105,7 +124,11 @@ export function controllerToolPlatformProfile(platform: ControllerToolPlatform) 
   });
 }
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-export async function readControllerToolFile(filename: string, maximum = 128 * 1024 ** 2) {
+export async function readControllerToolFile(
+  filename: string,
+  maximum = 128 * 1024 ** 2,
+  expected?: { dev: number; ino: number; uid: number; nlink: number },
+) {
   const file = await open(
     filename,
     constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
@@ -114,6 +137,17 @@ export async function readControllerToolFile(filename: string, maximum = 128 * 1
     const before = await file.stat();
     if (!before.isFile() || before.size < 1 || before.size > maximum)
       throw new Error("tool file exceeds regular-file bound");
+    const identityFields = ["dev", "ino", "uid", "nlink"] as const;
+    if (
+      expected &&
+      identityFields.some(
+        (key) =>
+          !Number.isSafeInteger(expected[key]) ||
+          !Number.isSafeInteger(before[key]) ||
+          before[key] !== expected[key],
+      )
+    )
+      throw new Error("tool file held identity differs");
     const output = Buffer.alloc(before.size + 1);
     let length = 0;
     while (length < output.length) {
@@ -131,6 +165,13 @@ export async function readControllerToolFile(filename: string, maximum = 128 * 1
       before.ctimeMs !== after.ctimeMs
     )
       throw new Error("tool file changed during acquisition");
+    if (
+      expected &&
+      identityFields.some(
+        (key) => !Number.isSafeInteger(after[key]) || after[key] !== expected[key],
+      )
+    )
+      throw new Error("tool file held identity changed");
     return output.subarray(0, length);
   } finally {
     await file.close();

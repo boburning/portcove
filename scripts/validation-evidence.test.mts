@@ -204,6 +204,7 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
   const cases: [string, ValidationDomain[]][] = [
     ...[
       "scripts/node-platform-skips.mts",
+      "apps/desktop/src/browser/failure-probe-contract.ts",
       "scripts/node-test-suites.mts",
       "scripts/node-test-suites.json",
     ].map((file): [string, ValidationDomain[]] => [
@@ -234,10 +235,27 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
         "release",
       ],
     ],
+    ...["scripts/standalone-rust-tests.mts", "scripts/development-evidence.mts"].map(
+      (file): [string, ValidationDomain[]] => [
+        file,
+        [
+          "repository",
+          "development",
+          "roadmap",
+          "format",
+          "ui",
+          "rust",
+          "rscheck",
+          "lint",
+          "release",
+        ],
+      ],
+    ),
     ["scripts/unclassified-helper.mts", ["development", "release", "repository"]],
     ["scripts/retained-package.mts", ["development", "release"]],
     ["scripts/retained-evidence.mts", ["development", "release"]],
     ["scripts/native-helper-dependencies.mts", ["development", "repository"]],
+    ["scripts/nextest-skip-routes.mts", ["rust"]],
     ["scripts/github-api.mts", ["repository", "roadmap", "development", "release"]],
     ["scripts/runtime-values.mts", ["development", "release", "repository", "roadmap"]],
     ["scripts/release-semantic-reader-core.mts", ["release"]],
@@ -295,7 +313,10 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
 void test("default nextest inventory retention dependencies invalidate Rust receipts", () => {
   for (const file of [
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-skip-routes.mts",
     "scripts/nextest-outcomes-cli.mts",
+    "scripts/standalone-rust-tests.mts",
+    "scripts/development-evidence.mts",
     "scripts/report-summary.mts",
     "scripts/bounded-summary.mts",
     "scripts/fallow-summary.mts",

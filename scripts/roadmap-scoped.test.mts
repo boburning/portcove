@@ -6,7 +6,22 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
-import { RoadmapClient, executeSetMany, validateConfig } from "./roadmap.mts";
+import {
+  RoadmapClient,
+  executeSetMany,
+  validateConfig,
+  executionSnapshot as cliSnapshot,
+  analyzeReleaseReadiness as cliReadiness,
+  dependencyCycles as cliCycles,
+  fieldValue as cliField,
+  repositoryStatusConflict as cliStatus,
+  validatePortIssueCoverage as cliCoverage,
+  validatePortStageSemantics as cliStages,
+} from "./roadmap.mts";
+import { executionSnapshot } from "./roadmap-execution.mts";
+import { analyzeReleaseReadiness, dependencyCycles } from "./roadmap-readiness.mts";
+import { fieldValue, repositoryStatusConflict } from "./roadmap-issue.mts";
+import { validatePortIssueCoverage, validatePortStageSemantics } from "./roadmap-qualification.mts";
 import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import { InventoryError, retryableInventoryRead } from "./repository-issue-inventory.mts";
 import {
@@ -516,18 +531,21 @@ void test("scoped concurrent edits invalidate success and invalid requests make 
     /changed during validation/,
   );
   const invalid = fixture();
-  for (const issues of [[], [0], [1.5], Array.from({ length: 101 }, (_, i) => i + 1)])
-    await assert.rejects(runScopedDoctor(config, invalid.client, { issues }), /1 to 100/);
+  for (const issues of [[], [0], [1.5]])
+    await assert.rejects(
+      runScopedDoctor(config, invalid.client, { issues }),
+      /positive issue numbers/,
+    );
   assert.equal(invalid.queries.length, 0);
 });
 
-void test("full doctor selection is explicit for material batches and release planning", () => {
+void test("only release planning changes select full doctor independently of batch count", () => {
   const changes = Array.from({ length: 10 }, (_, i) => ({
     target: `#${i + 1}`,
     fieldName: "Priority",
   }));
   assert.equal(roadmapCheckScope(changes), "issues");
-  assert.equal(roadmapCheckScope([...changes, { target: "#11", fieldName: "Status" }]), "global");
+  assert.equal(roadmapCheckScope([...changes, { target: "#11", fieldName: "Status" }]), "issues");
   for (const fieldName of ["Target release", "Release commitment"])
     assert.equal(roadmapCheckScope([{ target: "#1", fieldName }]), "global");
 });
@@ -581,26 +599,33 @@ void test("issue events and explicit requests select scoped checks; substantial 
   );
 });
 
-void test("extracted Roadmap issue policy still triggers and selects a global health check", () => {
-  const leaf = "scripts/roadmap-issue.mts";
-  const workflow: unknown = parseDocument(
-    readFileSync(new URL("../.github/workflows/roadmap-health.yml", import.meta.url), "utf8"),
-    { uniqueKeys: true },
-  ).toJS();
-  assert.ok(isRecord(workflow) && isRecord(workflow.on) && isRecord(workflow.on.push));
-  assert.ok(Array.isArray(workflow.on.push.paths) && workflow.on.push.paths.includes(leaf));
-  assert.deepEqual(
-    selectRoadmapHealth(
-      "push",
-      {
-        before: "a".repeat(40),
-        after: "b".repeat(40),
-      },
-      (revision, file) =>
-        file === leaf ? revision : file.endsWith("catalog.json") ? '{"ports":[]}' : "same",
-    ),
-    { mode: "global" },
-  );
+void test("extracted Roadmap policy still triggers and selects a global health check", () => {
+  for (const leaf of [
+    "scripts/roadmap-issue.mts",
+    "scripts/roadmap-qualification.mts",
+    "scripts/roadmap-execution.mts",
+    "scripts/roadmap-readiness.mts",
+    "scripts/runtime-values.mts",
+  ]) {
+    const workflow: unknown = parseDocument(
+      readFileSync(new URL("../.github/workflows/roadmap-health.yml", import.meta.url), "utf8"),
+      { uniqueKeys: true },
+    ).toJS();
+    assert.ok(isRecord(workflow) && isRecord(workflow.on) && isRecord(workflow.on.push));
+    assert.ok(Array.isArray(workflow.on.push.paths) && workflow.on.push.paths.includes(leaf));
+    assert.deepEqual(
+      selectRoadmapHealth(
+        "push",
+        {
+          before: "a".repeat(40),
+          after: "b".repeat(40),
+        },
+        (revision, file) =>
+          file === leaf ? revision : file.endsWith("catalog.json") ? '{"ports":[]}' : "same",
+      ),
+      { mode: "global" },
+    );
+  }
 });
 
 void test("diagnostic reporting is quiet on unchanged repeats and scoped success cannot clear global failure", () => {
@@ -926,4 +951,94 @@ void test("actual unattended entrypoint retains missing-credential diagnostics w
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
+});
+
+void test("CLI compatibility exports bind directly to the policy owners", () => {
+  for (const [compatibility, owner] of [
+    [cliSnapshot, executionSnapshot],
+    [cliReadiness, analyzeReleaseReadiness],
+    [cliCycles, dependencyCycles],
+    [cliField, fieldValue],
+    [cliStatus, repositoryStatusConflict],
+    [cliCoverage, validatePortIssueCoverage],
+    [cliStages, validatePortStageSemantics],
+  ])
+    assert.equal(compatibility, owner);
+});
+
+void test("loading scoped evaluation does not initialize the Roadmap CLI", () => {
+  const cli = new URL("./roadmap.mts", import.meta.url).href;
+  const scoped = new URL("./roadmap-scoped.mts", import.meta.url).href;
+  // A fresh loader observes real imports; this process has already loaded the CLI.
+  const source = `
+    import { registerHooks } from "node:module";
+    registerHooks({ resolve(specifier, context, next) {
+      const found = next(specifier, context);
+      if (found.url === ${JSON.stringify(cli)}) throw new Error("Scoped policy initialized the CLI");
+      return found;
+    }});
+    await import(${JSON.stringify(scoped)});
+    console.log("scoped policy loaded");
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", source], {
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "scoped policy loaded");
+});
+
+void test("scoped checks cover 127 requested records and more than 100 direct related records without a global inventory", async () => {
+  for (const related of [false, true]) {
+    const f = fixture(),
+      read = f.client.executionIssue.bind(f.client);
+    f.client.executionIssue = (number) => {
+      f.issue.number = number;
+      f.issue.id = `I${number}`;
+      f.issue.url = `https://github.com/${config.repository}/issues/${number}`;
+      const result = read(number);
+      result.item.id = `PVTI${number}`;
+      if (related && number === 1)
+        result.relationships.blocking = Array.from({ length: 126 }, (_, i) => ({
+          id: `I${i + 2}`,
+          number: i + 2,
+          url: `https://github.com/${config.repository}/issues/${i + 2}`,
+          state: "OPEN",
+          title: `Task ${i + 2}`,
+        }));
+      return result;
+    };
+    const result = await runScopedDoctor(config, f.client, {
+      issues: related ? [1] : Array.from({ length: 127 }, (_, i) => i + 1),
+      catalog: { ports: [] },
+    });
+    assert.equal(result.coverage, "complete");
+    assert.equal(result.global_health, "not_evaluated");
+    assert.equal(result.scope.checked_issues.length, 127);
+    assert.equal(f.mutations(), 0);
+  }
+});
+void test("oversized aggregate scoped evidence refuses honestly while a smaller scope remains usable", async () => {
+  const f = fixture(),
+    read = f.client.executionIssue.bind(f.client);
+  f.issue.body = "Evidence " + "x".repeat(512 * 1024);
+  f.client.executionIssue = (number) => {
+    f.issue.number = number;
+    f.issue.id = `I${number}`;
+    f.issue.url = `https://github.com/${config.repository}/issues/${number}`;
+    const result = read(number);
+    result.item.id = `PVTI${number}`;
+    return result;
+  };
+  await assert.rejects(
+    runScopedDoctor(config, f.client, {
+      issues: Array.from({ length: 127 }, (_, i) => i + 1),
+      catalog: { ports: [] },
+    }),
+    /bounded physical envelope/u,
+  );
+  f.issue.body = "Explicit finite work";
+  const smaller = await runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } });
+  assert.equal(smaller.coverage, "complete");
+  assert.equal(smaller.global_health, "not_evaluated");
 });

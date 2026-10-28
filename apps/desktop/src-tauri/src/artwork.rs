@@ -270,6 +270,24 @@ pub(crate) async fn get_artwork_thumbnail(
 }
 
 #[tauri::command]
+pub(crate) async fn get_catalog_media_thumbnail(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    media_id: String,
+    expected_sha256: String,
+    generation: u64,
+) -> DesktopResult<DesktopArtworkThumbnail> {
+    let state = state.inner().clone();
+    thumbnail_worker(remote_thumbnail_workers(), true, move || {
+        service_at_generation(&state, generation)?
+            .catalog_media_thumbnail(&port_id, &media_id, &expected_sha256)
+            .map(display_thumbnail)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn import_artwork(
     state: tauri::State<'_, DesktopState>,
     port_id: String,

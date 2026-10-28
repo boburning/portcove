@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { isMap, parseDocument } from "yaml";
+import { isMap, parseDocument, stringify } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 
 // Read-only source fixtures shared by workflow policy contracts; no test registration.
@@ -8,20 +8,40 @@ export function requiredFixture<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined, "expected fixture or source section is missing");
   return value;
 }
-export const workflow = await readFile(
-  new URL("../.github/workflows/ci.yml", import.meta.url),
-  "utf8",
+export function workflowSource(source: string) {
+  const document = parseDocument(source, { uniqueKeys: true });
+  assert.equal(document.errors.length, 0, "workflow YAML must parse without errors");
+  return stringify(document.toJS(), { sortMapEntries: true, lineWidth: 0 });
+}
+export async function readWorkflow(file: URL) {
+  return workflowSource(await readFile(file, "utf8"));
+}
+export const workflow = workflowSource(
+  await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
 );
 
-export function workflowJob(job: string) {
-  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+function parseWorkflow(source: string) {
+  const document = parseDocument(source, { uniqueKeys: true });
+  assert.equal(document.errors.length, 0, "workflow YAML must parse without errors");
+  assert.ok(isMap(document.get("jobs", true)), "workflow jobs must be a mapping");
+  return document;
+}
+const workflowDocument = parseWorkflow(workflow);
+const workflowSettings: unknown = workflowDocument.toJS();
+
+export function workflowJob(job: string, source = workflow) {
+  const settings: unknown = source === workflow ? workflowSettings : parseWorkflow(source).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.jobs));
   const owner = settings.jobs[job];
   assert.ok(isRecord(owner) && Array.isArray(owner.steps));
-  return owner;
+  return structuredClone(owner);
 }
-export function workflowStep(job: string, name: string) {
-  const owner = workflowJob(job);
+export function workflowStep(
+  job: string,
+  name: string,
+  source = workflow,
+): Record<string, unknown> & { run: string } {
+  const owner = workflowJob(job, source);
   assert.ok(Array.isArray(owner.steps));
   const steps: unknown[] = owner.steps;
   const step = steps.find((value) => isRecord(value) && value.name === name);
@@ -50,14 +70,18 @@ export function assertNoDuplicateRustSetup(job: unknown) {
   }
 }
 
-export const qualificationWorkflow = await readFile(
-  new URL("../.github/workflows/qualification.yml", import.meta.url),
-  "utf8",
+export const qualificationWorkflow = workflowSource(
+  await readFile(new URL("../.github/workflows/qualification.yml", import.meta.url), "utf8"),
 );
-export const nativeDesignCompatibilityWorkflow = await readFile(
-  new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
-  "utf8",
+export const nativeDesignCompatibilityWorkflow = workflowSource(
+  await readFile(
+    new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+    "utf8",
+  ),
 );
+
+const qualificationDocument = parseWorkflow(qualificationWorkflow);
+const nativeCompatibilityDocument = parseWorkflow(nativeDesignCompatibilityWorkflow);
 
 export const nativeCompatibilityRunner = await readFile(
   new URL("../apps/desktop/test/native-compatibility.mts", import.meta.url),
@@ -76,9 +100,20 @@ export const windowsQualificationRunner = await readFile(
 );
 
 export function workflowJobSource(source: string, name: string) {
-  const document = parseDocument(source, { uniqueKeys: true });
-  assert.equal(document.errors.length, 0, "workflow YAML must parse without errors");
-  assert.ok(isMap(document.get("jobs", true)), "workflow jobs must be a mapping");
+  if (
+    source !== workflow &&
+    source !== qualificationWorkflow &&
+    source !== nativeDesignCompatibilityWorkflow
+  )
+    source = workflowSource(source);
+  const document =
+    source === workflow
+      ? workflowDocument
+      : source === qualificationWorkflow
+        ? qualificationDocument
+        : source === nativeDesignCompatibilityWorkflow
+          ? nativeCompatibilityDocument
+          : parseWorkflow(source);
   const job = document.getIn(["jobs", name], true);
   if (job === undefined) return "";
   assert.ok(isMap(job) && job.range, `workflow job must be a mapping: ${name}`);

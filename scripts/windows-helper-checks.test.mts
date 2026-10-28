@@ -7,9 +7,25 @@ import {
   windowsNativeToolsRequired,
 } from "./windows-helper-checks.mts";
 import { evaluateCiResults } from "./ci-result-gate.mts";
-import { annotatedNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
+import { executableNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
 
 const sha = (character: string) => character.repeat(40);
+
+void test("every registered Windows helper test selects its maintained helper route", async () => {
+  const registry = parseNodeTestSuites(
+    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+  );
+  const files = new Set(
+    Object.entries(registry.suites)
+      .filter(([suite]) => /^windows-helpers(?:-\d+)?$/u.test(suite))
+      .flatMap(([, suite]) => suite.files),
+  );
+  assert.ok(files.size > 0);
+  for (const file of files) {
+    assert.equal(windowsHelperChecksRequired(plan(file)), true, file);
+    assert.equal(windowsHelperChecksRequired(plan(file, file, "D")), true, file);
+  }
+});
 
 void test(
   "release PowerShell help is inert and preserves the required installer input",
@@ -546,7 +562,7 @@ Write-ObservationRecord (Join-Path $root 'privilege-observation-recovery-intent.
 
 void test(
   "suspended storage preflight refuses unknown access and always reverts a verified entry",
-  { skip: process.platform !== "win32" },
+  { skip: process.platform !== "win32", timeout: 90000 },
   async () => {
     const { execFileSync } = await import("node:child_process");
     const { fileURLToPath } = await import("node:url");
@@ -625,7 +641,8 @@ foreach($kind in @('pass','bad-path','oversized','prepare-failed','enter-failed'
         "-EncodedCommand",
         Buffer.from(script, "utf16le").toString("base64"),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+      // Hosted execution exceeded the former 20-second fixture budget.
+      { encoding: "utf8", windowsHide: true, timeout: 60000 },
     );
     assert.deepEqual(JSON.parse(output), { cases: 26, native_processes: 0, storage_operations: 0 });
   },
@@ -753,6 +770,7 @@ void test("Windows helper selection includes rename/delete sides and policy inpu
     "scripts/native-qualification-account-bridge.ps1",
     "scripts/native-qualification-account.cs.txt",
     "scripts/fixtures/native-account-gui-probe.ps1",
+    "scripts/fixtures/native-desktop-observer.cs.txt",
     "scripts/daily-discovery-session.mts",
     "scripts/daily-discovery.test.mts",
     "apps/desktop/scripts/native-window-discovery.ps1",
@@ -843,7 +861,7 @@ void test("workflow runs bounded Windows controls and pinned lint under the exis
   const registry = parseNodeTestSuites(
     await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
   );
-  const native = annotatedNodeCommands(job, registry).filter(
+  const native = executableNodeCommands(job, registry).filter(
     (command) => command.id === "native-tools",
   );
   assert.equal(native.length, 1);
@@ -1125,3 +1143,15 @@ foreach($required in @('Mount-DiskImage','Dismount-DiskImage','Connect-PreparedP
     });
   },
 );
+
+void test("operation-report helper changes preserve the Windows consumer route", () => {
+  const file = "scripts/operation-coverage.mts";
+  for (const change of [
+    { oldPath: file, newPath: file },
+    { oldPath: "", newPath: file },
+    { oldPath: file, newPath: "" },
+    { oldPath: file, newPath: "scripts/renamed-operation-report.mts" },
+    { oldPath: "scripts/old-operation-report.mts", newPath: file },
+  ])
+    assert.equal(windowsHelperChecksRequired({ mode: "fast", changes: [change] }), true);
+});

@@ -3,12 +3,12 @@
   "listing": {
     "id": "conker64-recompiled",
     "name": "Conker64: Recompiled",
-    "summary": "Explore Conker64: Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Follow Conker64’s scene prototype and preserve an already registered development copy.",
     "project_url": "https://github.com/Conker64Recomp/conker64-recompiled",
     "issue_number": 123,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md",
     "artwork": {
       "game_id": 1286,
       "cover_id": 86478,
@@ -16,6 +16,24 @@
       "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
       "game_slug": "conker-s-bad-fur-day",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/Conker64Recomp/conker64-recompiled/releases",
+    "original_game_title": "Conker's Bad Fur Day",
+    "recommended_download_channel": "beta",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Understand this scene prototype",
+          "instruction": "The published v0.1.0-beta package is the previously reviewed scene-only Conker.exe and SDL2.dll copy. It does not run the game’s recompiled logic or levels, and its package does not contain the source extraction tools. It remains on the existing useful-output hold; this guide offers no new qualified player or registration route."
+        },
+        {
+          "title": "Preserve an already registered copy",
+          "instruction": "Keep any already registered, permitted development copy, its complete folder and your own original ROM under its existing contract. Upstream identifies the Windows EEPROM location as %APPDATA%\\ConkerRecompiled\\Saves\\conker.eep. Preserve all actual settings, generated files and data before changing the copy. You or upstream own updates; Portcove does not replace, back up, roll back or delete external files."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
+    },
+    "download_block_reason": "The existing v0.1.0-beta release is a scene prototype without runnable game logic or levels; it is the same artifact covered by this port’s owner-approved useful-output hold. Reconsider fresh setup when upstream supplies a useful game runtime or a separately evidenced useful operation. Already registered permitted development copies retain their contracts."
   }
 }

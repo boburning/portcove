@@ -799,7 +799,7 @@ export function inspectControllerKeyProcess(raw: string) {
   if (!/^[A-Za-z]$/u.test(fields[0]!)) throw new Error("owned key process state unavailable");
   return { start_ticks: fields[19]!, state: fields[0]! };
 }
-async function linuxProcessStart(pid: number) {
+export async function observeLinuxControllerProcessStart(pid: number) {
   if (process.platform !== "linux" || !Number.isSafeInteger(pid) || pid < 1)
     throw new Error("owned Linux key client required");
   try {
@@ -814,7 +814,7 @@ async function linuxProcessStart(pid: number) {
     }
     return inspectControllerKeyProcess(Buffer.concat(chunks).toString("utf8"));
   } catch (error) {
-    if (isRecord(error) && error.code === "ENOENT") return null;
+    if (isRecord(error) && (error.code === "ENOENT" || error.code === "ESRCH")) return null;
     throw error;
   }
 }
@@ -884,7 +884,7 @@ async function keyClientWorker(root: string, phase: Phase, slot: number, deadlin
         JSON.stringify({ slot, role: event.name })
     )
       throw new Error("fixed key client intent differs");
-    const start = await linuxProcessStart(process.pid);
+    const start = await observeLinuxControllerProcessStart(process.pid);
     if (!start) throw new Error("owned key client disappeared");
     await retain(filename(root, phase, "key-client-identity"), {
       pid: process.pid,
@@ -948,7 +948,7 @@ export async function finishControllerKeyClient(root: string, phase: Phase, dead
         !/^[1-9][0-9]*$/u.test(identity.start_ticks)
       )
         throw new Error("owned key client identity changed");
-      const current = await linuxProcessStart(started.pid);
+      const current = await observeLinuxControllerProcessStart(started.pid);
       if (current === null || current.start_ticks !== identity.start_ticks || current.state === "Z")
         return;
     }

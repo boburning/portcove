@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+  symlinkSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mts";
@@ -34,7 +42,7 @@ function requiredFixture<T>(value: T | undefined): T {
 }
 
 void test("quality-tool help is inert with no manifest or external tools", (t) => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-quality-help-"));
+  const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-quality-help-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "scripts"));
   for (const file of ["quality-tools.mts", "runtime-values.mts"])
@@ -81,8 +89,40 @@ void test("quality manifest diagnostics retain the invalid field and tool identi
   );
 });
 
+void test("quality CLI canonicalizes both entry paths while imported tools remain inert", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-quality-entry-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const scripts = path.join(root, "scripts");
+  mkdirSync(scripts);
+  for (const file of ["quality-tools.mts", "runtime-values.mts"])
+    copyFileSync(new URL(file, import.meta.url), path.join(scripts, file));
+  const alias = path.join(root, "aliased-scripts");
+  symlinkSync(scripts, alias, process.platform === "win32" ? "junction" : "dir");
+  const result = spawnSync(
+    process.execPath,
+    ["--preserve-symlinks-main", path.join(alias, "quality-tools.mts"), "--help"],
+    { encoding: "utf8", timeout: 5000, env: { ...process.env, PATH: "" }, cwd: root },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Usage:/u);
+  assert.equal(result.stderr, "");
+  const imported = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      "await import(" +
+        JSON.stringify(pathToFileURL(path.join(scripts, "quality-tools.mts")).href) +
+        ");console.log('IMPORTED');",
+    ],
+    { encoding: "utf8", timeout: 5000, env: { ...process.env, PATH: "" }, cwd: root },
+  );
+  assert.equal(imported.status, 0, imported.stderr);
+  assert.equal(imported.stdout, "IMPORTED\n");
+});
+
 void test("quality-tool CLI preserves machine output and diagnoses unknown, failed and mismatched tools", (t) => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-quality-cli-"));
+  const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-quality-cli-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "scripts"));
   mkdirSync(path.join(root, ".github"));
@@ -136,27 +176,54 @@ void test(
   "POSIX bootstrap preserves the failed installer status and identifies the command",
   { skip: process.platform === "win32" },
   async () => {
-    const source = await readFile(new URL("./bootstrap-quality-tools.sh", import.meta.url), "utf8");
-    const start = source.indexOf("reported_version() {");
-    const end = source.indexOf('for tool in "${required_tools[@]}";');
-    assert.ok(start > 0 && end > start);
-    const installFunctions = source.slice(start, end);
-    for (const prebuilt of [false, true]) {
-      const command = `set -euo pipefail\n${installFunctions}\nhas_exact_version() { return 1; }\ncargo() { return 23; }\n${prebuilt ? "cargo-binstall() { :; }" : ""}\ninstall_tool 'fixture-tool|1.2.3|fixture-tool --version'`;
-      const result = spawnSync("/bin/bash", ["-c", command], {
-        encoding: "utf8",
-        timeout: 5000,
-        env: { ...process.env, PATH: "" },
-      });
-      assert.equal(result.status, 23, result.stderr);
-      assert.match(result.stderr, /Could not install fixture-tool 1\.2\.3:/u);
-      assert.match(
-        result.stderr,
-        prebuilt
-          ? /cargo binstall failed with exit code 23/u
-          : /cargo install failed with exit code 23/u,
-      );
-      assert.doesNotMatch(result.stdout, /Installed|ready/u);
+    const root = mkdtempSync(path.join(os.tmpdir(), "quality-bootstrap-status-"));
+    const bootstrap = fileURLToPath(new URL("./bootstrap-quality-tools.sh", import.meta.url));
+    const driver = path.join(root, "driver.sh");
+    writeFileSync(
+      driver,
+      `set -euo pipefail
+source "$1"
+[[ "$(builtin type -t cargo)" == file && "$(builtin type -P cargo)" == "$2/cargo" ]] || exit 96
+install_tool 'fixture-tool|1.2.3|fixture-tool --version'
+`,
+    );
+    try {
+      for (const prebuilt of [false, true]) {
+        const bin = path.join(root, prebuilt ? "prebuilt" : "source");
+        mkdirSync(bin);
+        const attempted = path.join(root, prebuilt ? "prebuilt-args" : "source-args");
+        writeFileSync(
+          path.join(bin, "cargo"),
+          '#!/bin/bash\nprintf \'%s\\0\' "$@" > "$PCV_TEST_CARGO_ARGS"\nexit 23\n',
+          { mode: 0o755 },
+        );
+        if (prebuilt)
+          writeFileSync(path.join(bin, "cargo-binstall"), "#!/bin/bash\nexit 0\n", { mode: 0o755 });
+        const result = spawnSync("/bin/bash", [driver, bootstrap, bin], {
+          cwd: root,
+          encoding: "utf8",
+          timeout: 5000,
+          env: { ...process.env, PATH: bin, PCV_TEST_CARGO_ARGS: attempted },
+        });
+        assert.ifError(result.error);
+        assert.equal(result.status, 23, result.stderr);
+        assert.deepEqual(
+          (await readFile(attempted, "utf8")).split("\0").filter(Boolean),
+          prebuilt
+            ? ["binstall", "--no-confirm", "--locked", "fixture-tool@1.2.3"]
+            : ["install", "--locked", "--version", "1.2.3", "fixture-tool"],
+        );
+        assert.match(result.stderr, /Could not install fixture-tool 1\.2\.3:/u);
+        assert.match(
+          result.stderr,
+          prebuilt
+            ? /cargo binstall failed with exit code 23/u
+            : /cargo install failed with exit code 23/u,
+        );
+        assert.doesNotMatch(result.stdout, /Installed|ready/u);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   },
 );
@@ -397,10 +464,12 @@ void test("bootstrap pins use verified official Windows download origins", () =>
 
 void test("EdgeDriver callers share a signature-first version boundary", async () => {
   const source = await readFile(new URL("./bootstrap-quality-tools.ps1", import.meta.url), "utf8");
-  const helper = source.slice(
-    source.indexOf("function Test-VerifiedEdgeDriver"),
-    source.indexOf("function Install-DesktopTools"),
+  const policy = await readFile(
+    new URL("./windows-webview-driver-policy.psm1", import.meta.url),
+    "utf8",
   );
+  const helper = policy.slice(policy.indexOf("function Test-VerifiedEdgeDriver"));
+  assert.match(source, /Import-Module .*windows-webview-driver-policy\.psm1/u);
   assert.ok(helper.indexOf("Get-AuthenticodeSignature") < helper.indexOf("Test-ReportedVersion"));
   assert.match(helper, /Status -ne "Valid"/u);
   assert.match(helper, /Subject -notmatch "Microsoft Corporation"/u);
@@ -465,7 +534,12 @@ try {
 
 void test(
   "bootstrap retires only recognized legacy runtime shims without changing provider or quality tools",
-  { skip: spawnSync("pwsh", ["--version"], { timeout: 5_000 }).status !== 0 },
+  {
+    skip:
+      spawnSync("pwsh", ["--version"], { timeout: 5_000 }).status !== 0
+        ? "PowerShell executable unavailable"
+        : false,
+  },
   () => {
     const source = fileURLToPath(new URL("./bootstrap-quality-tools.ps1", import.meta.url));
     const command = String.raw`
@@ -544,8 +618,11 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $errors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_EDGE_FIXTURE_SOURCE, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw ($errors | Out-String) }
+$policyAst = [System.Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_EDGE_FIXTURE_POLICY, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
 foreach ($name in @('Assert-UnderRoot','Test-VerifiedEdgeDriver','Install-DesktopTools')) {
-    $definition = @($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true))
+    $selectedAst = if ($name -eq 'Test-VerifiedEdgeDriver') {$policyAst} else {$ast}
+    $definition = @($selectedAst.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true))
     if ($definition.Count -ne 1) { throw "Expected one production function $name" }
     . ([scriptblock]::Create($definition[0].Extent.Text))
 }
@@ -626,7 +703,13 @@ $results | ConvertTo-Json -Depth 6 -Compress
       encoding: "utf8",
       windowsHide: true,
       timeout: 18_000,
-      env: { ...process.env, PORTCOVE_EDGE_FIXTURE_SOURCE: script },
+      env: {
+        ...process.env,
+        PORTCOVE_EDGE_FIXTURE_SOURCE: script,
+        PORTCOVE_EDGE_FIXTURE_POLICY: fileURLToPath(
+          new URL("./windows-webview-driver-policy.psm1", import.meta.url),
+        ),
+      },
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const cases: unknown = JSON.parse(result.stdout);

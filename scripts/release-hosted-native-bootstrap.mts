@@ -2,8 +2,9 @@
  * clock records do not grant admission, proof custody or execution authority. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, realpath } from "node:fs/promises";
 import path from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
@@ -18,7 +19,12 @@ import {
   receiveControllerTools,
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
-import { controllerToolPaths, readControllerToolFile } from "./release-controller-tools.mts";
+import {
+  controllerToolPaths,
+  controllerToolPlatformProfile,
+  readControllerToolFile,
+  type ControllerToolPlatform,
+} from "./release-controller-tools.mts";
 import {
   inspectNativeRuntimeCustody,
   recheckNativeRuntimeCustody,
@@ -47,11 +53,19 @@ function exact(raw: unknown, keys: string): raw is Record<string, unknown> {
 
 /** Both operations run on the original native_linux job. Post-sign must reuse
  * the first operation's monotonic clock, never mint a new stage/job allowance. */
-export async function readActualHostedLinuxBootstrapScope(operation: unknown) {
+export function readActualHostedLinuxBootstrapScope(operation: unknown) {
+  return readBootstrapScope(operation, "linux-x86_64");
+}
+export function readActualHostedWindowsBootstrapScope(operation: unknown) {
+  return readBootstrapScope(operation, "windows-x86_64");
+}
+async function readBootstrapScope(operation: unknown, platform: ControllerToolPlatform) {
   assert.ok(operation === "pre-sign" || operation === "post-sign");
   const environment = { ...process.env };
   assertControllerBootstrapEnvironment(environment);
-  assert.equal(process.platform, "linux");
+  const windows = platform === "windows-x86_64";
+  const job = windows ? "native_windows" : "native_linux";
+  assert.equal(process.platform, windows ? "win32" : "linux");
   assert.equal(process.arch, "x64");
   assert.ok(environment.RUNNER_TEMP && path.isAbsolute(environment.RUNNER_TEMP));
   const temporary = environment.RUNNER_TEMP;
@@ -61,10 +75,10 @@ export async function readActualHostedLinuxBootstrapScope(operation: unknown) {
     environment.PORTCOVE_CONTROLLER_ADMISSION,
     environment,
     workflow,
-    "linux-x86_64",
+    platform,
     stage,
   );
-  requireAdmittedProductionSource(source, "native_linux", "application");
+  requireAdmittedProductionSource(source, job, "application");
   const selected = inspectBoundSelectedPublicationAuthorities(
     data(environment.PORTCOVE_RELEASE_AUTHORITIES, 32768),
     source,
@@ -81,6 +95,7 @@ export async function readActualHostedLinuxBootstrapScope(operation: unknown) {
     Buffer.from(
       JSON.stringify({
         identity,
+        ...(windows ? { platform, job } : {}),
         actor_id: source.actor_id,
         configuration: selected.configuration,
         workflow_sha256: digest(workflow),
@@ -91,23 +106,30 @@ export async function readActualHostedLinuxBootstrapScope(operation: unknown) {
     for (const [key, value] of Object.entries(environment))
       assert.equal(process.env[key], value, "native bootstrap environment changed");
     assertControllerBootstrapEnvironment();
-    requireAdmittedProductionSource(source, "native_linux", "application");
+    requireAdmittedProductionSource(source, job, "application");
   };
   const needs = data(environment.PORTCOVE_FIXED_NEEDS, 256 * 1024);
   assert.ok(isRecord(needs));
-  const bootstrap = needs.tool_bootstrap,
+  const bootstrap = windows ? needs.tool_bootstrap_windows : needs.tool_bootstrap,
     attest = needs.tool_attest;
   assert.ok(isRecord(bootstrap) && bootstrap.result === "success" && isRecord(bootstrap.outputs));
   assert.ok(isRecord(attest) && attest.result === "success" && isRecord(attest.outputs));
   const artifact = {
+    ...(windows ? { platform: "windows-x86_64" as const } : {}),
     ...identity,
     source_tree: hex(bootstrap.outputs.source_tree, 40),
     artifact_id: positive(bootstrap.outputs.artifact_id),
     sha256: hex(bootstrap.outputs.artifact_sha256),
   };
   const bundle = {
-    artifact_id: positive(attest.outputs.bundle_artifact_id),
-    sha256: hex(attest.outputs.bundle_artifact_sha256),
+    artifact_id: positive(
+      windows ? attest.outputs.windows_bundle_artifact_id : attest.outputs.bundle_artifact_id,
+    ),
+    sha256: hex(
+      windows
+        ? attest.outputs.windows_bundle_artifact_sha256
+        : attest.outputs.bundle_artifact_sha256,
+    ),
   };
   return Object.freeze({
     operation,
@@ -197,27 +219,13 @@ export async function launchFixedHostedLinuxNativeJob(rawOperation: unknown) {
   const root = path.join(temporary, `portcove-native-linux-${operation}`);
   await mkdir(root, { mode: 0o700 });
   active();
-  const receipt = await receiveControllerTools(root, artifact, bundle, { deadline });
-  active();
-  const tools = await verifiedControllerToolPaths(receipt);
-  active();
-  const custodyFiles = [
-    ...controllerToolPaths.map((name) => path.join(tools.root, name)),
-    path.join(tools.root, "manifest.json"),
-    process.execPath,
-  ];
-  const custody = inspectNativeRuntimeCustody(custodyFiles);
-  assert.equal(
-    digest(await readControllerToolFile(process.execPath)),
-    digest(await readControllerToolFile(tools.node)),
-    "actual native bootstrap Node differs from attested runtime",
+  const { receipt, tools, entry, custodyFiles, custody } = await materializeBootstrapRunner(
+    { workflow, artifact, bundle },
+    root,
+    deadline,
+    active,
+    "linux-x86_64",
   );
-  const entry = tools.entries["release-hosted-native-runner"];
-  assert.ok(typeof entry === "string");
-  await verifiedControllerToolPaths(receipt);
-  assert.ok((await readProductionControllerWorkflowBytes()).equals(workflow));
-  active();
-  recheckNativeRuntimeCustody(custodyFiles, custody);
   const worker = (await import(pathToFileURL(entry).href)) as {
     runConfiguredHostedLinuxNativeJob(
       this: void,
@@ -264,6 +272,258 @@ export async function launchFixedHostedLinuxNativeJob(rawOperation: unknown) {
   active();
   recheckNativeRuntimeCustody(custodyFiles, custody);
   return result;
+}
+
+async function materializeBootstrapRunner(
+  scope: Pick<Awaited<ReturnType<typeof readBootstrapScope>>, "workflow" | "artifact" | "bundle">,
+  root: string,
+  deadline: number,
+  active: () => void,
+  platform: ControllerToolPlatform,
+) {
+  const { workflow, artifact, bundle } = scope;
+  const receipt = await receiveControllerTools(root, artifact, bundle, { deadline });
+  active();
+  const tools = await verifiedControllerToolPaths(receipt);
+  if (platform === "windows-x86_64") assert.equal(tools.platform, platform);
+  active();
+  const custodyFiles = [
+    ...(platform === "linux-x86_64"
+      ? controllerToolPaths
+      : controllerToolPlatformProfile(platform).paths
+    ).map((name) => path.join(tools.root, name)),
+    path.join(tools.root, "manifest.json"),
+    process.execPath,
+  ];
+  const custody = inspectNativeRuntimeCustody(custodyFiles);
+  assert.equal(
+    digest(await readControllerToolFile(process.execPath)),
+    digest(await readControllerToolFile(tools.node)),
+    "actual native bootstrap Node differs from attested runtime",
+  );
+  const entry = tools.entries["release-hosted-native-runner"];
+  assert.ok(typeof entry === "string");
+  await verifiedControllerToolPaths(receipt);
+  assert.ok((await readProductionControllerWorkflowBytes()).equals(workflow));
+  active();
+  recheckNativeRuntimeCustody(custodyFiles, custody);
+  return { receipt, tools, entry, custodyFiles, custody };
+}
+
+/** Original hosted Windows preparation only. No account, candidate execution,
+ * capture, signature, upload or successful native settlement. */
+export async function prepareFixedHostedWindowsNativeRuntime() {
+  return runFixedHostedWindowsOperation("prepareConfiguredHostedWindowsRuntime");
+}
+
+export async function prepareFixedHostedWindowsNativeSource() {
+  const prepared = await runFixedHostedWindowsOperation("prepareConfiguredHostedWindowsSource");
+  assert.ok(prepared.source, "original Windows source receipt absent");
+  return prepared;
+}
+
+export async function prepareFixedHostedWindowsNativeInstallation() {
+  const prepared = await runFixedHostedWindowsOperation(
+    "prepareConfiguredHostedWindowsInstallation",
+  );
+  assert.ok(
+    prepared.source && prepared.dependencies && prepared.installation,
+    "original Windows installation receipts absent",
+  );
+  return prepared;
+}
+
+type WindowsPreparation = {
+  deadline: number;
+  tools: object;
+  parent: object;
+  runtime: object;
+  source?: object;
+  dependencies?: object;
+  installation?: object;
+};
+type WindowsSettlement = {
+  deadline: number;
+  directory: string;
+  scope: string;
+  authority: "none";
+};
+type WindowsOperations = {
+  prepareConfiguredHostedWindowsRuntime: WindowsPreparation;
+  prepareConfiguredHostedWindowsSource: WindowsPreparation;
+  prepareConfiguredHostedWindowsInstallation: WindowsPreparation;
+  runConfiguredHostedWindowsNativeJob: WindowsSettlement;
+};
+
+export const hostedWindowsBootstrapExecutionAuthorized = false;
+/** Fixed connected operation; the original source/job clock is never renewed. */
+export async function launchFixedHostedWindowsNativeJob(originalWorkflowDeadline?: bigint) {
+  assert.ok(
+    hostedWindowsBootstrapExecutionAuthorized,
+    "Hosted Windows bootstrap execution awaits separate owner authority",
+  );
+  return runFixedHostedWindowsOperation(
+    "runConfiguredHostedWindowsNativeJob",
+    originalWorkflowDeadline,
+  );
+}
+
+async function runFixedHostedWindowsOperation<Operation extends keyof WindowsOperations>(
+  operation: Operation,
+  originalWorkflowDeadline?: bigint,
+): Promise<WindowsOperations[Operation]> {
+  const scope = await readActualHostedWindowsBootstrapScope("pre-sign");
+  let providerDeadline = currentNativeJobDeadline(
+    "windows-x86_64",
+    scope.identity,
+    fileURLToPath(new URL("..", import.meta.url)),
+    performance.now() + 570000,
+  );
+  if (originalWorkflowDeadline !== undefined) {
+    const origin = performance.now(),
+      now = process.hrtime.bigint();
+    assert.ok(
+      typeof originalWorkflowDeadline === "bigint" &&
+        originalWorkflowDeadline > now &&
+        originalWorkflowDeadline - now <= maximumNs,
+      "original Windows workflow deadline exhausted or invalid",
+    );
+    // Caller data can only shorten this independently admitted provider window.
+    providerDeadline = Math.min(
+      providerDeadline,
+      origin + Number(originalWorkflowDeadline - now) / 1e6,
+    );
+  }
+  scope.unchanged();
+  const home = homedir();
+  assert.ok(path.isAbsolute(home) && path.normalize(home) === home);
+  assert.equal(await realpath(home), home);
+  const root = path.join(home, `.pcn-${scope.binding.slice(0, 32)}`);
+  await mkdir(root, { mode: 0o700 });
+  if (originalWorkflowDeadline !== undefined) {
+    const intentFile = path.join(scope.temporary, "portcove-native-windows-workflow-start.json");
+    const intent: unknown = JSON.parse(
+      (await readControllerToolFile(intentFile, 8192)).toString("utf8"),
+    );
+    assert.ok(
+      isRecord(intent) &&
+        intent.binding === scope.binding &&
+        intent.platform === "windows-x86_64" &&
+        intent.deadline_ns === String(originalWorkflowDeadline) &&
+        intent.authority === "none" &&
+        intent.automatic_retry === false,
+      "original Windows workflow intent differs",
+    );
+    const identity = (await import("./heavy-rust-test-lock.mts")).readProcessIdentity(process.pid);
+    assert.ok(identity, "original Windows worker birth identity unavailable");
+    await writeFile(
+      path.join(root, "native-supervision-started.json"),
+      JSON.stringify({
+        schema_version: 1,
+        binding: scope.binding,
+        pid: process.pid,
+        identity,
+        authority: "none",
+      }),
+      { flag: "wx", mode: 0o600, flush: true },
+    );
+  }
+  const started = process.hrtime.bigint();
+  const remaining = Math.floor(providerDeadline - performance.now());
+  assert.ok(remaining > 0 && remaining <= 570000);
+  const end = started + BigInt(remaining) * 1000000n;
+  const clockFile = path.join(root, "portcove-native-job-clock.json");
+  await writeFile(
+    clockFile,
+    JSON.stringify({
+      schema_version: 1,
+      binding: scope.binding,
+      platform: "windows-x86_64",
+      started_ns: String(started),
+      deadline_ns: String(end),
+      authority: "none",
+    }),
+    { flag: "wx", mode: 0o600 },
+  );
+  // This checks Windows owner/ACL ancestry; chmod alone is not an ACL boundary.
+  const clockCustody = inspectNativeRuntimeCustody([clockFile]);
+  const active = () => {
+    scope.unchanged();
+    recheckNativeRuntimeCustody([clockFile], clockCustody);
+    assert.ok(
+      performance.now() < providerDeadline && process.hrtime.bigint() < end,
+      "original Windows runtime preparation deadline exhausted",
+    );
+  };
+  active();
+  const { receipt, entry, custodyFiles, custody } = await materializeBootstrapRunner(
+    scope,
+    root,
+    providerDeadline,
+    active,
+    "windows-x86_64",
+  );
+  const worker = (await import(pathToFileURL(entry).href)) as Record<
+    typeof operation,
+    (
+      raw: unknown,
+      root: string,
+      deadline: number,
+      entry: string,
+    ) => Promise<WindowsOperations[Operation]>
+  >;
+  active();
+  recheckNativeRuntimeCustody(custodyFiles, custody);
+  await verifiedControllerToolPaths(receipt);
+  assert.equal(typeof worker[operation], "function");
+  const prepared = await worker[operation](
+    { tools: { artifact: scope.artifact, bundle: scope.bundle } },
+    root,
+    providerDeadline,
+    entry,
+  );
+  active();
+  recheckNativeRuntimeCustody(custodyFiles, custody);
+  assert.ok((await readProductionControllerWorkflowBytes()).equals(scope.workflow));
+  await verifiedControllerToolPaths(receipt);
+  active();
+  assert.ok(
+    Number.isFinite(prepared.deadline) &&
+      prepared.deadline <= providerDeadline &&
+      performance.now() < prepared.deadline,
+    "original Windows issuer/runtime preparation expired",
+  );
+  if (operation === "runConfiguredHostedWindowsNativeJob") {
+    const settlement: unknown = prepared;
+    assert.ok(exact(settlement, "authority,deadline,directory,scope"));
+    assert.equal(settlement.authority, "none");
+    assert.ok(typeof settlement.scope === "string" && settlement.scope.length <= 256);
+    assert.ok(typeof settlement.directory === "string");
+    const relative = path.relative(root, settlement.directory);
+    assert.ok(
+      relative &&
+        relative !== ".." &&
+        !relative.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relative),
+    );
+    assert.equal(await realpath(settlement.directory), settlement.directory);
+    active();
+    recheckNativeRuntimeCustody(custodyFiles, custody);
+    active();
+    assert.ok(
+      performance.now() < prepared.deadline,
+      "original Windows terminal settlement expired",
+    );
+  }
+  if (
+    operation === "prepareConfiguredHostedWindowsSource" ||
+    operation === "prepareConfiguredHostedWindowsInstallation"
+  )
+    assert.ok(
+      performance.now() < prepared.deadline - 210000,
+      "Windows source must preserve capture/recovery reserve",
+    );
+  return prepared;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

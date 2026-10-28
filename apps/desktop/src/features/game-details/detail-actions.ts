@@ -54,11 +54,14 @@ export function detailActions({
   const perform: Perform = (name, task, options) =>
     execute(name, task, {
       ...options,
-      context: targetInvocationContext(
-        actionLabels[name] ?? name,
-        { kind: "port", id: port.id, label: gameIdentityLabel(port) },
-        libraryGeneration,
-      ),
+      context: {
+        ...targetInvocationContext(
+          actionLabels[name] ?? name,
+          { kind: "port", id: port.id, label: gameIdentityLabel(port) },
+          libraryGeneration,
+        ),
+        operation: name === "launch" ? "launch" : undefined,
+      },
     });
   return {
     activate: () =>

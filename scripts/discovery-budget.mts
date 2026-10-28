@@ -19,6 +19,7 @@ interface ProviderQuota {
 export interface Usage {
   requests: number;
   bytes: number;
+  accounting_bytes: number;
   graphql_points_observed: number;
   graphql_cost_unknown_requests: number;
   started_at: string;
@@ -46,6 +47,7 @@ export class DiscoveryBudget {
     this.usage = {
       requests: 0,
       bytes: 0,
+      accounting_bytes: 0,
       graphql_points_observed: 0,
       graphql_cost_unknown_requests: 0,
       started_at: new Date(now()).toISOString(),
@@ -54,11 +56,34 @@ export class DiscoveryBudget {
     };
   }
   remaining() {
+    const elapsed = this.now() - Date.parse(this.usage.started_at);
+    const milliseconds = this.limits.milliseconds - elapsed;
+    const quota = this.usage.provider_quotas?.core;
+    // The historical request counts are bootstrap estimates, not throughput
+    // ceilings once fresh provider capacity and actual costs are observable.
+    // Keep the finite runtime and retained-byte envelopes for this batch.
+    const adaptive = quota && Date.parse(quota.resetAt) > this.now() && this.usage.requests > 0;
+    const requests = adaptive
+      ? Math.max(
+          0,
+          Math.min(
+            quota.remaining,
+            Math.floor(milliseconds / Math.max(1, elapsed / this.usage.requests)),
+            Math.floor(
+              (this.limits.bytes - this.usage.bytes - this.usage.accounting_bytes) /
+                Math.max(1, (this.usage.bytes + this.usage.accounting_bytes) / this.usage.requests),
+            ),
+          ),
+        )
+      : this.limits.requests - this.usage.requests;
     return {
-      requests:
-        this.limits.requests - this.usage.requests - (this.delivery ? 0 : this.reserve.requests),
-      bytes: this.limits.bytes - this.usage.bytes - (this.delivery ? 0 : this.reserve.bytes),
-      milliseconds: this.limits.milliseconds - (this.now() - Date.parse(this.usage.started_at)),
+      requests: requests - (this.delivery ? 0 : this.reserve.requests),
+      bytes:
+        this.limits.bytes -
+        this.usage.bytes -
+        this.usage.accounting_bytes -
+        (this.delivery ? 0 : this.reserve.bytes),
+      milliseconds,
     };
   }
   admit(requests: number, bytes: number) {
@@ -155,9 +180,20 @@ export class DiscoveryBudget {
       throw new Error("Invalid discovery usage");
     this.usage.requests += requests;
     this.usage.bytes += bytes;
-    this.usage.attempts.push({ method, endpoint, status, requests, bytes });
+    // Conservatively charge all request chains to the observed core allowance.
+    // An actual core response replaces this estimate with provider readback;
+    // search/GraphQL retain their independent transport admission checks.
+    const quota = this.usage.provider_quotas?.core;
+    if (quota) quota.remaining = Math.max(0, quota.remaining - requests);
+    const attempt = { method, endpoint, status, requests, bytes };
+    this.usage.attempts.push(attempt);
+    this.usage.accounting_bytes += Buffer.byteLength(JSON.stringify(attempt)) + 1;
     this.persist(this.usage);
-    if (this.usage.requests > this.limits.requests || this.usage.bytes > this.limits.bytes)
+    if (
+      ((!quota || Date.parse(quota.resetAt) <= this.now()) &&
+        this.usage.requests > this.limits.requests) ||
+      this.usage.bytes + this.usage.accounting_bytes > this.limits.bytes
+    )
       throw new GitHubApiError("budget_exhausted", "Discovery hard budget exceeded");
   }
 }
@@ -178,7 +214,13 @@ export function createDiscoveryTransport(
   token: string,
   worker = fileURLToPath(new URL("./discovery-http.mts", import.meta.url)),
 ) {
-  const request = (method: string, url: string, body?: string, binary = false) => {
+  const request = (
+    method: string,
+    url: string,
+    body?: string,
+    binary = false,
+    conditionalEtag?: string,
+  ) => {
     const left = budget.remaining();
     budget.admit(1, 1);
     const target = new URL(url);
@@ -195,7 +237,17 @@ export function createDiscoveryTransport(
     const maxRequests = Math.min(5, left.requests);
     const timeout = Math.min(20000, left.milliseconds);
     const response = spawnSync(process.execPath, [worker], {
-      input: JSON.stringify({ method, url, body, binary, token, cap, maxRequests, timeout }),
+      input: JSON.stringify({
+        method,
+        url,
+        body,
+        binary,
+        token,
+        cap,
+        maxRequests,
+        timeout,
+        conditionalEtag,
+      }),
       encoding: "utf8",
       windowsHide: true,
       timeout: timeout + 1000,
@@ -310,7 +362,15 @@ export function createDiscoveryTransport(
     const url = new URL(endpoint, "https://api.github.com/");
     if (url.origin !== "https://api.github.com") throw new Error("Unexpected GitHub API origin");
     const method = graphql ? "POST" : (args[args.indexOf("--method") + 1] ?? "GET");
-    const response = request(method, url.href, input);
+    let etag: string | undefined;
+    for (let index = 0; index < args.length; index++)
+      if (args[index] === "--header") {
+        const header = args[++index];
+        if (!header?.startsWith("If-None-Match: ") || etag !== undefined)
+          throw new Error("Discovery supports only one scoped conditional read header");
+        etag = header.slice("If-None-Match: ".length);
+      }
+    const response = request(method, url.href, input, false, etag);
     const included = `HTTP/2 ${response.status}\n${Object.entries(response.headers)
       .map(([k, v]) => `${k}: ${v}`)
       .join("\n")}\n\n${response.text}`;

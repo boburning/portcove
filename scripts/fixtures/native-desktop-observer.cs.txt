@@ -1,0 +1,80 @@
+// Fixed current-token observer regression; never a dedicated-account acceptance route.
+namespace Portcove.NativeQualification {
+    public static class DesktopObserverProbe {
+        [System.Runtime.InteropServices.DllImport("kernel32", CharSet=System.Runtime.InteropServices.CharSet.Unicode, SetLastError=true)]
+        static extern bool CreateProcessW(string app, System.Text.StringBuilder command, System.IntPtr processAttributes, System.IntPtr threadAttributes, bool inherit, uint flags, System.IntPtr environment, string directory, ref Native.StartupInfo startup, out Native.ProcessInformation info);
+        [System.Runtime.InteropServices.DllImport("kernel32")] static extern uint GetCurrentThreadId();
+        [System.Runtime.InteropServices.DllImport("user32")] static extern System.IntPtr GetThreadDesktop(uint thread);
+        [System.Runtime.InteropServices.DllImport("user32", CharSet=System.Runtime.InteropServices.CharSet.Unicode, SetLastError=true)]
+        static extern bool GetUserObjectInformationW(System.IntPtr handle, int index, System.Text.StringBuilder value, uint length, out uint needed);
+        public static System.Collections.Generic.Dictionary<string,object> Run(string root) {
+            var result = new System.Collections.Generic.Dictionary<string,object>();
+            string sid = System.Security.Principal.WindowsIdentity.GetCurrent().User.Value;
+            string name = "PortcoveObserver_" + System.Guid.NewGuid().ToString("N");
+            System.IntPtr original = GetThreadDesktop(GetCurrentThreadId()), desktop = System.IntPtr.Zero, job = System.IntPtr.Zero;
+            System.IntPtr outputRead = System.IntPtr.Zero, outputWrite = System.IntPtr.Zero, errorRead = System.IntPtr.Zero, errorWrite = System.IntPtr.Zero, input = System.IntPtr.Zero, block = System.IntPtr.Zero;
+            Native.ProcessInformation info = new Native.ProcessInformation(); AccountProcess child = null;
+            try {
+                var stationName = new System.Text.StringBuilder(64); uint needed;
+                if (!GetUserObjectInformationW(Native.GetProcessWindowStation(), 2, stationName, 128, out needed) || stationName.ToString() != "WinSta0") throw new System.InvalidOperationException("Observer regression requires the existing WinSta0");
+                System.IntPtr sd; uint size;
+                if (!Native.ConvertStringSecurityDescriptorToSecurityDescriptorW("O:"+sid+"D:P(A;;GA;;;"+sid+")(A;;GA;;;SY)", 1, out sd, out size)) throw Native.Error("Observer desktop descriptor");
+                try {
+                    var attributes = new Native.SecurityAttributes { length=(uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.SecurityAttributes)), descriptor=sd };
+                    desktop = Native.CreateDesktopW(name, System.IntPtr.Zero, System.IntPtr.Zero, 0, 0xf01ff, ref attributes);
+                    if (desktop == System.IntPtr.Zero) throw Native.Error("Create owned observer desktop");
+                } finally { Native.LocalFree(sd); }
+                if (GetThreadDesktop(GetCurrentThreadId()) != original && (!Native.SetThreadDesktop(original) || GetThreadDesktop(GetCurrentThreadId()) != original)) throw Native.Error("Restore observer owner thread");
+                Native.RequireNonInputDesktop(desktop);
+                job = Native.CreateBoundedJob();
+                var pipe = new Native.SecurityAttributes { length=(uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.SecurityAttributes)), inherit=1 };
+                if (!Native.CreatePipe(out outputRead, out outputWrite, ref pipe, 0) || !Native.SetHandleInformation(outputRead, 1, 0) || !Native.CreatePipe(out errorRead, out errorWrite, ref pipe, 0) || !Native.SetHandleInformation(errorRead, 1, 0)) throw Native.Error("Observer pipes");
+                input = Native.CreateFileW("NUL", 0x80000000, 3, ref pipe, 3, 0, System.IntPtr.Zero);
+                if (input == new System.IntPtr(-1)) throw Native.Error("Observer null stdin");
+                string system = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Windows);
+                string exe = System.IO.Path.Combine(system, "System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+                // Avoid PowerShell cmdlet/module discovery on the new private desktop.
+                string script = "[Console]::Error.WriteLine('inert-observer:entered');[void][Reflection.Assembly]::Load('System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089');[Console]::Error.WriteLine('inert-observer:forms-loaded');$f=[Windows.Forms.Form]::new();$t=[Windows.Forms.Timer]::new();try{$f.Text='Portcove observer regression';$t.Interval=20000;$t.Add_Tick({$f.Close()});$t.Start();[Console]::Error.WriteLine('inert-observer:before-show');$f.Show();[Console]::Error.WriteLine('inert-observer:shown');[Windows.Forms.Application]::Run($f)}finally{[Console]::Error.WriteLine('inert-observer:closing');$t.Dispose();$f.Dispose()}";
+                string command = AccountLauncher.Quote(exe)+" -NoLogo -NoProfile -NonInteractive -EncodedCommand "+System.Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
+                block = System.Runtime.InteropServices.Marshal.StringToHGlobalUni("SystemRoot="+system+"\0WINDIR="+system+"\0PATH="+System.IO.Path.Combine(system,"System32")+"\0TEMP="+root+"\0TMP="+root+"\0\0");
+                var startup = new Native.StartupInfo { cb=(uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.StartupInfo)), desktop="WinSta0\\"+name, flags=0x100, input=input, output=outputWrite, error=errorWrite };
+                if (!CreateProcessW(exe, new System.Text.StringBuilder(command), System.IntPtr.Zero, System.IntPtr.Zero, true, 0x08000404, block, root, ref startup, out info)) throw Native.Error("Create fixed observer regression form");
+                if (!Native.AssignProcessToJobObject(job, info.process)) throw Native.Error("Admit observer regression to its original job");
+                child = new AccountProcess(job, info.process, info.pid, System.IntPtr.Zero, desktop, exe, outputRead, errorRead);
+                job=desktop=info.process=outputRead=errorRead=System.IntPtr.Zero;
+                result["pid"]=child.Pid; result["created_filetime"]=child.CreatedFileTime.ToString(); result["image"]=child.Path;
+                if (Native.ResumeThread(info.thread) != 1) throw new System.InvalidOperationException("Unexpected observer regression suspend count");
+                Native.CloseHandle(outputWrite); outputWrite=System.IntPtr.Zero; Native.CloseHandle(errorWrite); errorWrite=System.IntPtr.Zero;
+                bool observed=false; int polls=0; var clock=System.Diagnostics.Stopwatch.StartNew();
+                while (!child.HasExited && clock.ElapsedMilliseconds < 60000) { polls++; child.RequireAliveGeneration(); child.RefuseFaultedCapture(); if (child.HostedResponding) { observed=true; break; } System.Threading.Thread.Sleep(100); }
+                result["observation_polls"]=polls; result["observation_elapsed_ms"]=clock.ElapsedMilliseconds; result["owned_visible_responsive"]=observed; result["window_inspection"]=child.LastWindowInspection; result["response_inspection"]=child.LastResponseInspection;
+            } catch (System.Exception error) { result["failure"]=error.ToString(); }
+            finally {
+                if (child != null) {
+                    try { var stop=child.StopAndObserve(5000); result["root_exited"]=stop.RootExited; result["job_empty"]=stop.JobEmpty; result["exit_code"]=stop.ExitCode; }
+                    catch (System.Exception error) { result["cleanup_failure"]=error.ToString(); }
+                    try { result["observer_drained"]=child.DrainHostedObserver(5000); }
+                    catch (System.Exception error) { result["observer_drain_failure"]=error.ToString(); }
+                    finally {
+                        try {
+                            var stdout=child.OutputCapture.Snapshot(); var stderr=child.ErrorCapture.Snapshot();
+                            result["stdout_bytes"]=stdout.Length; result["stderr_bytes"]=stderr.Length;
+                            result["stdout_prefix"]=System.Text.Encoding.UTF8.GetString(stdout,0,System.Math.Min(stdout.Length,4096));
+                            result["stderr_prefix"]=System.Text.Encoding.UTF8.GetString(stderr,0,System.Math.Min(stderr.Length,4096));
+                        } catch (System.Exception error) { result["capture_failure"]=error.ToString(); }
+                        try { child.Dispose(); } catch (System.Exception error) { result["dispose_failure"]=error.ToString(); }
+                    }
+                } else {
+                    if (info.process != System.IntPtr.Zero) { bool terminated=Native.TerminateProcess(info.process,125); uint wait=Native.WaitForSingleObject(info.process,5000); result["unreturned_termination"]=terminated; result["unreturned_wait"]=wait; if(wait != 0) result["cleanup_failure"]="Unreturned root exit unverified"; Native.CloseHandle(info.process); }
+                    if (job != System.IntPtr.Zero) Native.CloseHandle(job);
+                }
+                if (GetThreadDesktop(GetCurrentThreadId()) != original && (!Native.SetThreadDesktop(original) || GetThreadDesktop(GetCurrentThreadId()) != original)) result["thread_restore_failure"]="Original thread desktop restoration unverified";
+                if (info.thread != System.IntPtr.Zero) Native.CloseHandle(info.thread);
+                foreach (var handle in new[]{outputRead,outputWrite,errorRead,errorWrite,input}) if(handle != System.IntPtr.Zero && handle != new System.IntPtr(-1)) Native.CloseHandle(handle);
+                if (desktop != System.IntPtr.Zero && !Native.CloseDesktop(desktop)) result["desktop_close_failure"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                if (block != System.IntPtr.Zero) System.Runtime.InteropServices.Marshal.FreeHGlobal(block);
+            }
+            return result;
+        }
+    }
+}

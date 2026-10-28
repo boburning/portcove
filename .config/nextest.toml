@@ -11,9 +11,12 @@ final-status-level = "slow"
 # withdrawal and fresh-acquisition refusal at 28.68s, before cache refusal ended.
 # Preserve the full signed transition, assertions, two workers and zero retries;
 # give only this exact harness 60s. Product and nested socket deadlines stay fixed.
+# Qualification40624111874/a1 job122606953707 also cut the revoked variant
+# of this same fixture off at30.056s, after critical verification completed
+# at22.320s and acquisition refusal began29.373s. Include that exact case.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)'
+filter = 'package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
@@ -33,12 +36,13 @@ filter = 'package(portcove-core) & (test(/^preparation::source::tests::source_on
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
-# Qualification40182282476/a1 cut this exact Intel lifecycle off at30.016s.
+# Qualification40182282476/a1 cut the ISO Intel lifecycle off at30.016s;
+# 40387036159/a1 cut the matching second-port/CHD sequence off at30.022s.
 # Preserve the real CLI operations, phase output, cleanup, slots and zero retries
 # with finite90s harness headroom; product and child deadlines are unchanged.
 [[profile.default.overrides]]
 platform = 'x86_64-apple-darwin'
-filter = 'package(portcove-cli) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/)'
+filter = 'package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/))'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
@@ -47,9 +51,13 @@ success-output = "immediate"
 # and launch observations. Give these complete lifecycle fixtures finite90s
 # headroom, retaining assertions, cleanup, two workers and zero retries.
 # Runtime-diagnostic phase output separates fixture, lifecycle and flush work.
+# Qualification40618771345/a1 also cut off the lost-output and reviewed-CHD
+# variants at30.008/30.010s, after preparation ended at26.948/25.716s.
+# Their sibling full ISO sequence passed at52.014s. Include only these two
+# variants of the same complete lifecycle in this existing finite90s budget.
 [[profile.default.overrides]]
 platform = 'x86_64-unknown-linux-gnu'
-filter = 'package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))'
+filter = 'package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^preparation_contract::lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay$/) | test(/^preparation_contract::reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
@@ -82,9 +90,14 @@ success-output = "immediate"
 # Recovery completed seven of eight phases at27.04/28.35s. Retain the full
 # refusal/reopen/retry assertions with exact60s headroom and phase output;
 # product deadlines, two workers, cleanup and zero retries stay unchanged.
+# Manual40344060360/a1 also cut the complete catalog maintenance matrix at30.031s.
 [[profile.default.overrides]]
+# Qualification40618013765/a1 retained original_paths at30.020s after its
+# final Adopt/CleanupPending phase began at27.674s; relocation passed34.948s.
+# Extend the same finite60s Intel harness allowance to that exact full fixture.
+# Preserve all publication phases, assertions, slots, cleanup and zero retries.
 platform = 'x86_64-apple-darwin'
-filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation)_intent$/))'
+filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
@@ -117,6 +130,8 @@ filter = 'package(portcove-core) & test(/^service::tests::backups::historical_by
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI40395600118/a1 also cut the full restored-version lifecycle off at30.099s.
+# Keep its exact Windows case in the same finite60s backup allowance.
 # The preserved metadata batch completed131/133 cases; these existing full
 # recovery fixtures reached the Windows30.083s/30.050s harness cap. Keep their
 # staged/publication recovery, all data assertions, cleanup, two workers and
@@ -124,7 +139,7 @@ success-output = "immediate"
 # no product deadline changes.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))'
+filter = 'package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
@@ -458,6 +473,13 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_cancellation_preserves_partial_after_worker_exit$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# Mac ARM run 40358310040/a1 missed the 5s actual-copy latch. Its exact
+# 15s setup allowance needs the same finite 45s drain/cleanup envelope as Intel.
+[[profile.default.overrides]]
+platform = 'aarch64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_cancellation_preserves_partial_after_worker_exit$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
 [[profile.default.overrides]]
 platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_revocation_during_copy_refuses_publication$/)'
@@ -570,3 +592,49 @@ slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 [profile.hosted-windows]
 test-threads = 4
 junit.path = "junit.xml"
+
+# v58 expanded fixture receipt bcb45de3-dfa3-4505-9e92-531bfd0d3751 retained
+# exact30.143/30.218s cutoffs in full reviewed acquisition/apply/source cases.
+# Full reviewed acquisition/apply/source controls remain bounded90s.
+# Preserve assertions, two workers and zero retries. These are harness bounds,
+# not product performance guarantees; later failed receipts remain retained.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & (test(/^service::game_update_acquisition::tests::acquired_archive_cannot_bypass_changed_original_source_bytes$/) | test(/^service::game_update_acquisition::tests::acquired_archive_survives_restart_and_requires_fresh_exclusive_apply_review$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# v58 Core expanded4 (/tmp/portcove-v58-core-expanded4.log) retained exact
+# 30.013–33.270s ordinary cutoffs and 10s HTTP-arrival synchronization failures.
+# Only these observed cases, plus the cancellation control sharing that helper,
+# receive90s. Arrival is finite60s and observes/joins early worker failure.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & (test(/^service::game_update_acquisition::tests::live_and_completed_acquisitions_block_library_move_with_exact_discard_resume$/) | test(/^service::game_update_acquisition::tests::orphan_archive_remains_visible_after_install_and_catalog_removal_until_exact_discard$/) | test(/^service::game_update_acquisition::tests::removing_managed_runtime_during_transfer_preserves_archive_and_never_resurrects_it$/) | test(/^service::game_update_acquisition::tests::cancellation_retains_bounded_attention_and_exact_discard_allows_retry$/) | test(/^service::game_update_review::tests::activity_apply_refuses_other_handle_file_work_before_consuming_review_or_mutating$/) | test(/^service::game_update_review::tests::an_unverified_retained_plan_cannot_authorize_execution$/) | test(/^service::game_update_review::tests::cancellation_and_invalid_retained_bytes_preserve_the_active_version$/) | test(/^service::game_update_review::tests::reviewed_stage_and_activation_are_explicit_and_ignore_saved_automatic_policy$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# The same receipt retained native and marker cases terminated at160.035/146.696s.
+# Finite180s permits diagnosis and owned-worker cleanup; no load-only cause is
+# asserted. The exact native controls use a120s owned child gate (other probe
+# callers retain10s), coherent with60s arrival and review/verification overhead.
+# Phase receipts distinguish setup, review, durable reservation and HTTP transfer.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & (test(/^service::game_update_acquisition::tests::immutable_acquisition_can_start_after_verified_game_is_already_running$/) | test(/^service::game_update_acquisition::tests::launch_during_stalled_acquisition_and_finish_while_game_runs$/) | test(/^service::game_update_acquisition::tests::interrupted_marker_publication_has_bounded_exact_owner_discard_route$/))'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
+# Qualification40401498189/a1 reached the final curated repin at28.208s
+# before the Intel30.024s harness cutoff. Keep the complete two-install and
+# mutable-identity lifecycle, phase output, assertions, workers and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# CI 40375581507/a1 reached recovery reopen at 24.280s before the 30.115s
+# cutoff. Preserve all restore assertions and zero retries; give only this
+# progressing Windows fixture 60s, without changing product deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"

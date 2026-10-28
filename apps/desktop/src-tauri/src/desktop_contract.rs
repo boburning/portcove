@@ -424,6 +424,7 @@ pub fn export_transport_schemas() -> Value {
             "bootstrap_status": output::<BootstrapStatus>(),
             "support_bundle_export": output::<portcove_core::SupportBundleExport>(),
             "locale_preference": output::<DesktopLocalePreference>(),
+            "library_organization": output::<portcove_core::LibraryOrganization>(),
             "backup_review": output::<BackupReview>(),
             "cli_command_context": output::<CliCommandContext>(),
             "desktop_error": output::<DesktopError>(),
@@ -461,6 +462,7 @@ pub fn export_transport_schemas() -> Value {
         },
         "input": {
             "install_input": schemars::schema_for!(InstallInput),
+            "organization_change": schemars::schema_for!(portcove_core::OrganizationChange),
             "catalog_download_request": schemars::schema_for!(portcove_core::CatalogDownloadRequest),
             "game_file_query_request": schemars::schema_for!(portcove_core::GameFileQueryRefreshRequest),
             "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),

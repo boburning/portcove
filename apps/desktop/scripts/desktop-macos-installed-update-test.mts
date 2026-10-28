@@ -10,6 +10,7 @@ import { Builder, By } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
 import {
+  readMacInstalledProcessField as psField,
   hashFile,
   readJson,
   verifyInstalledUpdateStaging,
@@ -171,18 +172,6 @@ async function availablePort() {
     server.close((error) => (error ? reject(error) : resolve())),
   );
   return port;
-}
-function psField(pid: number, field: "lstart" | "command" | "stat") {
-  try {
-    return execFileSync("/bin/ps", ["-ww", "-p", String(pid), "-o", `${field}=`], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch (error) {
-    if (error !== null && typeof error === "object" && "status" in error && error.status === 1)
-      return null;
-    throw error;
-  }
 }
 function processIdentity(pid: number, role: ProcessRole) {
   const identity = readProcessIdentity(pid);

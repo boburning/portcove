@@ -165,6 +165,11 @@ it("keeps an unknown external installation's folder and maintenance facts distin
       }}
     />,
   );
+  // Folder ownership is a Manage fact; selecting it never establishes launch readiness.
+  expect(document.querySelector("[data-detail-readiness]")?.textContent).toContain(
+    "Readiness unavailable",
+  );
+  await page.getByRole("tab", { name: "Manage", exact: true }).click();
   const facts = page.getByRole("region", { name: "Existing installation", exact: true });
   await expect
     .element(facts.getByText(status.external_runtime.path, { exact: true }))

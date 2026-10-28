@@ -194,14 +194,19 @@ export function domainsForPath(input: string) {
     file === "scripts/node-case-observations.mts" ||
     [
       "scripts/node-platform-skips.mts",
+      "scripts/ui-test-selection.mts",
+      "apps/desktop/src/browser/failure-probe-contract.ts",
       "scripts/node-test-suites.mts",
       "scripts/node-test-suites.json",
       "scripts/nextest-outcomes.mts",
+      "scripts/nextest-skip-routes.mts",
       "scripts/nextest-outcomes-cli.mts",
       "scripts/report-summary.mts",
       "scripts/bounded-summary.mts",
       "scripts/fallow-summary.mts",
       "scripts/qualification-rustdoc.mts",
+      "scripts/standalone-rust-tests.mts",
+      "scripts/development-evidence.mts",
       "scripts/rustdoc-outcomes.mts",
     ].includes(file) ||
     file === ".config/rust-test-impact.json" ||

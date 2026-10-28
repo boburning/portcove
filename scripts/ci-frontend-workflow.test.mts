@@ -1,3 +1,4 @@
+import { readWorkflow } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
 import { globSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -22,6 +23,8 @@ import {
   requiredFixture,
   workflow,
   workflowJob,
+  workflowJobSource,
+  workflowStep,
   rustQuality,
   frontend,
   dependencyReview,
@@ -57,9 +60,8 @@ function resolveBrowserUpload(config: unknown, action: unknown, id: string) {
 
 async function browserUploadConfiguration() {
   const action = parseDocument(
-    await readFile(
+    await readWorkflow(
       new URL("../.github/actions/retain-browser-diagnostics/action.yml", import.meta.url),
-      "utf8",
     ),
     { uniqueKeys: true },
   );
@@ -143,9 +145,8 @@ void test("Fallow execution provisions its pinned process-custody compiler befor
 
 void test("screenshot-only diagnostic is manual, preserves failure guards and verifies all attempt packets", async () => {
   const document = parseDocument(
-    await readFile(
+    await readWorkflow(
       new URL("../.github/workflows/browser-artifact-custody.yml", import.meta.url),
-      "utf8",
     ),
     { uniqueKeys: true },
   );
@@ -208,9 +209,8 @@ void test("screenshot-only diagnostic is manual, preserves failure guards and ve
 });
 
 void test("selective Fallow workflow has compiler custody and outer timeout headroom", async () => {
-  const text = await readFile(
+  const text = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
   const config: unknown = parseDocument(text, { uniqueKeys: true }).toJS();
   assert.ok(isRecord(config) && isRecord(config.jobs));
@@ -244,14 +244,19 @@ void test("maintained first-party sources default to checked TypeScript", () => 
 });
 
 void test("selected full Fallow runs once before browser work and retains successful evidence", async () => {
-  const full = requiredFixture(
-    requiredFixture(workflow.split("  frontend_full:")[1]).split("  frontend:")[0],
-  );
+  const full = workflowJobSource(workflow, "frontend_full");
   assert.equal(full.match(/run: node scripts\/run-fallow\.mts/g)?.length, 1);
   assert.ok(full.indexOf("run-fallow.mts") < full.indexOf("pnpm browser:bootstrap"));
-  assert.match(full, /name: Retain original Fallow reports\n +if: always\(\)/);
-  assert.match(full, /path: work\/fallow-reports\//);
-  assert.match(full, /name: fallow-full-.*\n +path: work\/fallow-reports\/\n +retention-days: 7/);
+  const owner = workflowJob("frontend_full");
+  assert.ok(Array.isArray(owner.steps));
+  const uploader: unknown = owner.steps.find(
+    (step: unknown) => isRecord(step) && step.name === "Retain original Fallow reports",
+  );
+  assert.ok(isRecord(uploader) && isRecord(uploader.with));
+  assert.equal(uploader.if, "always()");
+  assert.equal(uploader.with.path, "work/fallow-reports/");
+  assert.match(String(uploader.with.name), /^fallow-full-/u);
+  assert.equal(uploader.with["retention-days"], 7);
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const check = requiredFixture(requiredFixture(recipes.split("\nui-check:")[1]).split(/\n\S/)[0]);
   assert.equal(check.match(/run-fallow\.mts/g)?.length, 1);
@@ -272,13 +277,10 @@ void test("selected full Fallow runs once before browser work and retains succes
 });
 
 void test("manual Fallow assistance is isolated from exhaustive audit and retains originals", async () => {
-  const deep = await readFile(
+  const deep = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
-  const selected = requiredFixture(
-    requiredFixture(deep.split("  fallow_analysis:")[1]).split("  audit:")[0],
-  );
+  const selected = workflowJobSource(deep, "fallow_analysis");
   assert.match(selected, /if: inputs.operation == 'fallow'/);
   assert.match(selected, /fetch-depth: 0/);
   assert.match(selected, /node scripts\/run-fallow\.mts review "\$COMPARISON_BASE"/);
@@ -294,9 +296,7 @@ void test("manual Fallow assistance is isolated from exhaustive audit and retain
 });
 
 void test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {
-  const block = requiredFixture(
-    requiredFixture(workflow.split("  frontend_full:")[1]).split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0],
-  );
+  const block = workflowJobSource(workflow, "frontend_full");
   assert.match(block, /runs-on: ubuntu-22\.04/u);
   assert.match(
     block,
@@ -304,19 +304,14 @@ void test("native frontend harness retains the qualified Linux target and a fail
   );
   assert.match(block, /scripts\/desktop-linux-native-session\.test\.mts/u);
   assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
-  assert.match(
-    block,
-    /- name: Test native compiler and shell integrations\n\s+working-directory: \.\n\s+run: node scripts\/run-viteplus\.mts run native:tools/u,
-  );
+  const native = workflowStep("frontend_full", "Test native compiler and shell integrations");
+  assert.equal(native["working-directory"], ".");
+  assert.equal(native.run, "node scripts/run-viteplus.mts run native:tools");
 });
 
 void test("full frontend qualification retains native scenario contracts; ordinary CI uses selected units", () => {
-  const full = requiredFixture(
-    requiredFixture(workflow.split("  frontend_full:")[1]).split("  frontend:")[0],
-  );
-  const fast = requiredFixture(
-    requiredFixture(workflow.split("  fast_frontend:")[1]).split("  fast_catalog:")[0],
-  );
+  const full = workflowJobSource(workflow, "frontend_full");
+  const fast = workflowJobSource(workflow, "fast_frontend");
   assert.match(full, /desktop-scenarios\.test\.mts/);
   assert.match(full, /--context-preflight/);
   assert.match(fast, /ci-baseline\.mts frontend/);
@@ -324,9 +319,7 @@ void test("full frontend qualification retains native scenario contracts; ordina
 });
 
 void test("ordinary formatting and lint have one quality owner; deep analyzers stay in qualification", () => {
-  const formatting = requiredFixture(
-    requiredFixture(workflow.split("  fast_rust_quality:")[1]).split("  fast_frontend:")[0],
-  );
+  const formatting = workflowJobSource(workflow, "fast_rust_quality");
   assert.match(formatting, /frontend_tools == 'true'/);
   assert.doesNotMatch(formatting, /format:check/);
   assert.match(formatting, /cargo fmt/);
@@ -335,19 +328,33 @@ void test("ordinary formatting and lint have one quality owner; deep analyzers s
   assert.match(formatting, /PORTCOVE_CI_METRICS_DIR:/);
   assert.match(formatting, /ci-metrics\.mts summarize/);
   assert.doesNotMatch(formatting, /cargo clippy|lint:oxlint|run-fallow/);
-  const frontend = requiredFixture(
-    requiredFixture(workflow.split("  fast_frontend:")[1]).split("  fast_catalog:")[0],
-  );
+  const frontend = workflowJobSource(workflow, "fast_frontend");
   assert.doesNotMatch(frontend, /format:check|pnpm lint/);
 });
 
 void test("frontend keeps deterministic product gates and delegates vulnerability changes", () => {
-  assert.match(frontend, /^ {4}env:\r?\n {6}npm_config_audit: "false"$/m);
-  assert.match(frontend, /args: \[--frozen-lockfile\]/);
+  const owner = workflowJob("frontend_full");
+  assert.ok(isRecord(owner.env) && Array.isArray(owner.steps));
+  assert.equal(owner.env.npm_config_audit, "false");
+  const installStep = owner.steps.findIndex(
+    (step: unknown) =>
+      isRecord(step) && isRecord(step.with) && typeof step.with["run-install"] === "string",
+  );
+  const installOwner: unknown = owner.steps[installStep];
+  assert.ok(
+    isRecord(installOwner) &&
+      isRecord(installOwner.with) &&
+      typeof installOwner.with["run-install"] === "string",
+  );
+  assert.deepEqual(parseDocument(installOwner.with["run-install"]).toJS(), {
+    args: ["--frozen-lockfile"],
+  });
   assert.match(frontend, /Install pinned recipe runner/);
-  const install = frontend.indexOf("args: [--frozen-lockfile]");
-  const verify = frontend.indexOf("node scripts/run-viteplus.mts run frontend:verify");
-  assert.ok(install >= 0 && verify > install);
+  const verify = owner.steps.findIndex(
+    (step: unknown) =>
+      isRecord(step) && step.run === "node scripts/run-viteplus.mts run frontend:verify",
+  );
+  assert.ok(installStep >= 0 && verify > installStep);
   assert.equal(frontend.match(/run frontend:verify/g)?.length, 1);
   assert.match(frontend, /lint-tools\.integration\.mts oxfmt oxlint stylelint/);
   assert.match(
@@ -365,34 +372,24 @@ void test("frontend keeps deterministic product gates and delegates vulnerabilit
 });
 
 void test("full frontend qualification provisions browser artifacts before composition", async () => {
-  const full = requiredFixture(
-    requiredFixture(workflow.split("  frontend_full:")[1]).split("  frontend:")[0],
-  );
+  const full = workflowJobSource(workflow, "frontend_full");
   const provision = full.indexOf("pnpm browser:bootstrap"),
     run = full.indexOf("run frontend:verify");
   assert.ok(provision >= 0 && run > provision);
   assert.match(full, /browser-traces-full/);
   assert.doesNotMatch(full, /work\/browser-traces/);
-  const jobBoundary = /\n {2}[a-zA-Z][a-zA-Z_-]*:/u;
-  const fast = requiredFixture(
-    requiredFixture(workflow.split("  fast_frontend:")[1]).split(jobBoundary)[0],
-  );
+  const fast = workflowJobSource(workflow, "fast_frontend");
   assert.match(fast, /browser-runtime.mts bootstrap/);
-  const contributor = requiredFixture(
-    requiredFixture(workflow.split("  frontend_portability:")[1]).split(jobBoundary)[0],
-  );
+  const contributor = workflowJobSource(workflow, "frontend_portability");
   const contributorProvision = contributor.indexOf("pnpm --dir apps/desktop browser:bootstrap");
   assert.ok(contributorProvision >= 0);
   assert.ok(contributor.indexOf("pnpm verify:frontend") > contributorProvision);
   assert.equal(contributor.match(/run: pnpm verify:frontend/g)?.length, 1);
   assert.doesNotMatch(contributor, /run: pnpm (?:test|check|build)\b/);
-  const deep = await readFile(
+  const deep = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
-  const audit = requiredFixture(
-    requiredFixture(deep.split("  audit:")[1]).split("  local_check:")[0],
-  );
+  const audit = workflowJobSource(deep, "audit");
   const install = audit.indexOf("run: pnpm install --frozen-lockfile");
   const auditGates = audit.indexOf("name: Run deterministic gates and structural audit");
   assert.ok(install >= 0 && auditGates > install);
@@ -593,7 +590,7 @@ for (const closeFails of [false, true]) {
   });
 }
 
-void test("native recovery keyboard changes retain macOS no-global portability coverage", () => {
+void test("native recovery and Unix custody changes retain macOS no-global portability coverage", () => {
   const job = workflowJob("frontend_portability");
   assert.equal(job["runs-on"], "macos-26");
   assert.ok(typeof job.if === "string");
@@ -605,6 +602,10 @@ void test("native recovery keyboard changes retain macOS no-global portability c
     new Set(ordinaryInputs),
     new Set([
       "apps/desktop/scripts/browser-runtime.mts",
+      "scripts/run-rust-tests.mts",
+      "scripts/run-rust-tests.test.mts",
+      "scripts/rust-test-tree-supervisor.mts",
+      "scripts/rust-test-tree-supervisor.test.mts",
       "pnpm-workspace.yaml",
       "apps/desktop/src/browser/display-recovery.browser.test.tsx",
       "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
@@ -662,9 +663,23 @@ void test("routine checks retain architecture enforcement but make cycles option
 
 void test("full frontend tasks stop after a failed unit stage and propagate browser failures", async (t) => {
   const { default: configuration } = await import("../vite.config.ts");
-  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  // A synthetic parent catches accidental execution of a contributor's real tasks.
+  await writeFile(path.join(parent, "package.json"), '{"private":true,"type":"module"}');
+  await writeFile(path.join(parent, "pnpm-workspace.yaml"), "packages: []\n");
+  await writeFile(path.join(parent, "foreign.mjs"), "process.exit(97);\n");
+  const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
+  await writeFile(
+    path.join(parent, "vite.config.ts"),
+    `export default ${JSON.stringify({
+      run: { tasks: { "frontend:tests": { command: `${executable} foreign.mjs`, cache: false } } },
+    })}`,
+  );
+  const root = path.join(parent, "fixture");
+  await mkdir(root);
   await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
+  await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
   await writeFile(
     path.join(root, "leaf.mjs"),
     `
@@ -674,7 +689,6 @@ void test("full frontend tasks stop after a failed unit stage and propagate brow
     process.exit(readFileSync("failure.txt", "utf8") === stage ? 17 : 0);
   `,
   );
-  const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
   await writeFile(
     path.join(root, "vite.config.ts"),
     `export default ${JSON.stringify({

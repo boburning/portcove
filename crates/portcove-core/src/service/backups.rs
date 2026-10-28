@@ -411,6 +411,7 @@ impl PortcoveService {
     /// Bind the same retained selection and omission rules used by collection.
     /// This observation never creates canonical directories or copies save data.
     fn collectible_data_review(&self, port_id: &str) -> Result<CollectibleDataReview> {
+        self.require_generated_cache_outputs_unchanged(port_id)?;
         let mut installs = self
             .library
             .all_installs()?
@@ -526,6 +527,7 @@ impl PortcoveService {
     }
 
     pub(super) fn create_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
+        self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
         if !source.is_dir() {
             return Err(PortcoveError::not_found(format!(
@@ -1077,6 +1079,9 @@ impl PortcoveService {
         }
         let backup = self.load_backup(port_id, backup_id)?;
         let backup_plan = adoption_copy_plan(&backup.path.join("data"))?;
+        if action == BackupAction::Restore {
+            self.retained_persistence_contracts(port_id)?;
+        }
         let user_root = self.library.user_dir(port_id);
         let current_user_data_exists = user_root.exists();
         if current_user_data_exists && !user_root.is_dir() {

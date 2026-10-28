@@ -565,15 +565,7 @@ impl ModRestore {
                 }
             }
         }
-        if snapshot(&self.source, checkpoint)? != self.source_tree
-            || snapshot(&self.destination, checkpoint)? != self.destination_tree
-        {
-            return Err(conflict(
-                &self.source,
-                &self.destination,
-                "mod paths changed after preflight",
-            ));
-        }
+        self.require_unchanged(checkpoint)?;
         for package in &self.additions {
             checkpoint()?;
             let destination = self.destination.join(package);
@@ -609,6 +601,19 @@ impl ModRestore {
                 checkpoint()?;
                 super::remove_managed_entry(&self.destination.join(relative))?;
             }
+        }
+        Ok(())
+    }
+
+    pub(super) fn require_unchanged(&self, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
+        if snapshot(&self.source, checkpoint)? != self.source_tree
+            || snapshot(&self.destination, checkpoint)? != self.destination_tree
+        {
+            return Err(conflict(
+                &self.source,
+                &self.destination,
+                "mod paths changed after preflight",
+            ));
         }
         Ok(())
     }
@@ -727,17 +732,7 @@ impl PortcoveService {
         user_root: &Path,
     ) -> Result<BTreeMap<PathBuf, ModRestore>> {
         let mut plans = BTreeMap::new();
-        let fallback = self.catalog.port(port_id)?;
-        for path in self.library.port_install_paths(port_id)? {
-            refuse_symlink_ancestors(&path)?;
-            match fs::symlink_metadata(&path) {
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                result => {
-                    result?;
-                }
-            }
-            let install_root = self.managed_install_root(port_id, &path)?;
-            let contract = self.persistence_contract(fallback, &install_root)?;
+        for (install_root, contract) in self.retained_persistence_contracts(port_id)? {
             if !contract.writes_directly
                 && (contract.port.adapter == AdapterKind::PsxRecompManaged
                     || contract.port.mod_package_policy.is_some())
@@ -765,20 +760,26 @@ impl PortcoveService {
         Ok(())
     }
 
-    /// An older install journal can retain activate=true. Publish it inactive,
-    /// then perform current retained-data preflight before its original commit.
-    pub(crate) fn prepare_recovered_psx_activation(&self, install: &InstallRecord) -> Result<()> {
-        let port = self.installed_port(install)?;
+    /// Shared preflight before the caller's reuse, activation or recovery commit.
+    pub(crate) fn prepare_retained_install_data(&self, install: &InstallRecord) -> Result<()> {
+        crate::install::check_retained_runtime_paths(install, &install.path)?;
+        self.require_portable_runtime_unchanged(install)?;
         let qualification = self.installed_mutability_qualification(install)?;
-        if let Some(active) = self
+        let active = self
             .library
             .status(&install.port_id, install.channel)?
-            .active
-        {
-            self.require_portable_transition(&active, &port)?;
+            .active;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
         }
         self.collect_active_user_data_if_launched(&install.port_id)?;
-        self.restore_user_data_to(&port, &install.path)?;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
+        }
+        self.restore_retained_user_data_to(install)?;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
+        }
         Installer::new(self.library.clone())?.verify_critical(install, &qualification)?;
         Ok(())
     }

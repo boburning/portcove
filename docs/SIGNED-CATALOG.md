@@ -3,28 +3,31 @@
 This optional local-first contract updates metadata for the embedded catalog. No publisher key, production private key, server, account, or scheduled fetch is configured by default. Local files work without a network; an explicitly requested HTTPS fetch carries no Portcove/GitHub credential and follows no redirects. The optional advisory relay and desktop self-updater are separate features.
 
 This is the implemented format-1 contract. The [independent definition delivery
-contract](DEFINITION-DELIVERY.md) specifies the successor's authority, admission,
-retention and recovery boundaries. The planned successor in
-[#245](https://github.com/boburning/portcove/issues/245) and
-[#246](https://github.com/boburning/portcove/issues/246) adds policy-based new
-definitions and routine automatic publication to already-capable clients.
-That work must retain exact installed definitions/contracts, isolate unsupported
-entries, bind protected acceptance to exact inputs, and define offline, expiry,
-revocation and recovery behavior. It does not weaken or retrofit this format's
+contract](DEFINITION-DELIVERY.md) owns the successor's authority, admission,
+retention and recovery boundaries. Completed
+[#245](https://github.com/boburning/portcove/issues/245),
+[#397](https://github.com/boburning/portcove/issues/397),
+[#398](https://github.com/boburning/portcove/issues/398) and
+[#254](https://github.com/boburning/portcove/issues/254) supply the accepted design,
+compatible client loader, configured upstream observer and bounded authoring.
+Their delivered components and fixture evidence remain distinct from
+[#246](https://github.com/boburning/portcove/issues/246)'s pending protected
+production journey and [#534](https://github.com/boburning/portcove/issues/534)'s
+pending provisioning acceptance. They do not weaken or retrofit this format's
 embedded-contract restrictions. No live automatic admission is enabled here.
 
-The successor's client-loading phase is tracked in
-[#397](https://github.com/boburning/portcove/issues/397); #246 retains the complete
-protected acceptance/publication outcome, with configured upstream observations
-from [#398](https://github.com/boburning/portcove/issues/398). Their future proofs
-retain exact definition content and referenced source/execution/persistence
-contracts for installed, staged, previous and adopted versions, together with
-relevant artifact, runtime/tool, platform and source identities. A remote URL or
-digest alone cannot preserve an installed contract. Migration preserves existing
-catalog availability and isolates unsupported new semantics. Observation has no
-signing or admission authority, and availability never authorizes installation,
-trust expansion or data migration. These are planned requirements, not changes
-to the format-1 behavior below.
+#246's remaining minimum observes a new operational definition, its next actual
+eligible artifact and a safe compatible correction on one exact unchanged
+capable installed client through actual protected acceptance, signing,
+publication and public readback. Authenticated descriptive listing delivery
+does not grant execution or installation capability. Existing components retain
+exact definition content and referenced source/execution/persistence contracts
+for installed, staged, previous and adopted versions, together with relevant
+artifact, runtime/tool, platform and source identities. A remote URL or digest
+alone cannot preserve an installed contract. Migration preserves existing catalog
+availability and isolates unsupported new semantics. Observation has no signing
+or admission authority, and availability never authorizes installation, trust
+expansion or data migration. The format-1 behavior below remains unchanged.
 
 ## Publisher format
 
@@ -41,6 +44,13 @@ The payload object has exactly `sequence`, `issued_at`, `expires_at`, and `catal
 All normal core catalog validation runs before admission. The schema-2 identity, representation, identity evidence, admission, validator, alias, tombstone, plus embedded entry identity, executable/setup/source-materialization contracts, persistent-data ownership, and legacy qualification arrays must match the embedded application catalog. Changes to those contracts ship in an application update. Format 1 may add reviewed release applicability and exact artifact-scoped qualification records for existing source contracts. Existing applicability and qualification facts cannot be removed or rewritten, and every added record must reference an existing port, contract, supported variant, representation, artifact binding, check version, and reviewed evidence ID. Allowed metadata also includes names, descriptions, project URLs, support/channel/platform declarations, release resolution, and upstream status. Product-level V1 scope remains a Project/release-gate decision, not catalog membership. A signed catalog cannot bypass release SHA-256 verification or execute an arbitrary adapter.
 
 ## Producing and reviewing an envelope
+
+Format-1 metadata corrections retain the authored listing directory's download
+restrictions through Core's existing strict-presentation projection. A release
+URL, asset hint or package availability cannot clear that separate condition.
+Bounded authoring (#254), compatible loading (#397) and configured observation
+(#398) are completed components. Their fixtures and this envelope format do not
+establish #246's production journey or #534's provisioning acceptance.
 
 Run `node scripts/sign-catalog.mts --help` for the required arguments, limits and
 an example. Help does not read signing inputs or create output files.
@@ -84,3 +94,52 @@ Explicit rollback consumes the previous selection and keeps the highest sequence
 Trust and replay state belong to the local library's database. Managed moves retain it. Metadata-only export/import intentionally leaves it out, so each destination configures its own trust; old installed artifacts remain subject to the same embedded safety contracts. This protects against network/publisher-delivery tampering and replay under an intact local database. It does not protect against a local attacker rewriting that database, restore its newer replay floor after a whole-database rollback, or supply a trustworthy system clock.
 
 Bundled-runtime updates may change their pinned archive asset and archive root, like a game release update. They cannot add or remove a runtime platform, change its mount directory or executable, or make runtime files mutable. Runtime-only updates receive a distinct immutable install identity. Adding a new runtime execution contract requires an application update; an older cached catalog that omits the new contract is rejected and falls back through the normal verified selection rules.
+
+## Capacity diagnostics and retained representations
+
+Run `node scripts/catalog-capacity.mts --catalog PATH` for offline counts of the
+current source, compact document, representative escaped format-1 envelope and
+remaining parser headroom. The tool reads the existing Core limit constants; it
+creates no key or signature and contacts no provider. Its growth model holds
+shared source data and average per-port metadata fixed. It is not admission,
+semantic validation, a production signed envelope or a guarantee for future
+source identities. Existing clients still require matching embedded membership;
+adding ports remains an application/catalog compatibility decision.
+
+Measured October 27, 2026 at catalog SHA-256
+`a3de2a0a1b18d9c2110521f58c40dbdf13396fed381f5b960a81cbec4d59a1e3`:
+167 operational ports occupy 990,397 source bytes and 708,076 compact JSON bytes.
+A representative envelope with a maximum-safe-integer sequence, two ten-digit
+Unix timestamps and fixed-width placeholder key/signature fields occupies 761,067
+bytes, leaving 3,433,237 of the 4,194,304-byte bound (about 81.9%). Shared data in
+that model occupies 324,799 bytes; future shared source growth is not assumed
+constant in the actual product. The current byte limit has ample observed
+headroom, so format1 and its security bound remain unchanged.
+
+Verification now moves the parsed catalog document through the existing shared
+validator rather than serializing and parsing it again. The verified result
+retains only sequence/validity metadata alongside its validated catalog and exact
+signed payload string. It no longer retains a second full parsed payload catalog.
+Exact signed bytes, validation, signatures, replay protection, snapshots, atomic
+publication and recovery remain unchanged. Serialized sizes do not measure heap
+or RSS savings; those remain Unknown.
+
+The optional local GitHub metadata cache retains a 64 MiB **charged record** budget
+rather than 512 rows. Charges include body bytes, URL key/index bytes, validators
+and a 4 KiB per-record reserve, so empty/tiny entries cannot grow without a resource
+bound. A single uncacheable record is excluded before ordinary oldest-first
+resource eviction. Seven-day expiry, per-response bounds, conditional validation
+and unchanged observations remain intact; a 304 already refreshes the existing
+cache age. The SQLite schema and old-client readers are unchanged. This budget
+is not a limit on the entire library database or its existing free pages.
+
+In a controlled 1,000-row SQLite fixture, 22,000 body bytes and 173,780 text/index
+bytes occupied 221,184 database bytes; the former row cap would evict 488 entries.
+That demonstrates avoidable loss of small conditional responses, not actual
+production misses or traffic. A conservative 4 KiB record reserve exceeds that
+fixture's observed 47.404-byte average physical overhead. Pruning checks aggregate
+resource admission before sorting for eviction. With 20 local SQLite 3.53.1
+samples per case, the 1,000/10,000-row aggregate checks averaged 0.080/0.759ms;
+unconditional window eviction averaged 0.420/3.857ms. These are small-body fixture
+CPU observations, not application timings or provider costs. Live occupancy,
+API consumption, process memory and actual release throughput remain Unknown.

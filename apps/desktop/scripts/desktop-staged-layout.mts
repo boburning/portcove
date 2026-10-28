@@ -27,7 +27,8 @@ export function readStagedLayout(version: string) {
     header: play?.closest(".detail-hero") && rect(play.closest(".detail-hero")!),
     panel: panel && rect(panel),
     versionsSelected:
-      detail?.querySelector("[role=tab][aria-selected=true]")?.textContent?.trim() === "Versions",
+      detail?.querySelector("[role=tab][aria-selected=true]")?.textContent?.trim() ===
+      "Versions & updates",
     viewport: { width: innerWidth, height: innerHeight },
     state: detail?.querySelector("[data-detail-readiness]")?.textContent?.trim(),
     reason: detail?.querySelector("[data-detail-reason]")?.textContent?.trim(),

@@ -28,13 +28,17 @@ def policy():
         "gid": 1002,
         "packages": [{"bytes": 100, "sha256": "b" * 64}, {"bytes": 200, "sha256": "c" * 64}],
         "python_sha256": "d" * 64,
-        "deadline_utc": (datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=30))
+        "deadline_utc": (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=30))
         .isoformat(timespec="milliseconds")
         .replace("+00:00", "Z"),
     }
 
 
 class FusePolicy(unittest.TestCase):
+    def test_policy_timestamp_uses_python310_timezone_without_utc_alias(self):
+        with patch.object(datetime, "UTC", None, create=True):
+            self.assertTrue(policy()["deadline_utc"].endswith("Z"))
+
     def test_remaining_invocation_mount_budget_can_only_lower_original_ceiling(self):
         selected = {**policy(), "schema_version": 2, "mount_limit": 3}
         self.assertEqual(fuse.inspect_policy(selected)["mount_limit"], 3)

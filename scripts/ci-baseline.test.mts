@@ -23,8 +23,13 @@ import {
 } from "./ci-baseline.mts";
 
 void test("workflow Python provisioning follows its actual relocated consumer and declared renames", () => {
-  const consumer = "scripts/ci-rust-workflow.test.mts";
-  for (const input of [consumer, "scripts/ci-workflow-fixture.mts", ".github/workflows/ci.yml"]) {
+  const consumer = "scripts/nextest-equivalence.test.mts";
+  for (const input of [
+    consumer,
+    "scripts/ci-rust-workflow.test.mts",
+    "scripts/ci-workflow-fixture.mts",
+    ".github/workflows/ci.yml",
+  ]) {
     for (const change of [
       { status: "M", oldPath: input, newPath: input },
       { status: "A", oldPath: input, newPath: input },

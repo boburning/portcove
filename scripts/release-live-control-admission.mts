@@ -358,7 +358,7 @@ async function authenticateControlSource(
       throw new Error("control reader identity expired");
     const policy = (() => {
       if (purpose === "catalog-publication")
-        return requireCatalogMaintenancePolicy(handoff.observation, now());
+        return requireCatalogMaintenancePolicy(handoff.observation, admitted.execution_ref, now());
       if (applicationConfig === null)
         throw new Error("application classification writer identity unavailable");
       if (selectedApplication !== null)

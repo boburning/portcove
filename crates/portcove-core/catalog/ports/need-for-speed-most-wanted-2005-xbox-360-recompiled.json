@@ -3,12 +3,12 @@
   "listing": {
     "id": "need-for-speed-most-wanted-2005-xbox-360-recompiled",
     "name": "Need for Speed: Most Wanted (2005 Xbox 360 Recompiled)",
-    "summary": "Explore Need for Speed: Most Wanted (2005 Xbox 360 Recompiled) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use the native Xbox 360 Most Wanted player with your own game, integrated setup and upstream save tools.",
     "project_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
     "issue_number": 1580,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/f40889ac72dc86a14f8d951201b329ad35e71882/README.md",
     "artwork": {
       "game_id": 98,
       "cover_id": 93655,
@@ -16,6 +16,34 @@
       "image_sha256": "25ed7f5aa7dacdb1853021d593dcc536d240f5e757ae2db568d60b33639ad23d",
       "game_slug": "need-for-speed-most-wanted",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Need for Speed: Most Wanted",
+    "release_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["NFSMW-Recomp-", "Windows-x64", ".zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/f40889ac72dc86a14f8d951201b329ad35e71882/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete upstream player",
+          "instruction": "Extract the whole Windows x64 ZIP, keeping NFSMW Recomp.exe and its data folder together. There is no installer. Register NFSMW Recomp.exe with its folder as the working directory, save the launch details, then choose Play separately. Keep the integrated launcher and both included edition players."
+        },
+        {
+          "title": "Choose your own game on first Play",
+          "instruction": "In the upstream launcher, select your own Xbox 360 Most Wanted ISO or extracted game folder. The current player recognizes PAL Spain and USA default.xex editions and selects the matching included player. Choose Play inside that launcher; it extracts a selected ISO and builds the shader library from your own disc. Valid remembered choices can be reused. Portcove does not run the player or extraction/compiler helpers during discovery."
+        },
+        {
+          "title": "Preserve the actual saves and settings",
+          "instruction": "Keep your original ISO or external game folder, the complete working copy, data/game_root, data/nfsmw.toml, data/nfsmw_trucos.txt, data/capturas and the readable data/saves copies (including current and previous saves). Actual live saves normally use Documents/nfsmw and can be separate from those readable copies. Back up the actual live profile and any custom game, update or backup folders too. A different player folder does not isolate the shared profile. After custom path changes, verify which profile the upstream save tools are using before importing or restoring; their folder is not guaranteed to match the running game."
+        },
+        {
+          "title": "Follow upstream updates with a recoverable copy",
+          "instruction": "Close both the launcher and the game before replacing files. Upstream provides update notices; keep your old copy recoverable and extract the new release separately. Let the new runtime regenerate its shader libraries and renderer caches from your own files. Keep upstream controls and save import/export/restore tools available, with separate backups of your actual profile. You or upstream own runtime updates and backups; Portcove registration provides no managed Update, Backup or Rollback. Removing the registration leaves every external file untouched."
+        }
+      ],
+      "warnings": []
     }
   }
 }

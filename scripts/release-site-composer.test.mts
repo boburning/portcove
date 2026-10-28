@@ -175,7 +175,10 @@ const actualFixture = process.env.PORTCOVE_TUF_RENEWAL_ADAPTER_FIXTURE;
 void test(
   "actual pinned Rust assembly supplies publication facts bound to complete public site bytes",
   {
-    skip: !actualTool || !actualFixture,
+    skip:
+      !actualTool || !actualFixture
+        ? "actual assembly tool or public fixture is not appointed"
+        : false,
     timeout: 120000,
   },
   async (t) => {

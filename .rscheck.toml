@@ -265,3 +265,27 @@ include = ["**/crates/portcove-core/src/preparation_ghostship_tests.rs"]
 
 [scope.rules."portability.absolute_literal_paths"]
 allow_regex = ["^E:/fixture/Ghostship$", "^E:/fixture with spaces/baserom\\.us\\.z64$"]
+
+# GitLab URL path comparisons, not host filesystem locations.
+[[scope]]
+include = ["**/crates/portcove-core/src/gitlab.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  "^/packages/generic/$",
+  "^/projects/other%2Fproject/packages/generic/game/1\\.0\\.0/game-windows-x64\\.zip$",
+]
+
+# The Unix-only failure fixture runs this exact non-mutating system command.
+[[scope]]
+include = ["**/crates/portcove-core/src/adapter_unix_failure_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^/usr/bin/false$"]
+
+# Catalog media URL path prefixes; exact values in their URL comparison owner.
+[[scope]]
+include = ["**/crates/portcove-core/src/catalog_media.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^/igdb/image/upload/$", "^/wikipedia/commons/$"]

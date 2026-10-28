@@ -97,6 +97,32 @@ fn observation_timestamp(value: &Value) -> Option<time::OffsetDateTime> {
     })
 }
 
+// Provider paths may escape a literal '+' (or another byte) in a release
+// component. Compare exactly one decoding within each existing path segment;
+// an encoded separator must never create a new repository or release boundary.
+fn encoded_segment_matches(encoded: &str, expected: &str) -> bool {
+    let mut bytes = encoded.bytes();
+    for expected in expected.bytes() {
+        let Some(mut observed) = bytes.next() else {
+            return false;
+        };
+        if observed == b'%' {
+            let (Some(high), Some(low)) = (bytes.next(), bytes.next()) else {
+                return false;
+            };
+            let (Some(high), Some(low)) = ((high as char).to_digit(16), (low as char).to_digit(16))
+            else {
+                return false;
+            };
+            observed = ((high << 4) | low) as u8;
+        }
+        if observed != expected {
+            return false;
+        }
+    }
+    bytes.next().is_none()
+}
+
 fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> Result<()> {
     if repository_id == 0
         || facts["repository"]["id"].as_u64() != Some(repository_id)
@@ -170,16 +196,17 @@ fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> R
                 .and_then(|url| reqwest::Url::parse(url).ok())
                 .ok_or_else(|| PortcoveError::verification("observation asset URL is invalid"))?;
             let repository = port.release.repository.split('/').collect::<Vec<_>>();
-            let mut expected = reqwest::Url::parse("https://github.com").expect("static URL");
-            expected
-                .path_segments_mut()
-                .expect("static hierarchical URL")
-                .extend(
-                    repository
-                        .iter()
-                        .copied()
-                        .chain(["releases", "download", tag, name]),
-                );
+            let mut segments = url.path_segments().into_iter().flatten();
+            let path_matches = repository
+                .iter()
+                .copied()
+                .chain(["releases", "download", tag, name])
+                .all(|expected| {
+                    segments
+                        .next()
+                        .is_some_and(|observed| encoded_segment_matches(observed, expected))
+                })
+                && segments.next().is_none();
             if url.scheme() != "https"
                 || url.host_str() != Some("github.com")
                 || url.port().is_some()
@@ -188,7 +215,7 @@ fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> R
                 || url.query().is_some()
                 || url.fragment().is_some()
                 || repository.len() != 2
-                || url != expected
+                || !path_matches
                 || asset["state"].as_str() != Some("uploaded")
                 || asset["size"]
                     .as_u64()
@@ -203,10 +230,71 @@ fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> R
     Ok(())
 }
 
+fn observation_asset_coverage(document: &Value) -> Result<Option<HashSet<u64>>> {
+    if document["format"] == 1 {
+        return Ok(None);
+    }
+    let coverage = document["coverage"]
+        .as_object()
+        .ok_or_else(|| PortcoveError::verification("scoped observation is missing coverage"))?;
+    if coverage.len() != 3
+        || coverage.get("kind").and_then(Value::as_str) != Some("channel-candidate-assets")
+        || coverage
+            .get("complete_release_headers")
+            .and_then(Value::as_bool)
+            != Some(true)
+    {
+        return Err(PortcoveError::verification(
+            "scoped observation coverage is invalid",
+        ));
+    }
+    let releases = document["facts"]["releases"].as_array().ok_or_else(|| {
+        PortcoveError::verification("scoped observation release headers are invalid")
+    })?;
+    let ids = coverage
+        .get("asset_release_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            PortcoveError::verification("scoped observation asset coverage is invalid")
+        })?;
+    if ids.len() > releases.len() {
+        return Err(PortcoveError::verification(
+            "scoped observation coverage exceeds its release headers",
+        ));
+    }
+    let mut covered = HashSet::new();
+    for value in ids {
+        let id = metadata_identity(value)?;
+        if !covered.insert(id)
+            || !releases
+                .iter()
+                .any(|release| release["id"].as_u64() == Some(id))
+        {
+            return Err(PortcoveError::verification(
+                "scoped observation repeats or invents asset coverage",
+            ));
+        }
+    }
+    for release in releases {
+        let id = metadata_identity(&release["id"])?;
+        if !covered.contains(&id)
+            && release["assets"]
+                .as_array()
+                .is_none_or(|assets| !assets.is_empty())
+        {
+            return Err(PortcoveError::verification(
+                "unassessed release assets must be empty",
+            ));
+        }
+    }
+    Ok(Some(covered))
+}
+
 fn project_channel(
     port: &PortDefinition,
     releases: &[ObservedRelease],
     facts: &Value,
+    covered_assets: Option<&HashSet<u64>>,
     platform: Platform,
     channel: ReleaseChannel,
 ) -> ChannelObservation {
@@ -237,6 +325,12 @@ fn project_channel(
         return output;
     };
     if !output.hold_reasons.is_empty() {
+        return output;
+    }
+    if covered_assets.is_some_and(|covered| !covered.contains(&candidate.id)) {
+        output
+            .hold_reasons
+            .push("release-asset-observation-incomplete".into());
         return output;
     }
     let asset = match choose_asset(port, platform, &candidate.provider.assets) {
@@ -302,7 +396,7 @@ pub fn inspect_upstream_observation(
     }
     let bytes = read_bounded_regular(path, 4 * 1024 * 1024)?;
     let document: Value = serde_json::from_slice(&bytes)?;
-    if document["format"] != 1
+    if (document["format"] != 1 && document["format"] != 2)
         || document["authority"] != "provider-observation-only"
         || document["port_id"] != port.id
     {
@@ -325,6 +419,7 @@ pub fn inspect_upstream_observation(
         ));
     }
     validate_facts(facts, port, repository_id)?;
+    let covered_assets = observation_asset_coverage(&document)?;
     let releases: Vec<ObservedRelease> = serde_json::from_value(facts["releases"].clone())?;
     let projections = port
         .platforms
@@ -335,7 +430,16 @@ pub fn inspect_upstream_observation(
                 ReleaseChannel::Beta,
                 ReleaseChannel::Rolling,
             ]
-            .map(|channel| project_channel(port, &releases, facts, *platform, channel))
+            .map(|channel| {
+                project_channel(
+                    port,
+                    &releases,
+                    facts,
+                    covered_assets.as_ref(),
+                    *platform,
+                    channel,
+                )
+            })
         })
         .collect();
     Ok(UpstreamObservationReport {
@@ -345,12 +449,17 @@ pub fn inspect_upstream_observation(
         repository_id,
         adapter: port.adapter,
         facts_sha256: digest,
-        catalog_definition_sha256: json_digest(&serde_json::to_value(port)?)?,
+        catalog_definition_sha256: crate::catalog::observation_definition_sha256(port)?,
         observed_at: document["completed_at"]
             .as_str()
             .expect("validated clock")
             .into(),
-        eligibility_scope: "core-release-metadata".into(),
+        eligibility_scope: if covered_assets.is_some() {
+            "core-release-metadata-scoped-assets"
+        } else {
+            "core-release-metadata"
+        }
+        .into(),
         evidence: ObservationEvidence {
             provider_authenticated: false,
             artifact_bytes_verified: false,

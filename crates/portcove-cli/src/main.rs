@@ -411,13 +411,36 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 port_id,
                 file,
                 repository_id,
+                provider_facts,
             },
     } = &cli.command
     {
         let catalog = portcove_core::Catalog::embedded()?;
+        let port = catalog.port(port_id)?;
+        if port.release.provider != portcove_core::ReleaseSource::Github {
+            if !provider_facts || repository_id.is_some() {
+                return Err(portcove_core::PortcoveError::verification(
+                    "non-GitHub observation must not invent a GitHub repository identity",
+                ));
+            }
+            let report = portcove_core::inspect_provider_observation(port, file)?;
+            render_read_success(mode, "catalog.inspect-observation", report, |report| {
+                serde_json::to_string_pretty(report).unwrap_or_default()
+            })?;
+            return Ok(ExitCode::SUCCESS);
+        }
+        if *provider_facts {
+            return Err(portcove_core::PortcoveError::verification(
+                "GitHub observations require their repository identity, not provider-facts mode",
+            ));
+        }
         let report = portcove_core::inspect_upstream_observation(
-            catalog.port(port_id)?,
-            *repository_id,
+            port,
+            repository_id.ok_or_else(|| {
+                portcove_core::PortcoveError::verification(
+                    "GitHub observation requires --repository-id",
+                )
+            })?,
             file,
         )?;
         render_read_success(mode, "catalog.inspect-observation", report, |report| {
@@ -1774,8 +1797,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     let activate = !args.stage && status.update_policy != UpdatePolicy::Stage;
                     let mut progress = progress_renderer(mode, service.catalog());
                     let port_id = status.port_id;
-                    if mode == OutputMode::Human {
-                        for notice in service.catalog().port(&port_id)?.preservation_notices() {
+                    if mode == OutputMode::Human
+                        && let Ok(port) = service.catalog().port(&port_id)
+                    {
+                        for notice in port.preservation_notices() {
                             println!("{notice}");
                         }
                     }

@@ -145,6 +145,7 @@ describe("local artwork controls", () => {
       container.querySelector(".artwork-controls")?.parentElement?.closest("details"),
     ).toBeNull();
     expect(container.querySelector(".detail-artwork")).toBeNull();
+    await page.getByRole("tab", { name: "Manage", exact: true }).click();
     await open();
     await expect.poll(() => container.querySelectorAll(".detail-artwork").length).toBe(1);
     expect(container.querySelector(".artwork-controls .detail-artwork")).not.toBeNull();

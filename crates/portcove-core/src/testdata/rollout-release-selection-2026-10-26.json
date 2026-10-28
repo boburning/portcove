@@ -1,0 +1,435 @@
+{
+  "format_version": 1,
+  "observed_at": "2026-10-27 02:22:50 UTC",
+  "scope": "Selected historical GitHub release metadata, not a complete upstream inventory. No package bytes acquired or accepted and no game executed. Tests replay production selectors and label mutations as synthetic.",
+  "upstreams": [
+    {
+      "port_id": "road-rash-64-recompiled",
+      "repository": "linkssy2/RoadRash64Recompiled",
+      "endpoint": "https://api.github.com/repos/linkssy2/RoadRash64Recompiled/releases?per_page=3",
+      "releases": [
+        {
+          "url": "https://api.github.com/repos/linkssy2/RoadRash64Recompiled/releases/415404904",
+          "html_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/tag/v1.4.8",
+          "id": 415404904,
+          "tag_name": "v1.4.8",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-10-16T21:45:03Z",
+          "assets": [
+            {
+              "id": 648713788,
+              "name": "MoreCharacters2.1.0.nrm",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/MoreCharacters2.1.0.nrm",
+              "size": 209088,
+              "digest": "sha256:02851935bc4b562039e44faf40ba5b7d0df977716587367e20a2cb205575ab86"
+            },
+            {
+              "id": 648713817,
+              "name": "RoadRash64Recompiled-Optional-Texture-Mod.zip",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/RoadRash64Recompiled-Optional-Texture-Mod.zip",
+              "size": 214688827,
+              "digest": "sha256:38cb3c6731ab55c64b8469668926d837be3fbe8ec8f0a2d9974e791bdf80b6f2"
+            },
+            {
+              "id": 648712513,
+              "name": "RoadRash64Recompiled-v1.4.8-Linux-Experimental.zip",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/RoadRash64Recompiled-v1.4.8-Linux-Experimental.zip",
+              "size": 589060551,
+              "digest": "sha256:4ca6e103fc6dead44b325df5143e6af704a6516dd711edb63b9d9dcd19715c16"
+            },
+            {
+              "id": 648713632,
+              "name": "RoadRash64Recompiled-v1.4.8-Source.zip",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/RoadRash64Recompiled-v1.4.8-Source.zip",
+              "size": 77661144,
+              "digest": "sha256:b39ec58fa34d7da8d1460d9ba397f8fbd04cc96b71ec5eed1d29a343071242ce"
+            },
+            {
+              "id": 648712428,
+              "name": "RoadRash64Recompiled-v1.4.8-Win64.zip",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/RoadRash64Recompiled-v1.4.8-Win64.zip",
+              "size": 47342190,
+              "digest": "sha256:70114da39d0311ca0698d6a7e6fd554507ac1add29173ab7b344408118697275"
+            },
+            {
+              "id": 648714244,
+              "name": "SHA256SUMS.txt",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/SHA256SUMS.txt",
+              "size": 533,
+              "digest": "sha256:bc8ff7009c9f8594402feb48580d1d2733359dd739ae352f2f186e3cc5086929"
+            }
+          ]
+        },
+        {
+          "url": "https://api.github.com/repos/linkssy2/RoadRash64Recompiled/releases/414196183",
+          "html_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/tag/v1.4.7",
+          "id": 414196183,
+          "tag_name": "v1.4.7",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-10-15T19:34:27Z",
+          "assets": [
+            {
+              "id": 644941208,
+              "name": "MoreCharacters2.1.0.nrm",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.7/MoreCharacters2.1.0.nrm",
+              "size": 209088,
+              "digest": "sha256:02851935bc4b562039e44faf40ba5b7d0df977716587367e20a2cb205575ab86"
+            },
+            {
+              "id": 644941247,
+              "name": "RoadRash64Recompiled-Optional-Texture-Mod.zip",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.7/RoadRash64Recompiled-Optional-Texture-Mod.zip",
+              "size": 214688827,
+              "digest": "sha256:38cb3c6731ab55c64b8469668926d837be3fbe8ec8f0a2d9974e791bdf80b6f2"
+            },
+            {
+              "id": 644939474,
+              "name": "RoadRash64Recompiled-v1.4.7-Linux-Experimental.zip",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.7/RoadRash64Recompiled-v1.4.7-Linux-Experimental.zip",
+              "size": 589046016,
+              "digest": "sha256:11fa10a0f7b0150f8fa41bb08e0e77ad8586b1bf4cc86e963ce3852476fc5c2f"
+            },
+            {
+              "id": 644940896,
+              "name": "RoadRash64Recompiled-v1.4.7-Source.zip",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.7/RoadRash64Recompiled-v1.4.7-Source.zip",
+              "size": 77651953,
+              "digest": "sha256:26af190d268d6c927bd83908d088ec7b59bf8eabe45c40a1e945da23064b259e"
+            },
+            {
+              "id": 644939322,
+              "name": "RoadRash64Recompiled-v1.4.7-Win64.zip",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.7/RoadRash64Recompiled-v1.4.7-Win64.zip",
+              "size": 47336930,
+              "digest": "sha256:482f7b926ca36393f4dad4faba5934eb3aefc9ace537c7f306b13b6d2d522042"
+            },
+            {
+              "id": 644941918,
+              "name": "SHA256SUMS.txt",
+              "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.7/SHA256SUMS.txt",
+              "size": 533,
+              "digest": "sha256:44166662636402899bda2e5354b82eab4000f0444f40c800873d91dbeb20bf03"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "sonic-3-and-knuckles-recomp",
+      "repository": "mstan/Sonic3AndKnucklesRecomp",
+      "endpoint": "https://api.github.com/repos/mstan/Sonic3AndKnucklesRecomp/releases?per_page=3",
+      "releases": [
+        {
+          "url": "https://api.github.com/repos/mstan/Sonic3AndKnucklesRecomp/releases/421317496",
+          "html_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/tag/v0.6.0",
+          "id": 421317496,
+          "tag_name": "v0.6.0",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-10-23T00:03:24Z",
+          "assets": [
+            {
+              "id": 667453801,
+              "name": "SHA256SUMS.txt",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.0/SHA256SUMS.txt",
+              "size": 652,
+              "digest": "sha256:c4150033094fd795a07bc7a6058c6cf93cf33395145ef20e4d71763267d6c119"
+            },
+            {
+              "id": 667453753,
+              "name": "Sonic3KRecomp-linux-x86_64-v0.6.0.AppImage",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.0/Sonic3KRecomp-linux-x86_64-v0.6.0.AppImage",
+              "size": 23828984,
+              "digest": "sha256:69c817c6e40ed38c906e6a48f9ba95bf93a8c0138f265182713b5086e55e774b"
+            },
+            {
+              "id": 667453745,
+              "name": "Sonic3KRecomp-windows-x64-v0.6.0.zip",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.0/Sonic3KRecomp-windows-x64-v0.6.0.zip",
+              "size": 17866930,
+              "digest": "sha256:7578e759cb83b22708b9494d250f44a4871b0170731f880dd8bd095862653e9b"
+            },
+            {
+              "id": 667453742,
+              "name": "Sonic3Recomp-linux-x86_64-v0.6.0.AppImage",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.0/Sonic3Recomp-linux-x86_64-v0.6.0.AppImage",
+              "size": 14850552,
+              "digest": "sha256:ab7819d45670559d53d371ece24a519235b5777fc28a19dbfae69aec7ff2fb4e"
+            },
+            {
+              "id": 667453748,
+              "name": "Sonic3Recomp-windows-x64-v0.6.0.zip",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.0/Sonic3Recomp-windows-x64-v0.6.0.zip",
+              "size": 8420877,
+              "digest": "sha256:c4fc5b49f2483de4decdf3044a4f96bad4daf4bfbcb2bb6e017bacf969735a89"
+            },
+            {
+              "id": 667453795,
+              "name": "SonicAndKnucklesRecomp-linux-x86_64-v0.6.0.AppImage",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.0/SonicAndKnucklesRecomp-linux-x86_64-v0.6.0.AppImage",
+              "size": 18213368,
+              "digest": "sha256:33e9e3112267b08fc1b484b97a0144a6aa6d20effbb9e1eb5e40d1947b2e0789"
+            },
+            {
+              "id": 667453746,
+              "name": "SonicAndKnucklesRecomp-windows-x64-v0.6.0.zip",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.0/SonicAndKnucklesRecomp-windows-x64-v0.6.0.zip",
+              "size": 11985971,
+              "digest": "sha256:3a3a683f28bb2bc8879678bb2e4b90e2540695a318df72d30394ed4cb61543f6"
+            }
+          ]
+        },
+        {
+          "url": "https://api.github.com/repos/mstan/Sonic3AndKnucklesRecomp/releases/416497696",
+          "html_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/tag/v0.5.3",
+          "id": 416497696,
+          "tag_name": "v0.5.3",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-10-18T14:30:37Z",
+          "assets": [
+            {
+              "id": 653676524,
+              "name": "SHA256SUMS.txt",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/SHA256SUMS.txt",
+              "size": 317,
+              "digest": "sha256:93e6d95a4d6eadab8868e55eaea6d870c7189117eb8e962aa686640c739cf902"
+            },
+            {
+              "id": 653676522,
+              "name": "Sonic3KRecomp-windows-x64-v0.5.3.zip",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
+              "size": 16694619,
+              "digest": "sha256:42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+            },
+            {
+              "id": 653676520,
+              "name": "Sonic3Recomp-windows-x64-v0.5.3.zip",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3Recomp-windows-x64-v0.5.3.zip",
+              "size": 8510726,
+              "digest": "sha256:20793f79d9d9cc7fa77782cd2ff34fdef81cca3f4b22638ecbbf03989c32bb9f"
+            },
+            {
+              "id": 653676523,
+              "name": "SonicAndKnucklesRecomp-windows-x64-v0.5.3.zip",
+              "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/SonicAndKnucklesRecomp-windows-x64-v0.5.3.zip",
+              "size": 12070469,
+              "digest": "sha256:be27647104651b1a3422fc7057af7280440a8e9bfc20bbd27d9e2f24961141a6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "c7-game-openciv3",
+      "repository": "C7-Game/OpenCiv3",
+      "endpoint": "https://api.github.com/repos/C7-Game/OpenCiv3/releases?per_page=3",
+      "releases": [
+        {
+          "url": "https://api.github.com/repos/C7-Game/OpenCiv3/releases/268058230",
+          "html_url": "https://github.com/C7-Game/OpenCiv3/releases/tag/v0.3-dutch-preview-1",
+          "id": 268058230,
+          "tag_name": "v0.3-dutch-preview-1",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2025-12-07T03:13:38Z",
+          "assets": [
+            {
+              "id": 325357225,
+              "name": "OpenCiv3_0.3-Dutch-Linux-x86_64.zip",
+              "browser_download_url": "https://github.com/C7-Game/OpenCiv3/releases/download/v0.3-dutch-preview-1/OpenCiv3_0.3-Dutch-Linux-x86_64.zip",
+              "size": 140670143,
+              "digest": "sha256:fd31a2356b1fd0343db0dfbc8cdc77ed5c35f8bef68bb07e6f3a3aaabed5ba9e"
+            },
+            {
+              "id": 325356119,
+              "name": "OpenCiv3_0.3-Dutch-Mac.zip",
+              "browser_download_url": "https://github.com/C7-Game/OpenCiv3/releases/download/v0.3-dutch-preview-1/OpenCiv3_0.3-Dutch-Mac.zip",
+              "size": 206728075,
+              "digest": "sha256:bba251ae96434f689904f521182335338e666b9583e0eb9c139a37f5d71f556e"
+            },
+            {
+              "id": 325356469,
+              "name": "OpenCiv3_0.3-Dutch-Windows.zip",
+              "browser_download_url": "https://github.com/C7-Game/OpenCiv3/releases/download/v0.3-dutch-preview-1/OpenCiv3_0.3-Dutch-Windows.zip",
+              "size": 151158258,
+              "digest": "sha256:0f0748227061388ab958045952817945f152e5d17d308b5514f8c285c726376b"
+            }
+          ]
+        },
+        {
+          "url": "https://api.github.com/repos/C7-Game/OpenCiv3/releases/193225038",
+          "html_url": "https://github.com/C7-Game/OpenCiv3/releases/tag/v0.2-carthage",
+          "id": 193225038,
+          "tag_name": "v0.2-carthage",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2025-01-05T22:19:26Z",
+          "assets": [
+            {
+              "id": 218233710,
+              "name": "C7_0.2-Carthage-Linux-x86_64.zip",
+              "browser_download_url": "https://github.com/C7-Game/OpenCiv3/releases/download/v0.2-carthage/C7_0.2-Carthage-Linux-x86_64.zip",
+              "size": 59678018,
+              "digest": null
+            },
+            {
+              "id": 218233727,
+              "name": "C7_0.2-Carthage-Mac.zip",
+              "browser_download_url": "https://github.com/C7-Game/OpenCiv3/releases/download/v0.2-carthage/C7_0.2-Carthage-Mac.zip",
+              "size": 116873851,
+              "digest": null
+            },
+            {
+              "id": 218233949,
+              "name": "C7_0.2-Carthage-Windows.zip",
+              "browser_download_url": "https://github.com/C7-Game/OpenCiv3/releases/download/v0.2-carthage/C7_0.2-Carthage-Windows.zip",
+              "size": 64979850,
+              "digest": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "blizz127-brave-fencer-musashi-decomp-port",
+      "repository": "Blizz127/Brave-Fencer-Musashi-decomp-port",
+      "endpoint": "https://api.github.com/repos/Blizz127/Brave-Fencer-Musashi-decomp-port/releases?per_page=3",
+      "releases": [
+        {
+          "url": "https://api.github.com/repos/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/418883593",
+          "html_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/tag/bfm-r55-ba90b87ad",
+          "id": 418883593,
+          "tag_name": "bfm-r55-ba90b87ad",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-20T21:13:00Z",
+          "assets": [
+            {
+              "id": 660502976,
+              "name": "bfm-r55-ba90b87ad-linux-x86_64.tar.gz",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r55-ba90b87ad/bfm-r55-ba90b87ad-linux-x86_64.tar.gz",
+              "size": 8420178,
+              "digest": "sha256:757e9bc95919ea6e45cb3e3fb83fa3b206e35f81301d530b2e9803328d137b60"
+            },
+            {
+              "id": 660503082,
+              "name": "openal-soft_1.25.1-2.debian.tar.xz",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r55-ba90b87ad/openal-soft_1.25.1-2.debian.tar.xz",
+              "size": 12680,
+              "digest": "sha256:be4d589577adea7a88778c30b7b2d0c161cd0482a42804cf2db99deda16765ec"
+            },
+            {
+              "id": 660503034,
+              "name": "openal-soft_1.25.1-2.dsc",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r55-ba90b87ad/openal-soft_1.25.1-2.dsc",
+              "size": 2483,
+              "digest": "sha256:79665c81ec46521ef5a9c377485a045398cef603a07c80b4b2f14d8fa9af6f4b"
+            },
+            {
+              "id": 660503058,
+              "name": "openal-soft_1.25.1.orig.tar.gz",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r55-ba90b87ad/openal-soft_1.25.1.orig.tar.gz",
+              "size": 1387176,
+              "digest": "sha256:86d23113f605745dc29e8e861c7742312e5ca4480e68aeb49d21b753c62dd74a"
+            },
+            {
+              "id": 660503002,
+              "name": "SHA256SUMS",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r55-ba90b87ad/SHA256SUMS",
+              "size": 104,
+              "digest": "sha256:1e001c31a2c1aea644df28fcb05309a6560f843a327176b0dc12a13e2f652173"
+            },
+            {
+              "id": 660503099,
+              "name": "SHA256SUMS-openal-soft-source",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r55-ba90b87ad/SHA256SUMS-openal-soft-source",
+              "size": 289,
+              "digest": "sha256:7643fda59bd6aabd0898798cfc1401722d3c471319e0048b4cbcdf780b60a53f"
+            }
+          ]
+        },
+        {
+          "url": "https://api.github.com/repos/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/415541493",
+          "html_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/tag/bfm-r48-1e23c3d4f",
+          "id": 415541493,
+          "tag_name": "bfm-r48-1e23c3d4f",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-17T02:41:34Z",
+          "assets": [
+            {
+              "id": 649321283,
+              "name": "bfm-r48-1e23c3d4f-linux-x86_64.tar.gz",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r48-1e23c3d4f/bfm-r48-1e23c3d4f-linux-x86_64.tar.gz",
+              "size": 8312107,
+              "digest": "sha256:6fb95cc9598c6e211fcce9d656675216aa83b95441d046692d2acb4a38ede77f"
+            },
+            {
+              "id": 649321351,
+              "name": "bfm-r48-355ec7668-windows-x64.zip",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r48-1e23c3d4f/bfm-r48-355ec7668-windows-x64.zip",
+              "size": 3983449,
+              "digest": "sha256:38a577f7da0dfa7bf4b1fb067b8743a3d012e0bb8fb8c1e29a0fd7f094f2726c"
+            },
+            {
+              "id": 649321388,
+              "name": "SHA256SUMS",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r48-1e23c3d4f/SHA256SUMS",
+              "size": 104,
+              "digest": "sha256:8c60bc1f0c847cae5dc38ca64120f658294f6c5956ed1f626f8ecb3ab89a86ac"
+            },
+            {
+              "id": 649321413,
+              "name": "SHA256SUMS-windows-x64",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r48-1e23c3d4f/SHA256SUMS-windows-x64",
+              "size": 100,
+              "digest": "sha256:ab46c029cf79658b7f19fac87bb78115f5050eb096ec8e7807e7fb594056c23d"
+            }
+          ]
+        },
+        {
+          "url": "https://api.github.com/repos/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/415051989",
+          "html_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/tag/bfm-r47-8f8176c8c",
+          "id": 415051989,
+          "tag_name": "bfm-r47-8f8176c8c",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-16T14:26:29Z",
+          "assets": [
+            {
+              "id": 647750224,
+              "name": "bfm-r47-81c5dbd03-windows-x64.zip",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r47-8f8176c8c/bfm-r47-81c5dbd03-windows-x64.zip",
+              "size": 3982603,
+              "digest": "sha256:a7384c2b23ad094496681a687e526d1ff1fca1a163b393913a83f95f04746d63"
+            },
+            {
+              "id": 647579436,
+              "name": "bfm-r47-8f8176c8c-linux-x86_64.tar.gz",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r47-8f8176c8c/bfm-r47-8f8176c8c-linux-x86_64.tar.gz",
+              "size": 8310874,
+              "digest": "sha256:f7f9f6f1e3abaa5cef92c57d0864676582a3c98cf060eab678adfd3715ddcfdf"
+            },
+            {
+              "id": 647579476,
+              "name": "SHA256SUMS",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r47-8f8176c8c/SHA256SUMS",
+              "size": 104,
+              "digest": "sha256:d928daaaade5f166715dca959a202e543ccdad0927d1d6b4d56b85b41300e69f"
+            },
+            {
+              "id": 647750265,
+              "name": "SHA256SUMS-windows-x64",
+              "browser_download_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases/download/bfm-r47-8f8176c8c/SHA256SUMS-windows-x64",
+              "size": 100,
+              "digest": "sha256:e9de1c76d36e23b253bbf7ddae4f05bcdee629449384497a8be958d1ef9a6654"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

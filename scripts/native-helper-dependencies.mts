@@ -68,6 +68,7 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   ),
   [helper("desktop-native-account-session.mts")]: Object.freeze([
     "../../../scripts/native-qualification-account-client.mts",
+    "../../../scripts/release-hosted-native-windows-worker-contract.mts",
   ]),
   [helper("desktop-linux-native-session.mts")]: Object.freeze([
     "../../../scripts/runtime-values.mts",
@@ -81,6 +82,9 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   ]),
 });
 export const nativeHelperSharedSources = Object.freeze([
+  helper("desktop-capture-target.mts"),
+  helper("desktop-boundary-invoke.mts"),
+  helper("browser-script.mts"),
   "apps/desktop/test/capture-target.ts",
   // Fixed read-only Python modules loaded from hash-checked captured bytes by
   // the public init/services branch. Capture is source custody, not execution.
@@ -93,6 +97,7 @@ export const nativeHelperSharedSources = Object.freeze([
   // Launcher and admission code is already loaded when prelaunch capture begins.
   // These are trusted verifier/reproduction observations, never proof that a
   // retained copy was the immutable module consumed by the target process.
+  "scripts/desktop-test-cli.mts",
   "scripts/resource-command.mts",
   "scripts/resource-capacity.mts",
   "scripts/resource-paths.mts",
@@ -101,6 +106,7 @@ export const nativeHelperSharedSources = Object.freeze([
   "scripts/rust-support-cache.mts",
   "scripts/ci-metrics.mts",
   "scripts/validation-plan.mts",
+  "scripts/repository-path.mts",
   "scripts/nextest-equivalence.mts",
   "scripts/report-summary.mts",
   "scripts/bounded-summary.mts",
@@ -475,7 +481,17 @@ export async function observeDesktopHarnessInputs({
     assert.ok(isRecord(parsed), "Harness observation must be an object");
     runnerMetadata = parsed;
   }
-  return { inputs, runnerMetadata };
+  // Runner phases remain observations; they never enlarge retained custody.
+  const phases = runnerMetadata.phases;
+  assert.ok(phases === undefined || Array.isArray(phases));
+  const metadataPhases =
+    phases === undefined
+      ? []
+      : phases.map((value: unknown) => {
+          assert.ok(isRecord(value));
+          return value;
+        });
+  return { inputs, runnerMetadata, metadataPhases };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

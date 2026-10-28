@@ -3,11 +3,38 @@
   "listing": {
     "id": "openra-openra",
     "name": "Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA)",
-    "summary": "Explore Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Choose Red Alert, Tiberian Dawn or Dune 2000, then let OpenRA prepare the game content on first Play.",
     "project_url": "https://github.com/OpenRA/OpenRA",
     "issue_number": 1852,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OpenRA/OpenRA"
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
+    "release_url": "https://github.com/OpenRA/OpenRA/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["OpenRA-", "x64-winportable.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the game you want to play",
+          "instruction": "The Windows portable ZIP contains three different players: RedAlert.exe, TiberianDawn.exe and Dune2000.exe. Extract the complete ZIP, then select the player for your chosen game and keep its folder as the working directory. The installer is an alternative; run it deliberately and select the installed player afterward. Server and utility tools are not game players."
+        },
+        {
+          "title": "Finish content setup on first Play",
+          "instruction": "Choose Play explicitly to open that game’s own content screen. OpenRA can import your original media or offer its minimal content download; review that choice in OpenRA. No content installer or helper is started by discovery or by saving launch details."
+        },
+        {
+          "title": "Keep your upstream profile and update route",
+          "instruction": "OpenRA or you provide updates. Preserve the actual profile: normally %APPDATA%\\OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. A local Support folder, an older profile or a custom override can change it. Keep settings, saves, maps, mods and content together, and retain a working copy when changing versions. These external files are outside Portcove backup and rollback."
+        },
+        {
+          "title": "Use the native upstream launcher on other systems",
+          "instruction": "On Linux, choose the AppImage for the game you want and prepare it using upstream instructions; retain the game-specific launcher. On macOS, install the desired game application from the disk image and retain its application bundle. These formats use upstream setup; Portcove does not extract or execute an AppImage, disk image, installer or shell helper automatically."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md"
+    }
   }
 }

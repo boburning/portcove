@@ -1,0 +1,231 @@
+@layer utilities {
+  .update-center {
+    min-width: 0;
+  }
+  .update-center .activity-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .update-center .activity-tab {
+    min-height: 48px;
+    padding: 10px 0;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+  }
+  .update-center .activity-tab[data-active] {
+    color: var(--color-text);
+    border-bottom-color: var(--color-interactive);
+  }
+  .update-center [role="tabpanel"][hidden],
+  .update-center [hidden] {
+    display: none;
+  }
+  .update-center .activity-heading {
+    align-items: start;
+    margin-bottom: 20px;
+  }
+  .update-center .activity-heading small {
+    max-width: 76ch;
+    line-height: 1.65;
+  }
+  .update-center .activity-list {
+    gap: 12px;
+  }
+  .update-center .activity-row {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 54px minmax(0, 1fr) max-content max-content;
+    align-items: center;
+    gap: 12px 18px;
+    padding: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-elevated);
+  }
+  .update-center .activity-row[hidden] {
+    display: none;
+  }
+  .update-center .activity-artwork {
+    width: 54px;
+    height: 72px;
+    border-radius: 6px;
+  }
+  .update-center .activity-indicator {
+    justify-self: center;
+  }
+  .update-center .activity-row.running {
+    border-color: color-mix(in srgb, var(--color-interactive) 55%, var(--color-border));
+  }
+  .update-center .activity-row.failed,
+  .update-center .activity-row.unfinished {
+    border-color: color-mix(in srgb, var(--color-border) 70%, var(--color-warning));
+  }
+  .update-center .activity-row > .activity-details {
+    grid-column: 2 / -1;
+  }
+  .update-center .activity-status {
+    max-width: 12rem;
+    overflow-wrap: anywhere;
+  }
+  .update-center .activity-empty {
+    min-height: 132px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-elevated);
+  }
+  .update-center .activity-empty > span {
+    display: grid;
+    flex: none;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--color-bg-subtle);
+  }
+  .update-center [data-record-view="history"] .activity-row {
+    grid-template-columns: 36px minmax(0, 1fr) max-content max-content;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: transparent;
+    padding: 16px 4px;
+  }
+  .update-center [data-record-view="history"] .activity-artwork {
+    width: 32px;
+    height: 44px;
+  }
+  .update-center .update-stats {
+    gap: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-elevated);
+  }
+  .update-center .update-stat {
+    padding: 16px 20px;
+    border: 0;
+    border-right: 1px solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+  }
+  .update-center .update-stat:last-child {
+    border-right: 0;
+  }
+  .update-center .update-list {
+    max-width: none;
+    gap: 14px;
+  }
+  .update-center .update-entry {
+    padding: 20px;
+    border-radius: 12px;
+  }
+  .update-center .update-row {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr) minmax(13rem, 18rem) minmax(5.625rem, max-content);
+    align-items: center;
+    gap: 18px;
+  }
+  .update-center .update-artwork {
+    width: 54px;
+    height: 72px;
+    border-radius: 6px;
+  }
+  .update-center .external-update-section .update-row {
+    padding: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-elevated);
+  }
+  @media (width <= 65rem) {
+    .update-center .activity-row,
+    .update-center [data-record-view="history"] .activity-row {
+      grid-template-columns: 44px minmax(0, 1fr) minmax(4.5rem, max-content);
+      gap: 12px;
+      padding: 16px;
+    }
+    .update-center .activity-artwork {
+      width: 44px;
+      height: 62px;
+    }
+    .update-center .activity-time {
+      grid-column: 2 / -1;
+      grid-row: 2;
+      text-align: start;
+    }
+    .update-center .activity-status {
+      grid-column: 3;
+      grid-row: 1;
+      white-space: normal;
+    }
+    .update-center .update-row {
+      grid-template-columns: 44px minmax(0, 1fr) minmax(8rem, 1fr) minmax(4.5rem, max-content);
+      gap: 12px;
+    }
+    .update-center .update-artwork {
+      width: 44px;
+      height: 62px;
+    }
+  }
+  @media (width <= 42rem) {
+    .update-center .activity-tabs {
+      column-gap: 22px;
+    }
+    .update-center .activity-row,
+    .update-center [data-record-view="history"] .activity-row {
+      grid-template-columns: 36px minmax(0, 1fr);
+      padding: 14px;
+    }
+    .update-center .activity-artwork {
+      width: 36px;
+      height: 50px;
+    }
+    .update-center .activity-status {
+      grid-column: 2;
+      grid-row: auto;
+      justify-self: start;
+    }
+    .update-center .update-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+    }
+    .update-center .update-stat {
+      padding: 14px;
+    }
+    .update-center .update-stat:nth-child(2) {
+      border-right: 0;
+    }
+    .update-center .update-stat:nth-child(-n + 2) {
+      border-bottom: 1px solid var(--color-border);
+    }
+    .update-center .update-toolbar {
+      align-items: stretch;
+    }
+    .update-center .update-entry {
+      padding: 16px;
+    }
+    .update-center .update-row {
+      grid-template-columns: 44px minmax(0, 1fr);
+    }
+    .update-center .update-versions {
+      grid-column: 2;
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .update-center .update-row > :last-child {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+  @media (forced-colors: active) {
+    .update-center .activity-tab[data-active] {
+      border-color: Highlight;
+    }
+    .update-center .activity-row {
+      border-color: CanvasText;
+    }
+  }
+}

@@ -5,11 +5,11 @@ import {
 } from "../features/browsing/catalog-entry";
 import { initialDetailSection, type DetailOpening } from "../features/game-details/detail-sections";
 import type { Perform } from "../features/operations/use-operation-state";
-import { gameProjectLabel } from "../port-identity";
 import type { PortStatus } from "../types";
 import { platformLabel } from "../view-model";
 import { ArtworkControls } from "./Artwork";
 import { DetailLayout } from "./DetailLayout";
+import { SetupStatement, type DetailOrganization } from "./DetailChoices";
 import { ExternalLink } from "./ExternalLink";
 import { SelfServiceSetup } from "./SelfServiceSetup";
 import { Button } from "./ui/button";
@@ -23,6 +23,8 @@ export function ListingDetailPanel({
   onChanged,
   close,
   opening,
+  openSupport,
+  organization,
 }: {
   entry: CatalogEntry;
   libraryRoot?: string | undefined;
@@ -32,6 +34,8 @@ export function ListingDetailPanel({
   onChanged: () => void;
   close: () => void;
   opening?: DetailOpening | undefined;
+  openSupport?: (() => void) | undefined;
+  organization?: DetailOrganization | undefined;
 }) {
   const listing = entry.listing;
   const registered = status?.external_runtime;
@@ -60,6 +64,67 @@ export function ListingDetailPanel({
         <DetailLayout
           port={entry}
           projectUrl={listing?.project_url}
+          openSupport={openSupport}
+          overviewRequirements={
+            <dl className="detail-facts">
+              <div>
+                <dt>Original game files</dt>
+                <dd>
+                  {entry.presentation?.manual_setup
+                    ? "Follow the upstream setup instructions"
+                    : "Requirements not specified"}
+                </dd>
+              </div>
+              <div>
+                <dt>Runs on</dt>
+                <dd>
+                  {entry.platforms.length
+                    ? entry.platforms.map(platformLabel).join(" · ")
+                    : "Platforms not yet confirmed"}
+                </dd>
+              </div>
+              <div>
+                <dt>Installation</dt>
+                <dd>Upstream setup / external registration</dd>
+              </div>
+              <div>
+                <dt>Release channel</dt>
+                <dd>Managed by the upstream project</dd>
+              </div>
+              <div>
+                <dt>Recorded availability</dt>
+                <dd>{listing ? listingAvailabilityLabel(listing) : "No listing observation"}</dd>
+              </div>
+            </dl>
+          }
+          overviewActions={(reveal) => (
+            <div className="detail-journey-links">
+              <Button
+                variant="ghost"
+                className="justify-start p-4.5 text-start"
+                onClick={() => reveal("files")}
+              >
+                <span>
+                  <strong>Game files and setup</strong>
+                  <small>
+                    {registered
+                      ? "Your external launch details"
+                      : "Downloads and upstream instructions"}
+                  </small>
+                </span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start p-4.5 text-start"
+                onClick={() => reveal("saves")}
+              >
+                <span>
+                  <strong>Saves & backups</strong>
+                  <small>Review external saved-data ownership</small>
+                </span>
+              </Button>
+            </div>
+          )}
           opening={opening}
           initialSection={initialDetailSection({
             destination: opening?.destination,
@@ -116,10 +181,10 @@ export function ListingDetailPanel({
                     {registered
                       ? launch.reason
                       : entry.pendingSetup
-                        ? "Confirm the game or launcher in Files to finish setup."
+                        ? "Confirm the game or launcher in Game files to finish setup."
                         : "Review available downloads and setup instructions."}{" "}
                     <Button variant="link" onClick={() => reveal("files")}>
-                      Open Files
+                      Open Game files
                     </Button>
                   </p>
                 )
@@ -129,48 +194,12 @@ export function ListingDetailPanel({
           {(reveal) => ({
             overview: (
               <>
-                <div className="detail-overview">
-                  <div>
-                    <p className="max-w-prose leading-relaxed text-pc-muted-foreground">
-                      {entry.summary}
-                    </p>
-                    <Button variant="link" onClick={() => reveal("files")}>
-                      Files and setup
-                    </Button>
-                  </div>
-                  <section aria-label="At a glance">
-                    <h3 className="mb-4 text-base">At a glance</h3>
-                    <dl className="detail-facts">
-                      <div>
-                        <dt>Project / variant</dt>
-                        <dd>{gameProjectLabel(entry) ?? entry.name}</dd>
-                      </div>
-                      <div>
-                        <dt>Platform</dt>
-                        <dd>
-                          {entry.platforms.length
-                            ? entry.platforms.map(platformLabel).join(" · ")
-                            : "Platforms not yet confirmed"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Installation method</dt>
-                        <dd>Upstream setup / external registration</dd>
-                      </div>
-                      <div>
-                        <dt>Channel</dt>
-                        <dd>Managed by the upstream project</dd>
-                      </div>
-                      <div>
-                        <dt>Recorded support</dt>
-                        <dd>
-                          {listing ? listingAvailabilityLabel(listing) : "No listing observation"}.
-                          A catalog listing does not establish tested compatibility.
-                        </dd>
-                      </div>
-                    </dl>
-                  </section>
-                </div>
+                <section className="detail-about" aria-label="About this port">
+                  <h3 className="mb-3 text-base">About this port</h3>
+                  <p className="max-w-prose leading-relaxed text-pc-muted-foreground">
+                    {entry.summary}
+                  </p>
+                </section>
                 <details className="mt-6">
                   <summary data-focusable>Project status and compatibility qualifications</summary>
                   {links}
@@ -182,24 +211,23 @@ export function ListingDetailPanel({
               </>
             ),
             files: (
-              <>
-                <section aria-label="Installation ownership" className="mb-6">
-                  <h3 className="text-base">Installation and files</h3>
+              <div className="detail-setup-workspace">
+                <div className="detail-setup-main">
+                  {setup}
+                  {(entry.presentation?.manual_setup || entry.presentation?.manual_preparation) && (
+                    <SetupStatement portId={entry.id} status={status} organization={organization} />
+                  )}
+                </div>
+                <aside className="detail-setup-context" aria-label="Installation ownership">
+                  <h3 className="mb-3 text-base">Installation and files</h3>
                   {registered && <p className="[overflow-wrap:anywhere]">{registered.path}</p>}
-                  <p>
+                  <p className="text-sm text-pc-muted-foreground">
                     You choose and maintain the installation folder. Portcove stores your launch
                     details; upstream setup manages its files.
                   </p>
-                </section>
-                {setup}
-                <div className="mt-6">{links}</div>
-                <section className="mt-7" aria-labelledby="detail-artwork">
-                  <h3 id="detail-artwork" tabIndex={-1} className="mb-4 text-base">
-                    Artwork
-                  </h3>
-                  <ArtworkControls key={entry.id + ":" + generation} port={entry} />
-                </section>
-              </>
+                  <div className="mt-5">{links}</div>
+                </aside>
+              </div>
             ),
             saves: (
               <>
@@ -239,6 +267,46 @@ export function ListingDetailPanel({
                   checks, staged activation and rollback are unavailable for this route.
                 </p>
                 {links}
+              </>
+            ),
+            manage: (
+              <>
+                <section aria-label="Installation ownership" className="mb-6">
+                  <h3 className="mb-3 text-base">Installation</h3>
+                  {registered ? (
+                    <>
+                      <p className="[overflow-wrap:anywhere]">{registered.path}</p>
+                      <p>
+                        You or the upstream launcher maintain this installation and its updates.
+                      </p>
+                      <Button
+                        variant="link"
+                        onClick={() => reveal("files", "detail-self-service-setup")}
+                      >
+                        Edit launch details
+                      </Button>
+                    </>
+                  ) : entry.pendingSetup ? (
+                    <>
+                      <p className="[overflow-wrap:anywhere]">{entry.pendingSetup.path}</p>
+                      <p>This download has not become an installed game.</p>
+                      <Button
+                        variant="link"
+                        onClick={() => reveal("files", "detail-self-service-setup")}
+                      >
+                        Continue setup
+                      </Button>
+                    </>
+                  ) : (
+                    <p>Set up this game before managing an installation.</p>
+                  )}
+                </section>
+                <section className="mt-7" aria-labelledby="detail-artwork">
+                  <h3 id="detail-artwork" tabIndex={-1} className="mb-4 text-base">
+                    Artwork
+                  </h3>
+                  <ArtworkControls key={entry.id + ":" + generation} port={entry} />
+                </section>
               </>
             ),
           })}

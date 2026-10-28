@@ -84,3 +84,62 @@ pub(crate) async fn apply_game_update(
     })
     .await
 }
+
+/// Transfers verified archives only. A later prepare/apply always reviews again.
+#[tauri::command]
+pub(crate) async fn acquire_game_update(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_plan: String,
+    generation: u64,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::GameUpdateAcquisition> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        tauri::async_runtime::block_on(async {
+            let authorization = service
+                .authorize_game_update_acquisition(&port_id, &expected_plan)
+                .await?;
+            service
+                .acquire_game_update(&port_id, &authorization.token, |event| {
+                    let _ = on_event.send(event);
+                })
+                .await
+        })
+        .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn discard_game_update_acquisition(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    acquisition_id: String,
+    generation: u64,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        service
+            .discard_game_update_acquisition(&port_id, &acquisition_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn plan_game_update_acquisition(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<GameUpdatePlan> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        tauri::async_runtime::block_on(service.plan_game_update_acquisition(&port_id))
+            .map_err(Into::into)
+    })
+    .await
+}

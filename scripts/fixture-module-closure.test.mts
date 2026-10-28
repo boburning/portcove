@@ -289,3 +289,39 @@ void test("fixture closure requires entries and enforces finite module and byte 
   );
   assert.throws(() => readFixtureModuleClosure(root, ["bytes.mjs"]), /exceeds 8 MiB/u);
 });
+
+void test("cover and catalog Native contracts execute without optional package installation", (t) => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const directory = fixture(t);
+  const prefix = "apps/desktop/scripts/";
+  const entries = [
+    "desktop-default-cover.native.test.mts",
+    "desktop-catalog-update.native.test.mts",
+  ].map((name) => prefix + name);
+  const production = ["desktop-default-cover-test.mts", "desktop-catalog-update-test.mts"].map(
+    (name) => prefix + name,
+  );
+  const closure = readFixtureModuleClosure(root, [...entries, ...production]);
+  // The real production graph is copied. The fixture replaces WebDriver/axe
+  // package shapes and the native transport boundary before their evaluation.
+  const optionalPackages = ["ajv/dist/2020.js", "axe-core", "selenium-webdriver"];
+  assert.deepEqual(
+    closure.external.filter((dependency) => !isBuiltin(dependency)),
+    optionalPackages,
+  );
+  for (const module of closure.modules) write(directory, module.path, module.bytes);
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, ["--test", ...entries], {
+    env: environment,
+    cwd: directory,
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 1024 * 1024,
+    windowsHide: true,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /pass 5/u);
+  assert.match(result.stdout, /fail 0/u);
+});

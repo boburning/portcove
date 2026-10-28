@@ -1,11 +1,12 @@
-function diagnosticText(value: unknown): string {
+export function diagnosticText(value: unknown): string {
   return String(value);
 }
 
 export interface RoadmapFieldValue {
   name?: unknown;
   value?: unknown;
-  field?: { name?: unknown } | null;
+  optionId?: unknown;
+  field?: { name?: unknown; id?: unknown } | null;
   option?: { name?: unknown } | null;
 }
 export interface RoadmapIssueItem {
@@ -303,4 +304,46 @@ export function itemBody(item: RoadmapIssueItem | null | undefined) {
 
 export function repositoryState(item: RoadmapIssueItem | null | undefined) {
   return diagnosticText(item?.content?.state ?? item?.state ?? "").toLowerCase();
+}
+
+function normalizedKey(value: unknown) {
+  return diagnosticText(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+export function fieldValue(item: RoadmapIssueItem | null | undefined, fieldName: string): unknown {
+  const wanted = normalizedKey(fieldName);
+  for (const [key, value] of Object.entries(item ?? {})) {
+    if (normalizedKey(key) === wanted) return value;
+  }
+  for (const value of item?.fieldValues ?? []) {
+    if (normalizedKey(value?.field?.name ?? value?.name) === wanted) {
+      return value?.name ?? value?.value ?? value?.option?.name;
+    }
+  }
+  return undefined;
+}
+
+export function itemDone(item: RoadmapIssueItem | null | undefined) {
+  const status = diagnosticText(fieldValue(item, "Status") ?? "").toLowerCase();
+  return status === "done";
+}
+
+export function repositoryStatusConflict(item: RoadmapIssueItem) {
+  const state = repositoryState(item);
+  return (
+    (state === "open" && itemDone(item)) ||
+    (["closed", "merged"].includes(state) && !itemDone(item))
+  );
+}
+
+export function blockingNodes(
+  item: RoadmapIssueItem | null | undefined,
+): readonly RoadmapIssueItem[] {
+  const value = item?.content?.blockedBy ?? item?.blockedBy;
+  function isList(value: RoadmapIssueItem["blockedBy"]): value is readonly RoadmapIssueItem[] {
+    return Array.isArray(value);
+  }
+  return isList(value) ? value : (value?.nodes ?? []);
 }

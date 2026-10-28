@@ -21,8 +21,13 @@ it.each([
   ["back up data", "saves"],
   ["restore backup", "saves"],
   ["run reviewed game update", "versions"],
+  ["acquire_game_update", "versions"],
+  ["discard_game_update_acquisition", "versions"],
   ["activate staged update", "versions"],
   ["prepare game data", "files"],
+  ["verify", "manage"],
+  ["remove", "manage"],
+  ["storage location", "manage"],
 ] as const)("routes %s work to its owner in %s", (operation, expected) => {
   expect(detailWorkSection(operation)).toBe(expected);
 });

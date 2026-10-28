@@ -245,8 +245,12 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/select-ci-plan.mts",
   "scripts/rust-test-impact.mts",
   "scripts/nextest-outcomes.mts",
+  "scripts/nextest-skip-routes.mts",
   "scripts/nextest-outcomes-cli.mts",
   "scripts/qualification-rustdoc.mts",
+  "scripts/standalone-rust-tests.mts",
+  "scripts/development-evidence.mts",
+  "scripts/operation-coverage.mts",
   "scripts/rustdoc-outcomes.mts",
   "scripts/qualification-coverage.mts",
   "scripts/validation-platforms.mts",
@@ -256,6 +260,7 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/run-ui-tests.mts",
   "scripts/run-viteplus.mts",
   "scripts/ui-test-selection.mts",
+  "apps/desktop/src/browser/failure-probe-contract.ts",
   "scripts/viteplus-cli.mts",
   "tsconfig.json",
   "scripts/run-rust-tests.mts",
@@ -276,7 +281,9 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
 
 export function isHostedLocalCheckScriptAuthority(name: string) {
   return (
-    (name.startsWith("scripts/") || name.startsWith("apps/desktop/scripts/")) &&
+    (name === "apps/desktop/src/browser/failure-probe-contract.ts" ||
+      name.startsWith("scripts/") ||
+      name.startsWith("apps/desktop/scripts/")) &&
     !/\.test\.[cm]?[jt]s$/u.test(name) &&
     name !== "scripts/workflow-provenance.mts"
   );
@@ -1334,6 +1341,7 @@ export async function runHostedValidation(
       throw new Error("Source controller differs from the separately reviewed controller");
   }
   const preserved = [
+    "apps/desktop/src/browser/failure-probe-contract.ts",
     "scripts/audit.mts",
     "scripts/validation-evidence.mts",
     "justfile",
@@ -1348,6 +1356,7 @@ export async function runHostedValidation(
     "aqua-checksums.json",
     ".github/quality-tools.json",
     ".config/nextest.toml",
+    ".config/rust-test-impact.json",
     "scripts/run-rust-tests.mts",
     "scripts/heavy-rust-test-lock.mts",
     "scripts/resource-capacity.mts",
@@ -1360,8 +1369,12 @@ export async function runHostedValidation(
     "scripts/rust-test-tree-supervisor.mts",
     "scripts/rust-test-impact.mts",
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-skip-routes.mts",
     "scripts/nextest-outcomes-cli.mts",
     "scripts/qualification-rustdoc.mts",
+    "scripts/standalone-rust-tests.mts",
+    "scripts/development-evidence.mts",
+    "scripts/operation-coverage.mts",
     "scripts/rustdoc-outcomes.mts",
     "scripts/dev-storage.mts",
     "scripts/bootstrap-quality-tools.sh",

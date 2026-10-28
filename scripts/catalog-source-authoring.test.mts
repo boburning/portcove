@@ -9,13 +9,85 @@ import {
   checkedAuthoredPort,
   parseCatalogSource,
 } from "./catalog-authoring.mts";
+import type { AuthoredPort } from "./catalog-authoring.mts";
 
 import {
   requiredFixture,
   fixtureJson,
   fixtureCatalog,
   catalogRoot,
+  record as fixtureRecord,
+  records as fixtureRecords,
 } from "./fixtures/catalog-generator-fixtures.mts";
+
+void test("shared upstream family facts stay consistent while game and permission facts remain independent", () => {
+  const source = readCatalogSource(catalogRoot);
+  const razeUrl = "https://github.com/ZDoom/Raze";
+  const namcoUrl = "https://github.com/spacestate1/namco22-decompile";
+  const families = source.records.filter((entry) =>
+    [razeUrl, namcoUrl].includes(entry.listing.project_url),
+  );
+  const check = (records: readonly AuthoredPort[]) => {
+    for (const [url, count] of [
+      [razeUrl, 7],
+      [namcoUrl, 5],
+    ] as const) {
+      const family = records.filter((entry) => entry.listing.project_url === url);
+      assert.equal(family.length, count, `Retain the reviewed independent identities for ${url}`);
+      const first = requiredFixture(family[0]).listing;
+      for (const { listing } of family) {
+        for (const field of ["platforms", "availability", "setup_url", "release_url"] as const)
+          assert.deepEqual(listing[field], first[field], `${listing.id}: shared ${field}`);
+        if (url === razeUrl) {
+          for (const field of ["download_asset_hints", "recommended_download_channel"] as const)
+            assert.deepEqual(listing[field], first[field], `${listing.id}: shared ${field}`);
+          const steps = fixtureRecords(fixtureRecord(listing.manual_setup).steps);
+          const expected = fixtureRecords(fixtureRecord(first.manual_setup).steps);
+          assert.equal(steps.length, 4);
+          assert.deepEqual(
+            steps.slice(2),
+            expected.slice(2),
+            `${listing.id}: shared profile and update ownership`,
+          );
+        }
+      }
+    }
+  };
+  check(families);
+  for (const field of [
+    "platforms",
+    "availability",
+    "setup_url",
+    "release_url",
+    "download_asset_hints",
+    "recommended_download_channel",
+    "profile",
+  ] as const) {
+    const changed = structuredClone(families);
+    const listing = requiredFixture(
+      changed.find((entry) => entry.listing.project_url === razeUrl),
+    ).listing;
+    if (field === "platforms") listing.platforms = ["windows-x86-64"];
+    else if (field === "availability") listing.availability = "unavailable";
+    else if (field === "download_asset_hints") listing.download_asset_hints = {};
+    else if (field === "recommended_download_channel")
+      listing.recommended_download_channel = "beta";
+    else if (field === "profile")
+      requiredFixture(fixtureRecords(fixtureRecord(listing.manual_setup).steps)[2]).instruction =
+        "Wrong profile.";
+    else listing[field] = "https://example.invalid/unrelated";
+    assert.throws(() => check(changed), /shared/, field);
+  }
+  const independent = structuredClone(families);
+  for (const { listing } of independent) {
+    listing.name += listing.id;
+    listing.issue_number = (listing.issue_number ?? 1) + 10000;
+    listing.download_block_reason = `An independently reviewed condition for ${listing.id}.`;
+    const steps = fixtureRecords(fixtureRecord(listing.manual_setup).steps);
+    requiredFixture(steps[0]).instruction = `Original-file requirements for ${listing.id}.`;
+  }
+  check(independent);
+});
 
 void test("per-port source projects all accepted operations unchanged and listing-only records stay inert", () => {
   const source = readCatalogSource(catalogRoot);
@@ -83,6 +155,10 @@ void test("download restrictions project through the versioned directory without
     record.listing.download_block_reason,
   );
   assert.equal(projection.catalog.ports.length, 0);
+  assert.throws(
+    () => checkedAuthoredPort({ ...record, integration: { adapter: "native-portable" } }),
+    /download restriction cannot coexist with a managed integration/,
+  );
   const legacy = structuredClone(record);
   delete legacy.listing.download_block_reason;
   assert.equal(assembleCatalogRecords(shared, [legacy]).directory.format_version, 1);
@@ -160,4 +236,124 @@ void test("listing download hints remain advisory and reject ambiguous authoring
       /download asset hints/,
     );
   }
+});
+
+void test("original game identity projects exact authored groups and multiple source editions without operational authority", () => {
+  const source = readCatalogSource(catalogRoot);
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const original_game = {
+    format_version: 1,
+    id: "example-game",
+    evidence_urls: ["https://example.com/game"],
+    source_editions: [
+      {
+        id: "example-console",
+        title: "Console edition",
+        system: "nintendo-64",
+        evidence_urls: ["https://example.com/console"],
+      },
+      {
+        id: "example-computer",
+        title: "Computer edition",
+        system: "pc",
+        evidence_urls: ["https://example.com/computer"],
+      },
+    ],
+  };
+  const base = {
+    format_version: 1,
+    listing: {
+      id: "edition-fixture",
+      name: "Example port",
+      summary: "Descriptive metadata only.",
+      project_url: "https://example.com/port",
+      original_game,
+    },
+  };
+  const record = checkedAuthoredPort(base);
+  const projected = assembleCatalogRecords(shared, [...source.records, record]);
+  assert.equal(projected.directory.format_version, 3);
+  assert.deepEqual(projected.catalog, source.catalog);
+  assert.deepEqual(
+    projected.directory.listings.find((value) => value.id === "edition-fixture")?.original_game,
+    original_game,
+  );
+  const integrated = source.records.find((value) => value.integration)!;
+  const withMetadata = checkedAuthoredPort({
+    ...integrated,
+    listing: { ...integrated.listing, original_game },
+  });
+  const assembled = assembleCatalogRecords(shared, [withMetadata]);
+  assert.deepEqual(assembled.catalog.ports[0]?.presentation?.original_game, original_game);
+  assert.deepEqual(
+    authoringRecordFromPort(assembled.catalog.ports[0]).listing.original_game,
+    original_game,
+  );
+  for (const invalid of [
+    { ...original_game, format_version: 2 },
+    { ...original_game, id: "Ambiguous title" },
+    { ...original_game, evidence_urls: [] },
+    { ...original_game, evidence_urls: ["http://example.com/source"] },
+    {
+      ...original_game,
+      source_editions: [original_game.source_editions[0], original_game.source_editions[0]],
+    },
+    {
+      ...original_game,
+      source_editions: [{ ...original_game.source_editions[0], system: "Nintendo 64" }],
+    },
+    { ...original_game, unexpected: true },
+  ])
+    assert.throws(() =>
+      checkedAuthoredPort({ ...base, listing: { ...base.listing, original_game: invalid } }),
+    );
+  assert.doesNotThrow(() =>
+    checkedAuthoredPort({
+      ...base,
+      listing: { ...base.listing, original_game: { ...original_game, source_editions: [] } },
+    }),
+  );
+});
+
+void test("descriptive media projects to format 3 and explicit empty strict media remains a removal", () => {
+  const source = readCatalogSource(catalogRoot);
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const media = [
+    {
+      id: "upstream-screenshot",
+      role: "screenshot",
+      subject: { kind: "port", port_id: "media-fixture" },
+      caption: "A synthetic screenshot fixture.",
+      url: "https://raw.githubusercontent.com/example/media/" + "a".repeat(40) + "/screen.png",
+      sha256: "b".repeat(64),
+      width: 640,
+      height: 480,
+      attribution: "Fixture author",
+      source_url: "https://example.com/media",
+      license: "CC0-1.0",
+      rights_url: "https://example.com/rights",
+    },
+  ];
+  const record = checkedAuthoredPort({
+    format_version: 1,
+    listing: {
+      id: "media-fixture",
+      name: "Media fixture",
+      summary: "No managed integration.",
+      project_url: "https://example.com/port",
+      media,
+    },
+  });
+  const projected = assembleCatalogRecords(shared, [record]);
+  assert.equal(projected.directory.format_version, 3);
+  assert.deepEqual(projected.directory.listings[0]?.media, media);
+  assert.equal(projected.catalog.ports.length, 0);
+  const integrated = source.records.find((value) => value.integration)!;
+  const removal = checkedAuthoredPort({
+    ...integrated,
+    listing: { ...integrated.listing, media: [] },
+  });
+  const removed = assembleCatalogRecords(shared, [removal]);
+  assert.deepEqual(removed.catalog.ports[0]?.presentation?.media, []);
+  assert.deepEqual(authoringRecordFromPort(removed.catalog.ports[0]).listing.media, []);
 });

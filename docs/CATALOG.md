@@ -48,10 +48,21 @@ builder that created them remains an active feature.
 
 The `native-portable` adapter offers the existing managed installation, update,
 retained-version, backup and recovery lifecycle to fitting upstream archives.
+For ordinary GitHub discovery, releases containing only explicit other-OS
+players are outside that platform's stream. Same-OS, unknown or mixed package
+names still use the normal variant, processor and integrity refusals; source-only
+releases never silently select an older runtime. Curated identities retain their
+existing exact selection.
 It does not need a game-specific adapter. Setup provider and runtime update owner
 are independent: the game can ask for original files on first launch while
 Portcove continues to replace its runtime. A launcher that replaces its own
 runtime instead uses the non-owning existing-installation route.
+
+Verify that the selected process stays alive through edition dispatch and
+settings-triggered restarts, or uses a supported tracked handoff. A launcher that
+starts a successor and exits can end Core's supervision while the game still
+uses its files. Keep that upstream-owned route non-owning until its full lifetime
+can be tracked; bypassing useful setup or settings is not a management fix.
 
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
@@ -62,6 +73,31 @@ put managed preservation promises only in integration presentation. A shared
 upstream profile may still be read on the next explicit Play. A saved Core data
 store or richer preparation/account contract requires its own compatible
 transition rather than guessing at migration or rewriting retained definitions.
+
+When complete game and engine-only packages cannot be distinguished by stable
+literal hints, an exact `direct-manifest` archive can use this same adapter.
+The existing Direct contract requires one Stable version/URL/size/SHA-256 per
+declared platform; it does not discover newer upstream versions. The native
+route still rejects installers, raw executables, custom build/setup commands,
+mutable runtimes and downstream source preparation. A pin does not inherit
+another artifact's qualification. A later reviewed catalog pin remains a new
+artifact/compatibility decision, and runtime rollback does not rewind external
+profiles or certify their older-version compatibility.
+
+Native template version 3 represents exact archive pins. Version 4 additionally
+consumes `windows_runtime_path_policy: relative-file-max-path` for Windows-only
+native archives. Core checks every authenticated immutable package member and
+the selected executable/working directory at their final coordinates before
+publication and before launch or retained-data synchronization. Recovery,
+adoption, relocation and library import repeat the applicable destination check.
+The conservative envelope counts Windows UTF-16 units, the terminating NUL and
+the runtime's `.\` relative spelling within MAX_PATH; it imposes no ASCII-only
+rule. A shorter executable alone does not establish fitting data-file paths.
+Choose a shorter output folder when held. This is a supported coordinate
+envelope, not a general Windows long-path fix or a claim about the exact upstream
+failure threshold. External profiles and arbitrary future save filenames are
+outside the immutable-package check. New and retained independent entries using
+this policy require Native4; Direct-only Native3 retains its meaning.
 
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
@@ -110,10 +146,17 @@ an existing marker needs a supported transition. First-Play file pickers remain
 Play and need no artificial completion marker.
 
 When an active installation exists, activation checks the destination's actual
-retained data contract, including artifact reuse and pending activation recovery.
+retained data contract, including artifact reuse, interrupted install publication
+and pending activation recovery. Native portable publication recovery collects
+current player data and restores it before committing activation, just as the
+normal staged route does; this adds no restore-receipt requirement to native ports.
 Today's recommended definition cannot authorize an incompatible retained target.
 A failed pre-commit check preserves the active version and all player data;
 already committed recovery finishes with the authoritative committed version.
+Reuse, normal staged activation and both recovery routes share the existing
+`prepare_retained_install_data` preflight. Their callers retain distinct admission,
+publication, journal and commit boundaries. Rollback retains its stricter
+directional compatibility check.
 
 Assess preparation separately on each platform. A Windows first-Play picker
 does not establish a Linux picker or a manual completion record. Keep a useful
@@ -128,7 +171,9 @@ For mutable release tags, keep the tag commit, current source head and any
 publisher-declared package build commit separate. A checksummed build manifest
 is a publisher source claim, not an independent reproducible-build attestation.
 Use Core's channel classification rather than a provider's prerelease flag alone;
-a nightly-named tag can be a Preview even when that flag is unset.
+a tag such as `v0.3-dutch-preview-1` selects Preview even when that flag is unset.
+Preparation feedback retains the raw observed tag and provider flag as advice; it
+does not classify a stream or override the player's saved choice.
 
 Every package hint must match for managed replacement; the shared native
 suitability check still rejects known foreign processors, platforms, supporting
@@ -142,17 +187,27 @@ to another project does not settle a separately authored component's permission.
 Retain a named acquisition condition at its exact operation scope. When fresh
 self-service acquisition is held, the authored listing can set
 `download_block_reason` to a bounded practical explanation and reconsideration
-condition. The generator emits listing format 2; Core refuses download options,
+condition. This restriction requires listing format 2 or later; Core refuses download options,
 preview and mutation before contacting the provider. This restriction grants no
 permission to acquire, register or execute an existing copy and does not rewrite
 its retained contract. Keep useful existing permitted-copy instructions and
 upstream links. Remove a restriction only after reviewing the changed fact.
+Preparation refuses replacement records that remove or change an existing
+restriction; resolve its canonical condition in a reviewed Git-authored edit.
+A restricted authored listing cannot also supply a managed integration, whose
+acquisition eligibility belongs to the strict definition. Package observations,
+release links, hints and artwork enrichment do not resolve either condition.
 
 For an upstream-owned route, optional listing `download_asset_hints` maps a host
 platform to one through eight bounded, case-insensitive literal filename fragments.
 Optional `recommended_download_channel` selects `stable` or `beta` for the initial
 download lookup, for example when the reviewed player is published as a preview.
-A player's explicit saved channel or release takes precedence. This recommendation
+A player's explicit saved channel or release takes precedence. For a genuinely
+fresh `native-portable` installation, Core also uses this hint when the managed
+definition declares that channel. Settings, retained or staged installs, external
+registrations and pending downloaded setup keep their existing fallback and
+choices. Destination/policy changes and accepted install intent preserve the
+chosen channel durably; read-only discovery never creates settings. This hint
 does not change an installed channel, version pin or update policy.
 Core uses all fragments together to recommend the reviewed player package or
 upstream installer. Prefer stable discriminators instead of a version string;
@@ -354,6 +409,17 @@ files, rebase upstream selections or promise mod/save compatibility. Ordinary
 declared state retains its existing restore/deletion semantics. Runtime rollback
 carries current data, including selected mod versions; it does not rewind saves.
 
+Normal collection, including collection after Play or recovered sessions, checks
+complete-package conflicts before copying other declared data. A differing copy
+of the same package ID/version holds collection, backup or post-Play recovery with
+both paths preserved; local edits need that deliberate review. Preserve the
+reported copies separately and resolve the conflict before retrying. Current
+runtime data remains intact; failed collection is not a completed backup or
+recovery. Normal collection still mirrors deliberate package removals and ordinary
+root-state changes. Only the retained `packages` layout has package semantics;
+arbitrary historical `bundled` or `installed` folders are not reclassified.
+Supporting newer split-root SDK layouts remains a separate compatibility decision.
+
 PS1 installs publish inactive and run player-data preflight before activation.
 Older interrupted install journals use the same order; an already committed
 active version remains authoritative. Explicit backup restoration also preflights
@@ -415,6 +481,17 @@ size and caller-budget checks precede member admission. The normalized aggregate
 uses its own versioned SHA-256 protocol, including single-member sets. Existing
 basename file-set identities and aggregates are unchanged.
 
+Member hashing and owned staging use bounded 128 KiB chunks for directory and ZIP
+sources. Directory reads retain no-follow, single-link and before/after object
+identity checks; cache revalidation uses the same streaming path. Cancellation
+is checked between chunks. A hash or size mismatch refuses admission/publication,
+and interrupted writes stay in the existing private staging/recovery boundary.
+The 128 MiB member, 512 MiB aggregate and 256-member capability limits remain:
+the current reviewed 48-member Dark Forces representation totals 68,386,776 bytes,
+with a largest member of 14,244,049 bytes (catalog measured 2026-10-27). No reviewed
+supported representation was demonstrated to need a larger bound. Streaming
+reduces scratch allocation; it does not expand source or archive authority.
+
 The reviewed Windows TFE v1.22.420 package selects the constrained
 `tfe-dark-forces-portable-v1` initializer and requires staged-source capability
 **19** for direct manifests or **21** for GitHub discovery. The retained definition supplies executable and package rules; an exact
@@ -441,10 +518,12 @@ the same entry point with a selected workset:
 node scripts/prepare-port.mts --artwork-ids fragglet-sdl-sopwith,faxanadu-recomp --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/cover-preparation
 ```
 
-This mode reads the complete per-ID source catalog and accepts 1–400 unique known
-IDs per invocation. It collects no upstream repository/release facts. Two bounded
-worksets can cover a 522-record directory; provider request, byte and time ceilings
-remain unchanged. Optional `--identities` and `--credentials-file` work as in
+This mode reads the complete per-ID source catalog and accepts a logical workset
+of unique known IDs, automatically continuing through bounded operations of at
+most 400 identities. It collects no upstream repository/release facts. A
+522-record directory needs one logical specification; accepted per-ID progress
+resumes after interruption. Provider request, byte and time ceilings remain
+unchanged. Optional `--identities` and `--credentials-file` work as in
 single-record preparation. `--refresh-artwork ID,OTHER_ID` refreshes only IDs in
 the selected workset; otherwise accepted mappings are reused. Project, issue,
 record, release and route options cannot be mixed into an artwork-only batch.
@@ -608,54 +687,60 @@ and bounds metadata/image requests, bytes and execution time. A valid `Retry-Aft
 on a captured metadata 429 or 503 postpones the next metadata request, preserving
 the normal 300 ms floor. All three HTTP-date forms are interpreted in UTC,
 including the zoneless asctime form, independently of the authoring host timezone.
-Decimal seconds and HTTP dates stay within the existing
-15 minute batch deadline; a pause reaching that deadline refuses further metadata
-requests without sleeping past the budget. Waits remain cancellable, failed
-identities are not retried, and uncertain failures retain eligible accepted
-metadata. Image requests retain their existing policy. Fixed OAuth, metadata and image responses
-are consumed within those byte bounds or their unfinished bodies are cancelled
-when refused, including status, content-type and early length checks. Cleanup
-does not drain rejected payloads or await an arbitrary cancellation promise;
-reader locks are released and the original result or failure is preserved.
-Request signals, deadlines, request/byte counters and authentication policy
-remain unchanged. Retained references are not fresh source-health evidence.
+Decimal seconds and HTTP dates retain the actual provider reset, including a
+pause beyond the current 15-minute operation. Such a pause refuses further
+requests without sleeping past the operation deadline. Metadata and image
+429/503 responses preserve their separate retry clocks across bounded operations.
+Waits and requests accept cancellation. Failed identities are not automatically
+retried within the logical invocation, and uncertain failures retain eligible
+accepted metadata. Fixed OAuth, metadata and image responses are consumed within
+finite byte bounds or their unfinished bodies are cancelled when refused.
+Cleanup does not drain rejected payloads or await an arbitrary cancellation
+promise; reader locks and original failures are preserved. Retained references
+are not fresh source-health evidence.
 This command prepares the cover role only;
 other roles, full backlog coverage, protected acceptance/publication and installed
 or physical-platform evidence retain their own acceptance.
 
 ### Reference and exception maintenance
 
-Use the existing catalog/onboarding maintenance checkpoint weekly. Select due
-stable port IDs oldest successful reference observation first, with stable ID as
-the tie breaker. Size the weekly worksets against the number of accepted
-references and the remaining checkpoints in a 28-day refresh target; split work
-into bounded batches when necessary. A fixed 50-ID batch is not a whole-catalog
-coverage guarantee. Provider outages or exhausted budgets retain the unobserved
-IDs as due rather than claiming the refresh completed.
-Use the existing preparation receipt and owning issue evidence for observation
-time, input digest, selected refresh IDs, outcome and next due checkpoint. Missing
-or uncertain observation dates are due, not evidence of healthy content. This is
-an operator cadence, not a new scheduler, registry or player startup task. New or
-changed identities and assessed mistakes are investigated when encountered;
-ordinary executable updates do not refresh artwork.
+Use the existing catalog/onboarding maintenance checkpoint weekly. Run
+`prepare-port.mts --artwork-ids @due --output-dir EXISTING_CHECKPOINT` to select
+missing, invalid and then oldest observed references automatically against the
+28-day refresh target. Unknown dates remain due. Explicit
+`--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
+This is the existing operator cadence, not a new scheduler or player startup task.
+Ordinary executable updates do not refresh artwork.
 
-Refresh due IDs through `prepare-port.mts` with
-`--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` and
-reuse all unaffected accepted mappings. The full input may contain up to 10,000
-records; provider work is limited to the selected workset of at most 400 IDs.
-The authoring batch mode requires an explicit workset; it does not silently
-select the entire directory. Unknown or repeated IDs and changed artwork identities outside the
-workset are refused. Results merge by stable ID. An observed exact-image Gone
-fact removes every matching output reference, including unselected records,
-without additional provider queries.
-The existing hard ceilings remain 400 selected entries, 800 metadata queries, 400 image
-queries, 32 MiB metadata, 512 MiB images, 16 MiB per image, 15 minutes overall and 15
-seconds per request. The adapter is sequential, spaces metadata starts by at least
-300 ms, authenticates once and does not retry failed requests. Stop at those
-limits, retain the incomplete receipt and resume only unobserved IDs in the next
-bounded batch. Do not call a retained mapping a successful live refresh. Reuse
-unchanged downloaded content by identity; only a changed accepted image needs new
-semantic review and affected display validation.
+A logical workset may exceed 400 IDs. The driver admits operations of at most 400
+selected IDs and adjusts subsequent admission using observed elapsed time,
+requests and image bytes. Completed identities are atomically checkpointed after
+each result under the existing preparation lock. Reinvoke the same full workset
+after interruption or provider recovery: unchanged successful IDs are reused;
+changed per-ID identity, relevant accepted-original mappings or validator bytes
+invalidate the affected result. Earlier attempt receipts remain available.
+A provider-blocked operation leaves its IDs pending while later unrelated or
+offline work continues. A fully deferred operation is never blindly retried.
+Provider Retry-After dates remain durable, and incomplete work never claims
+successful full maintenance. Retained mappings after unavailable refresh remain
+pending. Proposed records still require the existing review and delivery route.
+
+The full input retains its bounded 10,000-record authoring contract. Each provider
+operation retains 800 metadata queries, 400 image queries, 32 MiB metadata,
+512 MiB images, 16 MiB per image, 15 minutes and 15 seconds per request.
+Processing remains sequential with at least 300 ms between metadata starts,
+one lazy authentication attempt per invocation and no failed-request retries.
+A bounded 32 MiB metadata memo avoids repeated matching, image downloads and
+decoding within the logical invocation. Memo reuse retains the earliest actual
+observation clock; it cannot make old facts fresh. Per-ID checkpoint documents
+are bounded to 8 MiB and contain metadata and digests, never image payloads.
+
+Unknown or repeated IDs and changed artwork identities outside the selected
+workset are refused. Results merge by stable ID. An exact-image Gone observation
+removes every matching output reference, including unselected and checkpointed
+records, without additional provider queries. Accepted source records, user
+choices, source licensing and offline fallback stay authoritative. Only a
+changed accepted image needs new semantic review and affected display validation.
 
 Recheck the bounded missing-fact/resume exceptions at the same checkpoint; query
 again when attributable facts, asset/provider state or a previous transient
@@ -842,9 +927,12 @@ description. The Wave Race pilot requires an empty `portable.txt` beside its
 executable, in addition to the extracted upstream ZIP files.
 Optional `presentation.manual_setup` supplies authored `steps` (one to eight
 objects with nonempty `title` and `instruction`), up to eight essential `warnings`,
-and an optional HTTPS `help_url` without credentials. These are presentation
-facts, never executable recipes or evidence that a step was completed. Current
-prepared routes supply them separately from the retained `manual_preparation`
+and an optional HTTPS `help_url` without credentials. Include `warnings: []`
+when no warning is needed; omitting the required array does not produce a
+Core-readable guide. Use preparation's Core inspector
+or the required catalog checks to validate the complete projection. These
+presentation facts are never executable recipes or evidence that a step was
+completed. Current prepared routes supply them separately from the retained `manual_preparation`
 compatibility and technical notes. Older definitions keep their prose fallback.
 Clients keep warnings visible, show numbered steps, and disclose the longer notes
 without parsing free-form prose or changing file/operation authority.
@@ -1091,8 +1179,8 @@ catalog change.
 Declare the offered route's maintenance policy on its existing canonical Port
 issue during admission and subsequent disposition work, independently from its
 operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)
-owns cohort reconciliation, [#254](https://github.com/boburning/portcove/issues/254)
-owns repeatable proposal and evidence preparation, and
+owns cohort reconciliation; completed [#254](https://github.com/boburning/portcove/issues/254)
+provides repeatable proposal and evidence preparation, and
 [#246](https://github.com/boburning/portcove/issues/246) owns protected compatible
 delivery. These declarations are not new catalog schema fields or a second
 planning registry.
@@ -1267,6 +1355,33 @@ route, conflicting managed/external records or a changed record owner refuse the
 capture before report publication. Existing capture directories are preserved.
 `installed_ports` still counts managed installs; `registered_ports` counts
 external registrations and `reported_ports` counts both.
+
+To project actual Core offers into the existing scenario report, run
+`node scripts/desktop-verify.mts --list-scenarios --json --qualification-evidence <capture/evidence.json>`.
+The rows retain Core's allowed, held or waiting assessment, execution platform,
+exact available artifact/record identity, intended scenario producer and missing
+observations. A managed record's unknown installed platform stays unknown.
+Scenario `operation_routes` describe test coverage; they do not decide which
+operations Core offers.
+
+Repeat `--current-preflight <preflight.json>` for each operation/observation scope and
+`--acceptance-packet <completed.json>`
+to inspect receipts against the requested frozen dependencies. The owning acceptance
+verifier rechecks the completed packet and its retained artifacts. Scope lives in
+the existing binding's `execution_qualification.initial_state.offered_operation`:
+`port_id`, `operation`, `runtime_kind`, `record_id`, `availability`, `reason`,
+`platform`, `package_sha256`, `producer` and `evidence_kind`; an external record
+also binds `package_platform`. Runtime conditions must declare the same platform
+and observation kind. Kinds are `browser-fixture`, `native-harness-contract` and
+`real-installed-execution`. A receipt with missing scope or incompatible inputs
+cannot fill a missing observation. Retained execution `captured_at` orders observations, independently of packet completion.
+Missing observation times remain explicitly unordered. Current required gaps or failed
+source reviews block completeness while historical observations remain visible.
+Prerequisites remain descriptive metadata; required gaps and actual source-review
+fields provide the defined disposition checks. Empty
+or truncated inventories never imply complete native coverage. The latest compatible failure remains visible;
+an adjacent green fixture or harness result cannot replace it. This read-only
+projection grants no acceptance and inventories only the supplied receipts.
 
 The capture keeps the selected CLI's original path so sibling tool discovery
 retains its normal behavior. It records the initial SHA-256 and checks that the
@@ -1456,16 +1571,53 @@ New named persistent-path declarations also permit newly created preference
 files in existing installations. Verification still checks every file recorded
 as immutable in the original manifest; a later declaration cannot hide changes
 to those bytes or rewrite that recorded identity during library import.
-For an installed version with a retained definition, the service admits newly
-declared exact persistent and runtime-mutable paths only when the current port
-definition otherwise matches that retained definition and keeps all of its old
-mutable paths. An addition overlapping a recorded immutable file or naming an
-executable companion is rejected. The retained definition still owns source and
-launch behavior, while newly admitted persistent files participate in collection,
-restore, activation, interrupted-activation recovery, rollback and game-output
-relocation. Other catalog changes do not silently expand an old installation's
-mutable surface. Whole-library export and import retain their separately reviewed
-historical contract and can still reject an older install with new sidecars.
+For an installed version with a retained definition, runtime verification may
+recognize new exact persistent and runtime-mutable paths only when the current
+port definition otherwise matches that retained definition and keeps all old
+mutable paths. Recorded immutable members and executable companions cannot gain
+mutability. This verification allowance does not prove that player data was
+restored under a wider scope. Receipt-governed installations refuse collection or
+restoration when historical scope evidence is absent or interpreted persistence
+paths/patterns differ from their retained scope; the same persistence-authority
+preflight covers inactive versions in read-only Restore review and again before
+canonical publication. Actual restore also checks mod conflicts at its existing
+mutation boundary.
+The original receipt, manifest and diagnostic-mutability
+behavior remain unchanged. Other existing integration interpretations, including
+the separately qualified Shipwright exception, retain their own boundaries.
+
+A ready staged archive may move forward to a fresh, strictly larger persistence
+contract only when the old authenticated contract and its current data
+interpretation agree, all source/launch coordinates and patterns remain compatible,
+and every added path is absent from the active runtime, canonical data and actual
+destination. Missing immutable package files do not make their names adoptable;
+links, case aliases, overlapping paths and uncertain inspection refuse. Recheck
+under the port lock after preparation, synchronization and before activation or
+pending recovery. The new installation retains its full new scope; old copies keep
+their original scope. Ordinary contract shrinking, populated additions and
+unproven scope expansion remain refused. Runtime rollback still carries current
+data and does not rewind saves.
+
+Explicit rollback between two authenticated retained ready-archive copies may use
+that same empty-path proof in either direction when one persistence scope strictly
+contains the other. Both copies keep their original manifests and receipt scope; ordinary restore
+completion keeps its existing proof-recording behavior. No current catalog
+reinterpretation grants the older copy a wider scope. Every
+changed path must be absent from both runtime roots and canonical data, with the
+same compatible coordinates, patterns, immutable-member and companion checks.
+Status and execution share the guard; execution repeats it after collecting
+current data and before restoring the target or changing the active pointer.
+This permits returning from an empty expansion and back to its retained larger
+version. If either runtime later creates a changed path, or a path is populated,
+aliased, linked or otherwise uncertain, the switch stays held with the files and
+active copy preserved. Populated scope migration is not supplied by this exception.
+
+If fresh acquisition publishes a staged copy before its final data-compatibility
+check refuses, the error includes `staged_install_id`: that copy and its files stay
+registered, the active copy stays active, and activation and stage-only retries
+repeat the actual-destination check. This is an ordinary retained staged copy,
+not a new durable held-status type. Whole-library export/import continue using
+historical retained authority, with no current-catalog-only ownership grant.
 
 Managed PS1 launches regenerate `.portcove-psx-runtime.toml` from the verified
 `game.toml` template and current verified disc paths for both source modes.
@@ -1575,6 +1727,43 @@ without an integration carries no managed operation or qualification claim.
 Shared source identities, contracts, validators, evidence and qualification stay
 in `catalog-shared.json`, preserving their existing order and scope.
 
+Optional listing `original_game` is a version-1 descriptive identity: an explicitly
+reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
+`source_editions`. Each edition has its own stable `id`, descriptive `title`,
+optional original `system` slug and evidence URLs. For example `nintendo-64` and
+`xbox-360` identify source systems, independently of the port's Windows/Linux/macOS
+targets. Multiple required or accepted editions remain explicit. An absent game
+identity never groups entries by title similarity; absent editions/system mean
+**Not specified**, never PC. Shared game IDs group presentation only and never
+replace port, installed, pending-setup, source-contract or path identities.
+
+The same optional object projects into operational `presentation.original_game`.
+Descriptive directories containing it use listing format 3; current readers retain
+formats 1 and 2. Earlier accepted records without metadata stay valid. Authoring
+checks bound identifiers, text, edition counts and HTTPS provenance; Core validates
+the projected fields without granting installation, execution or media rights.
+Game and edition IDs are maintained explicitly, not inferred from project names,
+artwork mappings or a frozen prototype registry. Unknown editions remain unknown
+until their own upstream evidence has been reviewed.
+
+Optional authored `media` carries at most one `header` and eight `screenshot`
+assets through the same listing and operational presentation projection. Every
+asset declares its exact port or authored original-game plus source-edition ID,
+caption, digest, dimensions, image/source URLs, attribution, a supported license
+identifier and `rights_url` evidence. Reviewers inspect the source and rights
+evidence; metadata admission validates shape and bounds, not a legal grant. A
+parent project license alone is not distribution consent. No third-party files
+are copied merely to fill a gallery.
+
+Directories containing media require format 3. Legacy strict presentation with
+no `media` field may use reviewed directory media for the same exact identity;
+an explicit empty array clears it. An existing local artwork override takes
+precedence for the header, including its unavailable state; screenshots remain
+authored read-only media. Image retrieval accepts only pinned raw GitHub commit
+URLs, the IGDB image CDN and Wikimedia Commons, with no redirects, URL queries or
+credentials. Cached `.image` originals share the existing disposable 64 MiB
+artwork cache and bounded decoding work; local overrides remain separate.
+
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
 `catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.
 All three are generated outputs, and `--check` refuses a stale projection.
@@ -1591,6 +1780,12 @@ historical migration is no longer a current authoring path. It reads the frozen
 qualification records must not be added to that migration.
 
 Use one thin preparation entry point for a new or updated record:
+
+Shared upstream families retain complete independent per-ID records. The existing
+authoring tests compare Raze's shared package/platform/profile/update facts and
+Namco's common upstream/platform links. Original-file requirements, canonical
+issues, identities and independently reviewed acquisition restrictions stay local
+to each record. These checks add no runtime inheritance or shared policy registry.
 
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
@@ -2012,7 +2207,10 @@ never ownership or continuity evidence. The standalone `--previous-report=PATH`
 accepts bounded comparison evidence and writes no state or issue comments.
 
 The workflow coordinator persists validated main-only observation history and
-rotates batches within fixed ceilings of 320 requests and 512 observation records.
+automatically drains checkpointed operations of at most 320 requests and 512 new
+location assessments. Individually oversized collections continue by endpoint
+without starving smaller scopes; compatible completed facts retain their original
+24-hour clocks and do not consume another request or new-location slot.
 Its report distinguishes this run's assessed ports from retained observations,
 stale/unmonitored entries
 and recent partial attempts, with a 24-hour freshness window and the complete

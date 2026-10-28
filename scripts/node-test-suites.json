@@ -38,21 +38,24 @@
         "--test-reporter=./scripts/required-node-test-reporter.mts",
         "--test-skip-pattern",
         "pnpm uses|direct just recipes"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-2": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-3": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-4": {
       "arguments": [
@@ -60,7 +63,8 @@
         "--test-concurrency=1",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "rust-quality-full": {
       "arguments": [
@@ -148,7 +152,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "process-policy": {
       "arguments": [
@@ -177,7 +182,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "repository-tools-2": {
       "arguments": [
@@ -185,7 +191,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "release-check": {
       "arguments": [
@@ -193,14 +200,16 @@
         "--experimental-test-module-mocks",
         "--test-timeout=60000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "roadmap-check": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "mutex-owned-payload": {
       "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
@@ -210,7 +219,24 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
+    },
+    "posix-tooling-contracts": {
+      "arguments": [
+        "--test",
+        "--test-timeout=30000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ],
+      "localResourceProfile": "analysis"
+    },
+    "macos-platform-contracts": {
+      "arguments": [
+        "--test",
+        "--test-timeout=30000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ],
+      "localResourceProfile": "analysis"
     }
   },
   "tests": [
@@ -325,6 +351,20 @@
       "memberships": [
         ["catalog-full-2", 9300],
         ["repository-tools-2", 4300]
+      ]
+    },
+    {
+      "file": "scripts/catalog-upstream-observer.test.mts",
+      "memberships": [
+        ["catalog-full", 1201],
+        ["repository-tools", 402]
+      ]
+    },
+    {
+      "file": "scripts/provider-release-observation.test.mts",
+      "memberships": [
+        ["catalog-full", 1202],
+        ["repository-tools", 403]
       ]
     },
     {
@@ -518,7 +558,31 @@
       "file": "scripts/container-browser.test.mts",
       "memberships": [
         ["catalog-full-2", 200],
-        ["development-tools", 400]
+        ["development-tools", 400],
+        ["windows-storage-3", 1000108]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "prerequisite",
+          "prerequisite": "non-system Windows storage fixture unavailable",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "backing storage follows junctions and enforces the physical system-volume policy"
+          ],
+          "skip_reason_prefix": "non-system Windows storage fixture unavailable"
+        },
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": ["Windows timeout drains the owned launcher's actual descendant"]
+        }
       ]
     },
     {
@@ -555,6 +619,19 @@
         ["windows-helpers", 100],
         ["catalog-full", 900],
         ["roadmap-check", 900]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers",
+          "cases": [
+            "Windows reader sharing permits bounded atomic state replacement and preserves persistent failure"
+          ]
+        }
       ]
     },
     {
@@ -615,6 +692,25 @@
         ["windows-storage-4", 600],
         ["frontend-full-4", 600],
         ["development-tools", 2400]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "frontend-full-4",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-4",
+          "cases": [
+            "GTK chooser production guards bound queued reads and both button and text inputs",
+            "GTK picker binds the captured namespace and refuses unrelated processes and changed identities",
+            "Linux native launches positively join detached descendants before independent restart",
+            "Linux native startup refusal cannot establish successful session closure",
+            "Malformed private transport after readiness remains a failed qualification after real join",
+            "namespace startup failure retains bounded actual stderr and cannot establish custody",
+            "published readiness cannot hide a wrapper failure with failed persistence and a live child"
+          ]
+        }
       ]
     },
     {
@@ -640,7 +736,21 @@
       "file": "scripts/desktop-native-account-session.test.mts",
       "memberships": [
         ["catalog-full-2", 11600],
-        ["release-check", 9700]
+        ["release-check", 9700],
+        ["windows-storage-3", 1000109]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "account desktop handoff uses exact job identities, scrubbed environment and one stop"
+          ]
+        }
       ]
     },
     {
@@ -657,6 +767,33 @@
         ["windows-storage-4", 100],
         ["frontend-full-4", 100],
         ["development-tools", 1900]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "frontend-full-4",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-4",
+          "cases": [
+            "history installation and lost-window failures retain original and restoration evidence",
+            "history ownership rejects an unrelated PID and changed creation identity without signaling"
+          ]
+        },
+        {
+          "platform": "win32",
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": [
+            "picker observation refuses stale launch identities and directory input before UI enumeration",
+            "prepared runtime picker refuses a different directory before obtaining a driver",
+            "actual installer public-entry guards refuse unappointed source and version before account access"
+          ]
+        }
       ]
     },
     {
@@ -672,7 +809,20 @@
       "file": "scripts/dev-doctor.test.mts",
       "memberships": [
         ["windows-storage-4", 1000],
-        ["development-tools", 2700]
+        ["development-tools", 2700],
+        ["posix-tooling-contracts", 0]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "windows-storage-4",
+          "category": "prerequisite",
+          "prerequisite": "file symlinks require Windows privilege",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": ["tsgolint refuses a launcher symlink outside its installed package"],
+          "skip_reason_prefix": "file symlinks require Windows privilege"
+        }
       ]
     },
     {
@@ -681,20 +831,126 @@
         ["windows-storage", 100],
         ["frontend-full-2", 100],
         ["repository-tools-2", 3800]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage",
+          "cases": [
+            "CLI smoke binds every executable observation inside its isolated scope",
+            "CLI smoke restores absent empty and conflicting bindings after success and failure",
+            "Rust-generated Tauri storage remains subject to strict physical-path checks",
+            "Windows preflight rejects a system-drive junction even when descendants are missing",
+            "Windows shims preserve spaced arguments and exit status and reject shell injection",
+            "installer qualification resolves relative scratch paths, isolates process temp, and retains failure evidence",
+            "local packaging honors custom storage, produces a ZIP without generated data, and restores the environment",
+            "ordinary Windows system-drive paths pass capacity checks while strict policy refuses",
+            "release preflight restores caller storage variables after a failed gate"
+          ]
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "windows-storage",
+          "category": "prerequisite",
+          "prerequisite": "Real Cargo acceptance was not observed: unchanged 20 GiB reserve blocks local compilation.",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage; Mac complement macos-platform-contracts",
+          "cases": [
+            "real Cargo owns target initialization and checked cleanup after Cargo-first preparation",
+            "real Cargo owns target initialization and checked cleanup after support-first preparation"
+          ],
+          "skip_reason_prefix": "Real Cargo acceptance was not observed: unchanged 20 GiB reserve blocks local compilation."
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-2",
+          "category": "supervised-parent",
+          "prerequisite": "Pinned frontend package manager and Just fixture environment",
+          "reason": "Complementary selectors preserve the original frontend-only execution without treating a filtered invocation as full-family discovery.",
+          "intended_route": ".github/workflows/ci.yml / frontend_full / frontend-full-2; named pnpm/Just cases",
+          "cases": [
+            "direct just recipes initialize a fresh checkout and preserve storage overrides",
+            "pnpm uses the configured store instead of the workspace YAML default"
+          ]
+        }
       ]
     },
     {
       "file": "scripts/development-capabilities.test.mts",
       "memberships": [
         ["windows-storage-4", 1100],
-        ["development-tools", 2800]
+        ["development-tools", 2800],
+        ["posix-tooling-contracts", 1]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "posix-tooling-contracts",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite posix-tooling-contracts",
+          "cases": [
+            "POSIX Core warm setup selects only nextest; failed Rust acquisition preserves prior state",
+            "POSIX frontend setup selects only its supervisor compiler without Core components or Aqua",
+            "POSIX frontend warm setup refreshes hooks and propagates install or hook failures",
+            "frontend pin drift fails before dependency acquisition and preserves previous state",
+            "Darwin frontend's empty tool selection preserves cold and warm setup without tool acquisition"
+          ]
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "windows-storage-4",
+          "category": "prerequisite",
+          "prerequisite": "PowerShell executable unavailable",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": ["PowerShell frontend setup selects dependencies before unrelated tools"],
+          "skip_reason_prefix": "PowerShell executable unavailable"
+        },
+        {
+          "platform": "win32",
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": [
+            "PowerShell driver-only setup reaches its scoped installer without pnpm or broad tools"
+          ]
+        }
       ]
     },
     {
       "file": "scripts/development-cli-help.test.mts",
       "memberships": [
         ["windows-storage-4", 1200],
-        ["development-tools", 2900]
+        ["development-tools", 2900],
+        ["posix-tooling-contracts", 2]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": ["Windows bootstrap help exits before cache setup"]
+        },
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "posix-tooling-contracts",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite posix-tooling-contracts",
+          "cases": ["POSIX bootstrap help exits before cache setup"]
+        }
       ]
     },
     {
@@ -758,7 +1014,22 @@
       "file": "scripts/fixture-module-closure.test.mts",
       "memberships": [
         ["frontend-full", 50],
-        ["development-tools", 5200]
+        ["development-tools", 5200],
+        ["windows-storage-3", 1000107]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "Windows case aliases terminate and retain one canonical module",
+            "the filtered Windows discovery route executes from a copy without installed packages"
+          ]
+        }
       ]
     },
     {
@@ -774,6 +1045,17 @@
         ["windows-helpers-2", 1000],
         ["windows-storage-4", 1900],
         ["development-tools", 3600]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": ["declared native batch executable is not incorrectly launched as JavaScript"]
+        }
       ]
     },
     {
@@ -825,7 +1107,21 @@
       "file": "scripts/hosted-native-continuity.test.mts",
       "memberships": [
         ["catalog-full-2", 2500],
-        ["release-check", 600]
+        ["release-check", 600],
+        ["windows-storage-3", 1000110]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "hosted runtime timings retain eligible and refused observations without installer effects"
+          ]
+        }
       ]
     },
     {
@@ -877,6 +1173,28 @@
         ["windows-helpers-2", 600],
         ["windows-storage-4", 1700],
         ["development-tools", 3400]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": [
+            "actual HWND selection algorithm filters, deduplicates and bounds enumeration",
+            "actual library picker input paths refuse foreign controls and changed process/window identities",
+            "actual observation field projection uses its explicit window and title without input",
+            "failed confirmation retains a redacted helper receipt before its original assertion",
+            "library picker discovery excludes unrelated providers and refuses changed identities",
+            "malformed, oversized and private diagnostic fields cannot leak through receipts",
+            "owned observation picker preflight binds exact fixture directories to their title",
+            "picker field diagnostics distinguish absence, ambiguity and ownership without private text",
+            "receipt write failure stays secondary and existing evidence is never overwritten",
+            "successful child JSON and malformed-success behavior remain unchanged"
+          ]
+        }
       ]
     },
     {
@@ -920,6 +1238,17 @@
       "memberships": [
         ["frontend-full-6", 1200],
         ["release-check", 16100]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "frontend-full-6",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6",
+          "cases": ["actual Linux fixed outer relay requires its owned stop after clean guest EOF"]
+        }
       ]
     },
     {
@@ -940,7 +1269,27 @@
       "file": "scripts/native-qualification-account-adapter.test.mts",
       "memberships": [
         ["catalog-full-2", 11500],
-        ["release-check", 9600]
+        ["release-check", 9600],
+        ["windows-storage-3", 1000111]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "bridge capture appends only new bytes and preserves unexpected partial state",
+            "installer registration uses the held target SID and original HKCU provenance",
+            "isolated NSIS completion observes broker job and requires exact-root empty readback",
+            "native process adapter refuses changed identity and uses one stop plus readback",
+            "own-account registry joins held root, raw streams and positive settlement",
+            "profile keeper prepares its exact new working directory before requesting a launch",
+            "registry capture holds a bounded stable file and refuses growth, changed metadata and reparses"
+          ]
+        }
       ]
     },
     {
@@ -954,8 +1303,26 @@
       "file": "scripts/native-qualification-account.test.mts",
       "memberships": [
         ["catalog-full-2", 11300],
-        ["release-check", 9400]
-      ]
+        ["release-check", 9400],
+        ["windows-storage-3", 1000007]
+      ],
+      "platform_skips": {
+        "platform": "win32",
+        "owner": "windows-storage-3",
+        "prerequisite": "Windows current-token process/job/pipe APIs and PowerShell7 compilation; no separate account logon",
+        "reason": "These bounded current-token controls require Windows APIs; the complete Windows owner runs them without account, GUI or protected acceptance.",
+        "cases": [
+          "hosted candidate launcher and memory bridge refuse before effects under separate source holds",
+          "closed credential purpose keeps primary default and separately names public proof without reading credentials",
+          "bridge state retains actual root image and startup identity for partial or complete capture",
+          "fixed Windows account helper compiles and validates inert requests without credentials or logon",
+          "owner-side native pipe reader bounds actual bytes and rejects invalid UTF-8 without logon",
+          "shared native job settles one inert root separately and both roots at attempt teardown",
+          "owned-copy hosted memory bridge settles an empty job without credential lookup or taking owner resources",
+          "owned-copy hosted memory bridge cannot renew its original clock through context mutation",
+          "owned broker monitor retains early and acknowledged worker failures without waiting for bridge or account effects"
+        ]
+      }
     },
     {
       "file": "scripts/native-qualification-linux-supervisor.test.mts",
@@ -986,6 +1353,35 @@
         ["windows-helpers-2", 700],
         ["windows-storage-4", 2500],
         ["development-tools", 4300]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": [
+            "startup identity mismatch retains error without claiming an empty process inventory",
+            "startup inventory error retains a partial trace and fails the observer",
+            "startup observer retains only owned descendants and missing endpoint evidence",
+            "actual Wait refuses unknown protected identities and only accepts proven PID reuse",
+            "driver snapshot waits for positive image metadata and refuses persistent absence",
+            "embedded startup root exit cannot claim cleanup of later descendants",
+            "embedded installed listener requires the exact direct child and loopback owner",
+            "native ancestry rejects a reused driver PID without selecting the old process",
+            "native ancestry ignores stale parent references beside the real application",
+            "native ancestry checks each intermediate parent and child creation time",
+            "native ancestry refuses missing parent timestamps and cyclic metadata",
+            "native ancestry accepts equal timestamps without treating the driver as its own child",
+            "native shutdown wait is bounded, preserves a live process, and accepts its later exit",
+            "isolated driver stop refuses stale identity without acting",
+            "driver stop never terminates a replacement or path-mismatched captured survivor",
+            "ordinary close refuses changed identity or a windowless owned application",
+            "native process discovery refuses ambiguous application descendants"
+          ]
+        }
       ]
     },
     {
@@ -1071,7 +1467,19 @@
       "file": "scripts/precommit-check.test.mts",
       "memberships": [
         ["frontend-full", 100],
-        ["development-tools", 4000]
+        ["development-tools", 4000],
+        ["macos-platform-contracts", 0]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "frontend-full",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full; Mac complement macos-platform-contracts",
+          "cases": ["interrupted staged checks restore partial staging"]
+        }
       ]
     },
     {
@@ -1090,9 +1498,23 @@
     },
     {
       "file": "scripts/production-aggregate-steps.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 1800],
-        ["release-check", 2700]
+        ["release-check", 2700],
+        ["macos-platform-contracts", 1]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": ["actual POSIX FIFO source refuses without waiting for a writer"],
+          "suite": "the actual held attester normalizes only a bounded completed bundle and refuses repeat, oversized or absent input"
+        }
       ]
     },
     {
@@ -1120,7 +1542,8 @@
       "file": "scripts/qualification-coverage.test.mts",
       "memberships": [
         ["catalog-full-2", 6300],
-        ["repository-tools-2", 1800]
+        ["repository-tools-2", 1800],
+        ["windows-storage-3", 1000004]
       ]
     },
     {
@@ -1134,7 +1557,46 @@
       "file": "scripts/quality-tools.test.mts",
       "memberships": [
         ["catalog-full-2", 6700],
-        ["repository-tools-2", 2700]
+        ["repository-tools-2", 2700],
+        ["macos-platform-contracts", 2],
+        ["windows-storage-3", 1000112]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": [
+            "POSIX bootstrap preserves the failed installer status and identifies the command"
+          ]
+        },
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "bootstrap refresh preserves an existing provider shim and its argument forwarding",
+            "cached and downloaded EdgeDriver rejection never reaches the executable probe"
+          ]
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "windows-storage-3",
+          "category": "prerequisite",
+          "prerequisite": "PowerShell executable unavailable",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3; Mac complement macos-platform-contracts",
+          "cases": [
+            "bootstrap retires only recognized legacy runtime shims without changing provider or quality tools"
+          ],
+          "skip_reason_prefix": "PowerShell executable unavailable"
+        }
       ]
     },
     {
@@ -1157,6 +1619,23 @@
         ["windows-helpers-3", 300],
         ["catalog-full-2", 13600],
         ["release-check", 11600]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers-3",
+          "category": "platform",
+          "prerequisite": "Actual Windows PowerShell process/filesystem semantics",
+          "reason": "Original shared Windows guard; ordinary Windows unit contracts remain required.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-3",
+          "cases": [
+            "empty setup archive preserves bytes and hands off to the exclusive recovery lock across actual same-volume rename",
+            "retained empty-state readers refuse changed bytes, additional effects and multiply linked evidence",
+            "fresh setup child failure is retained once and cannot replay after its result exists",
+            "provider presence, unavailable process evidence and profile registration refuse recovery",
+            "actual trusted-writer dot-source defines the original receipt writer in caller scope"
+          ]
+        }
       ]
     },
     {
@@ -1181,6 +1660,67 @@
       ]
     },
     {
+      "file": "scripts/catalog-recovery-vault.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11940],
+        ["release-check", 14140]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Independently pinned local release-tools binary and qualified public age tool cache; disposable fixture only",
+          "reason": "The opt-in actual age/Tough recovery observation remains distinct from ordinary public-plan fixtures and production custody acceptance.",
+          "intended_route": "scripts/catalog-recovery-vault.test.mts; bounded local disposable recovery qualification",
+          "cases": [
+            "actual age and Tough recover the complete disposable appointed catalog set with refusal controls"
+          ],
+          "required_environment": [
+            "PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL",
+            "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
+          ]
+        },
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Linux ordinary UID and private filesystem ownership",
+          "reason": "The offline vault and custody reader currently require ordinary-owner Linux filesystem semantics.",
+          "intended_route": "scripts/catalog-recovery-vault.test.mts; catalog-full-2",
+          "cases": [
+            "authorized custody reader enforces offline owner and bounded single-link acquisition"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "scripts/recovery-tools.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11950],
+        ["release-check", 14150]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Linux ordinary UID and private filesystem ownership",
+          "reason": "The implemented recovery bootstrap is Linux x64 only; other platforms do not gain tool or custody acceptance from these fixtures.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "warm recovery cache rechecks bounded fixture archives, binaries and proof rather than trusting receipt hashes"
+          ]
+        }
+      ]
+    },
+    {
       "file": "scripts/release-bootstrap-preparation.test.mts",
       "memberships": [
         ["catalog-full-2", 12000],
@@ -1188,7 +1728,24 @@
       ],
       "qualification": {
         "linux-x86_64": "catalog-full-2"
-      }
+      },
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed reviewed fixture tools and public inputs",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": [
+            "actual maintained keyless verifier authenticates disposable bootstrap and retained bytes"
+          ],
+          "required_environment": [
+            "PORTCOVE_TUF_BOOTSTRAP_VERIFIER",
+            "PORTCOVE_TUF_INITIAL_PUBLIC_FIXTURE"
+          ]
+        }
+      ]
     },
     {
       "file": "scripts/release-candidate-dispatch.test.mts",
@@ -1370,6 +1927,18 @@
       "memberships": [
         ["catalog-full-2", 10700],
         ["release-check", 8100]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "prerequisite",
+          "prerequisite": "GNU producer is not installed on this host",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": ["actual GNU tar producer emits the supported exact single-member route"],
+          "skip_reason_prefix": "GNU producer is not installed on this host"
+        }
       ]
     },
     {
@@ -1391,6 +1960,20 @@
       "memberships": [
         ["frontend-full-6", 8200],
         ["release-check", 14800]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed reviewed fixture tools and public inputs",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": [
+            "connected disposable packages, payload signatures, nonempty Tough feed, immutable provider and renewal preserve exact bytes"
+          ],
+          "required_environment": ["PORTCOVE_CONNECTED_RELEASE_TOOL"]
+        }
       ]
     },
     {
@@ -1402,6 +1985,7 @@
     },
     {
       "file": "scripts/release-control-inputs.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 600],
         ["release-check", 1900]
@@ -1423,6 +2007,7 @@
     },
     {
       "file": "scripts/release-controller-tools.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["catalog-full-2", 10500],
         ["release-check", 7600]
@@ -1430,6 +2015,7 @@
     },
     {
       "file": "scripts/release-controller-transport.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 7400],
         ["release-check", 14300]
@@ -1453,6 +2039,7 @@
     },
     {
       "file": "scripts/release-coordinator-capacity-effects.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 2340],
         ["release-check", 3140]
@@ -1467,6 +2054,7 @@
     },
     {
       "file": "scripts/release-coordinator-checkpoint-evidence.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 2330],
         ["release-check", 3130]
@@ -1541,6 +2129,7 @@
     },
     {
       "file": "scripts/release-coordinator-metadata.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 2350],
         ["release-check", 3150]
@@ -1548,13 +2137,55 @@
     },
     {
       "file": "scripts/release-coordinator-owned-executor.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 2370],
         ["release-check", 3170]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "frontend-full-6",
+          "category": "prerequisite",
+          "prerequisite": "Ordinary Linux owner identity",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6",
+          "cases": [
+            "full selected publication pin drift reratified during session cannot borrow unchanged journal custody",
+            "full selected publication pin drift unratified cannot borrow unchanged journal custody",
+            "journal-only selected custody cannot authorize application-recovery",
+            "journal-only selected custody cannot authorize catalog-recovery",
+            "journal-only selected custody cannot authorize effect",
+            "journal-only selected custody cannot authorize late-upgrade",
+            "journal-only selected custody cannot authorize operation-recovery",
+            "selected application executor refuses opposite-purpose effects before controls or provider work",
+            "selected application metadata recovery atomically records its component and site cursor",
+            "selected application metadata recovery refuses the opposite source purpose",
+            "selected application operation recovery refuses the opposite retained subject before provider readback",
+            "selected catalog metadata recovery atomically records its component and site cursor",
+            "selected catalog metadata recovery refuses the opposite source purpose",
+            "selected catalog-publication executor refuses opposite-purpose effects before controls or provider work",
+            "selected catalog-publication operation recovery refuses the opposite retained subject before provider readback",
+            "selected explicit recovery ambiguous-settlement preserves original effects without repeating them",
+            "selected explicit recovery controls-hold preserves original effects without repeating them",
+            "selected explicit recovery effect-completed preserves original effects without repeating them",
+            "selected explicit recovery effect-not-applied preserves original effects without repeating them",
+            "selected explicit recovery incomplete preserves original effects without repeating them",
+            "selected explicit recovery original-live preserves original effects without repeating them",
+            "selected explicit recovery partial-effects-retained preserves original effects without repeating them",
+            "selected owned effect ambiguous-after-effect uses signed durable intent and preserves actual effects",
+            "selected owned effect complete uses signed durable intent and preserves actual effects",
+            "selected owned effect pending-controls uses signed durable intent and preserves actual effects",
+            "selected owned effect provider-refusal uses signed durable intent and preserves actual effects",
+            "selected recovery rejects a legacy guard even with bound history and live selected controls"
+          ],
+          "requires_non_root": true
+        }
       ]
     },
     {
       "file": "scripts/release-coordinator-recovery.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 2310],
         ["release-check", 3110]
@@ -1562,6 +2193,7 @@
     },
     {
       "file": "scripts/release-coordinator-remote.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 2320],
         ["release-check", 3120]
@@ -1569,6 +2201,7 @@
     },
     {
       "file": "scripts/release-coordinator-signing-exchange.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 2360],
         ["release-check", 3160]
@@ -1576,6 +2209,7 @@
     },
     {
       "file": "scripts/release-coordinator-state.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 2300],
         ["release-check", 3100]
@@ -1622,13 +2256,56 @@
         ["windows-helpers-3", 100],
         ["catalog-full-2", 13400],
         ["release-check", 11400]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-3",
+          "cases": [
+            "ACL identity ignores only auto-inherited bookkeeping and retains protection owner and foreign-grant refusals",
+            "actual ACL builder separates trusted RX, private custody and two account write leaves in memory",
+            "actual New-LocalUser argv fits Windows limits and requests fixed non-expiring disabled account policy",
+            "actual atomic private root excludes inherited foreign access and refuses existing directory unchanged",
+            "actual closed setup plan refuses alternate roots, account selectors and schema coercion",
+            "actual continued loop, real temporary ACL tail and credentials to enable retain the existing account",
+            "actual held setup reader hashes exact bytes and refuses overflow and duplicate names; receipts never overwrite",
+            "actual partial GET reader preserves missing and unrecorded identities without complete receipts or writes",
+            "actual retained setup file lock collides exclusively, never creates missing originals, and releases on dispose",
+            "disable recovery records intent before mutation, holds ambiguity and never repeats provider writes",
+            "documented initial bootstrap executes its ACL guard for generic and named rights without mutating the host",
+            "fixed Users helper observes existing membership and adds only one absent owned SID",
+            "fixed account setup parses and compiles actual native interop without invoking it",
+            "profile continuation extracts the exact original suffix and refuses changed template boundaries",
+            "recorded profile continuation refuses changed users, policy, groups and existing or unavailable profiles",
+            "reviewed source installation is private atomic hash-bound held against writers and never overwrites retained source",
+            "setup command boundaries retain disabled accounts, fixed intent custody and non-destructive recovery"
+          ]
+        }
       ]
     },
     {
       "file": "scripts/release-local-worker-tasks.test.mts",
       "memberships": [
         ["catalog-full-2", 13300],
-        ["release-check", 11300]
+        ["release-check", 11300],
+        ["windows-storage-3", 1000113]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "actual XML parser reads both fixed triggers/actions and PowerShell parses proposal commands without running COM"
+          ]
+        }
       ]
     },
     {
@@ -1643,6 +2320,23 @@
       "memberships": [
         ["frontend-full-6", 400],
         ["release-check", 1700]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed reviewed fixture tools and public inputs",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": [
+            "qualified actual Rust renewal tool authenticates public fixture and custody refuses later mutation"
+          ],
+          "required_environment": [
+            "PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL",
+            "PORTCOVE_TUF_RENEWAL_ADAPTER_FIXTURE"
+          ]
+        }
       ]
     },
     {
@@ -1672,6 +2366,22 @@
         ["windows-helpers-3", 200],
         ["catalog-full-2", 13500],
         ["release-check", 11500]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-3",
+          "cases": [
+            "actual GUI registry assignment invokes the fixed sibling reader in-process with original invocation",
+            "actual fixed principal guard refuses elevated before custody effects",
+            "fixed owner observation and inert GUI payload parse without executing either",
+            "production observation argv delivers only base64 data to its fixed script block"
+          ]
+        }
       ]
     },
     {
@@ -1693,6 +2403,20 @@
       "memberships": [
         ["catalog-full-2", 14300],
         ["release-check", 12300]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed reviewed fixture tools and public inputs",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": [
+            "actual fixed Node CLI assembles disposable five-role Tough repository and verifies selected signed payload with retained refusals"
+          ],
+          "required_environment": ["PORTCOVE_NATIVE_KEYLESS_FIXTURE_TOOL"]
+        }
       ]
     },
     {
@@ -1714,6 +2438,19 @@
       "memberships": [
         ["catalog-full-2", 15600],
         ["release-check", 15300]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "Linux portable package replacement retains actual inputs/state and refuses wrong prior or retained partial"
+          ]
+        }
       ]
     },
     {
@@ -1783,11 +2520,27 @@
       "file": "scripts/release-native-scheduler.test.mts",
       "memberships": [
         ["catalog-full-2", 15000],
-        ["release-check", 13300]
+        ["release-check", 13300],
+        ["windows-storage-3", 1000114]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "actual fixed PowerShell task reader parses OS security descriptors and refuses foreign task writers",
+            "fixed public-root observer rejects foreign readers and writers using controlled ACL objects only"
+          ]
+        }
       ]
     },
     {
       "file": "scripts/release-native-source-contract.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["catalog-full-2", 14000],
         ["release-check", 12000]
@@ -1840,6 +2593,50 @@
       "memberships": [
         ["catalog-full-2", 15145],
         ["release-check", 13445]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "prerequisite",
+          "prerequisite": "Ordinary Linux owner identity",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "Linux executing custody refuses writable/link/replaced inputs and retains ancestry",
+            "Linux private launch preparation preserves original Node identity and partial effects without spawning a worker",
+            "Linux runtime uses original controlled providers, exact inputs and prepared support without compiler fallback",
+            "Linux workflow handoff keeps actual original process identity across both uploads and refuses drift",
+            "native source bootstrap with real Linux custody shares one original clock and refuses drift before importing the runner"
+          ],
+          "requires_non_root": true
+        },
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "prerequisite",
+          "prerequisite": "prepared original Linux custody fixture unavailable",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "actual prepared reaper supervises both fixed children and closes detached descendants or timeout"
+          ],
+          "skip_reason_prefix": "prepared original Linux custody fixture unavailable"
+        }
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-bootstrap.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000002],
+        ["release-check", 16203]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-source.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000005],
+        ["release-check", 16204]
       ]
     },
     {
@@ -1875,6 +2672,20 @@
       "memberships": [
         ["catalog-full-2", 15140],
         ["release-check", 13440]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "default original-request payload-signing capture composition preserves identity, refusal, lifetime and byte custody",
+            "default original-request release-publication capture composition preserves identity, refusal, lifetime and byte custody"
+          ]
+        }
       ]
     },
     {
@@ -1895,7 +2706,26 @@
       "file": "scripts/release-native-windows-driver.test.mts",
       "memberships": [
         ["catalog-full-2", 13800],
-        ["release-check", 11800]
+        ["release-check", 11800],
+        ["windows-storage-3", 1000115]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "actual continuation installer guard verifies original registration and installed bytes before any launch",
+            "actual fixed installer arguments satisfy the maintained strict account-work descendant guard",
+            "fixed driver admits only selected fresh initial or exact predecessor package stage without public updater flags",
+            "fixed native driver retains actual raw child prefixes and refuses invalid UTF8 or output overflow",
+            "package rollback assertion requires actual predecessor identity, launch and unchanged installer-time data",
+            "public Windows plan is a separate exact initial variant, without weakening pre-sign or publication selection"
+          ]
+        }
       ]
     },
     {
@@ -1909,7 +2739,21 @@
       "file": "scripts/release-native-wsl-boundary.test.mts",
       "memberships": [
         ["catalog-full-2", 15200],
-        ["release-check", 14900]
+        ["release-check", 14900],
+        ["windows-storage-3", 1000116]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "fixed Windows registration reader parses without executing any registry or host observation"
+          ]
+        }
       ]
     },
     {
@@ -1917,6 +2761,19 @@
       "memberships": [
         ["catalog-full-2", 15900],
         ["release-check", 15600]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "hosted Linux driver stages actual fixture bytes once, retains ambiguity and requires matching closure before export"
+          ]
+        }
       ]
     },
     {
@@ -1959,6 +2816,20 @@
       "memberships": [
         ["catalog-full-2", 2700],
         ["release-check", 4900]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed reviewed fixture tools and public inputs",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": [
+            "real pinned Tauri signs disposable bytes; Rust authenticates bytes/key and signed version"
+          ],
+          "skip_reason_prefix": "appointed disposable signing/verifier artifacts unavailable"
+        }
       ]
     },
     {
@@ -2094,7 +2965,35 @@
       "file": "scripts/release-role-key-channel.test.mts",
       "memberships": [
         ["catalog-full-2", 10600],
-        ["release-check", 7700]
+        ["release-check", 7700],
+        ["windows-storage-3", 1000117],
+        ["macos-platform-contracts", 3]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "a wrong live role challenge cannot cause client secret access",
+            "actual catalog socket reads only the appointed key and rejects app cross-purpose before secret access",
+            "actual one-use Linux channel hands only the selected disposable key to the private callback",
+            "disconnected client cannot publish terminal state or remove private staging before worker joins",
+            "wrong challenge, cross-role and oversized frames never enter key consumption"
+          ]
+        },
+        {
+          "platform": ["win32", "darwin"],
+          "owner": "macos-platform-contracts",
+          "category": "platform",
+          "prerequisite": "Actual win32/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite macos-platform-contracts; Mac complement macos-platform-contracts",
+          "cases": ["role key transport refuses unsupported host without touching a secret"]
+        }
       ]
     },
     {
@@ -2108,7 +3007,19 @@
       "file": "scripts/release-run-evidence.test.mts",
       "memberships": [
         ["catalog-full-3", 100],
-        ["release-check", 4100]
+        ["release-check", 4100],
+        ["macos-platform-contracts", 4]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full-3",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-3; Mac complement macos-platform-contracts",
+          "cases": ["actual POSIX FIFO is refused without waiting for a writer"]
+        }
       ]
     },
     {
@@ -2116,6 +3027,20 @@
       "memberships": [
         ["frontend-full-6", 1000],
         ["release-check", 2300]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "frontend-full-6",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6",
+          "cases": [
+            "Linux registration custody rejects reuse and linked paths and keeps private regular files",
+            "Linux registration directory-sync failure blocks conversion and preserves its pending file"
+          ]
+        }
       ]
     },
     {
@@ -2148,6 +3073,7 @@
     },
     {
       "file": "scripts/release-semantic-source.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 6300],
         ["release-check", 10600]
@@ -2186,6 +3112,23 @@
       "memberships": [
         ["frontend-full-6", 300],
         ["release-check", 1600]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed reviewed fixture tools and public inputs",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": [
+            "actual pinned Rust assembly supplies publication facts bound to complete public site bytes"
+          ],
+          "required_environment": [
+            "PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL",
+            "PORTCOVE_TUF_RENEWAL_ADAPTER_FIXTURE"
+          ]
+        }
       ]
     },
     {
@@ -2200,6 +3143,35 @@
       "memberships": [
         ["frontend-full-6", 3600],
         ["release-check", 5300]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "prerequisite",
+          "prerequisite": "installed native tar reader unavailable",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": [
+            "deterministic Pages tar round-trips ordinary and long safe paths through the installed archive reader"
+          ],
+          "skip_reason_prefix": "installed native tar reader unavailable"
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed reviewed fixture tools and public inputs",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": [
+            "actual initial keyless Tough assembly composes a first complete site without a fabricated prior"
+          ],
+          "required_environment": [
+            "PORTCOVE_TUF_BOOTSTRAP_SITE_TOOL",
+            "PORTCOVE_TUF_BOOTSTRAP_SITE_FIXTURE"
+          ]
+        }
       ]
     },
     {
@@ -2248,13 +3220,52 @@
       ],
       "qualification": {
         "linux-x86_64": "catalog-full-2"
-      }
+      },
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed reviewed fixture tools and public inputs",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": [
+            "actual pinned Rust signs five distinct disposable online roles and rejects a wrong role key"
+          ],
+          "required_environment": ["PORTCOVE_TUF_WORKER_QUALIFICATION_TOOL"]
+        }
+      ]
     },
     {
       "file": "scripts/release-workflow.test.mts",
       "memberships": [
         ["catalog-full-2", 3500],
-        ["release-check", 4300]
+        ["release-check", 4300],
+        ["macos-platform-contracts", 5]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": [
+            "mock publisher restores private lookup after startup reorder and refuses functions"
+          ]
+        },
+        {
+          "platform": ["linux"],
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "The Ubuntu-only production publisher uses GNU date -d for authorization timestamps.",
+          "reason": "Execute the actual Ubuntu publisher fixture on Linux; BSD date on macOS does not implement its required GNU flags.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; local release-check",
+          "cases": [
+            "publisher retries and recovers an interrupted draft without touching a published release"
+          ]
+        }
       ]
     },
     {
@@ -2313,7 +3324,22 @@
       "memberships": [
         ["windows-helpers-2", 100],
         ["windows-storage-4", 3100],
+        ["catalog-full-2", 750],
         ["development-tools", 200]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual Linux process identity and Unix supervisor cleanup semantics",
+          "reason": "Linux custody probes execute on the maintained complete Linux catalog-full-2 route; other platforms retain their native ownership contracts.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2 on Linux",
+          "cases": [
+            "host bridge Linux probe refuses changed custody, live children and missing cleanup",
+            "host bridge actual client closes its helper on register ACK loss and release-probe failure"
+          ]
+        }
       ]
     },
     {
@@ -2453,7 +3479,22 @@
     },
     {
       "file": "scripts/run-rscheck.test.mts",
-      "memberships": [["rust-quality-full-3", 100]]
+      "memberships": [["rust-quality-full-3", 100]],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "rust-quality-full-3",
+          "category": "prerequisite",
+          "prerequisite": "Pinned rscheck is not installed; run the maintained rscheck route for this control",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite rust-quality-full-3; Mac complement macos-platform-contracts",
+          "cases": [
+            "TFE hostile-path exception applies only to the exact dedicated test fixture",
+            "reviewed portability literals apply only to exact files and exact values"
+          ],
+          "skip_reason_prefix": "Pinned rscheck is not installed; run the maintained rscheck route for this control"
+        }
+      ]
     },
     {
       "file": "scripts/run-rust-tests.test.mts",
@@ -2462,6 +3503,17 @@
         ["windows-storage-4", 2600],
         ["catalog-full-2", 4200],
         ["development-tools", 4700]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": ["Windows Job Object supervisor kills a detached grandchild when its root exits"]
+        }
       ]
     },
     {
@@ -2486,14 +3538,64 @@
         ["windows-helpers-2", 500],
         ["windows-storage-4", 2900],
         ["catalog-full-2", 4400],
-        ["development-tools", 5000]
+        ["development-tools", 5000],
+        ["macos-platform-contracts", 6]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["win32", "linux"],
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32/linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": [
+            "inherited analyzer deadline establishes inner custody before releasing its outer owner"
+          ]
+        },
+        {
+          "platform": "darwin",
+          "owner": "macos-platform-contracts",
+          "category": "platform",
+          "prerequisite": "Actual darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite macos-platform-contracts; Mac complement macos-platform-contracts",
+          "cases": [
+            "non-Linux Unix supervisor gates launch and kills a surviving grandchild after wrapper loss"
+          ]
+        },
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "Linux adopting containment proves cancel-pipe",
+            "Linux adopting containment proves escaped-closure",
+            "Linux adopting containment proves gate-refusal",
+            "Linux adopting containment proves ignored-sigchld",
+            "Linux adopting containment proves init-refusal",
+            "Linux adopting containment proves legacy-sibling-red",
+            "Linux adopting containment proves natural",
+            "Linux adopting containment proves parent-refusal",
+            "Linux adopting containment proves pipe-refusal",
+            "Linux adopting containment proves reaper-loss",
+            "Linux adopting containment proves receipt-refusal",
+            "Linux adopting containment proves root-complete-reaper-loss",
+            "Linux adopting containment proves supervisor-loss",
+            "Linux adopting containment proves wrapper-loss"
+          ]
+        }
       ]
     },
     {
       "file": "scripts/select-ci-plan.test.mts",
       "memberships": [
         ["catalog-full-2", 5800],
-        ["repository-tools-2", 1400]
+        ["repository-tools-2", 1400],
+        ["windows-storage-3", 1000005]
       ]
     },
     {
@@ -2505,6 +3607,7 @@
     },
     {
       "file": "scripts/semantic-review-linux-supervisor.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["frontend-full-6", 1600],
         ["release-check", 2500]
@@ -2528,7 +3631,19 @@
       "file": "scripts/test-duration-reporter.test.mts",
       "memberships": [
         ["catalog-full-2", 6400],
-        ["repository-tools-2", 2400]
+        ["repository-tools-2", 2400],
+        ["macos-platform-contracts", 7]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": ["actual POSIX worker signal is retained in the joined case failure"]
+        }
       ]
     },
     {
@@ -2557,21 +3672,61 @@
       "file": "scripts/trusted-release-assembly.test.mts",
       "memberships": [
         ["catalog-full-2", 3100],
-        ["release-check", 900]
+        ["release-check", 900],
+        ["macos-platform-contracts", 8]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": ["POSIX FIFO input refuses without hanging before handle validation"]
+        }
       ]
     },
     {
       "file": "scripts/ui-test-selection.test.mts",
       "memberships": [
         ["catalog-full-2", 6600],
-        ["repository-tools-2", 2600]
+        ["repository-tools-2", 2600],
+        ["macos-platform-contracts", 9]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual linux/darwin process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
+          "cases": ["coverage rejects a real POSIX FIFO before opening it"]
+        }
       ]
     },
     {
       "file": "scripts/updater-artifact-inventory.test.mts",
       "memberships": [
         ["catalog-full-2", 2600],
-        ["release-check", 700]
+        ["release-check", 700],
+        ["windows-storage-3", 1000118]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "Windows installer signing-authority guard executes before any process spawn",
+            "Windows smoke journals retain runtime diagnostics and the original failed exit",
+            "Windows updater preflight records and refuses unsuitable runtimes before fixture builds"
+          ]
+        }
       ]
     },
     {
@@ -2665,11 +3820,71 @@
         ["windows-helpers-2", 1200],
         ["windows-storage-4", 2000],
         ["development-tools", 3700]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-4",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
+          "cases": [
+            "completion and incomplete recovery share one exclusive operator boundary before attach",
+            "installer responsive-window refusal retains evidence and the forced-cleanup failure state",
+            "next observation preserves marker bytes, partial effects and exclusive handoff",
+            "packaging refusals name containment and a complete single forbidden entry while preserving prior output",
+            "release PowerShell help is inert and preserves the required installer input",
+            "release preflight failures preserve the child code, actual command, tag, and caller environment",
+            "retained storage completion verifies exact provider association and fresh mount readback",
+            "semantic storage accepts the observed Windows bus type and refuses unsafe disk associations",
+            "semantic storage provisioning binds the returned partition object through its complete provider sequence",
+            "storage preflight capture preserves teardown and keeps descriptors out of the recovery receipt",
+            "suspended storage preflight refuses unknown access and always reverts a verified entry"
+          ]
+        }
       ]
     },
     {
       "file": "scripts/windows-qualification-session.integration.test.mts",
-      "memberships": [["mutex-owned-payload", 100]]
+      "memberships": [["mutex-owned-payload", 100]],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "mutex-owned-payload",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite mutex-owned-payload",
+          "cases": [
+            "a checkpoint with changed evidence is rejected before another action",
+            "a killed abort runner resumes only after exact uninstaller absence and owned cleanup are proven",
+            "a killed real lifecycle runner leaves readable inner WAL and outer ambiguity fails closed",
+            "a runner killed after an observed zero exit proves quiescence without relaunch",
+            "abort refuses an installer journal that was never hash-bound after a hard interruption",
+            "abort refuses success when a hash-verified uninstaller leaves managed install files",
+            "abort retains evidence when the uninstaller hash is missing",
+            "abort retains evidence when the uninstaller hash is wrong",
+            "an interrupted prepare binds its journal and runs only a correctly hashed harmless uninstaller",
+            "an observed nonzero abort attempt remains failed and is not relaunched",
+            "build-record validation binds a clean exact checkout, tools, artifacts, and predecessor",
+            "current-installed boundary runs before uninstall and preserves failed or unproven native outcomes",
+            "finish resumes the same attempt after after_receipt",
+            "finish resumes the same attempt after after_receipt_temp",
+            "finish resumes the same attempt after after_snapshot",
+            "finish resumes the same attempt after after_snapshot_temp",
+            "generator refuses to overwrite an immutable build record",
+            "installer evidence waits for a reader and preserves the previous journal on persistent contention",
+            "installer lifecycle behavior handles delayed, persistent, and hung uninstall cleanup",
+            "installer lifecycle uses registered ownership for an actual update-mode upgrade",
+            "launch-pending recovery refuses completion when no unique exact process exists",
+            "launch-pending recovery rejects a matching process started before the request tolerance",
+            "prepare still rejects an existing Portcove installer registration",
+            "stateful fake packaged session prepares, journals process identity, checkpoints, relaunches, and finishes",
+            "uninstaller image observation settles only the same retained identity within its deadline"
+          ]
+        }
+      ]
     },
     {
       "file": "scripts/windows-qualification-session.test.mts",
@@ -2682,7 +3897,21 @@
       "file": "scripts/workflow-provenance.test.mts",
       "memberships": [
         ["catalog-full-2", 5100],
-        ["repository-tools-2", 700]
+        ["repository-tools-2", 700],
+        ["windows-storage-3", 1000119]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "Windows recovery exposes selected Cargo executables before bootstrap and in later steps"
+          ]
+        }
       ]
     },
     {
@@ -2707,6 +3936,13 @@
       ]
     },
     {
+      "file": "scripts/discovery-primary-progress.test.mts",
+      "memberships": [
+        ["catalog-full", 1250],
+        ["roadmap-check", 1250]
+      ]
+    },
+    {
       "file": "scripts/discovery-reconciliation.test.mts",
       "memberships": [
         ["catalog-full", 1200],
@@ -2719,6 +3955,22 @@
         ["windows-helpers-3", 400],
         ["catalog-full-2", 16001],
         ["release-check", 16201]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers-3",
+          "category": "platform",
+          "prerequisite": "Actual Windows PowerShell process/filesystem semantics",
+          "reason": "Original shared Windows guard; ordinary Windows unit contracts remain required.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-3",
+          "cases": [
+            "fixed Windows source-system custody observes only its two host-image files",
+            "Windows custody retains real owner/ACL/identity and refuses same-byte replacement",
+            "Windows custody refuses hard links, junction ancestry and noncanonical requests",
+            "Windows custody refuses foreign file writers and ancestor replacement in owned fixtures"
+          ]
+        }
       ]
     },
     {
@@ -2727,6 +3979,43 @@
         ["windows-storage-3", 1000001],
         ["catalog-full-2", 1000001],
         ["repository-tools-2", 1000001]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-setup.test.mts",
+      "memberships": [
+        ["windows-helpers-3", 500],
+        ["catalog-full-2", 16002],
+        ["release-check", 16202]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-3",
+          "cases": [
+            "actual Windows access check enforces candidate deny against generic group grants",
+            "actual Windows private desktop readback matches explicit rights and still refuses changed security",
+            "audit controls detach and close owned objects and read actual restored privilege",
+            "audit diagnostic retention keeps the primary failure after observation or record I/O fails",
+            "audit recovery restores independent objects, policy and privilege without overwriting drift",
+            "finite Security event read timeout supplies no evidence and preserves other errors",
+            "hosted Windows setup creates a fresh private directory atomically and never adopts retained bytes",
+            "hosted adapter working directory and state environment satisfy the existing native launcher contract",
+            "hosted membership call binds the created LocalUser as a LocalPrincipal without group mutation",
+            "hosted proposal preserves station ACEs and restricts the exact candidate SID without inheritance",
+            "hosted setup checks original parent generation and deadline before its first directory effect",
+            "hosted-only access audit preserves SACL labels and rejects unrelated or overbound Security records",
+            "inert own-window show refuses hidden state and leaves acceptance to the broker",
+            "mandatory label reads use existing READ_CONTROL and retain raw label-only descriptor",
+            "owner audit station name query requires read attributes without privilege changes",
+            "real Windows observer waits for an owned visible responsive inert form",
+            "structured audit queries retain exact per-object selectors and compile without reading records"
+          ]
+        }
       ]
     },
     {
@@ -2779,7 +4068,21 @@
     },
     {
       "file": "apps/desktop/scripts/desktop-install-fixture.native.test.mts",
-      "memberships": [["native-tools", 1200]]
+      "memberships": [["native-tools", 1200]],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "native-tools",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
+          "cases": [
+            "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route"
+          ],
+          "suite": "owned Windows probe fixture"
+        }
+      ]
     },
     {
       "file": "apps/desktop/scripts/desktop-install.native.test.mts",
@@ -2791,7 +4094,21 @@
     },
     {
       "file": "apps/desktop/scripts/desktop-linux-public-update.native.test.mts",
-      "memberships": [["native-tools", 1500]]
+      "memberships": [["native-tools", 1500]],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "native-tools",
+          "category": "platform",
+          "prerequisite": "Actual linux process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
+          "cases": [
+            "actual Linux profile snapshot restores full library/WebView bytes and refuses changed or imported paths",
+            "settled profile snapshots refuse unsafe names, writable entries and symlinks before publication"
+          ]
+        }
+      ]
     },
     {
       "file": "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
@@ -2826,6 +4143,10 @@
       "memberships": [["native-tools", 2300]]
     },
     {
+      "file": "apps/desktop/scripts/desktop-review-controls.native.test.mts",
+      "memberships": [["native-tools", 2350]]
+    },
+    {
       "file": "apps/desktop/scripts/desktop-scenario-state.native.test.mts",
       "memberships": [["native-tools", 2400]]
     },
@@ -2839,7 +4160,20 @@
     },
     {
       "file": "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
-      "memberships": [["native-tools", 2700]]
+      "memberships": [["native-tools", 2700]],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "native-tools",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
+          "cases": [
+            "actual installer public-entry guards refuse unappointed source and version before account access"
+          ]
+        }
+      ]
     },
     {
       "file": "apps/desktop/scripts/desktop-windows-update.native.test.mts",
@@ -2861,6 +4195,150 @@
       "memberships": [
         ["catalog-full-3", 200],
         ["development-tools", 5300]
+      ]
+    },
+    {
+      "file": "scripts/rust-validation-setup.test.mts",
+      "memberships": [
+        ["windows-storage-3", 1000002],
+        ["catalog-full-2", 1000003],
+        ["repository-tools-2", 1000002]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "windows-storage-3",
+          "category": "prerequisite",
+          "prerequisite": "PowerShell unavailable; required Windows job executes this contract",
+          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3; Mac complement macos-platform-contracts",
+          "cases": ["Windows analyzer acquisition retains the exact pin and both mandatory gates"],
+          "skip_reason_prefix": "PowerShell unavailable; required Windows job executes this contract"
+        },
+        {
+          "platform": "win32",
+          "owner": "windows-storage-3",
+          "category": "platform",
+          "prerequisite": "Actual win32 process/filesystem semantics",
+          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "cases": [
+            "Windows fixture setup exports a usable directory and rejects invalid roots without partial exports"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "scripts/ci-workflow-fixture.test.mts",
+      "memberships": [
+        ["windows-storage-3", 1000003],
+        ["catalog-full-2", 1000004],
+        ["repository-tools-2", 1000003]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000006],
+        ["release-check", 16205]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-installation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000007],
+        ["release-check", 16206]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-host.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000008],
+        ["release-check", 16207]
+      ]
+    },
+    {
+      "file": "scripts/release-owned-windows-proof-store.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000009],
+        ["release-check", 16208],
+        ["windows-storage-3", 1000006]
+      ],
+      "platform_skips": {
+        "platform": "win32",
+        "owner": "windows-storage-3",
+        "prerequisite": "Windows local file identities, write-through and broker/system ACL custody",
+        "reason": "These bounded current-token controls require Windows APIs; the complete Windows owner runs them without account, GUI or protected acceptance.",
+        "cases": [
+          "Windows proof storage exclusively flushes bounded public records and never adopts attempts",
+          "Windows proof storage detects prior-file and directory substitution and retains partial attempts",
+          "Windows proof storage refuses a deliberately foreign-writable fixture and nonlocal paths",
+          "Windows proof storage permanently refuses concurrent writes including the in-flight result",
+          "Windows proof storage refuses oversized and escaping records before writing"
+        ]
+      }
+    },
+    {
+      "file": "scripts/release-windows-webview-driver.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000010],
+        ["release-check", 16209]
+      ]
+    },
+    {
+      "file": "scripts/release-resource-observation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000011],
+        ["release-check", 16210]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-session.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000020],
+        ["release-check", 16220]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-worker-contract.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000021],
+        ["release-check", 16221]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-runtime.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000022],
+        ["release-check", 16222]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-capture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000023],
+        ["release-check", 16223]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-runner.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000024],
+        ["release-check", 16224]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-workflow.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000025],
+        ["release-check", 16225]
+      ]
+    },
+    {
+      "file": "scripts/desktop-boundary-wiring.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000124],
+        ["development-tools", 5400]
       ]
     }
   ]

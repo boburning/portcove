@@ -2,7 +2,7 @@ import { normalizeRepositoryPath as normalizePath } from "./repository-path.mts"
 import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
 import type { ValidationChangeInput, ValidationPlan } from "./validation-plan.mts";
 import { existsSync, readFileSync } from "node:fs";
-import { parseNodeTestSuites } from "./node-test-suites.mts";
+import { nodeTestPath, parseNodeTestSuites } from "./node-test-suites.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan, validationOwnershipForPath } from "./validation-plan.mts";
@@ -12,6 +12,7 @@ import { hasNextestEquivalence } from "./nextest-equivalence.mts";
 import {
   nativeHelperDependencies,
   nativeHelperRegistryPath,
+  nativeHelperFiles,
 } from "./native-helper-dependencies.mts";
 import { ordinaryOwnershipForPath } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
@@ -208,6 +209,7 @@ const upstreamHealthObservationTests = [
 const upstreamHealthContractTests = [
   ...upstreamHealthObservationTests,
   "scripts/upstream-observer.test.mts",
+  "scripts/catalog-upstream-observer.test.mts",
   "scripts/upstream-health.test.mts",
   "scripts/upstream-health-plan.test.mts",
   "scripts/upstream-health-monitor.test.mts",
@@ -224,31 +226,59 @@ export const pythonContractTests = [
   "scripts/semantic-review-linux-supervisor.test.mts",
   "scripts/release-semantic-source.test.mts",
 ];
+const rustWorkflowContractTests = [
+  "scripts/ci-rust-workflow.test.mts",
+  "scripts/rust-validation-setup.test.mts",
+  "scripts/ci-workflow-fixture.test.mts",
+  "scripts/qualification-coverage.test.mts",
+  "scripts/windows-rust-tests.test.mts",
+  "scripts/select-ci-plan.test.mts",
+];
 const workflowFeatureTests = [
   "scripts/ci-frontend-workflow.test.mts",
   "scripts/ci-native-workflow.test.mts",
   "scripts/ci-release-workflow.test.mts",
-  "scripts/ci-rust-workflow.test.mts",
+  ...rustWorkflowContractTests,
+  "scripts/nextest-equivalence.test.mts",
   "scripts/native-backup-evidence.test.mts",
   "scripts/rust-toolchain-reader.test.mts",
-  "scripts/windows-rust-tests.test.mts",
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
+export const nodeTestOwnership = parseNodeTestSuites(
+  readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+);
 const platformSkipConsumers = [
   "scripts/node-platform-skips.test.mts",
   "scripts/required-node-test-reporter.test.mts",
+  "scripts/python-test-results.test.mts",
   "scripts/node-test-inventory.test.mts",
+  "scripts/precommit-check.test.mts",
+  "scripts/windows-helper-checks.test.mts",
   "scripts/ui-test-selection.test.mts",
   "scripts/validation-evidence.test.mts",
   "scripts/audit.test.mts",
-  ...Object.keys(
-    parseNodeTestSuites(readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"))
-      .platformSkips ?? {},
-  ),
+  ...Object.keys(nodeTestOwnership.platformSkips ?? {}).filter((file) => nodeTestPath.test(file)),
 ];
-const explicitNodeTests = new Map<string, readonly string[]>([
+const explicitNodeTests = new Map<string, readonly string[]>();
+for (const [file, tests] of [
+  [
+    "scripts/local-validation.mts",
+    [...selectionContractTests, "scripts/repository-settings.test.mts"],
+  ],
+  [
+    "scripts/ordinary-validation.mts",
+    [...selectionContractTests, "scripts/validation-evidence.test.mts"],
+  ],
   ["scripts/node-platform-skips.mts", platformSkipConsumers],
+  [
+    "scripts/repository-path.mts",
+    [...selectionContractTests, "scripts/validation-evidence.test.mts"],
+  ],
   ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
+  [
+    "scripts/fixtures/rscheck-qualification-regression-literals.json",
+    ["scripts/run-rscheck.test.mts"],
+  ],
   ["scripts/ci-job-timeout-probe.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
   [".github/workflows/job-timeout-rehearsal.yml", ["scripts/ci-job-timeout-probe.test.mts"]],
   ...[
@@ -284,8 +314,59 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...["scripts/python-test-results.py", "scripts/python-test-results.mts"].map(
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
+  [
+    "apps/desktop/scripts/desktop-webview-boundary.mts",
+    [
+      "scripts/desktop-boundary-wiring.test.mts",
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-boundary-invoke.mts",
+    [
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/desktop-module-fixture.mts",
+    [
+      "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
+      "apps/desktop/scripts/desktop-default-cover.native.test.mts",
+      "apps/desktop/scripts/desktop-reload.native.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-real-runtime.test.mts",
+      "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
+      "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-windows-embedded-session.mts",
+    [
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/browser-script.mts",
+    [
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
   ["apps/desktop/scripts/native-enlargement.mts", ["scripts/desktop-execution-plan.test.mts"]],
+  [
+    "apps/desktop/scripts/desktop-capture-target.mts",
+    ["scripts/capture-target.test.mts", "scripts/native-helper-dependencies.test.mts"],
+  ],
   ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
+  ["scripts/catalog-capacity.mts", ["scripts/sign-catalog.test.mts"]],
+  [
+    "scripts/artwork-preparation-progress.mts",
+    ["scripts/prepare-port.test.mts", "scripts/catalog-artwork-batches.test.mts"],
+  ],
   ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
   [
     "scripts/catalog-authoring-inspector.mts",
@@ -419,10 +500,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-metadata-site-controller.mts",
     ["scripts/release-metadata-site-controller.test.mts"],
   ],
-  ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
   ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
     `scripts/release-semantic-${name}.mts`,
-    ["scripts/release-semantic-worker.test.mts"],
+    [
+      "scripts/release-semantic-worker.test.mts",
+      ...(name === "request-pipeline"
+        ? []
+        : ["scripts/release-catalog-review-maintenance.test.mts"]),
+    ],
   ]),
   ...[
     "scripts/release-semantic-source.mts",
@@ -461,20 +546,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-candidate-progress-contract.mts",
     ["scripts/release-candidate-progress-contract.test.mts"],
   ],
-  ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-published-source.mts", ["scripts/release-published-source.test.mts"]],
   ["scripts/release-semantic-disposition.mts", ["scripts/release-semantic-disposition.test.mts"]],
   [
     "scripts/release-semantic-disposition-reader.mts",
     ["scripts/release-semantic-disposition-reader.test.mts"],
-  ],
-  [
-    "scripts/release-authority-configuration.mts",
-    [
-      "scripts/production-controller-admission.test.mts",
-      "scripts/release-bootstrap-preparation.test.mts",
-      "scripts/release-catalog-authorities.test.mts",
-    ],
   ],
   [
     "scripts/fixtures/release-semantic-disposition-fixture.mts",
@@ -736,12 +812,50 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-hosted-native-job.test.mts", "scripts/release-controller-tools.test.mts"],
   ],
   [
+    "scripts/qualify-controller-tools-windows.mts",
+    [
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/release-controller-tools.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-hosted-native-windows-dependency-files.mts",
+    [
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/release-hosted-native-windows-source.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-hosted-native-windows-installation.mts",
+    [
+      "scripts/release-hosted-native-windows-installation.test.mts",
+      "scripts/release-hosted-native-windows-source.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-hosted-native-windows-source.mts",
+    [
+      "scripts/release-hosted-native-windows-source.test.mts",
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/release-hosted-native-windows-installation.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    ],
+  ],
+  [
     "scripts/release-hosted-native-runner.mts",
-    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    ],
   ],
   [
     "scripts/release-hosted-native-bootstrap.mts",
-    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    ],
   ],
   [
     "scripts/release-hosted-native-launcher.mts",
@@ -769,12 +883,20 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ...[
     "scripts/release-hosted-native-runtime.mts",
-    "scripts/release-native-runtime-custody.mts",
     "scripts/release-native-runtime-support.mts",
   ].map((file): [string, string[]] => [
     file,
     ["scripts/release-hosted-native-runner.test.mts", "scripts/release-controller-tools.test.mts"],
   ]),
+  [
+    "scripts/release-native-runtime-custody.mts",
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-controller-tools.test.mts",
+      "scripts/release-native-runtime-custody.test.mts",
+      "scripts/release-hosted-native-windows-source.test.mts",
+    ],
+  ],
   [
     "scripts/release-routing-marker.mts",
     [
@@ -790,6 +912,18 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-hosted-native-proof.test.mts",
       "scripts/release-hosted-native-job.test.mts",
     ],
+  ],
+  [
+    "scripts/release-hosted-native-windows-host.mts",
+    [
+      "scripts/release-hosted-native-windows-host.test.mts",
+      "scripts/release-native-pre-sign-report.test.mts",
+      "scripts/release-hosted-native-proof.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-owned-windows-proof-store.mts",
+    ["scripts/release-owned-windows-proof-store.test.mts"],
   ],
   [
     "scripts/release-owned-capture-store.mts",
@@ -829,6 +963,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ],
   ["scripts/release-native-windows-driver.ps1", ["scripts/release-native-windows-driver.test.mts"]],
+  [
+    "scripts/native-qualification-runtime-observation.psm1",
+    ["scripts/release-native-windows-driver.test.mts"],
+  ],
   [
     "scripts/release-native-windows-public-continuation.mts",
     [
@@ -1014,20 +1152,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/container-source.mts",
     "tools/containers/browser/Dockerfile",
   ].map((file): [string, string[]] => [file, ["scripts/container-browser.test.mts"]]),
-  ...[...Object.keys(nativeHelperDependencies), nativeHelperRegistryPath].map(
-    (file): [string, string[]] => [
-      file,
-      [
-        "scripts/native-helper-dependencies.test.mts",
-        "scripts/native-confirmation.test.mts",
-        "scripts/desktop-execution-plan.test.mts",
-        "scripts/windows-helper-checks.test.mts",
-        ...(file === nativeHelperRegistryPath
-          ? ["scripts/desktop-input-observation.test.mts"]
-          : []),
-      ],
-    ],
-  ),
   ...[
     "scripts/frontend-command-preflight.mts",
     "apps/desktop/scripts/build-frontend.mts",
@@ -1052,6 +1176,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/desktop-execution-plan.mts",
     "scripts/desktop-scenarios.mts",
     "scripts/desktop-verify.mts",
+    "scripts/operation-coverage.mts",
     "scripts/testdata/desktop-execution-baseline.json",
     "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
   ].map((file): [string, string[]] => [
@@ -1061,27 +1186,46 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/desktop-scenarios.test.mts",
       "scripts/desktop-verify.test.mts",
       "scripts/frontend-command-preflight.test.mts",
+      "scripts/development-evidence.test.mts",
       "scripts/native-helper-dependencies.test.mts",
       "scripts/windows-helper-checks.test.mts",
     ],
   ]),
   ...[
     "apps/desktop/scripts/desktop-application-update-journey.mts",
-    "apps/desktop/scripts/desktop-installed-update-harness.mts",
     "apps/desktop/scripts/desktop-windows-public-update.mts",
     "apps/desktop/scripts/desktop-windows-public-update-files.mts",
   ].map((file): [string, string[]] => [file, ["scripts/desktop-scenarios.test.mts"]]),
   ...[
     "scripts/validation-plan.mts",
     "scripts/validation-plan.test.mts",
-    "scripts/local-validation.mts",
-    "scripts/ordinary-validation.mts",
     "scripts/local-validation.test.mts",
   ].map((file): [string, string[]] => [file, selectionContractTests]),
+  ...[
+    "apps/desktop/scripts/desktop-installed-update-harness.mts",
+    "apps/desktop/scripts/desktop-windows-update-test.mts",
+    "apps/desktop/scripts/desktop-macos-installed-update-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ]),
+  [
+    "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    ["scripts/desktop-scenarios.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-host-publication-test.mts",
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+    ],
+  ],
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
   [
     "scripts/fixtures/disposable-directory.mts",
     [
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/node-platform-skips.test.mts",
@@ -1099,6 +1243,15 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-native-wsl-capture.test.mts",
       "scripts/release-hosted-native-job.test.mts",
       "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+      "scripts/release-hosted-native-windows-capture.test.mts",
+      "scripts/release-hosted-native-windows-runner.test.mts",
+      "scripts/release-hosted-native-windows-source.test.mts",
+      "scripts/release-hosted-native-windows-workflow.test.mts",
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/native-qualification-account.test.mts",
+      "scripts/release-owned-windows-proof-store.test.mts",
+      "scripts/release-windows-webview-driver.test.mts",
       "scripts/release-routing-marker.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/required-node-test-reporter.test.mts",
@@ -1109,6 +1262,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/fixtures/module-closure.mts",
     [
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/daily-discovery.test.mts",
@@ -1125,7 +1279,12 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...["scripts/node-test-suites.mts", "scripts/node-test-suites.json"].map(
     (file): [string, string[]] => [
       file,
-      [...platformSkipConsumers, "scripts/ci-workflow.test.mts"],
+      [
+        ...platformSkipConsumers,
+        "scripts/ci-workflow.test.mts",
+        "scripts/ci-baseline.test.mts",
+        "scripts/local-validation.test.mts",
+      ],
     ],
   ),
   [
@@ -1145,12 +1304,13 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["docs/QUALITY.md", ["scripts/repository-settings.test.mts"]],
   ["docs/REPOSITORY-SETTINGS.md", ["scripts/repository-settings.test.mts"]],
   [
-    "scripts/local-validation.mts",
-    [...selectionContractTests, "scripts/repository-settings.test.mts"],
-  ],
-  [
     ".config/rust-test-impact.json",
-    ["scripts/rust-test-impact.test.mts", "scripts/local-validation.test.mts"],
+    [
+      "scripts/rust-test-impact.test.mts",
+      "scripts/local-validation.test.mts",
+      "scripts/nextest-outcomes.test.mts",
+      "scripts/qualification-nextest.test.mts",
+    ],
   ],
   ...[
     "scripts/windows-rust-tests.mts",
@@ -1162,7 +1322,8 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/windows-rust-tests.test.mts",
       "scripts/qualification-coverage.test.mts",
-      "scripts/ci-rust-workflow.test.mts",
+      ...rustWorkflowContractTests,
+      "scripts/nextest-equivalence.test.mts",
       "scripts/ci-workflow.test.mts",
       "scripts/ci-result-gate.test.mts",
       "scripts/ci-baseline.test.mts",
@@ -1187,29 +1348,46 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/qualification-nextest.test.mts",
       "scripts/nextest-outcomes.test.mts",
-      "scripts/ci-rust-workflow.test.mts",
+      ...rustWorkflowContractTests,
+      "scripts/nextest-equivalence.test.mts",
       "scripts/qualification-coverage.test.mts",
       "scripts/audit.test.mts",
       "scripts/precommit-check.test.mts",
     ],
   ],
-  [".config/nextest.toml", ["scripts/ci-rust-workflow.test.mts"]],
-  ...["scripts/qualification-rustdoc.mts", "scripts/rustdoc-outcomes.mts"].map(
-    (file): [string, string[]] => [
-      file,
-      [
-        "scripts/qualification-rustdoc.test.mts",
-        "scripts/qualification-coverage.test.mts",
-        "scripts/ci-rust-workflow.test.mts",
-        "scripts/dev-storage.test.mts",
-        "scripts/audit.test.mts",
-        "scripts/precommit-check.test.mts",
-        "scripts/local-validation.test.mts",
-        "scripts/node-test-inventory.test.mts",
-      ],
+  [".config/nextest.toml", [...rustWorkflowContractTests, "scripts/nextest-equivalence.test.mts"]],
+  [
+    "scripts/desktop-test-cli.mts",
+    [
+      "scripts/development-evidence.test.mts",
+      "scripts/development-cli-help.test.mts",
+      "scripts/retained-package.test.mts",
     ],
-  ),
-  ...["merged", "failed"].map((name): [string, string[]] => [
+  ],
+  ...[
+    "scripts/qualification-rustdoc.mts",
+    "scripts/rustdoc-outcomes.mts",
+    "scripts/standalone-rust-tests.mts",
+    "scripts/development-evidence.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    [
+      "scripts/qualification-rustdoc.test.mts",
+      "scripts/development-evidence.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/validation-evidence.test.mts",
+      "scripts/workflow-provenance.test.mts",
+      "scripts/qualification-coverage.test.mts",
+      ...rustWorkflowContractTests,
+      "scripts/nextest-equivalence.test.mts",
+      "scripts/dev-storage.test.mts",
+      "scripts/audit.test.mts",
+      "scripts/precommit-check.test.mts",
+      "scripts/local-validation.test.mts",
+      "scripts/node-test-inventory.test.mts",
+    ],
+  ]),
+  ...["merged", "failed", "standalone"].map((name): [string, string[]] => [
     "scripts/fixtures/rustdoc-outcomes/" + name + ".jsonl",
     ["scripts/qualification-rustdoc.test.mts"],
   ]),
@@ -1217,20 +1395,24 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/fixtures/nextest-inventory-baseline.json",
     ["scripts/nextest-outcomes.test.mts", "scripts/qualification-nextest.test.mts"],
   ],
-  [
-    "scripts/nextest-outcomes.mts",
-    [
-      "scripts/run-rust-tests.test.mts",
-      "scripts/nextest-outcomes.test.mts",
-      "scripts/qualification-nextest.test.mts",
-      "scripts/windows-rust-tests.test.mts",
-      "scripts/rust-test-impact.test.mts",
-      "scripts/ci-rust-workflow.test.mts",
-      "scripts/ci-workflow.test.mts",
-      "scripts/audit.test.mts",
-      "scripts/precommit-check.test.mts",
+  ...["scripts/nextest-outcomes.mts", "scripts/nextest-skip-routes.mts"].map(
+    (file): [string, string[]] => [
+      file,
+      [
+        "scripts/run-rust-tests.test.mts",
+        "scripts/nextest-outcomes.test.mts",
+        "scripts/qualification-nextest.test.mts",
+        "scripts/rust-test-impact.test.mts",
+        ...rustWorkflowContractTests,
+        "scripts/nextest-equivalence.test.mts",
+        "scripts/ci-workflow.test.mts",
+        "scripts/audit.test.mts",
+        "scripts/precommit-check.test.mts",
+        "scripts/validation-evidence.test.mts",
+        "scripts/workflow-provenance.test.mts",
+      ],
     ],
-  ],
+  ),
   ...["passed.jsonl", "failing.jsonl", "ignored.jsonl", "inventory.json", "provenance.json"].map(
     (file): [string, string[]] => [
       `scripts/fixtures/nextest-outcomes/${file}`,
@@ -1246,6 +1428,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ],
   ["scripts/ui-test-selection.mts", ["scripts/ui-test-selection.test.mts"]],
+  ["apps/desktop/src/browser/failure-probe-contract.ts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-ui-tests.mts", ["scripts/ui-test-selection.test.mts"]],
   ...[
     "test-coverage",
@@ -1288,6 +1471,8 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/upstream-observer.mts",
     [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
   ],
+  ["scripts/catalog-upstream-observer.mts", upstreamHealthContractTests],
+  ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
   [
@@ -1398,7 +1583,17 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/native-session-lock.test.mts",
     ],
   ],
-  ["apps/desktop/scripts/desktop-preparation-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  ...[
+    "apps/desktop/scripts/desktop-preparation-test.mts",
+    "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ]),
+  [
+    "apps/desktop/scripts/desktop-scenario-outcomes.mts",
+    ["scripts/desktop-scenarios.test.mts", "scripts/native-helper-dependencies.test.mts"],
+  ],
   [
     "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
     ["scripts/desktop-listener-probe.test.mts"],
@@ -1407,14 +1602,25 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "apps/desktop/scripts/desktop-listener-lifetime-probe.mts",
     ["scripts/desktop-listener-probe.test.mts", "scripts/desktop-execution-plan.test.mts"],
   ],
-  ["apps/desktop/scripts/desktop-default-cover-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  ...[
+    "apps/desktop/scripts/desktop-default-cover-test.mts",
+    "apps/desktop/scripts/desktop-cover-observations.mts",
+    "apps/desktop/scripts/desktop-catalog-update-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/fixture-module-closure.test.mts"],
+  ]),
   ["apps/desktop/scripts/desktop-source-dialog-test.mts", ["scripts/desktop-scenarios.test.mts"]],
   ...[
     "apps/desktop/scripts/desktop-review-controls.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",
   ].map((file): [string, string[]] => [
     file,
-    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-execution-plan.test.mts"],
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/fixture-module-closure.test.mts",
+    ],
   ]),
   [
     ".github/quality-tools.json",
@@ -1464,6 +1670,8 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/dev-doctor.test.mts",
     ],
   ],
+  [".config/recovery-tools/aqua.yaml", ["scripts/recovery-tools.test.mts"]],
+  [".config/recovery-tools/aqua-checksums.json", ["scripts/recovery-tools.test.mts"]],
   [
     "scripts/roadmap-issue.mts",
     [
@@ -1483,6 +1691,9 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/repository-issue-inventory.mts",
     "scripts/roadmap-inventory.mts",
     "scripts/roadmap-scoped.mts",
+    "scripts/roadmap-qualification.mts",
+    "scripts/roadmap-execution.mts",
+    "scripts/roadmap-readiness.mts",
     "scripts/linux-beta-risk-706.mts",
     "deny.toml",
   ].map((file): [string, string[]] => [file, roadmapContractTests]),
@@ -1520,10 +1731,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [".oxfmtrc.json", ["scripts/local-validation.test.mts", "scripts/ci-workflow.test.mts"]],
   [
-    "scripts/ordinary-validation.mts",
-    [...selectionContractTests, "scripts/validation-evidence.test.mts"],
-  ],
-  [
     "scripts/release-capacity-operation.mts",
     ["scripts/release-catalog-review-maintenance.test.mts"],
   ],
@@ -1536,12 +1743,21 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-metadata-contract.mts",
     ["scripts/release-catalog-review-maintenance.test.mts"],
   ],
-  [
-    "scripts/release-semantic-worker-recovery.mts",
-    ["scripts/release-catalog-review-maintenance.test.mts"],
-  ],
-  ["scripts/release-semantic-worker.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
-]);
+] satisfies [string, readonly string[]][]) {
+  if (explicitNodeTests.has(file)) throw new Error(`Duplicate Node test input owner: ${file}`);
+  explicitNodeTests.set(file, tests);
+}
+
+// Shared custody consumers supplement each helper's feature-owned tests.
+for (const file of [...Object.keys(nativeHelperDependencies), nativeHelperRegistryPath])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/native-helper-dependencies.test.mts",
+    "scripts/native-confirmation.test.mts",
+    "scripts/desktop-execution-plan.test.mts",
+    "scripts/windows-helper-checks.test.mts",
+    ...(file === nativeHelperRegistryPath ? ["scripts/desktop-input-observation.test.mts"] : []),
+  ]);
 
 // Source declarations are consumed by a cheap Node contract even when no release
 // script changes. Keep the consumer's own input inventory authoritative.
@@ -1575,6 +1791,22 @@ for (const file of [
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-controller-tools.test.mts",
   ]);
+for (const file of [
+  "scripts/release-windows-webview-driver.mts",
+  "scripts/windows-webview-driver-policy.psm1",
+  "scripts/bounded-zip.mts",
+  "scripts/bootstrap-quality-tools.ps1",
+  "scripts/release-controller-tool-build.mts",
+  "scripts/release-controller-tools.mts",
+  "scripts/release-controller-tool-admission.mts",
+  "scripts/qualify-controller-tools-windows.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-windows-webview-driver.test.mts",
+    "scripts/release-controller-tools.test.mts",
+    "scripts/quality-tools.test.mts",
+  ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/production-aggregate-steps.test.mts",
@@ -1596,6 +1828,11 @@ explicitNodeTests.set("scripts/run-rust-tests.mts", [
   "scripts/nextest-outcomes.test.mts",
 ]);
 
+for (const file of ["scripts/release-resource-observation.mts", "scripts/release-capacity.mts"])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-resource-observation.test.mts",
+  ]);
 const workflowTests = new Map([
   [
     "hosted-native-continuity.yml",
@@ -1620,7 +1857,10 @@ const workflowTests = new Map([
   ],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
-  ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
+  [
+    "configured-upstream-observer.yml",
+    ["scripts/upstream-observer.test.mts", "scripts/catalog-upstream-observer.test.mts"],
+  ],
   [
     "upstream-health.yml",
     ["scripts/upstream-health-plan.test.mts", "scripts/upstream-health-monitor.test.mts"],
@@ -1653,7 +1893,7 @@ explicitNodeTests.set("scripts/fixtures/coordinator-fixture-phases.mts", [
   "scripts/release-coordinator-state.test.mts",
 ]);
 
-export const coordinatorStateContractTests = [
+const coordinatorStateContractTests = [
   "scripts/release-coordinator-state.test.mts",
   "scripts/release-coordinator-recovery.test.mts",
   "scripts/release-coordinator-remote.test.mts",
@@ -1712,7 +1952,21 @@ for (const file of [
     "scripts/rust-coverage.test.mts",
   ]);
 }
+for (const file of [
+  "scripts/fixtures/native-desktop-observer.cs.txt",
+  "scripts/release-hosted-native-windows-setup.ps1",
+  "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/release-hosted-native-windows-audit.cs.txt",
+  "scripts/release-hosted-native-windows-observation.mts",
+  "scripts/qualify-controller-tools-windows.mts",
+]) {
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-hosted-native-windows-setup.test.mts",
+  ]);
+}
 explicitNodeTests.set("scripts/runtime-values.mts", [
+  ...roadmapContractTests,
   ...(explicitNodeTests.get("scripts/runtime-values.mts") ?? []),
   "scripts/qualification-nextest.test.mts",
   "scripts/qualification-rustdoc.test.mts",
@@ -1722,7 +1976,23 @@ explicitNodeTests.set("scripts/runtime-values.mts", [
   "scripts/precommit-check.test.mts",
 ]);
 
+for (const workflow of [
+  "release.yml",
+  "application-update-production.yml",
+  "application-update-wake.yml",
+])
+  workflowTests.set(workflow, [
+    ...(workflowTests.get(workflow) ?? []),
+    "scripts/release-resource-observation.test.mts",
+  ]);
 const releaseContractTests = Object.freeze([
+  "scripts/release-hosted-native-windows-capture.test.mts",
+  "scripts/release-hosted-native-windows-runner.test.mts",
+  "scripts/release-hosted-native-windows-session.test.mts",
+  "scripts/release-hosted-native-windows-worker-contract.test.mts",
+  "scripts/release-hosted-native-runtime.test.mts",
+  "scripts/release-resource-observation.test.mts",
+  "scripts/release-hosted-native-windows-setup.test.mts",
   "scripts/release-native-runtime-custody.test.mts",
   "scripts/hosted-native-continuity.test.mts",
   "scripts/recover-local-worker-empty-setup.test.mts",
@@ -1826,6 +2096,36 @@ const releaseContractTests = Object.freeze([
   "scripts/release-workflow.test.mts",
   "scripts/windows-qualification-session.test.mts",
   "scripts/qualification-preparation.test.mts",
+]);
+
+// Native lifecycle consumers also use helper dependencies without changing their entrypoint.
+for (const [file, tests] of [
+  [
+    "apps/desktop/scripts/native-linux-isolated-session.mts",
+    [...releaseContractTests, "apps/desktop/scripts/desktop-linux-public-update.native.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-native-account-session.mts",
+    [
+      ...releaseContractTests,
+      "scripts/desktop-scenarios.test.mts",
+      "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    ],
+  ],
+] satisfies [string, string[]][])
+  explicitNodeTests.set(file, [...(explicitNodeTests.get(file) ?? []), ...tests]);
+for (const root of Object.keys(nativeHelperDependencies)) {
+  const consumers = explicitNodeTests.get(root) ?? [];
+  for (const input of nativeHelperFiles([root]))
+    explicitNodeTests.set(input, [
+      ...new Set([...(explicitNodeTests.get(input) ?? []), ...consumers]),
+    ]);
+}
+explicitNodeTests.set(nativeHelperRegistryPath, [
+  ...new Set([
+    ...(explicitNodeTests.get(nativeHelperRegistryPath) ?? []),
+    ...Object.keys(nativeHelperDependencies).flatMap((file) => explicitNodeTests.get(file) ?? []),
+  ]),
 ]);
 
 export function command(
@@ -2087,6 +2387,8 @@ function classifyOnePath(
       "apps/desktop/pnpm-workspace.yaml",
       "scripts/browser-traces.ts",
       "scripts/frontend-case-observations.ts",
+      "scripts/ui-test-selection.mts",
+      "apps/desktop/src/browser/failure-probe-contract.ts",
       "scripts/viteplus-cli.mts",
       "scripts/frontend-tests.ts",
       "scripts/run-ui-tests.mts",

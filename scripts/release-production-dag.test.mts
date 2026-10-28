@@ -5,6 +5,7 @@ import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
 import { slice4CapacityResources } from "./release-capacity.mts";
+import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import { sharedProtectionOriginalJobDeadline } from "./release-signing-job-budget.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";
 
@@ -98,9 +99,9 @@ void test("shared observer phases retain mode routing and the original ten-minut
     () => sharedProtectionOriginalJobDeadline({ ...inventory, total_count: 2 }, identity, now, 100),
     /inventory/u,
   );
-  assert.equal(slice4CapacityResources.declared_job_minutes, 85);
-  assert.equal(slice4CapacityResources.declared_job_minutes + 10, 95);
-  assert.ok(95 < slice4CapacityResources.total_job_minutes);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
+  assert.equal(slice4CapacityResources.declared_job_minutes + 10, 99);
+  assert.ok(99 < slice4CapacityResources.total_job_minutes);
 });
 
 type Step = {
@@ -271,6 +272,7 @@ void test("installed workflows remain inert without configuration and preserve e
         github: { sha: "a".repeat(40), ref: "refs/heads/main" },
         needs,
         always: () => true,
+        cancelled: () => false,
         success: () => Object.values(needs).every((value) => value?.result === "success"),
       });
       assert.equal(
@@ -589,7 +591,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     "utf8",
   );
   const workflow = parse(source) as Workflow;
-  assert.ok(Buffer.byteLength(source) < 65536);
+  assert.ok(Buffer.byteLength(source) < maximumProductionControllerWorkflowBytes);
   assert.deepEqual(workflow.on, {
     workflow_dispatch: {
       inputs: {
@@ -676,14 +678,22 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       slice4CapacityResources.declared_job_minutes,
       slice4CapacityResources.catalog_declared_job_minutes,
     ),
-    85,
+    89,
   );
   assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
   for (const [name, job] of Object.entries(jobs)) {
-    assert.equal(job["runs-on"], name === "native_linux" ? "ubuntu-24.04" : "ubuntu-22.04", name);
+    assert.equal(
+      job["runs-on"],
+      name === "native_linux"
+        ? "ubuntu-24.04"
+        : name === "tool_bootstrap_windows"
+          ? "windows-2022"
+          : "ubuntu-22.04",
+      name,
+    );
     if (job.permissions?.actions === "read")
       assert.equal(
         job.permissions.checks,
@@ -696,7 +706,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
         `${name} references undeclared producer ${match[1]}`,
       );
     assert.ok(Number.isSafeInteger(job["timeout-minutes"]) && job["timeout-minutes"] > 0);
-    if (name !== "tool_bootstrap")
+    if (name !== "tool_bootstrap" && name !== "tool_bootstrap_windows")
       assert.ok(!job.steps.some((step) => /(?:npm|pnpm) (?:install|ci)/u.test(step.run ?? "")));
     assert.ok(
       !job.steps.some((step) => /gh workflow run|gh api[^\n]*dispatches/u.test(step.run ?? "")),

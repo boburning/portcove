@@ -35,6 +35,7 @@ import {
 } from "./github-api.mts";
 import {
   classifyRenovateSnapshot,
+  diagnoseRenovateReleaseAge,
   fastLaneSummary,
   inspectCurrentBase,
   parseRenovateUpdates,
@@ -1152,6 +1153,7 @@ export function inspectRenovateQueue(
     const pending = snapshot.contexts.filter(({ outcome }) => outcome !== "success");
     const age = snapshot.statuses.filter(({ context }) => context === "renovate/stability-days");
     const agePending = !security && age.some(({ state }) => state === "pending");
+    const ageDiagnosis = diagnoseRenovateReleaseAge(snapshot.statuses, snapshot.pull.body);
     const actionable =
       !snapshot.pull.draft &&
       snapshot.pull.mergeable === true &&
@@ -1174,6 +1176,7 @@ export function inspectRenovateQueue(
       reason: result.reason,
       actionable,
       release_age: age,
+      release_age_diagnosis: ageDiagnosis,
       checks: snapshot.contexts,
       runs: client
         .sourceWorkflowRuns(head)
@@ -1195,7 +1198,7 @@ export function inspectRenovateQueue(
             : snapshot.pull.mergeable !== true
               ? "Resolve actual conflicts or unknown mergeability with the current owner."
               : agePending
-                ? "Wait for the existing release-age status; missing timestamps need a specific reviewed resolution, never a global cooldown waiver."
+                ? ageDiagnosis.next_action
                 : ["reject", "waiting"].includes(result.verdict)
                   ? "Resolve the reported classifier condition before selection."
                   : result.verdict === "metadata-required"

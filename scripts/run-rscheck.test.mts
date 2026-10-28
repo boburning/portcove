@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import pins from "../.github/quality-tools.json" with { type: "json" };
 import portabilityBaseline from "./fixtures/rscheck-portability-baseline.json" with { type: "json" };
+import qualificationLiterals from "./fixtures/rscheck-qualification-regression-literals.json" with { type: "json" };
 
 import { assessRscheckReport, parseRscheckReport } from "./run-rscheck.mts";
 
@@ -42,13 +43,23 @@ void test("reviewed portability literals apply only to exact files and exact val
     JSON.stringify(value).replace(/\\u([a-f0-9]{4})/gu, "\\u{$1}");
   const expected: { file: string; value: string }[] = [];
   const allowed: { file: string; value: string }[] = [];
-  for (const [index, scope] of portabilityBaseline.scopes.entries()) {
+  const scopes: {
+    file: string;
+    values: string[];
+    inherited_global_values?: string[];
+    denied_values?: string[];
+    denied_files?: string[];
+  }[] = [...portabilityBaseline.scopes, ...qualificationLiterals.scopes];
+  for (const [index, scope] of scopes.entries()) {
     const deniedValue = `/portcove-unreviewed-${index}`;
-    const neighbor = scope.file.replace(/\.rs$/u, "_unreviewed.rs");
-    const inherited = "inherited_global_values" in scope ? scope.inherited_global_values : [];
+    const neighbors = [
+      scope.file.replace(/\.rs$/u, "_unreviewed.rs"),
+      ...(scope.denied_files ?? []),
+    ];
+    const inherited = scope.inherited_global_values ?? [];
     for (const [file, values] of [
-      [scope.file, [...scope.values, ...inherited, deniedValue]],
-      [neighbor, [...scope.values, ...inherited]],
+      [scope.file, [...scope.values, ...inherited, deniedValue, ...(scope.denied_values ?? [])]],
+      ...neighbors.map((file) => [file, [...scope.values, ...inherited]] as const),
     ] as const) {
       const filename = path.join(directory, file);
       await mkdir(path.dirname(filename), { recursive: true });
@@ -58,13 +69,31 @@ void test("reviewed portability literals apply only to exact files and exact val
       );
     }
     expected.push(
-      { file: scope.file, value: deniedValue },
-      ...scope.values.map((value) => ({ file: neighbor, value })),
+      ...[deniedValue, ...(scope.denied_values ?? [])].map((value) => ({
+        file: scope.file,
+        value,
+      })),
+      ...neighbors.flatMap((file) => scope.values.map((value) => ({ file, value }))),
     );
     allowed.push(...scope.values.map((value) => ({ file: scope.file, value })));
     allowed.push(
-      ...inherited.flatMap((value) => [scope.file, neighbor].map((file) => ({ file, value }))),
+      ...inherited.flatMap((value) => [scope.file, ...neighbors].map((file) => ({ file, value }))),
     );
+  }
+  for (const production of [
+    qualificationLiterals.global_inheritance_control,
+    ...(qualificationLiterals.additional_inheritance_controls ?? []),
+  ]) {
+    const productionFile = path.join(directory, production.file);
+    await mkdir(path.dirname(productionFile), { recursive: true });
+    await writeFile(
+      productionFile,
+      [...production.allowed_values, production.denied_value]
+        .map((value, index) => `const INHERITED_${index}: &str = ${rustString(value)};`)
+        .join("\n"),
+    );
+    allowed.push(...production.allowed_values.map((value) => ({ file: production.file, value })));
+    expected.push({ file: production.file, value: production.denied_value });
   }
   const result = spawnSync(command, ["check", "--format", "json"], {
     cwd: directory,

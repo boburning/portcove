@@ -675,6 +675,11 @@ async function main() {
       build_milliseconds: buildMilliseconds,
       build_allowance_milliseconds: 210000,
       build_profile: "controller-tools",
+      tool_build_observation: {
+        scope: "builder entry through complete inventory; cold workflow setup excluded",
+        elapsed_milliseconds: built.elapsed_milliseconds,
+        phases: built.timings,
+      },
       tool_expanded_bytes: built.manifest.files.reduce((total, file) => total + file.bytes, 0),
       pnpm_runtime: pnpmRuntime,
       core_cli_bytes: built.manifest.files.find((file) => file.path === "bin/portcove")!.bytes,

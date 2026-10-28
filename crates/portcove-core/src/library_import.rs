@@ -271,6 +271,22 @@ impl PortcoveService {
         validate_metadata(&metadata, &catalogs)?;
         let destination_root =
             crate::path::resolve_existing_ancestor(&std::path::absolute(destination)?)?;
+        for install in &metadata.application_versions {
+            let relative = validate_install_path(install)?;
+            let mut observed = install.clone();
+            observed.path = content_root.join(&relative);
+            if catalogs
+                .catalog_for_install(install)?
+                .port(&install.port_id)?
+                .windows_runtime_path_policy
+                == Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+            {
+                crate::install::check_retained_runtime_paths(
+                    &observed,
+                    &destination_root.join(relative),
+                )?;
+            }
+        }
         let destination_exists = destination_root.exists();
         if destination_root.starts_with(&content_root)
             || content_root.starts_with(&destination_root)

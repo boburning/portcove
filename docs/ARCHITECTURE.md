@@ -134,6 +134,15 @@ it does not establish original-byte identity or compatibility.
 
 ## Discovery listings and user-owned setup
 
+Upstream observation, metadata eligibility, accepted artifact integrity,
+published definition, installed operability and qualification at a stated scope
+are separate evidence states. A later state requires its own evidence; an observed
+release or valid definition does not prove the package, runtime or game works.
+Completed #245/#254/#397/#398 components remain credited. #177 owns discovery,
+#247 scoped release health, #246 production definition delivery, #534 protected
+provisioning, #2926 port adoption/maintenance and #251 game-centered comparison.
+Canonical port issues retain port-specific facts; GitHub Projects owns planning.
+
 `catalog/ports/<id>.json` is the authored authority for one stable project
 identity. Deterministic assembly emits the strict operational catalog and a
 separately versioned descriptive listing directory. A listing grants no managed
@@ -197,13 +206,83 @@ can happen in the upstream game's first launch when its output follows that
 contract; this does not certify gameplay. External setup reminders/registrations
 retain their non-owning interpretation. See [portable authoring](CATALOG.md#managed-native-portable-packages).
 
+Declared native Windows packaged-file limits use the existing runtime-path
+authority and authenticated manifest. The destination check includes data members,
+not only the player, and runs before publication or player-data synchronization.
+Retained reuse, rollback, interrupted publication and portability consume the
+creating contract. Native capability4 fences these path semantics independently
+of version3's Direct pin. No external-profile or arbitrary save-path ownership is
+inferred from the immutable-package envelope.
+
 Ready `staged-source-portable` archives with no original-file, build, setup-helper,
 initialization or shared-account preparation use the same stage-before-activation
 and retained-coordinate guard. Core collects declared edits made before first Play;
 disposable runtime outputs stay with their version. The existing bounded
 install/manifest-bound data-restoration receipt distinguishes an initialized copy
 from historical unproven data. Without that receipt, collection is additive and
-conflicting copies remain recoverable. Raw Installer activation refuses, and
+conflicting copies remain recoverable. A live verification allowance for added
+mutable paths does not widen that receipt's data authority. At
+`persistence_contract_for_install`, missing historical scope or receipt-governed
+effective/retained persistent-scope divergence refuses before synchronization.
+All-version persistence-authority preflight checks inactive copies in read-only
+Restore review and again before canonical publication. Actual restore separately
+checks mod conflicts at its existing mutation boundary. Closed legacy coordinate
+interpretations remain separate.
+
+Generated-cache maintenance verifies the complete runtime with the existing strict
+manifest traversal and its exact retained mutable scope before synchronization,
+replacement or removal. New catalog paths cannot enroll populated output from an
+older runtime. Unclaimed saves/recovery witnesses, changed immutable files,
+redirects, missing retained authority or unidentified roots hold the operation
+while preserving runtime and player data. Unlaunched and inactive copies are
+included in backup safety checks; absence of Core's launch marker proves no
+absence of output. These refusals do not qualify a newer writer or authorize
+populated-data adoption. Resume requires a separately supported data transition
+or preservation/review of the reported additions.
+
+Library schema 43 retains the existing installation records in removal journals,
+bound one-to-one to the original paths. Recovery verifies live or quarantined
+bytes against those same manifest identities before renames, database deletion
+and cleanup; relocation does not rewrite the manifest. Historical intents may
+recover this binding from authenticated database rows while they remain. Once
+those rows are gone, a historical journal without retained identities cannot
+classify its quarantine safely, even if today's catalog changed or removed the
+port. It preserves quarantine and journal for review instead of guessing cleanup
+authority. Contractless historical runtimes likewise require review. This is a
+conservative recovery hold, not a claim of observed loss or automatic migration.
+
+Forward empty-only expansion stays within the existing ready-archive transaction.
+It requires authenticated retained authority, compatible unchanged source/launch
+coordinates and patterns, an immutable-manifest/executable-companion check, and
+bounded no-follow absence checks for every added path in the old runtime,
+canonical root and actual staged/reused destination. Rechecks surround collection,
+restoration and activation, including pending recovery. The new installation owns
+its new retained scope; old manifests and receipts are never rewritten. A
+post-publication refusal may retain an ordinary staged copy, reported by
+`staged_install_id`, while the prior active copy remains authoritative. Both
+activation and stage-only retry validate that actual destination. Committed
+activation recovery finishes the committed version without reapplying an old
+absence condition. Transfer/import continue verifying retained-plus-retained
+contracts. No new registry, receipt format or lifecycle engine is introduced.
+Explicit retained rollback uses that same proof for empty strict-scope changes in
+either direction. For a smaller target, validate the smaller retained contract's
+immutable permission in reverse, with the larger active copy as the actual target
+of the proof. Both real roots and canonical data must lack every changed path.
+For a larger retained target, use the ordinary empty-expansion proof with that
+actual target. Read-only rollback assessment and locked execution share the
+predicate; execution repeats it after collecting current data, before restoring
+the target and switching the active pointer. Retained authority and receipt scope are
+not widened; ordinary restore completion keeps its existing behavior.
+Populated, mixed, aliased or incompatible changes remain held, including a later
+return if the older runtime has created a changed path. Existing collection,
+backup/restore, interruption recovery and historical transfer authority remain in
+place; this grants no populated migration or save-format compatibility.
+
+Trusted verification projections keep the same exact root receipt-metadata
+exclusions as catalog-captured qualifications. Import still verifies each
+installation's retained scope, immutable identity and independent admission.
+
+Raw Installer activation refuses, and
 interrupted publication checks retained contracts and data before changing the
 active pointer. New independent definitions of this shape require staged-source
 capability 23 and a format-6 retained envelope, including embedded/unscoped
@@ -220,6 +299,16 @@ readers. `service/psx_mod_data.rs` owns the shared package coexistence algorithm
 including retained-runtime preflight for explicit restore; its historical module
 and receipt names do not restrict the policy to PS1. A policy change is a data
 contract change, never inferred from a persistent folder or current catalog.
+
+Normal initialized data collection also preflights complete-package conflicts
+before copying other declared data and rechecks the captured mod trees immediately
+before their normal mirror. A conflict preserves both copies and can leave
+post-Play collection pending until deliberate resolution; recovery retries the
+same boundary. Collection keeps its existing mirror semantics for deliberate
+package removals and ordinary state, rather than resurrecting canonical-only
+versions. This does not reserve new namespaces in historical contracts, change
+receipts or give older clients the stronger preflight. Collection remains a
+resumable sequence, not an atomic transaction across every declared data path.
 
 ## Source import journal interpretation
 
@@ -2912,6 +3001,75 @@ remain explicit user actions. Projection does not rewrite retained diagnostics,
 declare an incomplete capture complete, or grant recovery authority.
 
 Disk-heavy desktop commands run on Tauri's blocking worker pool. Entire mixed async/core operations such as planning, update checks, install, update, and reconciliation enter a worker before constructing the service, then drive their network future from that worker; source hashing, manifest verification, managed-tree copies or removal, adoption, backup review, rollback, activation, folder integration, and launch preparation never occupy the IPC event loop. Cancelling an IPC waiter does not asynchronously kill an in-flight blocking mutation: the worker finishes under the core lifecycle journal and lock, while the durable activity/result remains available after refresh. Their command names, structured errors, and core-service safety boundaries are unchanged.
+
+### Immutable game-update acquisition
+
+Core's `plan_game_update_acquisition` is an optimistic, read-only review for an
+already verified managed installation. `authorize_game_update_acquisition` binds
+one-use consent to that exact review, and `acquire_game_update` repeats it under
+a separate per-port acquisition lock. This operation owns only private archive
+bytes and its activity/journal. It does not extract, prepare sources, collect or
+restore saves, publish output ownership, register an installation, or activate a
+runtime. The supervised launch and all runtime/file mutations retain their
+existing exclusive port lock; immutable acquisition can begin before or after a
+verified current runtime launches, without interpreting a busy lock as permission.
+
+Library schema 42 stores the typed acquisition payload in the existing
+`lifecycle_operations` owner. Its public phases are `acquiring`, `verifying`,
+`acquired`, and `attention_required`. At most one retained acquisition exists per
+port, with 256 records and 8 GiB of reserved asset bytes per library and a 64 KiB
+UTF-8 payload limit per record. Reservations include partial downloads and every
+bundled runtime asset and are checked atomically with journal writes. Acquisition
+requires independently expected nonzero sizes and SHA-256 identities. Existing
+provider, definition, runtime-policy and source requirements still apply. Shared
+preference artifact trust is checked during transfer; permission to write that
+scope is reviewed afresh only by the later exclusive preparation/apply operation.
+
+Private archives live under `downloads/update-acquisition-v1/<activity-UUID>`.
+The journal binds their exact owner, release, platform, definition and ordered
+asset identities. Its bounded owner marker is published through an owned pending
+file before any archive write; an interrupted exact marker prefix has an explicit
+discard route, while foreign marker bytes remain held for review. File data and supported directory publication are synchronized
+before completed state is recorded. As with existing filesystem operations,
+Windows directory synchronization does not establish sudden-power-loss durability.
+The curated byte cache remains optional and keeps its existing admission, size,
+copy verification and cancellation rules; it is not the acquisition record or a
+source of execution authority. Acquisition does not promote newly transferred
+bytes into that cache before archive extraction validates them.
+
+A fresh `GameUpdatePlan` can select the exact acquired identity, includes it and
+its retained owner in the review digest, and still requires a new authorization.
+Exclusive Apply rechecks current state and acquisition files, takes the archive's
+activity-owner lease, and copies verified bytes into its own install staging.
+The copy worker is joined before cancellation/cleanup or lease release. Existing
+source validation, shared-preference acceptance, preparation, publication,
+activation and recovery checks remain in force. The established `apply_game_update`
+return contract remains an `InstallRecord`: `activate=false` prepares a staged
+runtime, while an acquired archive alone never creates staged or active state.
+
+Recovery checks the acquisition activity-owner lock instead of assuming that a
+port lock excludes a live transfer. It preserves completed archives as actionable
+work, not broken recovery, and marks interrupted transfer/verification as
+attention-required without preparing or activating it. Exact-ID
+`discard_game_update_acquisition` holds that same owner lease and validates all
+private paths and members before removing only owned files. A live transfer or
+Apply lease conflicts; foreign, linked or ambiguous contents are retained for
+review. Cancellation retains bounded partial state for this explicit discard
+route. Discarding the retained acquisition permits a new download review and
+leaves installed runtimes and player data intact. Archive-owner rows remain visible in bounded Core status and workspace
+inventories even after the managed install and catalog entry disappear. Such
+orphan rows expose only existing metadata and held operations; they do not
+synthesize a listing, operational definition, or launch permission. Exact-ID
+discard remains available without a current catalog entry. These private byte
+records do not broaden metadata export or portable installation authority. A live worker
+retains its ordinary shared library lease; an actual whole-library move cannot
+acquire exclusive access until every source handle is closed. Move preview and
+execution also refuse any retained acquisition journal, including a completed
+archive, and return its exact ID with the discard-then-review resume action.
+Metadata export/import excludes downloads and acquisition journals. Removing a
+managed runtime, or changing a source registration/channel through another
+client, never deletes these private archives; later Apply must freshly validate
+those changed facts and cannot resurrect a removed installation.
 
 ## Cooperative operation cancellation
 

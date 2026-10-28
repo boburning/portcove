@@ -15,7 +15,17 @@
       "game_slug": "super-mario-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 519
+    "issue_number": 519,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-64",
+      "evidence_urls": [
+        "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/README.md",
+        "https://github.com/sm64pc/sm64ex/blob/d7ca2c04364a6dd0dac58b47151e04e26887e6f0/README.md",
+        "https://github.com/sm64-port/sm64-port/blob/2b17d081c9798b31b91dc71f37994b0da28cffc9/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

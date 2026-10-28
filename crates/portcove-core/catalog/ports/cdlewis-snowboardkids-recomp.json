@@ -3,12 +3,12 @@
   "listing": {
     "id": "cdlewis-snowboardkids-recomp",
     "name": "Snowboard Kids / Snowboard Kids: Recompiled (cdlewis)",
-    "summary": "Explore Snowboard Kids / Snowboard Kids: Recompiled (cdlewis) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use a permitted Snowboard Kids player and select your own North American cartridge dump on first Play.",
     "project_url": "https://github.com/cdlewis/snowboardkids-recomp",
     "issue_number": 1886,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/cdlewis/snowboardkids-recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
     "artwork": {
       "game_id": 3342,
       "cover_id": 104128,
@@ -16,6 +16,38 @@
       "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
       "game_slug": "snowboard-kids",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game_title": "Snowboard Kids",
+    "release_url": "https://github.com/cdlewis/snowboardkids-recomp/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["SnowboardKidsRecompiled-", "Windows.zip"],
+      "linux-x86-64": ["SnowboardKidsRecompiled-", "Linux-X64.tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep your complete permitted player",
+          "instruction": "For an existing Windows copy you are permitted to use, select SnowboardKidsRecompiled.exe and its supplied folder. Keep the entire player folder and companions together. On Linux, use the matching native player and supplied working folder; Flatpak and macOS application bundles retain their upstream installation and launchers."
+        },
+        {
+          "title": "Select your original game on first Play",
+          "instruction": "Choose Play explicitly, then select your own supported North American Snowboard Kids ROM in the game menu. The player checks the game identity and normalizes supported byte orders. No separate extraction or compiler step is needed for the released player."
+        },
+        {
+          "title": "Preserve your actual profile when updating",
+          "instruction": "You or upstream provide updates. Keep the working copy and actual profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. On Windows/native Linux, portable.txt in the working folder stores data there; on macOS the marker belongs beside the application bundle and data stays there. Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback."
+        },
+        {
+          "title": "Keep Flatpak data alongside the actual profile",
+          "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
+        }
+      ],
+      "warnings": [
+        "Upstream lists graphics/CPU requirements and Windows runtime prerequisites. Separately published native builds are not Portcove native or gameplay qualification."
+      ],
+      "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md"
+    },
+    "download_block_reason": "The released player links cdlewis/RecompFrontend at fa4f0ca42ba2efaca631203ef1e0753f2be78985, whose applicable grant remains unestablished. The parent game-project GPL does not settle that separate component. Keep an existing copy you are permitted to use. Reconsider acquisition with an attributable compatible grant or a reviewed replacement component/package."
   }
 }

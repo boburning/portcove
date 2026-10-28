@@ -4,13 +4,17 @@ This is the successor design for #245. It does not extend signed catalog format
 1, admit a new port, provision a publisher, or activate automatic delivery.
 `portcove-core` remains the sole definition, admission and lifecycle authority.
 The CLI and Tauri expose its outcomes; React and external clients present them.
-The Project owns scheduling, #397 owns client implementation, #398 observes
-upstreams, and #246 owns the protected publication and unchanged-client proof.
+The Project owns scheduling. Completed #245/#397/#398 components supply the
+design, compatible client and configured observer; completed #254 supplies bounded
+authoring tooling. #177 owns continued discovery and normalized observations,
+#247 scoped release-health incidents/recovery, and #246 the actual protected
+publication and unchanged-client journey. #534 retains provisioning acceptance;
+component fixtures do not complete either production outcome.
 
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises native portable version 2,
+The public inventory additionally advertises native portable versions 2 and 3,
 managed PS1 version 2, N64 portable versions 2 and 3 and
 staged-source portable versions 2–5, 8, 10–12 and 15–24. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
@@ -23,6 +27,25 @@ including the retired CVLoD recipe associated with the still-advertised N64
 portable version 3 and staged-source version 11 path capability. Advertising those
 versions does not restore CVLoD source creation or authorize compilers or scripts.
 Shared path capabilities remain available to their other consumers.
+
+Native portable version 3 admits exact `direct-manifest` archives through the
+existing native lifecycle. New and retained independent entries using that
+combination require minimum version 3. Earlier versions 1/2 retain their GitHub
+package meanings and cannot negotiate this variant. Direct pins bind one Stable
+version, URL, size and expected SHA-256 per platform; they do not discover newer
+upstream versions or inherit another artifact's qualification. Installer, source
+preparation and mutable-runtime exclusions remain in force. Capability and API
+envelope versions remain separate; advertising version 3 grants no publisher,
+installation, protected-delivery or external-profile authority.
+
+Native portable version 4 consumes the Windows `relative-file-max-path` policy.
+It checks authenticated immutable package members and actual selected launch
+coordinates at their final destination before publication or data synchronization.
+It preserves Unicode, counts UTF-16 units with the relative spelling and NUL
+headroom, and does not claim a general long-path fix or external-profile coverage.
+New and retained independent entries declaring this policy require minimum4;
+Direct-only version3 and earlier versions retain their separate meanings. This
+capability grants no additional publisher or protected-operation authority.
 
 Native portable version 2 observes an upstream-owned manual setup completion
 record beneath declared player data. New and retained indexed entries using
@@ -1003,6 +1026,20 @@ Builds/tests have no production secrets; the signer never executes candidate
 scripts, local actions, binaries or instructions. Upstream observation in #398
 has no signing, acceptance or trust-grant authority.
 
+Catalog maintenance uses the existing isolated protection observer to read the
+coordinator, protection-observer, four catalog-role and Pages environments.
+It collects complete deployment-policy pages twice within its original finite
+request/time budget and refuses changed or incomplete observations. The
+authenticated consumer requires exactly the original admitted controller tag
+in all seven environments, with administrator bypass disabled and no manual
+reviewer, wait timer, branch wildcard or additional deployment route. Missing
+privileged fields remain unknown and hold execution. Application-only admission,
+classification, signing and native environments are not catalog prerequisites.
+This check preserves the separate pause-writer policy and establishes no key
+custody, semantic acceptance or signing permission. Changed observer source must
+receive its own reviewed immutable ref/configuration; an earlier frozen tag is
+never moved to make it appear qualified.
+
 The controller serializes revisions, makes retries idempotent, publishes immutable
 targets before signed snapshot/timestamp metadata, and independently reads back
 the full published chain. A new definition, next artifact and safe correction
@@ -1163,13 +1200,20 @@ updater, catalog role keys, delegated paths and protected production activation
 remain separate and unchanged.
 
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
-`revision`, `withdrawn_ids` and a `directory` containing the existing format-1
-`CatalogListingDocument`. The complete target is bounded to 8 MiB, each listing
+`revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
+format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
+The complete target is bounded to 8 MiB, each listing
 uses the existing descriptive validator, and both lists are bounded to 10,000
 identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
+
+Ordinary preparation and publication carry complete authored listings, including
+acquisition restrictions; package observations and metadata enrichment cannot
+resolve a condition. A reviewed Git-authored resolution may remove it in a newer
+authenticated snapshot. The reader retains snapshot replacement semantics rather
+than making an older restriction an additional policy authority.
 
 Core atomically retains the exact target bytes and authenticated metadata
 provenance with the shared installed-authority replay floor. Lower metadata or

@@ -1,0 +1,356 @@
+// Fixed setup primitives for the disposable hosted native account. No credential
+// store, arbitrary command, account adoption, deletion or acceptance authority.
+using System;
+using System.ComponentModel;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Security;
+using System.Security.AccessControl;
+using System.Security.Cryptography;
+using System.Security.Principal;
+using System.Text;
+
+namespace Portcove.HostedNative {
+    public static class Setup {
+        [StructLayout(LayoutKind.Sequential)] struct Attributes {
+            public int length; public IntPtr descriptor; public int inherit;
+        }
+        [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+        static extern bool CreateDirectoryW(string path, ref Attributes attributes);
+        [DllImport("userenv.dll", CharSet=CharSet.Unicode)]
+        static extern int CreateProfile(string sid, string name, StringBuilder path, uint size);
+
+        public static SecureString Password() {
+            byte[] bytes = new byte[32]; RandomNumberGenerator.Fill(bytes);
+            var value = new SecureString();
+            try {
+                foreach (char c in "Pc4!") value.AppendChar(c);
+                foreach (byte b in bytes) {
+                    value.AppendChar("0123456789abcdef"[b >> 4]);
+                    value.AppendChar("0123456789abcdef"[b & 15]);
+                }
+                value.MakeReadOnly(); return value;
+            } catch { value.Dispose(); throw; }
+            finally { Array.Clear(bytes, 0, bytes.Length); }
+        }
+        public static string Profile(string sid) {
+            // This fixed short name uses the successfully qualified 260-character
+            // buffer, not the earlier failed 32768-character setup call.
+            var result = new StringBuilder(260);
+            int status = CreateProfile(sid, "PortcoveNativeQual", result, 260);
+            if (status != 0) Marshal.ThrowExceptionForHR(status);
+            return result.ToString();
+        }
+        public static void Directory(string path, string owner, string candidate, bool writable) {
+            var acl = new DirectorySecurity();
+            acl.SetOwner(new SecurityIdentifier(owner));
+            acl.SetAccessRuleProtection(true, false);
+            var inheritance = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+            foreach (string sid in new [] {owner, "S-1-5-18"})
+                acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(sid),
+                    FileSystemRights.FullControl, inheritance, PropagationFlags.None, AccessControlType.Allow));
+            if (!String.IsNullOrEmpty(candidate))
+                acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(candidate),
+                    writable ? FileSystemRights.Modify : FileSystemRights.ReadAndExecute,
+                    inheritance, PropagationFlags.None, AccessControlType.Allow));
+            byte[] bytes = acl.GetSecurityDescriptorBinaryForm();
+            var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            try {
+                var attributes = new Attributes {length=Marshal.SizeOf<Attributes>(), descriptor=pinned.AddrOfPinnedObject()};
+                if (!CreateDirectoryW(path, ref attributes))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Fresh private native directory required; no adoption");
+            } finally { pinned.Free(); }
+        }
+    }
+    // Hosted-only proposal: existing station access is a reviewed authority delta.
+    public sealed class HostedDesktop : IDisposable {
+        public static bool ExecutionAuthorized { get { return true; } }
+        public static bool HostedCandidateRecoveryAuthorized { get { return false; } }
+        public static byte[] ReadCurrentStation() {
+            if (ObjectName(GetProcessWindowStation()) != "WinSta0") throw new InvalidOperationException("Original broker station required");
+            IntPtr handle = OpenWindowStationW("WinSta0", false, 0x00020000);
+            if (handle == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "Original station readback unavailable");
+            try { return ReadAcl(handle); } finally { CloseWindowStation(handle); }
+        }
+        public static bool RecoverOriginalStation(byte[] original, byte[] proposed, string owner, string candidate) {
+            if (!HostedCandidateRecoveryAuthorized) throw new InvalidOperationException("Hosted candidate recovery awaits separate owner authority");
+            if (original == null || proposed == null || original.Length < 20 || original.Length > 16384 || proposed.Length > 16384 ||
+                WindowsIdentity.GetCurrent().User.Value != owner || owner == candidate ||
+                !System.Linq.Enumerable.SequenceEqual(StationProposal(original, candidate), proposed))
+                throw new InvalidOperationException("Original station recovery identity/preimage differs");
+            if (ObjectName(GetProcessWindowStation()) != "WinSta0") throw new InvalidOperationException("Original broker station required");
+            IntPtr handle = OpenWindowStationW("WinSta0", false, 0x0006000a);
+            if (handle == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "Original recovery station unavailable");
+            try {
+                byte[] current = ReadAcl(handle);
+                if (!System.Linq.Enumerable.SequenceEqual(current, original)) {
+                    if (!System.Linq.Enumerable.SequenceEqual(current, proposed)) throw new InvalidOperationException("Station ACL changed concurrently; no recovery overwrite");
+                    WriteAcl(handle, original);
+                }
+                if (!System.Linq.Enumerable.SequenceEqual(ReadAcl(handle), original)) throw new InvalidOperationException("Original station recovery readback differs");
+                return true;
+            } finally { CloseWindowStation(handle); }
+        }
+        public string Name { get; private set; }
+        IntPtr station, desktop;
+        byte[] before, applied;
+        bool changed;
+        public bool Restored { get; private set; }
+        public static bool? FailedPreparationRestored { get; private set; }
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr OpenWindowStationW(string name, bool inherit, uint access);
+        [DllImport("user32", SetLastError=true)] static extern IntPtr GetProcessWindowStation();
+        [DllImport("user32", SetLastError=true)] static extern bool SetProcessWindowStation(IntPtr station);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr OpenDesktopW(string name, uint flags, bool inherit, uint access);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr CreateDesktopW(string name, IntPtr device, IntPtr mode, uint flags, uint access, ref Attributes attributes);
+        [DllImport("user32", SetLastError=true)] static extern bool CloseDesktop(IntPtr desktop);
+        [DllImport("user32", SetLastError=true)] static extern bool CloseWindowStation(IntPtr station);
+        [DllImport("user32", SetLastError=true)] static extern bool GetUserObjectSecurity(IntPtr handle, ref uint information, byte[] descriptor, uint length, out uint needed);
+        [DllImport("user32", SetLastError=true)] static extern bool SetUserObjectSecurity(IntPtr handle, ref uint information, byte[] descriptor);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool GetUserObjectInformationW(IntPtr handle, int index, out int value, uint length, out uint needed);
+        [StructLayout(LayoutKind.Sequential)] struct Attributes { public int length; public IntPtr descriptor; public int inherit; }
+        [DllImport("advapi32", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertSecurityDescriptorToStringSecurityDescriptorW(byte[] descriptor, uint revision, uint information, out IntPtr text, out uint length);
+        [DllImport("kernel32")] static extern IntPtr LocalFree(IntPtr memory);
+        static string[] ReadMandatoryLabel(IntPtr handle) {
+            uint information = 0x10, needed;
+            if (GetUserObjectSecurity(handle, ref information, null, 0, out needed) || Marshal.GetLastWin32Error() != 122 || needed < 20 || needed > 8192)
+                throw new InvalidOperationException("Object label query size unavailable or outside bound");
+            byte[] bytes = new byte[needed];
+            if (!GetUserObjectSecurity(handle, ref information, bytes, needed, out needed)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Read object mandatory label");
+            IntPtr text; uint length;
+            if (!ConvertSecurityDescriptorToStringSecurityDescriptorW(bytes, 1, information, out text, out length)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Format object mandatory label");
+            try { if (length > 8192) throw new InvalidOperationException("Object label SDDL exceeds bound"); return new [] { Convert.ToBase64String(bytes), Marshal.PtrToStringUni(text) }; }
+            finally { LocalFree(text); }
+        }
+        public Dictionary<string,string> ObserveMandatoryLabels() {
+            var result = new Dictionary<string,string>();
+            foreach (var entry in new [] { new KeyValuePair<string,IntPtr>("station",station), new KeyValuePair<string,IntPtr>("desktop",desktop) }) {
+                try {
+                    string[] label = ReadMandatoryLabel(entry.Value);
+                    result[entry.Key+"_status"] = "read";
+                    result[entry.Key+"_descriptor_base64"] = label[0]; result[entry.Key+"_sddl"] = label[1];
+                } catch (Exception error) {
+                    result[entry.Key+"_status"] = "unknown";
+                    result[entry.Key+"_query_failure"] = error.Message.Substring(0,Math.Min(1024,error.Message.Length));
+                }
+            }
+            return result;
+        }
+        static byte[] ReadAcl(IntPtr handle) {
+            uint information = 7, needed;
+            GetUserObjectSecurity(handle, ref information, null, 0, out needed);
+            if (needed < 20 || needed > 8192) throw new InvalidOperationException("User-object security exceeds bound");
+            byte[] bytes = new byte[needed];
+            if (!GetUserObjectSecurity(handle, ref information, bytes, needed, out needed)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Read object DACL");
+            return bytes;
+        }
+        static void WriteAcl(IntPtr handle, byte[] bytes) {
+            uint information = 4;
+            if (!SetUserObjectSecurity(handle, ref information, bytes)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Write object DACL");
+        }
+        public static byte[] StationProposal(byte[] original, string candidate) {
+            var descriptor = new RawSecurityDescriptor(original, 0);
+            if (descriptor.DiscretionaryAcl == null) throw new InvalidOperationException("Null station DACL refused");
+            var sid = new SecurityIdentifier(candidate);
+            foreach (GenericAce ace in descriptor.DiscretionaryAcl) {
+                var known = ace as KnownAce;
+                if (known != null && known.SecurityIdentifier.Equals(sid)) throw new InvalidOperationException("Existing candidate station ACE refused");
+            }
+            // READATTRIBUTES plus GENERIC_EXECUTE; all other rights remain denied.
+            descriptor.DiscretionaryAcl.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, 0x000d031d, sid, false, null));
+            descriptor.DiscretionaryAcl.InsertAce(1, new CommonAce(AceFlags.None, AceQualifier.AccessAllowed, 0x00020062, sid, false, null));
+            if (descriptor.BinaryLength > 8192) throw new InvalidOperationException("Station ACL proposal exceeds recovery bound");
+            byte[] result = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(result, 0); return result;
+        }
+        public static HostedDesktop Prepare(string owner, string candidate, string recoveryDirectory) {
+            if (!ExecutionAuthorized) throw new InvalidOperationException("Hosted station execution proposal awaits owner authority");
+            FailedPreparationRestored = null;
+            var value = new HostedDesktop();
+            try {
+                if (WindowsIdentity.GetCurrent().User.Value != owner || owner == candidate) throw new InvalidOperationException("Distinct actual owner required");
+                value.station = OpenWindowStationW("WinSta0", false, 0x0006000a);
+                if (value.station == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "Existing WinSta0 unavailable");
+                if (ObjectName(GetProcessWindowStation()) != "WinSta0") throw new InvalidOperationException("Original broker must already belong to WinSta0");
+                UserObjectFlags flags; uint flagBytes;
+                if (!GetUserObjectInformationW(value.station, 1, out flags, (uint)Marshal.SizeOf<UserObjectFlags>(), out flagBytes) || (flags.flags & 1) == 0)
+                    throw new InvalidOperationException("Existing station is not interactive");
+                value.before = ReadAcl(value.station);
+                byte[] proposal = StationProposal(value.before, candidate);
+                // Owner-only storage was prepared by Setup.Directory before this call.
+                using (var file = new System.IO.FileStream(System.IO.Path.Combine(recoveryDirectory, "station-dacl-before.bin"), System.IO.FileMode.CreateNew)) { file.Write(value.before, 0, value.before.Length); file.Flush(true); }
+                using (var file = new System.IO.FileStream(System.IO.Path.Combine(recoveryDirectory, "station-dacl-proposed.bin"), System.IO.FileMode.CreateNew)) { file.Write(proposal, 0, proposal.Length); file.Flush(true); }
+                value.applied = proposal; value.changed = true;
+                WriteAcl(value.station, proposal);
+                if (!System.Linq.Enumerable.SequenceEqual(ReadAcl(value.station), proposal)) throw new InvalidOperationException("Station DACL postimage differs");
+                value.Name = "PortcoveHosted_" + Guid.NewGuid().ToString("N");
+                IntPtr previous = GetProcessWindowStation();
+                if (previous == IntPtr.Zero || !SetProcessWindowStation(value.station)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Select hosted station");
+                try {
+                    IntPtr existing = OpenDesktopW(value.Name, 0, false, 0x20081);
+                    if (existing != IntPtr.Zero) { CloseDesktop(existing); throw new InvalidOperationException("Existing desktop refused"); }
+                    if (Marshal.GetLastWin32Error() != 2) throw new Win32Exception(Marshal.GetLastWin32Error(), "Desktop absence unavailable");
+                    byte[] bytes = DesktopDescriptor(owner, candidate);
+                    var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+                    try {
+                        var attributes = new Attributes {length=Marshal.SizeOf<Attributes>(), descriptor=pinned.AddrOfPinnedObject()};
+                        value.desktop = CreateDesktopW(value.Name, IntPtr.Zero, IntPtr.Zero, 0, 0x000f01ff, ref attributes);
+                        if (value.desktop == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "Create non-input private desktop");
+                    } finally { pinned.Free(); }
+                    if (ObjectName(value.desktop) != value.Name) throw new InvalidOperationException("Private desktop name differs");
+                    byte[] actual = ReadAcl(value.desktop);
+                    using (var file = new System.IO.FileStream(System.IO.Path.Combine(recoveryDirectory, "desktop-dacl-proposed.bin"), System.IO.FileMode.CreateNew)) { file.Write(bytes, 0, bytes.Length); file.Flush(true); }
+                    using (var file = new System.IO.FileStream(System.IO.Path.Combine(recoveryDirectory, "desktop-dacl-observed.bin"), System.IO.FileMode.CreateNew)) { file.Write(actual, 0, actual.Length); file.Flush(true); }
+                    if (!DesktopMatches(actual, bytes, owner)) throw new InvalidOperationException("Private desktop DACL differs");
+                    value.AssertNonInput();
+                } finally { if (!SetProcessWindowStation(previous)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Restore station"); }
+                return value;
+            } catch (Exception failure) {
+                try { value.Dispose(); } catch (Exception recovery) { throw new AggregateException("Hosted desktop preparation and recovery refused", failure, recovery); }
+                finally { FailedPreparationRestored = value.Restored; }
+                throw;
+            }
+        }
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool GetUserObjectInformationW(IntPtr handle, int index, StringBuilder value, uint length, out uint needed);
+        [StructLayout(LayoutKind.Sequential)] struct UserObjectFlags { public int inherit, reserved; public uint flags; }
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool GetUserObjectInformationW(IntPtr handle, int index, out UserObjectFlags value, uint length, out uint needed);
+        static string ObjectName(IntPtr handle) {
+            var name = new StringBuilder(256); uint needed;
+            if (!GetUserObjectInformationW(handle, 2, name, 512, out needed)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Read bounded station name");
+            return name.ToString();
+        }
+        static byte[] DesktopDescriptor(string owner, string candidate) {
+            // Windows maps generic rights when creating user objects; compare explicit rights.
+            var acl = new RawSecurityDescriptor("O:" + owner + "D:P(A;;0x000f01ff;;;" + owner + ")(A;;0x000f01ff;;;SY)(A;;0x000200c7;;;" + candidate + ")");
+            byte[] bytes = new byte[acl.BinaryLength]; acl.GetBinaryForm(bytes, 0); return bytes;
+        }
+        static bool DesktopMatches(byte[] actual, byte[] expected, string owner) {
+            var observed = new RawSecurityDescriptor(actual, 0); var proposal = new RawSecurityDescriptor(expected, 0);
+            if (observed.Owner.Value != owner || (observed.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0) return false;
+            byte[] a = new byte[observed.DiscretionaryAcl.BinaryLength], b = new byte[proposal.DiscretionaryAcl.BinaryLength];
+            observed.DiscretionaryAcl.GetBinaryForm(a, 0); proposal.DiscretionaryAcl.GetBinaryForm(b, 0);
+            return System.Linq.Enumerable.SequenceEqual(a, b);
+        }
+        public void AssertNonInput() {
+            int input; uint needed;
+            if (!GetUserObjectInformationW(desktop, 6, out input, 4, out needed) || input != 0) throw new InvalidOperationException("Private desktop must remain non-input");
+        }
+        public void Dispose() {
+            try {
+                if (changed) {
+                    byte[] current = ReadAcl(station);
+                    if (!System.Linq.Enumerable.SequenceEqual(current, before)) {
+                        if (!System.Linq.Enumerable.SequenceEqual(current, applied)) throw new InvalidOperationException("Station ACL changed concurrently; retain recovery, no overwrite");
+                        WriteAcl(station, before);
+                    }
+                    if (!System.Linq.Enumerable.SequenceEqual(ReadAcl(station), before)) throw new InvalidOperationException("Station ACL restoration unavailable");
+                    changed = false; Restored = true;
+                }
+            } finally {
+                if (desktop != IntPtr.Zero) { CloseDesktop(desktop); desktop = IntPtr.Zero; }
+                if (station != IntPtr.Zero) { CloseWindowStation(station); station = IntPtr.Zero; }
+            }
+        }
+    }
+
+}
+
+namespace Portcove.HostedNative {
+    // Fixed owner-side failure diagnosis only. No debugger, token duplication or raw memory dump.
+    public static class HostedStartupContext {
+        [DllImport("kernel32")] static extern IntPtr GetCurrentProcess();
+        [DllImport("kernel32",SetLastError=true)] static extern bool DuplicateHandle(IntPtr source,IntPtr handle,IntPtr target,out IntPtr copy,uint access,bool inherit,uint options);
+        [DllImport("kernel32")] static extern bool CloseHandle(IntPtr handle);
+        [DllImport("kernel32",SetLastError=true)] static extern uint GetProcessId(IntPtr process);
+        [DllImport("kernel32",SetLastError=true)] static extern uint GetProcessIdOfThread(IntPtr thread);
+        [DllImport("kernel32",SetLastError=true)] static extern uint GetThreadId(IntPtr thread);
+        [DllImport("kernel32",SetLastError=true)] static extern bool GetProcessTimes(IntPtr process,out long created,out long exited,out long kernel,out long user);
+        [DllImport("kernel32",SetLastError=true)] static extern uint WaitForSingleObject(IntPtr handle,uint milliseconds);
+        [DllImport("kernel32",SetLastError=true)] static extern bool IsWow64Process2(IntPtr process,out ushort machine,out ushort native);
+        [DllImport("kernel32",SetLastError=true)] static extern uint SuspendThread(IntPtr thread);
+        [DllImport("kernel32",SetLastError=true)] static extern uint ResumeThread(IntPtr thread);
+        [DllImport("kernel32",SetLastError=true)] static extern bool GetThreadContext(IntPtr thread,IntPtr context);
+        [StructLayout(LayoutKind.Sequential)] struct MemoryInformation { public IntPtr address,allocation;public uint allocationProtect;public ushort partition;public UIntPtr regionSize;public uint state,protect,type; }
+        [DllImport("kernel32",SetLastError=true)] static extern UIntPtr VirtualQueryEx(IntPtr process,IntPtr address,out MemoryInformation info,UIntPtr size);
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("psapi",CharSet=CharSet.Unicode,SetLastError=true)] static extern uint GetMappedFileNameW(IntPtr process,IntPtr address,StringBuilder name,uint size);
+        [DllImport("kernel32",CharSet=CharSet.Unicode)] static extern IntPtr GetModuleHandleW(string name);
+        [DllImport("kernel32",CharSet=CharSet.Ansi,ExactSpelling=true)] static extern IntPtr GetProcAddress(IntPtr module,string name);
+        static Exception Error(string operation) { int code=Marshal.GetLastWin32Error();return new Win32Exception(code,operation+": win32="+code); }
+        static void RequireRoot(IntPtr process,IntPtr thread,uint pid,long expected) {
+            long created,exited,kernel,user;
+            if(GetProcessId(process)!=pid || GetProcessIdOfThread(thread)!=pid || !GetProcessTimes(process,out created,out exited,out kernel,out user) || created!=expected || WaitForSingleObject(process,0)!=0x102)
+                throw new InvalidOperationException("Original startup process/thread generation unavailable");
+        }
+        static void RequireAmd64(IntPtr process) {
+            ushort machine,native;
+            if(IntPtr.Size!=8 || !IsWow64Process2(process,out machine,out native) || machine!=0 || native!=0x8664)
+                throw new InvalidOperationException("Startup context requires native AMD64");
+        }
+        static string MappedName(IntPtr process,IntPtr address) {
+            var text=new StringBuilder(4096);uint length=GetMappedFileNameW(process,address,text,4096);
+            if(length==0 || length>=4096)throw Error("Mapped startup instruction module");return text.ToString();
+        }
+        static void Capture(IntPtr process,IntPtr thread,uint pid,long expected,Dictionary<string,string> data) {
+            RequireRoot(process,thread,pid,expected);RequireAmd64(GetCurrentProcess());RequireAmd64(process);
+            data["root_pid"]=pid.ToString();data["root_created_filetime"]=expected.ToString();
+            IntPtr storage=Marshal.AllocHGlobal(8192+15);IntPtr context=new IntPtr((storage.ToInt64()+15)&~15L);
+            uint previous=0xffffffff;Exception failure=null;
+            try {
+                for(int index=0;index<8192;index++)Marshal.WriteByte(context,index,0);
+                Marshal.WriteInt32(context,48,0x100003); // AMD64 CONTROL|INTEGER, no debug/extended state.
+                previous=SuspendThread(thread);if(previous==0xffffffff)throw Error("Suspend owned startup thread");
+                data["suspend_count_before"]=previous.ToString();
+                if(previous!=0)throw new InvalidOperationException("Startup thread was already suspended; no context credited");
+                if(!GetThreadContext(thread,context))throw Error("Get owned startup thread context");
+                long instruction=Marshal.ReadInt64(context,248);data["thread_id"]=GetThreadId(thread).ToString();
+                MemoryInformation memory;
+                if(VirtualQueryEx(process,new IntPtr(instruction),out memory,(UIntPtr)Marshal.SizeOf(typeof(MemoryInformation))).ToUInt64()!=(ulong)Marshal.SizeOf(typeof(MemoryInformation)))throw Error("Query complete startup instruction mapping");
+                data["mapping_type"]="0x"+memory.type.ToString("x");
+                if(memory.type!=0x1000000 || memory.state!=0x1000)throw new InvalidOperationException("Startup instruction is not committed mapped image evidence");
+                string mapped=MappedName(process,new IntPtr(instruction));long offset=checked(instruction-memory.allocation.ToInt64());
+                if(offset<0)throw new InvalidOperationException("Startup instruction mapping offset differs");
+                data["mapped_module"]=mapped;data["instruction_offset"]="0x"+offset.ToString("x");
+                IntPtr local=GetModuleHandleW("ntdll.dll");
+                if(local!=IntPtr.Zero && String.Equals(mapped,MappedName(GetCurrentProcess(),local),StringComparison.OrdinalIgnoreCase)) {
+                    foreach(string name in new [] {"NtRaiseHardError","NtAlpcSendWaitReceivePort","NtRequestWaitReplyPort","NtWaitForSingleObject","NtWaitForMultipleObjects","NtDelayExecution"}) {
+                        IntPtr export=GetProcAddress(local,name);if(export==IntPtr.Zero)continue;
+                        long distance=offset-(export.ToInt64()-local.ToInt64());
+                        if(distance<0 || distance>=32)continue;
+                        data["export_interval_hint"]=name;data["export_offset"]="0x"+distance.ToString("x");
+                        if(name=="NtRaiseHardError")data["r10_low32_hint"]="0x"+unchecked((uint)Marshal.ReadInt64(context,200)).ToString("x8");
+                        break;
+                    }
+                }
+                RequireRoot(process,thread,pid,expected);
+            } catch(Exception error) { failure=error; }
+            finally {
+                if(previous!=0xffffffff) {
+                    uint resumed=ResumeThread(thread);data["resume_count_returned"]=resumed.ToString();
+                    if(resumed==0xffffffff || resumed!=previous+1) {
+                        Exception restore=new InvalidOperationException("Startup diagnostic suspend increment restoration unverified");
+                        failure=failure==null?restore:new AggregateException(failure,restore);
+                    }
+                }
+                for(int index=0;index<8192;index++)Marshal.WriteByte(context,index,0);
+                Marshal.FreeHGlobal(storage);
+            }
+            if(failure!=null)throw failure;
+        }
+
+        public static Dictionary<string,string> Observe(IntPtr process,IntPtr thread,uint pid,long expected) {
+            IntPtr processCopy=IntPtr.Zero,threadCopy=IntPtr.Zero;
+            try {
+                if(!DuplicateHandle(GetCurrentProcess(),process,GetCurrentProcess(),out processCopy,0,false,2) || !DuplicateHandle(GetCurrentProcess(),thread,GetCurrentProcess(),out threadCopy,0,false,2))throw Error("Duplicate original startup handles");
+                IntPtr ownedProcess=processCopy,ownedThread=threadCopy;Dictionary<string,string> result=null;
+                var worker=new System.Threading.Thread(()=>{
+                    var data=new Dictionary<string,string>();
+                    try{Capture(ownedProcess,ownedThread,pid,expected,data);data["status"]="read";}
+                    catch(Exception error){data["status"]="unknown";data["query_failure"]=error.Message.Substring(0,Math.Min(2048,error.Message.Length));}
+                    finally{CloseHandle(ownedThread);CloseHandle(ownedProcess);result=data;}
+                });worker.IsBackground=true;
+                worker.Start();processCopy=threadCopy=IntPtr.Zero;
+                if(!worker.Join(2000))return new Dictionary<string,string>{{"status","unknown"},{"query_failure","Startup context worker exceeded two-second join; owned duplicate handles remain with background worker"}};
+                return result;
+            } finally {if(threadCopy!=IntPtr.Zero)CloseHandle(threadCopy);if(processCopy!=IntPtr.Zero)CloseHandle(processCopy);}
+        }
+    }
+}

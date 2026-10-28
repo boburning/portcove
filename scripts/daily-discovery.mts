@@ -17,6 +17,32 @@ const git = (args: string[]) =>
     timeout: 60000,
     maxBuffer: 2 * 1024 * 1024,
   }).trim();
+export const discoveryBootstrapModules = Object.freeze([
+  "daily-discovery.mts",
+  "discovery-budget.mts",
+  "discovery-cache.mts",
+  "github-api.mts",
+  "release-coordinator-deadline.mts",
+  "release-readonly-child-environment.mts",
+  "json-values.mts",
+  "observe-configured-upstream.mts",
+  "release-path-safety.mts",
+  "upstream-observer.mts",
+  "runtime-values.mts",
+]);
+
+export function fetchDiscoveryMetadata(runGit: (args: string[]) => string) {
+  // Shared-repository maintenance must not consume the bounded metadata fetch.
+  return runGit([
+    "fetch",
+    "--no-write-commit-graph",
+    "--no-auto-maintenance",
+    "--no-tags",
+    "--no-recurse-submodules",
+    "origin",
+    "main",
+  ]);
+}
 async function optional(file: string) {
   try {
     return JSON.parse(await readFile(file, "utf8")) as unknown;
@@ -88,21 +114,8 @@ export async function dailyDiscoveryMain(args: string[]) {
         throw new Error(
           "Discovery requires a dedicated linked metadata checkout; preserve the primary checkout",
         );
-      const bootstrap = [
-        "daily-discovery.mts",
-        "discovery-budget.mts",
-        "discovery-cache.mts",
-        "github-api.mts",
-        "release-coordinator-deadline.mts",
-        "release-readonly-child-environment.mts",
-        "json-values.mts",
-        "observe-configured-upstream.mts",
-        "release-path-safety.mts",
-        "upstream-observer.mts",
-        "runtime-values.mts",
-      ];
       const loaded = await Promise.all(
-        bootstrap.map(
+        discoveryBootstrapModules.map(
           async (name) =>
             [
               name,
@@ -112,16 +125,7 @@ export async function dailyDiscoveryMain(args: string[]) {
             ] as const,
         ),
       );
-      // Shared-repository maintenance must not consume the bounded metadata fetch.
-      git([
-        "fetch",
-        "--no-write-commit-graph",
-        "--no-auto-maintenance",
-        "--no-tags",
-        "--no-recurse-submodules",
-        "origin",
-        "main",
-      ]);
+      fetchDiscoveryMetadata(git);
       const head = git(["rev-parse", "origin/main"]);
       git(["cat-file", "-e", `${head}:scripts/daily-discovery.mts`]);
       git(["cat-file", "-e", `${head}:.agents/skills/portcove-daily-discovery/SKILL.md`]);

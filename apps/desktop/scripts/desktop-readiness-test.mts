@@ -226,7 +226,7 @@ async function observeHeldLaunch({
         ),
       10_000,
     );
-    await revealDetailSection(browser, "Files");
+    await revealDetailSection(browser, "Game files");
     const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
     assert.equal(await play.getText(), "Play unavailable");
     assert.equal(await play.isEnabled(), false);
@@ -416,7 +416,7 @@ async function assertUnavailableLayout(browser: WebDriver, summary: string) {
   await revealDetailSection(browser, "Overview");
   const overview = await browser.findElement(By.css('[role="tabpanel"]:not([hidden])')).getText();
   assert.ok(overview.includes(summary));
-  await revealDetailSection(browser, "Files");
+  await revealDetailSection(browser, "Game files");
 }
 
 async function assertTrialLayout(browser: WebDriver, summary: string) {
@@ -439,8 +439,9 @@ async function assertTrialLayout(browser: WebDriver, summary: string) {
       summary,
     ),
   );
-  await revealDetailSection(browser, "Files");
+  await revealDetailSection(browser, "Manage");
   assert.equal(await browser.findElement(By.css(".artwork-controls")).isDisplayed(), true);
+  await revealDetailSection(browser, "Game files");
 }
 
 export async function readinessScenario({
@@ -547,7 +548,7 @@ export async function readinessScenario({
           ),
         10_000,
       );
-      await revealDetailSection(browser, "Files");
+      await revealDetailSection(browser, "Game files");
       const primary = await browser.findElement(By.css(".detail-panel .primary-actions button"));
       assert.equal(await primary.isEnabled(), false);
       assert.equal(await primary.getText(), "Play unavailable");

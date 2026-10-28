@@ -14,6 +14,7 @@ mod browsing_context;
 mod cancellation;
 mod cartridge_build;
 mod catalog;
+mod catalog_media;
 mod catalog_store;
 mod catalog_update;
 mod curated_acquisition;
@@ -70,7 +71,9 @@ mod portability_authority;
 mod portable_tree;
 mod preparation;
 mod process;
+mod provider_observation;
 mod providers;
+pub use provider_observation::inspect_provider_observation;
 mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
@@ -132,6 +135,9 @@ pub use browsing_context::{CatalogBrowsingContext, CatalogBrowsingSnapshot};
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use cartridge_build::CartridgeBuildRecipe;
 pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
+pub use catalog_media::{
+    CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, validate_catalog_media,
+};
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use curated_acquisition::{CuratedAcquisitionRecord, CuratedEvidenceReference};
@@ -190,8 +196,9 @@ pub use game_file_root::{
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
-    HostPreferenceStore, HostPreferences, HostToolPreference, LibrarySelection,
-    LibrarySelectionSource,
+    CollectionPreference, HostPreferenceStore, HostPreferences, HostToolPreference,
+    InstallationContext, LibraryOrganization, LibrarySelection, LibrarySelectionSource,
+    OrganizationChange, SetupConfirmation, UpdateNoticeChoice, UpdateNoticeRelease,
 };
 pub use host_tools::{
     HostToolDefinition, HostToolProbePolicy, HostToolProbeResult, HostToolProbeState,

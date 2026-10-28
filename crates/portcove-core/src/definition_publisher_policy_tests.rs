@@ -2056,7 +2056,13 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // Windows focused run 5233faf8: ArtifactRevocationRetain first copied
     // 5.784s after installer start, beyond its 5s latch. Keep the same 15s
     // setup headroom and drain/refusal checks under the finite outer safeguard.
-    let latch_timeout = if (cfg!(target_os = "windows")
+    // Mac ARM run 40358310040/a1 entered download 4.10s after start, then
+    // exhausted the 5s copy latch. Keep the actual partial-copy/drain assertions.
+    // Windows CI40639963968/a1 job122657671750: CancelRestore missed its
+    // 5s whole-install setup latch before any copy (six fixture HTTP requests).
+    // Use the existing 15s setup headroom only for this Windows variant; keep
+    // the actual incomplete-copy barrier, cancellation, drain and 30s outer limit.
+    let slow_retention_setup = ((cfg!(target_os = "windows")
         || cfg!(all(target_os = "macos", target_arch = "x86_64")))
         && matches!(
             intervention,
@@ -2064,7 +2070,12 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 | CacheIntervention::PolicyLoss
                 | CacheIntervention::CancelRetain
                 | CacheIntervention::ArtifactRevocationRetain
-        ) {
+        ))
+        || (cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && matches!(intervention, CacheIntervention::CancelRetain))
+        || (cfg!(target_os = "windows")
+            && matches!(intervention, CacheIntervention::CancelRestore));
+    let latch_timeout = if slow_retention_setup {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(

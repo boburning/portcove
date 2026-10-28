@@ -46,6 +46,138 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("native helper consumers survive shared custody registration across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const consumers: [string, string[]][] = [
+    ["native-linux-isolated-session.mts", ["native-linux-isolated-plan", "desktop-linux-stop"]],
+    ["native-linux-isolated-plan.mts", ["native-linux-isolated-plan"]],
+    ["native-linux-public-plan.mts", ["native-linux-public-plan"]],
+    ["native-linux-driver-http.mts", ["native-linux-driver-http"]],
+    ["native-linux-isolated-init.py", ["native-linux-isolated-init"]],
+    ["desktop-native-account-session.mts", ["desktop-native-account-session"]],
+  ];
+  const shared = [
+    "native-helper-dependencies",
+    "native-confirmation",
+    "desktop-execution-plan",
+    "windows-helper-checks",
+  ];
+  for (const [name, own] of consumers)
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const file = `apps/desktop/scripts/${name}`;
+      const oldPath = variant === "R-new" ? "docs/moved.md" : file;
+      const newPath = variant === "R-old" ? "docs/moved.md" : file;
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath,
+        newPath,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ ...change, path: newPath, ...(oldPath !== newPath ? { previousPath: oldPath } : {}) }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const tests of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        for (const consumer of [...own, ...shared])
+          assert.ok(
+            tests.has(`scripts/${consumer}.test.mts`),
+            `${variant}: ${name} -> ${consumer}`,
+          );
+    }
+  for (const path of ["docs/unrelated.md", "apps/desktop/src/components/OperationCancellation.tsx"])
+    assert.ok(
+      !classifyChanges([{ status: "M", path }]).nodeTests.has(
+        "scripts/native-linux-isolated-plan.test.mts",
+      ),
+    );
+});
+
+void test("native dependency edits retain lifecycle consumers and the existing frontend route", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const inputs = [
+    "native-linux-isolated-plan.mts",
+    "native-linux-public-plan.mts",
+    "native-linux-driver-http.mts",
+    "native-linux-isolated-init.py",
+  ];
+  const expected = [
+    "scripts/native-linux-public-plan.test.mts",
+    "scripts/release-native-linux-driver.test.mts",
+    "scripts/release-hosted-native-linux-report.test.mts",
+    "apps/desktop/scripts/desktop-linux-public-update.native.test.mts",
+  ];
+  for (const name of inputs) {
+    const path = `apps/desktop/scripts/${name}`;
+    const selection = classifyChanges([{ status: "M", path }]);
+    const plan = buildValidationPlan({
+      changes: [{ status: "M", path, oldMode: "100644", newMode: "100644" }],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    for (const selected of [selection.nodeTests, new Set(baselineContractTests(plan))])
+      for (const consumer of expected) assert.ok(selected.has(consumer), `${name} -> ${consumer}`);
+    assert.ok(selection.ui, "native helper changes retain their existing frontend route");
+  }
+  const registry = classifyChanges([
+    { status: "M", path: "scripts/native-helper-dependencies.mts" },
+  ]);
+  for (const consumer of [
+    ...expected,
+    "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    "scripts/desktop-native-account-session.test.mts",
+  ])
+    assert.ok(registry.nodeTests.has(consumer), consumer);
+  const unrelated = classifyChanges([
+    { status: "M", path: "apps/desktop/src/components/OperationCancellation.tsx" },
+  ]);
+  for (const consumer of expected) assert.ok(!unrelated.nodeTests.has(consumer), consumer);
+  const mixed = classifyChanges([
+    { status: "M", path: "apps/desktop/src/components/OperationCancellation.tsx" },
+    { status: "M", path: "apps/desktop/scripts/native-linux-isolated-plan.mts" },
+  ]);
+  for (const consumer of expected) assert.ok(mixed.nodeTests.has(consumer), consumer);
+});
+
+void test("release recovery and validation inputs retain their independent consumers", () => {
+  for (const [path, consumer] of [
+    ["scripts/release-semantic-worker-recovery.mts", "scripts/release-semantic-worker.test.mts"],
+    ["scripts/ordinary-validation.mts", "scripts/validation-evidence.test.mts"],
+    ["scripts/local-validation.mts", "scripts/repository-settings.test.mts"],
+  ] as const) {
+    const selected = classifyChanges([{ status: "M", path }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has(consumer), `${path} -> ${consumer}`);
+  }
+});
+
+void test("native observer fixture edits retain the owning Windows regression suite", () => {
+  const fixture = "scripts/fixtures/native-desktop-observer.cs.txt";
+  for (const change of [
+    { status: "M", path: fixture },
+    { status: "A", path: fixture },
+    { status: "D", path: fixture },
+    { status: "R100", path: "docs/moved.md", previousPath: fixture },
+    { status: "R100", path: fixture, previousPath: "docs/moved.md" },
+  ]) {
+    const selected = classifyChanges([change], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/release-hosted-native-windows-setup.test.mts"));
+  }
+});
+
 void test("portability literal baseline retains its native scanner contract across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const input = "scripts/fixtures/rscheck-portability-baseline.json";
@@ -175,6 +307,7 @@ void test("qualification outcome helpers retain all direct consumers across life
     "scripts/runtime-values.mts",
     "scripts/fixtures/nextest-inventory-baseline.json",
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-skip-routes.mts",
     ".node-version",
     ".github/quality-tools.json",
   ];
@@ -213,6 +346,7 @@ void test("qualification outcome helpers retain all direct consumers across life
         [
           "scripts/qualification-nextest.mts",
           "scripts/nextest-outcomes.mts",
+          "scripts/nextest-skip-routes.mts",
           "scripts/runtime-values.mts",
         ].includes(file)
       )
@@ -461,6 +595,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
   const consumers = [
     "apps/desktop/scripts/desktop-listener-lifetime.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
+    "scripts/desktop-boundary-wiring.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
     "scripts/node-platform-skips.test.mts",
@@ -474,6 +609,15 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/release-hosted-native-proof-producer.test.mts",
     "scripts/release-hosted-native-job.test.mts",
     "scripts/release-hosted-native-runner.test.mts",
+    "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    "scripts/release-hosted-native-windows-capture.test.mts",
+    "scripts/release-hosted-native-windows-runner.test.mts",
+    "scripts/release-hosted-native-windows-source.test.mts",
+    "scripts/release-hosted-native-windows-workflow.test.mts",
+    "scripts/release-hosted-native-windows-dependency-files.test.mts",
+    "scripts/native-qualification-account.test.mts",
+    "scripts/release-owned-windows-proof-store.test.mts",
+    "scripts/release-windows-webview-driver.test.mts",
     "scripts/release-routing-marker.test.mts",
     "scripts/release-native-pre-sign-report.test.mts",
     "scripts/release-native-source-provider.test.mts",
@@ -549,6 +693,7 @@ void test("fixture module closure edits retain all independent policy and constr
   const helper = "scripts/fixtures/module-closure.mts";
   const consumers = [
     "scripts/daily-discovery.test.mts",
+    "scripts/desktop-boundary-wiring.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
@@ -1962,11 +2107,16 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
     "scripts/ci-native-workflow.test.mts",
     "scripts/ci-release-workflow.test.mts",
     "scripts/ci-rust-workflow.test.mts",
+    "scripts/ci-workflow-fixture.test.mts",
     "scripts/ci-workflow.test.mts",
     "scripts/deep-audit-summary.test.mts",
     "scripts/native-backup-evidence.test.mts",
+    "scripts/nextest-equivalence.test.mts",
+    "scripts/qualification-coverage.test.mts",
     "scripts/repository-settings.test.mts",
     "scripts/rust-toolchain-reader.test.mts",
+    "scripts/rust-validation-setup.test.mts",
+    "scripts/select-ci-plan.test.mts",
     "scripts/validation-plan.test.mts",
     "scripts/windows-rust-tests.test.mts",
   ]);
@@ -2958,6 +3108,10 @@ void test("Roadmap test families preserve shared owners and narrow the New Port 
   for (const file of [
     "scripts/roadmap.mts",
     "scripts/roadmap-issue.mts",
+    "scripts/roadmap-qualification.mts",
+    "scripts/roadmap-execution.mts",
+    "scripts/roadmap-readiness.mts",
+    "scripts/runtime-values.mts",
     "scripts/github-api.mts",
     "scripts/repository-issue-inventory.mts",
     "scripts/repository-issue-inventory.fixture.mts",
@@ -3533,6 +3687,7 @@ void test("default nextest runtime inputs retain local and hosted consumers acro
   const { baselineContractTests } = await import("./ci-baseline.mts");
   for (const file of [
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-skip-routes.mts",
     "scripts/nextest-outcomes-cli.mts",
     "scripts/run-rust-tests.mts",
     "scripts/report-summary.mts",
@@ -3623,4 +3778,248 @@ void test("version runtime and relative fixture closure retain local and hosted 
         assert.ok(hosted.includes(consumer), file + "/" + variant + "/hosted");
       }
     }
+});
+
+void test("standalone reporter and binary-identity inputs retain local and hosted consumers", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of ["scripts/standalone-rust-tests.mts", "scripts/development-evidence.mts"])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = baselineContractTests(
+        buildValidationPlan({
+          changes: [change],
+          eventName: "pull_request",
+          base: "a".repeat(40),
+          mergeBase: "a".repeat(40),
+          head: "b".repeat(40),
+          checkout: "b".repeat(40),
+        }),
+        { fileExists: () => false },
+      );
+      for (const consumer of [
+        "scripts/qualification-rustdoc.test.mts",
+        "scripts/development-evidence.test.mts",
+        "scripts/desktop-scenarios.test.mts",
+        "scripts/validation-evidence.test.mts",
+        "scripts/workflow-provenance.test.mts",
+        "scripts/ci-rust-workflow.test.mts",
+      ])
+        assert.ok(
+          local.nodeTests.has(consumer) && hosted.includes(consumer),
+          `${file}:${variant}:${consumer}`,
+        );
+    }
+});
+
+void test("resource observation ledger remains an affected consumer of every maintained budget workflow", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    ".github/workflows/release.yml",
+    ".github/workflows/application-update-production.yml",
+    ".github/workflows/application-update-wake.yml",
+    "scripts/release-capacity.mts",
+    "scripts/release-resource-observation.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+          [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+          { fileExists: allFilesExist },
+        ),
+        hosted = baselineContractTests(
+          buildValidationPlan({
+            changes: [change],
+            eventName: "pull_request",
+            base: "a".repeat(40),
+            mergeBase: "a".repeat(40),
+            head: "b".repeat(40),
+            checkout: "b".repeat(40),
+          }),
+          { fileExists: allFilesExist },
+        );
+      assert.ok(
+        local.nodeTests.has("scripts/release-resource-observation.test.mts"),
+        file + "/" + variant + "/local",
+      );
+      assert.ok(
+        hosted.includes("scripts/release-resource-observation.test.mts"),
+        file + "/" + variant + "/hosted",
+      );
+    }
+});
+
+void test("native transport producers retain their actual Node consumers across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const { windowsHelperChecksRequired, windowsNativeToolsRequired } =
+    await import("./windows-helper-checks.mts");
+  const consumers: [string, string[]][] = [
+    ...[
+      "apps/desktop/scripts/desktop-installed-update-harness.mts",
+      "apps/desktop/scripts/desktop-windows-update-test.mts",
+      "apps/desktop/scripts/desktop-macos-installed-update-test.mts",
+    ].map((file): [string, string[]] => [
+      file,
+      ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    ]),
+    [
+      "apps/desktop/scripts/desktop-qualification-history-test.mts",
+      ["scripts/desktop-scenarios.test.mts"],
+    ],
+    [
+      "apps/desktop/scripts/desktop-host-publication-test.mts",
+      [
+        "scripts/desktop-scenarios.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/desktop-webview-boundary.mts",
+      [
+        "scripts/desktop-boundary-wiring.test.mts",
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/desktop-boundary-invoke.mts",
+      ["apps/desktop/scripts/desktop-webview-boundary.native.test.mts"],
+    ],
+    [
+      "apps/desktop/scripts/desktop-windows-embedded-session.mts",
+      [
+        "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/browser-script.mts",
+      [
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+        "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      ],
+    ],
+    ...[
+      "apps/desktop/scripts/desktop-preparation-test.mts",
+      "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+    ].map((file): [string, string[]] => [
+      file,
+      ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    ]),
+    [
+      "scripts/fixtures/desktop-module-fixture.mts",
+      [
+        "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
+        "apps/desktop/scripts/desktop-default-cover.native.test.mts",
+        "apps/desktop/scripts/desktop-reload.native.test.mts",
+        "scripts/desktop-scenarios.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/desktop-real-runtime.test.mts",
+        "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
+        "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+      ],
+    ],
+  ];
+  for (const [file, tests] of consumers)
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const name = path.basename(file);
+      const oldPath = variant === "R-new" ? "docs/moved.md" : file;
+      const newPath = variant === "R-old" ? "docs/moved.md" : file;
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath,
+        newPath,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ ...change, path: newPath, ...(oldPath !== newPath ? { previousPath: oldPath } : {}) }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      if (file === "scripts/fixtures/desktop-module-fixture.mts") {
+        assert.equal(windowsHelperChecksRequired(plan), true, variant);
+        assert.equal(windowsNativeToolsRequired(plan), true, variant);
+      }
+      if (name === "browser-script.mts") {
+        assert.equal(local.ui, true);
+        assert.ok(plan.groups.includes("frontend"));
+        assert.ok(
+          buildPlan(local).some(
+            (entry) => entry.id === "ui-tests" || entry.id === "ui-related-tests",
+          ),
+        );
+        assert.ok(!local.nodeTests.has("apps/desktop/scripts/browser-script.test.mts"));
+        assert.ok(
+          !baselineContractTests(plan, { fileExists: () => false }).includes(
+            "apps/desktop/scripts/browser-script.test.mts",
+          ),
+        );
+      }
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        for (const test of tests) assert.ok(selected.has(test), `${variant}: ${name} -> ${test}`);
+    }
+});
+
+void test("desktop launcher changes retain evidence, CLI entry and package consumers", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const file = "scripts/desktop-test-cli.mts";
+  for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+    const oldPath = variant === "R-new" ? "docs/moved.md" : file;
+    const newPath = variant === "R-old" ? "docs/moved.md" : file;
+    const change = {
+      status: variant.startsWith("R") ? "R100" : variant,
+      oldPath,
+      newPath,
+      oldMode: variant === "A" ? "000000" : "100644",
+      newMode: variant === "D" ? "000000" : "100644",
+    };
+    const local = classifyChanges(
+      [{ ...change, path: newPath, ...(oldPath !== newPath ? { previousPath: oldPath } : {}) }],
+      { fileExists: () => false },
+    );
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    for (const selected of [
+      local.nodeTests,
+      new Set(baselineContractTests(plan, { fileExists: () => false })),
+    ])
+      for (const test of [
+        "scripts/development-evidence.test.mts",
+        "scripts/development-cli-help.test.mts",
+        "scripts/retained-package.test.mts",
+      ])
+        assert.ok(selected.has(test), `${variant}: missing ${test}`);
+  }
 });

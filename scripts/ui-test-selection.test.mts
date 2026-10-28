@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import {
   mkdtempSync,
+  realpathSync,
   mkdirSync,
   writeFileSync,
   rmSync,
@@ -20,7 +21,11 @@ import {
   allowedUiSkippedFiles,
   uiShuffleSeed,
 } from "./ui-test-selection.mts";
-import type { UiModuleObservation, UiRunObservation } from "./ui-test-selection.mts";
+import type {
+  UiModuleObservation,
+  UiRunObservation,
+  UiSkipContract,
+} from "./ui-test-selection.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import {
   parseCoverageArguments,
@@ -52,7 +57,7 @@ void test("shuffled diagnostics reject ambiguous or unbounded seeds before runne
 });
 
 void test("literal UI paths reject omissions, ambiguous filters and outside files before execution", () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "ui-selection-"));
+  const root = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "ui-selection-")));
   try {
     mkdirSync(path.join(root, "src"));
     const file = path.join(root, "src", "日本語.test.tsx");
@@ -79,6 +84,13 @@ void test("literal UI paths reject omissions, ambiguous filters and outside file
   }
 });
 
+const permission = (reason: string): UiSkipContract => ({
+  category: "explicit-diagnostic",
+  reason,
+  prerequisite: "controlled fixture",
+  intended_route: "controlled reader fixture",
+  cases: ["control"],
+});
 const one = path.resolve("one.test.tsx");
 const two = path.resolve("two.test.tsx");
 const suite = (
@@ -121,7 +133,11 @@ void test("nonempty successful partial matches cannot claim the requested select
 void test("complete selections distinguish observed suites, executed suites and skipped tests", () => {
   const selected = report([suite(one), suite(two, "skipped")]);
   assert.throws(() => reconcileUiSelection(selected, [one, two]), /wholly skipped/);
-  const result = reconcileUiSelection(selected, [one, two], new Map([[two, "Owned diagnostic"]]));
+  const result = reconcileUiSelection(
+    selected,
+    [one, two],
+    new Map([[two, permission("Owned diagnostic")]]),
+  );
   assert.deepEqual(result.requested_files, [one, two]);
   assert.deepEqual(result.discovered_files, [one, two]);
   assert.deepEqual(result.executed_files, [one]);
@@ -129,17 +145,39 @@ void test("complete selections distinguish observed suites, executed suites and 
   assert.equal(result.skipped, 1);
   assert.deepEqual(result.skipped_files, [{ file: two, reason: "Owned diagnostic" }]);
   assert.throws(
-    () => reconcileUiSelection(selected, [one, two], new Map([[two, " "]])),
-    /Invalid UI skipped-file permission/,
-  );
-  assert.throws(
-    () => reconcileUiSelection(report([suite(one)]), [one], new Map([[two, "Foreign"]])),
+    () => reconcileUiSelection(selected, [one, two], new Map([[two, permission(" ")]])),
     /Invalid UI skipped-file permission/,
   );
   assert.throws(
     () =>
-      reconcileUiSelection(report([suite(two, "skipped")]), [two], new Map([[two, "Diagnostic"]])),
+      reconcileUiSelection(report([suite(one)]), [one], new Map([[two, permission("Foreign")]])),
+    /Invalid UI skipped-file permission/,
+  );
+  assert.throws(
+    () =>
+      reconcileUiSelection(
+        report([suite(two, "skipped")]),
+        [two],
+        new Map([[two, permission("Diagnostic")]]),
+      ),
     /no runnable/,
+  );
+});
+
+void test("a surviving pass cannot hide an undeclared skipped case or an extra probe case", () => {
+  const partial = {
+    ...suite(one),
+    children: {
+      allTests: () => [
+        { fullName: "passed", result: () => ({ state: "passed" as const }) },
+        { fullName: "unknown", result: () => ({ state: "skipped" as const }) },
+      ],
+    },
+  };
+  assert.throws(() => reconcileUiSelection(report([partial]), [one]), /Unexpected UI skip/);
+  assert.throws(
+    () => reconcileUiSelection(report([partial]), [one], new Map([[one, permission("fixture")]])),
+    /Unexpected UI skip/,
   );
 });
 
@@ -155,7 +193,7 @@ void test("only the exact disabled browser diagnostic receives an explicit skip 
   );
   const permissions = allowedUiSkippedFiles([probe, ordinary, foreign], root, {});
   assert.equal(permissions.size, 1);
-  assert.match(permissions.get(probe) ?? "", /diagnostic/);
+  assert.match(permissions.get(probe)?.reason ?? "", /diagnostic/);
 });
 
 void test("exact wrapper rejects a mixed valid/missing request before invoking its runner", () => {
@@ -175,7 +213,9 @@ void test("exact wrapper rejects a mixed valid/missing request before invoking i
 });
 
 function coverageFixture(t: TestContext) {
-  const root = disposableDirectory(t, path.join(os.tmpdir(), "coverage-control-"));
+  const root = realpathSync.native(
+    disposableDirectory(t, path.join(os.tmpdir(), "coverage-control-")),
+  );
   const files = {
     ".node-version": process.version.slice(1) + "\n",
     ".gitignore": "work/\n",

@@ -6,6 +6,67 @@ use crate::{PersistentFilePattern, PortDefinition, PortcoveError, Result};
 const MAX_DIRECTORY_ENTRIES: usize = 4096;
 const MAX_MATCHING_FILES: usize = 1024;
 
+/// Check one newly declared path without following links or scanning a tree.
+pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
+    crate::archive::validate_relative_path(relative, false)?;
+    for ancestor in root.ancestors() {
+        match fs::symlink_metadata(ancestor) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(PortcoveError::conflict("player-data path crosses a link")
+                    .detail("path", ancestor.display().to_string()));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+    let mut parent = root.to_path_buf();
+    let components = Path::new(relative).components().collect::<Vec<_>>();
+    for (index, component) in components.iter().enumerate() {
+        let name = component.as_os_str();
+        let expected = crate::path::unicode(Path::new(name), "player-data path")?;
+        match fs::symlink_metadata(&parent) {
+            Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {}
+            Ok(_) => {
+                return Err(PortcoveError::conflict(
+                    "player-data parent is not an ordinary directory",
+                )
+                .detail("path", parent.display().to_string()));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(error.into()),
+        }
+        let mut matched = None;
+        for (count, entry) in fs::read_dir(&parent)?.enumerate() {
+            if count >= MAX_DIRECTORY_ENTRIES {
+                return Err(PortcoveError::conflict(
+                    "player-data directory exceeds the inspection limit",
+                )
+                .detail("path", parent.display().to_string()));
+            }
+            let entry = entry?;
+            let candidate = entry.file_name();
+            let candidate_text = crate::path::unicode(Path::new(&candidate), "player-data entry")?;
+            if candidate_text.to_lowercase() == expected.to_lowercase() {
+                if matched.is_some() || candidate.as_os_str() != name {
+                    return Err(PortcoveError::conflict("player-data path has a case alias")
+                        .detail("path", entry.path().display().to_string()));
+                }
+                matched = Some(entry.path());
+            }
+        }
+        let Some(found) = matched else {
+            return Ok(());
+        };
+        if index + 1 == components.len() {
+            return Err(PortcoveError::conflict("a newly declared player-data path is already present; preserve it before changing versions")
+                .detail("path", found.display().to_string()));
+        }
+        parent = found;
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_mod_package_policy(port: &PortDefinition) -> Result<()> {
     if port.mod_package_policy.is_some()
         && (!ready_staged_archive(port)
@@ -163,6 +224,57 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty_persistence_checks_preserve_files_directories_and_aliases() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        require_absent_path(&root.join("missing"), "nested/state.bin").unwrap();
+        require_absent_path(root, "nested/state.bin").unwrap();
+        fs::write(root.join("state.bin"), []).unwrap();
+        assert!(require_absent_path(root, "state.bin").is_err());
+        assert!(require_absent_path(root, "STATE.BIN").is_err());
+        fs::create_dir(root.join("nested")).unwrap();
+        assert!(require_absent_path(root, "nested").is_err());
+        assert!(require_absent_path(root, "NESTED/state.bin").is_err());
+        require_absent_path(root, "nested/state.bin").unwrap();
+        assert!(require_absent_path(root, "../outside").is_err());
+        assert_eq!(fs::read(root.join("state.bin")).unwrap(), b"");
+        assert!(root.join("nested").is_dir());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn empty_persistence_checks_refuse_dangling_links_and_linked_ancestors() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        std::os::unix::fs::symlink(root.join("missing"), root.join("state.bin")).unwrap();
+        assert!(require_absent_path(root, "state.bin").is_err());
+        let outside = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(outside.path(), root.join("linked")).unwrap();
+        assert!(require_absent_path(root, "linked/state.bin").is_err());
+        assert!(require_absent_path(&root.join("linked"), "state.bin").is_err());
+        assert!(
+            fs::symlink_metadata(root.join("state.bin"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert!(!outside.path().join("state.bin").exists());
+    }
+
+    #[test]
+    fn empty_persistence_checks_bound_directory_inspection_without_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        for index in 0..=MAX_DIRECTORY_ENTRIES {
+            fs::write(temporary.path().join(format!("entry-{index}")), []).unwrap();
+        }
+        assert!(require_absent_path(temporary.path(), "absent.dat").is_err());
+        assert_eq!(
+            fs::read_dir(temporary.path()).unwrap().count(),
+            MAX_DIRECTORY_ENTRIES + 1
+        );
+    }
 
     #[test]
     fn versioned_mod_policy_is_explicit_and_bounded_to_ready_archives() {

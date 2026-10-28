@@ -1,0 +1,529 @@
+{
+  "format_version": 1,
+  "kind": "dated source-bound evidence, not live backlog/registry",
+  "owners": [2510, 2926],
+  "source_commit": "522cf9cf0e6e872a07fc873073ae1e8a3d172cb7",
+  "initial_workset_source": "4cbdd267356364df7e5eb45990198590afa8dae4",
+  "observation_cutoff": "2026-10-26T22:43:29.770Z",
+  "scope": "Four existing distinct N64 identities; three permitted-copy handoffs and one preserved prototype limitation",
+  "ports": [
+    {
+      "id": "body-harvest-recompiled",
+      "canonical_issue": 1448,
+      "repository": {
+        "name": "mcsoderh/BodyHarvestRecomp",
+        "id": 1399766299,
+        "node_id": "R_kgDOU269Gw"
+      },
+      "selected_release": "v1.0.0",
+      "selected_source": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "current_source": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "release_history_complete": true,
+      "release_count": 1,
+      "source_trees_complete": true,
+      "assets": [
+        {
+          "name": "BodyHarvestRecompiled-v1.0.0-Linux-ARM64.tar.gz",
+          "size": 7967603,
+          "independently_expected_digest": "sha256:0aca5133c6fbebc61a41cc067d090659e766b0c19b8da44da1a39dfeff78b3a8"
+        },
+        {
+          "name": "BodyHarvestRecompiled-v1.0.0-Linux-X64.flatpak",
+          "size": 5261208,
+          "independently_expected_digest": "sha256:423a56d583bc57db34efa1b42832718c8462d77f95a5c3e2d2089feda3cf8627"
+        },
+        {
+          "name": "BodyHarvestRecompiled-v1.0.0-Linux-X64.tar.gz",
+          "size": 7838568,
+          "independently_expected_digest": "sha256:7e64896d65a161a6ccf3fe1976e496df630b34985d8192e1bf6e1f27f2b96a08"
+        },
+        {
+          "name": "BodyHarvestRecompiled-v1.0.0-macOS.zip",
+          "size": 17078394,
+          "independently_expected_digest": "sha256:1f6ee251de9b464ae5a89b791e450a7c0fda86f0d712a47e596d8c184dbdfc24"
+        },
+        {
+          "name": "BodyHarvestRecompiled-v1.0.0-Windows.zip",
+          "size": 17969468,
+          "independently_expected_digest": "sha256:c3bdb56f152c94c55af66d92bc1d9a37f9ce9eea358315700569c2dcca406a9f"
+        }
+      ],
+      "platform_scope": "Published Windows x64, Linux x64/ARM64, macOS Intel/Apple Silicon and separate Flatpak metadata. Native archive handoffs for Windows/Linux x64; upstream bundle/Flatpak preparation remains distinct. Core has no Linux ARM64 host enum.",
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Permitted existing-copy launch/setup guidance; precise acquisition condition, no managed runtime",
+      "recommended_download_channel": null,
+      "setup_and_data": [
+        {
+          "title": "Keep a complete permitted player",
+          "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them."
+        },
+        {
+          "title": "Select your original game on first Play",
+          "instruction": "Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
+        },
+        {
+          "title": "Preserve the actual profile and working copy",
+          "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+        },
+        {
+          "title": "Keep Flatpak data with the actual profile",
+          "instruction": "For an existing permitted Flatpak installation, follow upstream preparation and preserve the complete ~/.var/app/io.github.bodyharvestrecomp.bodyharvestrecomp folder alongside the actual profile. Its writable app area and normal/custom/portable profile can be different. Keep the working installation until its replacement is ready."
+        }
+      ],
+      "condition": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component.",
+      "update_owner": "player/upstream; no Portcove runtime replacement, data backup, rollback or deletion rights",
+      "managed_assessment": "Native archive shapes and expected API identities are available. Linked RecompFrontend grant remains unresolved; no managed acquisition or invented empty persistence contract is admitted. Subsequent admission still requires applicable package/component and lifecycle evidence. Useful permitted existing copies remain available under explicit user-selected intent.",
+      "original_input": {
+        "edition": "North American Body Harvest",
+        "sha1": "bbb6666f5014a473747ee4145f036d9fb25d7348",
+        "validation": "Upstream on explicit first Play; byte-order normalization supported"
+      },
+      "source_files": [
+        {
+          "path": "README.md",
+          "blob": "29769562634cf87c50b9aaad47f606cc61e9d1fc",
+          "sha256": "2c27e4aa9c5cf025ee3342990b3a63a801d2d29a101af6cba4c89704249e6ade",
+          "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/LICENSE"
+        },
+        {
+          "path": ".gitmodules",
+          "blob": "28f37948397b693deee1bb35ff28405630694e45",
+          "sha256": "3af98a6c261cdac3c798ed54197f75cfad7268b67a566fb631bc2b39b44ecce2",
+          "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/.gitmodules"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "blob": "0c9317f4f17db35d9cf71c6da5344dd12a2fa9be",
+          "sha256": "d2746615c453217058d45b0950646419ccbb4e1972c9d809e02a474b9760ea88",
+          "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/CMakeLists.txt"
+        },
+        {
+          "path": "src/main/main.cpp",
+          "blob": "b77b37039ff2c1725849a84be61320bca9a9896d",
+          "sha256": "bfd7d58afd64d2ed0442c3ff12b180b6d1271d7c8411d4065f2f352971b621b6",
+          "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/src/main/main.cpp"
+        },
+        {
+          "path": "include/bodyharvest_config.h",
+          "blob": "b5f71c3172041e7df58ac7d2e90b2d144b16c5cf",
+          "sha256": "e8802f3d6749f05c860800fcb8afd6586765b6dc6d469ccd2f359a6dc184d29a",
+          "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/include/bodyharvest_config.h"
+        },
+        {
+          "path": ".github/workflows/release.yml",
+          "blob": "25510acc0173ef4234c45314227978c5e9bd968d",
+          "sha256": "f1c0cf366a7c8ada8753d559df7b0523fdbbbd39fd8730c0769c65c84dd77b90",
+          "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/.github/workflows/release.yml"
+        },
+        {
+          "path": "flatpak/README.md",
+          "blob": "d29021b7417df986d3d58e79aa08d210cbd9c2e8",
+          "sha256": "5a98e65313907c5f325d9210196423d7734e0435c770969313c02613589c77c5",
+          "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/flatpak/README.md"
+        }
+      ],
+      "package_acquisition": false,
+      "game_or_helper_execution": false,
+      "validation_scope": "Maintained per-ID preparation and combined Core listing parsing, generated projections, exact-head hosted checks and separate review. No new archive bytes, game, compiler, helper or installer execution. Earlier actual Conker64 archive inspection is historical evidence, not a new acquisition or native observation.",
+      "delivery_status": "candidate; independent review, hosted checks, guarded merge/readback and canonical reconciliation pending"
+    },
+    {
+      "id": "cbfd-recompiled-sciaschi",
+      "canonical_issue": 1216,
+      "repository": {
+        "name": "sciaschi/CBFD-Recompiled",
+        "id": 1388317348,
+        "node_id": "R_kgDOUsAKpA"
+      },
+      "selected_release": "V0.1.6",
+      "selected_source": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "current_source": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "release_history_complete": true,
+      "release_count": 7,
+      "source_trees_complete": true,
+      "assets": [
+        {
+          "name": "ConkerRecompiled-V0.1.6-Linux.tar.gz",
+          "size": 9658408,
+          "independently_expected_digest": "sha256:4fc3b53bf422385c11eadea14415445ca5c72dd32795a22ce200c5713368a422"
+        },
+        {
+          "name": "ConkerRecompiled-V0.1.6-macOS.zip",
+          "size": 10854169,
+          "independently_expected_digest": "sha256:e8f13c1c893fe38a844cdce3b84a752c63c02af930bebb2af760a45a133a41cf"
+        },
+        {
+          "name": "ConkerRecompiled-V0.1.6-Mods.zip",
+          "size": 155755,
+          "independently_expected_digest": "sha256:ca65fb99f8b2761bb89000d9e0a074af5dbd59f02fa37f5f5ec52366da483727"
+        },
+        {
+          "name": "ConkerRecompiled-V0.1.6-Windows.zip",
+          "size": 22781093,
+          "independently_expected_digest": "sha256:0fcef307aff8f3632cddfecb4a1a6233af0afb0b77d5deaab6538be5c563115e"
+        }
+      ],
+      "platform_scope": "Windows x64 and Linux x64 player archives; separate upstream Apple Silicon/macOS 15+ bundle. Mods.zip is supporting content, not a player.",
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Permitted existing-copy launch/setup guidance; precise acquisition condition, no managed runtime",
+      "recommended_download_channel": null,
+      "setup_and_data": [
+        {
+          "title": "Choose this implementation’s complete player",
+          "instruction": "Use a permitted sciaschi CBFD-Recompiled copy: ConkerRecomp.exe on Windows or ConkerRecomp on Linux, with its full extracted folder as the working directory. Keep assets, runtime libraries and notices together. The separate Mods.zip contains optional mods, not the player. The upstream macOS application is a separate Apple Silicon/macOS 15-or-later route; retain its bundle and follow upstream instructions."
+        },
+        {
+          "title": "Load your USA original on first Play",
+          "instruction": "Choose Play explicitly, then Load ROM in the launcher and supply your own supported USA Conker’s Bad Fur Day dump. Upstream validates and remembers the input; the released player does not need the source-build tools. Keep this implementation separate from Conker64’s scene prototype and the distinct Reloaded player."
+        },
+        {
+          "title": "Keep the complete profile before updating",
+          "instruction": "You or upstream provide updates. Preserve the actual ConkerRecompiled profile: normally %LOCALAPPDATA%\\ConkerRecompiled, ~/.config/ConkerRecompiled or ~/Library/Application Support/ConkerRecompiled. Keep saves, stored ROM, settings, achievements, save states, logs and mods together with the working copy. portable.txt selects local data relative to the player working folder on Windows/native Linux or beside the macOS bundle; a custom/test profile can differ. Portcove does not adopt, back up, roll back or delete these external files."
+        }
+      ],
+      "condition": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component.",
+      "update_owner": "player/upstream; no Portcove runtime replacement, data backup, rollback or deletion rights",
+      "managed_assessment": "Native archive shapes and expected API identities are available. Linked RecompFrontend grant remains unresolved; no managed acquisition or invented empty persistence contract is admitted. Subsequent admission still requires applicable package/component and lifecycle evidence. Useful permitted existing copies remain available under explicit user-selected intent.",
+      "original_input": {
+        "edition": "USA Conker’s Bad Fur Day",
+        "sha1": "4cbadd3c4e0729dec46af64ad018050eada4f47a",
+        "validation": "Upstream original-input validation on explicit first Play; no original acquired"
+      },
+      "source_files": [
+        {
+          "path": "README.md",
+          "blob": "3f370b947e0d6793382bad4ecf6bc7f466211825",
+          "sha256": "9295f9b4b23744c8b800a34430e5b7abd412dbcbd7c352a87c2be657b4be6496",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "blob": "81f450b358a1456e4a5717a43adccb929fa4bd99",
+          "sha256": "cdb5b04c7881ba15ea4ea82452966dbc6e100b68f87bba917211ab417d066422",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/LICENSE"
+        },
+        {
+          "path": ".gitmodules",
+          "blob": "a87cc01ad91ff3ce5c4bd4651ce4ba37d315925f",
+          "sha256": "c579aad86f1954b4683cc9f2b7256cd759eb6bd2d469b7ce15c9bfaf1d75ba0d",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/.gitmodules"
+        },
+        {
+          "path": "host/CMakeLists.txt",
+          "blob": "abfe53e890808fa85091d214d2798217de33f4ac",
+          "sha256": "0518a8af575f8b20da50dc609f74c1e9a66406a21df509b64cd7de22618174f0",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/host/CMakeLists.txt"
+        },
+        {
+          "path": "host/src/main.cpp",
+          "blob": "2e97d0831c04ba486c0ff8ac508d3f7b6aa1ec53",
+          "sha256": "ee315f7b15b3e186a79853840d1a7cd45366e7d3e5afe4ab200c619aaed18844",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/host/src/main.cpp"
+        },
+        {
+          "path": "host/src/frontend.cpp",
+          "blob": "58a72624b56dde1a14bc18c71585b7ab5d537891",
+          "sha256": "d5a232629afcdefcc8de558716fffd5abe6d6fba99c5a60eef26c2fd3f7aa43c",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/host/src/frontend.cpp"
+        },
+        {
+          "path": "host/src/conker_config.cpp",
+          "blob": "d824089a24f7b3d915eb19871fafc09781dcd0c6",
+          "sha256": "d63fa0f2db0686ce084719af8ba4b5f6a873209ed31756d820a6d4e3ae749833",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/host/src/conker_config.cpp"
+        },
+        {
+          "path": "host/src/rom_versions.cpp",
+          "blob": "f04c877d31ebfc0b05f991625dc3ccef258db229",
+          "sha256": "f5db92e86b32d397c3495bcd60c1827c4ea8fbc26d051426c1a3998608ba604b",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/host/src/rom_versions.cpp"
+        },
+        {
+          "path": ".github/release/LICENSES.txt",
+          "blob": "7676d874de403466023df1e14565b5577faaa7cd",
+          "sha256": "9d8dba8fcb7687cc66a5112fe579a6a31a70ead7c4f9399a618a9511d797c18b",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/.github/release/LICENSES.txt"
+        },
+        {
+          "path": ".github/release/README.txt",
+          "blob": "8386fdcd1ae0d710cedaea5b377c83ce352b5f5f",
+          "sha256": "064c199410b96450dc75b5568e8cd28ab50f70f2de02e2e1041d3566d441a49c",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/.github/release/README.txt"
+        },
+        {
+          "path": ".github/workflows/release.yml",
+          "blob": "d4fffa1c93357db61246e43f3b53d8e182a89306",
+          "sha256": "28ddd530ad20835997fe3b4ebba1f2df8d23fc24429f3beeac5e8873376e8647",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/.github/workflows/release.yml"
+        },
+        {
+          "path": "recomp/recompfrontend.patch",
+          "blob": "183fb7e077c002bbad5f018f5f6d4817ac699dc0",
+          "sha256": "73f77dd74768a786bc7c74180f5bc16db264717a315d659675bd1e4da213cdaf",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/recomp/recompfrontend.patch"
+        },
+        {
+          "path": "docs/save-states.md",
+          "blob": "a9ce273925a637d5c31255f181251223ac5a48e2",
+          "sha256": "946fb3eb477e325d9eec2bb42f48a1237e37dad71f07208075e93a4d2c30fb77",
+          "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/docs/save-states.md"
+        }
+      ],
+      "package_acquisition": false,
+      "game_or_helper_execution": false,
+      "validation_scope": "Maintained per-ID preparation and combined Core listing parsing, generated projections, exact-head hosted checks and separate review. No new archive bytes, game, compiler, helper or installer execution. Earlier actual Conker64 archive inspection is historical evidence, not a new acquisition or native observation.",
+      "delivery_status": "candidate; independent review, hosted checks, guarded merge/readback and canonical reconciliation pending"
+    },
+    {
+      "id": "conker64-recompiled",
+      "canonical_issue": 123,
+      "repository": {
+        "name": "Conker64Recomp/conker64-recompiled",
+        "id": 1340119975,
+        "node_id": "R_kgDOT-Cbpw"
+      },
+      "selected_release": "v0.1.0-beta",
+      "selected_source": "6e58a2a6ff5501cfa9a4380b8522d5a1119d4839",
+      "current_source": "0a9dbbf409accdcc0bebd676455de4f5a192f7e5",
+      "release_history_complete": true,
+      "release_count": 1,
+      "source_trees_complete": true,
+      "assets": [
+        {
+          "name": "Conker64-Recompiled-v0.1.0-beta.zip",
+          "size": 940893,
+          "independently_expected_digest": "sha256:358522a82c9bece9c2645e29d8591ece550bc23bdc37c99473f357a76c64e724"
+        }
+      ],
+      "platform_scope": "Same previously reviewed Windows x64 scene-only prototype, not a playable game release. Current source explicitly confirms missing game execution.",
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Preserve existing useful-output hold and already-registered-development-copy guidance",
+      "recommended_download_channel": "beta",
+      "setup_and_data": [
+        {
+          "title": "Understand this scene prototype",
+          "instruction": "The published v0.1.0-beta package is the previously reviewed scene-only Conker.exe and SDL2.dll copy. It does not run the game’s recompiled logic or levels, and its package does not contain the source extraction tools. It remains on the existing useful-output hold; this guide offers no new qualified player or registration route."
+        },
+        {
+          "title": "Preserve an already registered copy",
+          "instruction": "Keep any already registered, permitted development copy, its complete folder and your own original ROM under its existing contract. Upstream identifies the Windows EEPROM location as %APPDATA%\\ConkerRecompiled\\Saves\\conker.eep. Preserve all actual settings, generated files and data before changing the copy. You or upstream own updates; Portcove does not replace, back up, roll back or delete external files."
+        }
+      ],
+      "condition": "The existing v0.1.0-beta release is a scene prototype without runnable game logic or levels; it is the same artifact covered by this port’s owner-approved useful-output hold. Reconsider fresh setup when upstream supplies a useful game runtime or a separately evidenced useful operation. Already registered permitted development copies retain their contracts.",
+      "update_owner": "player/upstream; no Portcove runtime replacement, data backup, rollback or deletion rights",
+      "managed_assessment": "Owner-approved useful-output limitation remains applicable. Same published artifact identity/digest as prior archived assessment; source tools are not in that package. Reconsider useful game output or a separately evidenced useful operation.",
+      "original_input": {
+        "edition": "USA Conker’s Bad Fur Day",
+        "sha1": "4cbadd3c4e0729dec46af64ad018050eada4f47a",
+        "validation": "Identity evidence does not establish a useful new runtime"
+      },
+      "source_files": [
+        {
+          "path": "README.md",
+          "blob": "f2422cd6858bc4c83e6ad02a7b1f2b6df3a1bd8b",
+          "sha256": "b3b425ca583e33a0926a75712fef00de4d8c5277b7e9235f4210beb88f4cb6a9",
+          "url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "blob": "474e7d22ba7c7b533e5627774f969431d2c824ae",
+          "sha256": "f5880f74857b90a7a1c275728c97e75077ebcf677098a352606d5aa0da0065f4",
+          "url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/LICENSE"
+        },
+        {
+          "path": ".gitmodules",
+          "blob": "2dd9a1c69f27444884d220af6101d055a0921270",
+          "sha256": "87f8e28aa865142397ab5ad3c864674f3742ada1e1db1fd94c32111ea1e48518",
+          "url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/.gitmodules"
+        },
+        {
+          "path": "recomp/CMakeLists.txt",
+          "blob": "b7f632692b780d0475b1188eaf48e482f95b9e98",
+          "sha256": "33e5422896cffa59fe5d77cb492b5894d4e56361c9fd98df37e893d9129447ba",
+          "url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/recomp/CMakeLists.txt"
+        },
+        {
+          "path": "recomp/src/main.cpp",
+          "blob": "d56b0d1f160c91cd993e55781608eebdb616e7dc",
+          "sha256": "7b183bfaf8733dd6f90075c00088a222cf8b8fae42a5272625be35f3dff33c9a",
+          "url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/recomp/src/main.cpp"
+        },
+        {
+          "path": "recomp/src/save_system.hpp",
+          "blob": "d3440dfafb8e991cb40720433a6b3683e4b60314",
+          "sha256": "5b12f4f721919ca4c005c9264bac7f01788f833371e3270c567b7e010e8eb4a6",
+          "url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/recomp/src/save_system.hpp"
+        }
+      ],
+      "package_acquisition": false,
+      "game_or_helper_execution": false,
+      "validation_scope": "Maintained per-ID preparation and combined Core listing parsing, generated projections, exact-head hosted checks and separate review. No new archive bytes, game, compiler, helper or installer execution. Earlier actual Conker64 archive inspection is historical evidence, not a new acquisition or native observation.",
+      "delivery_status": "candidate; independent review, hosted checks, guarded merge/readback and canonical reconciliation pending"
+    },
+    {
+      "id": "dahsidiabdallah-conkerbfdreloaded",
+      "canonical_issue": 1806,
+      "repository": {
+        "name": "DahSidiAbdallah/ConkerBFDReloaded",
+        "id": 1398880009,
+        "node_id": "R_kgDOU2E3CQ"
+      },
+      "selected_release": "v1.4.6",
+      "selected_source": "d8ea30f220d7c1464997e6cdd013c16b204f81d8",
+      "current_source": "d8ea30f220d7c1464997e6cdd013c16b204f81d8",
+      "release_history_complete": true,
+      "release_count": 19,
+      "source_trees_complete": true,
+      "assets": [
+        {
+          "name": "ConkerBFDReloaded-HD-Icons-French-v1.3.5.rtz",
+          "size": 8202821,
+          "independently_expected_digest": "sha256:eb221ce67e86119db72e87cf47b08e4d8e3b172576c373cd2bcc9055f47db4bb"
+        },
+        {
+          "name": "ConkerBFDReloaded-HD-Icons-v1.3.3.rtz",
+          "size": 19592503,
+          "independently_expected_digest": "sha256:c63a977ef572c7e206388324dadb16f2218a6363302cfb0c1074a442a7fa4fa8"
+        },
+        {
+          "name": "ConkerBFDReloaded-v1.4.6-Linux.tar.gz",
+          "size": 43979053,
+          "independently_expected_digest": "sha256:8c84c574740ed98cc873f4e627fd237d42d548a94b49cbfc2bdcc8a07f8ab357"
+        },
+        {
+          "name": "ConkerBFDReloaded-v1.4.6-Windows.zip",
+          "size": 41546560,
+          "independently_expected_digest": "sha256:321490fe8f71072cf7277b9b7b816ff5c6213f7ccccea2cde6fdd623d9a95675"
+        }
+      ],
+      "platform_scope": "Separate Windows x64 and Linux x64 archives; optional HD-Icons texture packs are not runtime packages. Linux package instructions report experimental WSL/software-graphics observations only.",
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Permitted existing-copy launch/setup guidance; precise acquisition condition, no managed runtime",
+      "recommended_download_channel": null,
+      "setup_and_data": [
+        {
+          "title": "Keep the complete permitted Reloaded copy",
+          "instruction": "Select ConkerBFDReloaded.exe on Windows or ConkerBFDReloaded on Linux from your existing permitted copy. Keep the extracted folder, assets and supplied libraries together as its working directory. This implementation credits sciaschi’s CBFD-Recompiled but has its own player and profile; do not substitute the scene-only Conker64 package. Optional HD-Icons .rtz downloads are texture packs, not players."
+        },
+        {
+          "title": "Select your original game on first Play",
+          "instruction": "Choose Play explicitly and select your own supported USA Conker’s Bad Fur Day ROM in the launcher. If the Linux file picker is unavailable, use Change launch details: enter --rom on one launch-argument line and your ROM’s absolute path on the next, without surrounding quotes, then choose Play. This uses upstream’s supported --rom option. The player remembers the input and needs no separate compiler or discovered preparation helper."
+        },
+        {
+          "title": "Preserve saves, photos and generated prompts",
+          "instruction": "You or upstream provide runtime updates. Keep the complete working copy and actual profile: normally %LOCALAPPDATA%\\ConkerBFDReloaded or ~/.config/ConkerBFDReloaded. Preserve the cached ROM, saves, settings, mods, save states, Photos and generated key_prompts together, including portable/custom locations actually used. Keep the current copy until its replacement is ready. Portcove records launch details without adopting, backing up, rolling back or deleting external files."
+        }
+      ],
+      "condition": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component.",
+      "update_owner": "player/upstream; no Portcove runtime replacement, data backup, rollback or deletion rights",
+      "managed_assessment": "Native archive shapes and expected API identities are available. Linked RecompFrontend grant remains unresolved; no managed acquisition or invented empty persistence contract is admitted. Subsequent admission still requires applicable package/component and lifecycle evidence. Useful permitted existing copies remain available under explicit user-selected intent.",
+      "original_input": {
+        "edition": "USA Conker’s Bad Fur Day",
+        "sha1": "4cbadd3c4e0729dec46af64ad018050eada4f47a",
+        "validation": "Upstream original-input validation on explicit first Play; no original acquired"
+      },
+      "source_files": [
+        {
+          "path": "README.md",
+          "blob": "9c978445dfb56db752a6e5c2c606543ba9853761",
+          "sha256": "aa409d98731432421adc5d58a37af6f23b65733a61cddea9f9545c4e17287455",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "blob": "f0a20d0c871fc258f455c20cfebea8b1fb47e256",
+          "sha256": "f6a44195e9806fdf5431385809d06a95e9577a4aef5a72f8afe06b67640e5925",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/LICENSE"
+        },
+        {
+          "path": "host/CMakeLists.txt",
+          "blob": "9a51c8f02f51438d73e804abdab8a701357d5560",
+          "sha256": "f1e42ba4f8d3c94efa88249d0dc4d3560ed7eca7ecc315d74e5e674d6dc4aa49",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/host/CMakeLists.txt"
+        },
+        {
+          "path": "host/src/main.cpp",
+          "blob": "8f1f9687b9948a81c70621533348f38f090c33fc",
+          "sha256": "384e251f6e2b8db5277c5aba340178c61c5a0d79599c23bb9de7b645fc05446f",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/host/src/main.cpp"
+        },
+        {
+          "path": "host/setup_deps.bat",
+          "blob": "c7df39cce8bfe205c48f5d6f4e60164d6616bb1c",
+          "sha256": "38b95b3a0da7807532a0212d91d9b8d576af0955319b47823c8cd984f3497159",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/host/setup_deps.bat"
+        },
+        {
+          "path": "tools/setup_deps.sh",
+          "blob": "fbbe96fbf0525a95e942d3c8c4014eda2502b7ae",
+          "sha256": "423dbc31be18270b8ce387b08b11a8df68144e314d283d82a4badc9d31c6add7",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/tools/setup_deps.sh"
+        },
+        {
+          "path": "tools/package.sh",
+          "blob": "0d4a678e378e75e839f11c32c9df65e41b223d66",
+          "sha256": "2e6675c1ea83284cbf794d922492b41082b73ed213b6c3d227d4457dbe59135a",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/tools/package.sh"
+        },
+        {
+          "path": "recomp/THIRD_PARTY_LICENSE",
+          "blob": "81f450b358a1456e4a5717a43adccb929fa4bd99",
+          "sha256": "cdb5b04c7881ba15ea4ea82452966dbc6e100b68f87bba917211ab417d066422",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/recomp/THIRD_PARTY_LICENSE"
+        },
+        {
+          "path": "host/art/ComingSoon-LICENSE.txt",
+          "blob": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/host/art/ComingSoon-LICENSE.txt"
+        },
+        {
+          "path": "host/assets/LuckiestGuy-LICENSE.txt",
+          "blob": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/host/assets/LuckiestGuy-LICENSE.txt"
+        }
+      ],
+      "package_acquisition": false,
+      "game_or_helper_execution": false,
+      "validation_scope": "Maintained per-ID preparation and combined Core listing parsing, generated projections, exact-head hosted checks and separate review. No new archive bytes, game, compiler, helper or installer execution. Earlier actual Conker64 archive inspection is historical evidence, not a new acquisition or native observation.",
+      "delivery_status": "candidate; independent review, hosted checks, guarded merge/readback and canonical reconciliation pending"
+    }
+  ],
+  "shared_component": {
+    "repository": "N64Recomp/RecompFrontend",
+    "repository_id": 1049072803,
+    "source": "b1a1477c6556aeb7ed45defbfb5924f721efebc1",
+    "evidence": "Body Harvest and sciaschi pin the dependency as a submodule; Reloaded pins it in both supported setup scripts, applies local patches and explicitly names the missing upstream license in its package recipe. Parent grants and nested dependency licenses do not establish its separate grant. This is an unresolved acquisition fact, not a claim that permitted existing copies cannot work.",
+    "profile_boundary": "Pinned file.cpp uses HOME/.config on Linux rather than XDG_CONFIG_HOME. APP_FOLDER_PATH/custom/portable coordinates can differ. Windows/native Linux portable marker is relative to cwd; macOS checks beside its app bundle. Body Harvest Flatpak additionally uses writable app data; preserve whole per-app data alongside actual profile."
+  },
+  "lineage": {
+    "distinct_implementations": [
+      "cbfd-recompiled-sciaschi",
+      "conker64-recompiled",
+      "dahsidiabdallah-conkerbfdreloaded"
+    ],
+    "review": "Reloaded credits and incorporates sciaschi work under its retained MIT attribution. Shared game/dependency/source lineage does not merge canonical identities or transfer qualification. All upstream opaque IDs and existing artwork/lineage remain unchanged."
+  },
+  "operational_definitions_preserved": 167,
+  "authored_identities_preserved": 1424,
+  "original_cohorts": [524, 312, 22],
+  "inventory_reference": {
+    "source_commit": "303861a08f0f803d0ae7e063e26478ac46da47e1",
+    "cutoff": "2026-10-26T20:51:12.867Z",
+    "distinct_known": 1510,
+    "roadmap_only": 86,
+    "scope": "Earlier complete identity refresh, not a fresh global retrieval. These four existing IDs change no membership; no all-fit or implementation completion is inferred."
+  },
+  "direct_legacy_decisions_unfinished": [152, 164, 165, 113, 154, 1113],
+  "full_public_beta_acceptance": false,
+  "native_gameplay": false,
+  "real_save_acceptance": false,
+  "packaged_desktop": false
+}

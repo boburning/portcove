@@ -1,4 +1,5 @@
 import { DetailLayout } from "./DetailLayout";
+import { SetupStatement, UpdateNoticePreferences, type DetailOrganization } from "./DetailChoices";
 import {
   initialDetailSection,
   detailWorkSection,
@@ -12,6 +13,7 @@ import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
+import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import { SteamEntryControl } from "./SteamEntry";
 import { AuthoredPreparationGuidance, ExternalRuntimeControl } from "./ExternalRuntime";
 import {
@@ -121,10 +123,13 @@ interface DetailPanelProps {
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
+  openSupport?: (() => void) | undefined;
+  organization?: DetailOrganization | undefined;
   perform?: Perform | undefined;
   prepare?: RunPreparation | undefined;
   cancellableActivities?: ActivityRecord[] | undefined;
   port: PortDefinition;
+  displayPort?: CatalogEntry | undefined;
   status?: PortStatus | undefined;
   installPlan?: InstallPlan | undefined;
   backups?: BackupRecord[];
@@ -296,6 +301,8 @@ export function DetailPanel(props: DetailPanelProps) {
       opening={props.opening}
       extraFiles={props.extraFiles}
       openActivity={props.openActivity}
+      openSupport={props.openSupport}
+      organization={props.organization}
       cancellations={renderCancellations()}
       observations={
         <>
@@ -323,6 +330,7 @@ export function DetailPanel(props: DetailPanelProps) {
       )}
       perform={props.perform}
       prepare={props.prepare}
+      displayPort={props.displayPort}
       port={port}
       status={status}
       stagedVersion={status?.staged?.version}
@@ -370,12 +378,15 @@ function DetailBody(model: {
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
+  openSupport?: (() => void) | undefined;
+  organization?: DetailOrganization | undefined;
   cancellations: ReactNode;
   observations: ReactNode;
   installCancellations?: ActivityRecord[] | undefined;
   perform?: Perform | undefined;
   prepare?: RunPreparation | undefined;
   port: PortDefinition;
+  displayPort?: CatalogEntry | undefined;
   status?: PortStatus | undefined;
   stagedVersion?: string | undefined;
   sources: SourceControls;
@@ -423,8 +434,11 @@ function DetailBody(model: {
   });
   return (
     <DetailLayout
-      port={model.port}
+      port={model.displayPort ?? model.port}
       projectUrl={model.port.project_url}
+      openSupport={model.openSupport}
+      overviewRequirements={<DetailRequirementsFacts model={model} external={external} />}
+      overviewActions={(reveal) => <DetailOverviewActions model={model} reveal={reveal} />}
       opening={model.opening}
       initialSection={initialSection}
       close={model.actions.close}
@@ -500,10 +514,11 @@ function DetailBody(model: {
       )}
     >
       {(reveal) => ({
-        overview: <DetailOverviewSection {...{ model, reveal }} />,
-        files: <DetailFilesSection {...{ model, managedPreparation, external }} />,
+        overview: <DetailOverviewSection model={model} />,
+        files: <DetailFilesSection {...{ model, managedPreparation }} />,
         saves: <DetailSavesSection {...{ model, external }} />,
         versions: <DetailVersionsSection {...{ model, external }} />,
+        manage: <DetailManageSection {...{ model, external, reveal }} />,
       })}
     </DetailLayout>
   );
@@ -795,7 +810,9 @@ function UpdatesGroup({
   actions: DetailActions;
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
-  const knownCandidate = Boolean(status?.staged || checked?.update_available);
+  const knownCandidate = Boolean(
+    status?.staged || status?.acquisition || checked?.update_available,
+  );
   const preferences = (
     <>
       <div>
@@ -846,6 +863,7 @@ function UpdatesGroup({
               policy={policy}
               gameName={gameIdentityLabel(port)}
               currentVersion={status?.active?.version}
+              status={status}
               busy={Boolean(busy)}
               perform={perform}
               primary={knownCandidate}
@@ -1409,19 +1427,13 @@ function TechnicalDetails({
   port,
   status,
   selectedChannel,
-  installed,
-  busy,
   sources,
-  actions,
 }: {
   libraryGeneration: number;
   port: PortDefinition;
   status?: PortStatus | undefined;
   selectedChannel: ReleaseChannel;
-  installed: boolean;
-  busy?: string | undefined;
   sources: SourceControls;
-  actions: DetailActions;
 }) {
   const includeManagement = !usesExternalRuntimeRoute(port, status);
   const persistentFiles = [
@@ -1435,7 +1447,7 @@ function TechnicalDetails({
       <summary data-focusable className={`advanced-summary ${disclosureSummaryStyle}`}>
         Technical details{" "}
         <span className={`advanced-summary-meta ${disclosureMetaStyle}`}>
-          {includeManagement ? "Commands and maintenance" : "Recorded check identities"}
+          {includeManagement ? "Commands and recorded checks" : "Recorded check identities"}
         </span>
         <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
       </summary>
@@ -1465,31 +1477,6 @@ function TechnicalDetails({
           <TechnicalCommandContinuity
             {...{ libraryGeneration, port, status, selectedChannel, sources }}
           />
-        )}
-        {includeManagement && installed && (
-          <MaintenanceActions
-            port={port}
-            libraryGeneration={libraryGeneration}
-            canRollback={Boolean(status?.previous)}
-            status={status}
-            verificationPrimary={Boolean(
-              status?.readiness?.blockers.includes("invalid_installation"),
-            )}
-            busy={busy}
-            actions={actions}
-          />
-        )}
-        {includeManagement && (
-          <div className="actions maintenance-actions mt-[18px] flex flex-wrap gap-[8px] pt-[18px] [border-top:1px_solid_var(--color-border)] [&.compact]:mt-[14px]">
-            <span id="detail-steam" tabIndex={-1} />
-            <SteamEntryControl
-              key={`steam:${port.id}:${libraryGeneration}`}
-              port={port}
-              generation={libraryGeneration}
-              installed={installed}
-              busy={Boolean(busy)}
-            />
-          </div>
         )}
       </div>
     </details>
@@ -2263,36 +2250,39 @@ function MaintenanceActions({
 }: {
   port: PortDefinition;
   libraryGeneration: number;
-  canRollback: boolean;
   status?: PortStatus | undefined;
   verificationPrimary: boolean;
   busy?: string | undefined;
   actions: DetailActions;
 }) {
   return (
-    <div className="actions maintenance-actions mt-[18px] flex flex-wrap gap-[8px] pt-[18px] [border-top:1px_solid_var(--color-border)] [&.compact]:mt-[14px]">
+    <>
       {!verificationPrimary && (
-        <Button
-          data-focusable
-          variant="outline"
-          disabled={Boolean(busy)}
-          onClick={() => {
-            void actions.verify();
-          }}
-        >
-          <Icon glyph={ShieldCheck} />
-          Verify installation
-        </Button>
+        <DetailGroup title="Check installed files">
+          <p>Check for missing or changed port files without changing your saved data.</p>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={Boolean(busy)}
+            onClick={() => void actions.verify()}
+          >
+            <Icon glyph={ShieldCheck} />
+            Verify installation
+          </Button>
+        </DetailGroup>
       )}
-      <RemovalControl
-        key={`${port.id}:${libraryGeneration}`}
-        port={port}
-        status={status}
-        generation={libraryGeneration}
-        busy={Boolean(busy)}
-        apply={actions.remove}
-      />
-    </div>
+      <DetailGroup title="Remove from library">
+        <p>Review the exact files to remove and the data to keep before confirming.</p>
+        <RemovalControl
+          key={`${port.id}:${libraryGeneration}`}
+          port={port}
+          status={status}
+          generation={libraryGeneration}
+          busy={Boolean(busy)}
+          apply={actions.remove}
+        />
+      </DetailGroup>
+    </>
   );
 }
 
@@ -3103,7 +3093,64 @@ function TechnicalCommandContinuity(
   );
 }
 
-function DetailOverviewSection({
+function DetailRequirementsFacts({
+  model,
+  external,
+}: {
+  model: Parameters<typeof DetailBody>[0];
+  external: boolean;
+}) {
+  const source = model.port.presentation?.source_requirements.filter(
+    (requirement) => requirement.role !== "bios",
+  );
+  const bios = model.port.presentation?.source_requirements.find(
+    (requirement) => requirement.role === "bios",
+  );
+  const manual =
+    model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation;
+  return (
+    <dl className="detail-facts">
+      <div>
+        <dt>Original game files</dt>
+        <dd>
+          {source?.length
+            ? source.map((requirement) => requirement.label).join(" · ")
+            : model.port.source_profile
+              ? "Requirements not specified"
+              : manual
+                ? "Follow the upstream first-launch setup"
+                : "No original game files declared"}
+        </dd>
+      </div>
+      {(model.port.bios_source_profile || bios) && (
+        <div>
+          <dt>BIOS</dt>
+          <dd>{bios?.label ?? "Required BIOS not specified"}</dd>
+        </div>
+      )}
+      <div>
+        <dt>Runs on</dt>
+        <dd>{model.port.platforms.map(platformLabel).join(" · ")}</dd>
+      </div>
+      <div>
+        <dt>Installation</dt>
+        <dd>
+          {external ? "Externally maintained installation" : installationMethodLabel(model.port)}
+        </dd>
+      </div>
+      <div>
+        <dt>Selected release channel</dt>
+        <dd>{releaseChannelPresentation(model.selectedChannel).label}</dd>
+      </div>
+      <div>
+        <dt>Readiness</dt>
+        <dd>{model.state.title}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function DetailOverviewActions({
   model,
   reveal,
 }: {
@@ -3112,54 +3159,57 @@ function DetailOverviewSection({
 }) {
   return (
     <>
-      <div className="detail-overview">
-        <div>
-          <p className="m-0 max-w-prose leading-relaxed text-pc-muted-foreground">
-            {model.port.summary}
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button variant="link" onClick={() => reveal("files")}>
-              Game files and setup
-            </Button>
-            <Button variant="link" onClick={() => reveal("versions")}>
-              Versions and updates
-            </Button>
-            <Button variant="link" onClick={() => reveal("saves")}>
-              Saved data and backups
-            </Button>
-            {model.openActivity && (
-              <Button variant="link" onClick={model.openActivity}>
-                Activity and history
-              </Button>
-            )}
-          </div>
-        </div>
-        <section aria-label="At a glance">
-          <h3 className="mb-4 text-base">At a glance</h3>
-          <dl className="detail-facts">
-            <div>
-              <dt>Project / variant</dt>
-              <dd>{gameProjectLabel(model.port) ?? model.port.name}</dd>
-            </div>
-            <div>
-              <dt>Platform</dt>
-              <dd>{model.port.platforms.map(platformLabel).join(" · ")}</dd>
-            </div>
-            <div>
-              <dt>Installation method</dt>
-              <dd>{installationMethodLabel(model.port)}</dd>
-            </div>
-            <div>
-              <dt>Channel</dt>
-              <dd>{releaseChannelPresentation(model.selectedChannel).label}</dd>
-            </div>
-            <div>
-              <dt>Catalog designation (not a test result)</dt>
-              <dd>{supportTierPresentation[model.port.support_tier]}</dd>
-            </div>
-          </dl>
-        </section>
+      <div className="detail-journey-links">
+        <Button
+          variant="ghost"
+          className="justify-start p-4.5 text-start"
+          onClick={() => reveal("files")}
+        >
+          <Icon glyph={FolderOpen} />
+          <span>
+            <strong>Game files and setup</strong>
+            <small>Requirements and current file checks</small>
+          </span>
+        </Button>
+        <Button
+          variant="ghost"
+          className="justify-start p-4.5 text-start"
+          onClick={() => reveal("saves")}
+        >
+          <Icon glyph={Save} />
+          <span>
+            <strong>Saved data and backups</strong>
+            <small>
+              {model.status?.external_runtime
+                ? "Managed outside Portcove"
+                : model.backups.length
+                  ? `${model.backups.length} recorded backups`
+                  : "Coverage and backup options"}
+            </small>
+          </span>
+        </Button>
       </div>
+      <div className="flex flex-wrap gap-3">
+        <Button variant="link" onClick={() => reveal("versions")}>
+          Versions and updates
+        </Button>
+        {model.openActivity && (
+          <Button variant="link" onClick={model.openActivity}>
+            Activity and history
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function DetailOverviewSection({ model }: { model: Parameters<typeof DetailBody>[0] }) {
+  return (
+    <section className="detail-about" aria-label="About this port">
+      <h3 className="mb-3 text-base">About this port</h3>
+      <p className="m-0 max-w-prose leading-relaxed text-pc-muted-foreground">
+        {model.port.summary}
+      </p>
       <details className="mt-6">
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />
@@ -3176,18 +3226,86 @@ function DetailOverviewSection({
           biosInspection={model.sources.biosInspection}
         />
       </details>
-    </>
+    </section>
   );
 }
 
 function DetailFilesSection({
   model,
   managedPreparation,
-  external,
 }: {
   model: Parameters<typeof DetailBody>[0];
   managedPreparation: boolean;
+}) {
+  return (
+    <div className="detail-setup-workspace">
+      <div className="detail-setup-main">
+        <RequirementsGroup
+          key={`requirements:${model.port.id}:${model.libraryGeneration}`}
+          port={model.port}
+          installed={model.installed}
+          sources={model.sources}
+          managedPreparation={managedPreparation}
+          pendingSetup={model.pendingSetup}
+          busy={model.busy}
+        />
+
+        <StatusActionsGroup
+          hidePlay={model.installed && model.launchReady}
+
+          installCancellations={model.installCancellations}
+          port={model.port}
+          status={model.status}
+          stagedVersion={undefined}
+          sources={model.sources}
+          installed={model.installed}
+          sourceReady={model.sourceReady}
+          biosReady={model.biosReady}
+          launchReady={model.launchReady}
+          pendingSetup={model.pendingSetup}
+          runtimeUpdateAvailable={model.runtimeUpdateAvailable}
+          managedPreparation={managedPreparation}
+          prepare={model.prepare}
+          installPlan={model.installPlan}
+          busy={model.busy}
+          libraryGeneration={model.libraryGeneration}
+          onChanged={model.externalRuntimeChanged}
+          actions={model.actions}
+          openLibraryStorage={model.openLibraryStorage}
+        />
+        {(model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation) && (
+          <SetupStatement
+            portId={model.port.id}
+            status={model.status}
+            organization={model.organization}
+          />
+        )}
+      </div>
+      <aside className="detail-setup-context">
+        <h3 className="mb-3 text-base">Before you continue</h3>
+        <p className="text-sm text-pc-muted-foreground">
+          Portcove reviews the selected files and installation before making changes. Your saved
+          choices are inputs for a new review.
+        </p>
+        <details className="my-4">
+          <summary className="cursor-pointer py-2 text-sm font-medium">
+            File matching details
+          </summary>
+          {model.observations}
+        </details>
+      </aside>
+    </div>
+  );
+}
+
+function DetailManageSection({
+  model,
+  external,
+  reveal,
+}: {
+  model: Parameters<typeof DetailBody>[0];
   external: boolean;
+  reveal: import("./DetailLayout").RevealDetailSection;
 }) {
   return (
     <>
@@ -3203,52 +3321,18 @@ function DetailFilesSection({
               <dd>You maintain this folder and its updates.</dd>
             </div>
           </dl>
+          <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
+            Edit external launch details
+          </Button>
         </DetailGroup>
       )}
 
       {model.status?.active && (
         <DetailGroup title="Installation location">
           <p className="[overflow-wrap:anywhere]">{model.status.active.path}</p>
-          <p>Portcove manages this installation. Saved data has its own coverage in Saved data.</p>
+          <p>Portcove manages this installation. Saved data has its own coverage in Saves.</p>
         </DetailGroup>
       )}
-      <RequirementsGroup
-        key={`requirements:${model.port.id}:${model.libraryGeneration}`}
-        port={model.port}
-        installed={model.installed}
-        sources={model.sources}
-        managedPreparation={managedPreparation}
-        pendingSetup={model.pendingSetup}
-        busy={model.busy}
-      />
-      <details className="my-4">
-        <summary className="cursor-pointer py-2 text-sm font-medium">File matching details</summary>
-        {model.observations}
-      </details>
-
-      <StatusActionsGroup
-        hidePlay={model.installed && model.launchReady}
-
-        installCancellations={model.installCancellations}
-        port={model.port}
-        status={model.status}
-        stagedVersion={undefined}
-        sources={model.sources}
-        installed={model.installed}
-        sourceReady={model.sourceReady}
-        biosReady={model.biosReady}
-        launchReady={model.launchReady}
-        pendingSetup={model.pendingSetup}
-        runtimeUpdateAvailable={model.runtimeUpdateAvailable}
-        managedPreparation={managedPreparation}
-        prepare={model.prepare}
-        installPlan={model.installPlan}
-        busy={model.busy}
-        libraryGeneration={model.libraryGeneration}
-        onChanged={model.externalRuntimeChanged}
-        actions={model.actions}
-        openLibraryStorage={model.openLibraryStorage}
-      />
       {(!external || model.port.adapter === "native-portable") && (
         <DetailGroup title="Installation folder">
           <FutureSetupDisclosure
@@ -3274,16 +3358,38 @@ function DetailFilesSection({
         />
       </DetailGroup>
       {model.extraFiles}
+      {!external && (
+        <DetailGroup title="Steam shortcut">
+          <p>Review adding, repairing or removing this game’s shortcut in Steam.</p>
+          <span id="detail-steam" tabIndex={-1} />
+          <SteamEntryControl
+            key={`steam:${model.port.id}:${model.libraryGeneration}`}
+            port={model.port}
+            generation={model.libraryGeneration}
+            installed={model.installed}
+            busy={Boolean(model.busy)}
+          />
+        </DetailGroup>
+      )}
+      {!external && model.installed && (
+        <MaintenanceActions
+          port={model.port}
+          libraryGeneration={model.libraryGeneration}
+          status={model.status}
+          verificationPrimary={Boolean(
+            model.status?.readiness?.blockers.includes("invalid_installation"),
+          )}
+          busy={model.busy}
+          actions={model.actions}
+        />
+      )}
       {(!external || hasRecordedChecks(model.port, model.sources)) && (
         <TechnicalDetails
           libraryGeneration={model.libraryGeneration}
           port={model.port}
           status={model.status}
           selectedChannel={model.selectedChannel}
-          installed={model.installed}
-          busy={model.busy}
           sources={model.sources}
-          actions={model.actions}
         />
       )}
       <NavigationHints />
@@ -3342,60 +3448,74 @@ function DetailVersionsSection({
   external: boolean;
 }) {
   return (
-    <>
-      {model.status?.external_runtime ? (
-        <dl className="detail-facts">
-          <div>
-            <dt>Current installation</dt>
-            <dd>Registered external installation · {model.status.external_runtime.version}</dd>
-          </div>
-          <div>
-            <dt>Updates</dt>
-            <dd>Maintained by you or the upstream launcher</dd>
-          </div>
-        </dl>
-      ) : (
-        <InstallationVersionSummary status={model.status} selectedChannel={model.selectedChannel} />
-      )}
-      {model.status?.previous && <p>Previous version · {model.status.previous.version}</p>}
-      {!external && model.port.release.provider !== "user-prepared" && (
-        <UpdatesGroup
-          perform={model.perform}
-          port={model.port}
-          status={model.status}
-          installed={model.installed}
-          deferSetupChoices={model.deferSetupChoices}
-          selectedChannel={model.selectedChannel}
-          policy={model.policy}
-          libraryGeneration={model.libraryGeneration}
-          busy={model.busy}
-          actions={model.actions}
-        />
-      )}
-
-      {!external && (
-        <>
-          <StagedActivation
-            version={model.stagedVersion}
-            busy={model.busy}
-            activate={model.actions.activate}
+    <div className="detail-versions-workspace">
+      <div className="detail-version-main">
+        {model.status?.external_runtime ? (
+          <dl className="detail-facts">
+            <div>
+              <dt>Current installation</dt>
+              <dd>Registered external installation · {model.status.external_runtime.version}</dd>
+            </div>
+            <div>
+              <dt>Updates</dt>
+              <dd>Maintained by you or the upstream launcher</dd>
+            </div>
+          </dl>
+        ) : (
+          <InstallationVersionSummary
+            status={model.status}
+            selectedChannel={model.selectedChannel}
           />
-          {model.installed && (
-            <VersionRollback
-              status={model.status}
+        )}
+        {model.status?.previous && <p>Previous version · {model.status.previous.version}</p>}
+        {!external && model.port.release.provider !== "user-prepared" && (
+          <UpdatesGroup
+            perform={model.perform}
+            port={model.port}
+            status={model.status}
+            installed={model.installed}
+            deferSetupChoices={model.deferSetupChoices}
+            selectedChannel={model.selectedChannel}
+            policy={model.policy}
+            libraryGeneration={model.libraryGeneration}
+            busy={model.busy}
+            actions={model.actions}
+          />
+        )}
+
+        {!external && (
+          <>
+            <StagedActivation
+              version={model.stagedVersion}
               busy={model.busy}
-              rollback={model.actions.rollback}
+              activate={model.actions.activate}
             />
-          )}
-        </>
+            {model.installed && (
+              <VersionRollback
+                status={model.status}
+                busy={model.busy}
+                rollback={model.actions.rollback}
+              />
+            )}
+          </>
+        )}
+        {(external || model.port.release.provider === "user-prepared") && (
+          <p className="mt-4">
+            You or the upstream launcher manage updates for this installation.{" "}
+            <ProjectLink href={model.port.project_url}>Open upstream project</ProjectLink>
+          </p>
+        )}
+      </div>
+      {!external && model.installed && model.organization && (
+        <aside className="detail-version-options">
+          <UpdateNoticePreferences
+            portId={model.port.id}
+            status={model.status}
+            organization={model.organization}
+          />
+        </aside>
       )}
-      {(external || model.port.release.provider === "user-prepared") && (
-        <p className="mt-4">
-          You or the upstream launcher manage updates for this installation.{" "}
-          <ProjectLink href={model.port.project_url}>Open upstream project</ProjectLink>
-        </p>
-      )}
-    </>
+    </div>
   );
 }
 

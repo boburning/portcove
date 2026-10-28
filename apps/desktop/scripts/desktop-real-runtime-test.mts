@@ -1,3 +1,4 @@
+import { selectCatalogPort } from "./desktop-review-controls.mts";
 import {
   parseRealRuntimeInput,
   runtimeMutable,
@@ -223,6 +224,23 @@ function sessionIds(library: string, portId: string) {
   }
 }
 
+export async function waitForRealRuntimeReview(browser: WebDriver, kind: string, action: string) {
+  const selector = By.css(`[role="dialog"][aria-describedby="external-${kind}-description"]`);
+  return browser.wait(async () => {
+    const matches = await browser.findElements(selector);
+    assert.ok(matches.length <= 1);
+    const dialog = matches[0];
+    if (!dialog || !(await dialog.isDisplayed())) return false;
+    const controls = await dialog.findElements(
+      By.xpath(`.//button[normalize-space(.)="${action}"]`),
+    );
+    assert.ok(controls.length <= 1, "External review action must be unique");
+    const control = controls[0];
+    if (!control || !(await control.isDisplayed()) || !(await control.isEnabled())) return false;
+    return { dialog, control };
+  }, 15_000);
+}
+
 async function runRealRuntimeRoutes(context: RealContext, report: Record<string, unknown>) {
   let browser = context.browser;
   const {
@@ -270,15 +288,11 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
     artifacts.push(file);
   }
   const button = (name: string) => By.xpath(`//button[normalize-space(.)="${name}"]`);
-  async function open(name: string) {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+  async function open(port: { id: string; name: string }) {
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, name);
-    const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${name}.")]`,
-    );
-    await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, port.name);
+    await selectCatalogPort(browser, port.id);
   }
   async function status(portId: string) {
     const statuses = transportValues("status", success(await invoke("get_statuses")));
@@ -289,22 +303,6 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
     assert.equal(current.active, null);
     return current;
   }
-  async function review(kind: string, action: string) {
-    const selector = By.css(`[role="dialog"][aria-describedby="external-${kind}-description"]`);
-    return browser.wait(async () => {
-      const matches = await browser.findElements(selector);
-      assert.ok(matches.length <= 1);
-      const dialog = matches[0];
-      if (!dialog || !(await dialog.isDisplayed())) return false;
-      const controls = await dialog.findElements(
-        By.xpath(`.//button[normalize-space(.)="${action}"]`),
-      );
-      assert.ok(controls.length <= 1, "External review action must be unique");
-      const control = controls[0];
-      if (!control || !(await control.isDisplayed()) || !(await control.isEnabled())) return false;
-      return { dialog, control };
-    }, 15_000);
-  }
   for (const item of fixture.packages) {
     const { port, spec, directory } = item;
     const route: Record<string, unknown> = {
@@ -314,7 +312,7 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
       steps: [],
     };
     routes.push(route);
-    await open(port.name);
+    await open(port);
     await browser.wait(until.elementLocated(button("Choose game folder")), 15_000);
     const instructions = await browser.findElement(By.css("main")).getText();
     assert.ok(
@@ -330,7 +328,7 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
       assert.ok(
         isRecord(selected) && selected.selected === true && selected.supplied_directory === true,
       );
-      const current = await review("register", "Use this installation");
+      const current = await waitForRealRuntimeReview(browser, "register", "Use this installation");
       assert.ok(current);
       const text = await current.dialog.getText();
       assert.ok(text.includes(spec.version) && text.includes(spec.executable));
@@ -370,7 +368,7 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
       }),
     );
     browser = await context.restartApplication(`${port.id}-registered`);
-    await open(port.name);
+    await open(port);
     assert.deepEqual((await status(port.id)).external_runtime, registered);
     await screenshot(`${port.id}-restart-readback`);
     await launchRealRuntime(
@@ -386,7 +384,11 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
     const postgame = await files(directory);
     route.postgame = postgame;
     await browser.findElement(button("Stop using this installation")).click();
-    const removal = await review("remove", "Stop using this installation");
+    const removal = await waitForRealRuntimeReview(
+      browser,
+      "remove",
+      "Stop using this installation",
+    );
     assert.ok(removal);
     await screenshot(`${port.id}-removal-review`);
     await removal.control.click();

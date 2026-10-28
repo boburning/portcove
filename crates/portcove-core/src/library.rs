@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::{self, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
@@ -430,66 +430,57 @@ pub(crate) struct HttpCacheEntry {
     pub body: String,
 }
 
-// The current catalog has 200 selector slots. Two conditional metadata rows per
-// slot fit with headroom, while 64 MiB permits an average 128 KiB response.
-const HTTP_CACHE_MAX_ENTRIES: usize = 512;
-const HTTP_CACHE_MAX_BODY_BYTES: u64 = 64 * 1024 * 1024;
+// Account for the actual response and its key/index/validator metadata instead
+// of evicting small responses at a catalog-size-derived row count. The fixed
+// per-row reserve bounds empty/tiny records and leaves conservative SQLite
+// overhead headroom; this is a charged-record budget, not a whole database cap.
+const HTTP_CACHE_MAX_RECORD_BYTES: u64 = 64 * 1024 * 1024;
+const HTTP_CACHE_RECORD_RESERVE_BYTES: u64 = 4096;
 const HTTP_CACHE_MAX_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
+const HTTP_CACHE_RECORD_BYTES_SQL: &str = "length(CAST(body AS BLOB)) + 2 * length(CAST(url AS BLOB)) + COALESCE(length(CAST(etag AS BLOB)), 0) + COALESCE(length(CAST(last_modified AS BLOB)), 0) + ?1";
 
 fn prune_http_cache(connection: &Connection) -> Result<()> {
     prune_http_cache_with_limits(
         connection,
-        HTTP_CACHE_MAX_ENTRIES,
-        HTTP_CACHE_MAX_BODY_BYTES,
+        HTTP_CACHE_MAX_RECORD_BYTES,
         HTTP_CACHE_MAX_AGE_SECONDS,
     )
 }
 
 fn prune_http_cache_with_limits(
     connection: &Connection,
-    max_entries: usize,
-    max_body_bytes: u64,
+    max_record_bytes: u64,
     max_age_seconds: i64,
 ) -> Result<()> {
     connection.execute(
         "DELETE FROM github_http_cache WHERE updated_at < unixepoch() - ?1",
         [max_age_seconds],
     )?;
-    let entries: u64 =
-        connection.query_row("SELECT COUNT(*) FROM github_http_cache", [], |row| {
-            row.get(0)
-        })?;
-    let max_entries = u64::try_from(max_entries)
-        .map_err(|_| PortcoveError::state("HTTP cache entry limit overflow"))?;
-    if entries > max_entries {
-        let excess = entries - max_entries;
-        connection.execute(
-            "DELETE FROM github_http_cache
-             WHERE rowid IN (
-               SELECT rowid FROM github_http_cache
-               ORDER BY updated_at ASC, rowid ASC
-               LIMIT ?1
-             )",
-            [excess],
-        )?;
-    }
-    let mut body_bytes: u64 = connection.query_row(
-        "SELECT COALESCE(SUM(length(CAST(body AS BLOB))), 0) FROM github_http_cache",
-        [],
+    let retained_bytes: u64 = connection.query_row(
+        &format!("SELECT COALESCE(SUM({HTTP_CACHE_RECORD_BYTES_SQL}), 0) FROM github_http_cache"),
+        [HTTP_CACHE_RECORD_RESERVE_BYTES],
         |row| row.get(0),
     )?;
-    while body_bytes > max_body_bytes {
-        let (url, size): (String, u64) = connection.query_row(
-            "SELECT url, length(CAST(body AS BLOB))
-             FROM github_http_cache
-             ORDER BY updated_at ASC, rowid ASC
-             LIMIT 1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
-        connection.execute("DELETE FROM github_http_cache WHERE url=?1", [url])?;
-        body_bytes -= size;
+    if retained_bytes <= max_record_bytes {
+        return Ok(());
     }
+    // A single uncacheable response must not evict smaller useful responses.
+    connection.execute(
+        &format!("DELETE FROM github_http_cache WHERE {HTTP_CACHE_RECORD_BYTES_SQL} > ?2"),
+        params![HTTP_CACHE_RECORD_RESERVE_BYTES, max_record_bytes],
+    )?;
+    connection.execute(
+        &format!(
+            "DELETE FROM github_http_cache WHERE rowid IN (
+            SELECT rowid FROM (
+                SELECT rowid, SUM({HTTP_CACHE_RECORD_BYTES_SQL}) OVER (
+                    ORDER BY updated_at DESC, rowid DESC ROWS UNBOUNDED PRECEDING
+                ) AS retained_bytes FROM github_http_cache
+            ) WHERE retained_bytes > ?2
+        )"
+        ),
+        params![HTTP_CACHE_RECORD_RESERVE_BYTES, max_record_bytes],
+    )?;
     Ok(())
 }
 
@@ -860,6 +851,17 @@ impl Library {
         Ok(PortOperationGuard { file })
     }
 
+    /// Serializes immutable update-byte ownership, independently of runtime mutation/launch.
+    pub(crate) fn try_lock_update_acquisition(&self, port_id: &str) -> Result<PortOperationGuard> {
+        let key = format!(
+            "update-acquisition-{}",
+            hex::encode(Sha256::digest(port_id.as_bytes()))
+        );
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(&key, port_id, "acquire-update-bytes")?,
+        })
+    }
+
     pub(crate) fn try_lock_activity(&self, id: &str) -> Result<PortOperationGuard> {
         let key = format!("activity-{}", hex::encode(Sha256::digest(id.as_bytes())));
         Ok(PortOperationGuard {
@@ -1215,7 +1217,8 @@ impl Library {
                     a.failure_json,
                     a.status = 'running' AS is_current,
                     a.status = 'failed' AS needs_attention,
-                    EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id)
+                    EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id
+                      AND (lifecycle.kind <> 'acquire_update' OR json_extract(lifecycle.update_acquisition_json,'$.view.phase') <> 'acquired'))
                       AS recovery_required
              FROM activity_history AS a
              WHERE a.status = 'running'
@@ -2528,6 +2531,35 @@ impl Library {
         Ok(())
     }
 
+    // Missing active pointers do not make retained files or setup progress fresh.
+    pub(crate) fn port_state_footprints(
+        connection: &Connection,
+        port_ids: &[String],
+    ) -> Result<(HashSet<String>, usize)> {
+        let mut occupied = HashSet::new();
+        let mut queries = 0;
+        for ids in port_ids.chunks(status_ports_per_query(connection)?) {
+            let values = std::iter::repeat_n("(?)", ids.len())
+                .collect::<Vec<_>>()
+                .join(",");
+            let sql = format!(
+                "WITH requested(port_id) AS (VALUES {values})
+                 SELECT port_id FROM requested AS request
+                 WHERE EXISTS (SELECT 1 FROM port_settings WHERE port_id=request.port_id)
+                    OR EXISTS (SELECT 1 FROM installs WHERE port_id=request.port_id)
+                    OR EXISTS (SELECT 1 FROM external_runtime_registrations WHERE port_id=request.port_id)
+                    OR EXISTS (SELECT 1 FROM catalog_downloads WHERE port_id=request.port_id)"
+            );
+            let mut statement = connection.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(ids), |row| row.get::<_, String>(0))?;
+            for row in rows {
+                occupied.insert(row?);
+            }
+            queries += 1;
+        }
+        Ok((occupied, queries))
+    }
+
     pub(crate) fn statuses_with_metrics(
         &self,
         ports: &[(String, ReleaseChannel)],
@@ -2550,9 +2582,40 @@ impl Library {
         ports: &[(String, ReleaseChannel)],
         after_settings: impl FnOnce(),
     ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
+        self.statuses_from_with_archive_inventory(connection, ports, after_settings, false)
+    }
+
+    pub(crate) fn statuses_from_with_acquisitions_and_barrier(
+        &self,
+        connection: &Connection,
+        ports: &[(String, ReleaseChannel)],
+        after_settings: impl FnOnce(),
+    ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
+        self.statuses_from_with_archive_inventory(connection, ports, after_settings, true)
+    }
+
+    fn statuses_from_with_archive_inventory(
+        &self,
+        connection: &Connection,
+        ports: &[(String, ReleaseChannel)],
+        after_settings: impl FnOnce(),
+        include_acquisition_owners: bool,
+    ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
         let mut metrics = StatusReadMetrics::default();
-        if ports.is_empty() {
+        if ports.is_empty() && !include_acquisition_owners {
             return Ok((Vec::new(), metrics));
+        }
+        metrics.record_query();
+        let acquisitions = crate::service::game_update_acquisition::views_from(connection)?;
+        let mut ports = ports.to_vec();
+        if include_acquisition_owners {
+            let mut missing = acquisitions
+                .values()
+                .filter(|view| !ports.iter().any(|(id, _)| id == &view.port_id))
+                .map(|view| (view.port_id.clone(), view.release.channel))
+                .collect::<Vec<_>>();
+            missing.sort_by(|left, right| left.0.cmp(&right.0));
+            ports.extend(missing);
         }
         let mut port_ids = ports
             .iter()
@@ -2729,6 +2792,7 @@ impl Library {
                 let staged = staged.get(port_id).and_then(|id| installs.get(id)).cloned();
                 let history = launch_history.get(port_id).copied();
                 Ok(PortStatus {
+                    acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),
                     channel,
@@ -3473,7 +3537,7 @@ mod tests {
     }
 
     #[test]
-    fn http_cache_pruning_enforces_age_entry_and_byte_limits() {
+    fn http_cache_pruning_enforces_age_and_charged_record_limits() {
         let temporary = tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();
         let connection = library.connection().unwrap();
@@ -3490,7 +3554,9 @@ mod tests {
                 )
                 .unwrap();
         }
-        prune_http_cache_with_limits(&connection, 3, 8, 1_000_000_000).unwrap();
+        let two_records =
+            2 * (HTTP_CACHE_RECORD_RESERVE_BYTES + 2 * "https://example.test/b".len() as u64 + 4);
+        prune_http_cache_with_limits(&connection, two_records, 1_000_000_000).unwrap();
         let urls = connection
             .prepare("SELECT url FROM github_http_cache ORDER BY url")
             .unwrap()
@@ -3504,6 +3570,75 @@ mod tests {
                 "https://example.test/b".to_owned(),
                 "https://example.test/c".to_owned(),
             ]
+        );
+    }
+
+    #[test]
+    fn http_cache_keeps_a_thousand_small_responses_within_the_existing_resource_envelope() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        for index in 0..1000 {
+            connection.execute("INSERT INTO github_http_cache(url, etag, last_modified, body, updated_at) VALUES (?1, ?2, ?3, ?4, unixepoch())",
+                params![format!("https://api.github.com/repos/example/port-{index}/releases"), "observed-etag", "Tue, 27 Oct 2026 00:00:00 GMT", "{\"id\":1,\"releases\":[]}"]).unwrap();
+        }
+        prune_http_cache(&connection).unwrap();
+        let rows: u64 = connection
+            .query_row("SELECT COUNT(*) FROM github_http_cache", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(rows, 1000);
+        let charged: u64 = connection
+            .query_row(
+                &format!("SELECT SUM({HTTP_CACHE_RECORD_BYTES_SQL}) FROM github_http_cache"),
+                [HTTP_CACHE_RECORD_RESERVE_BYTES],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(charged < HTTP_CACHE_MAX_RECORD_BYTES);
+        let cached = library
+            .http_cache("https://api.github.com/repos/example/port-0/releases")
+            .unwrap()
+            .unwrap();
+        assert_eq!(cached.etag.as_deref(), Some("observed-etag"));
+        assert_eq!(
+            cached.last_modified.as_deref(),
+            Some("Tue, 27 Oct 2026 00:00:00 GMT")
+        );
+        assert_eq!(cached.body, "{\"id\":1,\"releases\":[]}");
+    }
+
+    #[test]
+    fn http_cache_charges_utf8_metadata_and_excludes_oversized_rows_without_collateral_eviction() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        for (url, etag, body) in [
+            ("small", "é", "é".to_owned()),
+            ("oversized", "", "x".repeat(8192)),
+        ] {
+            connection.execute("INSERT INTO github_http_cache(url, etag, body, updated_at) VALUES (?1, ?2, ?3, unixepoch())", params![url, etag, body]).unwrap();
+        }
+        let cost: u64 = connection
+            .query_row(
+                &format!(
+                    "SELECT {HTTP_CACHE_RECORD_BYTES_SQL} FROM github_http_cache WHERE url='small'"
+                ),
+                [HTTP_CACHE_RECORD_RESERVE_BYTES],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(cost, HTTP_CACHE_RECORD_RESERVE_BYTES + 2 * 5 + 2 + 2);
+        prune_http_cache_with_limits(&connection, cost, HTTP_CACHE_MAX_AGE_SECONDS).unwrap();
+        assert!(library.http_cache("small").unwrap().is_some());
+        assert!(library.http_cache("oversized").unwrap().is_none());
+        assert_eq!(
+            connection
+                .query_row("SELECT count(*) FROM github_http_cache", [], |row| row
+                    .get::<_, u64>(0))
+                .unwrap(),
+            1
         );
     }
 
@@ -3751,7 +3886,7 @@ mod tests {
             assert_eq!(statuses.len(), record_count);
             assert_eq!(
                 metrics.sqlite_query_count,
-                5 * record_count.div_ceil(status_ports_per_query(&transaction).unwrap())
+                5 * record_count.div_ceil(status_ports_per_query(&transaction).unwrap()) + 1
             );
             assert_eq!(metrics.settings_row_count, record_count);
             assert_eq!(metrics.install_row_count, 0);
@@ -3793,7 +3928,7 @@ mod tests {
             .statuses_from_with_metrics(&connection, &ports)
             .unwrap();
 
-        assert_eq!(metrics.sqlite_query_count, 20);
+        assert_eq!(metrics.sqlite_query_count, 21);
         assert_eq!(statuses.len(), 10);
         assert_eq!(statuses[0].port_id, "port-09");
         assert_eq!(statuses[9].port_id, "port-00");
@@ -3904,7 +4039,7 @@ mod tests {
             assert_eq!(statuses.len(), 1);
             assert_eq!(statuses[0].active.as_ref().unwrap().id, "target-install");
             assert_eq!(statuses[0].successful_launches, 3);
-            assert_eq!(metrics.sqlite_query_count, 5);
+            assert_eq!(metrics.sqlite_query_count, 6);
             assert_eq!(metrics.settings_row_count, 1);
             assert_eq!(metrics.install_row_count, 1);
             assert_eq!(metrics.launch_history_row_count, 1);

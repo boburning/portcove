@@ -1,5 +1,7 @@
 /** Joins fixed native evidence. Pure reconstruction remains authority:none;
  * only the default parent/capture/source path may retain direct provenance. */
+import { inspectHostedNativeWindowsHost } from "./release-hosted-native-windows-host.mts";
+import { hostedWindowsContinuityPlatform } from "./release-native-qualification-contract.mts";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -8,7 +10,18 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectNativeReleaseQualification } from "./release-native-qualification-contract.mts";
 import { readActualNativeSourceDeclarations } from "./release-native-candidate.mts";
 import { requireActualWindowsNativeCapture } from "./release-native-windows-capture.mts";
-import { serializeNativeStageCapture } from "./release-native-stage-capture.mts";
+import { requireActualHostedNativeWindowsCapture } from "./release-hosted-native-windows-capture.mts";
+import { requireActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
+import {
+  requireActualHostedNativeCandidate,
+  readActualHostedNativeSourceDeclarations,
+  readActualHostedNativePostSignSourceDeclarations,
+} from "./release-hosted-native-candidate.mts";
+import { requireActualHostedNativePostSignPayload } from "./release-hosted-native-postsign-inputs.mts";
+import {
+  serializeNativeStageCapture,
+  serializeHostedNativeStageCapture,
+} from "./release-native-stage-capture.mts";
 import type { NativeStageRequest } from "./release-native-stage-capture.mts";
 import type { inspectNativeCompatibilitySources } from "./release-native-source-contract.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
@@ -59,6 +72,7 @@ function reconstructNativeWindowsStageReport(
   prepared: NativeStageRequest,
   raw: unknown,
   source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  hosted?: { host: unknown; nonce: string },
 ) {
   const input = record(raw),
     request = prepared.request;
@@ -188,16 +202,39 @@ function reconstructNativeWindowsStageReport(
     )
   )
     throw new Error("configured native capabilities are not supplied by maintained source");
-  if (
-    host.machine_id_sha256 !== expectedHost.machine_id_sha256 ||
-    host.architecture !== "X64" ||
-    expectedHost.minimum_platform !== "windows-11-26h2-x64" ||
-    !atLeast(host.os_version, "10.0.26200") ||
-    !atLeast(host.os_version, compatibility.minimum_os_version) ||
-    version(host.os_version).slice(0, 3).join(".") !==
-      version(runtime.operating_system).slice(0, 3).join(".")
-  )
-    throw new Error("actual minimum Windows host identity is unavailable or differs");
+  if (hosted) {
+    if (expectedHost.qualification_profile !== "fixed-hosted-native-v1")
+      throw new Error("hosted Windows profile differs");
+    const observed = inspectHostedNativeWindowsHost(
+      hosted.host,
+      hosted.nonce,
+      expectedHost.minimum_platform as
+        | "windows-11-26h2-x64"
+        | typeof hostedWindowsContinuityPlatform,
+      text(compatibility.minimum_os_version),
+    );
+    if (
+      observed.broker_sid !== expectedAccount.broker ||
+      observed.machine_id_sha256 !== expectedHost.machine_id_sha256 ||
+      observed.machine_id_sha256 !== host.machine_id_sha256 ||
+      observed.os.version !== host.os_version ||
+      host.architecture !== "X64" ||
+      version(host.os_version).slice(0, 3).join(".") !==
+        version(runtime.operating_system).slice(0, 3).join(".")
+    )
+      throw new Error("actual hosted Windows host/account/runtime observation differs");
+  } else {
+    if (
+      host.machine_id_sha256 !== expectedHost.machine_id_sha256 ||
+      host.architecture !== "X64" ||
+      expectedHost.minimum_platform !== "windows-11-26h2-x64" ||
+      !atLeast(host.os_version, "10.0.26200") ||
+      !atLeast(host.os_version, compatibility.minimum_os_version) ||
+      version(host.os_version).slice(0, 3).join(".") !==
+        version(runtime.operating_system).slice(0, 3).join(".")
+    )
+      throw new Error("actual minimum Windows host identity is unavailable or differs");
+  }
   if (
     !Array.isArray(host.engine_images) ||
     host.engine_images.length < 1 ||
@@ -304,7 +341,11 @@ function reconstructNativeWindowsStageReport(
       qualification_profile: expectedHost.qualification_profile,
       os_version: host.os_version,
       minimum_platform: expectedHost.minimum_platform,
-      execution_context: "native-windows11-26h2-account",
+      execution_context: hosted
+        ? expectedHost.minimum_platform === hostedWindowsContinuityPlatform
+          ? "native-windows-server-2022-hosted-isolated-account"
+          : "native-windows-11-26h2-hosted-isolated-account"
+        : "native-windows11-26h2-account",
       account: expectedAccount,
       loaded_engine: {
         name: "WebView2",
@@ -357,13 +398,27 @@ export function reconstructNativePreSignReport(
   if (prepared.request.stage !== "payload-signing") throw new Error("Windows pre-sign report only");
   return reconstructNativeWindowsStageReport(prepared, raw, source);
 }
+/** Pure hosted reconstruction keeps observed Server continuity separate from client acceptance. */
+export function reconstructHostedNativeWindowsPreSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  host: unknown,
+  nonce: string,
+) {
+  if (prepared.request.stage !== "payload-signing")
+    throw new Error("hosted Windows pre-sign report only");
+  return reconstructNativeWindowsStageReport(prepared, raw, source, { host, nonce });
+}
+
 /** Pure report2 reconstruction still has no provenance. The actual parent must
  * supply its privately retained successful payload verifier result separately. */
-export function reconstructNativePostSignReport(
+function reconstructWindowsPostSignReport(
   prepared: NativeStageRequest,
   raw: unknown,
   source: ReturnType<typeof inspectNativeCompatibilitySources>,
   rawCrypto: unknown,
+  hosted?: { host: unknown; nonce: string },
 ) {
   const request = prepared.request,
     crypto = record(rawCrypto),
@@ -464,7 +519,26 @@ export function reconstructNativePostSignReport(
     )
       throw new Error("native rollback registration belongs to another account");
   }
-  return reconstructNativeWindowsStageReport(prepared, raw, source);
+  return reconstructNativeWindowsStageReport(prepared, raw, source, hosted);
+}
+
+export function reconstructNativePostSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  crypto: unknown,
+) {
+  return reconstructWindowsPostSignReport(prepared, raw, source, crypto);
+}
+export function reconstructHostedNativeWindowsPostSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  crypto: unknown,
+  host: unknown,
+  nonce: string,
+) {
+  return reconstructWindowsPostSignReport(prepared, raw, source, crypto, { host, nonce });
 }
 
 const reports = new WeakMap<
@@ -474,12 +548,76 @@ const reports = new WeakMap<
     directory: string;
     files: { name: string; sha256: string; bytes: number }[];
     report_sha256: string;
+    hosted: boolean;
+    stopped: boolean;
   }
 >();
+async function originalWindowsReportInput(captured: object, hosted: boolean) {
+  if (!hosted) {
+    const actual = await requireActualWindowsNativeCapture(captured);
+    return {
+      ...actual,
+      hosted: null,
+      readSource: () => readActualNativeSourceDeclarations(actual.source_selection),
+      serialize: (request: unknown, observation: unknown) =>
+        serializeNativeStageCapture(request, actual.parent.authority_configuration, observation),
+      recheck: async () => {
+        await requireActualWindowsNativeCapture(captured);
+      },
+    };
+  }
+  const actual = await requireActualHostedNativeWindowsCapture(captured),
+    stage = actual.actual,
+    parent = await requireActualHostedNativeParentSource(stage.parent);
+  const selected =
+    stage.kind === "payload-signing"
+      ? await requireActualHostedNativeCandidate(stage.candidate)
+      : await requireActualHostedNativePostSignPayload(stage.candidate);
+  if (parent.platform_label !== "windows-x86_64" || selected.parent_source !== stage.parent)
+    throw new Error("Original hosted Windows report parent differs");
+  const host = stage.prepared.request.expected.host;
+  return {
+    status: actual.status,
+    result: actual.result,
+    capture_directory: actual.directory,
+    directory: selected.directory,
+    request: stage.prepared,
+    version: selected.version,
+    predecessor: "predecessor" in selected ? selected.predecessor : null,
+    payload_cryptography: "payload_crypto" in selected ? selected.payload_crypto : null,
+    parent: { controller_root: stage.source_root },
+    hosted: { host: stage.host, nonce: stage.hostNonce },
+    readSource: () =>
+      "package_receipt" in selected
+        ? readActualHostedNativePostSignSourceDeclarations(selected.package_receipt)
+        : readActualHostedNativeSourceDeclarations(stage.candidate),
+    serialize: (request: unknown, observation: unknown) =>
+      serializeHostedNativeStageCapture(
+        request,
+        parent.configuration,
+        {
+          qualification_profile: host.qualification_profile,
+          machine_id_sha256: host.machine_id_sha256,
+          account: host.account,
+        },
+        observation,
+      ),
+    recheck: async () => {
+      await requireActualHostedNativeWindowsCapture(captured);
+      parent.recheck();
+    },
+  };
+}
 /** Direct parent capture only. No injected reader, imported success report or
  * caller-provided semantic acceptance can enter this private map. */
 export async function prepareActualNativeStageReport(captured: object) {
-  const actual = await requireActualWindowsNativeCapture(captured);
+  return prepareWindowsStageReport(captured, false);
+}
+export async function prepareActualHostedWindowsNativeStageReport(captured: object) {
+  return prepareWindowsStageReport(captured, true);
+}
+async function prepareWindowsStageReport(captured: object, hosted: boolean) {
+  const actual = await originalWindowsReportInput(captured, hosted);
   if (actual.status !== 0 || actual.result.failure !== null)
     throw new Error("actual native driver failed; preserve original capture before recovery");
   const directory = actual.capture_directory;
@@ -512,7 +650,7 @@ export async function prepareActualNativeStageReport(captured: object) {
     "scripts/test-windows-installer.ps1",
     1024 * 1024,
   );
-  const source = await readActualNativeSourceDeclarations(actual.source_selection);
+  const source = await actual.readSource();
   let cryptography: Record<string, unknown> | null = null;
   if (actual.request.request.stage === "release-publication") {
     const proof = actual.payload_cryptography;
@@ -615,7 +753,7 @@ export async function prepareActualNativeStageReport(captured: object) {
     invocation_id: request.invocation_id,
     setup_descriptor_sha256: request.setup_descriptor_sha256,
   };
-  const stage = serializeNativeStageCapture(rawRequest, actual.parent.authority_configuration, {
+  const stage = actual.serialize(rawRequest, {
     schema_version: 1,
     request_sha256: actual.request.request_sha256,
     outcome: "completed",
@@ -656,8 +794,24 @@ export async function prepareActualNativeStageReport(captured: object) {
     version: actual.version,
     evidence_sha256: evidenceSha,
   };
-  const prepared =
-    actual.request.request.stage === "payload-signing"
+  const prepared = actual.hosted
+    ? actual.request.request.stage === "payload-signing"
+      ? reconstructHostedNativeWindowsPreSignReport(
+          actual.request,
+          evidenceInput,
+          source.declaration,
+          actual.hosted.host,
+          actual.hosted.nonce,
+        )
+      : reconstructHostedNativeWindowsPostSignReport(
+          actual.request,
+          evidenceInput,
+          source.declaration,
+          cryptography,
+          actual.hosted.host,
+          actual.hosted.nonce,
+        )
+    : actual.request.request.stage === "payload-signing"
       ? reconstructNativePreSignReport(actual.request, evidenceInput, source.declaration)
       : reconstructNativePostSignReport(
           actual.request,
@@ -688,9 +842,9 @@ export async function prepareActualNativeStageReport(captured: object) {
     },
     { name: "native-report.json", sha256: hash(reportBytes), bytes: reportBytes.byteLength },
   );
-  await requireActualWindowsNativeCapture(captured);
+  await actual.recheck();
   const receipt = Object.freeze({
-    kind: "actual-direct-native-stage-report",
+    kind: hosted ? "actual-hosted-windows-stage-report" : "actual-direct-native-stage-report",
     directory,
     report_sha256: digest(prepared.report),
     authority: "none",
@@ -701,6 +855,8 @@ export async function prepareActualNativeStageReport(captured: object) {
     directory,
     files,
     report_sha256: digest(prepared.report),
+    hosted,
+    stopped: false,
   });
   return receipt;
 }
@@ -708,9 +864,15 @@ export async function prepareActualNativeStageReport(captured: object) {
 export async function requireActualNativeStageReport(receipt: object) {
   if (isActualLinuxNativeStageReport(receipt)) return requireActualLinuxNativeStageReport(receipt);
   const retained = reports.get(receipt);
-  if (!retained) throw new Error("actual direct native stage report required");
+  if (!retained || retained.hosted || retained.stopped)
+    throw new Error("actual direct native stage report required");
   const actual = await requireActualWindowsNativeCapture(retained.capture);
   await readActualNativeSourceDeclarations(actual.source_selection);
+  const report = await readWindowsReportFiles(retained);
+  return { ...actual, report, report_sha256: retained.report_sha256, authority: "none" as const };
+}
+
+async function readWindowsReportFiles(retained: NonNullable<ReturnType<typeof reports.get>>) {
   for (const file of retained.files) {
     const bytes = /\.(?:stdout|stderr)\.bin$/u.test(file.name)
       ? await readNativeCapturedStream(retained.directory, file.name)
@@ -729,7 +891,31 @@ export async function requireActualNativeStageReport(receipt: object) {
   );
   const report = inspectNativeReleaseQualification(raw);
   if (digest(report) !== retained.report_sha256) throw new Error("actual native report changed");
-  return { ...actual, report, report_sha256: retained.report_sha256, authority: "none" as const };
+  return report;
+}
+export async function requireActualHostedWindowsNativeStageReport(receipt: object) {
+  const retained = reports.get(receipt);
+  if (!retained || !retained.hosted || retained.stopped)
+    throw new Error("Original active hosted Windows report required");
+  try {
+    const input = await originalWindowsReportInput(retained.capture, true);
+    await input.readSource();
+    const report = await readWindowsReportFiles(retained);
+    await input.recheck();
+    const actual = await requireActualHostedNativeWindowsCapture(retained.capture);
+    return {
+      ...actual,
+      report,
+      report_sha256: retained.report_sha256,
+      original_file_identities: Object.freeze(
+        retained.files.map((file) => Object.freeze({ ...file })),
+      ),
+      authority: "none" as const,
+    };
+  } catch (error) {
+    retained.stopped = true;
+    throw error;
+  }
 }
 
 /** Legacy pre-sign entrypoints retain their stage scope. */

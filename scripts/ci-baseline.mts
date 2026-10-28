@@ -10,7 +10,7 @@ import {
   buildPlan,
   executePlan,
   pythonContractTests,
-  coordinatorStateContractTests,
+  nodeTestOwnership,
   catalogGeneratorContractTests,
 } from "./ordinary-validation.mts";
 import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
@@ -116,15 +116,11 @@ export function baselineRequiresPython(plan: ValidationPlan, options: ClassifyOp
   const selected = baselineContractTests(plan, options);
   return (
     selected.some((file) =>
-      [
-        "scripts/nextest-equivalence.test.mts",
-        "scripts/ci-rust-workflow.test.mts",
-        ...pythonContractTests,
-      ].includes(file),
+      ["scripts/nextest-equivalence.test.mts", ...pythonContractTests].includes(file),
     ) ||
     plan.changes.some(
       (change) =>
-        change.oldPath === "scripts/ci-rust-workflow.test.mts" &&
+        change.oldPath === "scripts/nextest-equivalence.test.mts" &&
         change.newPath !== change.oldPath &&
         selected.includes(change.newPath),
     )
@@ -134,21 +130,11 @@ export function baselineRequiresPython(plan: ValidationPlan, options: ClassifyOp
 export function baselineRequiresDesktopDependencies(plan: ValidationPlan) {
   if (plan.mode === "qualification") return true;
   if (plan.mode !== "fast") return false;
-  // These actual consumers import Desktop-owned version policy even for helper
-  // or test-family changes outside release-security path ownership.
-  const selected = baselineContractTests(plan);
   return (
     plan.areas.includes("release-security") ||
-    // This consumer imports Desktop's semver-backed release-version policy.
-    selected.includes("scripts/release-control-inputs.test.mts") ||
-    selected.includes("scripts/release-controller-transport.test.mts") ||
-    selected.includes("scripts/production-aggregate-steps.test.mts") ||
-    selected.includes("scripts/release-controller-tools.test.mts") ||
-    selected.includes("scripts/release-native-source-contract.test.mts") ||
-    // Shared Python reporting selects these version-policy consumers too.
-    selected.includes("scripts/release-semantic-source.test.mts") ||
-    selected.includes("scripts/semantic-review-linux-supervisor.test.mts") ||
-    selected.some((file) => coordinatorStateContractTests.includes(file))
+    baselineContractTests(plan).some((file) =>
+      (nodeTestOwnership.desktopDependencies ?? []).includes(file),
+    )
   );
 }
 

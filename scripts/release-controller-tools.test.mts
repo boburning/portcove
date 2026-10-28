@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { runInNewContext } from "node:vm";
 import { parseDocument } from "yaml";
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -11,11 +12,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire, isBuiltin } from "node:module";
 import {
   bundleControllerEntries,
+  buildControllerTools,
   controllerBootstrapEnvironment,
   materializeControllerCompilerSource,
 } from "./release-controller-tool-build.mts";
 import {
   controllerToolAssets,
+  controllerToolSourceAssetMaximumBytes,
+  readControllerToolFile,
   controllerToolEntries,
   controllerToolChildren,
   controllerToolPaths,
@@ -453,6 +457,24 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(context.status, 2, context.stderr);
   assert.match(context.stderr, /fixed payload\/context controller refused/);
   assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const contextHelp = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-signing-controller.bundle.mjs"), "--help"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    },
+  );
+  assert.equal(contextHelp.status, 2, contextHelp.stderr);
+  assert.match(contextHelp.stderr, /fixed payload\/context controller refused/u);
+  assert.equal(
+    contextHelp.stdout,
+    "",
+    "An imported metadata CLI must not execute inside another bundle entry",
+  );
+
   const budget = spawnSync(
     process.execPath,
     [
@@ -575,6 +597,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-controller-job",
     "release-hosted-native-runner",
     "release-hosted-native-worker",
+    "release-hosted-native-windows-source",
     "release-native-keyless-assembly",
   ]);
 });
@@ -659,7 +682,10 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   const windowsSteps = document.getIn(["jobs", "windows-tools", "steps"]);
   assert.ok(windowsSteps);
   assert.match(text, /node scripts\/qualify-controller-tools-windows\.mts/u);
-  assert.match(text, /FIXTURE_SOURCE_SHA: \$\{\{ github.sha \}\}/u);
+  assert.match(
+    text,
+    /FIXTURE_SOURCE_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u,
+  );
   assert.match(text, /qualify-controller-tool-build\.mts/u);
   assert.match(text, /--frozen-lockfile --ignore-scripts --ignore-pnpmfile/u);
   assert.match(text, /retention-days: 7/u);
@@ -1187,6 +1213,15 @@ void test("Windows receiver binds its signed platform, producer, label, issuer a
   const root = await mkdtemp(path.join(os.tmpdir(), "windows-tool-receiver-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const f = fixture({}, "windows-x86_64");
+  for (const file of [
+    "bin/msedgedriver.exe",
+    "webview-driver.json",
+    "webview-driver-license.txt",
+    "webview-driver-eula.txt",
+    "webview-driver-notices.html",
+    "scripts/windows-webview-driver-policy.psm1",
+  ])
+    assert.ok(f.bytes.has(file), `fixed Windows admission must contain ${file}`);
   const result = await receiveControllerTools(root, f.expected, f.bundle, f.options);
   assert.equal(result.evidence_scope, "injected-provider");
   await assert.rejects(verifiedControllerToolPaths(result), /actual same-process/u);
@@ -1319,4 +1354,707 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     ),
     text,
   );
+});
+
+void test("fixed source asset preflight bounds real inventory and refuses before dependency or build work", async (t) => {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const)
+    for (const name of controllerToolPlatformProfile(platform).assets)
+      assert.ok(
+        (
+          await readControllerToolFile(
+            path.join(sourceRoot, name),
+            controllerToolSourceAssetMaximumBytes,
+          )
+        ).length > 0,
+        name,
+      );
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-asset-bound-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = path.join(root, "source"),
+    output = path.join(root, "output"),
+    hooks = path.join(root, "hooks");
+  for (const directory of [source, output, hooks]) await mkdir(directory);
+  const git = (args: string[]) =>
+    execFileSync(
+      "git",
+      [
+        "-C",
+        source,
+        "-c",
+        `core.hooksPath=${hooks}`,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.autocrlf=false",
+        ...args,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    ).trim();
+  git(["init", "--quiet"]);
+  await writeFile(
+    path.join(source, "deny.toml"),
+    Buffer.alloc(controllerToolSourceAssetMaximumBytes + 1, 32),
+  );
+  git(["add", "--all"]);
+  git(["commit", "--quiet", "-m", "fixture"]);
+  const expected = { commit: git(["rev-parse", "HEAD"]), tree: git(["rev-parse", "HEAD^{tree}"]) };
+  await assert.rejects(
+    buildControllerTools(source, output, expected),
+    /bootstrap refused in source-assets: tool file exceeds regular-file bound/u,
+  );
+  const builds = await readdir(output);
+  assert.equal(builds.length, 1);
+  const failure: unknown = JSON.parse(
+    await readFile(path.join(output, builds[0]!, "failure.json"), "utf8"),
+  );
+  assert.ok(isRecord(failure));
+  assert.equal(failure.phase, "source-assets");
+  assert.ok(Array.isArray(failure.timings) && failure.timings.length >= 3);
+  let elapsed = -1;
+  for (const entry of failure.timings) {
+    assert.ok(
+      isRecord(entry) &&
+        typeof entry.phase === "string" &&
+        Number.isSafeInteger(entry.elapsed_milliseconds),
+    );
+    assert.ok(Number(entry.elapsed_milliseconds) >= elapsed);
+    elapsed = Number(entry.elapsed_milliseconds);
+  }
+  const lastTiming: unknown = failure.timings.at(-1);
+  assert.ok(isRecord(lastTiming));
+  assert.equal(lastTiming.phase, "failed");
+  assert.equal(failure.failure, "tool file exceeds regular-file bound");
+  assert.deepEqual(failure.source, expected);
+  assert.equal(failure.automatic_retry, false);
+  assert.deepEqual((await readdir(path.join(output, builds[0]!))).sort(), [
+    "failure.json",
+    process.platform === "win32" ? "h" : "home",
+  ]);
+});
+
+void test("source-only Windows account inputs retain exact source bytes and never impersonate a tool manifest", async (t) => {
+  const { stageHostedWindowsAccountSource, hostedWindowsAccountSourcePaths } =
+    await import("./qualify-controller-tools-windows.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-windows-account-source-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = path.join(root, "source"),
+    stagedRoot = path.join(root, "staged"),
+    hooks = path.join(root, "hooks");
+  for (const directory of [source, stagedRoot, hooks]) await mkdir(directory);
+  for (const name of hostedWindowsAccountSourcePaths) {
+    await mkdir(path.dirname(path.join(source, name)), { recursive: true });
+    await copyFile(path.join(sourceRoot, name), path.join(source, name));
+  }
+  const git = (args: string[]) =>
+    execFileSync(
+      "git",
+      [
+        "-C",
+        source,
+        "-c",
+        `core.hooksPath=${hooks}`,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.autocrlf=false",
+        ...args,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    ).trim();
+  git(["init", "--quiet"]);
+  git(["add", "--all"]);
+  git(["commit", "--quiet", "-m", "fixture"]);
+  const expected = { commit: git(["rev-parse", "HEAD"]), tree: git(["rev-parse", "HEAD^{tree}"]) };
+  const manifest = await stageHostedWindowsAccountSource(source, stagedRoot, expected);
+  assert.equal(manifest.purpose, "ordinary-hosted-account-source");
+  assert.equal(manifest.source_commit, expected.commit);
+  assert.equal(manifest.source_tree, expected.tree);
+  assert.equal(manifest.platform, "windows-x86_64");
+  assert.deepEqual(
+    manifest.files.map((file) => file.path),
+    [...hostedWindowsAccountSourcePaths],
+  );
+  for (const file of manifest.files) {
+    const original = await readFile(path.join(sourceRoot, file.path)),
+      staged = await readFile(path.join(stagedRoot, file.path));
+    assert.deepEqual(staged, original);
+    assert.equal(staged.length, file.bytes);
+    assert.equal(hash(staged), file.sha256);
+  }
+  const raw: unknown = JSON.parse(
+    await readFile(path.join(stagedRoot, "native-account-source.json"), "utf8"),
+  );
+  assert.deepEqual(raw, manifest);
+  await assert.rejects(readFile(path.join(stagedRoot, "manifest.json")), { code: "ENOENT" });
+  await assert.rejects(stageHostedWindowsAccountSource(source, stagedRoot, expected), {
+    code: "EEXIST",
+  });
+  const rejected = path.join(root, "dirty-refused");
+  await mkdir(rejected);
+  await writeFile(
+    path.join(source, hostedWindowsAccountSourcePaths[0]),
+    "changed tracked fixture bytes",
+  );
+  await assert.rejects(
+    stageHostedWindowsAccountSource(source, rejected, expected),
+    /tracked changes/u,
+  );
+  assert.deepEqual(await readdir(rejected), []);
+});
+
+void test("held Windows producer joins the exact platform artifact to an isolated application-only attester", async () => {
+  const record = (value: unknown) => {
+    assert.ok(isRecord(value));
+    return value;
+  };
+  const document = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+      "utf8",
+    ),
+    { uniqueKeys: true },
+  );
+  assert.deepEqual(document.errors, []);
+  const jobs = record(record(document.toJS()).jobs);
+  const producer = record(jobs.tool_bootstrap_windows);
+  const attester = record(jobs.tool_attest);
+  assert.equal(producer.if, "${{ needs.admission.outputs.publication_purpose == 'application' }}");
+  for (const job of [producer, attester]) {
+    assert.doesNotMatch(
+      JSON.stringify(job),
+      /secrets\.|actions\/cache@|permission-administration|release-native|windows-setup/,
+    );
+  }
+  const profile = controllerToolBootstrapProfile("windows-x86_64");
+  assert.equal(producer.name, profile.job);
+  assert.deepEqual([producer["runs-on"]], profile.labels);
+  assert.equal(producer["timeout-minutes"], 4);
+  assert.deepEqual(producer.permissions, {
+    contents: "read",
+    actions: "read",
+    "id-token": "write",
+    checks: "read",
+  });
+  assert.ok(Array.isArray(producer.steps));
+  const producerSteps: Record<string, unknown>[] = producer.steps.map(record);
+  const build = record(producerSteps.find((step) => step.id === "build"));
+  assert.equal(record(build.env).GH_TOKEN, "");
+  assert.equal(record(build.env).GITHUB_TOKEN, "");
+  assert.equal(build.run, "node scripts/release-controller-tool-bootstrap.mts build");
+  const upload = record(record(producerSteps.find((step) => step.id === "upload")).with);
+  assert.equal(
+    upload.name,
+    "trusted-controller-tools-windows-${{ github.run_id }}-${{ github.run_attempt }}",
+  );
+  assert.equal(upload.path, "${{ steps.build.outputs.tools }}/");
+  const bind = record(producerSteps.find((step) => step.id === "bind"));
+  assert.equal(bind.run, "node scripts/release-controller-tool-bootstrap.mts bind-upload");
+  assert.equal(record(bind.env).GH_TOKEN, "${{ github.token }}");
+  assert.equal(
+    record(bind.env).PORTCOVE_TOOL_ARTIFACT_ID,
+    "${{ steps.upload.outputs.artifact-id }}",
+  );
+  const diagnostics = record(record(producerSteps.at(-1)).with);
+  assert.ok(typeof diagnostics.path === "string");
+  assert.match(diagnostics.path, /~\/\.pct-\*\/ct-\*\/failure\.json/u);
+  assert.match(diagnostics.path, /controller-tools-windows-predicate\.json/u);
+  assert.deepEqual(attester.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
+  assert.ok(typeof attester.if === "string");
+  for (const [purpose, windows, linux, admission, cancelled, expected] of [
+    ["application", "success", "success", "success", false, true],
+    ["application", "success", "success", "success", true, false],
+    ["application", "failure", "success", "success", false, false],
+    ["application", "skipped", "success", "success", false, false],
+    ["application", "success", "failure", "success", false, false],
+    ["application", "success", "success", "failure", false, false],
+    ["catalog-publication", "skipped", "success", "success", false, true],
+    ["catalog-publication", "success", "success", "success", false, false],
+    ["catalog-publication", "skipped", "failure", "success", false, false],
+    ["unknown", "success", "success", "success", false, false],
+  ] as const) {
+    assert.equal(
+      runInNewContext(attester.if.slice(3, -2), {
+        always: () => true,
+        cancelled: () => cancelled,
+        needs: {
+          admission: { result: admission, outputs: { publication_purpose: purpose } },
+          tool_bootstrap: { result: linux },
+          tool_bootstrap_windows: { result: windows },
+        },
+      }),
+      expected,
+      `${purpose}/${windows}/${linux}/${admission}`,
+    );
+  }
+  assert.equal(attester["timeout-minutes"], 2);
+  assert.deepEqual(attester.permissions, {
+    contents: "read",
+    "id-token": "write",
+    attestations: "write",
+  });
+  assert.doesNotMatch(JSON.stringify(attester), /pnpm|cargo|checkout@/);
+  assert.ok(Array.isArray(attester.steps));
+  const attesterSteps: Record<string, unknown>[] = attester.steps.map(record);
+  const predicate = record(
+    attesterSteps.find(
+      (step) =>
+        isRecord(step.env) &&
+        step.env.PORTCOVE_PREDICATE === "${{ needs.tool_bootstrap_windows.outputs.predicate }}",
+    ),
+  );
+  assert.equal(
+    record(predicate.env).PORTCOVE_PREDICATE,
+    "${{ needs.tool_bootstrap_windows.outputs.predicate }}",
+  );
+  const attest = record(record(attesterSteps.find((step) => step.id === "attest_windows")).with);
+  assert.equal(attest["subject-name"], "controller-tools-windows-manifest");
+  assert.equal(attest["predicate-type"], windowsControllerToolPredicateType);
+  assert.equal(
+    attest["subject-digest"],
+    "${{ format('sha256:{0}', needs.tool_bootstrap_windows.outputs.manifest_sha256) }}",
+  );
+  const bundle = record(record(attesterSteps.find((step) => step.id === "bundle_windows")).with);
+  assert.equal(
+    bundle.name,
+    "trusted-controller-tools-windows-attestation-${{ github.run_id }}-${{ github.run_attempt }}",
+  );
+  assert.equal(bundle.path, "${{ runner.temp }}/controller-tools-windows-attestation.json");
+  assert.match(JSON.stringify(attesterSteps), /controller-tools-windows-attestation\.json/u);
+  assert.equal(jobs.native_windows, undefined);
+  assert.equal(jobs.tool_attest_windows, undefined);
+  assert.equal(
+    record(attester.outputs).windows_bundle_artifact_id,
+    "${{ steps.bundle_windows.outputs.artifact-id }}",
+  );
+  assert.equal(
+    record(attester.outputs).bundle_artifact_id,
+    "${{ steps.bundle.outputs.artifact-id }}",
+  );
+  for (const step of attesterSteps.filter(
+    (step) =>
+      JSON.stringify(step).includes("controller-tools-windows") || step.id === "bundle_windows",
+  )) {
+    assert.ok(typeof step.if === "string");
+    assert.equal(
+      runInNewContext(step.if.slice(3, -2), {
+        always: () => true,
+        cancelled: () => false,
+        needs: { admission: { outputs: { publication_purpose: "catalog-publication" } } },
+      }),
+      false,
+    );
+  }
+  const { hostedWindowsAccountQualificationEnabled } =
+    await import("./qualify-controller-tools-windows.mts");
+  assert.equal(hostedWindowsAccountQualificationEnabled, false);
+  const source = await readFile(
+    new URL("./qualify-controller-tools-windows.mts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /export const hostedWindowsAccountQualificationEnabled = false;/u);
+  const gated = source.slice(
+    source.indexOf("if (hostedWindowsAccountQualificationEnabled) {"),
+    source.indexOf('phase = "actual-Windows-build"'),
+  );
+  assert.match(gated, /readProcessIdentity\(process\.pid\)/u);
+  assert.match(gated, /accountStatus = await runResourceCommand\(/u);
+  assert.match(gated, /status: "not_requested"/u);
+  assert.equal(
+    source.split('path.join(primitiveTools, "scripts/release-hosted-native-windows-setup.ps1")')
+      .length,
+    2,
+  );
+});
+
+async function windowsRuntimeInputFixture(t: test.TestContext) {
+  const { prepareHostedWindowsFixtureRuntime, joinHostedWindowsFixtureRuntime } =
+    await import("./qualify-controller-tools-windows.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "windows-runtime-source-join-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const floor = path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+    filename = path.join(root, "work/hosted-continuity-evidence/windows-runtime.json");
+  await mkdir(path.dirname(floor), { recursive: true });
+  await mkdir(path.dirname(filename), { recursive: true });
+  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/src/runtime_support.rs"), floor);
+  const git = (args: string[]) =>
+    execFileSync(
+      "git",
+      [
+        "-C",
+        root,
+        "-c",
+        "core.hooksPath=",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.autocrlf=false",
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        ...args,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    ).trim();
+  git(["init", "--quiet"]);
+  git(["add", "apps"]);
+  git(["commit", "--quiet", "-m", "fixed runtime floor"]);
+  const expected = { commit: git(["rev-parse", "HEAD"]), tree: git(["rev-parse", "HEAD^{tree}"]) };
+  const environment = {
+    FIXTURE_SOURCE_SHA: expected.commit,
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/pull/123/merge",
+    GITHUB_EVENT_NAME: "pull_request",
+    GITHUB_JOB: "windows-tools",
+    GITHUB_RUN_ID: "123456",
+    GITHUB_RUN_ATTEMPT: "1",
+  };
+  const receipt = (installed = false) => {
+    const names = installed
+      ? [
+          "entry",
+          "initial-runtime-readback",
+          "download-starting",
+          "download-disposed",
+          "signature-hash-verified",
+          "installer-starting",
+          "installer-process-disposed",
+          "post-install-runtime-readback",
+          "terminal-receipt-ready",
+        ]
+      : [
+          "entry",
+          "initial-runtime-readback",
+          "existing-runtime-eligible",
+          "terminal-receipt-ready",
+        ];
+    return {
+      source: expected.commit,
+      workflow: environment.GITHUB_WORKFLOW_REF,
+      run_id: environment.GITHUB_RUN_ID,
+      attempt: environment.GITHUB_RUN_ATTEMPT,
+      minimum: "155.0.4283.62",
+      before: installed ? ["131.0.2903.86"] : ["156.0.4314.50"],
+      after: ["156.0.4314.50"],
+      stage: installed ? "ready-installed" : "ready-existing",
+      installed,
+      automatic_retry: false,
+      scope: "hosted runtime prerequisite only; not native acceptance",
+      ...(installed
+        ? { exit_code: 0, installer_sha256: "a".repeat(64), signer_thumbprint: "A".repeat(40) }
+        : {}),
+      runtime_preparation_observation: {
+        scope:
+          "reviewed diagnostic after workflow gate through terminal readback/disposal; cold setup and final receipt write excluded",
+        elapsed_milliseconds: names.length - 1,
+        phases: names.map((phase, index) => ({ phase, elapsed_milliseconds: index })),
+      },
+    };
+  };
+  const write = async (value: unknown) => {
+    const bytes = Buffer.from(JSON.stringify(value));
+    await writeFile(filename, bytes);
+    return bytes;
+  };
+  return {
+    root,
+    floor,
+    filename,
+    expected,
+    environment,
+    receipt,
+    write,
+    prepare: () => prepareHostedWindowsFixtureRuntime(root, expected, environment),
+    join: joinHostedWindowsFixtureRuntime,
+  };
+}
+
+void test("Windows tool qualification binds successful runtime observations before build and joins the original driver version", async (t) => {
+  const f = await windowsRuntimeInputFixture(t);
+  for (const mode of [
+    "existing",
+    "exact-floor",
+    "installed",
+    "absent-before",
+    "unrecognized-before",
+    "main-push",
+  ]) {
+    if (mode === "main-push") {
+      f.environment.GITHUB_EVENT_NAME = "push";
+      f.environment.GITHUB_WORKFLOW_REF =
+        "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/main";
+    }
+    const raw = f.receipt(["installed", "absent-before", "unrecognized-before"].includes(mode));
+    if (mode === "exact-floor") raw.before = raw.after = [raw.minimum];
+    if (mode === "absent-before") raw.before = [];
+    if (mode === "unrecognized-before") raw.before = ["unknown"];
+    Object.assign(raw, { unrelated: "inert input must not enter the public report" });
+    const bytes = await f.write(raw),
+      runtime = await f.prepare();
+    assert.equal(runtime.version, raw.after[0]);
+    assert.equal(runtime.minimum, raw.minimum);
+    assert.deepEqual(runtime.report.input, {
+      path: "work/hosted-continuity-evidence/windows-runtime.json",
+      bytes: bytes.length,
+      sha256: hash(bytes),
+    });
+    assert.equal(runtime.report.authority, "none");
+    assert.ok(!JSON.stringify(runtime.report).includes("inert input must not enter"));
+    const joined = await f.join(runtime, raw.after[0]!);
+    assert.equal(joined.runtime_version, joined.driver_version);
+    assert.equal(joined.authority, "none");
+    await assert.rejects(
+      f.join(runtime, "155.0.4283.62" === raw.after[0] ? "156.0.4314.50" : "155.0.4283.62"),
+      /driver differs/u,
+    );
+    await runtime.recheck();
+  }
+  const source = await readFile(
+    new URL("./qualify-controller-tools-windows.mts", import.meta.url),
+    "utf8",
+  );
+  assert.ok(
+    source.indexOf("const runtime = await prepareHostedWindowsFixtureRuntime(source, expected)") <
+      source.indexOf('phase = "source-only-Windows-account-primitives"'),
+  );
+  assert.ok(
+    source.indexOf("const runtime = await prepareHostedWindowsFixtureRuntime(source, expected)") <
+      source.indexOf("await buildControllerTools(source, buildParent, expected)"),
+  );
+  assert.match(source, /await joinHostedWindowsFixtureRuntime\(runtime, edgeFacts\.version\)/u);
+});
+
+void test("Windows fixture runtime rejects stale, failed, malformed and incomplete observations without building", async (t) => {
+  const f = await windowsRuntimeInputFixture(t);
+  const controls: [string, (raw: ReturnType<typeof f.receipt>) => void][] = [
+    [
+      "source",
+      (r) => {
+        r.source = "a".repeat(40);
+      },
+    ],
+    [
+      "run",
+      (r) => {
+        r.run_id = "999";
+      },
+    ],
+    [
+      "attempt",
+      (r) => {
+        r.attempt = "2";
+      },
+    ],
+    [
+      "workflow",
+      (r) => {
+        r.workflow =
+          "boburning/portcove/.github/workflows/hosted-runtime-readiness.yml@refs/heads/main";
+      },
+    ],
+    [
+      "floor",
+      (r) => {
+        r.minimum = "154.0.0.0";
+      },
+    ],
+    [
+      "below-floor",
+      (r) => {
+        r.after = ["155.0.4283.61"];
+      },
+    ],
+    [
+      "preview",
+      (r) => {
+        r.after = ["156.0.4314.50-beta"];
+      },
+    ],
+    [
+      "oversized-component",
+      (r) => {
+        r.after = ["4294967296.0.0.0"];
+      },
+    ],
+    [
+      "missing-runtime",
+      (r) => {
+        r.after = [];
+      },
+    ],
+    [
+      "conflicting-runtime",
+      (r) => {
+        r.after.push("155.0.4283.62");
+      },
+    ],
+    [
+      "existing-different-before",
+      (r) => {
+        r.before = ["155.0.4283.62"];
+      },
+    ],
+    [
+      "conflicting-before",
+      (r) => {
+        r.before.push("155.0.4283.62");
+      },
+    ],
+    [
+      "existing-installed",
+      (r) => {
+        r.installed = true;
+      },
+    ],
+    [
+      "stage",
+      (r) => {
+        r.stage = "installer-admitted";
+      },
+    ],
+    [
+      "failure",
+      (r) => {
+        Object.assign(r, { failure: "retained failure" });
+      },
+    ],
+    [
+      "retry",
+      (r) => {
+        r.automatic_retry = true;
+      },
+    ],
+    [
+      "negative-phase",
+      (r) => {
+        r.runtime_preparation_observation.phases[0]!.elapsed_milliseconds = -1;
+      },
+    ],
+    [
+      "phase-order",
+      (r) => {
+        r.runtime_preparation_observation.phases.reverse();
+      },
+    ],
+    [
+      "missing-phase",
+      (r) => {
+        r.runtime_preparation_observation.phases.pop();
+      },
+    ],
+    [
+      "terminal-clock",
+      (r) => {
+        r.runtime_preparation_observation.elapsed_milliseconds++;
+      },
+    ],
+  ];
+  for (const [name, mutate] of controls) {
+    const raw = f.receipt();
+    mutate(raw);
+    await f.write(raw);
+    await assert.rejects(f.prepare(), Error, name);
+  }
+  for (const [name, mutate] of [
+    [
+      "installer-exit",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.exit_code = 1;
+      },
+    ],
+    [
+      "installer-unconfirmed",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.installed = false;
+      },
+    ],
+    [
+      "missing-signature",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.signer_thumbprint = "";
+      },
+    ],
+    [
+      "eligible-before-install",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.before = ["156.0.4314.50"];
+      },
+    ],
+  ] as const) {
+    const raw = f.receipt(true);
+    mutate(raw);
+    await f.write(raw);
+    await assert.rejects(f.prepare(), Error, name);
+  }
+  for (const [key, value] of [
+    ["GITHUB_JOB", "native_windows"],
+    ["GITHUB_EVENT_NAME", "workflow_dispatch"],
+    [
+      "GITHUB_WORKFLOW_REF",
+      "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/feature/534-inert",
+    ],
+  ] as const) {
+    const before = f.environment[key];
+    f.environment[key] = value;
+    await f.write(f.receipt());
+    await assert.rejects(f.prepare());
+    f.environment[key] = before;
+  }
+  f.environment.GITHUB_EVENT_NAME = "push";
+  f.environment.GITHUB_WORKFLOW_REF =
+    "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/feature/534-inert";
+  await f.write(f.receipt());
+  await assert.rejects(f.prepare());
+  f.environment.GITHUB_EVENT_NAME = "pull_request";
+  f.environment.GITHUB_WORKFLOW_REF =
+    "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/pull/123/merge";
+  await writeFile(f.filename, "x".repeat(65537));
+  await assert.rejects(f.prepare(), /regular-file bound/u);
+  const { link, unlink } = await import("node:fs/promises");
+  await f.write(f.receipt());
+  const alias = path.join(f.root, "alias.json");
+  await link(f.filename, alias);
+  await assert.rejects(f.prepare());
+  await unlink(alias);
+  await unlink(f.filename);
+  await assert.rejects(f.prepare(), { code: "ENOENT" });
+});
+
+void test("Windows runtime join permanently refuses changed identity, context and tracked source after preparation", async (t) => {
+  const { rename } = await import("node:fs/promises");
+  for (const mode of ["bytes", "same-byte-replacement", "context", "floor"]) {
+    const f = await windowsRuntimeInputFixture(t),
+      bytes = await f.write(f.receipt()),
+      runtime = await f.prepare();
+    let restore: () => Promise<unknown>;
+    if (mode === "bytes") {
+      await writeFile(f.filename, "{}");
+      restore = () => writeFile(f.filename, bytes);
+    } else if (mode === "same-byte-replacement") {
+      const retained = f.filename + ".retained";
+      await rename(f.filename, retained);
+      await writeFile(f.filename, bytes);
+      restore = () => rename(retained, f.filename);
+    } else if (mode === "context") {
+      f.environment.GITHUB_RUN_ID = "999";
+      restore = async () => {
+        f.environment.GITHUB_RUN_ID = "123456";
+      };
+    } else {
+      const floor = await readFile(f.floor);
+      await writeFile(f.floor, "changed tracked source");
+      restore = () => writeFile(f.floor, floor);
+    }
+    await assert.rejects(f.join(runtime, runtime.version));
+    await restore();
+    await assert.rejects(runtime.recheck(), /stopped/u);
+  }
 });

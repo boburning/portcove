@@ -1,3 +1,4 @@
+import { validateChangedPath as normalizedPath } from "./repository-path.mts";
 import { gzipSync, gunzipSync } from "node:zlib";
 import type { NextestProof } from "./nextest-equivalence.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
@@ -182,6 +183,10 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/dependency-security.mts",
   "scripts/roadmap.mts",
   "scripts/roadmap-issue.mts",
+  "scripts/roadmap-qualification.mts",
+  "scripts/roadmap-execution.mts",
+  "scripts/roadmap-readiness.mts",
+  "scripts/runtime-values.mts",
   "scripts/audit-evidence.mts",
   "scripts/audit-archive.mts",
   "scripts/audit-reuse.mts",
@@ -193,6 +198,11 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/validation-evidence.mts",
   "scripts/checked-git.mts",
   "scripts/resource-status.mts",
+  "scripts/resource-observations.mts",
+  "scripts/resource-host-bridge.mts",
+  "scripts/resource-adoption.mts",
+  "scripts/development-scratch.mts",
+  "scripts/fixtures/portcove-scratch-mount.sh",
   "scripts/resource-capacity.mts",
   "scripts/resource-paths.mts",
   "scripts/resource-command.mts",
@@ -211,6 +221,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
   "scripts/select-ci-plan.mts",
   "scripts/validation-plan.mts",
+  "scripts/repository-path.mts",
   "scripts/workflow-provenance.mts",
 ]);
 
@@ -254,11 +265,24 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-hosted-native-launcher.mts",
   "scripts/release-hosted-native-worker.mts",
   "scripts/release-hosted-native-workflow.mts",
+  "scripts/release-hosted-native-windows-workflow.test.mts",
+  "scripts/release-routing-marker.mts",
   "scripts/release-native-presign-readiness.mts",
   "scripts/release-native-postsign-readiness.mts",
   ".github/actions/release-native-linux/action.yml",
+  ".github/actions/release-native-windows/action.yml",
   "scripts/release-hosted-native-runtime.mts",
   "scripts/release-hosted-native-installation.mts",
+  "scripts/release-hosted-native-windows-setup.ps1",
+  "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/release-hosted-native-windows-audit.cs.txt",
+  "scripts/release-hosted-native-windows-observation.mts",
+  "scripts/release-hosted-native-windows-source.mts",
+  "scripts/release-hosted-native-windows-installation.mts",
+  "scripts/release-hosted-native-windows-session.mts",
+  "scripts/release-hosted-native-windows-worker.mts",
+  "scripts/release-hosted-native-windows-worker-contract.mts",
+  "scripts/release-hosted-native-windows-capture.mts",
   "scripts/prepare-hosted-native-linux-installation.py",
   "scripts/prepare-hosted-native-linux-installation.test.py",
   "scripts/release-native-runtime-custody.mts",
@@ -302,6 +326,9 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-windows-capture.mts",
   "scripts/release-native-windows-public-continuation.mts",
   "scripts/release-native-windows-driver.ps1",
+  "scripts/native-qualification-runtime-observation.psm1",
+  "scripts/release-hosted-native-windows-owner.ps1",
+  "scripts/release-hosted-native-windows-recovery.ps1",
   "scripts/release-local-native-setup.mts",
   "scripts/release-local-worker-tasks.mts",
   "scripts/release-local-worker-accounts.ps1",
@@ -477,6 +504,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-public-build-provenance.mts",
   "scripts/release-control-handshake.mts",
   "scripts/release-controller-tool-build.mts",
+  "scripts/release-windows-webview-driver.mts",
+  "scripts/windows-webview-driver-policy.psm1",
   "scripts/release-pnpm-runtime.mts",
   "scripts/qualify-controller-tool-build.mts",
   ".github/workflows/controller-tool-build-fixture.yml",
@@ -565,6 +594,10 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/dependency-security.mts",
   "scripts/roadmap.mts",
   "scripts/roadmap-issue.mts",
+  "scripts/roadmap-qualification.mts",
+  "scripts/roadmap-execution.mts",
+  "scripts/roadmap-readiness.mts",
+  "scripts/runtime-values.mts",
   "scripts/release-coordinator.mts",
   "scripts/release-coordinator-state.mts",
   "scripts/release-coordinator-remote.mts",
@@ -614,20 +647,6 @@ function explicitPlatformOwnership(file: string) {
   if (/(?:^|[/_.-])macos(?:[/_.-]|$)|\.dmg$/u.test(file))
     platforms.push("macos-aarch64", "macos-x86_64");
   return platforms;
-}
-
-function normalizedPath(value: unknown) {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.includes("\0") ||
-    value.includes("\\") ||
-    value.startsWith("/") ||
-    value.split("/").includes("..")
-  ) {
-    throw new Error(`unsafe changed path: ${JSON.stringify(value)}`);
-  }
-  return value;
 }
 
 function add<Value>(target: Set<Value>, ...values: readonly Value[]) {
@@ -797,6 +816,7 @@ function classifyPath(file: string): PathOwnership {
     );
     match(
       file.startsWith("scripts/") ||
+        file === "apps/desktop/src/browser/failure-probe-contract.ts" ||
         file === ".fallow-tooling.json" ||
         file.startsWith(".vite-hooks/") ||
         file === "lint-staged.config.mjs" ||

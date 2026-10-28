@@ -67,7 +67,7 @@ export async function beginEmbeddedEvidence(method: string) {
   return { values: { app, output }, report };
 }
 
-async function probeOwnedListener(port: number, remaining: number, probes: StatusProbe[]) {
+export async function probeOwnedListener(port: number, remaining: number, probes: StatusProbe[]) {
   const probe: StatusProbe = { started_at: new Date().toISOString() };
   probes.push(probe);
   let response;

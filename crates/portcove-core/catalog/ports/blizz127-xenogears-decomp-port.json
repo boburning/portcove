@@ -3,12 +3,12 @@
   "listing": {
     "id": "blizz127-xenogears-decomp-port",
     "name": "Xenogears / xenogears-decomp-port (Blizz127)",
-    "summary": "Explore Xenogears / xenogears-decomp-port (Blizz127) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Explore the experimental Linux Xenogears port and prepare a permitted copy with your own USA disc.",
     "project_url": "https://github.com/Blizz127/xenogears-decomp-port",
     "issue_number": 1909,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Blizz127/xenogears-decomp-port",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Blizz127/xenogears-decomp-port/blob/33a7260a242b23079836a178943ce8b8e25325b6/README.md",
     "artwork": {
       "game_id": 1346,
       "cover_id": 556672,
@@ -16,6 +16,29 @@
       "image_sha256": "be44ec5ff1403e62e1a06b2a64b383d39ce3a1c7a164f137de4dee8b2013c2bc",
       "game_slug": "xenogears",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/Blizz127/xenogears-decomp-port/releases",
+    "original_game_title": "Xenogears",
+    "download_asset_hints": {
+      "linux-x86-64": ["xenogears-port-linux-x86_64-", ".tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the reviewed original files",
+          "instruction": "The published r5 route requires Xenogears USA SLUS-00664 Disc 1 as a 718738272-byte raw BIN plus SLUS_006.64, field.bin, menu.bin, shop_menu.bin, member_change_menu.bin and world_map.bin extracted from your own disc. An ISO is not equivalent. Follow the upstream extraction guide; no extractor is run by discovery and the runtime checks missing or different files."
+        },
+        {
+          "title": "Use the existing upstream launcher",
+          "instruction": "For an existing copy you are permitted to use, run xenogears.sh with the prepared data folder on the first start; it remembers the folder. Keep its lib directory and OS launcher because the wrapper supplies the library environment. Preserve ~/.config/xenogears-port and ~/.local/share/xenogears-port (or the selected XDG locations), including cards and quick checkpoints. Portcove does not register the shell script, adopt files or replace this runtime."
+        }
+      ],
+      "warnings": [
+        "The published r5 binary expressly includes about 6.6 KB of transcribed retail tables and upstream contributor code outside the project MIT grant. A statement about future v0.6.0 source is not a repaired released package.",
+        "This preview has known on-foot battle crashes and an unfinished route beyond map 15. Runtime replacement, external backup and checkpoint compatibility remain with you/upstream; no native gameplay or real-save acceptance is established."
+      ],
+      "help_url": "https://github.com/Blizz127/xenogears-decomp-port/blob/33a7260a242b23079836a178943ce8b8e25325b6/README.md"
+    },
+    "download_block_reason": "Published r5 includes transcribed retail tables and code from an upstream decompilation with no published license; its parent MIT grant excludes that work. Resolve permission for the affected package scope or supply a reviewed released replacement that removes it. Future-source fixes do not establish a repaired downloadable artifact. Permitted existing copies remain external."
   }
 }

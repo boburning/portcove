@@ -17,6 +17,7 @@ import {
   acknowledgeControllerTransport,
   inspectControllerTransportEvent,
   inspectControllerKeyProcess,
+  observeLinuxControllerProcessStart,
   startControllerKeyClient,
   finishControllerKeyClient,
   normalizeControllerAttestationBundle,
@@ -692,3 +693,71 @@ void test("always-retained diagnostics select bounded public markers and preserv
     "inert-secret-not-for-artifacts",
   );
 });
+
+void test(
+  "owned Linux process observation treats exit during proc read as gone and preserves other failures",
+  { timeout: 15000 },
+  async () => {
+    const { spawnSync } = await import("node:child_process");
+    const url = new URL("./release-controller-transport.mts", import.meta.url).href;
+    const program = `
+    import assert from 'node:assert/strict';
+    import {mock} from 'node:test';
+    const fs=await import('node:fs');
+    const {default:ignored,...named}=fs;
+    let mode='valid', calls=0;
+    const failure=Object.assign(new Error('controlled proc read refusal'),{code:'EIO'});
+    mock.module('node:fs',{namedExports:{...named,createReadStream(file,options){
+      if(file!=='/proc/42/stat') return fs.createReadStream(file,options);
+      calls++; assert.equal(options.highWaterMark,8193);
+      return (async function*(){
+        if(mode==='malformed') {yield Buffer.from('not a process identity');return;}
+        if(mode==='overbound') {yield Buffer.alloc(8193);return;}
+        if(mode==='nonbytes') {yield 'not bytes';return;}
+        if(mode==='valid') {
+          const fields=['S',...Array.from({length:18},()=> '0'),'123'];
+          yield Buffer.from('42 (owned client) '+fields.join(' ')); return;
+        }
+        failure.code=mode; throw failure;
+      })();
+    }}});
+    const {observeLinuxControllerProcessStart:observe}=await import(${JSON.stringify(url)});
+    const platform=process.platform;
+    try {
+      Object.defineProperty(process,'platform',{value:'linux'});
+      for(mode of ['ENOENT','ESRCH','EACCES','EIO','malformed','overbound','nonbytes','valid']) {
+        if(mode==='ENOENT'||mode==='ESRCH') assert.equal(await observe(42),null);
+        else if(mode==='valid') assert.deepEqual(await observe(42),{state:'S',start_ticks:'123'});
+        else if(mode==='malformed') await assert.rejects(observe(42),/identity/);
+        else if(mode==='overbound') await assert.rejects(observe(42),/exceeds bound/);
+        else if(mode==='nonbytes') await assert.rejects(observe(42),/byte stream required/);
+        else await assert.rejects(observe(42),error=>error===failure);
+      }
+      const before=calls;
+      for(const pid of [0,-1,NaN,Infinity,1.5]) await assert.rejects(observe(pid),/owned Linux key client required/);
+      Object.defineProperty(process,'platform',{value:'darwin'});
+      await assert.rejects(observe(42),/owned Linux key client required/);
+      assert.equal(calls,before);
+    } finally { Object.defineProperty(process,'platform',{value:platform}); }
+    console.log('PASS actual imported Linux process observer and controlled filesystem refusals');
+  `;
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(
+      process.execPath,
+      ["--experimental-test-module-mocks", "--input-type=module", "--eval", program],
+      { env, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS actual imported Linux process observer/);
+    if (process.platform === "linux") {
+      const expected = inspectControllerKeyProcess(
+        await readFile(`/proc/${process.pid}/stat`, "utf8"),
+      );
+      const observed = await observeLinuxControllerProcessStart(process.pid);
+      assert.equal(observed?.start_ticks, expected.start_ticks);
+      assert.match(observed?.state ?? "", /^[A-Za-z]$/u);
+    }
+  },
+);

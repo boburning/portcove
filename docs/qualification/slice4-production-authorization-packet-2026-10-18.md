@@ -1,5 +1,21 @@
 # Slice 4 protected execution and custody decision packet
 
+**Current: owner-approved resumption; batch 2 recovery verified.** The owner approved lifting the cleanup stop for reviewed repairs and the two remaining attempts. `40337992093/1` verified exact audit-policy restoration (0→2, command4, readback0), privilege restoration, account disabling and station restoration with no cleanup failures. The first event control remained unqualified; no candidate launched. One batch slot remains for the reviewed bounded reader/query correction. Batch 1's final policy remains historically Unknown. Actual audit usefulness, GUI acceptance and final CI/merge remain pending.
+
+**Audit cleanup stop active.** The first of the owner's three additional bounded attempts (`40331645673/1`) failed its first event-control gate and reported audit-policy restoration readback failure. Final policy state is Unknown; no candidate launched. Owner privilege, account disabling and station restoration were independently verified. Two unused attempts are held; no further hosted execution is implied by local recovery repairs or review. The [audit receipt](slice4-hosted-windows-access-audit-proposal-2026-10-26.md#october-26-batch-attempt-1-cleanup-stop-recovery-preparation) preserves exact failure/artifact/CI scope and reviewed preparation.
+
+The explicitly renewed corrected attempt `40327600284/1` advanced past the event-reader preflight, then failed on audit object-name access before policy/SACL writes or candidate launch. Recovery remained positive within its retained scope; GUI acceptance is still unqualified. The owner-handle name-query repair is locally prepared with 31 Windows controls and preserves candidate permissions. All five required CI contexts passed for `9acd452e`; no further hosted attempt is currently granted or dispatched.
+
+The authorized audit attempt `40323676920/1` failed in the initial event-query preflight before policy/SACL writes or candidate launch. Exact owner privilege restoration, account disabling and station restoration were retained; no GUI acceptance followed. The finite-read handling repair is locally prepared and independently reviewed with 30 controlled Windows passes. The single authorized hosted attempt is consumed; no further audit dispatch has occurred. All five required CI contexts passed for the attempted source `def78a04`; corrected-source CI and actual acceptance remain pending.
+
+The [targeted access-audit proposal](slice4-hosted-windows-access-audit-proposal-2026-10-26.md) was fully prepared and independently reviewed while disabled. The owner then explicitly authorized one bounded ordinary hosted diagnostic using existing owner SeSecurityPrivilege, targeted full-SACL failure ACEs, Kernel Object failure auditing preserving existing success state, and bounded exact-subject Security-log reads with guarded restoration. The gate is enabled only for that reviewed hosted scope. Combined screenless qualification failed; temporary station grants are reverted to `20002/D037D`. Actual audit usefulness and GUI acceptance remain unqualified. No production or protected authority follows.
+
+The [hosted Windows GUI boundary proposal](slice4-hosted-windows-gui-proposal-2026-10-25.md) prepares a restricted non-input private desktop within existing interactive WinSta0, exact suspended-token access checks, isolated same-desktop observation and guarded ACL restoration. Following independent review of the disabled proposal, the owner explicitly authorized this restricted hosted implementation and retired the categorical never-WinSta0 prohibition. Concrete isolation/access controls remain; existing local/protected implementations are unchanged. Code/control tests do not establish actual GUI acceptance. No workstation setup or new protected/production execution is requested; all existing authority, acceptance, resource and recovery holds remain.
+
+The ordinary hosted primitive now uses the required fixed PowerShell form/HKCU/descendant process as the sole initial root of its original JobObject. Auxiliary independent whoami/winver logons are retired after their job-hierarchy effects were separately observed; their failed evidence remains retained. Existing bounded diagnostics observe the actual required root. The reviewed fixed inert qualification returns to read control/attributes only (0x20002), with screen reading, clipboard, desktop creation, input and security changes still denied; this simplification changes neither acceptance nor authority.
+
+Neither the atom-only, enumeration-only nor combined metadata/atom trial repaired startup; those permission increases are reverted. Global atoms are shared station state and can survive process exit; this profile is limited to fixed inert source/runtime on a fresh disposable hosted VM. Process teardown does not assert atom removal, and no arbitrary/protected reuse is granted. Failure-only original-thread position diagnosis uses existing creation handles, bounded temporary suspend/resume compensation and no debugger or new privilege. Neither diagnostics nor account disabling/ACL restoration establish GUI acceptance, arbitrary-candidate/protected reuse or production authority; all broader holds remain.
+
 The [Windows controller-tool bootstrap preparation](slice4-hosted-observations-2026-10-22.md#windows-controller-tool-bootstrap-preparation-october-25) adds explicit Windows build/inventory and ordinary credential-free hosted qualification. Existing Linux/default protected receivers remain closed to Windows; platform-bound producer/runtime/capture integration and actual protected resource fit remain prerequisites. This changes no protected job, resource ceiling, authority or execution grant; production stays held.
 
 The [attested Linux WebDriver preparation](slice4-hosted-observations-2026-10-22.md#attested-linux-webdriver-preparation-october25) adds the existing maintained driver pin to the closed trusted-tool build and admitted archive, with actual pinned-build/help/refusal verification before delivery. It selects no new authority, job, resource allowance or execution grant. Native runtime installation/capture composition and actual acceptance remain pending; production stays held.
@@ -1582,3 +1598,146 @@ this does not wire a protected Windows job or establish direct capture/native
 acceptance. Remaining producer/account/capture/proof joins, resource fit and final
 runnable source/digest/grant reconciliation stay pending. No new owner action is
 requested; all existing issue acceptance and production holds remain.
+
+The [hosted Windows isolated-account primitive](slice4-hosted-observations-2026-10-22.md#hosted-windows-isolated-account-primitive-preparation-october-25)
+uses the existing launcher with a generated memory-only credential on a disposable
+standard runner, avoiding workstation passwords, Credential Manager and manual
+admin steps. Diagnostic context and controlled tests cannot mint protected/native
+acceptance. Actual hosted results belong to its delivery receipt. Protected
+Windows producer/candidate/source/runtime/capture/proof joins and resource fit
+remain unfinished engineering; no production job or execution authority is added.
+All existing issue, capacity, custody, recovery and production holds remain.
+
+### Local Windows GUI execution proposal — October 26
+
+The [owner-approved inert execution boundary](slice4-windows-gui-boundary-proposal-2026-10-26.md)
+records a real Windows observer-race repair and a bounded owned-station startup
+model. Its proposed `0x20062` station grant includes global atoms and
+WINSTA_EXITWINDOWS; that capability and owner-logoff/interrupted-cleanup risk remain
+explicit. After completed preparation and independent review, the owner approved
+this fixed inert disposable-host scope and one reviewed qualification. The GUI
+gate is enabled; the consumed privileged-audit grant stays disabled. Actual hosted
+GUI acceptance is not yet established; no protected or production authority follows. All earlier failures and production,
+protected acceptance, resource and issue holds remain. No workstation setup,
+password or administrator step is requested.
+
+### Held Windows tool producer — October 26
+
+The [Windows producer preparation](slice4-hosted-observations-2026-10-22.md#held-windows-tool-producer-wiring-october-26)
+connects the existing Windows builder/receiver to an application-only build and
+separate platform subjects/bundles in the existing isolated attester. Linux
+outputs remain compatible; catalog's skipped Windows producer cannot skip the
+shared attester. Exact source/artifact/issuer bindings remain required. This is
+preparation, not a protected artifact or native acceptance. The trusted workflow
+input budget is 96 KiB with unchanged exact-digest admission. Current declared
+application/catalog alternatives are 89/40 job-minutes, hard 100 unchanged. A
+future Windows 10-minute native allocation would total 99. Shared attestation
+removes a duplicate job without shortening any timeout; actual whole-job fit
+remains unqualified, including two-subject attestation under the existing budget.
+
+Automatic dedicated-account qualification is source-disabled after its consumed
+one-shot grant. Tool fixtures retain source comparison and ordinary build/custody
+checks, explicitly marking account execution not_requested. Historical inert
+acceptance and all failures remain at their original scope. Protected Windows
+capture/report/proof/upload, client-minimum and actual producer/protected evidence,
+whole-job fit and final runnable source/resource-policy/grant reconciliation stay
+pending. D1/D2/D3, single-owner recovery, $0 stop, Unknown headroom/availability,
+no reservation/paid fallback, #254 Done, #315/#534/#246 acceptance pending,
+Chameleon protected acceptance unset, production hold and Slice 5 exclusion remain.
+
+### Windows original-parent runtime preparation — October 26
+
+The [Windows bootstrap/source/runtime join](slice4-hosted-observations-2026-10-22.md#windows-original-parent-runtime-preparation-october-26)
+prepares authenticated Windows tools, original parent and executing runtime in
+one bundle realm under the original provider deadline and actual Windows
+custody checks. Its report is preparation-only; no account, candidate, native
+settlement, signing, upload or runnable Windows job is added. Controlled peers
+cannot establish actual hosted or protected acceptance. Source/dependency and
+candidate joins, capture/report/proof/upload, actual producer/client-minimum/
+protected observations, whole-job fit and final source/digest/grant reconciliation
+remain unfinished. The inert fixture approval and disabled consumed account/audit
+grants retain their exact scope; no new manual setup is requested.
+
+## Windows source joins remain preparation only October 26
+
+The Windows source API adds one credential-free fixed-origin checkout to the
+original parent/tools/runtime capabilities. Its at-most-90-second phase preserves
+210 seconds for capture/recovery within the existing570-second bound. Public
+observations grant no capability or retry. The ordinary Windows fixture may
+observe fresh-directory/Git preparation without account/profile/audit/WinSta0/GUI
+calls. Even a positive result is source evidence only. Host Git launcher custody
+is not full helper/DLL attestation, and inventory proves no hard quota/headroom.
+See the dated hosted-observations continuation for controlled tests and failures.
+
+Dependencies, reserved candidates and capture/report/proof/upload still require
+integration. Actual original-parent/runtime execution, whole-job fit and native/
+production acceptance remain unqualified. Original inert-only approval cannot
+authorize arbitrary/protected candidates. Account/audit disables, D1/D2/D3,
+single-owner recovery, $0 stop, Unknown capacity/availability, no paid fallback/
+reservation, final source/resource-policy/grant reconciliation and protected/
+production holds remain. No owner decision is requested by this component.
+
+The first source-component CI/source-smoke failures at `ed1cab86` are retained in
+the hosted observations. The repair separates fixed OS-image custody from strict
+controller single-link custody and calibrates only a mocked cleanup harness. It
+adds no caller-selected path/relaxation option, account/GUI operation, native
+acceptance, extra source/job allowance or owner authority. Exact repaired-source
+CI and actual Windows source-only readback are still required.
+
+### October26 — bounded Windows dependencies and original reserved-candidate join
+
+Source component PR3726 merged522cf9cf0e6e872a07fc873073ae1e8a3d172cb7 from96515/treeac14 after all five exact-head CI40412073690/1 contexts and both ordinary fixtures40412073756/1 passed. Artifact12693857649 (17280bytes, SHA256572326018d0c8ea572997ea389f5ce00f6f0134717c6a0e8ccfef8faffe68b6e) verified full source readback in15204ms. Account execution stayed not_requested and dependencies false. Main advanced during merge through #3730/#3731; actual parent e6eca/tree64e4 matches computed composition. Separate AFTER-MERGE review found no material source/authority interaction; this does not transfer exact-head/native qualification to the merged tree.
+
+The next source proposal reuses one closed Windows preparation runner for source/dependencies. Source starts its90s allowance and dependency preparation its180s allocation before heavy preflight; both clip before the original210s capture/recovery reserve and inherited coordinator deadline. It never renews the570s provider/issuer clock. Minimal original dependency-parent access derives the candidate phase deadline before hashing the graph. Role, original parent/tools/runtime/source, custody and stopped-state checks remain required around awaits and issuance; serialized observations cannot mint receipts. Every attempted helper/candidate acquisition is retained without automatic retry.
+
+Dependency preparation uses attested standalone pnpm12.14.0, frozen registry-only lock resolution, authenticated workspace/patches, ignored lifecycle/pnpmfile scripts, fixed registry, isolated private configuration/store, copy imports, disabled global virtual store and zero fetch retries. A physical graph snapshot hashes each file, records junction targets and resolves complete target chains without traversing package cycles. Terminal targets must belong to that physical inventory; untracked source subtrees cannot supply unhashed dependency bytes. Bounds are100000entries,128MiB/file,2GiB total bytes and64MiB serialized records. Live inventory detects overruns; it is not a hard disk quota or headroom guarantee.
+
+The installation join retains only original dependency and reserved-candidate capabilities from the same Windows application/payload-signing parent. The existing collector owns immutable package/compiler/reservation checks. Harness/controller source pins remain independent of candidate-package source identity. No account/profile/audit/station/GUI, candidate execution, proof admission, signing or publication is performed by this preparation component. Ordinary Windows helper observations and controlled original-capability tests remain distinct from an actual original-parent/runtime/native run; whole-job fit is unqualified. Capture/report/proof/upload integration follows this component.
+
+Preserve local failed receipts. A composed runner test hit its60s enclosing child limit at workflow fixture wrong-owner (47passes/1failure/1skip across49tests). Its13 inert scenarios, assertions, per-worker30s bound and cleanup remain; the child/case harness budgets are now120/150s. The focused case completed31.2s under that budget; cause of the earlier timeout remains unknown. Static lint failures were repaired without suppressions; a queued static attempt refused changed source before execution and is inconclusive. Fresh frozen-head CI and actual Windows dependency readback remain required.
+
+All owner holds remain: original3559 inert source9a59/run40366111230 only, account execution disabled, privileged auditfalse/0, D1/D2/D3, single-owner recovery, $0 stop, Unknown availability/headroom/no reservation/paid fallback, protected/production/signing/publication/provisioning holds. #534 stays open/Blocked; #254Done; #315/#246pending; Chameleon protected_acceptance unset; Slice5 excluded. New arbitrary-candidate/WinSta0 scope requires separate owner authority after complete preparation.
+
+October26 exact-head qualification retained: sourcea7443a7a/treee633 passed all five CI40415035732/1 contexts and the ordinary Linux fixture40415035727/1. Windows fixture121895082894 failed before dependency-helper launch: the preflight incorrectly required lock-inventory document index0, while the maintained lock has two supported registry documents. Verified failed artifact12694427502 (15262bytes,SHA2561b664c7e135dbf5a29d155179f8f5953db39f2c8632c513b941618a3fb8f1de7) preserves exact source, full source readback19610ms and the refusal. The repair accepts every document only through the existing closed registry/integrity classifier; malformed/unsupported resolutions in any document remain refused. Multi-document positive/negative and maintained-repository-lock controls cover this boundary. Prior all-five success does not qualify the repaired head, and no Windows dependency/native acceptance is inferred.
+
+October26 continuation repair: source09a6/treec704 passed all five CI40416872966/1 contexts, while both ordinary fixtures40416872992/1 failed. Verified Windows artifact12695389503 (16153bytes,SHA25698ecf25035bd520450ad0e185bcd439cddd87443ec59c3ef6765b882947190aa) retains the dependency helper's fixed-directory refusal before pnpm; it does not establish a dependency graph. A current-token local PS7.6.9 comparison reproduced startup creating the requested HOME before script entry (fresh-directory error183); selecting the existing broker home allowed exclusive Directory creation with matching owner and protected inheritance. This local data-only probe created no account/profile/station/GUI/audit and is not hosted/native acceptance. Setup now uses the existing broker HOME/USERPROFILE/XDG/TEMP only for fresh-DACL creation; pnpm subsequently uses the newly protected private root. A complete controlled CLI regression asserts that transition, frozen/ignored scripts and final graph output.
+
+The same read-through exposed an original-parent contract mismatch: source preparation required the desktop-test TypeScript path, while real selected authority accepts the maintained scripts/release-native-worker.mts or legacy PowerShell harnesses. Windows source presence/blob/independent hash and ordinary qualification now use the existing nativeQualificationWorkerPath constant. Original-capability controls now construct and validate the full real selected authority before exercising the factory; unsupported legacy PS remains refused. Earlier whole-source byte observations retain their exact original scope and never established this actual original-parent join. The adjacent existing Linux inventory/installation desktop-harness literal remains an explicit actual-parent acceptance gap for subsequent reconciliation.
+
+Linux ordinary job121901297309 failed a separate synthetic late-final control (expected retained exit0, got1): its real1s phase could expire before the targeted final write. That unit now injects a monotonic clock, advances it after the actual targeted write, and retains actual sync/close before the post-write refusal check. Missing-post advances only during its wait. All eight outcomes/assertions, bounded read/output, owner identity and cleanup remain; the wire clock is finite60s under the enclosing20s child. Product clocks are unchanged. Focused feedback completes0.64s. Failed logs, artifact and the first local comparison-script parser failure remain retained; no failure is replaced by a successful expectation or native claim. Fresh frozen-head CI and ordinary Windows dependency evidence remain required.
+
+October26 bounded-read performance repair: source6b2dc7d5/tree28cc passed all five CI40419142705/1 contexts and ordinary Linux fixture40419142724/1. Windows121908880510 failed with original native file-read deadline exhaustion; verified artifact12696807222 (15602bytes,SHA256381641f9a4c60eac276bc0b8d08f7a886ce53f588dfcec9ff0c906d44c4477d5) retains that refusal. The original record lacks a per-phase trace, so its exact read subphase remains Unknown. No completed Windows dependency graph or actual-parent acceptance is inferred.
+
+Snapshot hashing now reuses its complete physical-directory journal instead of repeating the generic full lstat/realpath ancestry walk for every package file. Per-file regular/single-link/size checks,64KiB reads, original deadline/role callbacks and before/handle/after-path BigInt identity checks remain. Every physical directory/record is rechecked before completion; added source-root identity/canonical-path checks and controlled ancestor/root replacement tests refuse redirection even when the file inode is unchanged. Link terminals still belong to the physical inventory, and aggregate bounds are checked before hashing. Source/dependency phases remain90s, capture/recovery reserve210s and original clock570s. Bounded phase/elapsed observations now survive helper success/failure without becoming authority or renewing clocks.
+
+A current-token inert Windows1000-file comparison retained identical1000digests: generic file reader2302ms, complete physical-graph snapshot575ms. This measures the local filesystem model only, not hosted whole-graph or whole-job fit. The first local mutation control attempted rename after opening a file and Windows correctly denied that operation; the race control now replaces the ancestor before open, preserving the original inode to exercise final ancestry refusal. Prior local transport/module-resolution and mutation-control failures stay retained. Fresh exact-head CI and actual Windows dependency evidence remain required; no deadline, execution grant or acceptance predicate is relaxed.
+
+October26 fixed workspace-link repair: source851dfb99/treea01a passed all five CI40421945470/1 contexts and ordinary Linux fixture40421945532/1. Windows121918257512 refused an out-of-inventory target; verified artifact12698895545 (15974bytes,SHA2560cdffbe94fa3635ba154c2aa3d448964a6cb45d3331544aaf39a3b6f2633a55d) retains phase observations: frozen install completed at46035ms, snapshot entered at46212ms. This is the first retained phase trace; it does not identify the earlier untraced deadline's subphase. A separate read-only maintained local graph observation found pnpm's `node_modules/.pnpm/node_modules/portcove-desktop-ui` link to `apps/desktop`, outside the two dependency roots. That local observation alone does not identify the hosted offending path. The local full-snapshot probe refused existing hardlinked installation files, as required; it supplies no graph qualification.
+
+The physical walk now covers the fixed `apps/desktop` workspace and root `node_modules`, including both module trees and every physical workspace leaf, under the existing aggregate bounds. Original source custody still independently verifies tracked source bytes. Separate review blocked a directory-only exception because untracked nested workspace files would remain unhashed; that proposal was replaced by the complete walk. A regression changes an existing untracked nested file while the workspace-root metadata remains unchanged and requires a changed graph digest. Other source subtrees, source-root links, escaping/cyclic chains and hardlinked files remain refused. Refusals now retain the exact relative link and resolved target. A focused positive fixture covers the maintained workspace shape alongside unchanged untracked-target refusals. This repairs a closed source/dependency join, not an arbitrary workspace allowlist. Fresh exact-head hosted evidence remains required. Account, audit, clocks and production/native acceptance holds remain unchanged.
+
+October27 dependency allocation repair: sourcebc3c1df9/tree11a3 passed all five CI40424113350/1 contexts. Ordinary tools40424113360/1 Windows expired during preparation after frozen install57889ms/snapshot58060ms; verified artifact12698219423 (15961bytes,SHA2564761c414fb5be2192fbf5cac4bcbf06e87bdb0d4142275d59c7c10f8ff2cfdaa) retains the failure. No completed graph is inferred.
+
+The unmerged component's dependency preparation allocation is now180s, consistently in its original-parent runner, dependency CLI ceiling and ordinary fixture/elapsed observations. Source and candidate allocations remain90s. The dependency phase still begins before heavy preflight and selects the minimum of entry+180s, original parent minus210s capture/recovery reserve and inherited coordinator allowance. The owner-bound original570s deadline, network timeouts, zero retries, graph/storage bounds and all execution/acceptance holds are unchanged. This is an internal implementation allocation, not a test-harness or protected behavioral deadline extension. Nominal90+180+90+210=570 does not include bootstrap/readback overhead; that overhead still clips later phases and may refuse. No whole-job fit is claimed. Controlled source/dependency entry, parent-reserve and inherited-deadline cases preserve clipping and late-preflight refusal; the CLI admits a120s plan and rejects190s before helper effects. Fresh exact-head hosted graph and independent readback remain required.
+
+### October27 UTC — hosted Windows capture/report foundations
+
+Dependency component PR3733 merged `d7a9315eca6a0b2cdaed12753022f87f4677296f` from3025d5d15/tree269e after all five exact-head CI40425974132/1 contexts and both ordinary tools40425974194/1 passed. Actual parentaa5f5cd5 and merge treef26170db match the separately reviewed/computed composition. Verified Windows artifact12699842447 (22438bytes,SHA2563248f997a072d0205199edc88eb7f419cb0e6f132fb479a49e3097b89306b14b) retains24738physical entries/446334685bytes: frozen install48763ms, helper complete77912ms, independent graph/source/custody readback108973ms<180s. Eleven graph controls passed/0skips; account execution stayednot_requested. This ordinary observation establishes neither original protected-parent/runtime nor native/production or whole-job fit.
+
+The next source component supplies strict observed Windows host data and pure pre/post-sign report reconstruction for the fixed hosted profile. Server2022 requires producttype3/build20348/display21H2; client26H2 requires producttype1/build26200-or-newer, the selected numeric client floor and matching version/build. A Server continuity result retains the client-floor obligation separately. Nonce, machine digest, canonical bounded local broker SID, architecture, observed engine/account/runtime and original selected source declarations must join. These pure functions return data only; imported observations cannot enter an actual capture/report capability map. Existing installed-worker/client reconstruction remains separate.
+
+The shared account bridge gains a held, in-process memory context for the next original owner: a read-only SecureString, original typed group/configuration, owner PID/creation FILETIME, helper hash, desktop name and absolute QPC deadline/frequency. Its shipping PowerShell entry and the distinct C# candidate launcher are independently source-disabled before effects. The consumed ordinary inert launcher and its fixed workflow/account boundary remain unchanged. JSON/configuration cannot switch either hold. The existing bound CurrentUserOnly pipe framing, exact invocation/sequence/command shapes, image-hash/owned-root identities and single finish remain. Hosted observation uses the existing desktop observer and requires its drain at finish. The owner retains credential/group disposal; the bridge disposes only its own pipe/root resources. Legacy credential lookup and its original1800s boundary remain on the installed branch.
+
+Separate early review found that rereading a mutable context deadline could renew the checked clock. The bridge now clones the context and retains private validated deadline, desktop and credential bindings; commands use only the original scalar deadline, never a later Hashtable value. An owned-copy control advances a controlled clock past the original deadline while extending the external context and requires failure. Another owned-copy control settles only an empty current-token job and proves the bridge leaves owner credential/group resources intact. Only the disposable PowerShell bridge copy enables that loop; the real candidate launcher remains source-false, with no account, logon, profile, station, desktop, GUI or credential-store operation. Compile/held-before-effects controls remain distinct from actual candidate acceptance.
+
+Windows public proof retention uses a separate exclusive data store; Linux registration/checkpoint/proof storage is unchanged. A fresh local-drive directory must inherit the fixed broker/system custody boundary; permissive ancestry/files refuse rather than being repaired or adopted. The store retains an exclusive creation record, refuses aliases/links/Windows device names and pins every written file and its ancestry. It uses Node's O_SYNC/write-through plus file sync ([libuv contract](https://docs.libuv.org/en/v1.x/fs.html#file-access-constants), [NTFS metadata contract](https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-createfilew)). This is an OS durability request, not a physical crash/recovery observation. Limits include16files (creation record included),384KiB ordinary bytes plus the fixed128KiB-and-newline capture allowance. Any refusal permanently stops the store, including concurrent calls and their in-flight result; partial public files remain and are never overwritten. No credential, issuer request, proof admission or upload occurs here.
+
+Local feedback retains the permissive-temp custody refusal, a test-only Set-Acl privilege refusal (no privilege was enabled), UNC execution-policy refusal (no policy was changed), source-template parse/type errors and the first clock assertion's missing error-stream distinction. Fixtures now create only fresh private/foreign-writable test directories with the existing atomic primitive, execute held source as an in-memory test block where appropriate, and inspect both terminating and stream errors plus retained failure state. These repairs grant no protected authority.
+
+This component does not yet connect the original Windows owner/session, actual capture/report private provenance, signer or upload producer. Continue those joins, selected-worker execution, full-tool custody and whole-job fit before final prerequisite/exact-grant reconciliation. All D1/D2/D3, single-owner recovery, account-wide$0stop, Unknown availability/headroom/no reservation/paid fallback, consumed account qualification, privileged auditfalse/0slots and production/signing/publication/issuer-provisioning/protected-execution holds remain. #534 stays open/Blocked;#254Done;#315/#246pending;Chameleonprotected_acceptanceunset;Slice5excluded. Independent preparation requires no new owner action.
+
+The complete Windows helper family now has an unfiltered Windows CI owner and explicit Linux platform-skip records; the Windows proof-store family has the same ownership separation. The first local unfiltered run passed13/14 and exposed an older inert job fixture calling internal Assign without the required BeginLaunch inspection setup. The fixture now follows that existing lifecycle; no product admission/assertion was removed. Strict local reporting also rejected a nonexistent focused proof test reference that Node had silently omitted; selection/mapping now name the actual release-hosted-native-proof.test.mts family. Those failed receipts remain retained; incomplete focused runs provide no missing-family qualification.
+
+### October 27 resource interpretation and measurement follow-up
+
+The current 100 job-minute figure is a repository policy envelope, not GitHub's public-standard-runner billing quota or a live account-wide usage meter. Current declared application89/catalog40 alternatives and the planned Windows addition retain their exact held scope. See the [resource observation ledger](slice4-release-resource-observations-2026-10-27.md) for job-by-job accounting, component timings, historical failure receipts and explicitly provisional calibration. No new resource/workflow digest, deadline, spending setting or protected execution scope is ratified by that analysis; the exact final proposal still requires its existing owner review and authorization.

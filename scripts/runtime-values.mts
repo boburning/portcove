@@ -10,3 +10,7 @@ export function errorCode(value: unknown): string | undefined {
 export function errorMessage(value: unknown): string {
   return isRecord(value) && typeof value.message === "string" ? value.message : String(value);
 }
+
+export function recordField(value: unknown, name: string): unknown {
+  return isRecord(value) ? value[name] : undefined;
+}

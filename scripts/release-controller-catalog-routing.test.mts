@@ -13,21 +13,15 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { createHash, randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
-import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { parseDocument } from "yaml";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { prepareFixedControllerConfiguration } from "./release-controller-configuration.mts";
-import {
-  fixedControllerConfigurationSource,
-  requireFixedControllerConfigurationSource,
-} from "./release-authority-configuration-contract.mts";
+import { fixedControllerConfigurationSource } from "./release-authority-configuration-contract.mts";
 import { projectFixedControllerJobOutputs } from "./release-controller-job-output.mts";
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import {
@@ -40,8 +34,11 @@ import {
   requireCatalogMaintenancePolicy,
   requireReleaseInputWriterPolicy,
   observeCatalogMaintenanceProtections,
+  catalogProtectionEnvironments,
 } from "./release-input-protections.mts";
-import { slice4CapacityResources } from "./release-capacity.mts";
+import { catalogEnvironmentFixture } from "./fixtures/release-live-control-fixture.mts";
+import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
+import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function fixture() {
   const fixed = {
@@ -289,7 +286,9 @@ void test("automatic purpose fairness is fixed-data routing, with exact shared n
   assert.throws(() => inspectControllerWakeChoices(null, null));
   assert.throws(() => selectControllerWakePurpose(choices, NaN));
 });
-void test("catalog maintenance authenticates pause/capacity only and refuses application observation interchange", () => {
+void test("catalog maintenance authenticates pause and exact catalog environments without application prerequisites", () => {
+  const controllerRef = "refs/tags/portcove-production-controller-test";
+  const environments = catalogEnvironmentFixture(controllerRef);
   const branch = "portcove-release-pause";
   const rule = (id: number, types: string[], actors: unknown[]) => ({
     id,
@@ -319,39 +318,177 @@ void test("catalog maintenance authenticates pause/capacity only and refuses app
         body = { ref: `refs/heads/${branch}`, object: { type: "commit", sha: "a".repeat(40) } };
       } else if (endpoint.includes("/rules/branches/"))
         body = rules.flatMap((r) => r.rules.map((value) => ({ ...value, ruleset_id: r.id })));
-      else throw new Error("unexpected path " + endpoint);
+      else if (endpoint.includes("/environments/")) {
+        const name = endpoint.split("/environments/")[1]!.split("/")[0]!;
+        const row = environments.find((row) => row.name === name);
+        assert.ok(row);
+        body = endpoint.includes("/deployment-branch-policies?")
+          ? { total_count: row.policies.length, branch_policies: row.policies }
+          : row.environment;
+      } else throw new Error("unexpected path " + endpoint);
       return { status: 200, headers: new Map<string, string>(), body };
     },
   };
   const observation = observeCatalogMaintenanceProtections(api);
   assert.equal(observation.coverage, "current-repository-catalog-maintenance-only");
   assert.equal(observation.inventory.branches.length, 1);
-  requireCatalogMaintenancePolicy(observation);
+  requireCatalogMaintenancePolicy(observation, controllerRef);
   assert.ok(paths.every((path) => !path.includes("portcove-release-inputs")));
   assert.throws(() => requireReleaseInputWriterPolicy(observation, 202));
   assert.throws(() =>
-    requireCatalogMaintenancePolicy({
-      ...observation,
-      coverage: "current-repository-input-branches-only",
-    }),
+    requireCatalogMaintenancePolicy(
+      {
+        ...observation,
+        coverage: "current-repository-input-branches-only",
+      },
+      controllerRef,
+    ),
   );
   assert.throws(() =>
-    requireCatalogMaintenancePolicy({
-      ...observation,
-      observed_at: new Date(Date.now() - 60001).toISOString(),
-    }),
+    requireCatalogMaintenancePolicy(
+      {
+        ...observation,
+        observed_at: new Date(Date.now() - 60001).toISOString(),
+      },
+      controllerRef,
+    ),
   );
+  assert.deepEqual(catalogProtectionEnvironments, [
+    "github-pages",
+    "production-catalog-definitions",
+    "production-catalog-policy",
+    "production-catalog-snapshot",
+    "production-catalog-timestamp",
+    "production-release-coordinator",
+    "production-release-protection-observer",
+  ]);
+  for (const mutate of [
+    (row: (typeof environments)[number]) => {
+      row.environment.can_admins_bypass = true;
+    },
+    (row: (typeof environments)[number]) => {
+      row.environment.protection_rules.push({ id: 99, type: "required_reviewers" });
+    },
+    (row: (typeof environments)[number]) => {
+      row.environment.deployment_branch_policy.custom_branch_policies = false;
+    },
+    (row: (typeof environments)[number]) => {
+      row.policies[0]!.name = "portcove-production-controller-*";
+    },
+    (row: (typeof environments)[number]) => {
+      row.policies[0]!.type = "branch";
+    },
+    (row: (typeof environments)[number]) => {
+      row.policies.push({ id: 88, name: "main", type: "branch" });
+    },
+  ]) {
+    // Rebuild through the real collector so the canonical inventory digest is
+    // valid and refusal comes from policy interpretation, not a stale hash.
+    const prior = structuredClone(environments[0]!);
+    mutate(environments[0]!);
+    const drifted = observeCatalogMaintenanceProtections(api);
+    assert.throws(() => requireCatalogMaintenancePolicy(drifted, controllerRef));
+    environments[0] = prior;
+  }
+  assert.throws(() =>
+    requireCatalogMaintenancePolicy(observation, "refs/tags/portcove-production-controller-other"),
+  );
+  for (const mutate of [
+    (rows: NonNullable<typeof observation.inventory.environments>) => {
+      rows.pop();
+    },
+    (rows: NonNullable<typeof observation.inventory.environments>) => {
+      delete rows[0]!.environment.can_admins_bypass;
+    },
+    (rows: NonNullable<typeof observation.inventory.environments>) => {
+      rows[1]!.environment.id = rows[0]!.environment.id;
+    },
+    (rows: NonNullable<typeof observation.inventory.environments>) => {
+      rows[0]!.name = "production-release-admission";
+    },
+  ]) {
+    const changed = structuredClone(observation);
+    assert.ok(changed.inventory.environments);
+    mutate(changed.inventory.environments);
+    changed.inventory_sha256 = capacityDigest(changed.inventory);
+    assert.throws(() => requireCatalogMaintenancePolicy(changed, controllerRef));
+  }
+  for (const fault of ["short-total", "duplicate-pages", "nonterminal-pages"] as const) {
+    const faultyApi = {
+      request(method: string, endpoint: string) {
+        const result = api.request(method, endpoint);
+        if (!endpoint.includes("/deployment-branch-policies?")) return result;
+        const page = Number(new URL(`https://api.github.com/${endpoint}`).searchParams.get("page"));
+        const entries = Array.from({ length: 100 }, (_, index) => ({
+          id: index + 1,
+          name: `tag-${index}`,
+          type: "tag",
+        }));
+        return {
+          ...result,
+          body:
+            fault === "short-total"
+              ? { total_count: 2, branch_policies: environments[0]!.policies }
+              : {
+                  total_count: fault === "duplicate-pages" ? 200 : 800,
+                  branch_policies: fault === "duplicate-pages" && page > 2 ? [] : entries,
+                },
+        };
+      },
+    };
+    assert.throws(() => observeCatalogMaintenanceProtections(faultyApi), /inventory/);
+  }
+  let firstEnvironmentReads = 0;
+  const driftingApi = {
+    request(method: string, endpoint: string) {
+      if (
+        endpoint === "repos/boburning/portcove/environments/github-pages" &&
+        ++firstEnvironmentReads === 2
+      ) {
+        environments[0]!.environment.can_admins_bypass = true;
+      }
+      return api.request(method, endpoint);
+    },
+  };
+  assert.throws(
+    () => observeCatalogMaintenanceProtections(driftingApi),
+    /changed during observation/,
+  );
+  environments[0]!.environment.can_admins_bypass = false;
 });
 void test("installed two-purpose workflow remains mutually exclusive under unchanged source and job ceilings", async () => {
   const bytes = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
   );
-  assert.ok(bytes.length <= 65536);
+  assert.ok(bytes.length <= maximumProductionControllerWorkflowBytes);
   const parsed = parseDocument(bytes.toString(), { uniqueKeys: true });
   assert.deepEqual(parsed.errors, []);
   const doc: unknown = parsed.toJS();
   assert.ok(isRecord(doc) && isRecord(doc.jobs));
   const jobs = doc.jobs;
+  const catalogJobs = [
+    "coordinator",
+    "coordinator_protection_observation",
+    "catalog_metadata_protection_observation",
+    "site_protection_observation",
+    "catalog_definitions",
+    "catalog_policy",
+    "catalog_snapshot",
+    "catalog_timestamp",
+    "site_publication",
+  ];
+  assert.deepEqual(
+    [
+      ...new Set(
+        catalogJobs.map((name) => {
+          const job = jobs[name];
+          assert.ok(isRecord(job));
+          return job.environment;
+        }),
+      ),
+    ].sort((a, b) => String(a).localeCompare(String(b))),
+    catalogProtectionEnvironments,
+  );
   assert.equal(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
   assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
   assert.equal(
@@ -391,7 +528,7 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
     assert.ok(isRecord(job));
     assert.match(String(job.if), /needs.admission.outputs.publication_purpose == 'application'/);
   }
-  assert.equal(slice4CapacityResources.declared_job_minutes, 85);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
   assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(
     slice4CapacityResources.catalog_job_minutes.reduce((a, b) => a + b, 0) +
@@ -514,16 +651,55 @@ void test("production secret selection never falls back across purposes and job-
   }
 });
 
-void test("actual fixed coordinator entry creates one fresh private work parent for BOTH named purposes before their factory", async () => {
-  const source = await readFile(new URL("./release-controller-job.mts", import.meta.url), "utf8"),
-    start = source.indexOf("export async function runFixedControllerJob("),
-    end = source.indexOf("/** This is a projection", start);
-  assert.ok(start >= 0 && end > start);
-  const body = source
-    .slice(start, end)
-    .replace("export ", "")
-    .replace('await import("./release-catalog-coordinator.mts")', "catalog")
-    .replace('await import("./release-coordinator-driver.mts")', "driverModule");
+void test("actual fixed coordinator entry creates one fresh private work parent for BOTH named purposes before their factory", async (t) => {
+  const originalEnvironment = process.env;
+  t.after(() => {
+    process.env = originalEnvironment;
+  });
+  let bindingForCall: unknown;
+  const authority = await import("./release-authority-configuration.mts");
+  t.mock.module("./release-authority-configuration.mts", {
+    namedExports: {
+      ...authority,
+      requireControllerJobSourceConfiguration: async () => ({
+        binding: bindingForCall,
+        recheck: () => {},
+      }),
+    },
+  });
+  let factoryForCall: (raw: unknown, work: string, deadline: number) => Promise<unknown>;
+  let selectedPurpose = "";
+  const refuse = () => {
+    throw new Error("wrong named purpose factory");
+  };
+  t.mock.module("./release-catalog-coordinator.mts", {
+    namedExports: {
+      runFixedCatalogCoordinatorConfiguration: (...args: [unknown, string, number]) =>
+        selectedPurpose === "catalog-publication" ? factoryForCall(...args) : refuse(),
+    },
+  });
+  t.mock.module("./release-coordinator-driver.mts", {
+    namedExports: {
+      runFixedCoordinatorConfiguration: (...args: [unknown, string, number]) =>
+        selectedPurpose === "application" ? factoryForCall(...args) : refuse(),
+    },
+  });
+  const nodeUrl = await import("node:url");
+  const repositoryUrl = new URL("..", import.meta.url).href;
+  let selectedRoot = "";
+  let rootReads = 0;
+  t.mock.module("node:url", {
+    namedExports: {
+      ...Object.fromEntries(Object.entries(nodeUrl).filter(([name]) => name !== "default")),
+      fileURLToPath: (value: string | URL, options?: { windows?: boolean }) => {
+        if (String(value) === repositoryUrl) {
+          rootReads++;
+          return selectedRoot;
+        }
+        return nodeUrl.fileURLToPath(value, options);
+      },
+    },
+  });
   const parent = await mkdtemp(path.join(os.tmpdir(), "fixed-coordinator-work-"));
   try {
     for (const purpose of ["application", "catalog-publication"]) {
@@ -571,35 +747,25 @@ void test("actual fixed coordinator entry creates one fresh private work parent 
         if (process.platform !== "win32") assert.equal(stat.mode & 0o777, 0o700);
         return { decision: "held", authority: "none" };
       };
-      const refuse = () => {
-        throw new Error("wrong named purpose factory");
+      bindingForCall = binding;
+      factoryForCall = factory;
+      selectedPurpose = purpose;
+      selectedRoot = root;
+      rootReads = 0;
+      process.env = {
+        ...originalEnvironment,
+        RUNNER_TEMP: privateRoot,
+        PORTCOVE_EXECUTION_PURPOSE: purpose,
       };
-      const entry = runInNewContext(stripTypeScriptTypes(body) + "\nrunFixedControllerJob", {
-        path,
-        performance,
-        process: { env: { PORTCOVE_EXECUTION_PURPOSE: purpose } },
-        root,
-        isRecord,
-        mkdir,
-        writeFile,
-        operation: (role: unknown) => {
-          assert.equal(role, "coordinator");
-          return role;
-        },
-        authority: async () => ({ binding, recheck: () => {} }),
-        requireFixedControllerConfigurationSource,
-        temporary: () => privateRoot,
-        configPath: () => filename,
-        readControllerToolFile: (file: string) => readFile(file),
-        inspectControllerExecutionPurpose,
-        catalog: {
-          runFixedCatalogCoordinatorConfiguration:
-            purpose === "catalog-publication" ? factory : refuse,
-        },
-        driverModule: {
-          runFixedCoordinatorConfiguration: purpose === "application" ? factory : refuse,
-        },
-      }) as (role: string, deadline: number) => Promise<unknown>;
+      const moduleUrl = new URL("./release-controller-job.mts", import.meta.url);
+      moduleUrl.searchParams.set("fixture", randomBytes(16).toString("hex"));
+      const imported: unknown = await import(moduleUrl.href);
+      assert.ok(isRecord(imported) && typeof imported.runFixedControllerJob === "function");
+      const entry = imported.runFixedControllerJob as (
+        role: string,
+        deadline: number,
+      ) => Promise<unknown>;
+      assert.equal(rootReads, 1, "actual module resolves its private work root");
       await entry("coordinator", 12345);
       assert.equal(calls, 1);
       await assert.rejects(entry("coordinator", 12345), { code: "EEXIST" });
@@ -624,14 +790,50 @@ void test("actual fixed coordinator entry creates one fresh private work parent 
 void test("actual fixed output source function refuses a late append and retains partial routing bytes", async (t) => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "fixed-output-source-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
-  const source = await readFile(
-    new URL("./release-controller-job-output.mts", import.meta.url),
-    "utf8",
+  const originalEnvironment = process.env;
+  t.after(() => {
+    process.env = originalEnvironment;
+  });
+  let expired = false;
+  let bindingForCall: unknown;
+  const authority = await import("./release-authority-configuration.mts");
+  t.mock.module("./release-authority-configuration.mts", {
+    namedExports: {
+      ...authority,
+      requireControllerJobSourceConfiguration: async () => ({
+        binding: bindingForCall,
+        recheck: () =>
+          assert.equal(expired, false, "controlled original phase/source expired after append"),
+      }),
+    },
+  });
+  const budget = await import("./release-signing-job-budget.mts");
+  t.mock.module("./release-signing-job-budget.mts", {
+    namedExports: {
+      ...budget,
+      currentControllerJobDeadline: () => performance.now() + 10000,
+    },
+  });
+  const filesystem = await import("node:fs/promises");
+  const namedFilesystem: Record<string, unknown> = Object.fromEntries(
+    Object.entries(filesystem).filter(([name]) => name !== "default"),
   );
-  const start = source.indexOf("export async function finishFixedControllerJobOutputs(");
-  const end = source.indexOf("if (process.argv[1]", start);
-  assert.ok(start >= 0 && end > start);
-  const body = stripTypeScriptTypes(source.slice(start, end).replace("export ", ""));
+  let delayAppend = false;
+  t.mock.module("node:fs/promises", {
+    namedExports: {
+      ...namedFilesystem,
+      appendFile: async (file: string, bytes: string) => {
+        await appendFile(file, bytes);
+        expired = delayAppend;
+      },
+    },
+  });
+  const moduleUrl = new URL("./release-controller-job-output.mts", import.meta.url);
+  moduleUrl.searchParams.set("fixture", randomBytes(16).toString("hex"));
+  const imported: unknown = await import(moduleUrl.href);
+  assert.ok(isRecord(imported));
+  const entry = imported.finishFixedControllerJobOutputs;
+  assert.ok(typeof entry === "function");
   for (const delayed of [false, true]) {
     const root = path.join(parent, String(delayed));
     await mkdir(root);
@@ -647,6 +849,10 @@ void test("actual fixed output source function refuses a late append and retains
       run_id: "12345",
       run_attempt: 1,
     };
+    bindingForCall = binding;
+    expired = false;
+    delayAppend = delayed;
+    process.env = { ...originalEnvironment, RUNNER_TEMP: root, GITHUB_OUTPUT: output };
     const configuration = Buffer.from("{}");
     await writeFile(path.join(root, "controller-coordinator.json"), configuration);
     await writeFile(
@@ -661,41 +867,11 @@ void test("actual fixed output source function refuses a late append and retains
       path.join(root, "controller-coordinator-result.json"),
       JSON.stringify({ decision: "held" }),
     );
-    let expired = false;
-    const entry = runInNewContext(body + "\nfinishFixedControllerJobOutputs", {
-      path,
-      performance,
-      Buffer,
-      assertOwnedUnlinkedPath,
-      requireFixedControllerConfigurationSource,
-      projectFixedControllerJobOutputs,
-      withCoordinatorDeadline,
-      randomBytes,
-      process: { env: { RUNNER_TEMP: root, GITHUB_OUTPUT: output } },
-      role: (value: unknown) => {
-        assert.equal(value, "coordinator");
-        return "coordinator";
-      },
-      record: (value: unknown) => {
-        assert.ok(isRecord(value));
-        return value;
-      },
-      requireControllerJobSourceConfiguration: async () => ({
-        binding,
-        recheck: () => {
-          assert.equal(expired, false, "controlled original phase/source expired after append");
-        },
-      }),
-      currentControllerJobDeadline: () => performance.now() + 10000,
-      readControllerToolFile: (file: string) => readFile(file),
-      appendFile: async (file: string, bytes: string) => {
-        await appendFile(file, bytes);
-        expired = delayed;
-      },
-    }) as (role: unknown) => Promise<unknown>;
-    if (delayed) await assert.rejects(entry("coordinator"), /expired after append/);
+    const invoke = (): Promise<unknown> =>
+      Promise.resolve(Reflect.apply(entry, undefined, ["coordinator"]));
+    if (delayed) await assert.rejects(invoke(), /expired after append/);
     else
-      assert.deepEqual(JSON.parse(JSON.stringify(await entry("coordinator"))), {
+      assert.deepEqual(JSON.parse(JSON.stringify(await invoke())), {
         mode: "held",
         stage: "held",
       });

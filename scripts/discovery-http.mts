@@ -20,6 +20,15 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
     input.maxRequests > 5
   )
     throw new Error("Invalid bounded request");
+  if (
+    input.conditionalEtag !== undefined &&
+    (typeof input.conditionalEtag !== "string" ||
+      input.conditionalEtag.length > 512 ||
+      /[\r\n]/u.test(input.conditionalEtag) ||
+      input.method !== "GET" ||
+      new URL(input.url).origin !== "https://api.github.com")
+  )
+    throw new Error("Invalid scoped discovery conditional request");
   let url = new URL(input.url);
   let method = input.method;
   let body = typeof input.body === "string" ? input.body : undefined;
@@ -45,6 +54,9 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
         headers: {
           "User-Agent": "Portcove bounded discovery",
           Accept: "application/vnd.github+json",
+          ...(url.href === new URL(input.url).href && typeof input.conditionalEtag === "string"
+            ? { "If-None-Match": input.conditionalEtag }
+            : {}),
           ...(url.origin === "https://api.github.com" && typeof input.token === "string"
             ? { Authorization: `Bearer ${input.token}` }
             : {}),

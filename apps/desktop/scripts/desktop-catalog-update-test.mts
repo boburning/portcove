@@ -1,3 +1,4 @@
+import { readReviewFieldStyles } from "./desktop-review-presentation.mts";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import { transportValue } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
@@ -55,23 +56,7 @@ export async function catalogUpdateScenario({
 
     const publicKeyField = await browser.findElement(By.id("catalog-public-key"));
     const locationField = await browser.findElement(By.id("catalog-update-location"));
-    const fieldPresentation = await executeBrowserScript(
-      browser,
-      (...fields) =>
-        fields.map((field) => {
-          const style = getComputedStyle(field);
-          return {
-            width: style.width,
-            paddingLeft: style.paddingLeft,
-            borderStyle: style.borderStyle,
-            borderWidth: style.borderWidth,
-            backgroundColor: style.backgroundColor,
-            color: style.color,
-          };
-        }),
-      publicKeyField,
-      locationField,
-    );
+    const fieldPresentation = await readReviewFieldStyles(browser, publicKeyField, locationField);
     for (const presentation of fieldPresentation) {
       assert.ok(parseFloat(presentation.width) >= 200, JSON.stringify(presentation));
       assert.ok(parseFloat(presentation.paddingLeft) >= 10, JSON.stringify(presentation));

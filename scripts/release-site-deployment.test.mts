@@ -131,7 +131,9 @@ void test(
   {
     skip:
       !process.env.PORTCOVE_TUF_BOOTSTRAP_SITE_TOOL ||
-      !process.env.PORTCOVE_TUF_BOOTSTRAP_SITE_FIXTURE,
+      !process.env.PORTCOVE_TUF_BOOTSTRAP_SITE_FIXTURE
+        ? "actual bootstrap site tool or fixture is not appointed"
+        : false,
     timeout: 30000,
   },
   async () => {

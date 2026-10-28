@@ -6,6 +6,7 @@ import { it } from "vite-plus/test";
 import type { Reporter, TestCase, TestModule, TestSuite } from "vite-plus/test/node";
 import { createFrontendCaseObservations } from "../../../scripts/frontend-case-observations.ts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
+import { browserTraceProbe } from "../src/browser/failure-probe-contract.ts";
 
 const root = path.resolve("frontend-observation-fixture");
 function fixture(overrides: Partial<TestCase> = {}): TestCase {
@@ -60,6 +61,41 @@ function rows(lines: string[], context = false) {
 function end(reporter: Reporter, modules: TestModule[] = []) {
   return reporter.onTestRunEnd?.(modules, [], "passed");
 }
+
+it("reports the declared diagnostic route and flags a replacement skip without rewriting native outcomes", async () => {
+  const file = path.join(root, "apps/desktop/src/browser/failure-probe.browser.test.tsx");
+  for (const name of [browserTraceProbe.name, "replacement skipped case"]) {
+    const { reporter, lines } = capture();
+    const test = fixture({
+      fullName: name,
+      module: { moduleId: file } as TestModule,
+      result: () => ({ state: "skipped", note: "original native reason", errors: undefined }),
+    });
+    await reporter.onTestCaseResult?.(test);
+    await end(reporter, [module([test], { moduleId: file })]);
+    const row = rows(lines).find((item) => item.kind === "test");
+    assert.ok(row);
+    assert.equal(row.outcome, "skipped");
+    assert.equal(row.skip_reason, "original native reason");
+    assert.equal(row.unexpected_skip, name !== browserTraceProbe.name);
+    assert.equal(rows(lines, true)[0]?.unexpected_skips, name === browserTraceProbe.name ? 0 : 1);
+    assert.deepEqual(
+      rows(lines, true)[0]?.missing_skip_routes,
+      name === browserTraceProbe.name
+        ? []
+        : [
+            {
+              file: "apps/desktop/src/browser/failure-probe.browser.test.tsx",
+              cases: [browserTraceProbe.name],
+            },
+          ],
+    );
+    if (name === browserTraceProbe.name) {
+      assert.ok(isRecord(row.skip_contract));
+      assert.equal(row.skip_contract.intended_route, browserTraceProbe.intendedRoute);
+    }
+  }
+});
 
 it("retains nested suite hook failures separately from module and test outcomes", async () => {
   const { lines, reporter } = capture();

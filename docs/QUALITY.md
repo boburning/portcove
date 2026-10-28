@@ -130,6 +130,71 @@ keeps a fixed absolute observation deadline and never retries automatically.
 
 ## Test latency and reliability
 
+Native Desktop scenario records retain monotonic `duration_ms` for the scenario
+action (`duration_scope: scenario-action`). This excludes the observer's
+post-action diagnostics and terminal screenshot; captures inside the action
+remain included.
+An unmet prerequisite records `not-run` with a null duration. These observations
+retain the existing execution and acceptance boundaries.
+Failed actions, setup and cleanup observations emit a bounded `DESKTOP_FAILURE` record before
+diagnostics or final artifact publication, retaining the original failure when
+later publication fails. Untimed harness failures have a null duration and
+`harness` scope. Its declared harness revision does not replace the
+final packet's captured executable and input identities.
+
+Runner inventories describe different units. Keep their native identities and
+unknown states when comparing results; source files, routes and lines are static
+inventory metrics, never executed test totals.
+
+| Maintained runner             | Case and count interpretation                                                                                                                                                                                                                                                                |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node                          | Expanded native test events and file observations; parameterized/subtest outcomes remain distinct from test-bearing files and declared command routes.                                                                                                                                       |
+| Vite+/Vitest unit and browser | Native case results retain full test names, status and timing; browser replay remains separate from native application execution.                                                                                                                                                            |
+| Nextest                       | Native discovery/selection lists and terminal case events distinguish executed, ignored and failed cases; explicit diagnostic overrides remain nonqualifying.                                                                                                                                |
+| Rustdoc                       | Document-qualified native cases and observed suites; incomplete Cargo recipes leave whole-recipe discovery/selection unknown. Compilation phases are separate from case durations.                                                                                                           |
+| Standalone libtest            | One unfiltered binary-bound suite; discovered/selected, executed, ignored and failed counts come from native protocol events. Empty selection cannot qualify.                                                                                                                                |
+| Python unittest               | Expanded selected test IDs and inner outcomes, including skip/error reasons; the timed child and original aggregate status remain separate from reporting success.                                                                                                                           |
+| C# contract runner            | Ordered discovered/selected scenarios for the active mode, executed actions, skips, native failures and reported records. Assertion `checks` are separate; complete case records can still describe failure or skip-only execution.                                                          |
+| Native Desktop                | Registry discovery and selected/setup/excluded/known-gap IDs remain distinct from observations. `checks` can contain diagnostics as well as scenarios; its length is not a test count. Missing actions remain unobserved or `not-run`, with unknown duration rather than invented execution. |
+
+These inventories do not confer native, package, installed-client or release
+acceptance. The owning receipt and acceptance contracts still decide that scope.
+
+Rust qualification records ignored-case routes from `ignored_routes` in the
+existing `.config/rust-test-impact.json`. Each declaration retains its original
+reason, source, intended platforms and supervised parent cases or explicit
+acceptance route. The complete current-platform listing detects unregistered
+ignored cases, missing or ambiguous cases and parents, and platform drift.
+The workspace-other recipe excludes Core explicitly; absent feature-gated
+qualification fixtures remain `not_evaluated_feature`, not executed evidence.
+The packet retains and hashes `skip-routes.json`. Observed route inconsistencies are reported after native execution without
+replacing a nonzero native exit. Invalid declarations or pre-execution IO can
+leave the command unexecuted, with no inferred native outcome.
+These declarations never execute ignored cases or grant their prerequisites.
+
+Windows archive consumers retain the same compiled skip-route observations under
+`work/test-results/windows-rust-skip-routes/`, including the complete native listing,
+its hash, the source/run binding, report and report hash. Both ordinary and Core
+worker artifacts retain that directory after failure. Route errors are reported
+after native execution; an original native failure remains primary.
+
+The stdlib Python reporter classifies the existing owned-suite platform guards and
+names their maintained Node parents. Owned unknown skips, missing declarations and
+contradictory observations make reporting incomplete while preserving unittest's
+original status, reasons and errors. The reader reconciles route counts and reasons
+against original cases. Copied and controlled reporting fixtures remain framework
+evidence. The C# runner similarly names the compiled CLI scenario's explicit
+`check.ps1 -Cli -Library` parent; an undeclared skip refuses reporting without
+rewriting the original skipped outcome or preventing later independent scenarios.
+
+The browser trace probe is an explicit diagnostic that deliberately fails when
+enabled. Its exact case, prerequisite and intended artifact-custody producer are
+recorded separately from original Vitest outcomes. Focused UI selection refuses
+undeclared skipped cases, including a skip beside a surviving pass. The bounded
+default frontend observer remains passive: it reports `unexpected_skips` and
+`missing_skip_routes` without replacing the public runner's native authority.
+These fields never establish installed, native or release acceptance.
+
 The extra Linux diagnostics replay stays broad for diagnostics, Core, CLI,
 Desktop, shared, dependency and uncertain inputs. Only ordinary added or modified
 regular Rust files within the independent release-tool crate may omit it;
@@ -195,6 +260,10 @@ report and clean up. Other registered suite defaults, explicit per-test limits
 and product deadlines remain in force. The controlled timeout contract retains
 the child's readiness stderr and verifies process exit before the outer runner
 completes. Other nested subprocess families require their own calibration.
+The Windows suspended-storage preflight fixture allows 60 seconds for its
+PowerShell child and 90 seconds for the enclosing case. Its hosted 20-second
+spawn timeout failure is preserved; all 26 inert cases and assertions remain unchanged.
+This calibrates the test harness, not storage access or application deadlines.
 The Python reporter also exercises its actual timed-out Python child with
 5/10/15/20-second child, Node case, command supervisor and enclosing-case budgets.
 The control requires readiness stderr, an incomplete-report failure and direct
@@ -304,21 +373,49 @@ This adapter supports doctests only. Ordinary Cargo test binaries can reuse the
 same case name without carrying a binary identity in this JSON dialect; their
 formatted console output is not used to invent an identity.
 
-### Declared platform skips
+The maintained Linux `rustc --test` environment route separately uses
+`standalone-rust-tests.mts`. It preserves compilation, unfiltered selection and
+native concurrency, then captures libtest JSON through the same bounded stream
+collector. Each packet binds the exact ordinary binary's SHA256 and size before
+and after execution. This is compiled-binary provenance; a checkout or target
+that produced it is not inferred. The observed host and CI run/attempt/job are
+separate fields. Runtime formatting sets only the child bootstrap to `-1` and
+refuses inherited overrides.
 
-The existing Node ownership record may declare `platform_skips`: intended platform,
-prerequisite, reason, complete qualification owner and stable top-level case names.
-The declaration remains distinct from the runner's original skip reason. Its
-qualification owner must be an actual, enabled, unfiltered producer on the stated
-platform; missing, unsupported or wrong-platform runner labels cannot qualify it.
+Packets under `work/standalone-rust-tests` retain raw streams, ordered command,
+case identities, native durations, ignore reasons and original failure details.
+Discovery/selection counts come from the complete unfiltered native suite, not
+source attributes; executed, skipped and failed counts remain separate. Empty,
+contradictory, partial or over-limit output cannot establish completion. Original
+nonzero native status remains primary over reporting refusal. The CI artifact
+is retained after failure as well as success. These unit-binary observations are
+separate from native GUI, package or release acceptance.
 
-For unfiltered invocations, the required reporter refuses missing or ambiguous
-cases, unregistered skips/todos in declared families, and outcomes inconsistent
-with the intended platform. A registered case cannot become TODO on its owner.
-Filtered runs explicitly report that full-family evaluation was not performed;
-they cannot replace the complete qualification owner. Metadata read failures are
-reported after consuming original runner failures. This opt-in platform contract
-does not classify undeclared families, other skip categories or native acceptance.
+### Declared skip routes
+
+The existing Node ownership record declares `platform_skips` with stable case names,
+an optional single parent test or `suite`, intended platforms, prerequisites, reasons
+and a maintained producer. Declarations cover registrations through their owning
+entry file, including explicitly named imported cases; raw Node observations retain
+the defining source separately. Other nested deferrals fail closed.
+Legacy single-object declarations retain their reviewed, exclusive unfiltered
+qualification owners. Complementary route arrays add platform, prerequisite,
+supervised-parent and explicit-acceptance observations without granting file-level
+ownership or any prerequisite. Original native reasons and outcomes remain separate.
+
+Every registered file is checked for new skips/todos. Selected declared cases must
+appear exactly once and execute on their intended platform when known prerequisites
+are present. Ordinary Linux ownership and explicit environment prerequisites are
+checked independently; unavailable capabilities retain only their specific original
+skip reason. Unknown tool availability remains unassessed and cannot qualify acceptance.
+
+A complementary selector may prove its explicitly named cases, including selection
+through their declared parent suite, never full-family discovery. Unsupported
+stateful filters remain unevaluated. A missing
+case, removed producer or selector excluding its declared route fails; legacy
+unfiltered owners remain required. Metadata failures preserve original native
+failures. These inventories never execute ignored cases, appoint tools, grant
+credentials, or establish native, installed-client or release acceptance.
 
 ### Default nextest outcome reporting
 

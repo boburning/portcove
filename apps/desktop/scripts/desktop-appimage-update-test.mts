@@ -1,7 +1,7 @@
-import { errorMessage, errorCode } from "../../../scripts/runtime-values.mts";
+import { errorMessage } from "../../../scripts/runtime-values.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
+import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { By } from "selenium-webdriver";
@@ -10,6 +10,8 @@ import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
 import { loadedWebKitLibraries } from "./desktop-linux-webkit-inspector.mts";
 import {
+  createAppImageProcessObservations,
+  waitForHealthyAppImageRestart,
   awaitInstalledUpdateDriver,
   connectInstalledUpdateDriver,
   hashFile,
@@ -134,77 +136,8 @@ const evidencePath = path.join(output, "renderer-update-evidence.json");
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
 }
-async function procIdentity(pid: number): Promise<ProcIdentity | null> {
-  try {
-    const raw = await readFile(`/proc/${pid}/stat`, "utf8");
-    const rest = raw
-      .slice(raw.lastIndexOf(")") + 2)
-      .trim()
-      .split(/\s+/u);
-    const command = (await readFile(`/proc/${pid}/cmdline`, "utf8"))
-      .replaceAll("\0", " ")
-      .slice(0, 400);
-    return rest[0] !== "Z" && rest[19] ? { pid, start_ticks: rest[19], command } : null;
-  } catch (error) {
-    if (errorCode(error) === "ENOENT" || errorCode(error) === "ESRCH") return null;
-    throw error;
-  }
-}
-async function verifiedRelaunchIdentity(marker: ProcessMarker) {
-  assert.equal(marker?.schema_version, 1, "Relaunch process marker schema changed");
-  assert.ok(Number.isInteger(marker.process_id) && marker.process_id > 0);
-  assert.equal(marker.executable, app, "Relaunch process marker executable changed");
-  const identity = await procIdentity(marker.process_id);
-  if (!identity) return null;
-  const environment = await readRelaunchEnvironment(identity);
-  if (!environment) return null;
-  const after = await procIdentity(marker.process_id);
-  if (!after) return null;
-  assert.equal(after.start_ticks, identity.start_ticks, "Relaunched process identity changed");
-  assertRelaunchEnvironment(environment);
-  return after;
-}
-async function readRelaunchEnvironment(identity: ProcIdentity) {
-  let environment;
-  try {
-    environment = (await readFile(`/proc/${identity.pid}/environ`, "utf8")).split("\0");
-  } catch (error) {
-    const after = await procIdentity(identity.pid);
-    if (!after) return null;
-    if (after.start_ticks !== identity.start_ticks)
-      throw new Error("Relaunched process identity changed while reading its environment");
-    throw error;
-  }
-  return environment;
-}
-function assertRelaunchEnvironment(environment: string[]) {
-  for (const expected of [
-    `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE=${stageMarker}`,
-    `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS=${relaunchMarker}`,
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT=after-reconciliation",
-  ])
-    if (!environment.includes(expected))
-      throw new Error("Relaunched process did not retain the exact qualification identity");
-}
-async function verifiedHelperIdentity(marker: ProcessMarker) {
-  assert.equal(marker?.schema_version, 1, "Helper process marker schema changed");
-  assert.ok(Number.isInteger(marker.process_id) && marker.process_id > 0);
-  const identity = await procIdentity(marker.process_id);
-  if (!identity) return null;
-  const environment = await readRelaunchEnvironment(identity);
-  if (!environment) return null;
-  const after = await procIdentity(marker.process_id);
-  if (!after) return null;
-  assert.equal(after.start_ticks, identity.start_ticks, "Helper process identity changed");
-  assert.ok(after.command.includes("--portcove-apply-update"), "Marked process is not the helper");
-  assert.ok(
-    environment.includes(
-      `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS=${helperMarker}`,
-    ),
-    "Helper process lost its qualification identity",
-  );
-  return after;
-}
+const { procIdentity, verifiedRelaunchIdentity, verifiedHelperIdentity } =
+  createAppImageProcessObservations({ app, stageMarker, relaunchMarker, helperMarker });
 async function terminateVerifiedProcess(live: ProcIdentity, label: string) {
   try {
     process.kill(live.pid, "SIGTERM");
@@ -333,30 +266,13 @@ try {
     await waitFor(() => readJson(relaunchMarker), "helper-owned candidate process marker", 60_000),
   );
   report.relaunch_identity = await verifiedRelaunchIdentity(report.relaunch_process_marker);
-  const restart = await waitFor(
-    async () => {
-      const marker = object(await readJson(stageMarker));
-      if (marker.stage !== "Tauri setup") return null;
-      const processId = positivePid(marker.process_id);
-      if ((await hashFile(app)).sha256 !== candidateSha) return null;
-      const apply = object(await readJson(path.join(staging, "apply.json")));
-      if (apply.intent !== null) return null;
-      try {
-        await stat(stagedPayload);
-        return null;
-      } catch (error) {
-        if (errorCode(error) !== "ENOENT") throw error;
-        /* retired after healthy startup */
-      }
-      return {
-        marker: { ...marker, stage: "Tauri setup" as const, process_id: processId },
-        apply_phase: apply.phase,
-        stable_sha256: candidateSha,
-      };
-    },
-    "renderer-driven restart and healthy-startup reconciliation",
-    90_000,
-  );
+  const restart = await waitForHealthyAppImageRestart({
+    app,
+    candidateSha,
+    staging,
+    stageMarker,
+    stagedPayload,
+  });
   report.restart = restart;
   await waitFor(
     async () => !(await procIdentity(restart.marker.process_id)),

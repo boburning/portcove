@@ -1,0 +1,1684 @@
+{
+  "format_version": 1,
+  "kind": "dated source and package evidence; not a live backlog",
+  "owners": [2510, 2926],
+  "pickup_main": "57e7c3c3237fbaba381c24cb1eb95c935d344942",
+  "inventory_observed_at": "2026-10-27T23:42:00.135Z",
+  "counts": {
+    "distinct_identities": 22,
+    "new_managed_definitions": 0,
+    "native_executions": 0
+  },
+  "families": {
+    "ReflectionHLE": {
+      "repository": "ReflectionHLE/ReflectionHLE",
+      "repository_id": 24228275,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkyNDIyODI3NQ==",
+      "tag": "release-20260606",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "release_count": 25,
+      "release_pagination": "terminal first page, per_page=100",
+      "source_tree_truncated": false,
+      "source_files": [
+        {
+          "path": "README.md",
+          "sha256": "087162033bbd4021e12c60d6ef23db1ec235a02abceec1bd2449af6c258bd8e2"
+        },
+        {
+          "path": "src/backend/filesystem/be_filesystem_app_paths.c",
+          "sha256": "a71a8b37ab4aee6681c8a3040b02cf871372e4d589080a78c1185a2c8653cd52"
+        },
+        {
+          "path": "src/backend/filesystem/be_filesystem_file_ops.c",
+          "sha256": "8dbbb1aa22415553587fa45d416c6205fca9bd54b315e65ac8445ba83ebd1a42"
+        },
+        {
+          "path": "src/backend/filesystem/be_filesystem_gameinst.c",
+          "sha256": "d84584dd0efe0ca680d7ddb33b6cb4f5a447890203be69cf465518e7b1b5f660"
+        },
+        {
+          "path": "src/backend/filesystem/be_filesystem_root_paths.c",
+          "sha256": "c7d5b44aa9a99b70ae3986adee3bfe8c55327969770a3899174c5fc0fc7b0fb7"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs.h",
+          "sha256": "0ff099ee87832dd93e6c0c67d2da3ff736487eb651c1782ad8e51bedea25e2e4"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_accessors.c",
+          "sha256": "b00a815fb6d1662c5d5920e99bc73a819b013c680abf80a832d250cdf951d161"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bh071592.h",
+          "sha256": "0a4851ad364c244a8d274b9b88bd7dd3e42beab868c9cb56c3ac7ecc6f30f9dc"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm1v10r.h",
+          "sha256": "b725f6bdb12e82c83becd9990fa7722f2f545c65739a050f196de02976b9d81a"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm1v10s.h",
+          "sha256": "d11b29de080f2efae5b11e7f31e7c931a06ec10cae8d1f383a4a4806abe11570"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm1v11f.h",
+          "sha256": "681d73a51e2031fe7ac36791dcb44e56672f8595f2115f56f1a4517e191a0fe3"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm1v11gm.h",
+          "sha256": "54efe15ab32876a18b815bc490bab647a1c5f0e843bcd8c75caad60c3b5dc21e"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm1v11r.h",
+          "sha256": "22a8292039ae44050dce3d1cf4ca4efa18ff25e94407d726fc0bb12dfe0b1320"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm1v11s.h",
+          "sha256": "d7d5740242b3a235c391eb5aef6987af62fc98e4892988d9911235f68802c622"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm2v10r.h",
+          "sha256": "b557e16ada3cc824704b32a59499d8bf851bc0cf4d6a53b60c55db165582c846"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm2v11f.h",
+          "sha256": "18d8e81f2869cdf5e7069273f257a9a3bf8acbe85a9574368fc8cc9ebebac90d"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm2v11r.h",
+          "sha256": "f6edd68e066406bb7524d80f2066ff06910dc8b0262397c89b78415079dff985"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm3v10r.h",
+          "sha256": "5ed08f1c7046638b96b4e10a039b38a2aba74aa6c75c4f05bdd34d0fbdf143da"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm3v11f.h",
+          "sha256": "0b76a1b51e45c13129dacd5fabca4a95b2c04e35d863c2f2d660705db9a65562"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bm3v11r.h",
+          "sha256": "663c3b521f9d961328f346df8bc321ced2134e0da1efe6e3553734bbe07a310e"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bmenace.h",
+          "sha256": "abd838a46ceb1a14caeae727caf8ea350e64ac04b6ba9233cbda073e557d5469"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_bmenace_patchers.h",
+          "sha256": "cc332fbeec6da67cf425685b65e9c20a3a35c02a310ec83437274666001c15e7"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_cat3d.h",
+          "sha256": "54ef75737f75674936cfbc11f0856e07e8b4ab4267dcb35046416325e6acc80a"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_catabyss.h",
+          "sha256": "3efb836fb7bae7efe240e5621a8b31fd9bbda44d42f4728d0bdfd109f5ab7862"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_catacomb_all.h",
+          "sha256": "7ede0d55efa8ff31bdb2a76a6ebfc215facfa73f8a142b1db16832cf04dfbdbc"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_catadventures.h",
+          "sha256": "c0cf71d1b219ecabc7528ff286cb176afb5ca349b0df1647dd05271405f29d1a"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_catapoc.h",
+          "sha256": "7a37e7eddece971c5a64ecbcfee1c88ae7828d1a1f39f7aedd1be45967363b2c"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_catarm.h",
+          "sha256": "d34dd192db599ef6b79674413b9143b68c25248d0bb0679884e70d66ebd5ab6b"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_kdreams.h",
+          "sha256": "9f13480af16472e9a685f771cff3c5e115e9f55aa61c6a0b8e46b679f72e17e8"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_n3dwt10.h",
+          "sha256": "8466a12e22ec2c72cec876fef98770c5fbc075a3f30aeb8bfcbf159758498eab"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_prep.c",
+          "sha256": "ed636657e7b62f47b4f7a54d664d5e6b672b5c90785e6a4020f45e039b8c6c9f"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_sdmfg10.h",
+          "sha256": "be555da63c408eba249b1a005de6674389b4f26dca3e46b1782f730743940a88"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_sodac14.h",
+          "sha256": "00c9330e12d797d5df7e7958a425d579051ac6d90609109a3cdd1396d9480e0c"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_sodfg10.h",
+          "sha256": "b6417fd987a385b47d73cf2b5f8a23b393df60ed5eea40d5321c74595d3a3950"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_sodfg14.h",
+          "sha256": "55b9a26d6833d529bd15bce97b1a1ce61c6b37dd596c8b1fa2eb66746af14df2"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_structs.h",
+          "sha256": "13a7fb03baaff8c34ac78e687700fded53e30e3978775c1ac3f6959df4ffb305"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wj6im14.h",
+          "sha256": "7bd3661610d7fecae43a2781b07ce67b513cbce85333a72bdcd911c8acc38945"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wl1ap10.h",
+          "sha256": "7a36ec99c3fb409fa2b94849cd1b1ad1607f9ff8b4a957f1084237d8260b3d78"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wl1ap11.h",
+          "sha256": "6460b4845eb292963b318e62a57515cd358577ebb83423424e2f3ad36f07f064"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wl1ap14.h",
+          "sha256": "b63ed66abdaa9fc452923454d554950b434cc11386d275b85ac47986fa3118a1"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wl6ac14.h",
+          "sha256": "1959c5c5b0f94132fd5011dacdc6d1c6af66dc64000a171cf883ba8a7bf46773"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+          "sha256": "c24b013ba72746ab451601fb59079b800bd8d1efdea5c0a87b0264d81bc36750"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wl6gt14a_id14.h",
+          "sha256": "a109899886b0f30247c10057587bdb6a32a00f6b3bfa6c8365cd866edcc57380"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wl6gt14b.h",
+          "sha256": "0669a6aba8c87623523a763cadcc19833b01553de12dbbccd29e7779595cddc8"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wl920312.h",
+          "sha256": "d33150734cfc2d6de1c7748b1fa71fb1b7b25393ece0c11a0e1a29ca338b7357"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wolf3d.h",
+          "sha256": "6b25a983cf31ff43a0238523ba40d744c24601e4f20928e2d33f06101eb6005f"
+        },
+        {
+          "path": "src/backend/gamedefs/be_gamedefs_wolf3d_patchers.h",
+          "sha256": "809fadd0dabe2288160c1bc2c6c298127dc3bdf62c22cfb974e848dfa8968c5e"
+        },
+        {
+          "path": "src/be_gamever.h",
+          "sha256": "61cf7d0e134c4444dd833a89ada0b5ea03bda3d8ff23ed8f96ea6fd834d24bb0"
+        }
+      ],
+      "windows_packages": [
+        {
+          "asset_id": 440401316,
+          "name": "reflectionhle-win64-20260606.zip",
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/releases/download/release-20260606/reflectionhle-win64-20260606.zip",
+          "size": 7448866,
+          "observed_sha256": "800e33a38f2b3986f6d0fdbbc67f527c6dc6b54e5949d1e0b02394377bdca3db",
+          "publisher_digest": "sha256:800e33a38f2b3986f6d0fdbbc67f527c6dc6b54e5949d1e0b02394377bdca3db",
+          "entries": 5,
+          "expanded_bytes": 22269049,
+          "executables": [
+            {
+              "path": "reflectionhle-win64-20260606/reflectionhle.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": [
+            "reflectionhle-win64-20260606/",
+            "reflectionhle-win64-20260606/gpl-2.0.txt",
+            "reflectionhle-win64-20260606/libspeexdsp-1.dll",
+            "reflectionhle-win64-20260606/reflectionhle.exe",
+            "reflectionhle-win64-20260606/SDL3.dll"
+          ]
+        }
+      ]
+    },
+    "crispy-doom": {
+      "repository": "fabiangreffrath/crispy-doom",
+      "repository_id": 17395051,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkxNzM5NTA1MQ==",
+      "tag": "crispy-doom-7.2",
+      "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+      "release_count": 54,
+      "release_pagination": "terminal first page, per_page=100",
+      "source_tree_truncated": false,
+      "source_files": [
+        {
+          "path": "README.Strife.md",
+          "sha256": "5f858b8b7156ecc87ff6a7cb3e1b2cbe718f4c12af46b89f994360e3017fb78e"
+        },
+        {
+          "path": "README.md",
+          "sha256": "b7a6239e474f2ae4b1fbe0ea6a327dffab5bdb58bcd966fdfaf7c8cba66dbf36"
+        },
+        {
+          "path": "src/d_iwad.c",
+          "sha256": "1cc2f0575aa23314de779ade8841c92fc619780caa5e9a982229407ddbb60b5e"
+        },
+        {
+          "path": "src/m_config.c",
+          "sha256": "5ed4353911bc9a964b34de5e605845ee8ebe3a9fbbef3ffc64db2493247da851"
+        },
+        {
+          "path": "src/m_misc.c",
+          "sha256": "5d6a1e2c5188838f760f7212de3692c6d69c3b01bc5be5ece1e347d3f7644695"
+        }
+      ],
+      "windows_packages": [
+        {
+          "asset_id": 633334505,
+          "name": "crispy-doom-7.2.0-win64.zip",
+          "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-doom-7.2.0-win64.zip",
+          "size": 9924686,
+          "observed_sha256": "c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+          "publisher_digest": "sha256:c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+          "entries": 34,
+          "expanded_bytes": 21626270,
+          "executables": [
+            {
+              "path": "crispy-doom.exe",
+              "pe_machine": 34404
+            },
+            {
+              "path": "crispy-doom-setup.exe",
+              "pe_machine": 34404
+            },
+            {
+              "path": "crispy-doom-truecolor.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": [
+            "CMDLINE.html",
+            "crispy-doom.exe",
+            "crispy-doom-setup.exe",
+            "crispy-doom-truecolor.exe",
+            "INSTALL.html",
+            "libFLAC.dll",
+            "libfluidsynth-3.dll",
+            "libgcc_s_seh-1.dll",
+            "libgomp-1.dll",
+            "libiconv-2.dll",
+            "libmp3lame-0.dll",
+            "libmpg123-0.dll",
+            "libogg-0.dll",
+            "libopus-0.dll",
+            "libopusfile-0.dll",
+            "libpng16-16.dll",
+            "libportaudio.dll",
+            "libreadline8.dll",
+            "libsamplerate-0.dll",
+            "libsndfile-1.dll",
+            "libstdc++-6.dll",
+            "libtermcap-0.dll",
+            "libvorbis-0.dll",
+            "libvorbisenc-2.dll",
+            "libvorbisfile-3.dll",
+            "libwavpack-1.dll",
+            "libwinpthread-1.dll",
+            "libxmp.dll",
+            "NOT-BUGS.html",
+            "SDL2.dll",
+            "SDL2_mixer.dll",
+            "SDL2_net.dll",
+            "SDL3.dll",
+            "zlib1.dll"
+          ]
+        },
+        {
+          "asset_id": 633334439,
+          "name": "crispy-heretic-7.2.0-win64.zip",
+          "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-heretic-7.2.0-win64.zip",
+          "size": 9802800,
+          "observed_sha256": "a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b",
+          "publisher_digest": "sha256:a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b",
+          "entries": 33,
+          "expanded_bytes": 21052927,
+          "executables": [
+            {
+              "path": "crispy-heretic.exe",
+              "pe_machine": 34404
+            },
+            {
+              "path": "crispy-heretic-setup.exe",
+              "pe_machine": 34404
+            },
+            {
+              "path": "crispy-heretic-truecolor.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": [
+            "CMDLINE.html",
+            "crispy-heretic.exe",
+            "crispy-heretic-setup.exe",
+            "crispy-heretic-truecolor.exe",
+            "INSTALL.html",
+            "libFLAC.dll",
+            "libfluidsynth-3.dll",
+            "libgcc_s_seh-1.dll",
+            "libgomp-1.dll",
+            "libiconv-2.dll",
+            "libmp3lame-0.dll",
+            "libmpg123-0.dll",
+            "libogg-0.dll",
+            "libopus-0.dll",
+            "libopusfile-0.dll",
+            "libpng16-16.dll",
+            "libportaudio.dll",
+            "libreadline8.dll",
+            "libsamplerate-0.dll",
+            "libsndfile-1.dll",
+            "libstdc++-6.dll",
+            "libtermcap-0.dll",
+            "libvorbis-0.dll",
+            "libvorbisenc-2.dll",
+            "libvorbisfile-3.dll",
+            "libwavpack-1.dll",
+            "libwinpthread-1.dll",
+            "libxmp.dll",
+            "SDL2.dll",
+            "SDL2_mixer.dll",
+            "SDL2_net.dll",
+            "SDL3.dll",
+            "zlib1.dll"
+          ]
+        },
+        {
+          "asset_id": 633334387,
+          "name": "crispy-hexen-7.2.0-win64.zip",
+          "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-hexen-7.2.0-win64.zip",
+          "size": 9934349,
+          "observed_sha256": "0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43",
+          "publisher_digest": "sha256:0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43",
+          "entries": 33,
+          "expanded_bytes": 21405506,
+          "executables": [
+            {
+              "path": "crispy-hexen.exe",
+              "pe_machine": 34404
+            },
+            {
+              "path": "crispy-hexen-setup.exe",
+              "pe_machine": 34404
+            },
+            {
+              "path": "crispy-hexen-truecolor.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": [
+            "CMDLINE.html",
+            "crispy-hexen.exe",
+            "crispy-hexen-setup.exe",
+            "crispy-hexen-truecolor.exe",
+            "INSTALL.html",
+            "libFLAC.dll",
+            "libfluidsynth-3.dll",
+            "libgcc_s_seh-1.dll",
+            "libgomp-1.dll",
+            "libiconv-2.dll",
+            "libmp3lame-0.dll",
+            "libmpg123-0.dll",
+            "libogg-0.dll",
+            "libopus-0.dll",
+            "libopusfile-0.dll",
+            "libpng16-16.dll",
+            "libportaudio.dll",
+            "libreadline8.dll",
+            "libsamplerate-0.dll",
+            "libsndfile-1.dll",
+            "libstdc++-6.dll",
+            "libtermcap-0.dll",
+            "libvorbis-0.dll",
+            "libvorbisenc-2.dll",
+            "libvorbisfile-3.dll",
+            "libwavpack-1.dll",
+            "libwinpthread-1.dll",
+            "libxmp.dll",
+            "SDL2.dll",
+            "SDL2_mixer.dll",
+            "SDL2_net.dll",
+            "SDL3.dll",
+            "zlib1.dll"
+          ]
+        },
+        {
+          "asset_id": 633334350,
+          "name": "crispy-strife-7.2.0-win64.zip",
+          "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-strife-7.2.0-win64.zip",
+          "size": 9823071,
+          "observed_sha256": "54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921",
+          "publisher_digest": "sha256:54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921",
+          "entries": 34,
+          "expanded_bytes": 21085093,
+          "executables": [
+            {
+              "path": "crispy-strife.exe",
+              "pe_machine": 34404
+            },
+            {
+              "path": "crispy-strife-setup.exe",
+              "pe_machine": 34404
+            },
+            {
+              "path": "crispy-strife-truecolor.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": [
+            "CMDLINE.html",
+            "crispy-strife.exe",
+            "crispy-strife-setup.exe",
+            "crispy-strife-truecolor.exe",
+            "INSTALL.html",
+            "libFLAC.dll",
+            "libfluidsynth-3.dll",
+            "libgcc_s_seh-1.dll",
+            "libgomp-1.dll",
+            "libiconv-2.dll",
+            "libmp3lame-0.dll",
+            "libmpg123-0.dll",
+            "libogg-0.dll",
+            "libopus-0.dll",
+            "libopusfile-0.dll",
+            "libpng16-16.dll",
+            "libportaudio.dll",
+            "libreadline8.dll",
+            "libsamplerate-0.dll",
+            "libsndfile-1.dll",
+            "libstdc++-6.dll",
+            "libtermcap-0.dll",
+            "libvorbis-0.dll",
+            "libvorbisenc-2.dll",
+            "libvorbisfile-3.dll",
+            "libwavpack-1.dll",
+            "libwinpthread-1.dll",
+            "libxmp.dll",
+            "README.html",
+            "SDL2.dll",
+            "SDL2_mixer.dll",
+            "SDL2_net.dll",
+            "SDL3.dll",
+            "zlib1.dll"
+          ]
+        }
+      ],
+      "packaged_documents": [
+        {
+          "path": "CMDLINE.html",
+          "sha256": "a2f06f83e56401e833bd82d45ae8c389f18f896758413e7f876b8dbeaf471428"
+        },
+        {
+          "path": "INSTALL.html",
+          "sha256": "e4ed7054e6cecab34a881f2902cfe5f6a312d72f4830125ad4d86a460440d007"
+        }
+      ]
+    },
+    "CatacombGL": {
+      "repository": "ArnoAnsems/CatacombGL",
+      "repository_id": 148203956,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkxNDgyMDM5NTY=",
+      "tag": "v0.5.7-beta",
+      "source_commit": "1bd619a8449a2f88cb4b9af19c155f044982e5aa",
+      "release_count": 16,
+      "release_pagination": "terminal first page, per_page=100",
+      "source_tree_truncated": false,
+      "source_files": [
+        {
+          "path": "README.md",
+          "sha256": "ad03f538d35583bb50cfb98fb74eec2e1adf0ccd78a0954c1bc93f224890d3a4"
+        },
+        {
+          "path": "src/Engine/ConfigurationSettings.cpp",
+          "sha256": "d46c201008b8e949ce7de8aeaad6d4217241b6ca9d860d5825d9dfa33189a1aa"
+        },
+        {
+          "path": "src/System/CatacombGL.cpp",
+          "sha256": "419264db355152807879a22cdbd2286502716467b22fd674eebf36a179d1f345"
+        },
+        {
+          "path": "src/System/SystemSDL.cpp",
+          "sha256": "37c32727f8964ab44307f94aa62a7fa7453856923bc501925f19b6b9e74595a9"
+        }
+      ],
+      "windows_packages": [
+        {
+          "asset_id": 217977278,
+          "name": "CatacombGL-Windows-64bit-0-5-7.zip",
+          "url": "https://github.com/ArnoAnsems/CatacombGL/releases/download/v0.5.7-beta/CatacombGL-Windows-64bit-0-5-7.zip",
+          "size": 1627384,
+          "observed_sha256": "5b5cdc6e9739a1f960694d413738112075ab830617b9d3636d863e0e9747ce0b",
+          "publisher_digest": null,
+          "entries": 4,
+          "expanded_bytes": 4541648,
+          "executables": [
+            {
+              "path": "CatacombGL.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": ["CatacombGL.exe", "licenses.zip", "readme.txt", "SDL2.dll"]
+        }
+      ],
+      "packaged_documents": [
+        {
+          "path": "readme.txt",
+          "sha256": "0e8f904cc47855b2b0dbc78082a1a8b2d266342e038f58d8e661e9a04471b3d1"
+        }
+      ]
+    },
+    "omnispeak": {
+      "repository": "sulix/omnispeak",
+      "repository_id": 7305085,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnk3MzA1MDg1",
+      "tag": "v1.1",
+      "source_commit": "d017166e47a44f102515f3fdf382ac794ab30ae0",
+      "release_count": 3,
+      "release_pagination": "terminal first page, per_page=100",
+      "source_tree_truncated": false,
+      "source_files": [
+        {
+          "path": "README",
+          "sha256": "318fedf2b5ae86307c9b43c2ceab3448a1a7356e1071300340eb4b743f529b3b"
+        },
+        {
+          "path": "src/ck_us_2.c",
+          "sha256": "94c919fca6ea0d84d6e7aba6342499c02aa13988c46daca2a4835f421054d609"
+        },
+        {
+          "path": "src/id_fs.c",
+          "sha256": "952179177d387a8e2b548fd92e897a1e08c7288f1ebbd6d6c92c29f85f742b85"
+        },
+        {
+          "path": "src/ck_main.c",
+          "sha256": "616e911e0e82b0e82f5ef6cefeeb3c2514574fef34c7e89e1f922266c6057456"
+        },
+        {
+          "path": "src/ck_config.h",
+          "sha256": "f646dc896875271e60daf07971d8a0c420746fdb67782fe29dda70e70bfc3ebc"
+        }
+      ],
+      "windows_packages": [
+        {
+          "asset_id": 51898006,
+          "name": "omnispeak-win64-1.1.zip",
+          "url": "https://github.com/sulix/omnispeak/releases/download/v1.1/omnispeak-win64-1.1.zip",
+          "size": 1485979,
+          "observed_sha256": "8882b9b0081482c195dff98636db7a2c3bff3b3521f684f3e39c36e9fae84efd",
+          "publisher_digest": null,
+          "entries": 57,
+          "expanded_bytes": 3701483,
+          "executables": [
+            {
+              "path": "omnispeak-win64-1.1/omnispeak.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": [
+            "omnispeak-win64-1.1/",
+            "omnispeak-win64-1.1/AUDINFOE.CK4",
+            "omnispeak-win64-1.1/AUDIODCT.CK4",
+            "omnispeak-win64-1.1/EGAGRAPH.CK4",
+            "omnispeak-win64-1.1/ACTION.CK4",
+            "omnispeak-win64-1.1/MAPHEAD.CK4",
+            "omnispeak-win64-1.1/omnispeak.exe",
+            "omnispeak-win64-1.1/README.TXT",
+            "omnispeak-win64-1.1/AUDIO.CK4",
+            "omnispeak-win64-1.1/EGAHEAD.CK4",
+            "omnispeak-win64-1.1/GAMEMAPS.CK4",
+            "omnispeak-win64-1.1/EGADICT.CK4",
+            "omnispeak-win64-1.1/GFXINFOE.CK4",
+            "omnispeak-win64-1.1/TILEINFO.CK4",
+            "omnispeak-win64-1.1/AUDIOHHD.CK4",
+            "omnispeak-win64-1.1/AUTHORS.TXT",
+            "omnispeak-win64-1.1/data/",
+            "omnispeak-win64-1.1/data/keen4/",
+            "omnispeak-win64-1.1/data/keen4/AUDINFOE.CK4",
+            "omnispeak-win64-1.1/data/keen4/AUDIODCT.CK4",
+            "omnispeak-win64-1.1/data/keen4/ACTION.CK4",
+            "omnispeak-win64-1.1/data/keen4/MAPHEAD.CK4",
+            "omnispeak-win64-1.1/data/keen4/EGAHEAD.CK4",
+            "omnispeak-win64-1.1/data/keen4/EGADICT.CK4",
+            "omnispeak-win64-1.1/data/keen4/GFXINFOE.CK4",
+            "omnispeak-win64-1.1/data/keen4/TILEINFO.CK4",
+            "omnispeak-win64-1.1/data/keen4/AUDIOHHD.CK4",
+            "omnispeak-win64-1.1/data/keen6e15/",
+            "omnispeak-win64-1.1/data/keen6e15/MAPHEAD.CK6",
+            "omnispeak-win64-1.1/data/keen6e15/EGAHEAD.CK6",
+            "omnispeak-win64-1.1/data/keen6e15/AUDIODCT.CK6",
+            "omnispeak-win64-1.1/data/keen6e15/EGADICT.CK6",
+            "omnispeak-win64-1.1/data/keen6e15/AUDIOHHD.CK6",
+            "omnispeak-win64-1.1/data/keen6e15/AUDINFOE.CK6",
+            "omnispeak-win64-1.1/data/keen6e15/ACTION.CK6",
+            "omnispeak-win64-1.1/data/keen6e15/TILEINFO.CK6",
+            "omnispeak-win64-1.1/data/keen6e15/GFXINFOE.CK6",
+            "omnispeak-win64-1.1/data/keen5/",
+            "omnispeak-win64-1.1/data/keen5/EGAHEAD.CK5",
+            "omnispeak-win64-1.1/data/keen5/TILEINFO.CK5",
+            "omnispeak-win64-1.1/data/keen5/AUDIODCT.CK5",
+            "omnispeak-win64-1.1/data/keen5/ACTION.CK5",
+            "omnispeak-win64-1.1/data/keen5/GFXINFOE.CK5",
+            "omnispeak-win64-1.1/data/keen5/AUDINFOE.CK5",
+            "omnispeak-win64-1.1/data/keen5/MAPHEAD.CK5",
+            "omnispeak-win64-1.1/data/keen5/EGADICT.CK5",
+            "omnispeak-win64-1.1/data/keen5/AUDIOHHD.CK5",
+            "omnispeak-win64-1.1/data/keen6e14/",
+            "omnispeak-win64-1.1/data/keen6e14/MAPHEAD.CK6",
+            "omnispeak-win64-1.1/data/keen6e14/EGAHEAD.CK6",
+            "omnispeak-win64-1.1/data/keen6e14/AUDIODCT.CK6",
+            "omnispeak-win64-1.1/data/keen6e14/EGADICT.CK6",
+            "omnispeak-win64-1.1/data/keen6e14/AUDIOHHD.CK6",
+            "omnispeak-win64-1.1/data/keen6e14/AUDINFOE.CK6",
+            "omnispeak-win64-1.1/data/keen6e14/ACTION.CK6",
+            "omnispeak-win64-1.1/data/keen6e14/TILEINFO.CK6",
+            "omnispeak-win64-1.1/data/keen6e14/GFXINFOE.CK6"
+          ]
+        }
+      ],
+      "packaged_documents": [
+        {
+          "path": "README.TXT",
+          "sha256": "318fedf2b5ae86307c9b43c2ceab3448a1a7356e1071300340eb4b743f529b3b"
+        }
+      ]
+    }
+  },
+  "ports": [
+    {
+      "id": "keen-dreams-reflectionhle",
+      "canonical_issue": 2683,
+      "family": "ReflectionHLE",
+      "original_data": "Keep the complete matching DOS edition, including KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and its EGA or CGA graphics. The exact executable and data revision must match one launcher entry; the modern Keen Dreams remaster and Keen 4/5/6 data are separate products. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_kdreams.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "41227c504b0f3312c0262467d5f8b86a5a8d81a3c5a4e37b5b35f7f8f2e7a4fb",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "1cc9e585775069b2097cf9ce338aabd96d91777bb84eb1d6f57a73079ea16433"
+    },
+    {
+      "id": "catacomb-3-d-the-descent-reflectionhle",
+      "canonical_issue": 2684,
+      "family": "ReflectionHLE",
+      "original_data": "Keep your own complete matching DOS Descent data, including CAT3D.EXE, AUDIO.C3D, EGAGRAPH.C3D and GAMEMAPS.C3D. The upstream tables distinguish v1.00 and v1.22 by sizes and CRCs. Abyss shareware does not provide Descent. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_cat3d.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "3cfdf1cda89a59fc5eefee9b0b5eeb02e8c6cc9cefd999ee5cd8362c5fb4b187",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "1ce2f7f477abfb73502f7e945f3c682be0b3bdd44b1728ec3cef4e0ffcab81df"
+    },
+    {
+      "id": "the-catacomb-abyss-reflectionhle",
+      "canonical_issue": 2685,
+      "family": "ReflectionHLE",
+      "original_data": "Use a complete supported DOS Abyss edition, including CATABYSS.EXE and its ABS files. The upstream tables distinguish the shareware and registered revisions and require companion help/shape files. An arbitrary Abyss EXE or another Catacomb game is not a substitute. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_catabyss.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "edf4dce216ad9d0b511ff5b298232e556da5adffbb2bac62de89c8e28e8497e1",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "0aaaa27365f3bb79053f75d1f9fcf1d57864f348515b0644d0d28e56d0a73355"
+    },
+    {
+      "id": "the-catacomb-armageddon-reflectionhle",
+      "canonical_issue": 2686,
+      "family": "ReflectionHLE",
+      "original_data": "Use your complete matching DOS Armageddon folder, including ARMGAME.EXE, AUDIO.ARM, EGAGRAPH.ARM, GAMEMAPS.ARM and the required SHP companion files. Abyss shareware does not supply Armageddon. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_catarm.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "56f67f99108bdf7efee0ac221cafa7c68886b8d217be007ed142d60ead4b66c9",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "1cda824cd82bfba2ca54b310dc7de530ee0c5df4b719f636343ed007e372336c"
+    },
+    {
+      "id": "the-catacomb-apocalypse-reflectionhle",
+      "canonical_issue": 2687,
+      "family": "ReflectionHLE",
+      "original_data": "Use your complete matching DOS Apocalypse folder, including APOCGAME.EXE, AUDIO.APC, EGAGRAPH.APC, GAMEMAPS.APC and the required SHP companion files. Abyss shareware does not supply Apocalypse. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_catapoc.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "abb111861cede05bddd7298949ab39e965c009bec19b824788ab613f27bf76e4",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "d45a6c20d60b8fb8801603de7e51107428bcd2188b8e914e8a92685473a3cb09"
+    },
+    {
+      "id": "wolfenstein-3d-reflectionhle",
+      "canonical_issue": 2688,
+      "family": "ReflectionHLE",
+      "original_data": "Use your complete original DOS Wolfenstein 3D folder with WOLF3D.EXE and the matching WL1 or WL6 data. Shareware, registered and publisher revisions are separate launcher entries with exact size/CRC checks. Spear of Destiny and remastered/console data are not this game. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_wolf3d.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "986deefa0d10a109aa16687cd2b4a4e66a26aaa87438068e0e2a521824db07f2",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "bd6d0aed889364808d5dda60257f679d3e1f442a14c3e2d29aa4be1e629ec6fd"
+    },
+    {
+      "id": "spear-of-destiny-reflectionhle",
+      "canonical_issue": 2689,
+      "family": "ReflectionHLE",
+      "original_data": "Use your complete matching DOS Spear folder, including SPEAR.EXE and its SOD/SD data. The upstream version tables distinguish the original game and mission packs. Preserve each owned mission and its matching files; Wolfenstein WL6 files are not Spear data. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_sodac14.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "0b162b363fa0b7fb90e0cfd4718fd387b2ea4e0dc799cca92ec50adbf127de56",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "da75737e27309e3f6c6a4325951329df3fea70ff5564cc7e193a23b884a44e0e"
+    },
+    {
+      "id": "super-3-d-noah-s-ark-dos-reflectionhle",
+      "canonical_issue": 2690,
+      "family": "ReflectionHLE",
+      "original_data": "Use your complete original DOS folder with NOAH3D.EXE or NOAH3DOS.EXE and matching N3D data, including AUDIOHED, AUDIOT, GAMEMAPS, MAPHEAD, VGADICT, VGAGRAPH, VGAHEAD and VSWAP. The upstream table requires exact sizes and CRCs; the SNES original is a different representation. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_n3dwt10.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "e5147d3c822545d7a93e01d19d8325ad4ab6572b351ee36c6d6c2c9a258286f1",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "67d84bfe5cd9fd9aacc11c8c4c482e375a7dd284c34a87fd060d9c386bc2a795"
+    },
+    {
+      "id": "bio-menace-reflectionhle",
+      "canonical_issue": 2692,
+      "family": "ReflectionHLE",
+      "original_data": "Use the complete matching original DOS episode folders with BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE and their corresponding BM1/BM2/BM3 data. The upstream tables distinguish shareware, registered and freeware revisions. Keep companion files; a BioMenace Remastered installation is not established as an interchangeable input. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ReflectionHLE/ReflectionHLE",
+      "source_commit": "74f07efcc40142a5727caacebec848c48b141eca",
+      "source_paths": [
+        "src/backend/gamedefs/be_gamedefs_bmenace.h",
+        "src/backend/filesystem/be_filesystem_app_paths.c",
+        "src/backend/filesystem/be_filesystem_gameinst.c"
+      ],
+      "selected_player": "reflectionhle.exe",
+      "asset_hints": ["reflectionhle-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "f33cdfc77b942c9858b97770799265345ed766e6a2d09902d13814efd1c158ee",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "release-20260606",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "reflectionhle-win64-20260606.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "51908493a462a830d6e3a80fd4d74e06a7098c1330ad09c27f7270de1ebe5b7c"
+    },
+    {
+      "id": "doom-the-ultimate-doom-crispy-doom-family",
+      "canonical_issue": 2654,
+      "family": "crispy-doom",
+      "original_data": "Supply DOOM.WAD from your original PC retail/Ultimate Doom copy. DOOM1.WAD provides only the separate shareware episode, not the full game. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "fabiangreffrath/crispy-doom",
+      "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+      "source_paths": ["src/d_iwad.c", "src/m_config.c"],
+      "selected_player": "crispy-doom.exe",
+      "asset_hints": ["crispy-doom-", "-win64.zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "8aba0dd655380bbbf3a85d3549fa31a46ff14fbdd1c8f4eb4c18b1130eff4580",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "crispy-doom-7.2",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "crispy-doom-7.2.0-win64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "8c8cc8841b1f8018a96fd979315e99aeee620dad172fa05fa5169980b52d794e"
+    },
+    {
+      "id": "doom-ii-crispy-doom-family",
+      "canonical_issue": 2655,
+      "family": "crispy-doom",
+      "original_data": "Supply DOOM2.WAD from your original PC Doom II copy; the separate French edition uses DOOM2F.WAD. Doom shareware does not provide Doom II. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "fabiangreffrath/crispy-doom",
+      "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+      "source_paths": ["src/d_iwad.c", "src/m_config.c"],
+      "selected_player": "crispy-doom.exe",
+      "asset_hints": ["crispy-doom-", "-win64.zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "6c7b1b0064796dafc7c2a53656b8349743f33cb898cdfffca5326f7ed656df8c",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "crispy-doom-7.2",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "crispy-doom-7.2.0-win64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "cd0ec7d543645b2fe163f3d8b14ba9a3b3dfd7f4900b937ecae4f6ff0e9a165e"
+    },
+    {
+      "id": "final-doom-crispy-doom-family",
+      "canonical_issue": 2656,
+      "family": "crispy-doom",
+      "original_data": "Supply your original PC TNT.WAD for TNT: Evilution or PLUTONIA.WAD for The Plutonia Experiment. Keep the two campaigns distinct; DOOM2.WAD does not supply Final Doom. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "fabiangreffrath/crispy-doom",
+      "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+      "source_paths": ["src/d_iwad.c", "src/m_config.c"],
+      "selected_player": "crispy-doom.exe",
+      "asset_hints": ["crispy-doom-", "-win64.zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "7bb822031d10671206df3a0eabb333fe5ca2ecf40576c9785fea23a1a7ba02e8",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "crispy-doom-7.2",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "crispy-doom-7.2.0-win64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "c121677fafc4e47552f45c4a4ef8b730163c31b723df466d16285e1d99efc9a8"
+    },
+    {
+      "id": "heretic-crispy-doom-family",
+      "canonical_issue": 2657,
+      "family": "crispy-doom",
+      "original_data": "Supply HERETIC.WAD from your original PC Heretic copy. HERETIC1.WAD provides the separate limited shareware edition. Doom IWADs are not Heretic data. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "fabiangreffrath/crispy-doom",
+      "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+      "source_paths": ["src/d_iwad.c", "src/m_config.c"],
+      "selected_player": "crispy-heretic.exe",
+      "asset_hints": ["crispy-heretic-", "-win64.zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "c88dc043f6fa2c5dbc69adbcfa522ac8a2c814f246328dec22708eeb8b4fc204",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "crispy-doom-7.2",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "crispy-heretic-7.2.0-win64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "cdb970d94ff2ea1700fd981c398f4ea31db66cac4a9faed71033080d2bed17a8"
+    },
+    {
+      "id": "hexen-crispy-doom-family",
+      "canonical_issue": 2662,
+      "family": "crispy-doom",
+      "original_data": "Supply HEXEN.WAD from your original PC Hexen copy. An expansion alone does not supply the base game, and Heretic is a different original. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "fabiangreffrath/crispy-doom",
+      "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+      "source_paths": ["src/d_iwad.c", "src/m_config.c"],
+      "selected_player": "crispy-hexen.exe",
+      "asset_hints": ["crispy-hexen-", "-win64.zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "77acab443611b993f83c5e250aa773524ed593dca83658630da26c03ba738f97",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "crispy-doom-7.2",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "crispy-hexen-7.2.0-win64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "57a22898eda51cbf8f66b62be4bb32811f397d0a0de3961667a1155164bd6623"
+    },
+    {
+      "id": "strife-crispy-doom-family",
+      "canonical_issue": 2663,
+      "family": "crispy-doom",
+      "original_data": "Supply STRIFE1.WAD from your original PC commercial Strife updated to at least v1.2; the Veteran Edition includes that data. The original demo is unsupported and v1.1 has known issues. Keep VOICES.WAD beside STRIFE1.WAD for speech; do not add it with -file. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "fabiangreffrath/crispy-doom",
+      "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+      "source_paths": ["src/d_iwad.c", "src/m_config.c", "README.Strife.md"],
+      "selected_player": "crispy-strife.exe",
+      "asset_hints": ["crispy-strife-", "-win64.zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "b8c45cd442139df0d8791a0e0f33e35e7bf0f643462dd538f29a46b08f675bad",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "crispy-doom-7.2",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "crispy-strife-7.2.0-win64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "ffc5fe8d790d5da7371c1d7d0e643ca68b350c5b665b44caee16d1ab1a0a70bd"
+    },
+    {
+      "id": "catacomb-3-d-the-descent-catacombgl",
+      "canonical_issue": 2643,
+      "family": "CatacombGL",
+      "original_data": "Use your own Catacomb 3-D: The Descent data from the Catacombs Pack. Abyss shareware does not supply this game. Keep the complete original folder and its companion files. CatacombGL can find a GOG Windows installation; otherwise use its own folder picker. Original data is separate from the player and remains yours.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ArnoAnsems/CatacombGL",
+      "source_commit": "1bd619a8449a2f88cb4b9af19c155f044982e5aa",
+      "source_paths": ["README.md", "src/System/SystemSDL.cpp", "src/System/CatacombGL.cpp"],
+      "selected_player": "CatacombGL.exe",
+      "asset_hints": ["CatacombGL-Windows-64bit-", ".zip"],
+      "channel": "beta",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "f6ea2b29f655316ff730a567a5ff9827478e9733f02215a6badaeccc5184417a",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.5.7-beta",
+          "observed_provider_prerelease": true,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CatacombGL-Windows-64bit-0-5-7.zip",
+                "published_sha256": false
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "a14e0e24de1c69970c5ae92f3aac967f1f287f7043f29793515d6f1fe3f9cb04"
+    },
+    {
+      "id": "the-catacomb-abyss-catacombgl",
+      "canonical_issue": 2644,
+      "family": "CatacombGL",
+      "original_data": "Use your owned Catacombs Pack Abyss folder or the upstream-documented Abyss shareware v1.13. The shareware route supplies only Abyss. Keep the complete original folder and its companion files. CatacombGL can find a GOG Windows installation; otherwise use its own folder picker. Original data is separate from the player and remains yours.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ArnoAnsems/CatacombGL",
+      "source_commit": "1bd619a8449a2f88cb4b9af19c155f044982e5aa",
+      "source_paths": ["README.md", "src/System/SystemSDL.cpp", "src/System/CatacombGL.cpp"],
+      "selected_player": "CatacombGL.exe",
+      "asset_hints": ["CatacombGL-Windows-64bit-", ".zip"],
+      "channel": "beta",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "bbe3838dbcf1ae3507d0ae9b9bd2aae3d4d3cf617f39ee4efa78f91e89b85fa3",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.5.7-beta",
+          "observed_provider_prerelease": true,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CatacombGL-Windows-64bit-0-5-7.zip",
+                "published_sha256": false
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "816280a305925394bd53165d31b7d0f6e0b6e8f7c907a8f3479791c9a40364f3"
+    },
+    {
+      "id": "the-catacomb-armageddon-catacombgl",
+      "canonical_issue": 2645,
+      "family": "CatacombGL",
+      "original_data": "Use your own The Catacomb Armageddon data from the Catacombs Pack. Abyss shareware does not supply this game. Keep the complete original folder and its companion files. CatacombGL can find a GOG Windows installation; otherwise use its own folder picker. Original data is separate from the player and remains yours.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ArnoAnsems/CatacombGL",
+      "source_commit": "1bd619a8449a2f88cb4b9af19c155f044982e5aa",
+      "source_paths": ["README.md", "src/System/SystemSDL.cpp", "src/System/CatacombGL.cpp"],
+      "selected_player": "CatacombGL.exe",
+      "asset_hints": ["CatacombGL-Windows-64bit-", ".zip"],
+      "channel": "beta",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "ff0affe782c5c8d5248b5bc5dc1c72e7c76fdde857328e72bdc06933c5e53c00",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.5.7-beta",
+          "observed_provider_prerelease": true,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CatacombGL-Windows-64bit-0-5-7.zip",
+                "published_sha256": false
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "5440cf805419427d80d03d8d31ffeeedc084e004568b89a045c31e3e969c7855"
+    },
+    {
+      "id": "the-catacomb-apocalypse-catacombgl",
+      "canonical_issue": 2646,
+      "family": "CatacombGL",
+      "original_data": "Use your own The Catacomb Apocalypse data from the Catacombs Pack. Abyss shareware does not supply this game. Keep the complete original folder and its companion files. CatacombGL can find a GOG Windows installation; otherwise use its own folder picker. Original data is separate from the player and remains yours.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "ArnoAnsems/CatacombGL",
+      "source_commit": "1bd619a8449a2f88cb4b9af19c155f044982e5aa",
+      "source_paths": ["README.md", "src/System/SystemSDL.cpp", "src/System/CatacombGL.cpp"],
+      "selected_player": "CatacombGL.exe",
+      "asset_hints": ["CatacombGL-Windows-64bit-", ".zip"],
+      "channel": "beta",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "958e11379ef65d69de86dfd89f23d0c69d33d92ec95f7219e19a74e339358c6e",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.5.7-beta",
+          "observed_provider_prerelease": true,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CatacombGL-Windows-64bit-0-5-7.zip",
+                "published_sha256": false
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "eaf4611c0147bea0ce65989329ad88dd18718e16cbb83dd529e95fd4fe3d67a5"
+    },
+    {
+      "id": "commander-keen-4-omnispeak",
+      "canonical_issue": 2648,
+      "family": "omnispeak",
+      "original_data": "Use your own Keen 4 v1.4 EGA GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 with the matching Omnispeak episode support files. The documented Keen 4 v1.4 EGA shareware is a limited alternative for this episode only. CGA, v1.0 and other unsupported revisions are not interchangeable. Keep original files and their version intact.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "sulix/omnispeak",
+      "source_commit": "d017166e47a44f102515f3fdf382ac794ab30ae0",
+      "source_paths": ["README", "src/id_fs.c", "src/ck_main.c", "src/ck_config.h"],
+      "selected_player": "omnispeak.exe",
+      "asset_hints": ["omnispeak-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "ead86bf9cddcb489fa3e14cde9707eb91f7b1b22992ae60feb44976e58c5824a",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v1.1",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "omnispeak-win64-1.1.zip",
+                "published_sha256": false
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "2934d381772605380bf19faa4668283102c081977c3baf223f213fc3f8053468"
+    },
+    {
+      "id": "commander-keen-5-omnispeak",
+      "canonical_issue": 2649,
+      "family": "omnispeak",
+      "original_data": "Use your own Keen 5 v1.4 EGA GAMEMAPS.CK5, EGAGRAPH.CK5 and AUDIO.CK5 with the matching Omnispeak episode support files. Keen 4 shareware does not supply this episode. CGA, v1.0 and other unsupported revisions are not interchangeable. Keep original files and their version intact.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "sulix/omnispeak",
+      "source_commit": "d017166e47a44f102515f3fdf382ac794ab30ae0",
+      "source_paths": ["README", "src/id_fs.c", "src/ck_main.c", "src/ck_config.h"],
+      "selected_player": "omnispeak.exe",
+      "asset_hints": ["omnispeak-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "7b17b3da1e33c287e2a951b33ffd69af77dfaa705cad58b9f358318ff8f7d1dd",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v1.1",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "omnispeak-win64-1.1.zip",
+                "published_sha256": false
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "dbe03b99aa416d132477a5f8d1b58a00e754f483a7df528d07408a433dbb3f30"
+    },
+    {
+      "id": "commander-keen-6-omnispeak",
+      "canonical_issue": 2650,
+      "family": "omnispeak",
+      "original_data": "Use your own Keen 6 v1.4 or v1.5 EGA GAMEMAPS.CK6, EGAGRAPH.CK6 and AUDIO.CK6 with the matching Omnispeak episode support files. Keen 4 shareware does not supply this episode. CGA, v1.0 and other unsupported revisions are not interchangeable. Keep original files and their version intact.",
+      "platform": "windows-x86-64",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "user-managed-update",
+      "upstream": "sulix/omnispeak",
+      "source_commit": "d017166e47a44f102515f3fdf382ac794ab30ae0",
+      "source_paths": ["README", "src/id_fs.c", "src/ck_main.c", "src/ck_config.h"],
+      "selected_player": "omnispeak.exe",
+      "asset_hints": ["omnispeak-win64-", ".zip"],
+      "channel": "stable",
+      "delivery": "candidate; final PR owns review, CI, merge and readback",
+      "managed_fit": "unfinished; requires independent complete writer/source/completion and compatible-release contract; no permanent deferral",
+      "native_gameplay_and_real_save_evidence": "not-run",
+      "before_sha256": "1d7de22ae185d313f0dd8d176ce48bb7bf0fe31f41f8fde1c220f6828177bea8",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v1.1",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "omnispeak-win64-1.1.zip",
+                "published_sha256": false
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      },
+      "authored_record_sha256": "f0129c247ab2ff12975d3353395455f15d2aebc465c6be01e6b0d3b5662320c7"
+    }
+  ],
+  "boundaries": [
+    "22 distinct identities; all belong to the frozen 312 affected additions",
+    "167 operational definitions are unchanged; original artwork, lineage, acquisition conditions and other records are unchanged",
+    "Crispy and ReflectionHLE publisher digests match inspected Windows bytes; CatacombGL and Omnispeak computed hashes are inspection identities only",
+    "No original game, player, setup tool or helper ran; no native, gameplay, real-save or Supported promotion",
+    "Managed fit remains unfinished; this candidate delivers operation-scoped upstream guidance and explicit non-owning registration only"
+  ]
+}

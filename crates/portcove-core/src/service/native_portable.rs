@@ -1,6 +1,12 @@
 //! Generic package ownership through the existing managed version lifecycle.
 use super::*;
 
+fn portable_data_change() -> PortcoveError {
+    PortcoveError::conflict(
+        "The new package changes how this installation stores or locates player data. Keep the current version and use upstream instructions until a supported data migration is available. Your installation and files have been preserved.",
+    ).with_known_cause(crate::failure::KnownFailureCause::PortableDataContractChanged)
+}
+
 impl PortcoveService {
     /// Resolve only the registered managed copy's retained setup coordinates.
     /// Returning a directory grants no helper execution or external ownership.
@@ -38,7 +44,7 @@ impl PortcoveService {
         from: &InstallRecord,
         to: &PortDefinition,
     ) -> Result<()> {
-        self.require_portable_transition_to(from, to, false)
+        self.require_portable_transition_to(from, to, None)
     }
 
     pub(super) fn require_portable_rollback_transition(
@@ -51,14 +57,14 @@ impl PortcoveService {
                 "rollback target belongs to another port",
             ));
         }
-        self.require_portable_transition_to(from, &self.installed_port(previous)?, true)
+        self.require_portable_transition_to(from, &self.installed_port(previous)?, Some(previous))
     }
 
     fn require_portable_transition_to(
         &self,
         from: &InstallRecord,
         to: &PortDefinition,
-        retained_rollback: bool,
+        retained_rollback: Option<&InstallRecord>,
     ) -> Result<()> {
         let retained = self.installed_port(from)?;
         if retained.adapter != AdapterKind::NativePortable
@@ -75,7 +81,6 @@ impl PortcoveService {
             || retained.n64_runtime_at_executable_parent != to.n64_runtime_at_executable_parent
             || crate::persistence::ready_staged_archive(&retained)
                 != crate::persistence::ready_staged_archive(to)
-            || retained.persistent_paths != to.persistent_paths
             || retained.mod_package_policy != to.mod_package_policy
             || retained.persistent_file_patterns != to.persistent_file_patterns
             || retained.runtime_subdirectory != to.runtime_subdirectory
@@ -93,13 +98,146 @@ impl PortcoveService {
                 && !(retained.setup_marker.is_none()
                     && crate::preparation::has_manual_marker(to)
                     && crate::preparation::validate_manual_marker(to).is_ok())
-                && !(retained_rollback
+                && !(retained_rollback.is_some()
                     && crate::preparation::has_manual_marker(&retained)
                     && to.setup_marker.is_none()))
         {
-            return Err(PortcoveError::conflict(
-                "The new package changes how this installation stores or locates player data. Keep the current version and use upstream instructions until a supported data migration is available. Your installation and files have been preserved.",
-            ).with_known_cause(crate::failure::KnownFailureCause::PortableDataContractChanged));
+            return Err(portable_data_change());
+        }
+        if retained.persistent_paths != to.persistent_paths {
+            if let Some(previous) = retained_rollback
+                && to
+                    .persistent_paths
+                    .iter()
+                    .all(|path| retained.persistent_paths.contains(path))
+            {
+                // The same empty-path proof protects a smaller retained scope in reverse.
+                self.require_empty_persistence_expansion(previous, &retained, Some(from))?;
+            } else {
+                self.require_empty_persistence_expansion(from, to, retained_rollback)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn require_portable_target_transition(
+        &self,
+        from: &InstallRecord,
+        target: &InstallRecord,
+    ) -> Result<()> {
+        let to = self.installed_port(target)?;
+        self.require_portable_transition(from, &to)?;
+        let retained = self.installed_port(from)?;
+        if crate::persistence::ready_staged_archive(&retained)
+            && crate::persistence::ready_staged_archive(&to)
+            && retained.persistent_paths != to.persistent_paths
+        {
+            self.require_empty_persistence_expansion(from, &to, Some(target))?;
+        }
+        Ok(())
+    }
+
+    fn require_empty_persistence_expansion(
+        &self,
+        from: &InstallRecord,
+        to: &PortDefinition,
+        target: Option<&InstallRecord>,
+    ) -> Result<()> {
+        let installer = Installer::new(self.library.clone())?;
+        let catalog = installer
+            .retained_catalog(from)?
+            .ok_or_else(portable_data_change)?;
+        let retained = catalog.port(&from.port_id)?;
+        if !crate::persistence::ready_staged_archive(retained)
+            || !crate::persistence::ready_staged_archive(to)
+            || !retained
+                .persistent_paths
+                .iter()
+                .all(|path| to.persistent_paths.contains(path))
+        {
+            return Err(portable_data_change());
+        }
+        self.persistence_contract_for_install(from)?;
+        // Inactive copies must also retain a usable, unexpanded restore contract.
+        self.preflight_psx_mod_restores(&from.port_id, &self.library.user_dir(&from.port_id))?;
+        let added = to
+            .persistent_paths
+            .iter()
+            .filter(|path| !retained.persistent_paths.contains(path))
+            .collect::<Vec<_>>();
+        if added.is_empty() {
+            return Err(portable_data_change());
+        }
+        for path in &added {
+            let key = path.to_lowercase();
+            for other in &to.persistent_paths {
+                if *path == other {
+                    continue;
+                }
+                let other = other.to_lowercase();
+                if Path::new(&key).starts_with(&other) || Path::new(&other).starts_with(&key) {
+                    return Err(portable_data_change().detail("path", path.as_str()));
+                }
+            }
+        }
+        let platform = Platform::current()?;
+        let original = InstallQualification::from_port(retained, platform)?;
+        let mut expanded = retained.clone();
+        expanded.persistent_paths.clone_from(&to.persistent_paths);
+        let candidate = InstallQualification::from_port(&expanded, platform)?;
+        if !installer.permits_additive_mutability(from, &original, &candidate)? {
+            return Err(portable_data_change());
+        }
+        let mut roots = vec![
+            self.persistence_root(retained, &from.path)?,
+            self.library.user_dir(&from.port_id),
+        ];
+        if let Some(target) = target {
+            let target_catalog = installer
+                .retained_catalog(target)?
+                .ok_or_else(portable_data_change)?;
+            let target_port = target_catalog.port(&target.port_id)?;
+            if target.port_id != from.port_id || target_port.persistent_paths != to.persistent_paths
+            {
+                return Err(portable_data_change());
+            }
+            self.persistence_contract_for_install(target)?;
+            roots.push(self.persistence_root(target_port, &target.path)?);
+        }
+        for path in added {
+            for root in &roots {
+                crate::persistence::require_absent_path(root, path).map_err(|error| {
+                    error.with_known_cause(
+                        crate::failure::KnownFailureCause::PortableDataContractChanged,
+                    )
+                })?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Backups must not silently omit unclaimed output in an inactive copy.
+    pub(super) fn require_generated_cache_outputs_unchanged(&self, port_id: &str) -> Result<()> {
+        for install in self.library.all_installs()? {
+            if install.port_id == port_id {
+                self.require_generated_cache_install_unchanged(&install)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn require_generated_cache_install_unchanged(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<()> {
+        // An absent runtime has no output to omit. Ordinary canonical backups
+        // remain available for historical records whose payload no longer exists.
+        if matches!(fs::symlink_metadata(&install.path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+        {
+            return Ok(());
+        }
+        if self.installed_port(install)?.adapter == AdapterKind::GeneratedCache {
+            self.require_portable_runtime_unchanged(install)?;
         }
         Ok(())
     }
@@ -107,10 +245,20 @@ impl PortcoveService {
     pub(super) fn require_portable_runtime_unchanged(&self, install: &InstallRecord) -> Result<()> {
         let port = self.installed_port(install)?;
         if port.adapter != AdapterKind::NativePortable
+            && port.adapter != AdapterKind::GeneratedCache
             && !crate::persistence::ready_staged_archive(&port)
             && !port.n64_runtime_at_executable_parent
         {
             return Ok(());
+        }
+        if port.adapter == AdapterKind::GeneratedCache
+            && Installer::new(self.library.clone())?
+                .retained_catalog(install)?
+                .is_none()
+        {
+            return Err(PortcoveError::verification(
+                "Generated-cache maintenance requires its exact retained contract; preserve this runtime and all player data for review",
+            ));
         }
         let qualification = self.installed_mutability_qualification(install)?;
         let report =
@@ -1167,7 +1315,7 @@ mod tests {
         let staged = service.status(ID).unwrap().staged.unwrap();
         assert!(
             service
-                .prepare_recovered_psx_activation(&staged)
+                .prepare_retained_install_data(&staged)
                 .unwrap_err()
                 .message
                 .contains("Mod packages need review")
@@ -1206,7 +1354,7 @@ mod tests {
         assert!(service.require_portable_transition(&first, to).is_err());
         assert!(
             service
-                .require_portable_transition_to(&first, to, true)
+                .require_portable_transition_to(&first, to, Some(&staged))
                 .is_err()
         );
         // Current catalog changes do not reinterpret a retained runtime.
@@ -2888,6 +3036,1158 @@ mod tests {
         );
     }
 
+    fn ready_persistence_catalog(expanded: bool, distinct_baseline: bool) -> Catalog {
+        let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
+        document["ports"][0]["adapter"] = serde_json::json!("staged-source-portable");
+        if expanded {
+            document["ports"][0]["persistent_paths"]
+                .as_array_mut()
+                .unwrap()
+                .extend([
+                    serde_json::json!("campaign.dat"),
+                    serde_json::json!("campaign.tmp"),
+                ]);
+        }
+        if distinct_baseline {
+            document["ports"][0]["summary"] = serde_json::json!("Successor package fixture");
+        }
+        let catalog = Catalog::from_json(&document.to_string()).unwrap();
+        assert!(crate::persistence::ready_staged_archive(
+            catalog.port("portable-fixture").unwrap()
+        ));
+        catalog
+    }
+
+    #[tokio::test]
+    async fn empty_ready_persistence_expansion_preserves_preplay_data_and_committed_recovery() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider.clone());
+        let original_catalog = crate::test_fixture::admitted_indexed_catalog(
+            &ready_persistence_catalog(false, false),
+            ID,
+        );
+        let expanded_catalog = crate::test_fixture::admitted_indexed_catalog(
+            &ready_persistence_catalog(true, true),
+            ID,
+        );
+        crate::definition_candidate::selection::trust_catalog_selection_for_test(
+            &library,
+            &original_catalog,
+            ID,
+        );
+        service.replace_catalog_for_test(original_catalog.clone());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
+        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::write(first.path.join("settings.ini"), b"before first Play").unwrap();
+        crate::definition_candidate::selection::trust_catalog_selection_for_test(
+            &library,
+            &expanded_catalog,
+            ID,
+        );
+        library
+            .restore_retained_definition_admission(
+                original_catalog.definition_selection(ID).unwrap(),
+                original_catalog.definition_snapshot(ID).unwrap(),
+                "previous",
+            )
+            .unwrap();
+        service.replace_catalog_for_test(expanded_catalog.clone());
+        *provider.0.lock().unwrap() = server.release("v2", 2);
+        let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        fs::write(first.path.join("settings.ini"), b"latest after staging").unwrap();
+        struct Interrupt;
+        impl LifecycleFaultInjector for Interrupt {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::ActivationMetadataCommitted {
+                    Err(PortcoveError::state(
+                        "fixture interruption after committed expansion",
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+        service.faults = Arc::new(Interrupt);
+        assert!(service.activate_staged(ID).is_err());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, staged.id);
+        fs::write(staged.path.join("campaign.dat"), b"newly owned progress").unwrap();
+        service.faults = Arc::new(NoLifecycleFaults);
+        service.recover_pending_operations().unwrap();
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, staged.id);
+        assert_eq!(
+            fs::read(staged.path.join("settings.ini")).unwrap(),
+            b"latest after staging"
+        );
+        assert_eq!(
+            fs::read(staged.path.join("campaign.dat")).unwrap(),
+            b"newly owned progress"
+        );
+        assert_eq!(
+            fs::read(first.path.join(".portcove-manifest.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(
+            fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            receipt
+        );
+        assert!(!first.path.join("campaign.dat").exists());
+        assert_eq!(
+            service
+                .installed_port(&first)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            4
+        );
+        assert_eq!(
+            service
+                .installed_port(&staged)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            6
+        );
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/campaign.dat")).unwrap(),
+            b"newly owned progress"
+        );
+        assert!(service.rollback(ID).is_err());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, staged.id);
+        fs::write(staged.path.join("campaign.dat"), b"later runtime progress").unwrap();
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        struct RestoreInterrupt;
+        impl LifecycleFaultInjector for RestoreInterrupt {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::RestoreVersionSynchronized {
+                    Err(PortcoveError::state(
+                        "fixture interruption during retained-version data sync",
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+        service.faults = Arc::new(RestoreInterrupt);
+        assert!(
+            service
+                .restore_backup(ID, &backup.id, &consent.token)
+                .is_err()
+        );
+        service = build_service(library.clone(), provider.clone());
+        service.replace_catalog_for_test(expanded_catalog.clone());
+        service.recover_pending_operations().unwrap();
+        assert_eq!(
+            fs::read(staged.path.join("campaign.dat")).unwrap(),
+            b"newly owned progress"
+        );
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("campaign.dat")).unwrap(),
+            b"newly owned progress"
+        );
+        assert!(!first.path.join("campaign.dat").exists());
+        assert_eq!(
+            fs::read(first.path.join(".portcove-manifest.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(
+            fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            receipt
+        );
+        // A future otherwise-identical catalog must hold inactive scope expansion.
+        service.replace_catalog_for_test(ready_persistence_catalog(true, false));
+        let refusal = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap_err();
+        assert_eq!(refusal.code, crate::ErrorCode::Conflict);
+        assert_eq!(refusal.details.get("install_id"), Some(&first.id));
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("campaign.dat")).unwrap(),
+            b"newly owned progress"
+        );
+        assert!(!first.path.join("campaign.dat").exists());
+        // Historical transfer authority works without adopting the widened live scope.
+        service.replace_catalog_for_test(expanded_catalog);
+        for (install, role) in [(&first, "previous"), (&staged, "active")] {
+            let retained = service.installed_catalog(install).unwrap();
+            assert_eq!(
+                library
+                    .retained_definition_admission_role(retained.definition_selection(ID).unwrap(),)
+                    .unwrap(),
+                Some(role)
+            );
+        }
+        let metadata = temporary.path().join("export.json");
+        service.write_library_metadata(&metadata).unwrap();
+        let imported = temporary.path().join("imported");
+        let plan =
+            PortcoveService::plan_library_import(&metadata, library.root(), &imported).unwrap();
+        assert!(
+            PortcoveService::import_library(
+                &metadata,
+                library.root(),
+                &imported,
+                &plan.plan_sha256
+            )
+            .unwrap()
+            .completed
+        );
+        let imported_library = Library::open(&imported).unwrap();
+        let imported_service =
+            PortcoveService::with_provider(imported_library.clone(), provider).unwrap();
+        let imported_first = imported_library
+            .all_installs()
+            .unwrap()
+            .into_iter()
+            .find(|i| i.id == first.id)
+            .unwrap();
+        let imported_active = imported_library
+            .status(ID, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        assert_eq!(
+            imported_service
+                .installed_port(&imported_first)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            4
+        );
+        assert_eq!(
+            imported_service
+                .installed_port(&imported_active)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            6
+        );
+        assert!(!imported_first.path.join("campaign.dat").exists());
+        assert_eq!(
+            fs::read(imported_active.path.join("campaign.dat")).unwrap(),
+            b"newly owned progress"
+        );
+    }
+
+    #[tokio::test]
+    async fn empty_retained_scope_roundtrip_preserves_current_data_and_transfer_authority() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider.clone());
+        let original_catalog = crate::test_fixture::admitted_indexed_catalog(
+            &ready_persistence_catalog(false, false),
+            ID,
+        );
+        let expanded_catalog = crate::test_fixture::admitted_indexed_catalog(
+            &ready_persistence_catalog(true, true),
+            ID,
+        );
+        crate::definition_candidate::selection::trust_catalog_selection_for_test(
+            &library,
+            &original_catalog,
+            ID,
+        );
+        service.replace_catalog_for_test(original_catalog.clone());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        crate::definition_candidate::selection::trust_catalog_selection_for_test(
+            &library,
+            &expanded_catalog,
+            ID,
+        );
+        library
+            .restore_retained_definition_admission(
+                original_catalog.definition_selection(ID).unwrap(),
+                original_catalog.definition_snapshot(ID).unwrap(),
+                "previous",
+            )
+            .unwrap();
+        service.replace_catalog_for_test(expanded_catalog.clone());
+        *provider.0.lock().unwrap() = server.release("v2", 2);
+        let second = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        let retained = [&first, &second].map(|install| {
+            (
+                fs::read(install.path.join(".portcove-manifest.json")).unwrap(),
+                fs::read(install.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            )
+        });
+        fs::write(
+            second.path.join("settings.ini"),
+            b"latest before first Play",
+        )
+        .unwrap();
+        assert!(!second.path.join(LAUNCH_MARKER).exists());
+        let status = service.status(ID).unwrap();
+        assert_eq!(
+            status
+                .port_actions
+                .iter()
+                .find(|a| a.action == PortAction::Rollback)
+                .unwrap()
+                .availability,
+            PortActionAvailability::Allowed
+        );
+        assert_eq!(service.rollback(ID).unwrap().id, first.id);
+        assert_eq!(
+            fs::read(first.path.join("settings.ini")).unwrap(),
+            b"latest before first Play"
+        );
+        fs::write(first.path.join(LAUNCH_MARKER), b"1").unwrap();
+        fs::write(
+            first.path.join("settings.ini"),
+            b"current older-copy choice",
+        )
+        .unwrap();
+        assert_eq!(service.rollback(ID).unwrap().id, second.id);
+        assert_eq!(
+            fs::read(second.path.join("settings.ini")).unwrap(),
+            b"current older-copy choice"
+        );
+        assert_eq!(service.rollback(ID).unwrap().id, first.id);
+        let backup = service.create_backup(ID).unwrap();
+        fs::write(first.path.join("settings.ini"), b"newer than backup").unwrap();
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        struct Interrupt;
+        impl LifecycleFaultInjector for Interrupt {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::RestoreVersionSynchronized {
+                    Err(PortcoveError::state(
+                        "fixture interruption after retained-scope rollback",
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+        service.faults = Arc::new(Interrupt);
+        assert!(
+            service
+                .restore_backup(ID, &backup.id, &consent.token)
+                .is_err()
+        );
+        service = build_service(library.clone(), provider.clone());
+        service.replace_catalog_for_test(expanded_catalog.clone());
+        service.recover_pending_operations().unwrap();
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        assert_eq!(
+            fs::read(first.path.join("settings.ini")).unwrap(),
+            b"current older-copy choice"
+        );
+        for (install, (manifest, receipt)) in [&first, &second].into_iter().zip(&retained) {
+            assert_eq!(
+                fs::read(install.path.join(".portcove-manifest.json")).unwrap(),
+                *manifest
+            );
+            assert_eq!(
+                fs::read(install.path.join(PSX_DATA_RECEIPT)).unwrap(),
+                *receipt
+            );
+            assert!(!install.path.join("campaign.dat").exists());
+        }
+        let metadata = temporary.path().join("export.json");
+        service.write_library_metadata(&metadata).unwrap();
+        let imported = temporary.path().join("imported");
+        let plan =
+            PortcoveService::plan_library_import(&metadata, library.root(), &imported).unwrap();
+        assert!(
+            PortcoveService::import_library(
+                &metadata,
+                library.root(),
+                &imported,
+                &plan.plan_sha256,
+            )
+            .unwrap()
+            .completed
+        );
+        let imported_library = Library::open(&imported).unwrap();
+        let mut imported_service = build_service(imported_library.clone(), provider);
+        imported_service.replace_catalog_for_test(expanded_catalog);
+        assert_eq!(imported_service.rollback(ID).unwrap().id, second.id);
+        let active = imported_library
+            .status(ID, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        assert_eq!(
+            fs::read(active.path.join("settings.ini")).unwrap(),
+            b"current older-copy choice"
+        );
+        assert!(!imported_library.user_dir(ID).join("campaign.dat").exists());
+        assert_eq!(
+            imported_service
+                .installed_port(&active)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            6
+        );
+        let old = imported_library
+            .all_installs()
+            .unwrap()
+            .into_iter()
+            .find(|i| i.id == first.id)
+            .unwrap();
+        assert_eq!(
+            imported_service
+                .installed_port(&old)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            4
+        );
+    }
+
+    #[tokio::test]
+    async fn empty_retained_scope_switch_rechecks_each_actual_root_after_preview() {
+        const ID: &str = "portable-fixture";
+        for larger_active in [true, false] {
+            for location in ["active", "canonical", "target"] {
+                let temporary = tempfile::tempdir().unwrap();
+                let library = Library::open(temporary.path().join("library")).unwrap();
+                let server = Server::new();
+                let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+                let mut service = build_service(library.clone(), provider.clone());
+                service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+                service
+                    .install(ID, None, None, None, true, |_| {})
+                    .await
+                    .unwrap();
+                service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+                *provider.0.lock().unwrap() = server.release("v2", 2);
+                service.update(ID, None, None, true, |_| {}).await.unwrap();
+                if !larger_active {
+                    service.rollback(ID).unwrap();
+                }
+                let status = service.status(ID).unwrap();
+                assert_eq!(
+                    status
+                        .port_actions
+                        .iter()
+                        .find(|a| a.action == PortAction::Rollback)
+                        .unwrap()
+                        .availability,
+                    PortActionAvailability::Allowed
+                );
+                let active = status.active.unwrap();
+                let target = status.previous.unwrap();
+                let root = match location {
+                    "active" => active.path.clone(),
+                    "canonical" => library.user_dir(ID),
+                    _ => target.path.clone(),
+                };
+                fs::create_dir_all(&root).unwrap();
+                fs::write(root.join("campaign.dat"), b"preserve after preview").unwrap();
+                fs::write(
+                    active.path.join("settings.ini"),
+                    b"do not collect on refusal",
+                )
+                .unwrap();
+                let canonical_before = fs::read(library.user_dir(ID).join("settings.ini")).ok();
+                let before = crate::test_fixture::library_file_snapshot(&library);
+                let held = service.status(ID).unwrap();
+                assert_eq!(
+                    held.port_actions
+                        .iter()
+                        .find(|a| a.action == PortAction::Rollback)
+                        .unwrap()
+                        .availability,
+                    PortActionAvailability::Held
+                );
+                assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
+                assert!(service.rollback(ID).is_err(), "{larger_active} {location}");
+                assert_eq!(
+                    library
+                        .status(ID, ReleaseChannel::Stable)
+                        .unwrap()
+                        .active
+                        .unwrap()
+                        .id,
+                    active.id
+                );
+                assert_eq!(
+                    fs::read(root.join("campaign.dat")).unwrap(),
+                    b"preserve after preview"
+                );
+                assert_eq!(
+                    fs::read(library.user_dir(ID).join("settings.ini")).ok(),
+                    canonical_before
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn empty_retained_scope_rollback_preserves_authority_and_alias_refusals() {
+        const ID: &str = "portable-fixture";
+        for case in [
+            "empty-directory",
+            "case-alias",
+            "active-manifest",
+            "target-manifest",
+            "target-runtime",
+            "target-companion",
+            "missing-target-authority",
+            "inactive-scope",
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+            let mut first = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+            *provider.0.lock().unwrap() = server.release("v2", 2);
+            let second = service.update(ID, None, None, true, |_| {}).await.unwrap();
+            assert_eq!(
+                service
+                    .status(ID)
+                    .unwrap()
+                    .port_actions
+                    .iter()
+                    .find(|a| a.action == PortAction::Rollback)
+                    .unwrap()
+                    .availability,
+                PortActionAvailability::Allowed,
+                "baseline before {case}",
+            );
+            fs::write(
+                second.path.join("settings.ini"),
+                b"preserve uncollected choice",
+            )
+            .unwrap();
+            match case {
+                "empty-directory" => fs::create_dir(second.path.join("campaign.dat")).unwrap(),
+                "case-alias" => fs::write(second.path.join("Campaign.dat"), b"case alias").unwrap(),
+                "active-manifest" => {
+                    fs::write(second.path.join(".portcove-manifest.json"), b"tampered").unwrap()
+                }
+                "target-manifest" => {
+                    fs::write(first.path.join(".portcove-manifest.json"), b"tampered").unwrap()
+                }
+                "target-runtime" => {
+                    fs::write(first.path.join("game.exe"), b"changed executable").unwrap()
+                }
+                "target-companion" => {
+                    fs::write(first.path.join("package.txt"), b"changed package member").unwrap()
+                }
+                "missing-target-authority" => {
+                    let manifest = first.path.join(".portcove-manifest.json");
+                    let mut value: serde_json::Value =
+                        serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+                    assert!(
+                        value
+                            .as_object_mut()
+                            .unwrap()
+                            .remove("retained_contract")
+                            .is_some()
+                    );
+                    value["schema_version"] = serde_json::json!(5);
+                    let bytes = serde_json::to_vec(&value).unwrap();
+                    fs::write(&manifest, &bytes).unwrap();
+                    first.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+                    library.update_install_manifest(&first).unwrap();
+                    fs::write(
+                        first.path.join(PSX_DATA_RECEIPT),
+                        serde_json::to_vec(&serde_json::json!({"schema_version":1,"port_id":ID,
+                            "install_id":first.id,"manifest_sha256":first.manifest_sha256}))
+                        .unwrap(),
+                    )
+                    .unwrap();
+                    assert!(
+                        Installer::new(library.clone())
+                            .unwrap()
+                            .retained_catalog(&first)
+                            .unwrap()
+                            .is_none()
+                    );
+                    service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+                }
+                _ => service.replace_catalog_for_test(ready_persistence_catalog(true, false)),
+            }
+            let before = fs::read(library.user_dir(ID).join("settings.ini")).ok();
+            let receipts =
+                [&first, &second].map(|i| fs::read(i.path.join(PSX_DATA_RECEIPT)).unwrap());
+            assert!(service.rollback(ID).is_err(), "{case}");
+            assert_eq!(
+                library
+                    .status(ID, ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap()
+                    .id,
+                second.id
+            );
+            assert_eq!(
+                fs::read(second.path.join("settings.ini")).unwrap(),
+                b"preserve uncollected choice"
+            );
+            assert_eq!(
+                fs::read(library.user_dir(ID).join("settings.ini")).ok(),
+                before
+            );
+            for (install, receipt) in [&first, &second].into_iter().zip(&receipts) {
+                assert_eq!(
+                    fs::read(install.path.join(PSX_DATA_RECEIPT)).unwrap(),
+                    *receipt
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn receipt_governed_additive_projection_refuses_before_canonical_mutation() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider);
+        service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::write(first.path.join(LAUNCH_MARKER), b"1").unwrap();
+        fs::create_dir_all(library.user_dir(ID)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("campaign.dat"),
+            b"canonical-only progress",
+        )
+        .unwrap();
+        service.replace_catalog_for_test(ready_persistence_catalog(true, false));
+        assert_eq!(
+            service
+                .installed_mutability_port(&first)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            6
+        );
+        let failure = service
+            .collect_user_data_from_install(ID, &first.path)
+            .unwrap_err();
+        assert_eq!(
+            failure.presentation().presentation_key,
+            "portable_data_contract_changed"
+        );
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("campaign.dat")).unwrap(),
+            b"canonical-only progress"
+        );
+        assert_eq!(
+            fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            receipt
+        );
+        assert!(!first.path.join("campaign.dat").exists());
+        assert!(
+            service
+                .require_psx_restore_preflight(ID, &library.user_dir(ID))
+                .is_err()
+        );
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+    }
+
+    #[tokio::test]
+    async fn staged_empty_expansion_rechecks_each_data_root_and_pending_recovery() {
+        const ID: &str = "portable-fixture";
+        for location in ["active", "canonical", "staged"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+            let first = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+            *provider.0.lock().unwrap() = server.release("v2", 2);
+            let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
+            let root = match location {
+                "active" => first.path.clone(),
+                "canonical" => library.user_dir(ID),
+                _ => staged.path.clone(),
+            };
+            fs::create_dir_all(&root).unwrap();
+            fs::write(root.join("campaign.dat"), b"preserve post-stage addition").unwrap();
+            assert!(
+                service.update(ID, None, None, false, |_| {}).await.is_err(),
+                "stage-only retry: {location}"
+            );
+            assert!(service.activate_staged(ID).is_err(), "{location}");
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+            assert_eq!(
+                fs::read(root.join("campaign.dat")).unwrap(),
+                b"preserve post-stage addition"
+            );
+            let mut operation = LifecycleOperation::new(
+                Uuid::new_v4().to_string(),
+                LifecycleOperationKind::Activate,
+                ID,
+            );
+            operation.install = Some(staged.clone());
+            let store = OperationStore::new(library.clone());
+            store.put(&mut operation).unwrap();
+            assert!(
+                crate::recovery::recover_activation(&service, &store, &mut operation).is_err(),
+                "{location}"
+            );
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+            assert_eq!(service.status(ID).unwrap().staged.unwrap().id, staged.id);
+            assert_eq!(
+                fs::read(root.join("campaign.dat")).unwrap(),
+                b"preserve post-stage addition"
+            );
+            assert!(!store.all().unwrap().is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn empty_expansion_refuses_existing_canonical_data_and_immutable_members() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider.clone());
+        service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
+        service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+        *provider.0.lock().unwrap() = server.release("v2", 2);
+        fs::create_dir_all(library.user_dir(ID)).unwrap();
+        fs::write(library.user_dir(ID).join("campaign.dat"), []).unwrap();
+        let failure = service
+            .update(ID, None, None, false, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(
+            failure.presentation().presentation_key,
+            "portable_data_contract_changed"
+        );
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("campaign.dat")).unwrap(),
+            b""
+        );
+        assert_eq!(
+            fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            receipt
+        );
+        assert_eq!(library.all_installs().unwrap().len(), 1);
+        fs::remove_file(library.user_dir(ID).join("campaign.dat")).unwrap();
+        let mut to = service.catalog.port(ID).unwrap().clone();
+        to.persistent_paths.push("game.exe".into());
+        // Missing packaged bytes must not turn their names into adoptable data.
+        fs::remove_file(first.path.join("game.exe")).unwrap();
+        assert!(service.require_portable_transition(&first, &to).is_err());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+    }
+
+    #[tokio::test]
+    async fn empty_expansion_and_data_sync_refuse_missing_active_or_inactive_authority() {
+        const ID: &str = "portable-fixture";
+        for active in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+            let mut first = service
+                .install(ID, None, None, None, active, |_| {})
+                .await
+                .unwrap();
+            let old_port = service.installed_port(&first).unwrap();
+            service
+                .restore_user_data_to(&old_port, &first.path)
+                .unwrap();
+            let manifest = first.path.join(".portcove-manifest.json");
+            let mut value: serde_json::Value =
+                serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+            assert!(
+                value
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("retained_contract")
+                    .is_some()
+            );
+            // A supported pre-contract envelope, not a malformed format-6 document.
+            value["schema_version"] = serde_json::json!(5);
+            let bytes = serde_json::to_vec(&value).unwrap();
+            fs::write(&manifest, &bytes).unwrap();
+            first.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+            library.update_install_manifest(&first).unwrap();
+            assert!(
+                Installer::new(library.clone())
+                    .unwrap()
+                    .retained_catalog(&first)
+                    .unwrap()
+                    .is_none()
+            );
+            let receipt = serde_json::to_vec(&serde_json::json!({
+                "schema_version":1,"port_id":ID,"install_id":first.id,
+                "manifest_sha256":first.manifest_sha256
+            }))
+            .unwrap();
+            fs::write(first.path.join(PSX_DATA_RECEIPT), &receipt).unwrap();
+            service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+            fs::create_dir_all(library.user_dir(ID)).unwrap();
+            fs::write(
+                library.user_dir(ID).join("campaign.dat"),
+                b"preserve unknown-scope data",
+            )
+            .unwrap();
+            let to = service.catalog.port(ID).unwrap().clone();
+            assert!(
+                service
+                    .require_empty_persistence_expansion(&first, &to, None)
+                    .is_err()
+            );
+            assert!(
+                service
+                    .collect_user_data_from_install(ID, &first.path)
+                    .is_err()
+            );
+            assert!(
+                service
+                    .require_psx_restore_preflight(ID, &library.user_dir(ID))
+                    .is_err()
+            );
+            if !active {
+                // An independent fresh copy can exist, but cannot authorize that old copy.
+                *provider.0.lock().unwrap() = server.release("v2", 2);
+                let current = service
+                    .install(ID, None, None, None, true, |_| {})
+                    .await
+                    .unwrap();
+                let mut next = service.installed_port(&current).unwrap();
+                next.persistent_paths.push("future.dat".into());
+                assert!(
+                    service
+                        .require_portable_transition(&current, &next)
+                        .is_err()
+                );
+            }
+            assert_eq!(
+                fs::read(library.user_dir(ID).join("campaign.dat")).unwrap(),
+                b"preserve unknown-scope data"
+            );
+            assert!(!first.path.join("campaign.dat").exists());
+            assert_eq!(fs::read(&manifest).unwrap(), bytes);
+            assert_eq!(
+                fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap(),
+                receipt
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn empty_expansion_checks_the_actual_reused_target_before_data_restoration() {
+        const ID: &str = "portable-fixture";
+        for populated in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let release = server.release("v2", 2);
+            let provider = Arc::new(Provider(Mutex::new(release.clone())));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+            let target = service
+                .install(ID, None, None, None, false, |_| {})
+                .await
+                .unwrap();
+            let target_port = service.installed_port(&target).unwrap();
+            service
+                .restore_user_data_to(&target_port, &target.path)
+                .unwrap();
+            let receipt = fs::read(target.path.join(PSX_DATA_RECEIPT)).unwrap();
+            service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+            *provider.0.lock().unwrap() = server.release("v1", 1);
+            let active = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            fs::write(active.path.join("settings.ini"), b"latest active settings").unwrap();
+            if populated {
+                fs::write(
+                    target.path.join("campaign.dat"),
+                    b"preserve retained target edit",
+                )
+                .unwrap();
+            }
+            service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+            *provider.0.lock().unwrap() = release;
+            let result = service.install(ID, None, None, None, true, |_| {}).await;
+            if populated {
+                assert!(result.is_err());
+                assert_eq!(service.status(ID).unwrap().active.unwrap().id, active.id);
+                assert_eq!(
+                    fs::read(target.path.join("campaign.dat")).unwrap(),
+                    b"preserve retained target edit"
+                );
+                assert_eq!(
+                    fs::read(target.path.join(PSX_DATA_RECEIPT)).unwrap(),
+                    receipt
+                );
+                assert!(!library.user_dir(ID).join("campaign.dat").exists());
+            } else {
+                assert_eq!(result.unwrap().id, target.id);
+                assert_eq!(service.status(ID).unwrap().active.unwrap().id, target.id);
+                assert_eq!(
+                    fs::read(target.path.join("settings.ini")).unwrap(),
+                    b"latest active settings"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn fresh_empty_expansion_refusal_retains_published_stage_and_rejects_retry() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider.clone());
+        service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
+        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::write(first.path.join("settings.ini"), b"preserve current choice").unwrap();
+        service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+        let mut release = server.release("v2", 2);
+        {
+            let mut content = server.bytes.lock().unwrap();
+            let mut zip =
+                zip::ZipWriter::new_append(std::io::Cursor::new(content.clone())).unwrap();
+            zip.start_file("campaign.dat", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(b"authenticated package default").unwrap();
+            *content = zip.finish().unwrap().into_inner();
+            release.asset.size = content.len() as u64;
+            release.asset.sha256 = hex::encode(Sha256::digest(&*content));
+        }
+        *provider.0.lock().unwrap() = release;
+        let failure = service
+            .update(ID, None, None, false, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(
+            failure.presentation().presentation_key,
+            "portable_data_contract_changed"
+        );
+        let state = service.status(ID).unwrap();
+        let staged = state.staged.unwrap();
+        assert_eq!(failure.details["staged_install_id"], staged.id);
+        assert_eq!(state.active.unwrap().id, first.id);
+        assert_eq!(
+            service
+                .installed_port(&staged)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            6
+        );
+        assert_eq!(
+            fs::read(staged.path.join("campaign.dat")).unwrap(),
+            b"authenticated package default"
+        );
+        assert!(!first.path.join("campaign.dat").exists());
+        assert!(!library.user_dir(ID).join("campaign.dat").exists());
+        assert_eq!(
+            fs::read(first.path.join("settings.ini")).unwrap(),
+            b"preserve current choice"
+        );
+        assert_eq!(
+            fs::read(first.path.join(".portcove-manifest.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(
+            fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            receipt
+        );
+        assert!(service.update(ID, None, None, false, |_| {}).await.is_err());
+        assert!(service.activate_staged(ID).is_err());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        assert_eq!(service.status(ID).unwrap().staged.unwrap().id, staged.id);
+        assert_eq!(
+            fs::read(staged.path.join("campaign.dat")).unwrap(),
+            b"authenticated package default"
+        );
+    }
+
+    #[tokio::test]
+    async fn native_publication_recovery_preserves_retained_contracts_and_current_data() {
+        for case in [
+            "compatible",
+            "data",
+            "executable",
+            "environment",
+            "active-bytes",
+            "target-bytes",
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider);
+            let first = service
+                .install("portable-fixture", None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let mut document = service.catalog.authoritative_document().clone();
+            let port = &mut document.ports[0];
+            match case {
+                "data" => port.persistent_paths = vec!["other.ini".into()],
+                "executable" => {
+                    port.executable_hints
+                        .insert(Platform::WindowsX86_64, vec!["other.exe".into()]);
+                }
+                "environment" => {
+                    port.launch_environment
+                        .insert("PROFILE".into(), "another".into());
+                }
+                _ => {}
+            }
+            service.replace_catalog_for_test(
+                Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+            );
+            let target = Installer::new(library.clone())
+                .unwrap()
+                .install(
+                    InstallRequest {
+                        port_id: "portable-fixture".into(),
+                        release: server.release_in_folder(
+                            "v2",
+                            2,
+                            "",
+                            if case == "executable" {
+                                "other.exe"
+                            } else {
+                                "game.exe"
+                            },
+                        ),
+                        output_root: library.versions_dir().join("portable-fixture"),
+                        activate: false,
+                        managed: None,
+                        qualification: InstallQualification::from_catalog(
+                            &service.catalog,
+                            "portable-fixture",
+                            Platform::WindowsX86_64,
+                        )
+                        .unwrap(),
+                    },
+                    &OperationCoordinator::new("native-recovery-target", None),
+                    |_| {},
+                )
+                .await
+                .unwrap();
+            // A historical journal can still request immediate activation.
+            let id = Uuid::new_v4().to_string();
+            let mut journal =
+                LifecycleOperation::new(&id, LifecycleOperationKind::Install, "portable-fixture");
+            journal.install = Some(target.clone());
+            journal.activate = true;
+            journal.phase = LifecyclePhase::PayloadPublished;
+            journal.paths.staging = Some(library.staging_dir().join(&id));
+            journal.paths.final_path = Some(target.path.clone());
+            fs::create_dir_all(journal.paths.staging.as_ref().unwrap()).unwrap();
+            let store = OperationStore::new(library.clone());
+            store.put(&mut journal).unwrap();
+            fs::write(first.path.join("settings.ini"), b"edited after staging").unwrap();
+            let canonical = library.user_dir("portable-fixture").join("settings.ini");
+            fs::create_dir_all(canonical.parent().unwrap()).unwrap();
+            fs::write(&canonical, b"previous canonical").unwrap();
+            if case == "active-bytes" {
+                fs::write(first.path.join("game.exe"), b"modified active").unwrap();
+            }
+            if case == "target-bytes" {
+                fs::write(target.path.join("game.exe"), b"modified target").unwrap();
+            }
+            let manifest = fs::read(target.path.join(".portcove-manifest.json")).unwrap();
+            let result = crate::recovery::recover_published_install(&service, &store, &mut journal);
+            let active = service.status("portable-fixture").unwrap().active.unwrap();
+            if case == "compatible" {
+                result.unwrap();
+                assert_eq!(active.id, target.id);
+                assert_eq!(
+                    fs::read(target.path.join("settings.ini")).unwrap(),
+                    b"edited after staging"
+                );
+                assert_eq!(fs::read(&canonical).unwrap(), b"edited after staging");
+                assert!(store.get(&id).unwrap().is_none());
+                crate::recovery::recover_published_install(&service, &store, &mut journal).unwrap();
+            } else {
+                assert!(result.is_err(), "{case}");
+                assert_eq!(active.id, first.id, "{case}");
+                assert_eq!(
+                    fs::read(&canonical).unwrap(),
+                    b"previous canonical",
+                    "{case}"
+                );
+                assert!(!target.path.join("settings.ini").exists(), "{case}");
+                assert!(store.get(&id).unwrap().is_some(), "{case}");
+            }
+            assert_eq!(
+                fs::read(first.path.join("settings.ini")).unwrap(),
+                b"edited after staging",
+                "{case}"
+            );
+            assert_eq!(
+                fs::read(target.path.join(".portcove-manifest.json")).unwrap(),
+                manifest,
+                "{case}"
+            );
+            assert!(first.path.is_dir() && target.path.is_dir());
+        }
+    }
+
     async fn installs_with_retained_scopes(
         service: &mut PortcoveService,
         library: &Library,
@@ -3005,7 +4305,7 @@ mod tests {
         .unwrap();
         library.register_install(&first, false).unwrap();
         let mut operation = LifecycleOperation::new(
-            &Uuid::new_v4().to_string(),
+            Uuid::new_v4().to_string(),
             LifecycleOperationKind::Activate,
             "portable-fixture",
         );

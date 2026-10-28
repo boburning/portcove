@@ -4,6 +4,8 @@ export interface BoundedZipLimits {
   files: number;
   nameBytes: number;
   allowedPaths: ReadonlySet<string>;
+  /** Trusted exact names only; inert empty directory records, never extraction targets. */
+  allowedEmptyDirectories?: ReadonlySet<string>;
 }
 function check(condition: unknown, reason: string): asserts condition {
   if (!condition) throw new Error(`ZIP rejected: ${reason}`);
@@ -32,7 +34,14 @@ export function inspectBoundedZip(
       limits.nameBytes <= 256 &&
       limits.allowedPaths instanceof Set &&
       limits.allowedPaths.size > 0 &&
-      limits.allowedPaths.size <= 128,
+      limits.allowedPaths.size <= 128 &&
+      (limits.allowedEmptyDirectories === undefined ||
+        (limits.allowedEmptyDirectories instanceof Set &&
+          limits.allowedEmptyDirectories.size <= 16 &&
+          [...limits.allowedEmptyDirectories].every(
+            (name: unknown) =>
+              typeof name === "string" && name.endsWith("/") && !limits.allowedPaths.has(name),
+          ))),
     "invalid trusted bounds",
   );
   const active = () => check(clock() < deadline, "collection deadline");
@@ -72,7 +81,17 @@ export function inspectBoundedZip(
     expanded = 0,
     metadata = size + 22,
     names = new Set();
-  const entries = [];
+  const entries: {
+      name: string;
+      local: number;
+      localEnd: number;
+      data: number;
+      dataEnd: number;
+      method: number;
+      bytes: number;
+      crc: number;
+    }[] = [],
+    directories: typeof entries = [];
   const extra = (offset: number, length: number) => {
     check(length <= 1024 && offset + length <= archive.length, "extra field limit");
     metadata += length;
@@ -120,13 +139,26 @@ export function inspectBoundedZip(
     );
     const nameBytes = archive.subarray(cursor + 46, cursor + 46 + nameSize),
       name = nameBytes.toString("utf8");
+    const directory = limits.allowedEmptyDirectories?.has(name) === true;
     check(
-      limits.allowedPaths.has(name) && Buffer.from(name).equals(nameBytes) && !names.has(name),
+      (limits.allowedPaths.has(name) || directory) &&
+        Buffer.from(name).equals(nameBytes) &&
+        !names.has(name),
       "path or collision",
     );
     names.add(name);
     const kind = (attributes >>> 16) & 0xf000;
-    check((kind === 0 || kind === 0x8000) && (attributes & 0x10) === 0, "nonregular entry");
+    check(
+      directory
+        ? (kind === 0 || kind === 0x4000) &&
+            (attributes & 0x10) !== 0 &&
+            method === 0 &&
+            compressed === 0 &&
+            bytes === 0 &&
+            crc === 0
+        : (kind === 0 || kind === 0x8000) && (attributes & 0x10) === 0,
+      "nonregular entry",
+    );
     expanded += bytes;
     check(expanded <= limits.expandedBytes && compressed <= archive.length, "declared byte limit");
     extra(cursor + 46 + nameSize, extraSize);
@@ -171,15 +203,24 @@ export function inspectBoundedZip(
           archive.readUInt32LE(local + 22) === bytes,
         "local sizes mismatch",
       );
-    entries.push({ name, local, localEnd, data, dataEnd, method, bytes, crc });
+    (directory ? directories : entries).push({
+      name,
+      local,
+      localEnd,
+      data,
+      dataEnd,
+      method,
+      bytes,
+      crc,
+    });
     cursor += 46 + nameSize + extraSize + commentSize;
   }
   check(cursor === end, "central inventory mismatch");
   let boundary = 0;
-  for (const entry of [...entries].sort((a, b) => a.local - b.local)) {
+  for (const entry of [...entries, ...directories].sort((a, b) => a.local - b.local)) {
     check(entry.local === boundary, "overlap or unlisted record");
     boundary = entry.localEnd;
   }
   check(boundary === start, "unlisted payload");
-  return { archive, entries };
+  return { archive, entries, directories };
 }

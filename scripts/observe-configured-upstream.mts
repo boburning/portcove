@@ -1,8 +1,12 @@
 import { isRecord, errorCode } from "./runtime-values.mts";
-import type { ObserverConfig, ObserveOptions } from "./upstream-observer.mts";
+import type {
+  ObserverConfig,
+  ObserveOptions,
+  ObservationContinuation,
+} from "./upstream-observer.mts";
 import type { OutputUpstreamObservationReport } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { execFileSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +16,8 @@ import {
   observationHash,
   observeUpstream,
   validateObserverConfig,
+  validateObservationContinuation,
+  reusableProviderObservation,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -45,10 +51,13 @@ interface Checkpoint {
     cache?: unknown;
   } | null;
   exception: CheckpointException | null;
+  continuation?: ObservationContinuation;
 }
 export interface AdvanceOptions extends Omit<ObserveOptions, "cache"> {
   project: (observation: Observation) => unknown;
+  reprojectFreshFacts?: boolean;
   catalogIds?: string[];
+  commitContinuation?: (checkpoint: unknown) => void | Promise<void>;
   execution?: {
     kind: string | undefined;
     source_commit: string | null | undefined;
@@ -71,6 +80,7 @@ function validateCheckpoint(
         "first_complete_at",
         "last_complete",
         "exception",
+        ...(Object.hasOwn(checkpoint, "continuation") ? ["continuation"] : []),
       ]
         .sort()
         .join(",")
@@ -81,6 +91,13 @@ function validateCheckpoint(
       "invalid-checkpoint",
       "checkpoint belongs to a different observer configuration",
     );
+  if (checkpoint.continuation !== undefined) {
+    try {
+      validateObservationContinuation(checkpoint.continuation, config);
+    } catch {
+      throw new ObservationFailure("invalid-checkpoint", "retained continuation is invalid");
+    }
+  }
   if (checkpoint.first_complete_at !== null && typeof checkpoint.first_complete_at !== "string")
     throw new ObservationFailure("invalid-checkpoint", "invalid first complete clock");
   const prior = checkpoint.last_complete;
@@ -96,6 +113,14 @@ function validateCheckpoint(
       prior.observation.port_id !== config.port_id ||
       prior.projection.port_id !== config.port_id ||
       prior.projection.repository_id !== config.repository_id ||
+      (prior.observation.validation_started_at !== undefined &&
+        (typeof prior.observation.validation_started_at !== "string" ||
+          !Number.isFinite(Date.parse(prior.observation.validation_started_at)) ||
+          typeof prior.observation.started_at !== "string" ||
+          Date.parse(prior.observation.validation_started_at) <
+            Date.parse(prior.observation.started_at) ||
+          Date.parse(prior.observation.validation_started_at) >
+            Date.parse(String(prior.observation.completed_at)))) ||
       typeof prior.observation.completed_at !== "string" ||
       !Number.isFinite(Date.parse(prior.observation.completed_at)))
   )
@@ -139,6 +164,8 @@ function validateCheckpoint(
       "checkpoint exception identity or clocks are invalid",
     );
 }
+
+export { validateCheckpoint as validateObserverCheckpoint };
 
 function exceptionFor(
   error: unknown,
@@ -200,12 +227,69 @@ export async function advanceObservation(
   const retryClock = next.exception?.retry_at ? Date.parse(next.exception.retry_at) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
-      const result = await observeUpstream(config, {
+      let result: Awaited<ReturnType<typeof observeUpstream>> | null = null;
+      if (options.reprojectFreshFacts && next.last_complete) {
+        const retained = reusableProviderObservation(
+          config,
+          next.last_complete.observation,
+          next.last_complete.cache,
+          next.continuation,
+          now(),
+        );
+        if (retained) {
+          let covered = true;
+          if (config.format === 2) {
+            const facts = {
+              ...retained.facts,
+              releases: retained.facts.releases.map((release) => ({ ...release, assets: [] })),
+            };
+            const headers = {
+              ...retained,
+              facts,
+              facts_sha256: observationHash(facts),
+              coverage: {
+                kind: "channel-candidate-assets" as const,
+                complete_release_headers: true as const,
+                asset_release_ids: [],
+              },
+            };
+            if (!options.selectAssetReleases)
+              throw new ObservationFailure(
+                "core-binding",
+                "Current Core selection is required before provider fact reuse",
+              );
+            const selected = await options.selectAssetReleases(headers);
+            const known = new Set(retained.coverage!.asset_release_ids);
+            covered = selected.every((id) => known.has(id));
+          }
+          if (covered)
+            result = {
+              observation: retained,
+              cache: next.last_complete.cache as Awaited<
+                ReturnType<typeof observeUpstream>
+              >["cache"],
+            };
+        }
+      }
+      result ??= await observeUpstream(config, {
         ...options,
         cache: next.last_complete?.cache,
+        continuation: next.continuation,
+        onCheckpoint: async (continuation) => {
+          next.continuation = structuredClone(continuation);
+          await options.onCheckpoint?.(structuredClone(continuation));
+          await options.commitContinuation?.(structuredClone(next));
+        },
       });
       failedPolicyInput = result.observation;
+      if (options.signal?.aborted)
+        throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
       const projection = await options.project(result.observation);
+      if (options.signal?.aborted)
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled before committing Core projection",
+        );
       if (
         !isRecord(projection) ||
         projection.format !== 1 ||
@@ -235,8 +319,11 @@ export async function advanceObservation(
       next.first_complete_at ??= result.observation.completed_at;
       next.completed_runs++;
       next.exception = null;
+      delete next.continuation;
       failedPolicyInput = null;
     } catch (error) {
+      if (error instanceof ObservationFailure && error.continuation)
+        next.continuation = error.continuation;
       const exception = exceptionFor(error, next.exception, config, new Date(now()).toISOString());
       changedException = exception.key !== next.exception?.key;
       next.exception = exception;
@@ -244,7 +331,12 @@ export async function advanceObservation(
     }
   }
   const previousComplete = next.last_complete?.observation.completed_at ?? null;
-  const age = previousComplete ? now() - Date.parse(previousComplete) : null;
+  const validationStart = next.last_complete?.observation.validation_started_at;
+  const freshnessClock =
+    typeof validationStart === "string" && Number.isFinite(Date.parse(validationStart))
+      ? validationStart
+      : previousComplete;
+  const age = freshnessClock ? now() - Date.parse(freshnessClock) : null;
   const stale = age === null || age < 0 || age > config.stale_after_hours * 3_600_000;
   const unmonitored = (options.catalogIds ?? []).filter((id) => id !== config.port_id);
   const report = {
@@ -260,6 +352,7 @@ export async function advanceObservation(
     transition,
     stale,
     last_complete_at: previousComplete,
+    freshness_observed_at: freshnessClock,
     next_observation_due_at: new Date(
       (previousComplete ? Date.parse(previousComplete) : now()) + config.cadence_hours * 3_600_000,
     ).toISOString(),
@@ -275,6 +368,17 @@ export async function advanceObservation(
     policy: next.last_complete?.projection ?? null,
     exception: next.exception,
     failed_policy_input: failedPolicyInput,
+    continuation: next.continuation
+      ? {
+          phase: next.continuation.phase,
+          started_at: next.continuation.started_at,
+          retained_pages: Object.keys(next.continuation.pages).length,
+          validation_cursor: next.continuation.validation_cursor,
+          complete: false,
+          resume_condition:
+            "Continue the retained collection/validation cursor in the next admitted observation; partial facts have no eligibility authority",
+        }
+      : null,
     exception_age_ms: next.exception
       ? Math.max(0, now() - Date.parse(next.exception.first_seen))
       : null,
@@ -312,7 +416,11 @@ export async function advanceObservation(
   return { checkpoint: next, report, notify_exception: changedException };
 }
 
-async function boundedJson(filename: string, maximum: number, optional = false): Promise<unknown> {
+export async function boundedJson(
+  filename: string,
+  maximum: number,
+  optional = false,
+): Promise<unknown> {
   let handle;
   try {
     handle = await open(filename, "r");
@@ -336,7 +444,7 @@ async function boundedJson(filename: string, maximum: number, optional = false):
   }
 }
 
-async function atomicJson(filename: string, value: unknown) {
+export async function atomicJson(filename: string, value: unknown) {
   await assertOwnedUnlinkedPath(repositoryRoot, filename, "observer output");
   const temporary = `${filename}.${randomUUID()}.next`;
   const contents = JSON.stringify(value);
@@ -375,6 +483,141 @@ export async function withCheckpointLock<T>(
     await handle.close();
     await rm(lockPath);
   }
+}
+
+interface InspectionBounds {
+  deadline: number;
+  now: () => number;
+}
+async function inspectCoreJson(
+  cli: string,
+  directory: string,
+  bytes: Buffer,
+  command: string,
+  argumentsFor: (input: string) => string[],
+  bounds?: InspectionBounds,
+): Promise<unknown> {
+  if (bytes.length > 4 * 1024 * 1024)
+    throw new ObservationFailure(
+      "core-input-size",
+      "Core inspection input exceeds its existing byte boundary",
+    );
+  const input = path.join(directory, `core-inspection-${randomUUID()}.json`);
+  await mkdir(path.dirname(input), { recursive: true });
+  try {
+    await writeFile(input, bytes, { flag: "wx" });
+    const timeout = bounds ? Math.min(30000, Math.floor(bounds.deadline - bounds.now())) : 30000;
+    if (!Number.isFinite(timeout) || timeout < 1)
+      throw new ObservationFailure("budget", "Core inspection admission exhausted");
+    const output = execFileSync(cli, argumentsFor(input), {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout,
+      maxBuffer: 4 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const envelope: unknown = JSON.parse(output);
+    if (!isRecord(envelope) || envelope.command !== command || envelope.ok !== true)
+      throw new ObservationFailure(
+        "core-policy",
+        "Core did not return the expected successful inspection",
+      );
+    return envelope.data;
+  } finally {
+    await rm(input, { force: true });
+  }
+}
+
+export async function inspectCatalogDefinitions(
+  cli: string,
+  directory: string,
+  bytes: Buffer,
+  bounds?: InspectionBounds,
+) {
+  const report = await inspectCoreJson(
+    cli,
+    directory,
+    bytes,
+    "catalog.inspect-proposal",
+    (input) => ["--json", "catalog", "inspect-proposal", input],
+    bounds,
+  );
+  return catalogObservationDefinitionHashes(report, bytes);
+}
+
+/** Both hashes remain distinct contracts; observation guards require the canonical one. */
+export function catalogObservationDefinitionHashes(report: unknown, bytes: Buffer) {
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  if (
+    !isRecord(report) ||
+    report.format_version !== 1 ||
+    report.input_sha256 !== sha256 ||
+    report.input_bytes !== bytes.length ||
+    !Array.isArray(report.ports)
+  )
+    throw new ObservationFailure(
+      "core-binding",
+      "Core catalog receipt differs from the exact reviewed input bytes",
+    );
+  const hashes = new Map<string, string>();
+  const ports: unknown[] = report.ports;
+  for (const port of ports) {
+    if (
+      !isRecord(port) ||
+      typeof port.port_id !== "string" ||
+      typeof port.observation_definition_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(port.observation_definition_sha256) ||
+      hashes.has(port.port_id)
+    )
+      throw new ObservationFailure(
+        "core-binding",
+        "Core catalog receipt has invalid or duplicate definition identities",
+      );
+    hashes.set(port.port_id, port.observation_definition_sha256);
+  }
+  return hashes;
+}
+
+export async function projectObservation(
+  cli: string,
+  config: ObserverConfig,
+  directory: string,
+  observation: Observation,
+  bounds?: InspectionBounds,
+): Promise<unknown> {
+  return inspectCoreJson(
+    cli,
+    directory,
+    Buffer.from(JSON.stringify(observation)),
+    "catalog.inspect-observation",
+    (input) => [
+      "--json",
+      "catalog",
+      "inspect-observation",
+      config.port_id,
+      input,
+      "--repository-id",
+      String(config.repository_id),
+    ],
+    bounds,
+  );
+}
+
+export async function projectProviderObservation(
+  cli: string,
+  portId: string,
+  directory: string,
+  observation: Record<string, unknown>,
+  bounds?: InspectionBounds,
+): Promise<unknown> {
+  return inspectCoreJson(
+    cli,
+    directory,
+    Buffer.from(JSON.stringify(observation)),
+    "catalog.inspect-observation",
+    (input) => ["--json", "catalog", "inspect-observation", portId, input, "--provider-facts"],
+    bounds,
+  );
 }
 
 async function main(args: string[]) {
@@ -446,45 +689,8 @@ async function main(args: string[]) {
     )
       throw new Error("configured upstream differs from the existing catalog owner");
     const cli = path.resolve(parsed.get("--cli") ?? "");
-    const project = async (observation: Observation): Promise<unknown> => {
-      const input = path.join(path.dirname(statePath), `observation-${randomUUID()}.json`);
-      await mkdir(path.dirname(input), { recursive: true });
-      try {
-        await writeFile(input, JSON.stringify(observation), { flag: "wx" });
-        const output = execFileSync(
-          cli,
-          [
-            "--json",
-            "catalog",
-            "inspect-observation",
-            config.port_id,
-            input,
-            "--repository-id",
-            String(config.repository_id),
-          ],
-          {
-            encoding: "utf8",
-            windowsHide: true,
-            timeout: 30_000,
-            maxBuffer: 4 * 1024 * 1024,
-            stdio: ["ignore", "pipe", "pipe"],
-          },
-        );
-        const envelope: unknown = JSON.parse(output);
-        if (
-          !isRecord(envelope) ||
-          envelope.command !== "catalog.inspect-observation" ||
-          envelope.ok !== true
-        )
-          throw new ObservationFailure(
-            "core-policy",
-            "core did not return a successful observation inspection",
-          );
-        return envelope.data;
-      } finally {
-        await rm(input, { force: true });
-      }
-    };
+    const project = (observation: Observation) =>
+      projectObservation(cli, config, path.dirname(statePath), observation);
     const execution = {
       kind: ["schedule", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? "")
         ? process.env.GITHUB_EVENT_NAME
@@ -500,7 +706,33 @@ async function main(args: string[]) {
     const result = await advanceObservation(config, checkpoint, {
       ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
       project,
+      ...(config.format === 2
+        ? {
+            selectAssetReleases: async (headers: Observation) => {
+              const projection = await project(headers);
+              if (!isRecord(projection) || !Array.isArray(projection.projections))
+                throw new ObservationFailure(
+                  "core-binding",
+                  "Core candidate selection is unavailable",
+                );
+              return [
+                ...new Set(
+                  projection.projections.flatMap((item: unknown) =>
+                    isRecord(item) &&
+                    Array.isArray(item.hold_reasons) &&
+                    !item.hold_reasons.includes("channel-not-offered") &&
+                    isRecord(item.channel_candidate) &&
+                    Number.isSafeInteger(item.channel_candidate.id)
+                      ? [Number(item.channel_candidate.id)]
+                      : [],
+                  ),
+                ),
+              ];
+            },
+          }
+        : {}),
       execution,
+      commitContinuation: (checkpoint) => atomicJson(statePath, checkpoint),
       catalogIds: ports.map((port) => {
         if (!isRecord(port) || typeof port.id !== "string")
           throw new Error("Invalid catalog identity");

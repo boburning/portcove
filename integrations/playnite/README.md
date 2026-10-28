@@ -377,6 +377,12 @@ list names or `check.ps1 -ContractsOnly -Scenario protocol` for an exact
 selection; `-Scenario` accepts multiple names. Focused selection and listing skip
 lifecycle qualification and packaging. Without both `-Cli` and an isolated
 `-Library`, the compiled CLI consumer is explicitly skipped.
+Each execution also emits one `SCENARIO_INVENTORY` record with ordered discovered
+and selected identities, their counts, executed actions, skips, native failures
+and successfully reported cases. `records_complete` describes case-record
+coverage, including failed or skipped cases; it does not grant qualification.
+Inventory and case records share the invocation, compiled assembly and host
+identity. Check counts remain assertion counts, separate from scenario counts.
 Selecting only that unavailable consumer returns a failed aggregate because no
 scenario executed; listing names remains a successful metadata operation.
 

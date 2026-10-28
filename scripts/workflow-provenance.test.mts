@@ -39,7 +39,15 @@ type CargoMutationFixture = Omit<
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  realpathSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -257,7 +265,9 @@ void test("reviewed hosted bindings retain baseline obligations and reject calle
 });
 
 void test("bootstrap binds actual clean Git inventories and refuses out-of-scope or dirty inputs", async (t) => {
-  const directory = mkdtempSync(path.join(tmpdir(), "portcove-reviewed-binding-"));
+  const directory = realpathSync.native(
+    mkdtempSync(path.join(tmpdir(), "portcove-reviewed-binding-")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");
@@ -470,45 +480,53 @@ void test("bootstrap binds actual clean Git inventories and refuses out-of-scope
       }),
     /inventory differs/,
   );
-  await t.test("bootstrap rejects changes confined to extracted audit authority", async () => {
-    const originalBranch = git(source, ["branch", "--show-current"]);
-    git(source, ["checkout", "--quiet", "-b", "extracted-authority-control"]);
-    write("scripts/validation-evidence.mts", "changed receipt authority\n");
-    git(source, ["add", "."]);
-    git(source, ["commit", "--quiet", "-m", "changed extracted audit authority"]);
-    const altered = git(source, ["rev-parse", "HEAD"]);
-    git(controller, ["fetch", "--quiet", "origin"]);
-    git(controller, ["checkout", "--quiet", "--detach", altered]);
-    const alteredInventory = git(source, ["diff", "--name-only", "--no-renames", base, altered])
-      .split("\n")
-      .map((name) => ({
-        path: name,
-        base: git(source, ["ls-tree", base, "--", name]),
-        source: git(source, ["ls-tree", altered, "--", name]),
-      }));
-    const alteredRaw = JSON.stringify({
-      ...spec,
-      source: altered,
-      controller: altered,
-      inventory_sha256: bindingDigest(JSON.stringify(alteredInventory)),
+  for (const [label, file] of [
+    ["extracted-authority", "scripts/validation-evidence.mts"],
+    ["standalone-reporter", "scripts/standalone-rust-tests.mts"],
+    ["binary-identity", "scripts/development-evidence.mts"],
+    ["skip-route-contract", "scripts/nextest-skip-routes.mts"],
+  ])
+    await t.test("bootstrap preserves " + label, async () => {
+      const originalBranch = git(source, ["branch", "--show-current"]);
+      git(source, ["checkout", "--quiet", "-b", label + "-control"]);
+      write(file!, "changed receipt authority\n");
+      git(source, ["add", "."]);
+      git(source, ["commit", "--quiet", "-m", "changed extracted audit authority"]);
+      const altered = git(source, ["rev-parse", "HEAD"]);
+      git(controller, ["fetch", "--quiet", "origin"]);
+      git(controller, ["checkout", "--quiet", "--detach", altered]);
+      const alteredInventory = git(source, ["diff", "--name-only", "--no-renames", base, altered])
+        .split("\n")
+        .map((name) => ({
+          path: name,
+          base: git(source, ["ls-tree", base, "--", name]),
+          source: git(source, ["ls-tree", altered, "--", name]),
+        }));
+      const alteredRaw = JSON.stringify({
+        ...spec,
+        source: altered,
+        controller: altered,
+        inventory_sha256: bindingDigest(JSON.stringify(alteredInventory)),
+      });
+      await assert.rejects(
+        () =>
+          runHostedValidation("prepare", {
+            ...options,
+            environment: {
+              ...environment,
+              GITHUB_SHA: altered,
+              GITHUB_WORKFLOW_SHA: altered,
+              PORTCOVE_LOCAL_BINDING: alteredRaw,
+              PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(alteredRaw),
+            },
+          }),
+        file === "scripts/validation-evidence.mts"
+          ? /preserved recipes, pins, resources or containment/
+          : /independently admitted fifteen-path scope/,
+      );
+      git(source, ["checkout", "--quiet", originalBranch]);
+      git(controller, ["checkout", "--quiet", "--detach", head]);
     });
-    await assert.rejects(
-      () =>
-        runHostedValidation("prepare", {
-          ...options,
-          environment: {
-            ...environment,
-            GITHUB_SHA: altered,
-            GITHUB_WORKFLOW_SHA: altered,
-            PORTCOVE_LOCAL_BINDING: alteredRaw,
-            PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(alteredRaw),
-          },
-        }),
-      /preserved recipes, pins, resources or containment/,
-    );
-    git(source, ["checkout", "--quiet", originalBranch]);
-    git(controller, ["checkout", "--quiet", "--detach", head]);
-  });
   write(".github/workflows/unadmitted.yml", "outside scope\n");
   git(source, ["add", "."]);
   git(source, ["commit", "--quiet", "-m", "unadmitted workflow"]);
@@ -545,7 +563,9 @@ void test("bootstrap binds actual clean Git inventories and refuses out-of-scope
 });
 
 void test("candidate consumer binds four original product blobs and retains normal ancestry refusal", async (t) => {
-  const directory = mkdtempSync(path.join(tmpdir(), "portcove-consumer-binding-"));
+  const directory = realpathSync.native(
+    mkdtempSync(path.join(tmpdir(), "portcove-consumer-binding-")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");
@@ -694,22 +714,44 @@ void test("preflight and controller share the exact hosted script authority boun
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/workflow-provenance.mts"), false);
   for (const file of [
     "scripts/nextest-outcomes-cli.mts",
+    "scripts/nextest-skip-routes.mts",
+    "scripts/standalone-rust-tests.mts",
+    "scripts/development-evidence.mts",
+    "scripts/operation-coverage.mts",
     "scripts/bounded-summary.mts",
     "scripts/fallow-summary.mts",
     "scripts/node-platform-skips.mts",
     "scripts/node-test-suites.mts",
     "scripts/node-test-suites.json",
+    "apps/desktop/src/browser/failure-probe-contract.ts",
   ])
     assert.ok(
       isHostedLocalCheckScriptAuthority(file) && hostedLocalCheckAuthorityPaths.includes(file),
       file,
     );
+  assert.match(
+    runHostedValidation.toString(),
+    /["']scripts\/nextest-skip-routes\.mts["']/u,
+    "the protected bootstrap must preserve its actual skip-route input",
+  );
+  assert.match(
+    runHostedValidation.toString(),
+    /["']\.config\/rust-test-impact\.json["']/u,
+    "the protected bootstrap must preserve its actual skip-route configuration",
+  );
+  assert.match(
+    runHostedValidation.toString(),
+    /["']scripts\/operation-coverage\.mts["']/u,
+    "the frozen bootstrap preserves its actual operation-report dependency",
+  );
   assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/src/example.ts"), false);
   assert.ok(hostedLocalCheckAuthorityPaths.includes("scripts/workflow-provenance.mts") === false);
 });
 
 function hostedFixture(t: TestContext) {
-  const directory = mkdtempSync(path.join(tmpdir(), "portcove-local-check-binding-"));
+  const directory = realpathSync.native(
+    mkdtempSync(path.join(tmpdir(), "portcove-local-check-binding-")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");

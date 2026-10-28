@@ -1,0 +1,61 @@
+{
+  "source": "7ced436ac4ee79b4c1a8c7cacdc48f96d94aa2b5",
+  "observed_run": 40344060360,
+  "observed_attempt": 1,
+  "observed_job": 121646334375,
+  "observed_blocking_findings": 3,
+  "scopes": [
+    {
+      "file": "crates/portcove-core/src/gitlab.rs",
+      "kind": "URL path comparisons, not host filesystem paths",
+      "values": [
+        "/packages/generic/",
+        "/projects/other%2Fproject/packages/generic/game/1.0.0/game-windows-x64.zip"
+      ]
+    },
+    {
+      "file": "crates/portcove-core/src/adapter_unix_failure_tests.rs",
+      "kind": "Unix-only fixture included in its original test namespace; no production-file rule override",
+      "values": ["/usr/bin/false"],
+      "source": "crates/portcove-core/src/adapter.rs"
+    },
+    {
+      "file": "crates/portcove-core/src/catalog_media.rs",
+      "kind": "URL path prefix comparisons, not host filesystem paths",
+      "values": ["/igdb/image/upload/", "/wikipedia/commons/"],
+      "denied_values": ["/igdb/image/upload/unreviewed", "/wikipedia/commons/unreviewed"],
+      "denied_files": ["crates/other/src/catalog_media.rs"],
+      "source": "388ac0a3394ab5e3cca80d24233be2b837883653",
+      "observed_run": 40646045140,
+      "observed_attempt": 1,
+      "observed_job": 122675086391,
+      "observed_blocking_findings": 2
+    }
+  ],
+  "global_inheritance_control": {
+    "observed_run": 40358310040,
+    "observed_job": 121696770902,
+    "file": "crates/portcove-core/src/adapter.rs",
+    "allowed_values": [
+      "/usr/bin/mame/chdman",
+      "/usr/bin/chdman",
+      "/usr/local/bin/chdman",
+      "/opt/homebrew/bin/chdman",
+      "/Applications/MAME/chdman",
+      "/usr/bin/dolphin-tool",
+      "/usr/local/bin/dolphin-tool",
+      "/app/bin/dolphin-tool",
+      "/opt/homebrew/bin/dolphin-tool",
+      "/Applications/Dolphin.app/Contents/MacOS/DolphinTool"
+    ],
+    "denied_value": "/usr/bin/false"
+  },
+  "additional_inheritance_controls": [
+    {
+      "file": "apps/desktop/src-tauri/src/lib.rs",
+      "allowed_values": [],
+      "denied_value": "/unreviewed",
+      "kind": "A bare path remains denied; the negative URL fixture now constructs a complete URL template"
+    }
+  ]
+}

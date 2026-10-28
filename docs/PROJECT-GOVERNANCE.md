@@ -180,14 +180,75 @@ boundary. That transport owns response headers, quota evidence and generic Link
 pagination, while this Roadmap client continues to own Project schema,
 completeness, mutation and readback decisions.
 
-Bulk Project field transitions retain a 100-assignment specification ceiling
-but execute in verified chunks of at most 25 assignments. Before every chunk,
-the client accepts only the declared source or already-applied target value,
-samples the current GraphQL quota and preserves a recovery reserve. Every
-mutation is read back before the next chunk; an ambiguous response is never
-retried blindly. A partial run stops safely and the same specification can be
-resumed because already-applied targets are reconciled explicitly. Full
-readback and the applicable scoped or full Roadmap check remain the final success gate.
+Bulk Project field transitions admit logical specifications independently of
+assignment count. Applied specifications retain staged preflight, mutation,
+resumption-read and final-verification positions in the existing atomic journal
+under the Git common directory's `portcove-locks/set-many/`, keyed by the absolute
+specification path. The streamed 8 MiB regular-file input and 32 MiB journal
+envelopes bound local resources. Exact input/configuration hashes and resolved
+Project/item/content/field/option identities remain authoritative.
+
+Preflight resolves resource-admitted prefixes of at most 25 targets, preserving
+observed GraphQL costs. No mutation starts before the entire specification is
+resolved and global item/field alias uniqueness is proved. Current bindings and
+exact declared source or already-applied target values are read again before each
+mutation chunk of at most 25 assignments. Actual read costs replace estimates in
+the recovery reserve. Attempts are persisted before send and every mutation is
+read back before the next chunk. An ambiguous field must first be observed at its
+exact desired target; it is never automatically resent. Previously verified
+fields are not overwritten on resume. Checks of the retained prefix have their
+own durable field-read positions; an observed reversal or unresolved ambiguous
+write stops before new mutation.
+
+Every final assignment receives authoritative field-value readback in bounded
+chunks. These reads can continue across provider windows, retaining exact
+completed positions and observation clocks. Neither `updatedAt` timestamps nor
+Project-wide revision markers replace field-value evidence. The completion
+receipt names the independently verified observation interval and the final
+applicable scoped or full Roadmap check; it does not claim an atomic snapshot of
+all fields. A new completed invocation, or resumption after a failed doctor,
+starts a new final field-read interval. Concurrent changes detected by binding
+or value checks remain explicit conflicts; later independent edits do not grant
+authority to resend completed writes.
+
+Only a positive pre-admission quota deferral with an observed future reset time
+waits and continues automatically with the same complete specification. The
+current operation releases the common Roadmap lock before waiting; the next
+operation reacquires it, reconstructs current provider/schema context, and checks
+input/configuration identity again. Unknown or expired reset clocks, provider or
+HTTP failures, changed inputs, conflicting values and ambiguous writes stop with
+retained diagnostics. The continuation adds no daemon, hosted queue, credential
+or Project permission. Cancellation while waiting leaves durable progress; resume
+the same specification rather than editing away completed rows.
+
+Issue-body batches use the same common Roadmap lock and bounded atomic journal
+publication, with an additional specification lock for same-operation ownership.
+An 8 MiB specification references lazily read bounded regular UTF-8 body files;
+the 32 MiB metadata journal is keyed by the exact specification path in the Git
+common directory. Complete input/configuration hashes and numeric issue
+identities bind staged preflight, uncertain writes, verified bodies, resumption
+reads, final body reads and per-issue planning checks. Candidate and actual
+mutation/readback evidence and original failures remain in the operation's
+journal directory. A changed specification requires reconciliation, not a new
+permission to resend prior writes.
+
+Every candidate passes preflight before mutation. Actual writes retain the
+standard body's fresh preimage and current targeted Project validation. An
+exact desired body observed after preflight is an idempotent completion without
+PATCH. A prior ambiguous write must be observed at its exact target; an original
+from-value never authorizes automatic resend. Previously verified reversals stop
+new writes, and final reads/scoped checks retain their completed positions across
+quota windows. Receipts describe independently observed intervals, not an atomic
+global snapshot. Only positively observed pre-admission quota resets wait and
+resume automatically, after releasing both locks. Unknown capacity, HTTP errors,
+conflicts and ambiguous writes retain failures and stop. One shared authenticated
+client supplies scoped validation and quota observations; no process per issue or
+count-triggered global inventory is required.
+
+Scoped checks accept complete requested and direct-related worksets independently
+of the former 100-record count, within an 8 MiB input and 32 MiB retained-evidence
+envelope. Oversized scopes fail as incomplete; independently bounded smaller
+scopes remain usable and cannot establish global health.
 
 `roadmap.mts set-many` and `pr-delivery.mts watch|merge` retain their human
 output by default. `--json` emits one schema-versioned operation envelope on
@@ -206,7 +267,16 @@ the resolved targets, already-applied transitions, observed GraphQL cost and
 required reserve. Apply validates every target before one bounded mutation,
 reads back each field exactly, and runs one final affected-record check. A current value equal
 to `to` is an idempotent resume; any value other than `from` or `to` aborts the
-whole batch before mutation. Keep a batch at or below 100 field assignments.
+whole batch before mutation. Larger logical updates continue through verified
+chunks automatically. Observed pre-admission quota depletion waits for its reset
+and resumes without splitting the specification; other failures retain precise
+same-specification recovery evidence. Read-only previews use separate input/configuration-bound metadata journals and
+perform no GitHub mutations. An interrupted preview resumes its preflight
+positions; a completed preview starts fresh on its next invocation. Preview
+receipts name their observation interval and cannot authorize writes or replace
+an applied-operation journal. Keep completed and failed evidence when reconciling a changed
+specification or an unresolved write; a new file is not permission to overwrite
+concurrent owner changes.
 
 Live Roadmap commands serialize through an owned lock in the repository's
 shared Git common directory, so sibling worktrees cannot independently consume
@@ -685,9 +755,7 @@ the actual authorization and quota responses in the diagnostic receipt.
 `set`, `set-many`, port intake/normalization and promotion perform affected checks
 automatically. Exact item IDs resolve directly even when the Project listing
 omits them. Draft field-only updates retain complete direct identity and field
-readback without claiming canonical issue coverage. Substantial changes select a
-full doctor: batches touching more than ten distinct items, Target release or
-Release commitment transitions, and explicit schema reconciliation. Release
+readback without claiming canonical issue coverage. Assignment count never selects a global audit. Target release or Release commitment transitions and explicit schema reconciliation retain a full doctor. Release
 `readiness` and immutable readiness `snapshot` commands also require the full
 doctor. An explicit doctor without `--issue` remains an on-demand full audit.
 

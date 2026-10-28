@@ -299,6 +299,7 @@ void test("native receipts include the admission runtime and containment reprodu
     plan.receiptInputs.filter((input) => input.kind === "file").map((input) => input.path),
   );
   for (const file of [
+    "desktop-test-cli.mts",
     "resource-command.mts",
     "resource-capacity.mts",
     "resource-paths.mts",
@@ -307,6 +308,7 @@ void test("native receipts include the admission runtime and containment reprodu
     "rust-support-cache.mts",
     "ci-metrics.mts",
     "validation-plan.mts",
+    "repository-path.mts",
     "nextest-equivalence.mts",
     "report-summary.mts",
     "bounded-summary.mts",
@@ -399,6 +401,8 @@ void test("native receipt capture binds schema validation and reproduction input
   );
   const expected = [
     "apps/desktop/scripts/desktop-scenario-state.mts",
+    "apps/desktop/scripts/desktop-cover-observations.mts",
+    "apps/desktop/scripts/desktop-scenario-outcomes.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",
     "apps/desktop/scripts/desktop-staged-layout.mts",
     "apps/desktop/scripts/transport-values.mts",
@@ -410,7 +414,11 @@ void test("native receipt capture binds schema validation and reproduction input
   ];
   assert.deepEqual(nativeTransportReceiptSources, expected);
   // Metrics now decodes the admission plan through these already-loaded verifier sources.
-  expected.push("scripts/validation-plan.mts", "scripts/nextest-equivalence.mts");
+  expected.push(
+    "scripts/validation-plan.mts",
+    "scripts/repository-path.mts",
+    "scripts/nextest-equivalence.mts",
+  );
   for (const selection of [
     resolveDesktopSelection({ profile: "smoke", platform: "win32" }),
     resolveDesktopSelection({
@@ -490,9 +498,25 @@ void test("native receipt capture binds schema validation and reproduction input
 });
 
 void test("shared capture preflight is retained by helper and execution-plan custody", () => {
-  const source = "apps/desktop/test/capture-target.ts";
-  assert.ok(nativeHelperSharedSources.includes(source));
   const selection = resolveDesktopSelection({ scenarios: ["keyboard-layout"], platform: "win32" });
   const plan = planDesktopExecution(selection, { platform: "win32" });
-  assert.ok(plan.receiptInputs.some((input) => input.kind === "file" && input.path === source));
+  for (const source of [
+    "apps/desktop/test/capture-target.ts",
+    "apps/desktop/scripts/desktop-capture-target.mts",
+  ]) {
+    assert.ok(nativeHelperSharedSources.includes(source));
+    assert.ok(plan.receiptInputs.some((input) => input.kind === "file" && input.path === source));
+  }
+});
+
+void test("boundary invocation seam remains in declared helper and execution-plan source custody", () => {
+  const selection = resolveDesktopSelection({ scenarios: ["keyboard-layout"], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  for (const source of [
+    "apps/desktop/scripts/desktop-boundary-invoke.mts",
+    "apps/desktop/scripts/browser-script.mts",
+  ]) {
+    assert.ok(nativeHelperSharedSources.includes(source));
+    assert.ok(plan.receiptInputs.some((input) => input.kind === "file" && input.path === source));
+  }
 });

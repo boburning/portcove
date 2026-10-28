@@ -1,0 +1,1848 @@
+{
+  "format_version": 1,
+  "kind": "dated retained-coordinate decision evidence; not transition authority or a live registry",
+  "owners": [2510, 2926],
+  "source_commit": "89496f5f2c89f863ece9a027a083d79ce43013dc",
+  "observed_at": "2026-10-28T00:07:56Z",
+  "original_direct_decisions": 6,
+  "current_direct_definitions": 4,
+  "new_compatibility_permissions": [],
+  "rows": [
+    {
+      "canonical_issue": 152,
+      "id": "sonic-the-hedgehog-recomp",
+      "decision": "retained-exact-build constraint",
+      "reason": "Latest v0.7.2 still uses a Sonic 1 GameSpec without the guarded state_size/save/load callbacks. Its shared runner falls back to GROWNS2 machine/native-state serialization. Shared host_state.h availability does not opt this title in.",
+      "next_action_and_resume_trigger": "Keep the accepted v0.6.0 runtime and its states. Reconsider compatible managed progression after the actual Sonic 1 producer enables a verified title/build identity and preflight or the owner approves an explicit state/SRAM separation preserving creating runtimes. Review new thumbnails/slot counts and all writer coordinates before any revised fresh contract.",
+      "old": {
+        "source_commit": "521b39921ec1a85fca9f497bc55a1b059b828761",
+        "record_path": "crates/portcove-core/catalog/ports/sonic-the-hedgehog-recomp.json",
+        "record_sha256": "9a1ee8502367e9e3d71da314c02adee1c75a80852f4af9f8e8e357efd86890c4",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.6.0",
+                "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
+                "size": 3776546,
+                "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+                "published_at": "2026-06-17T05:17:11Z"
+              }
+            }
+          },
+          "source_profile": "sonic-the-hedgehog-genesis-jue-rev00",
+          "executable_hints": {
+            "windows-x86-64": ["SonicTheHedgehogRecomp.exe"]
+          },
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "sonic-the-hedgehog-genesis-jue-rev00",
+                "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+          },
+          "runtime_source_filename": "game.bin",
+          "runtime_source_materialization": "copy",
+          "runtime_source_hashes": {
+            "game.bin": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6"
+          },
+          "windows_runtime_path_policy": "printable-ascii-max-path",
+          "launch_arguments": ["game.bin"],
+          "persistent_paths": [
+            "game.bin",
+            "settings.ini",
+            "rom-Sonic1.cfg",
+            "native_save_1.bin",
+            "native_save_2.bin",
+            "native_save_3.bin",
+            "native_save_4.bin",
+            "native_save_5.bin",
+            "native_save_6.bin",
+            "native_save_7.bin",
+            "native_save_8.bin",
+            "native_save_9.bin"
+          ],
+          "runtime_mutable_paths": [
+            "framelog_step2.txt",
+            "ramdump_native.bin",
+            "dispatch_misses.log",
+            "interior_label_misses.log",
+            "interp_fallbacks.log",
+            "last_error.log",
+            "chip_ring.txt",
+            "snd_ring.txt",
+            "yield_log_native.log",
+            "z80_ram.bin"
+          ]
+        },
+        "data_coordinate_system": "selected runtime working directory; use retained adapter interpretation"
+      },
+      "current_authored": {
+        "record_path": "crates/portcove-core/catalog/ports/sonic-the-hedgehog-recomp.json",
+        "record_sha256": "9a1ee8502367e9e3d71da314c02adee1c75a80852f4af9f8e8e357efd86890c4",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.6.0",
+                "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
+                "size": 3776546,
+                "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+                "published_at": "2026-06-17T05:17:11Z"
+              }
+            }
+          },
+          "source_profile": "sonic-the-hedgehog-genesis-jue-rev00",
+          "executable_hints": {
+            "windows-x86-64": ["SonicTheHedgehogRecomp.exe"]
+          },
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "sonic-the-hedgehog-genesis-jue-rev00",
+                "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+          },
+          "runtime_source_filename": "game.bin",
+          "runtime_source_materialization": "copy",
+          "runtime_source_hashes": {
+            "game.bin": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6"
+          },
+          "windows_runtime_path_policy": "printable-ascii-max-path",
+          "launch_arguments": ["game.bin"],
+          "persistent_paths": [
+            "game.bin",
+            "settings.ini",
+            "rom-Sonic1.cfg",
+            "native_save_1.bin",
+            "native_save_2.bin",
+            "native_save_3.bin",
+            "native_save_4.bin",
+            "native_save_5.bin",
+            "native_save_6.bin",
+            "native_save_7.bin",
+            "native_save_8.bin",
+            "native_save_9.bin"
+          ],
+          "runtime_mutable_paths": [
+            "framelog_step2.txt",
+            "ramdump_native.bin",
+            "dispatch_misses.log",
+            "interior_label_misses.log",
+            "interp_fallbacks.log",
+            "last_error.log",
+            "chip_ring.txt",
+            "snd_ring.txt",
+            "yield_log_native.log",
+            "z80_ram.bin"
+          ]
+        },
+        "data_coordinate_system": "selected runtime working directory; use current adapter interpretation"
+      },
+      "unchanged_original_identity": {
+        "id": "sonic-the-hedgehog-genesis-jue-rev00",
+        "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "jue-rev00",
+            "title": "Sonic the Hedgehog",
+            "region": "Japan/USA/Europe",
+            "revision": "REV00",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-big-endian-bin",
+                "extensions": ["bin", "md"],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "6ddb7de1e17e7f6cdb88927bd906352030daa194",
+                    "sha256": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+                  "sonic-genesis-jue-rev00-no-intro-byte-identity"
+                ]
+              },
+              {
+                "id": "raw-big-endian-zip",
+                "extensions": ["bin", "md"],
+                "kind": "archive-member",
+                "member_extensions": ["bin", "md"],
+                "identities": [
+                  {
+                    "scope": "archive-member",
+                    "sha1": "6ddb7de1e17e7f6cdb88927bd906352030daa194",
+                    "sha256": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+                  "sonic-genesis-jue-rev00-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+              "sonic-genesis-jue-rev00-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      "source_contracts": [
+        {
+          "id": "sonic-the-hedgehog-recomp-game-source",
+          "port_id": "sonic-the-hedgehog-recomp",
+          "role": "game",
+          "profile_id": "sonic-the-hedgehog-genesis-jue-rev00",
+          "admission_mode": "enforced",
+          "supported_variant_ids": ["jue-rev00"],
+          "validator_contract_id": null,
+          "evidence_ids": [
+            "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+            "sonic-genesis-jue-rev00-no-intro-byte-identity"
+          ],
+          "authority_ref": "5c165f6195a88b17d8da4ae619aec2b8f640d84f",
+          "reviewed_at": "2026-10-18",
+          "immutable_review_url": "https://github.com/mstan/segagenesisrecomp/blob/5c165f6195a88b17d8da4ae619aec2b8f640d84f/sonicthehedgehog/game.toml",
+          "live_review_url": "https://github.com/mstan/segagenesisrecomp/blob/main/sonicthehedgehog/game.toml",
+          "evidence_gap": null,
+          "applicability": [
+            {
+              "upstream_ref": "v0.6.0",
+              "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40"
+            }
+          ],
+          "aliases": [],
+          "tombstones": []
+        }
+      ],
+      "canonical_body_observed_sha256": "2beabdd59b4f2745d68bd309ea4fd34ead74083f14a0cad9fca338aae35ecd69",
+      "operation_limits": [
+        "No populated-data adoption, shrinking persistence scope, state compatibility or coordinate remapping authorized",
+        "No native/gameplay/real-save evidence created",
+        "Current data follows runtime rollback; no save rewind or guarantee of older readers"
+      ],
+      "latest_observed_release": {
+        "id": 425774954,
+        "tag_name": "v0.7.2",
+        "prerelease": false,
+        "published_at": "2026-10-27T17:27:02Z",
+        "html_url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/tag/v0.7.2",
+        "assets": [
+          {
+            "id": 682325096,
+            "name": "SHA256SUMS.txt",
+            "size": 113,
+            "digest": "sha256:5f6cdba96526513a5f0c2a2b132128035f4493c506f170348bce6f999d2d8ace",
+            "browser_download_url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.7.2/SHA256SUMS.txt"
+          },
+          {
+            "id": 682325095,
+            "name": "SonicTheHedgehogRecomp-windows-x64-v0.7.2.zip",
+            "size": 5084280,
+            "digest": "sha256:7b19ae99ceabe3cbea8d77ebb352813e2d6d1ccc9b695afde28db25f8466de0b",
+            "browser_download_url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.7.2/SonicTheHedgehogRecomp-windows-x64-v0.7.2.zip"
+          }
+        ]
+      },
+      "release_inventory_count": 9,
+      "latest_observed_source_commit": "3ffa2087d6861872738564d15f638396671090ce",
+      "current_source_files": [
+        {
+          "path": ".gitmodules",
+          "sha256": "f430dfafac5e39ba57dd0f3a6a434eb74c239fb0d69484e0126f34968ff95ab4"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "sha256": "84c8bb4c73b3449025ca17128d9ac1c1898f62a141ce8c5b9a7830b09f70d44e"
+        },
+        {
+          "path": "README.md",
+          "sha256": "c6e140699539b7ac78f1c14921fb142f30ec552fb110bff932f9d778fd23743c"
+        },
+        {
+          "path": "tools/dump_sound_state.py",
+          "sha256": "0239639694e726fc5df29183e6dbdb94dab2110197bdce6237a73900ec3c67e2"
+        },
+        {
+          "path": "tools/smps_state_at.py",
+          "sha256": "ed24c33efd0ecdb7aec341cc13390f8ab17e29085a6f3a2351144f1fc1d396ab"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 164,
+      "id": "super-metroid-recomp",
+      "decision": "retained-legacy constraint; fresh managed fit still pending",
+      "reason": "Accepted v0.3.12 remains pinned. Stable v0.3.15 lacked title identity/preflight. Newly observed Preview v0.3.16 wires SmSnapshotIdentity and SmSnapshotPreflight and fingerprints source/framework/compiler/build inputs. This improves rejected-state safety; it is not legacy state compatibility or permission to migrate populated saves.",
+      "next_action_and_resume_trigger": "Complete actual v0.3.16 package/writer/profile review and fresh-route/channel suitability using existing helpers; the broader fresh-fit task remains actionable. Preserve v0.3.12 runtime and original saves. Reconsider the legacy transition only with explicit compatible state/SRAM evidence and approved preserved-runtime behavior; never infer compatibility from framework fixtures or upstream current-build tests.",
+      "old": {
+        "source_commit": "521b39921ec1a85fca9f497bc55a1b059b828761",
+        "record_path": "crates/portcove-core/catalog/ports/super-metroid-recomp.json",
+        "record_sha256": "752c3ed5b3f8eec4f4d283b7ab1c0d6697fd51e88e925f61031ee867cf0cc848",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.3.12",
+                "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
+                "size": 13802349,
+                "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+                "published_at": "2026-10-17T22:09:41Z"
+              }
+            }
+          },
+          "source_profile": "super-metroid-snes-japan-usa",
+          "executable_hints": {
+            "windows-x86-64": ["SuperMetroidSNESRecomp.exe"]
+          },
+          "runtime_source_filename": "game.sfc",
+          "runtime_source_materialization": "copy",
+          "runtime_source_hashes": {
+            "game.sfc": "12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72"
+          },
+          "launch_arguments": ["game.sfc"],
+          "launch_environment": {
+            "SNESRECOMP_NO_LAUNCHER": "1"
+          },
+          "persistent_paths": [
+            "game.sfc",
+            "config.ini",
+            "keybinds.ini",
+            "rom.cfg",
+            "saves",
+            "screenshots",
+            "sm-video.ini",
+            "sm-video.ini.tmp"
+          ],
+          "runtime_mutable_paths": [".snesrecomp_write_probe", "last_run_report.json"],
+          "runtime_mutable_file_patterns": [
+            {
+              "prefix": "crash_report_",
+              "suffix": ".json"
+            },
+            {
+              "prefix": "crash_minidump_",
+              "suffix": ".dmp"
+            }
+          ],
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "super-metroid-snes-japan-usa",
+                "label": "Super Metroid (Japan, USA) exact headerless SNES original",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+          }
+        },
+        "data_coordinate_system": "selected runtime working directory; use retained adapter interpretation"
+      },
+      "current_authored": {
+        "record_path": "crates/portcove-core/catalog/ports/super-metroid-recomp.json",
+        "record_sha256": "752c3ed5b3f8eec4f4d283b7ab1c0d6697fd51e88e925f61031ee867cf0cc848",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.3.12",
+                "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
+                "size": 13802349,
+                "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+                "published_at": "2026-10-17T22:09:41Z"
+              }
+            }
+          },
+          "source_profile": "super-metroid-snes-japan-usa",
+          "executable_hints": {
+            "windows-x86-64": ["SuperMetroidSNESRecomp.exe"]
+          },
+          "runtime_source_filename": "game.sfc",
+          "runtime_source_materialization": "copy",
+          "runtime_source_hashes": {
+            "game.sfc": "12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72"
+          },
+          "launch_arguments": ["game.sfc"],
+          "launch_environment": {
+            "SNESRECOMP_NO_LAUNCHER": "1"
+          },
+          "persistent_paths": [
+            "game.sfc",
+            "config.ini",
+            "keybinds.ini",
+            "rom.cfg",
+            "saves",
+            "screenshots",
+            "sm-video.ini",
+            "sm-video.ini.tmp"
+          ],
+          "runtime_mutable_paths": [".snesrecomp_write_probe", "last_run_report.json"],
+          "runtime_mutable_file_patterns": [
+            {
+              "prefix": "crash_report_",
+              "suffix": ".json"
+            },
+            {
+              "prefix": "crash_minidump_",
+              "suffix": ".dmp"
+            }
+          ],
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "super-metroid-snes-japan-usa",
+                "label": "Super Metroid (Japan, USA) exact headerless SNES original",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+          }
+        },
+        "data_coordinate_system": "selected runtime working directory; use current adapter interpretation"
+      },
+      "unchanged_original_identity": {
+        "id": "super-metroid-snes-japan-usa",
+        "label": "Super Metroid (Japan, USA) exact headerless SNES original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Super Metroid",
+            "region": "Japan, USA",
+            "revision": "Retail",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": ["sfc", "smc"],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "da957f0d63d14cb441d215462904c4fa8519c613",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "super-metroid-recomp-0-3-12-source-contract",
+                  "super-metroid-snes-japan-usa-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "super-metroid-recomp-0-3-12-source-contract",
+              "super-metroid-snes-japan-usa-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      "source_contracts": [
+        {
+          "id": "super-metroid-recomp-game-source",
+          "port_id": "super-metroid-recomp",
+          "role": "game",
+          "profile_id": "super-metroid-snes-japan-usa",
+          "admission_mode": "enforced",
+          "supported_variant_ids": ["exact-stock"],
+          "validator_contract_id": null,
+          "evidence_ids": [
+            "super-metroid-recomp-0-3-12-source-contract",
+            "super-metroid-snes-japan-usa-no-intro-byte-identity"
+          ],
+          "authority_ref": "494df8541eb4dbd4bacf7eba08c53b52d9fba5ac",
+          "reviewed_at": "2026-10-19",
+          "immutable_review_url": "https://github.com/mstan/SuperMetroidRecomp/blob/494df8541eb4dbd4bacf7eba08c53b52d9fba5ac/rom_identity.txt",
+          "live_review_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt",
+          "evidence_gap": null,
+          "applicability": [
+            {
+              "upstream_ref": "v0.3.12",
+              "artifact_sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9"
+            }
+          ],
+          "aliases": [],
+          "tombstones": []
+        }
+      ],
+      "canonical_body_observed_sha256": "75719e950835c960aed473c266f14564455e6ee7bf22ddbe1738a8aba47a67bd",
+      "operation_limits": [
+        "No populated-data adoption, shrinking persistence scope, state compatibility or coordinate remapping authorized",
+        "No native/gameplay/real-save evidence created",
+        "Current data follows runtime rollback; no save rewind or guarantee of older readers"
+      ],
+      "latest_observed_release": {
+        "id": 424572158,
+        "tag_name": "v0.3.16",
+        "prerelease": true,
+        "published_at": "2026-10-26T19:16:06Z",
+        "html_url": "https://github.com/mstan/SuperMetroidRecomp/releases/tag/v0.3.16",
+        "assets": [
+          {
+            "id": 678960117,
+            "name": "SHA256SUMS",
+            "size": 408,
+            "digest": "sha256:082a0a1d990cc039a29b251d6c469ed07b956e73461ea77d89ca6da75df50993",
+            "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.16/SHA256SUMS"
+          },
+          {
+            "id": 678960125,
+            "name": "supermetroid-0.3.16-linux-x64.zip",
+            "size": 14232220,
+            "digest": "sha256:e84d7a1dc19e7d807ad167c008905bb16504233957e9b93887e26264f5b74671",
+            "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.16/supermetroid-0.3.16-linux-x64.zip"
+          },
+          {
+            "id": 678960119,
+            "name": "supermetroid-0.3.16-macos-arm64.zip",
+            "size": 15291489,
+            "digest": "sha256:430df0cca59fb4c008f45682dd028ddf9c34329c84412e5469db03c959b9a819",
+            "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.16/supermetroid-0.3.16-macos-arm64.zip"
+          },
+          {
+            "id": 678960120,
+            "name": "supermetroid-0.3.16-macos-x64.zip",
+            "size": 15934266,
+            "digest": "sha256:51eb91fc54de3791a5f327a443545522ce731a5fb9732f0915700403ea5acda7",
+            "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.16/supermetroid-0.3.16-macos-x64.zip"
+          },
+          {
+            "id": 678960123,
+            "name": "supermetroid-0.3.16-windows-x64.zip",
+            "size": 14560045,
+            "digest": "sha256:ff3d7e14470a75f84f6a146188166afe2f2ac0a9f6149ee34c51341345e6148a",
+            "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.16/supermetroid-0.3.16-windows-x64.zip"
+          }
+        ]
+      },
+      "release_inventory_count": 21,
+      "latest_observed_source_commit": "dc6bdeb054a79ab8ceabae525a4053576c72f644",
+      "current_source_files": [
+        {
+          "path": ".gitmodules",
+          "sha256": "289c828d0e5ca104ac13038cae228afd1fe5ca67042e51e05656ad3a12458ec5"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "sha256": "ca2bc94a7c1917e2aae40520f187ca265e28d1d2ae768f6f046e9d297dacb226"
+        },
+        {
+          "path": "README.md",
+          "sha256": "cd5bd93ab5dc80de077ab8a3062e6410db4daddfc344e9db6ee9189e9cf518b9"
+        },
+        {
+          "path": "src/main.c",
+          "sha256": "f30cc4f0730588b822b1ea8042a349cdc7e86a8c7505ffc32ab381312bb565ae"
+        },
+        {
+          "path": "src/sm_cpu_infra.c",
+          "sha256": "096367370defe84fd6e0959bac62c523fe985b3189829a755cf34249d4575c75"
+        },
+        {
+          "path": "src/sm_replay.c",
+          "sha256": "79673f11a1b62c745bf96cabe2e465061ea1b5d4bde72ccf6d35f9a45478eb24"
+        },
+        {
+          "path": "src/sm_rtl.c",
+          "sha256": "bbe6f9888849442ca83e6342ae2229eb86a32d6cefcb0b3aa7d02cdc3f598a82"
+        },
+        {
+          "path": "src/sm_rtl.h",
+          "sha256": "ac5dd9c866042d79495f5610d8e61e480485afb2a8b1687179fe4a486dff9d73"
+        },
+        {
+          "path": "src/sm_startup.c",
+          "sha256": "4126eace296eb9ef235e9fb1989b2055922d70b467059a4b999ae1e9a5aef600"
+        },
+        {
+          "path": "tests/sm_savestate_gesture_test.c",
+          "sha256": "ae686639f67022b96f03a3c5b81fb3c9c6db959a8aa240f70ad408167c459ae1"
+        },
+        {
+          "path": "tools/test_frame_states.py",
+          "sha256": "60a0d3d31dfac9cb3fec3ed717fe042f0a931dd4b1077bfbf21f4e60cadfb281"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 165,
+      "id": "mega-man-x2-snes-recomp",
+      "decision": "retained-exact-build constraint",
+      "reason": "Latest v0.1.5 kX2GameInfo still has state_save_extra/state_load_extra/on_state_loaded but neither snapshot_guard_identity nor snapshot_preflight. Upstream SAVE_STATES.md explicitly scopes states to matching builds. Shared framework preflight is optional and is not enabled by this title.",
+      "next_action_and_resume_trigger": "Keep accepted v0.1.4 runtime, exact original, saves and packaged mod-state coordinates. Reconsider managed progression when the actual title opts into verified preflight/producer identity or a separately approved SRAM/state separation preserves old states and their creating runtime. Preserve the useful separate newer upstream-copy route without transferring ownership.",
+      "old": {
+        "source_commit": "521b39921ec1a85fca9f497bc55a1b059b828761",
+        "record_path": "crates/portcove-core/catalog/ports/mega-man-x2-snes-recomp.json",
+        "record_sha256": "51c9e83f398c18c70307b677d330a7367281d5eadd6be2216f1c57c2a75b0eb7",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.1.4",
+                "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.4/MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
+                "size": 13043789,
+                "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+                "published_at": "2026-10-18T20:43:48Z"
+              }
+            }
+          },
+          "source_profile": "mega-man-x2-snes-usa",
+          "executable_hints": {
+            "windows-x86-64": ["MegaManX2SNESRecomp.exe"]
+          },
+          "runtime_source_filename": "game.sfc",
+          "runtime_source_materialization": "copy",
+          "runtime_source_hashes": {
+            "game.sfc": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed"
+          },
+          "launch_arguments": ["game.sfc"],
+          "launch_environment": {
+            "SNESRECOMP_NO_LAUNCHER": "1"
+          },
+          "persistent_paths": [
+            "game.sfc",
+            "config.ini",
+            "keybinds.ini",
+            "rom.cfg",
+            "saves",
+            "screenshots",
+            "mods/preloaded/state.toml",
+            "mods/preloaded/state.toml.tmp"
+          ],
+          "runtime_mutable_paths": [".snesrecomp_write_probe", "last_run_report.json"],
+          "runtime_mutable_file_patterns": [
+            {
+              "prefix": "crash_report_",
+              "suffix": ".json"
+            },
+            {
+              "prefix": "crash_minidump_",
+              "suffix": ".dmp"
+            }
+          ],
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "mega-man-x2-snes-usa",
+                "label": "Mega Man X2 (USA) exact headerless SNES original",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+          }
+        },
+        "data_coordinate_system": "selected runtime working directory; use retained adapter interpretation"
+      },
+      "current_authored": {
+        "record_path": "crates/portcove-core/catalog/ports/mega-man-x2-snes-recomp.json",
+        "record_sha256": "51c9e83f398c18c70307b677d330a7367281d5eadd6be2216f1c57c2a75b0eb7",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.1.4",
+                "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.4/MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
+                "size": 13043789,
+                "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+                "published_at": "2026-10-18T20:43:48Z"
+              }
+            }
+          },
+          "source_profile": "mega-man-x2-snes-usa",
+          "executable_hints": {
+            "windows-x86-64": ["MegaManX2SNESRecomp.exe"]
+          },
+          "runtime_source_filename": "game.sfc",
+          "runtime_source_materialization": "copy",
+          "runtime_source_hashes": {
+            "game.sfc": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed"
+          },
+          "launch_arguments": ["game.sfc"],
+          "launch_environment": {
+            "SNESRECOMP_NO_LAUNCHER": "1"
+          },
+          "persistent_paths": [
+            "game.sfc",
+            "config.ini",
+            "keybinds.ini",
+            "rom.cfg",
+            "saves",
+            "screenshots",
+            "mods/preloaded/state.toml",
+            "mods/preloaded/state.toml.tmp"
+          ],
+          "runtime_mutable_paths": [".snesrecomp_write_probe", "last_run_report.json"],
+          "runtime_mutable_file_patterns": [
+            {
+              "prefix": "crash_report_",
+              "suffix": ".json"
+            },
+            {
+              "prefix": "crash_minidump_",
+              "suffix": ".dmp"
+            }
+          ],
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "mega-man-x2-snes-usa",
+                "label": "Mega Man X2 (USA) exact headerless SNES original",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+          }
+        },
+        "data_coordinate_system": "selected runtime working directory; use current adapter interpretation"
+      },
+      "unchanged_original_identity": {
+        "id": "mega-man-x2-snes-usa",
+        "label": "Mega Man X2 (USA) exact headerless SNES original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Mega Man X2",
+            "region": "USA",
+            "revision": "Retail",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": ["sfc", "smc"],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "637079014421563283cded6aeaa0604597b2e33c",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "mega-man-x2-snes-recomp-0-1-4-source-contract",
+                  "mega-man-x2-snes-usa-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "mega-man-x2-snes-recomp-0-1-4-source-contract",
+              "mega-man-x2-snes-usa-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      "source_contracts": [
+        {
+          "id": "mega-man-x2-snes-recomp-game-source",
+          "port_id": "mega-man-x2-snes-recomp",
+          "role": "game",
+          "profile_id": "mega-man-x2-snes-usa",
+          "admission_mode": "enforced",
+          "supported_variant_ids": ["exact-stock"],
+          "validator_contract_id": null,
+          "evidence_ids": [
+            "mega-man-x2-snes-recomp-0-1-4-source-contract",
+            "mega-man-x2-snes-usa-no-intro-byte-identity"
+          ],
+          "authority_ref": "c62a096873fd6b98f197bb06b0b6929432de1bc3",
+          "reviewed_at": "2026-10-19",
+          "immutable_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/c62a096873fd6b98f197bb06b0b6929432de1bc3/rom_identity.txt",
+          "live_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/master/rom_identity.txt",
+          "evidence_gap": null,
+          "applicability": [
+            {
+              "upstream_ref": "v0.1.4",
+              "artifact_sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07"
+            }
+          ],
+          "aliases": [],
+          "tombstones": []
+        }
+      ],
+      "canonical_body_observed_sha256": "52df538133f6373c0a5ee13f05c85bb99e7dfffd915aefe7941b6906a46f3fba",
+      "operation_limits": [
+        "No populated-data adoption, shrinking persistence scope, state compatibility or coordinate remapping authorized",
+        "No native/gameplay/real-save evidence created",
+        "Current data follows runtime rollback; no save rewind or guarantee of older readers"
+      ],
+      "latest_observed_release": {
+        "id": 426058291,
+        "tag_name": "v0.1.5",
+        "prerelease": false,
+        "published_at": "2026-10-27T22:32:18Z",
+        "html_url": "https://github.com/mstan/MegaManX2Recomp/releases/tag/v0.1.5",
+        "assets": [
+          {
+            "id": 683080056,
+            "name": "MegaManX2SNESRecomp-windows-x64-v0.1.5.zip",
+            "size": 13128270,
+            "digest": "sha256:dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d",
+            "browser_download_url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.5/MegaManX2SNESRecomp-windows-x64-v0.1.5.zip"
+          },
+          {
+            "id": 683080054,
+            "name": "SHA256SUMS.txt",
+            "size": 110,
+            "digest": "sha256:e93c64312f6c0f9fbaa5b50e2b1bc0911356702acee8026520ed1a76327c8168",
+            "browser_download_url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.5/SHA256SUMS.txt"
+          }
+        ]
+      },
+      "release_inventory_count": 7,
+      "latest_observed_source_commit": "9c3b374c4a0cf0a93748a52a74375d2b4af731a3",
+      "current_source_files": [
+        {
+          "path": ".gitmodules",
+          "sha256": "7eb2058abeadca059485a1f1ea76e2cd7d220d1bc9f733875551edc3b1635238"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "sha256": "fded69ce85149dae5e89f1ba08ace8dbad05e3b5d4f396cc610fd237dbb5fed4"
+        },
+        {
+          "path": "README.md",
+          "sha256": "5c31e586c818bf16c2b096b4d257f0222256357840c3456d869873601607f840"
+        },
+        {
+          "path": "docs/SAVE_STATES.md",
+          "sha256": "c2c2f34ceb4636e2d0b291d728557dd18b12985e6d6696ef1332887edbb00f3b"
+        },
+        {
+          "path": "src/main.c",
+          "sha256": "c5cf731ec1a6a8280ad367016f0946718b19a1ce2e4a10fd07c46dc5a248576f"
+        },
+        {
+          "path": "src/x2_cpu_infra.c",
+          "sha256": "4e859746808d8d60957baef6b7427a959090946ed185b77e06301b805afdc1b3"
+        },
+        {
+          "path": "src/x2_rtl.c",
+          "sha256": "8da5f714694c102c73fbcc945b471865c2f8a22cbea6990bee7bbadb471062f4"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 113,
+      "id": "openpete",
+      "decision": "retained-legacy constraint; current managed fit pending",
+      "reason": "Accepted v0.1.4 managed contract stays authoritative. Official current v0.4.2 still says source coming soon, requires NTSC-U SCUS-94228, copies original media and generated compiled code into library, and distinguishes ordinary .mcr cards from host states. Website checksum and human download links alone do not establish generated-library ABI or unchanged-definition progression.",
+      "next_action_and_resume_trigger": "Retain the current upstream-owned setup/player route and accepted historical managed runtime. Obtain attributable generated-library storage/regeneration/ABI and release-discovery facts before managed replacement. Preserve library/cards/states and the creating runtime; no populated library adoption or ordinary-card-to-state compatibility is inferred.",
+      "old": {
+        "source_commit": "521b39921ec1a85fca9f497bc55a1b059b828761",
+        "record_path": "crates/portcove-core/catalog/ports/openpete.json",
+        "record_sha256": "4d4f2593adeb46d2906f4f915c58d1509c88a2203bdd8a223b8c179aeff47ad8",
+        "integration": {
+          "support_tier": "stable",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.1.4",
+                "url": "https://dl.openpete.com/openpete-v0.1.4.zip",
+                "size": 122163057,
+                "sha256": "7ba215834c6a1e23d0642b6c749c6335853a18cc566805c0a39bcf2cd5ab1359",
+                "published_at": "2026-08-17T00:00:00Z"
+              }
+            }
+          },
+          "source_profile": "spyro-dragon-openpete",
+          "runtime_source_filename": "import",
+          "runtime_source_materialization": "psx-bin-cue",
+          "launch_arguments": ["--ingest", "import/disc.cue"],
+          "executable_hints": {
+            "windows-x86-64": ["openpete-spyro1.exe"]
+          },
+          "persistent_paths": ["openpete.toml", "cards", "states", "library"],
+          "presentation": {
+            "installation_method": "staged-game-files",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "spyro-dragon-openpete",
+                "label": "Spyro the Dragon (NTSC-U SCUS-94228) OpenPete source",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "This managed route retains the accepted v0.1.4 runtime and its original setup/data contract. To use the current upstream player, prepare a separate copy through the official OpenPete guide. Keep your working runtime and its generated library and states until your saves work in the new copy. Upstream or you provide updates for that external copy."
+          }
+        },
+        "data_coordinate_system": "selected runtime working directory; use retained adapter interpretation"
+      },
+      "current_authored": {
+        "record_path": "crates/portcove-core/catalog/ports/openpete.json",
+        "record_sha256": "4d4f2593adeb46d2906f4f915c58d1509c88a2203bdd8a223b8c179aeff47ad8",
+        "integration": {
+          "support_tier": "stable",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.1.4",
+                "url": "https://dl.openpete.com/openpete-v0.1.4.zip",
+                "size": 122163057,
+                "sha256": "7ba215834c6a1e23d0642b6c749c6335853a18cc566805c0a39bcf2cd5ab1359",
+                "published_at": "2026-08-17T00:00:00Z"
+              }
+            }
+          },
+          "source_profile": "spyro-dragon-openpete",
+          "runtime_source_filename": "import",
+          "runtime_source_materialization": "psx-bin-cue",
+          "launch_arguments": ["--ingest", "import/disc.cue"],
+          "executable_hints": {
+            "windows-x86-64": ["openpete-spyro1.exe"]
+          },
+          "persistent_paths": ["openpete.toml", "cards", "states", "library"],
+          "presentation": {
+            "installation_method": "staged-game-files",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "spyro-dragon-openpete",
+                "label": "Spyro the Dragon (NTSC-U SCUS-94228) OpenPete source",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "This managed route retains the accepted v0.1.4 runtime and its original setup/data contract. To use the current upstream player, prepare a separate copy through the official OpenPete guide. Keep your working runtime and its generated library and states until your saves work in the new copy. Upstream or you provide updates for that external copy."
+          }
+        },
+        "data_coordinate_system": "selected runtime working directory; use current adapter interpretation"
+      },
+      "unchanged_original_identity": {
+        "id": "spyro-dragon-openpete",
+        "label": "Spyro the Dragon (NTSC-U SCUS-94228) OpenPete source",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "legacy-accepted",
+            "title": "Spyro the Dragon (NTSC-U SCUS-94228) OpenPete source",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": ["chd"],
+                "kind": "optical-track-set",
+                "track_counts": [1],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "1e08ae8df01acf7ee5d9cb6931b5f8c1bc905fcb",
+                    "sha256": "95f03abf97c9ff0b2a64888ed7dbbb4b59a7b4363cf188cd0a562b95cfd4809f",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": ["alpha1-schema1-source-contracts"]
+              }
+            ],
+            "evidence_ids": ["alpha1-schema1-source-contracts"]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      "source_contracts": [
+        {
+          "id": "openpete-game-source",
+          "port_id": "openpete",
+          "role": "game",
+          "profile_id": "spyro-dragon-openpete",
+          "admission_mode": "enforced",
+          "supported_variant_ids": ["legacy-accepted"],
+          "validator_contract_id": null,
+          "evidence_ids": ["alpha1-schema1-source-contracts"],
+          "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
+          "reviewed_at": "2026-09-05",
+          "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
+          "live_review_url": null,
+          "evidence_gap": null,
+          "applicability": [],
+          "aliases": [],
+          "tombstones": []
+        }
+      ],
+      "canonical_body_observed_sha256": "822233487f51eaeeae4bd1054533d3e2e49d167eabf8c96d26815b72f14643d1",
+      "operation_limits": [
+        "No populated-data adoption, shrinking persistence scope, state compatibility or coordinate remapping authorized",
+        "No native/gameplay/real-save evidence created",
+        "Current data follows runtime rollback; no save rewind or guarantee of older readers"
+      ],
+      "current_primary_evidence": {
+        "url": "https://openpete.com/",
+        "observed_version": "v0.4.2",
+        "source_available": false,
+        "observed_facts": [
+          "NTSC-U SCUS-94228",
+          "first-run original copy and generated code in library/",
+          "ordinary .mcr cards distinct from host states",
+          "Source coming soon"
+        ],
+        "scope": "official current website read; no download or runtime execution"
+      }
+    },
+    {
+      "canonical_issue": 154,
+      "id": "sonic-3-and-knuckles-recomp",
+      "decision": "retained-legacy constraint with delivered empty-only transition",
+      "reason": "Fresh combined-game v0.6.0 route is delivered; unchanged rules also identify observed v0.6.1 distinctly from Sonic3-only and Knuckles-only outputs. Old v0.5.3 has 15 persistent paths and current fresh definition has 37. Shared #3704/#3784 permits only authenticated empty differing paths under compatible unchanged source/launch/pattern coordinates.",
+      "next_action_and_resume_trigger": "Use the existing empty-only proof only for actual retained targets satisfying every guard. If any differing location exists, retain its runtime and data. Populated additions, source/permission mismatch or required remapping stay held until an exact preservation/compatibility contract and owner-authorized transition exists. Runtime rollback carries current common data and never rewinds saves.",
+      "old": {
+        "source_commit": "521b39921ec1a85fca9f497bc55a1b059b828761",
+        "record_path": "crates/portcove-core/catalog/ports/sonic-3-and-knuckles-recomp.json",
+        "record_sha256": "6ee2b94aa2f8e66df307e8b91a6e3236b29dbeddf901680515d713aba2bb76a5",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v0.5.3",
+                "url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
+                "size": 16694619,
+                "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+                "published_at": "2026-10-18T14:30:37Z"
+              }
+            }
+          },
+          "source_profile": "sonic-3-and-knuckles-genesis-usa-lockon",
+          "executable_hints": {
+            "windows-x86-64": ["Sonic3KRecomp.exe"]
+          },
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+                "label": "Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted."
+          },
+          "launch_arguments": ["--no-launcher", "game.bin"],
+          "runtime_source_filename": "game.bin",
+          "runtime_source_materialization": "copy",
+          "runtime_source_hashes": {
+            "game.bin": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23"
+          },
+          "windows_runtime_path_policy": "printable-ascii-max-path",
+          "persistent_paths": [
+            "game.bin",
+            "settings.ini",
+            "rom-Sonic3K.cfg",
+            "game.srm",
+            "sonic3k-mods.ini",
+            "sonic3k-mods.ini.tmp",
+            "native_save_1.bin",
+            "native_save_2.bin",
+            "native_save_3.bin",
+            "native_save_4.bin",
+            "native_save_5.bin",
+            "native_save_6.bin",
+            "native_save_7.bin",
+            "native_save_8.bin",
+            "native_save_9.bin"
+          ],
+          "runtime_mutable_paths": [
+            "dispatch_misses.toml",
+            "floor_coverage.toml",
+            "yield_log_native.log",
+            "floor_unsafe.log",
+            "interior_label_misses.log",
+            "ramdump_native.bin",
+            "last_error.log"
+          ]
+        },
+        "data_coordinate_system": "selected runtime working directory; use retained adapter interpretation"
+      },
+      "current_authored": {
+        "record_path": "crates/portcove-core/catalog/ports/sonic-3-and-knuckles-recomp.json",
+        "record_sha256": "a765013511c359fcf488d07919a19a095ecc414630fb3bf2561459b1a8341318",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "staged-source-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "github",
+            "repository": "mstan/Sonic3AndKnucklesRecomp",
+            "asset_hints": {
+              "windows-x86-64": ["Sonic3KRecomp-windows-x64-", ".zip"]
+            }
+          },
+          "source_profile": "sonic-3-and-knuckles-genesis-usa-lockon",
+          "executable_hints": {
+            "windows-x86-64": ["Sonic3KRecomp.exe"]
+          },
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+                "label": "Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. This managed route starts the combined base game directly and preserves declared local saves, settings and quickstate thumbnails. Quickstates require their creating build and configuration and can be refused after an update; retain that version when needed. For optional Sonic CD/campaign conversion, use the upstream launcher in a separate stable folder: its importer records paths to that folder. Imported packs and custom external paths are outside managed backups; unknown additions keep the current installation preserved and stop replacement rather than being silently adopted."
+          },
+          "launch_arguments": ["--no-launcher", "game.bin"],
+          "runtime_source_filename": "game.bin",
+          "runtime_source_materialization": "copy",
+          "runtime_source_hashes": {
+            "game.bin": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23"
+          },
+          "windows_runtime_path_policy": "printable-ascii-max-path",
+          "persistent_paths": [
+            "game.bin",
+            "settings.ini",
+            "rom-Sonic3K.cfg",
+            "game.srm",
+            "sonic3k-mods.ini",
+            "sonic3k-mods.ini.tmp",
+            "native_save_1.bin",
+            "native_save_2.bin",
+            "native_save_3.bin",
+            "native_save_4.bin",
+            "native_save_5.bin",
+            "native_save_6.bin",
+            "native_save_7.bin",
+            "native_save_8.bin",
+            "native_save_9.bin",
+            "native_save_1.bin.thumb",
+            "native_save_2.bin.thumb",
+            "native_save_3.bin.thumb",
+            "native_save_4.bin.thumb",
+            "native_save_5.bin.thumb",
+            "native_save_6.bin.thumb",
+            "native_save_7.bin.thumb",
+            "native_save_8.bin.thumb",
+            "native_save_9.bin.thumb",
+            "game.srm.tmp",
+            "sonic3k-stage-pack.ini",
+            "sonic3k-stage-pack.ini.tmp",
+            "game.srm.pre-campaign.bak",
+            "sonic3k-stage-pack.srm",
+            "sonic3k-megamix.srm",
+            "game.srm.campaign",
+            "game.srm.campaign.tmp",
+            "game.srm.campaign.bak",
+            "game.srm.campaign.bak.tmp",
+            "game.srm.campaign.pre-v2.bak",
+            "game.srm.campaign.pre-shadow.bak",
+            "game.srm.campaign.pre-v3-cap3.bak"
+          ],
+          "runtime_mutable_paths": [
+            "dispatch_misses.toml",
+            "floor_coverage.toml",
+            "yield_log_native.log",
+            "floor_unsafe.log",
+            "interior_label_misses.log",
+            "ramdump_native.bin",
+            "last_error.log",
+            "dispatch_misses.toml.tmp",
+            "dispatch_misses.prev.toml",
+            "floor_coverage.toml.tmp",
+            "floor_coverage.prev.toml",
+            "interior_label_misses.toml",
+            "interior_label_misses.toml.tmp",
+            "interior_label_misses.prev.toml",
+            "floor_unsafe.toml",
+            "floor_unsafe.toml.tmp",
+            "floor_unsafe.prev.toml"
+          ]
+        },
+        "data_coordinate_system": "selected runtime working directory; use current adapter interpretation"
+      },
+      "unchanged_original_identity": {
+        "id": "sonic-3-and-knuckles-genesis-usa-lockon",
+        "label": "Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Sonic & Knuckles + Sonic the Hedgehog 3",
+            "region": "USA",
+            "revision": "Lock-On",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-big-endian-bin",
+                "extensions": ["bin", "md"],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "cfbf98c36c776677290a872547ac47c53d2761d6",
+                    "sha256": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+                  "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+                ]
+              },
+              {
+                "id": "raw-big-endian-zip",
+                "extensions": ["bin", "md"],
+                "kind": "archive-member",
+                "member_extensions": ["bin", "md"],
+                "identities": [
+                  {
+                    "scope": "archive-member",
+                    "sha1": "cfbf98c36c776677290a872547ac47c53d2761d6",
+                    "sha256": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+                  "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+              "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      "source_contracts": [
+        {
+          "id": "sonic-3-and-knuckles-recomp-game-source",
+          "port_id": "sonic-3-and-knuckles-recomp",
+          "role": "game",
+          "profile_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+          "admission_mode": "enforced",
+          "supported_variant_ids": ["exact-stock"],
+          "validator_contract_id": null,
+          "evidence_ids": [
+            "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+            "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+          ],
+          "authority_ref": "74e8aeadb5b8b8da7e776beb0d28f915e3efeb85",
+          "reviewed_at": "2026-10-18",
+          "immutable_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/74e8aeadb5b8b8da7e776beb0d28f915e3efeb85/game/sonic3k/sonic3k_spec.c",
+          "live_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c",
+          "evidence_gap": null,
+          "applicability": [
+            {
+              "upstream_ref": "v0.5.3",
+              "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+            }
+          ],
+          "aliases": [],
+          "tombstones": []
+        }
+      ],
+      "canonical_body_observed_sha256": "e0e67931143c24de11043aa84ff8be26eb21844dfa6b00c0c2ce0678df381cd8",
+      "operation_limits": [
+        "No populated-data adoption, shrinking persistence scope, state compatibility or coordinate remapping authorized",
+        "No native/gameplay/real-save evidence created",
+        "Current data follows runtime rollback; no save rewind or guarantee of older readers"
+      ],
+      "latest_observed_release": {
+        "id": 425775701,
+        "tag_name": "v0.6.1",
+        "prerelease": false,
+        "published_at": "2026-10-27T17:27:16Z",
+        "html_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/tag/v0.6.1",
+        "assets": [
+          {
+            "id": 682327995,
+            "name": "SHA256SUMS.txt",
+            "size": 320,
+            "digest": "sha256:9605a2c5f9c88f100928a2101f49ec5059b3cbf18534aebe28f68a182264103a",
+            "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.1/SHA256SUMS.txt"
+          },
+          {
+            "id": 682327983,
+            "name": "Sonic3KRecomp-windows-x64-v0.6.1.zip",
+            "size": 17899441,
+            "digest": "sha256:5c18981ceb468028a04aa1976db34c9f964064dde9bfd08ee2f139dea0761732",
+            "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.1/Sonic3KRecomp-windows-x64-v0.6.1.zip"
+          },
+          {
+            "id": 682327990,
+            "name": "Sonic3Recomp-windows-x64-v0.6.1.zip",
+            "size": 8536700,
+            "digest": "sha256:84c3d2e55cf9ed60eb60e7a4aabe78a72d6134a99ef7b8ba80eb2b93acd4772e",
+            "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.1/Sonic3Recomp-windows-x64-v0.6.1.zip"
+          },
+          {
+            "id": 682327989,
+            "name": "SonicAndKnucklesRecomp-windows-x64-v0.6.1.zip",
+            "size": 12099806,
+            "digest": "sha256:7e7e19a6a85a1fd5c519c74f3f83ff9aea8ac4a72bea187c62b66545b7ea269c",
+            "browser_download_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.6.1/SonicAndKnucklesRecomp-windows-x64-v0.6.1.zip"
+          }
+        ]
+      },
+      "release_inventory_count": 12,
+      "latest_observed_source_commit": "5701c83a0ecfe8eea91503e05a44898659040e53",
+      "current_source_files": [
+        {
+          "path": ".gitmodules",
+          "sha256": "34128050e6935017143bd4de0b1b4dfddc906518c8156fa74c75441e46e121a5"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "sha256": "6cfdaf3d6ce86739112c8fa8fd24fbbece2927cb7d41525c4861757f9474abb4"
+        },
+        {
+          "path": "README.md",
+          "sha256": "c5f0016d2c89726a49a0b3383dca127ed36a21c88ce7afd4a43558bef72b68ab"
+        },
+        {
+          "path": "game/common/sonic3_state.c",
+          "sha256": "78fa6bfae711ce0123fd21793209099464d833a3b497d318a953cf2d8dbdd0ff"
+        },
+        {
+          "path": "game/common/sonic3_state.h",
+          "sha256": "80f596bbb32f3afedbf7d5c741f2205e86795cb9dc56e6d99ccc7ba759138007"
+        },
+        {
+          "path": "game/common/sonic3_state_io.h",
+          "sha256": "f3ab22fce6897d1dddc26cb4ff3397ea71773c4ffba01f1876b86b5a9ade13f2"
+        },
+        {
+          "path": "game/trilogy/campaign_save.c",
+          "sha256": "0917f091228fef9d635a10cd3778c779b484592f9f8f714a2a35925301819ab5"
+        },
+        {
+          "path": "game/trilogy/campaign_save.h",
+          "sha256": "b091c1575fba0403c47647f7ec941d92270c2f87ba6abc13b42366de9d88cb1e"
+        },
+        {
+          "path": "game/trilogy/trilogy_save.c",
+          "sha256": "531b006beec7af658a5c8a71f5edccdd94122ac9e4b4f8145e1736f1e02e0bb9"
+        },
+        {
+          "path": "game/trilogy/trilogy_save_journal.c",
+          "sha256": "07d82cdd82a093ff53c4ee3c3bf5e33e938029a226ca5fc703ea3608ac518f13"
+        },
+        {
+          "path": "tests/runtime/campaign_save_test.c",
+          "sha256": "eb78e511563817a7152cd318aebc6ef6201e162475fc988a1103b75c3ac93745"
+        },
+        {
+          "path": "tests/runtime/run_megamix_save_resume.py",
+          "sha256": "d34c048d6190024114446d6e8fc80814058daeecb40bec2d9c91e1d95befc2d2"
+        },
+        {
+          "path": "tests/runtime/run_shadow_save_resilience.py",
+          "sha256": "168f611ec830d90fccd55a24bf620145b89fa2cd866f953d8697add4a67110c7"
+        },
+        {
+          "path": "tests/runtime/run_sonic3_quickstates.py",
+          "sha256": "1a502d20ecf59842396409fc320bb80da261aeed46ab03b278f941923724359f"
+        },
+        {
+          "path": "tests/runtime/run_sonic_cd_save_edges.py",
+          "sha256": "dd4a18d4006d6bb93b5e3d7faab994dff152c1596d48fd6a6d28ccdc00f110f3"
+        },
+        {
+          "path": "tests/runtime/run_sonic_cd_save_resilience.py",
+          "sha256": "4587fbe666ccce9b979ccac17f721043aae94d06fdaa3f7aebf03e26241fba9c"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 1113,
+      "id": "road-rash-64-recompiled",
+      "decision": "retained-coordinate constraint",
+      "reason": "Fresh v1.4.8 uses the selected executable parent as runtime/data root. Old v1.4.3 stores 35 wrapper-prefixed paths relative to the installation root. Current 36 paths use the runtime parent and expanded actual writer contract. Equal basenames do not authorize relocation or reinterpret the historical wrapper coordinates.",
+      "next_action_and_resume_trigger": "Keep v1.4.3 files, source, creating runtime, current Play and retained recovery. Continue fresh v1.4.8 separately. Resume cross-coordinate replacement only after an explicit owner-approved old/new map, source/permission proof, complete populated-data preservation and interrupted activation/rollback/recovery evidence. Empty-only scope changes do not authorize this mapping.",
+      "old": {
+        "source_commit": "521b39921ec1a85fca9f497bc55a1b059b828761",
+        "record_path": "crates/portcove-core/catalog/ports/road-rash-64-recompiled.json",
+        "record_sha256": "2c16ed43e977f00712999eec8951dca490721ef3f68c0873026fde9ff6e034f5",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "n64-recomp-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "direct-manifest",
+            "direct": {
+              "windows-x86-64": {
+                "version": "v1.4.3",
+                "url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
+                "size": 47276827,
+                "sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
+                "published_at": "2026-10-02T05:47:21Z"
+              }
+            }
+          },
+          "source_profile": "road-rash-64",
+          "executable_hints": {
+            "windows-x86-64": ["RoadRash64Recompiled.exe"]
+          },
+          "persistent_paths": [
+            "RoadRash64Recompiled-v1.4.3-Win64/general.json",
+            "RoadRash64Recompiled-v1.4.3-Win64/general.json.bak",
+            "RoadRash64Recompiled-v1.4.3-Win64/general.json.temp",
+            "RoadRash64Recompiled-v1.4.3-Win64/graphics.json",
+            "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.bak",
+            "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.temp",
+            "RoadRash64Recompiled-v1.4.3-Win64/controls.json",
+            "RoadRash64Recompiled-v1.4.3-Win64/controls.json.bak",
+            "RoadRash64Recompiled-v1.4.3-Win64/controls.json.temp",
+            "RoadRash64Recompiled-v1.4.3-Win64/sound.json",
+            "RoadRash64Recompiled-v1.4.3-Win64/sound.json.bak",
+            "RoadRash64Recompiled-v1.4.3-Win64/sound.json.temp",
+            "RoadRash64Recompiled-v1.4.3-Win64/mods.json",
+            "RoadRash64Recompiled-v1.4.3-Win64/mods.json.bak",
+            "RoadRash64Recompiled-v1.4.3-Win64/mods.json.temp",
+            "RoadRash64Recompiled-v1.4.3-Win64/cheats.json",
+            "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.bak",
+            "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.temp",
+            "RoadRash64Recompiled-v1.4.3-Win64/mods",
+            "RoadRash64Recompiled-v1.4.3-Win64/mod_config",
+            "RoadRash64Recompiled-v1.4.3-Win64/saves",
+            "RoadRash64Recompiled-v1.4.3-Win64/achievements.txt",
+            "RoadRash64Recompiled-v1.4.3-Win64/local-race-options.cfg",
+            "RoadRash64Recompiled-v1.4.3-Win64/thrash-race-options.cfg",
+            "RoadRash64Recompiled-v1.4.3-Win64/mk64-item-options.cfg",
+            "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg",
+            "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg.tmp",
+            "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg",
+            "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg.tmp",
+            "RoadRash64Recompiled-v1.4.3-Win64/imgui.ini",
+            "RoadRash64Recompiled-v1.4.3-Win64/music",
+            "RoadRash64Recompiled-v1.4.3-Win64/race-packs",
+            "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json",
+            "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json.bak",
+            "RoadRash64Recompiled-v1.4.3-Win64/rr64.n64.us.1.0.z64"
+          ],
+          "runtime_subdirectory": "RoadRash64Recompiled-v1.4.3-Win64",
+          "runtime_source_filename": "rr64.n64.us.1.0.z64",
+          "runtime_source_materialization": "n64-big-endian",
+          "runtime_source_hashes": {
+            "rr64.n64.us.1.0.z64": "74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73"
+          },
+          "launch_arguments": ["--auto-rom", "rr64.n64.us.1.0.z64", "--skip-launcher"],
+          "runtime_mutable_paths": ["RoadRash64Recompiled-runtime.log", "traffic-events.log"],
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "road-rash-64",
+                "label": "Road Rash 64 (USA v1.0, 32 MiB) source",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Provide your own Road Rash 64 USA v1.0 canonical .z64 file (32 MiB). Portcove keeps a staged ROM copy; local save backups include that copy."
+          }
+        },
+        "data_coordinate_system": "installation root; paths retain their wrapper prefixes"
+      },
+      "current_authored": {
+        "record_path": "crates/portcove-core/catalog/ports/road-rash-64-recompiled.json",
+        "record_sha256": "c99fbb48cf31d3e0f750b8dcab0382b4cc618ed951d806b23bcdbbf0bf352d02",
+        "integration": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64"],
+          "adapter": "n64-recomp-portable",
+          "automated_tested_platforms": [],
+          "manually_validated_platforms": [],
+          "release": {
+            "provider": "github",
+            "repository": "linkssy2/RoadRash64Recompiled",
+            "asset_hints": {
+              "windows-x86-64": ["RoadRash64Recompiled-", "-Win64.zip"]
+            }
+          },
+          "source_profile": "road-rash-64",
+          "executable_hints": {
+            "windows-x86-64": ["RoadRash64Recompiled.exe"]
+          },
+          "persistent_paths": [
+            "general.json",
+            "general.json.bak",
+            "general.json.temp",
+            "graphics.json",
+            "graphics.json.bak",
+            "graphics.json.temp",
+            "controls.json",
+            "controls.json.bak",
+            "controls.json.temp",
+            "sound.json",
+            "sound.json.bak",
+            "sound.json.temp",
+            "mods.json",
+            "mods.json.bak",
+            "mods.json.temp",
+            "cheats.json",
+            "cheats.json.bak",
+            "cheats.json.temp",
+            "mods",
+            "mod_config",
+            "saves",
+            "achievements.txt",
+            "local-race-options.cfg",
+            "thrash-race-options.cfg",
+            "mk64-item-options.cfg",
+            "character-preferences.cfg",
+            "character-preferences.cfg.tmp",
+            "rider-skin-preferences.cfg",
+            "rider-skin-preferences.cfg.tmp",
+            "imgui.ini",
+            "music",
+            "race-packs",
+            "race_packs.json",
+            "race_packs.json.bak",
+            "rr64.n64.us.1.0.z64",
+            "cpu-weapon-options.cfg"
+          ],
+          "runtime_source_filename": "rr64.n64.us.1.0.z64",
+          "runtime_source_materialization": "n64-big-endian",
+          "runtime_source_hashes": {
+            "rr64.n64.us.1.0.z64": "74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73"
+          },
+          "launch_arguments": ["--auto-rom", "rr64.n64.us.1.0.z64", "--skip-launcher"],
+          "runtime_mutable_paths": ["RoadRash64Recompiled-runtime.log", "traffic-events.log"],
+          "presentation": {
+            "installation_method": "portable-recompilation",
+            "source_requirements": [
+              {
+                "role": "game",
+                "profile_id": "road-rash-64",
+                "label": "Road Rash 64 (USA v1.0, 32 MiB) source",
+                "verification": "catalog-identity"
+              }
+            ],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "Supply your own matching Road Rash 64 USA v1.0 original. Core verifies it and prepares the canonical ROM beside the Windows portable player. This route preserves declared settings, saves, mods, custom music and local imported race packs, including importer logs and previous-pack backups beneath race-packs. Close the game and any importer before updates or backups. Custom external pack paths, including RR64_PRIVATE_COURSE_PACK, remain outside managed backups. Runtime rollback carries current declared data; it does not rewind progress or establish old-reader compatibility. Historical v1.4.3 installations retain their wrapper-prefixed contract: a changed data-coordinate transition remains held until supported, so keep the working copy and its data."
+          },
+          "n64_runtime_at_executable_parent": true,
+          "portable_marker": true
+        },
+        "data_coordinate_system": "selected executable parent; original and declared paths resolve there"
+      },
+      "unchanged_original_identity": {
+        "id": "road-rash-64",
+        "label": "Road Rash 64 (USA v1.0, 32 MiB) source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-v1-0",
+            "title": "Road Rash 64",
+            "region": "USA",
+            "revision": "v1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": ["z64"],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "87727a298f583ec8325f5655088ff21e37b335b2",
+                    "sha256": "74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "road-rash-64-v1-4-3-source-sha1",
+                  "road-rash-64-v1-4-3-source-sha256"
+                ]
+              }
+            ],
+            "evidence_ids": ["road-rash-64-v1-4-3-source-sha1", "road-rash-64-v1-4-3-source-sha256"]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      "source_contracts": [
+        {
+          "id": "road-rash-64-recompiled-game-source",
+          "port_id": "road-rash-64-recompiled",
+          "role": "game",
+          "profile_id": "road-rash-64",
+          "admission_mode": "enforced",
+          "supported_variant_ids": ["usa-v1-0"],
+          "validator_contract_id": null,
+          "evidence_ids": ["road-rash-64-v1-4-3-source-sha1", "road-rash-64-v1-4-3-source-sha256"],
+          "authority_ref": "42bf10065362daf91a77089a9f5c8147dae60de0",
+          "reviewed_at": "2026-10-04",
+          "immutable_review_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/README.md",
+          "live_review_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/README.md",
+          "evidence_gap": null,
+          "applicability": [
+            {
+              "upstream_ref": "v1.4.3",
+              "artifact_sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f"
+            }
+          ],
+          "aliases": [],
+          "tombstones": []
+        }
+      ],
+      "canonical_body_observed_sha256": "a32b5b990e41d6149e804d00cac10e728dd33b34a6a1e067c0e15b53820c9c7b",
+      "operation_limits": [
+        "No populated-data adoption, shrinking persistence scope, state compatibility or coordinate remapping authorized",
+        "No native/gameplay/real-save evidence created",
+        "Current data follows runtime rollback; no save rewind or guarantee of older readers"
+      ],
+      "latest_observed_release": {
+        "id": 415404904,
+        "tag_name": "v1.4.8",
+        "prerelease": false,
+        "published_at": "2026-10-16T21:45:03Z",
+        "html_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/tag/v1.4.8",
+        "assets": [
+          {
+            "id": 648713788,
+            "name": "MoreCharacters2.1.0.nrm",
+            "size": 209088,
+            "digest": "sha256:02851935bc4b562039e44faf40ba5b7d0df977716587367e20a2cb205575ab86",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/MoreCharacters2.1.0.nrm"
+          },
+          {
+            "id": 648713817,
+            "name": "RoadRash64Recompiled-Optional-Texture-Mod.zip",
+            "size": 214688827,
+            "digest": "sha256:38cb3c6731ab55c64b8469668926d837be3fbe8ec8f0a2d9974e791bdf80b6f2",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/RoadRash64Recompiled-Optional-Texture-Mod.zip"
+          },
+          {
+            "id": 648712513,
+            "name": "RoadRash64Recompiled-v1.4.8-Linux-Experimental.zip",
+            "size": 589060551,
+            "digest": "sha256:4ca6e103fc6dead44b325df5143e6af704a6516dd711edb63b9d9dcd19715c16",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/RoadRash64Recompiled-v1.4.8-Linux-Experimental.zip"
+          },
+          {
+            "id": 648713632,
+            "name": "RoadRash64Recompiled-v1.4.8-Source.zip",
+            "size": 77661144,
+            "digest": "sha256:b39ec58fa34d7da8d1460d9ba397f8fbd04cc96b71ec5eed1d29a343071242ce",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/RoadRash64Recompiled-v1.4.8-Source.zip"
+          },
+          {
+            "id": 648712428,
+            "name": "RoadRash64Recompiled-v1.4.8-Win64.zip",
+            "size": 47342190,
+            "digest": "sha256:70114da39d0311ca0698d6a7e6fd554507ac1add29173ab7b344408118697275",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/RoadRash64Recompiled-v1.4.8-Win64.zip"
+          },
+          {
+            "id": 648714244,
+            "name": "SHA256SUMS.txt",
+            "size": 533,
+            "digest": "sha256:bc8ff7009c9f8594402feb48580d1d2733359dd739ae352f2f186e3cc5086929",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.8/SHA256SUMS.txt"
+          }
+        ]
+      },
+      "release_inventory_count": 14,
+      "current_source_files": []
+    }
+  ],
+  "shared_upstream_sources": [
+    {
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "files": [
+        {
+          "path": "docs/SNAPSHOT_PREFLIGHT.md",
+          "sha256": "399856c4adc1c787f62815519bd2eaacdc276e60b5969bed9419edbf8556fbdc"
+        },
+        {
+          "path": "runner/src/common_rtl.h",
+          "sha256": "8ccc93dfe686b93d1b3d52c52a2a01a775bc44d3f7a9e12b1eb4fc0068c347b9"
+        },
+        {
+          "path": "runner/src/cpu_state.c",
+          "sha256": "83ee2b14366005851a4c13e65722f4f52af9efe0e0043d1469a5d90d26b18648"
+        },
+        {
+          "path": "runner/src/desktop/mmx23_host_main.inc",
+          "sha256": "4a5fcb36fe9821dd8200b51bc940709506a7272da1a6ccf45783aef2ab03b872"
+        },
+        {
+          "path": "runner/src/snapshot_guard.c",
+          "sha256": "18939f1e81b557cec5e028a84ed35821a81a2e42b6f68c537c3056b707c2a07b"
+        }
+      ],
+      "repository_url": "https://github.com/RetroPortingToolKit/snesrecomp",
+      "source_commit": "05786e50bca11dff1f09f76c0e7ac9d48072c440",
+      "repository_node_id": "R_kgDORoAFHw",
+      "tree_truncated": false
+    },
+    {
+      "repository": "mstan/segagenesisrecomp",
+      "files": [
+        {
+          "path": "runner/game_spec.h",
+          "sha256": "047af92da6fda0ddb44784d637f20725e18d448446c03d684a543dbc96999f13"
+        },
+        {
+          "path": "runner/host_state.h",
+          "sha256": "b439ab330eade58f31f441a8a3a4f7932413460f5267cc2f54c2da3d06496ec5"
+        },
+        {
+          "path": "runner/local_states.c",
+          "sha256": "50a0abceaca586ddfdf20de2f4eb690b2c6b487080b09530ee1ebbf8f4afbe6f"
+        },
+        {
+          "path": "runner/local_states.h",
+          "sha256": "467bd7b936abd33096dfb555fa66f2a5994ff40dcc90f9220ae99dca61e17a56"
+        },
+        {
+          "path": "runner/main.c",
+          "sha256": "70fd1e16570b2206c0e436485ced86d7e1218f42d2065fb472d709a485c1b57a"
+        },
+        {
+          "path": "sonicthehedgehog/sonic1_spec.c",
+          "sha256": "746acefded002b7c15991a0c9bbd4b624d1fb7b023787afc0b951c6e3a7f000f"
+        }
+      ],
+      "repository_url": "https://github.com/mstan/segagenesisrecomp",
+      "source_commit": "57c7ecfa806e2cf46bdb6adc8e69b25c7fe8f105",
+      "repository_node_id": "R_kgDORv9aVg",
+      "tree_truncated": false
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "files": [
+        {
+          "path": "docs/SNAPSHOT_PREFLIGHT.md",
+          "sha256": "399856c4adc1c787f62815519bd2eaacdc276e60b5969bed9419edbf8556fbdc"
+        },
+        {
+          "path": "runner/src/common_rtl.h",
+          "sha256": "8ccc93dfe686b93d1b3d52c52a2a01a775bc44d3f7a9e12b1eb4fc0068c347b9"
+        },
+        {
+          "path": "runner/src/cpu_state.c",
+          "sha256": "1fced82542b300bcf05ccaead5102c31ec5c99164c1f642351bbf8cff125215f"
+        },
+        {
+          "path": "runner/src/snapshot_guard.c",
+          "sha256": "18939f1e81b557cec5e028a84ed35821a81a2e42b6f68c537c3056b707c2a07b"
+        }
+      ],
+      "repository_url": "https://github.com/mstan/snesrecomp",
+      "source_commit": "246c0d40a8bc5f706bc6ef71d7e8633842f8e42e",
+      "repository_node_id": "R_kgDORoAFHw",
+      "tree_truncated": false
+    }
+  ]
+}

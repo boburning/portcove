@@ -325,6 +325,282 @@
     "title": "InstallInput",
     "type": "object"
   },
+  "organization_change": {
+    "$defs": {
+      "InstallationContext": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "installation_id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "managed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "installation_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "installation_id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "external",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "installation_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SetupConfirmation": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "$ref": "#/$defs/InstallationContext"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "context"
+        ],
+        "type": "object"
+      },
+      "UpdateNoticeChoice": {
+        "additionalProperties": true,
+        "properties": {
+          "paused": {
+            "type": "boolean"
+          },
+          "skipped_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpdateNoticeRelease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "paused"
+        ],
+        "type": "object"
+      },
+      "UpdateNoticeRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "description": "Same-tag rebuilds with different bytes must remain visible.",
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "artifact_sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "set_hidden",
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "port_id",
+          "hidden"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "kind": {
+            "const": "set_saved",
+            "type": "string"
+          },
+          "saved": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "game_id",
+          "saved"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "kind": {
+            "const": "set_saved_group",
+            "type": "string"
+          },
+          "legacy_port_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "saved": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "game_id",
+          "legacy_port_ids",
+          "saved"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "collection_id": {
+            "type": "string"
+          },
+          "kind": {
+            "const": "upsert_collection",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "collection_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "collection_id": {
+            "type": "string"
+          },
+          "kind": {
+            "const": "remove_collection",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "collection_id"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "collection_id": {
+            "type": "string"
+          },
+          "included": {
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "set_collection_port",
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "collection_id",
+          "port_id",
+          "included"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "choice": {
+            "$ref": "#/$defs/UpdateNoticeChoice"
+          },
+          "kind": {
+            "const": "set_update_notice",
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "port_id",
+          "choice"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "$ref": "#/$defs/SetupConfirmation"
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "set_setup_confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "confirmation",
+          "confirmed"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "OrganizationChange"
+  },
   "steam_batch_selection": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {

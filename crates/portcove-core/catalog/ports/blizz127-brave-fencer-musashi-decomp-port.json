@@ -3,12 +3,11 @@
   "listing": {
     "id": "blizz127-brave-fencer-musashi-decomp-port",
     "name": "Brave Fencer Musashi / brave-fencer-musashi-decomp-port (Blizz127)",
-    "summary": "Explore Brave Fencer Musashi / brave-fencer-musashi-decomp-port (Blizz127) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play the experimental PC port of Brave Fencer Musashi with your own USA PlayStation disc.",
     "project_url": "https://github.com/Blizz127/brave-fencer-musashi-decomp-port",
     "issue_number": 1804,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Blizz127/brave-fencer-musashi-decomp-port",
+    "availability": "packages",
+    "setup_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
     "artwork": {
       "game_id": 1810,
       "cover_id": 154795,
@@ -16,6 +15,62 @@
       "image_sha256": "bb71a22c939edcee852d6a1cb5889136074087a694340b2f70594d6af9d57195",
       "game_slug": "brave-fencer-musashi",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases",
+    "original_game_title": "Brave Fencer Musashi",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["bfm-", "windows-x64", ".zip"],
+      "linux-x86-64": ["bfm-", "linux-x86_64", ".tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Select your disc on first Play",
+          "instruction": "No installer or BIOS is required. Choose Play, then select your own Brave Fencer Musashi USA SLUS-00726 CUE with every referenced BIN track when the upstream picker appears. A 2048-byte ISO is not equivalent. An existing remembered disc can be reused. If Linux has no zenity/kdialog picker, keep the CUE and tracks in disc beside launch.sh, or in ~/Games/brave-fencer-musashi/disc."
+        },
+        {
+          "title": "Keep your upstream profile",
+          "instruction": "Windows uses %APPDATA%\\bfm-port; Linux uses the bfm-port folders under XDG state/config/cache (normally ~/.local/state, ~/.config and ~/.cache), with screenshots under Pictures. The standard card is bfm_card0.mcd. A managed runtime continues using that upstream profile; quit other copies before playing. Keep an existing customized copy and its OS launcher if you need its environment choices. Portcove does not register launch.sh or launch.cmd as an external native executable."
+        }
+      ],
+      "warnings": [
+        "These are experimental previews with known unfinished game paths. Windows r48 was tested upstream under Wine, not qualified by Portcove on native Windows. Stable r38 is a separate Linux alternative; current preview selection does not establish whole-game completion.",
+        "Linux requires glibc 2.38 or newer plus system OpenGL, X11 or Wayland, and ALSA or PulseAudio/PipeWire libraries. Custom native mods may need disabling or rebuilding when changing runtimes; preserving their files does not establish compatibility."
+      ],
+      "help_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable", "beta"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "Blizz127/Brave-Fencer-Musashi-decomp-port",
+      "asset_hints": {
+        "windows-x86-64": ["bfm-", "windows-x64", ".zip"],
+        "linux-x86-64": ["bfm-", "linux-x86_64", ".tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["launch.cmd"],
+      "linux-x86-64": ["launch.sh"]
+    },
+    "persistent_paths": [
+      "disc",
+      "saves",
+      "screenshots",
+      "mods",
+      "dump",
+      "native_vram_display.png",
+      "native_vram_display.ppm"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "First Play uses the reviewed upstream launcher to select your own USA disc. Portcove preserves in-folder disc data, the optional platform saves/screenshots/mods/dump folders and two VRAM captures during compatible runtime replacement. Ordinary game cards, account preferences, boot cache, journal and Pictures screenshots stay in the external upstream profile, outside Portcove backup/restore. Quit other copies and preserve that profile before changing runtimes. Preserved mods are not authenticated or guaranteed compatible; custom native plugins may need disabling or rebuilding before an update or rollback. Runtime rollback does not rewind the card."
     }
   }
 }

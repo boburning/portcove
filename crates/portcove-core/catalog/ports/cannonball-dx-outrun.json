@@ -3,12 +3,12 @@
   "listing": {
     "id": "cannonball-dx-outrun",
     "name": "CannonBall DX OutRun",
-    "summary": "Explore CannonBall DX OutRun and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use a permitted CannonBall DX player with your own compatible OutRun arcade ROM data.",
     "project_url": "https://github.com/Endprodukt/cannonball-dx",
     "issue_number": 1132,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Endprodukt/cannonball-dx",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md",
     "artwork": {
       "game_id": 2051,
       "cover_id": 125104,
@@ -16,6 +16,27 @@
       "image_sha256": "b73e8678bba802ebed6776d5130fa0e5330cd413880507fa7f7c0115bc42ff1e",
       "game_slug": "outrun",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/Endprodukt/cannonball-dx/releases",
+    "original_game_title": "OutRun",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your permitted Windows player",
+          "instruction": "Select cannonball-dx.exe in your existing permitted copy and keep its folder as the working directory. Keep res and the supplied runtime libraries together. The DX fork targets Windows 10 or 11 x64; other CannonBall projects do not establish support for DX on another platform. Review the included engine and third-party terms."
+        },
+        {
+          "title": "Keep your original ROM data beside it",
+          "instruction": "The player requires your own compatible OutRun Revision B data in roms. Upstream supports traditional loose ROM files or a suitable merged outrun.zip; it checks component CRCs and sizes rather than trusting the ZIP filename. Keep optional music and your controller configuration with this copy."
+        },
+        {
+          "title": "Keep your data when updating",
+          "instruction": "You or upstream manage runtime updates. Back up the complete working folder, including settings, scores, ROMs and custom music, before replacing it; retain the current copy until ready. Portcove records launch details without starting the player, adopting its files or promising managed backup, rollback or deletion."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md"
+    },
+    "download_block_reason": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data."
   }
 }

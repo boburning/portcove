@@ -12,6 +12,8 @@ import test from "node:test";
 import { parse } from "yaml";
 import {
   admitProductionController,
+  maximumProductionControllerWorkflowBytes,
+  readProductionControllerWorkflowBytes,
   admitProductionInputReader,
   admitProductionCatalogInputReader,
   admitReviewedInputsController,
@@ -1942,6 +1944,38 @@ void test("actual selected application job configuration binds source bytes, ref
     await assert.rejects(readFile(path.join(partialRoot, "controller-coordinator-source.json")), {
       code: "ENOENT",
     });
+  } finally {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  }
+});
+
+void test("workflow reader and admission share a finite 96KiB bound, including a rehashed oversized source", async (t) => {
+  assert.equal(maximumProductionControllerWorkflowBytes, 96 * 1024);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "workflow-bound-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filename = path.join(directory, "workflow.yml");
+  const originalOpen = filesystem.open.bind(filesystem);
+  t.mock.method(filesystem, "open", async () => originalOpen(filename, "r"));
+  syncBuiltinESMExports();
+  try {
+    for (const extra of [0, 1, 8192]) {
+      const bytes = Buffer.alloc(maximumProductionControllerWorkflowBytes + extra, 32);
+      await writeFile(filename, bytes);
+      const observed = await readProductionControllerWorkflowBytes();
+      assert.equal(observed.length, maximumProductionControllerWorkflowBytes + Math.min(extra, 1));
+      assert.ok(observed.equals(bytes.subarray(0, observed.length)));
+      const selected = JSON.stringify({
+        ...policy,
+        workflow_sha256: createHash("sha256").update(observed).digest("hex"),
+      });
+      if (extra === 0) assert.ok(admitProductionController(selected, environment, observed));
+      else
+        assert.throws(
+          () => admitProductionController(selected, environment, observed),
+          /workflow source byte identity/u,
+        );
+    }
   } finally {
     t.mock.restoreAll();
     syncBuiltinESMExports();

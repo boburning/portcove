@@ -3,13 +3,40 @@
   "listing": {
     "id": "doom-3-classic-dhewm3",
     "name": "Doom 3 (classic) (dhewm3)",
-    "summary": "Upstream route: Established Doom 3 source port with Windows and Linux release assets. Limits: Established Doom 3 classic source port; BFG unsupported and game patch1.3.1 required upstream. Upstream platforms: Official Windows binaries are x86/32-bit per README; Windows x86-64 source build documented. Linux releases and Linux/macOS source builds documented; selected non-Windows archive CPU unknown. Original data: Own original classic Doom3 base/*.pk4 files. Use the engine-required patched classic version. Doom3 BFG Edition files are unsupported. Portcove setup/gameplay not verified.",
+    "summary": "Set up Doom 3 (classic) through its upstream dhewm3 player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Doom 3 (classic)",
     "project_url": "https://github.com/dhewm/dhewm3",
     "issue_number": 2567,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/dhewm/dhewm3"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
+    "release_url": "https://github.com/dhewm/dhewm3/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["dhewm3-1.", "_win32.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use this original game and edition",
+          "instruction": "Use your original classic Doom 3 data patched to 1.3.1: base/pak000.pk4 through pak008.pk4. BFG Edition is a different product and is not supported by dhewm3. Preserve your original installation; use a separate prepared working copy or the explicit fs_basepath option. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+        },
+        {
+          "title": "Prepare upstream and select the real player",
+          "instruction": "Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This is the reviewed 32-bit Windows player, not an x64 artifact; the existing Windows registration route supports PE32. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them."
+        },
+        {
+          "title": "Keep the actual original and player data",
+          "instruction": "Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://dhewm3.org/#how-to-install"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

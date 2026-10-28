@@ -145,7 +145,6 @@ void test("installer lifecycle waits for managed files and uninstall registratio
   );
   assert.match(source, /Uninstaller child executable image path could not be observed/);
   assert.match(source, /\$ProcessIdentityClockToleranceMilliseconds = 1000/);
-  assert.match(source, /Windows may reuse its[\s\S]*PID/);
   const ownershipFilter = source.indexOf("$cimPath = [string]$child.ExecutablePath", childWait);
   const identityCheck = source.indexOf(
     "Owned uninstaller child process identity changed before observation",

@@ -222,6 +222,12 @@ void test("frontend outcome reporter selects the full maintained frontend consum
   assert.ok(plan([change(file)]).groups.includes("frontend"));
 });
 
+void test("the browser skip permission input retains both frontend and ordinary policy consumers", () => {
+  const selected = plan([change("apps/desktop/src/browser/failure-probe-contract.ts")]);
+  for (const group of ["frontend", "catalog", "rust-quality"])
+    assert.ok(selected.groups.includes(group as ValidationGroup), group);
+});
+
 void test("shared frontend compiler policy selects the same required checks as the root compiler config", () => {
   const shared = validationOwnershipForPath("tsconfig.base.json");
   const root = validationOwnershipForPath("tsconfig.json");
@@ -233,6 +239,11 @@ void test("scoped beta matcher and Roadmap release consumer retain protected qua
     "scripts/linux-beta-risk-706.mts",
     "scripts/linux-beta-risk-706.test.mts",
     "scripts/roadmap.mts",
+    "scripts/roadmap-issue.mts",
+    "scripts/roadmap-qualification.mts",
+    "scripts/roadmap-execution.mts",
+    "scripts/roadmap-readiness.mts",
+    "scripts/runtime-values.mts",
     "scripts/roadmap.test.mts",
   ]) {
     const ownership = validationOwnershipForPath(file);

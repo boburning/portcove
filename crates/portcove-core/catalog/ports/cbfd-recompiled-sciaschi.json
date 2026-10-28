@@ -3,12 +3,12 @@
   "listing": {
     "id": "cbfd-recompiled-sciaschi",
     "name": "Conker's Bad Fur Day: Recompiled (sciaschi)",
-    "summary": "Explore Conker's Bad Fur Day: Recompiled (sciaschi) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use the sciaschi Conker player with your own USA ROM and preserve its saves, mods and save states.",
     "project_url": "https://github.com/sciaschi/CBFD-Recompiled",
     "issue_number": 1216,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/sciaschi/CBFD-Recompiled",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md",
     "artwork": {
       "game_id": 1286,
       "cover_id": 86478,
@@ -16,6 +16,31 @@
       "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
       "game_slug": "conker-s-bad-fur-day",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/sciaschi/CBFD-Recompiled/releases",
+    "original_game_title": "Conker's Bad Fur Day",
+    "download_asset_hints": {
+      "windows-x86-64": ["ConkerRecompiled-", "-Windows.zip"],
+      "linux-x86-64": ["ConkerRecompiled-", "-Linux.tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose this implementation’s complete player",
+          "instruction": "Use a permitted sciaschi CBFD-Recompiled copy: ConkerRecomp.exe on Windows or ConkerRecomp on Linux, with its full extracted folder as the working directory. Keep assets, runtime libraries and notices together. The separate Mods.zip contains optional mods, not the player. The upstream macOS application is a separate Apple Silicon/macOS 15-or-later route; retain its bundle and follow upstream instructions."
+        },
+        {
+          "title": "Load your USA original on first Play",
+          "instruction": "Choose Play explicitly, then Load ROM in the launcher and supply your own supported USA Conker’s Bad Fur Day dump. Upstream validates and remembers the input; the released player does not need the source-build tools. Keep this implementation separate from Conker64’s scene prototype and the distinct Reloaded player."
+        },
+        {
+          "title": "Keep the complete profile before updating",
+          "instruction": "You or upstream provide updates. Preserve the actual ConkerRecompiled profile: normally %LOCALAPPDATA%\\ConkerRecompiled, ~/.config/ConkerRecompiled or ~/Library/Application Support/ConkerRecompiled. Keep saves, stored ROM, settings, achievements, save states, logs and mods together with the working copy. portable.txt selects local data relative to the player working folder on Windows/native Linux or beside the macOS bundle; a custom/test profile can differ. Portcove does not adopt, back up, roll back or delete these external files."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md"
+    },
+    "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
   }
 }

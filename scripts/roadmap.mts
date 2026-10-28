@@ -1,26 +1,105 @@
 import {
+  continueRoadmapCapacity,
+  roadmapQuotaDeferred,
+  retainRoadmapQuotaDeferral,
+} from "./roadmap-capacity-continuation.mts";
+import { observationHash } from "./upstream-observer.mts";
+import {
+  qualifiedPlatforms,
+  validatePortStageSemantics,
+  planPortStageReconciliation,
+  validatePortIssueCoverage,
+  qualificationCatalogObservation,
+  catalogQualificationSummary,
+} from "./roadmap-qualification.mts";
+export {
+  qualifiedPlatforms,
+  validatePortStageSemantics,
+  planPortStageReconciliation,
+  validatePortIssueCoverage,
+  qualificationCatalogObservation,
+  catalogQualificationSummary,
+};
+import {
+  executionReference,
+  validateCoordinationTarget,
+  legacyCoordinationIssue,
+  selectNextItems,
+  renderExecutionQueue,
+  coordinationTarget,
+  normalizeRequirements,
+  executionSnapshot,
+  validateExecutionSnapshot,
+  compareExecutionSnapshots,
+  parseConsumptionRecord,
+  deriveExecutionContext,
+  consumedReference,
+  executionQueueData,
+} from "./roadmap-execution.mts";
+export {
+  selectNextItems,
+  renderExecutionQueue,
+  coordinationTarget,
+  normalizeRequirements,
+  executionSnapshot,
+  validateExecutionSnapshot,
+  compareExecutionSnapshots,
+  parseConsumptionRecord,
+  deriveExecutionContext,
+  consumedReference,
+  executionQueueData,
+};
+import {
+  dependencyCycles,
+  analyzeReleaseReadiness,
+  renderReadinessSummary,
+  completionEvidenceLinks,
+  renderSnapshot,
+  resolveSnapshotOutput,
+  releaseSequence,
+} from "./roadmap-readiness.mts";
+export {
+  dependencyCycles,
+  analyzeReleaseReadiness,
+  renderReadinessSummary,
+  completionEvidenceLinks,
+  renderSnapshot,
+  resolveSnapshotOutput,
+  releaseSequence,
+};
+import type { QualificationCatalogObservation } from "./roadmap-qualification.mts";
+export type {
+  QualificationCatalogObservation,
+  QualificationPortObservation,
+} from "./roadmap-qualification.mts";
+import type {
+  ExecutionSnapshot,
+  RoadmapComment,
+  CanonicalProjectIssue,
+  ExecutionRelationships,
+  ExecutionRelationshipNode,
+} from "./roadmap-execution.mts";
+export { fieldValue, repositoryStatusConflict } from "./roadmap-issue.mts";
+import {
   canonicalPortTitlePrefix,
   captureText,
-  discoveredPortIssues,
   findPortIssueDuplicates,
   isNonCatalogResearchBody,
   issueNumber,
   itemBody,
   itemTitle,
   itemUrl,
-  normalizePortKey,
-  normalizedPortTitle,
   normalizedUpstream,
   parsePortIssueForm,
   portCatalogMarkers,
-  portIdentity,
   portKeyMarkers,
   portMarker,
   portTitlePrefix,
   portUpstreamMarkers,
   reconcilePortIssueMarkers,
   renderPortIssueBody,
-  repositoryState,
+  diagnosticText,
+  fieldValue,
 } from "./roadmap-issue.mts";
 import type { RoadmapIssueItem, RoadmapFieldValue } from "./roadmap-issue.mts";
 import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
@@ -46,12 +125,24 @@ import {
 } from "./roadmap-inventory.mts";
 import type { RoadmapInventory, InventoryCache } from "./roadmap-inventory.mts";
 import type { GitHubRunner } from "./github-api.mts";
-import type { PortDefinition } from "../apps/desktop/src/transport-types.generated.d.ts";
-import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
+
+import {
+  errorMessage,
+  errorCode,
+  isRecord,
+  recordField as qualificationField,
+} from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+import {
+  SetManyJournal,
+  readSetManyInput,
+  setManyJournalName,
+  setManyPreviewJournalName,
+} from "./roadmap-batch-progress.mts";
+import type { SetManyProgress } from "./roadmap-batch-progress.mts";
 import { access, readFile } from "node:fs/promises";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -65,7 +156,7 @@ import { acquireOwnedProcessLock } from "./process-lock.mts";
 import { validateGitHubBody } from "./github-body-text.mts";
 import { captureCheckoutContext, checkContextualDoctor } from "./checkout-context.mts";
 import { summarizeReport, retainReportSummary } from "./report-summary.mts";
-import { decide706, decisionInputs706, validateApproval706 } from "./linux-beta-risk-706.mts";
+import { decisionInputs706 } from "./linux-beta-risk-706.mts";
 
 import { scanDependencies } from "./dependency-security.mts";
 
@@ -75,9 +166,6 @@ const configPath = path.join(projectRoot, ".github", "roadmap.json");
 const catalogPath = path.join(projectRoot, "crates", "portcove-core", "catalog", "catalog.json");
 
 const layouts = new Set(["TABLE_LAYOUT", "BOARD_LAYOUT", "ROADMAP_LAYOUT"]);
-const legacyReleaseSequence = ["Alpha 1", "Alpha 2", "Alpha 3", "Beta 1", "Beta 2", "RC", "V1"];
-export const releaseSequence = [...legacyReleaseSequence, "Public beta", "1.0"];
-
 export interface RoadmapFieldDefinition {
   name: string;
   options: string[];
@@ -122,6 +210,8 @@ export interface SetManyAssignment extends RoadmapFieldTransition {
   itemId: string;
   fieldName: string;
   observed: unknown;
+  mutation_identity?: { project_id: string; field_id: string; option_id: string };
+  target_identity?: { content_id: string; kind: string };
 }
 export interface SetManyPlan<Context = unknown> {
   context: Context;
@@ -154,39 +244,22 @@ interface SetManyState {
   rateLimit: SetManyRate | null;
   doctor: "not_run" | "passed" | "failed";
   doctorScope?: "global" | "issues" | "items";
+  totalOperations?: number;
+  verificationEpoch?: {
+    started_at: string;
+    first_read_at: string | null;
+    last_read_at: string | null;
+    checked_assignments: number;
+    scope: string;
+  };
 }
 export interface SetManyClient<Context = unknown> {
   sampleGraphqlRate(): SetManyRate;
   planSetMany(spec: unknown): SetManyPlan<Context>;
+  refreshSetManyPlan?(spec: unknown): SetManyPlan<Context>;
+  validateSetManyBindings?(assignments: readonly SetManyAssignment[]): void;
   verifySetMany(plan: SetManyPlan<Context>): SetManyReadback[];
   applySetMany(plan: SetManyPlan<Context>, changes: SetManyAssignment[]): unknown;
-}
-function diagnosticText(value: unknown): string {
-  return String(value);
-}
-
-// Diagnostic projections only. Core still owns catalog admission; unknown
-// qualification records are narrowed by the exact-scope checks below.
-type QualificationPlatformFields = Pick<
-  PortDefinition,
-  "platforms" | "automated_tested_platforms" | "manually_validated_platforms"
->;
-export type QualificationPortObservation = Pick<PortDefinition, "id"> & {
-  [K in keyof QualificationPlatformFields]?: readonly string[];
-} & { support_tier?: unknown; project_url?: unknown };
-export interface QualificationCatalogObservation {
-  ports?: readonly QualificationPortObservation[] | null;
-  source_catalog?: { qualification?: readonly unknown[] | null } | null;
-}
-function qualificationField(value: unknown, name: string): unknown {
-  return isRecord(value) ? value[name] : undefined;
-}
-function includedReleaseTargets(release: string) {
-  if (release === "Public beta") return ["Alpha 1", "Alpha 2", "Public beta"];
-  if (release === "1.0") return [...legacyReleaseSequence, "Public beta", "1.0"];
-  const index = legacyReleaseSequence.indexOf(release);
-  if (index < 0) throw new Error(`unknown target release: ${release}`);
-  return legacyReleaseSequence.slice(0, index + 1);
 }
 const durableIssueHeadings = [
   "User outcome",
@@ -210,17 +283,6 @@ const neutralPortFields = Object.freeze({
   "Port stage": "Watchlist",
   Effort: "Unknown",
 });
-const catalogedPortStages = new Set<unknown>([
-  "Cataloged",
-  "Automated qualification",
-  "Manual qualification",
-  "Supported",
-]);
-const automatedPortStages = new Set<unknown>([
-  "Automated qualification",
-  "Manual qualification",
-  "Supported",
-]);
 const uxAuditNamespaces = {
   SYS: 14,
   UI: 47,
@@ -265,7 +327,6 @@ const setFlags = new Map([
   ["--port-stage", "Port stage"],
   ["--effort", "Effort"],
 ]);
-const maximumBatchAssignments = 100;
 export const maximumMutationChunkAssignments = 25;
 
 function requireExactKeys(
@@ -323,8 +384,6 @@ export function validateSetManySpec(config: RoadmapConfig, spec: unknown): SetMa
     }
     return { target: update.target, fields };
   });
-  if (assignments > maximumBatchAssignments)
-    throw new Error(`set-many supports at most ${maximumBatchAssignments} field assignments`);
   return { schema_version: 1, updates, assignments };
 }
 
@@ -335,8 +394,7 @@ export function setManyRequiredReserve(preflightCost: unknown, pendingAssignment
     preflightCost < 0 ||
     typeof pendingAssignments !== "number" ||
     !Number.isSafeInteger(pendingAssignments) ||
-    pendingAssignments < 0 ||
-    pendingAssignments > maximumBatchAssignments
+    pendingAssignments < 0
   ) {
     throw new Error("set-many quota inputs are invalid");
   }
@@ -365,14 +423,168 @@ function setManyEvidence(plan: SetManyPlan, state: SetManyState) {
     verified_after_attempt: state.verifiedAfterAttempt,
     reconciled: state.reconciled,
     reconciled_after_error: state.reconciledAfterError,
-    remaining: Math.max(0, plan.pending.length - state.processed),
+    remaining: Math.max(0, (state.totalOperations ?? plan.pending.length) - state.processed),
     chunks: state.chunks,
     rate_limit: state.rateLimit
       ? { remaining: state.rateLimit.remaining, reset_at: state.rateLimit.resetAt }
       : null,
     doctor: state.doctor,
     doctor_scope: state.doctorScope ?? null,
+    verification_epoch: state.verificationEpoch ?? null,
   };
+}
+
+function phasedQuota(
+  client: SetManyClient,
+  phase: string,
+  evidence: Record<string, unknown>,
+  required = 110,
+) {
+  const rate = client.sampleGraphqlRate();
+  if (rate.remaining < required) throw roadmapQuotaDeferred(phase, evidence, rate);
+  return rate;
+}
+function assignmentKey(change: Pick<SetManyAssignment, "itemId" | "fieldName">) {
+  return JSON.stringify([change.itemId, change.fieldName]);
+}
+function planFromAssignments<Context>(
+  context: Context,
+  assignments: SetManyAssignment[],
+): SetManyPlan<Context> {
+  return {
+    context,
+    assignments: assignments.length,
+    pending: assignments.filter((row) => row.observed !== row.to),
+    alreadyApplied: assignments.filter((row) => row.observed === row.to),
+  };
+}
+function prepareDurableSetMany<Context>(
+  client: SetManyClient<Context>,
+  config: RoadmapConfig,
+  spec: unknown,
+  journal: SetManyJournal,
+) {
+  const validated = validateSetManySpec(config, spec);
+  const saved = journal.planning;
+  let cursor = saved?.next_update ?? 0;
+  let context = saved?.context as Context;
+  let rows = (saved?.assignments ?? []).map((row) => ({ ...row }));
+  if (saved && saved.total_updates !== validated.updates.length)
+    throw new Error("set-many staged specification scope differs");
+  const verifyPrefix = () => {
+    const expected = validated.updates.slice(0, cursor).flatMap((update) =>
+      Object.entries(update.fields).map(([fieldName, transition]) => ({
+        target: update.target,
+        fieldName,
+        ...transition,
+      })),
+    );
+    if (
+      expected.length !== rows.length ||
+      expected.some((row, index) => {
+        const actual = rows[index];
+        return (
+          !actual ||
+          row.target !== actual.target ||
+          row.fieldName !== actual.fieldName ||
+          row.from !== actual.from ||
+          row.to !== actual.to
+        );
+      })
+    )
+      throw new Error("set-many staged preflight differs from exact specification");
+    const identities = new Set<string>();
+    const fields = new Map<string, string>();
+    for (const row of rows) {
+      const key = assignmentKey(row);
+      if (identities.has(key))
+        throw new Error("duplicate set-many resolved item field across preflight chunks");
+      identities.add(key);
+      if (row.mutation_identity)
+        for (const [name, value] of [
+          ["project", row.mutation_identity.project_id],
+          [`field:${row.fieldName}`, row.mutation_identity.field_id],
+          [`option:${row.fieldName}:${row.to}`, row.mutation_identity.option_id],
+        ]) {
+          if (fields.has(name!) && fields.get(name!) !== value)
+            throw new Error(
+              "set-many Project field/option identity changed across preflight chunks",
+            );
+          fields.set(name!, value!);
+        }
+    }
+  };
+  verifyPrefix();
+  let costPerUpdate = saved?.read_cost_per_update ?? 10;
+  while (cursor < validated.updates.length) {
+    const rate = phasedQuota(
+      client,
+      "preflight",
+      { completed_updates: cursor, total_updates: validated.updates.length },
+      100 + costPerUpdate,
+    );
+    const count = Math.min(
+      maximumMutationChunkAssignments,
+      validated.updates.length - cursor,
+      Math.max(1, Math.floor((rate.remaining - 100) / costPerUpdate)),
+    );
+    const partial = client.planSetMany({
+      schema_version: 1,
+      updates: validated.updates.slice(cursor, cursor + count),
+    });
+    const ordered = [...partial.pending, ...partial.alreadyApplied];
+    for (const update of validated.updates.slice(cursor, cursor + count))
+      for (const fieldName of Object.keys(update.fields)) {
+        const matched = ordered.filter(
+          (row) => row.target === update.target && row.fieldName === fieldName,
+        );
+        if (matched.length !== 1)
+          throw new Error("set-many partial preflight omitted or duplicated a specification field");
+        rows.push(matched[0]!);
+      }
+    cursor += count;
+    context = partial.context;
+    verifyPrefix();
+    journal.stagePlanning(cursor, validated.updates.length, context, rows);
+    const after = client.sampleGraphqlRate();
+    if (after.resetAt === rate.resetAt && after.used >= rate.used)
+      costPerUpdate = Math.max(1, Math.ceil((after.used - rate.used) / count));
+    journal.stagePlanning(cursor, validated.updates.length, context, rows, costPerUpdate);
+  }
+  return planFromAssignments(context, rows);
+}
+function specificationForAssignments(rows: readonly SetManyAssignment[]) {
+  const updates = new Map<
+    string,
+    { target: string; fields: Record<string, RoadmapFieldTransition> }
+  >();
+  for (const row of rows) {
+    const update = updates.get(row.target) ?? { target: row.target, fields: {} };
+    update.fields[row.fieldName] = { from: row.from, to: row.to };
+    updates.set(row.target, update);
+  }
+  return { schema_version: 1, updates: [...updates.values()] };
+}
+function validateSetManyItemBinding(
+  node: unknown,
+  projectId: unknown,
+  expected?: { content_id: string; kind: string },
+) {
+  if (
+    !isRecord(node) ||
+    typeof node.id !== "string" ||
+    node.isArchived !== false ||
+    qualificationField(node.project, "id") !== projectId ||
+    !isRecord(node.content) ||
+    typeof node.content.id !== "string" ||
+    !["Issue", "DraftIssue"].includes(String(node.content.__typename))
+  )
+    throw new Error("set-many active item content binding is unavailable");
+  if (
+    expected &&
+    (node.content.id !== expected.content_id || node.content.__typename !== expected.kind)
+  )
+    throw new Error("set-many target content identity changed during continuation");
 }
 
 export async function executeSetMany<Context>({
@@ -382,6 +594,8 @@ export async function executeSetMany<Context>({
   apply = false,
   doctor,
   onPlan = () => {},
+  onCheckpoint = () => {},
+  progress,
 }: {
   client: SetManyClient<Context>;
   config: RoadmapConfig;
@@ -393,43 +607,190 @@ export async function executeSetMany<Context>({
     options: { quiet: boolean },
   ) => unknown;
   onPlan?: (summary: string) => void;
+  onCheckpoint?: (progress: SetManyProgress) => void;
+  progress?: SetManyJournal;
 }) {
+  if (progress && !apply) progress.beginPreview();
+  const restartVerification =
+    progress?.journal?.phase === "completed" || progress?.journal?.doctor_pending === true;
   const before = client.sampleGraphqlRate();
-  const plan = client.planSetMany(spec);
+  if (progress && apply && (!client.refreshSetManyPlan || !client.validateSetManyBindings))
+    throw new Error(
+      "Durable set-many requires current binding and authoritative readback capabilities",
+    );
+  const plan = progress
+    ? prepareDurableSetMany(client, config, spec, progress)
+    : client.planSetMany(spec);
   const after = client.sampleGraphqlRate();
-  if (after.used < before.used)
+  if (after.used < before.used && !progress)
     throw new Error("GitHub GraphQL rate-limit window changed during set-many preflight; retry");
-  const preflightCost = after.used - before.used;
+  const preflightCost = Math.max(
+    0,
+    after.resetAt === before.resetAt ? after.used - before.used : 0,
+  );
   const state: SetManyState = {
-    verified: plan.alreadyApplied.length,
+    verified: progress ? 0 : plan.alreadyApplied.length,
     verifiedAfterAttempt: 0,
-    reconciled: plan.alreadyApplied.length,
+    reconciled: progress ? 0 : plan.alreadyApplied.length,
     reconciledAfterError: 0,
     processed: 0,
     chunks: [],
     rateLimit: after,
     doctor: "not_run",
+    ...(progress ? { totalOperations: plan.assignments } : {}),
   };
-  const requiredReserve = setManyRequiredReserve(preflightCost, plan.pending.length);
+  // Preflight may cover thousands of assignments. Reserve for a bounded chunk,
+  // then replace this estimate with observed chunk read costs before mutation.
+  let chunkReadCost = Math.ceil(
+    (preflightCost * Math.min(maximumMutationChunkAssignments, plan.assignments)) /
+      Math.max(1, plan.assignments),
+  );
+  const requiredReserve = setManyRequiredReserve(chunkReadCost, plan.pending.length);
   const planSummary =
     `${plan.pending.length} pending, ${plan.alreadyApplied.length} already applied, ` +
     `${preflightCost} GraphQL points observed during preflight, ${after.remaining} remain, ` +
     `${requiredReserve} required before the next mutation.`;
   if (!apply) {
+    progress?.markPreviewCompleted();
     return {
       status: "planned",
       summary: `Set-many plan: ${planSummary}`,
-      evidence: setManyEvidence(plan, state),
+      evidence: {
+        ...setManyEvidence(plan, state),
+        preflight_interval: progress?.planning
+          ? {
+              started_at: progress.planning.started_at,
+              last_read_at: progress.planning.updated_at,
+              scope:
+                "observed target values during staged preflight; apply rebinds and reads values again",
+            }
+          : null,
+      },
     };
   }
   onPlan(`Set-many plan: ${planSummary}`);
-
-  for (let offset = 0; offset < plan.pending.length; offset += maximumMutationChunkAssignments) {
-    const chunk = plan.pending.slice(offset, offset + maximumMutationChunkAssignments);
-    const chunkPlan = { ...plan, pending: chunk, alreadyApplied: [] };
-    let beforeMutation;
+  const checkpoint = (phase: SetManyProgress["phase"], changes: SetManyAssignment[] = []) => {
     try {
+      const value = { phase, assignments: [...plan.pending, ...plan.alreadyApplied], changes };
+      progress?.observe(value);
+      onCheckpoint(value);
+    } catch (error) {
+      throw setManyOutcomeError(
+        "partial",
+        `set-many could not retain ${phase} progress: ${errorMessage(error)}`,
+        setManyEvidence(plan, state),
+        error,
+      );
+    }
+  };
+  checkpoint("plan");
+
+  const allAssignments = [...plan.pending, ...plan.alreadyApplied];
+  if (progress) client.validateSetManyBindings!(allAssignments);
+  if (progress && !progress.hasFinalVerification) {
+    const retained = new Set([
+      ...(progress.journal?.verified ?? []),
+      ...(progress.journal?.uncertain ?? []),
+    ]);
+    const prior = allAssignments.filter((row) => retained.has(assignmentKey(row)));
+    const checked = progress.resumptionReads(prior);
+    progress.stageResumptionReads(checked, prior);
+    const remaining = prior.filter((row) => !checked[assignmentKey(row)]);
+    for (let offset = 0; offset < remaining.length; offset += maximumMutationChunkAssignments) {
+      phasedQuota(client, "resumption-field-read", {
+        checked_assignments: Object.keys(checked).length,
+        retained_assignments: prior.length,
+      });
+      const chunk = remaining.slice(offset, offset + maximumMutationChunkAssignments);
+      const observed = client.verifySetMany({ ...plan, pending: chunk, alreadyApplied: [] });
+      progress.assertChunk(observed);
+      if (
+        observed.length !== chunk.length ||
+        observed.some((row) => !row.verified) ||
+        chunk.some(
+          (row) =>
+            observed.filter((value) => assignmentKey(value) === assignmentKey(row)).length !== 1,
+        )
+      )
+        throw new Error("set-many resumption field readback is incomplete or conflicting");
+      checkpoint("readback", observed);
+      const clock = new Date().toISOString();
+      for (const row of observed) checked[assignmentKey(row)] = clock;
+      progress.stageResumptionReads(checked, prior);
+    }
+  }
+
+  const operations = progress
+    ? allAssignments.filter((row) => !progress.journal?.verified.includes(assignmentKey(row)))
+    : plan.pending;
+  const skipWrites = progress?.hasFinalVerification ?? false;
+  if (progress && !skipWrites) {
+    state.verified = progress.journal?.verified.length ?? 0;
+    state.processed = state.verified;
+  }
+  if (skipWrites) {
+    state.verified = plan.assignments;
+    state.processed = plan.assignments;
+  }
+  for (let offset = 0; !skipWrites && offset < operations.length;) {
+    let admitted = maximumMutationChunkAssignments;
+    if (progress) {
+      const rate = phasedQuota(client, "mutation-batch-admission", {
+        verified: progress.journal?.verified.length ?? 0,
+      });
+      admitted = Math.min(
+        admitted,
+        Math.max(
+          1,
+          Math.floor(
+            (rate.remaining - 100) / ((progress.planning?.read_cost_per_update ?? 10) + 4),
+          ),
+        ),
+      );
+    }
+    const chunk = operations.slice(offset, offset + admitted);
+    let chunkPlan = { ...plan, pending: chunk, alreadyApplied: [] as SetManyAssignment[] };
+    if (progress) {
+      phasedQuota(client, "mutation-preflight", {
+        verified: progress.journal?.verified.length ?? 0,
+      });
+      const current = client.refreshSetManyPlan!(specificationForAssignments(chunk));
+      const actual = [...current.pending, ...current.alreadyApplied];
+      if (
+        actual.length !== chunk.length ||
+        chunk.some((expected) => {
+          const observed = actual.find(
+            (row) => row.target === expected.target && row.fieldName === expected.fieldName,
+          );
+          return (
+            !observed ||
+            observed.itemId !== expected.itemId ||
+            observationHash(observed.mutation_identity ?? null) !==
+              observationHash(expected.mutation_identity ?? null) ||
+            observationHash(observed.target_identity ?? null) !==
+              observationHash(expected.target_identity ?? null)
+          );
+        })
+      )
+        throw new Error(
+          "set-many current Project/item/field/option bindings changed before mutation",
+        );
+      chunkPlan = { ...current, pending: chunk, alreadyApplied: [] };
+    }
+    let beforeMutation: SetManyReadback[];
+    try {
+      if (progress) state.rateLimit = client.sampleGraphqlRate();
       beforeMutation = client.verifySetMany(chunkPlan);
+      if (
+        beforeMutation.length !== chunk.length ||
+        chunk.some(
+          (row) =>
+            beforeMutation.filter((value) => assignmentKey(value) === assignmentKey(row)).length !==
+            1,
+        )
+      )
+        throw new Error("set-many pre-mutation field coverage is incomplete");
+      progress?.assertChunk(beforeMutation);
     } catch (error) {
       throw setManyOutcomeError(
         "unknown",
@@ -462,23 +823,32 @@ export async function executeSetMany<Context>({
     let mutationError: unknown = null;
     if (pending.length) {
       const rate = client.sampleGraphqlRate();
+      if (
+        state.rateLimit &&
+        rate.resetAt === state.rateLimit.resetAt &&
+        rate.used >= state.rateLimit.used
+      )
+        chunkReadCost = Math.max(chunkReadCost, rate.used - state.rateLimit.used);
       state.rateLimit = rate;
-      const chunkReserve = setManyRequiredReserve(preflightCost, pending.length);
+      const chunkReserve = setManyRequiredReserve(chunkReadCost, pending.length);
       if (rate.remaining < chunkReserve) {
+        if (progress)
+          throw roadmapQuotaDeferred("mutation-admission", setManyEvidence(plan, state), rate);
         throw setManyOutcomeError(
           "partial",
           `${githubRateLimitMessage(rate, "set-many stopped before mutation")}; ${chunkReserve} points are required to preserve the recovery reserve`,
           setManyEvidence(plan, state),
         );
       }
+      checkpoint("attempted", pending);
       try {
-        client.applySetMany(plan, pending);
+        client.applySetMany(chunkPlan, pending);
       } catch (error) {
         mutationError = error;
       }
     }
 
-    let afterMutation;
+    let afterMutation: SetManyReadback[];
     try {
       afterMutation = client.verifySetMany(chunkPlan);
     } catch (error) {
@@ -489,6 +859,19 @@ export async function executeSetMany<Context>({
         error,
       );
     }
+    if (
+      afterMutation.length !== chunk.length ||
+      chunk.some(
+        (row) =>
+          afterMutation.filter((value) => assignmentKey(value) === assignmentKey(row)).length !== 1,
+      )
+    )
+      throw setManyOutcomeError(
+        "unknown",
+        "set-many post-mutation field coverage is incomplete",
+        setManyEvidence(plan, state),
+        mutationError,
+      );
     const verified = afterMutation.filter((result) => result.verified);
     const mismatches = afterMutation.filter((result) => !result.verified);
     const newlyVerified = verified.length - alreadyDesired;
@@ -503,6 +886,7 @@ export async function executeSetMany<Context>({
       verified: verified.length,
       reconciled_after_error: mutationError ? newlyVerified : 0,
     });
+    checkpoint("readback", afterMutation);
     if (mismatches.length) {
       throw setManyOutcomeError(
         "partial",
@@ -516,12 +900,54 @@ export async function executeSetMany<Context>({
         mutationError,
       );
     }
+    offset += chunk.length;
   }
 
-  let finalVerification;
+  let finalVerification: SetManyReadback[];
   try {
-    finalVerification = client.verifySetMany(plan);
+    if (!progress) finalVerification = client.verifySetMany(plan);
+    else {
+      const all = [...plan.pending, ...plan.alreadyApplied];
+      client.validateSetManyBindings!(all);
+      const checked = restartVerification ? {} : progress.verificationReads(all);
+      progress.stageVerification(checked, all, restartVerification);
+      const remaining = all.filter((row) => !checked[assignmentKey(row)]);
+      for (let offset = 0; offset < remaining.length; offset += maximumMutationChunkAssignments) {
+        phasedQuota(client, "final-field-read", {
+          verified_assignments: Object.keys(checked).length,
+          total_assignments: all.length,
+        });
+        const chunk = remaining.slice(offset, offset + maximumMutationChunkAssignments);
+        const observed = client.verifySetMany({ ...plan, pending: chunk, alreadyApplied: [] });
+        if (
+          observed.length !== chunk.length ||
+          observed.some((row) => !row.verified) ||
+          chunk.some(
+            (row) =>
+              observed.filter((value) => assignmentKey(value) === assignmentKey(row)).length !== 1,
+          )
+        )
+          throw new Error(
+            "set-many final readback found conflicting or incomplete field assignments",
+          );
+        progress.assertChunk(observed);
+        const clock = new Date().toISOString();
+        for (const row of observed) checked[assignmentKey(row)] = clock;
+        progress.stageVerification(checked, all);
+      }
+      const clocks = Object.values(checked).toSorted();
+      state.verificationEpoch = {
+        started_at: progress.journal!.final_verification!.started_at,
+        first_read_at: clocks[0] ?? null,
+        last_read_at: clocks.at(-1) ?? null,
+        checked_assignments: clocks.length,
+        scope:
+          "authoritative field readback per bounded chunk over the stated interval; not an atomic global-current snapshot",
+      };
+      finalVerification = all.map((row) => ({ ...row, observed: row.to, verified: true }));
+    }
   } catch (error) {
+    if (isRecord(error) && error.code === "set_many_quota_deferred") throw error;
     throw setManyOutcomeError(
       "unknown",
       `set-many final readback failed: ${errorMessage(error)}`,
@@ -538,6 +964,10 @@ export async function executeSetMany<Context>({
     );
   }
   state.verified = finalVerification.length;
+  if (progress) {
+    phasedQuota(client, "doctor-admission", setManyEvidence(plan, state));
+    progress.markDoctorPending();
+  }
   try {
     state.doctorScope = roadmapCheckScope([...plan.pending, ...plan.alreadyApplied]);
     if (doctor) await doctor(config, client, { quiet: true });
@@ -564,17 +994,12 @@ export async function executeSetMany<Context>({
       error,
     );
   }
+  checkpoint("completed");
   return {
     status: "succeeded",
-    summary: `Set-many verified ${finalVerification.length} field assignments and completed the final doctor.`,
+    summary: `Set-many verified ${finalVerification.length} field assignments and completed the final doctor.${state.verificationEpoch ? ` Independent chunk verification interval: ${state.verificationEpoch.first_read_at} to ${state.verificationEpoch.last_read_at}.` : ""}`,
     evidence: setManyEvidence(plan, state),
   };
-}
-
-function normalizedKey(value: unknown) {
-  return diagnosticText(value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
 }
 
 function ensureString(value: unknown, label: string): asserts value is string {
@@ -837,460 +1262,16 @@ export function validatePlanOriginCoverage(items: readonly RoadmapIssueItem[] | 
   return [];
 }
 
-function qualificationScopeDetails(
-  port: QualificationPortObservation | null | undefined,
-  scope: unknown,
-): { key: string; platform: string } | null {
-  if (!isRecord(scope)) return null;
-  const variant = isRecord(scope.variant) ? scope.variant : undefined;
-  const identity = isRecord(variant?.identity) ? variant.identity : undefined;
+function executionOptions(parsed: ReturnType<typeof parseArguments>, allowed: readonly string[]) {
   if (
-    !port ||
-    scope.port_id !== port.id ||
-    typeof scope.platform !== "string" ||
-    !(port.platforms ?? []).includes(scope.platform) ||
-    typeof scope.artifact_sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/iu.test(scope.artifact_sha256) ||
-    variant?.state !== "exact" ||
-    !identity ||
-    ![
-      scope.upstream_ref,
-      scope.contract_id,
-      scope.check_version,
-      identity.game_id,
-      identity.variant_id,
-      identity.representation_id,
-    ].every((value) => typeof value === "string" && value.length > 0)
+    parsed.positionals.length ||
+    Object.keys(parsed.options).some((flag) => !allowed.includes(flag))
   )
-    return null;
-  return {
-    key: JSON.stringify([
-      scope.port_id,
-      scope.platform,
-      scope.artifact_sha256,
-      scope.upstream_ref,
-      scope.contract_id,
-      identity.game_id,
-      identity.variant_id,
-      identity.representation_id,
-      scope.check_version,
-    ]),
-    platform: scope.platform,
-  };
-}
-function qualificationScopeKey(
-  port: QualificationPortObservation | null | undefined,
-  scope: unknown,
-): string | null {
-  return qualificationScopeDetails(port, scope)?.key ?? null;
-}
-function exactQualificationKeys(
-  port: QualificationPortObservation | null | undefined,
-  qualificationRecords: readonly unknown[] | null | undefined,
-  kind: string,
-): Set<string> {
-  return new Set(
-    (qualificationRecords ?? [])
-      .filter(
-        (record) =>
-          qualificationField(record, "kind") === kind &&
-          qualificationField(record, "outcome") === "passed",
-      )
-      .map((record) => qualificationScopeKey(port, qualificationField(record, "scope")))
-      .filter((key) => key !== null),
-  );
-}
-function exactQualificationPlatforms(
-  port: QualificationPortObservation | null | undefined,
-  qualificationRecords: readonly unknown[] | null | undefined,
-  kind: string,
-): Set<string> {
-  const declared = new Set(port?.platforms ?? []);
-  return new Set(
-    (qualificationRecords ?? []).flatMap((record) => {
-      const exact = qualificationScopeDetails(port, qualificationField(record, "scope"));
-      return exact &&
-        qualificationField(record, "kind") === kind &&
-        qualificationField(record, "outcome") === "passed" &&
-        declared.has(exact.platform)
-        ? [exact.platform]
-        : [];
-    }),
-  );
-}
-export function qualifiedPlatforms(
-  port: QualificationPortObservation | null | undefined,
-  qualificationRecords: readonly unknown[] | null = [],
-): string[] {
-  const automated = exactQualificationKeys(port, qualificationRecords, "automated_lifecycle");
-  const exact = new Set(
-    (qualificationRecords ?? []).flatMap((record) => {
-      if (
-        qualificationField(record, "kind") !== "hands_on" ||
-        qualificationField(record, "outcome") !== "passed"
-      )
-        return [];
-      const scope = qualificationScopeDetails(port, qualificationField(record, "scope"));
-      return scope && automated.has(scope.key) ? [scope.platform] : [];
-    }),
-  );
-  const legacyAutomated = new Set(port?.automated_tested_platforms ?? []);
-  const legacyManual = new Set(port?.manually_validated_platforms ?? []);
-  return (port?.platforms ?? []).filter(
-    (platform) =>
-      exact.has(platform) || (legacyAutomated.has(platform) && legacyManual.has(platform)),
-  );
-}
-function automatedPlatforms(
-  port: QualificationPortObservation | null | undefined,
-  qualificationRecords: readonly unknown[] | null = [],
-): string[] {
-  const automated = new Set(port?.automated_tested_platforms ?? []);
-  for (const platform of exactQualificationPlatforms(
-    port,
-    qualificationRecords,
-    "automated_lifecycle",
-  ))
-    automated.add(platform);
-  return (port?.platforms ?? []).filter((platform) => automated.has(platform));
-}
-
-function issueSection(body: unknown, heading: string) {
-  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return (
-    diagnosticText(body ?? "")
-      .match(new RegExp(`^##\\s+${escaped}\\s*$([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))`, "im"))?.[1]
-      ?.trim() ?? ""
-  );
-}
-
-function hasBlockedEvidence(body: unknown) {
-  const section =
-    issueSection(body, "Dependencies and blockers") ||
-    issueSection(body, "Known dependencies and blockers");
-  if (
-    !section ||
-    /^(?:pending|tbd|todo|none)[.!]?$/i.test(section) ||
-    /no current blocker (?:has been )?established/i.test(section)
-  )
-    return false;
-  const fields = [
-    ...section.matchAll(
-      /^(?:[-*][ \t]*)?(?:\*\*)?(Blocker|Resume condition|Reconsideration condition)(?:\*\*)?:[ \t]*(.*?)(?=\r?$)/gimu,
-    ),
-  ];
-  const usable = (value: string) => {
-    const text = value.replace(/[*_`]/gu, "").trim();
-    return (
-      text.length >= 12 &&
-      !/^(?:pending|tbd|todo|none|unknown|n\/?a|not (?:yet )?(?:known|specified|established))(?:\b|[.!])/iu.test(
-        text,
-      ) &&
-      !/^(?:\.{3}|…|<[^>]+>)$/u.test(text)
-    );
-  };
-  if (fields.length) {
-    const blocker = fields.filter((match) => match[1]?.toLowerCase() === "blocker");
-    const resume = fields.filter((match) => match[1]?.toLowerCase() !== "blocker");
-    // The migration spelling is a field, not evidence of a particular verb.
-    const remainder = section
-      .replace(
-        /^(?:[-*]\s*)?(?:\*\*)?(?:Resume condition|Reconsideration condition)(?:\*\*)?:[^\n]*$/gimu,
-        "",
-      )
-      .trim();
-    return (
-      blocker.length <= 1 &&
-      resume.length === 1 &&
-      usable(resume[0]?.[2] ?? "") &&
-      (blocker.length === 1 ? usable(blocker[0]?.[2] ?? "") : usable(remainder))
-    );
+    throw new Error(`unsupported ${parsed.command} arguments; see --help`);
+  for (const flag of ["--apply", "--json"]) {
+    if (flag in parsed.options && parsed.options[flag] !== true)
+      throw new Error(`${flag} does not accept a value`);
   }
-  // Existing prose remains readable during migration; new explicit fields never
-  // fall back to incidental words when a required value is absent/placeholder.
-  return (
-    /\b(?:resume|until|when|needs?|required missing|after)\b/i.test(section) && usable(section)
-  );
-}
-
-export function validatePortStageSemantics(
-  catalog: QualificationCatalogObservation | null | undefined,
-  items: readonly RoadmapIssueItem[] | null | undefined,
-) {
-  const errors = [];
-  const warnings = [];
-  const diagnostics = [];
-  const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port] as const));
-  const qualificationRecords = catalog?.source_catalog?.qualification ?? [];
-
-  for (const port of portsById.values()) {
-    const automated = exactQualificationKeys(port, qualificationRecords, "automated_lifecycle");
-    const manualEvidence = [
-      ...(port.manually_validated_platforms ?? []).map((platform) => ({
-        platform,
-        matching: (port.automated_tested_platforms ?? []).includes(platform),
-      })),
-      ...qualificationRecords
-        .filter(
-          (record) =>
-            qualificationField(qualificationField(record, "scope"), "port_id") === port.id &&
-            qualificationField(record, "kind") === "hands_on" &&
-            qualificationField(record, "outcome") === "passed",
-        )
-        .map((record) => ({
-          platform: qualificationField(qualificationField(record, "scope"), "platform"),
-          matching: (() => {
-            const key = qualificationScopeKey(port, qualificationField(record, "scope"));
-            return key !== null && automated.has(key);
-          })(),
-        })),
-    ];
-    for (const { platform, matching } of manualEvidence) {
-      if (typeof platform !== "string" || !(port.platforms ?? []).includes(platform) || !matching) {
-        errors.push(
-          `Catalog port ${port.id} has manual evidence without matching declared automated qualification for ${diagnosticText(platform)}`,
-        );
-      }
-    }
-  }
-
-  for (const item of items ?? []) {
-    const body = itemBody(item);
-    if (!body.includes(portMarker) && !portTitlePrefix.test(itemTitle(item))) continue;
-    const stage = fieldValue(item, "Port stage");
-    if (!stage) continue;
-    const url = itemUrl(item) ?? itemTitle(item);
-    const ids = portCatalogMarkers(body);
-    const id = ids.length === 1 ? ids[0] : null;
-    const port = id ? portsById.get(id) : null;
-    const automated = automatedPlatforms(port, qualificationRecords);
-    const qualified = qualifiedPlatforms(port, qualificationRecords);
-
-    if (catalogedPortStages.has(stage) && (!id || !port || ids.length !== 1)) {
-      errors.push(`${diagnosticText(stage)} port must have exactly one valid catalog ID: ${url}`);
-    }
-    if (automatedPortStages.has(stage) && port && automated.length === 0) {
-      errors.push(
-        `${diagnosticText(stage)} port has no automated evidence for a declared platform: ${url}`,
-      );
-    }
-    if (stage === "Supported") {
-      if (id && !port) errors.push(`Supported port claims unknown catalog ID ${id}: ${url}`);
-      if (port && qualified.length === 0) {
-        errors.push(
-          `Supported port has no platform with matching automated and hands-on evidence: ${url}`,
-        );
-      }
-      if (port && qualified.length) {
-        diagnostics.push(`Supported ${url}: qualified platforms = ${qualified.join(", ")}`);
-      }
-    }
-    if (stage === "Blocked" && !hasBlockedEvidence(body)) {
-      errors.push(`Blocked port lacks a usable blocker and exact resume condition: ${url}`);
-    }
-    if (stage === "Rejected" && port) {
-      errors.push(`Rejected port is still represented as catalog-supported by ${id}: ${url}`);
-    }
-    const understatesQualification =
-      (qualified.length > 0 && stage !== "Supported") ||
-      (automated.length > 0 && !automatedPortStages.has(stage));
-    if (
-      port &&
-      !["Blocked", "Rejected"].some((value) => value === stage) &&
-      understatesQualification
-    ) {
-      warnings.push(
-        `${url} may conservatively understate catalog qualification at Port stage ${diagnosticText(stage)}; no automatic promotion was made`,
-      );
-    }
-  }
-  return { errors, warnings, diagnostics };
-}
-
-export function planPortStageReconciliation(
-  catalog: QualificationCatalogObservation | null | undefined,
-  items: readonly RoadmapIssueItem[] | null | undefined,
-) {
-  const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port] as const));
-  const qualificationRecords = catalog?.source_catalog?.qualification ?? [];
-  const changes = [];
-  for (const item of items ?? []) {
-    if (fieldValue(item, "Port stage") !== "Supported") continue;
-    const ids = portCatalogMarkers(itemBody(item));
-    const port = ids.length === 1 ? portsById.get(ids[0] ?? "") : null;
-    if (qualifiedPlatforms(port, qualificationRecords).length) continue;
-    const next = !port
-      ? "Watchlist"
-      : automatedPlatforms(port, qualificationRecords).length
-        ? "Automated qualification"
-        : "Cataloged";
-    changes.push({
-      itemId: item.id,
-      issueNumber: issueNumber(item),
-      title: itemTitle(item),
-      from: "Supported",
-      to: next,
-    });
-  }
-  return changes;
-}
-
-export function validatePortIssueCoverage(
-  catalog: QualificationCatalogObservation | null | undefined,
-  items: readonly RoadmapIssueItem[] | null | undefined,
-  repository: string,
-  repositoryIssues: readonly RoadmapIssueItem[] | null = null,
-) {
-  const errors = [];
-  const catalogIds = new Set((catalog?.ports ?? []).map((port) => port.id));
-  const issuesByCatalogId = new Map<string, string[]>();
-  const issuesByPortKey = new Map<string, string[]>();
-  const issuesByTitle = new Map<string, string[]>();
-  const issuesByUpstreamAndIdentity = new Map<string, string[]>();
-  const projectItemsByNumber = new Map<number, RoadmapIssueItem[]>();
-  const repositoryIssuePrefix = repository
-    ? `https://github.com/${repository.toLowerCase()}/issues/`
-    : null;
-  for (const item of items ?? []) {
-    const number = issueNumber(item);
-    const itemUrlValue = String(itemUrl(item) ?? "").toLowerCase();
-    if (number && (!repositoryIssuePrefix || itemUrlValue.startsWith(repositoryIssuePrefix))) {
-      const matches = projectItemsByNumber.get(number) ?? [];
-      matches.push(item);
-      projectItemsByNumber.set(number, matches);
-    }
-    if (fieldValue(item, "Work type") !== "Port") continue;
-    const content = item?.content;
-    const type = String(content?.type ?? content?.__typename ?? item?.type ?? "").toLowerCase();
-    const url = itemUrl(item) ?? itemTitle(item);
-    if (
-      type.includes("draft") ||
-      !/^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+/.test(itemUrl(item) ?? "")
-    ) {
-      errors.push(`Port Project item is not backed by a repository issue: ${url}`);
-      continue;
-    }
-    if (
-      repositoryIssuePrefix &&
-      !String(itemUrl(item)).toLowerCase().startsWith(repositoryIssuePrefix)
-    ) {
-      errors.push(`Port issue is outside ${repository}: ${url}`);
-    }
-    const body = itemBody(item);
-    if (!body.includes(portMarker))
-      errors.push(`Port issue lacks the canonical port marker: ${url}`);
-  }
-
-  const repositoryPorts = discoveredPortIssues(repositoryIssues ?? items);
-  for (const issue of repositoryPorts) {
-    const url = itemUrl(issue) ?? itemTitle(issue);
-    const number = issueNumber(issue);
-    if (repositoryIssuePrefix && !String(url).toLowerCase().startsWith(repositoryIssuePrefix)) {
-      errors.push(`Canonical port issue is outside ${repository}: ${url}`);
-    }
-    const projectMatches = number ? (projectItemsByNumber.get(number) ?? []) : [];
-    if (projectMatches.length === 0) {
-      errors.push(`Canonical repository port issue is not in the Project: ${url}`);
-    } else if (projectMatches.length > 1) {
-      errors.push(
-        `Canonical repository port issue has multiple Project items: ${url} (${projectMatches.length})`,
-      );
-    } else if (fieldValue(projectMatches[0], "Work type") !== "Port") {
-      errors.push(`Canonical repository port issue is not classified as Work type = Port: ${url}`);
-    }
-    const body = itemBody(issue);
-    if (!body.includes(portMarker)) {
-      errors.push(
-        `Open [Port] issue lacks the canonical port marker: ${url}. Run node scripts/roadmap.mts normalize-port --issue ${number}`,
-      );
-    }
-    const upstreams = portUpstreamMarkers(body);
-    if (upstreams.length !== 1) {
-      errors.push(
-        "Port issue must claim exactly one direct upstream: " + url + " (" + upstreams.length + ")",
-      );
-    }
-    const ids = portCatalogMarkers(body);
-    const keys = portKeyMarkers(body);
-    const identity = portIdentity(issue);
-    if (ids.length > 1)
-      errors.push(`One issue claims multiple catalog ports: ${url} (${ids.join(", ")})`);
-    if (keys.length > 1)
-      errors.push(`One issue claims multiple durable port keys: ${url} (${keys.join(", ")})`);
-    if (ids.length === 1) {
-      const id = ids[0];
-      if (id === undefined) throw new Error("Required catalog marker is missing");
-      if (!catalogIds.has(id)) errors.push(`Port issue claims unknown catalog ID ${id}: ${url}`);
-      const matches = issuesByCatalogId.get(id) ?? [];
-      matches.push(url);
-      issuesByCatalogId.set(id, matches);
-    } else {
-      if (!isNonCatalogResearchBody(body)) {
-        errors.push(
-          "Non-catalog port issue must identify research/watchlist status and disclaim support: " +
-            url,
-        );
-      }
-      if (keys.length !== 1) {
-        errors.push(
-          `Non-catalog port issue must claim exactly one durable port key: ${url} (${keys.length})`,
-        );
-      } else {
-        const key = keys[0];
-        if (key === undefined) throw new Error("Required port key marker is missing");
-        const normalized = normalizePortKey(key);
-        if (!normalized || normalized !== key) {
-          errors.push(`Non-catalog port issue has a non-canonical port key ${key}: ${url}`);
-        }
-        const matches = issuesByPortKey.get(normalized) ?? [];
-        matches.push(url);
-        issuesByPortKey.set(normalized, matches);
-      }
-    }
-    if (ids.length === 0 && keys.length === 0 && identity.keys.length === 1) {
-      const normalized = identity.keys[0];
-      if (normalized === undefined) throw new Error("Required port identity is missing");
-      const matches = issuesByPortKey.get(normalized) ?? [];
-      matches.push(url);
-      issuesByPortKey.set(normalized, matches);
-    }
-    const title = normalizedPortTitle(itemTitle(issue));
-    if (title) {
-      const matches = issuesByTitle.get(title) ?? [];
-      matches.push(url);
-      issuesByTitle.set(title, matches);
-    }
-    if (identity.upstreams.length === 1) {
-      const targetIdentity = ids[0] ?? identity.keys[0] ?? title;
-      const combined = `${identity.upstreams[0]}|${targetIdentity}`;
-      const matches = issuesByUpstreamAndIdentity.get(combined) ?? [];
-      matches.push(url);
-      issuesByUpstreamAndIdentity.set(combined, matches);
-    }
-  }
-  for (const id of catalogIds) {
-    const matches = issuesByCatalogId.get(id) ?? [];
-    if (matches.length === 0) errors.push(`Catalog port lacks a canonical Project issue: ${id}`);
-    if (matches.length > 1)
-      errors.push(`Two live issues represent catalog ID ${id}: ${matches.join(", ")}`);
-  }
-  for (const [key, matches] of issuesByPortKey) {
-    if (matches.length > 1)
-      errors.push(`Two live issues represent non-catalog port key ${key}: ${matches.join(", ")}`);
-  }
-  for (const [title, matches] of issuesByTitle) {
-    if (matches.length > 1)
-      errors.push(
-        `Two live port issues have the same normalized title identity ${title}: ${matches.join(", ")}`,
-      );
-  }
-  for (const [identity, matches] of issuesByUpstreamAndIdentity) {
-    if (matches.length > 1)
-      errors.push(
-        `Two live port issues share direct upstream and game/target identity ${identity}: ${matches.join(", ")}`,
-      );
-  }
-  return errors;
 }
 
 export function parseArguments(argv: readonly string[]) {
@@ -1435,732 +1416,6 @@ Grouping and sorting are readable through the API; changes require the GitHub Pr
 Built-in auto-add and completion workflow settings are not readable through a reliable GitHub API.
 Confirm their repository and Status behavior separately in the Project UI.`;
 
-export function fieldValue(item: RoadmapIssueItem | null | undefined, fieldName: string): unknown {
-  const wanted = normalizedKey(fieldName);
-  for (const [key, value] of Object.entries(item ?? {})) {
-    if (normalizedKey(key) === wanted) return value;
-  }
-  for (const value of item?.fieldValues ?? []) {
-    if (normalizedKey(value?.field?.name ?? value?.name) === wanted) {
-      return value?.name ?? value?.value ?? value?.option?.name;
-    }
-  }
-  return undefined;
-}
-
-function itemDone(item: RoadmapIssueItem | null | undefined) {
-  const status = diagnosticText(fieldValue(item, "Status") ?? "").toLowerCase();
-  return status === "done";
-}
-
-export function repositoryStatusConflict(item: RoadmapIssueItem) {
-  const state = repositoryState(item);
-  return (
-    (state === "open" && itemDone(item)) ||
-    (["closed", "merged"].includes(state) && !itemDone(item))
-  );
-}
-
-export function selectNextItems<T extends RoadmapIssueItem>(items: readonly T[]): T[] {
-  const priority = new Map<unknown, number>([
-    ["Urgent", 0],
-    ["High", 1],
-    ["Medium", 2],
-    ["Low", 3],
-    ["None", 4],
-  ]);
-  const horizon = new Map<unknown, number>([
-    ["Now", 0],
-    ["Next", 1],
-  ]);
-  return items
-    .map((item, index) => ({ item, index }))
-    .filter(
-      ({ item }) =>
-        !itemDone(item) &&
-        fieldValue(item, "Status") !== "Deferred" &&
-        !["closed", "merged"].includes(repositoryState(item)) &&
-        horizon.has(fieldValue(item, "Horizon")) &&
-        fieldValue(item, "Work type") !== "Workstream",
-    )
-    .sort((left, right) => {
-      const leftHorizon = horizon.get(fieldValue(left.item, "Horizon"));
-      const rightHorizon = horizon.get(fieldValue(right.item, "Horizon"));
-      const horizonOrder =
-        leftHorizon === undefined || rightHorizon === undefined ? NaN : leftHorizon - rightHorizon;
-      if (horizonOrder) return horizonOrder;
-      const priorityOrder =
-        (priority.get(fieldValue(left.item, "Priority")) ?? 5) -
-        (priority.get(fieldValue(right.item, "Priority")) ?? 5);
-      return priorityOrder || left.index - right.index;
-    })
-    .map(({ item }) => item);
-}
-
-function blockingNodes(item: RoadmapIssueItem | null | undefined): readonly RoadmapIssueItem[] {
-  const value = item?.content?.blockedBy ?? item?.blockedBy;
-  function isList(value: RoadmapIssueItem["blockedBy"]): value is readonly RoadmapIssueItem[] {
-    return Array.isArray(value);
-  }
-  return isList(value) ? value : (value?.nodes ?? []);
-}
-
-export function renderExecutionQueue(items: readonly RoadmapIssueItem[]) {
-  const queue = selectNextItems(items);
-  if (!queue.length) return "No unfinished non-deferred non-workstream items are in Now or Next.";
-  return (
-    queue
-      .map((item, index) => {
-        const commitment = fieldValue(item, "Release commitment");
-        const predecessor = index
-          ? (itemUrl(queue[index - 1]) ?? itemTitle(queue[index - 1]))
-          : "queue head";
-        const dependencyRecord = item?.content?.blockedBy ?? item?.blockedBy;
-        const dependencyCount =
-          dependencyRecord && !Array.isArray(dependencyRecord) && "totalCount" in dependencyRecord
-            ? dependencyRecord.totalCount
-            : 0;
-        const incomplete = Number(dependencyCount ?? 0) > blockingNodes(item).length;
-        const blockers = blockingNodes(item)
-          .filter((node) => {
-            const owner = items.find((candidate) => issueNumber(candidate) === issueNumber(node));
-            return !owner || !itemDone(owner);
-          })
-          .map((node) => `#${issueNumber(node)}`)
-          .join(", ");
-        return `${index + 1}. ${itemTitle(item)} | ${diagnosticText(fieldValue(item, "Priority") ?? "None")} | ${diagnosticText(fieldValue(item, "Horizon"))} | ${diagnosticText(fieldValue(item, "Status") ?? "Unassigned")} | ${diagnosticText(commitment === "Opportunistic" ? "Planned" : (commitment ?? "Unclassified"))} | after: ${predecessor}${blockers ? ` | prerequisites: ${blockers}` : ""}${incomplete ? " | prerequisite coverage incomplete; collect remaining relationships before selection" : ""}${itemUrl(item) ? ` | ${itemUrl(item)}` : ""}`;
-      })
-      .join("\n") +
-    "\nQueue position is scheduling, not a blocking edge or accepted reservation. Select either Required or Planned; record concrete pass-over reasons on the owning issue/PR."
-  );
-}
-
-// Exact historical consumption references still support context comparisons.
-const legacyCoordinationIssue = 793;
-
-export function coordinationTarget(
-  config: Pick<RoadmapConfig, "repository">,
-  issue: unknown,
-  pullRequest: unknown = null,
-): {
-  repository: string;
-  work_issue: number;
-  kind: "issue" | "pull_request";
-  number: number;
-  url: string;
-} {
-  const positive = (value: unknown): value is number =>
-    typeof value === "number" && Number.isSafeInteger(value) && value > 0;
-  if (!positive(issue) || (pullRequest !== null && !positive(pullRequest)))
-    throw new Error("coordination requires a positive work issue and optional PR number");
-  const number = pullRequest ?? issue;
-  if (number === legacyCoordinationIssue)
-    throw new Error("#793 is read-only; select the owning issue or explicitly bound PR");
-  return {
-    repository: config.repository,
-    work_issue: issue,
-    kind: pullRequest === null ? "issue" : "pull_request",
-    number,
-    url: `https://github.com/${config.repository}/${pullRequest === null ? "issues" : "pull"}/${number}`,
-  };
-}
-
-function sameCoordinationTarget(target: unknown, expected: unknown) {
-  return (
-    isRecord(target) &&
-    isRecord(expected) &&
-    Object.keys(target).length === Object.keys(expected).length &&
-    Object.entries(expected).every(([key, value]) => target[key] === value)
-  );
-}
-
-function validateCoordinationTarget(
-  target: unknown,
-  snapshot: { repository: string; issue: { number: number } },
-) {
-  const expected = coordinationTarget(
-    { repository: snapshot.repository },
-    snapshot.issue.number,
-    isRecord(target) && target.kind === "pull_request" ? target.number : null,
-  );
-  if (!sameCoordinationTarget(target, expected))
-    throw new Error("coordination target does not match this repository and work issue");
-  return target as Record<string, unknown> & ReturnType<typeof coordinationTarget>;
-}
-
-interface RoadmapComment {
-  id?: number | string;
-  body?: unknown;
-  html_url?: string;
-  url?: string;
-  author?: { login?: string | null } | null | undefined;
-}
-function matchingConsumption(
-  comment: RoadmapComment,
-  snapshot: { repository: string; issue: { id: string; number: number } },
-  runner: unknown,
-  target: ReturnType<typeof coordinationTarget>,
-) {
-  const url = comment.html_url ?? comment.url;
-  if (
-    !url?.startsWith(`${target.url}#issuecomment-`) ||
-    !/^[1-9]\d*$/.test(url.slice(`${target.url}#issuecomment-`.length))
-  )
-    return null;
-  const record = parseConsumptionRecord(comment.body);
-  return record !== null &&
-    record.runner === runner &&
-    record.snapshot.repository === snapshot.repository &&
-    record.snapshot.issue.id === snapshot.issue.id &&
-    sameCoordinationTarget(record.coordination_target, target)
-    ? record
-    : null;
-}
-const consumptionMarker = "<!-- portcove-roadmap-consumed:v1 -->";
-const executionFields = [
-  "Status",
-  "Priority",
-  "Horizon",
-  "Target release",
-  "Release commitment",
-  "Work type",
-  "Workstream",
-  "Platform",
-  "Port stage",
-  "Effort",
-] as const;
-type ExecutionField = (typeof executionFields)[number];
-interface ExecutionReference {
-  id: string;
-  number: number;
-  url: string;
-}
-interface ExecutionSnapshot {
-  schema_version: 1;
-  repository: string;
-  issue: ExecutionReference & { state: "OPEN" | "CLOSED" };
-  scope_revision: string;
-  planning: Record<ExecutionField, string | null>;
-  prerequisites: (ExecutionReference & {
-    state: "OPEN" | "CLOSED";
-    scope_revision: string;
-    status: string | null;
-  })[];
-  dependents: ExecutionReference[];
-  organization: { parent: ExecutionReference | null; children: ExecutionReference[] };
-  revision: string;
-}
-interface ExecutionRelationshipNode extends RoadmapIssueItem {
-  id: string;
-  number: number;
-  url: string;
-  title?: string | null;
-  body?: string | null;
-  state: "OPEN" | "CLOSED";
-  projectStatus?: string | null;
-}
-interface CanonicalProjectIssue extends RoadmapIssueItem {
-  content: ExecutionRelationshipNode;
-}
-interface ExecutionRelationships {
-  blockedBy: ExecutionRelationshipNode[];
-  blocking: ExecutionRelationshipNode[];
-  parent: ExecutionRelationshipNode | null;
-  subIssues: ExecutionRelationshipNode[];
-}
-const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
-
-// A comparison aid, never a semantic decision or authority to execute. Keep the
-// complete specification in context output; unknown sections remain significant.
-export function normalizeRequirements(body: unknown) {
-  const evidenceHeadings = new Set([
-    "delivered evidence",
-    "delivered components",
-    "completion evidence",
-    "current behavior and evidence",
-    "progress",
-    "delivery evidence",
-  ]);
-  let excludedLevel: number | null = null;
-  let fence: string | null = null;
-  let indented = false;
-  return diagnosticText(body ?? "")
-    .replace(/\r\n?/g, "\n")
-    .split("\n")
-    .flatMap((line: string) => {
-      const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-      if (fence) {
-        const closing = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line);
-        if (
-          closing &&
-          captureText(closing, 1)[0] === fence[0] &&
-          captureText(closing, 1).length >= fence.length
-        )
-          fence = null;
-        return [line];
-      }
-      if (marker) {
-        fence = captureText(marker, 1);
-        return [line];
-      }
-      if (/^(?: {4}|\t)/.test(line)) {
-        indented = true;
-        return [line];
-      }
-      if (!line.trim()) return indented ? [line] : [];
-      indented = false;
-      const heading = /^(#{1,6})\s+(.+?)\s*#*$/.exec(line.trim());
-      if (heading) {
-        if (excludedLevel !== null && captureText(heading, 1).length <= excludedLevel)
-          excludedLevel = null;
-        if (
-          excludedLevel === null &&
-          evidenceHeadings.has(captureText(heading, 2).trim().toLowerCase())
-        )
-          excludedLevel = captureText(heading, 1).length;
-      }
-      // Only omit bare evidence links/progress counters, not commands, paths,
-      // negations or prose that could contain a changed obligation.
-      if (
-        excludedLevel !== null &&
-        (/^\s*(?:[-*+]\s*)?\[[^\]]+\]\(https:\/\/[^)]+\)\s*$/.test(line) ||
-          /^\s*(?:[-*+]\s*)?(?:Passed|Completed):\s*\d+(?:\s*\/\s*\d+)?\s*$/i.test(line))
-      )
-        return [];
-      return [
-        line
-          .replace(/^\s*([-*+]\s+)\[[ xX]\]\s*/, "$1[] ")
-          .replace(/^\s*#{1,6}\s+/, "")
-          .trim(),
-      ];
-    })
-    .join("\n");
-}
-
-export function executionSnapshot(
-  config: Pick<RoadmapConfig, "repository">,
-  item: RoadmapIssueItem,
-  relationships: ExecutionRelationships,
-) {
-  if (
-    !item?.content?.id ||
-    typeof item.content.number !== "number" ||
-    !Number.isSafeInteger(item.content.number)
-  )
-    throw new Error("execution context requires a canonical repository issue");
-  const planning = Object.fromEntries(
-    executionFields.map((name) => [name, fieldValue(item, name) ?? null]),
-  );
-  const snapshot = {
-    schema_version: 1,
-    repository: config.repository,
-    issue: {
-      id: item.content.id,
-      number: item.content.number,
-      url: item.content.url,
-      state: item.content.state,
-    },
-    scope_revision: digest([
-      normalizeRequirements(item.content.title),
-      normalizeRequirements(item.content.body),
-    ]),
-    planning,
-    prerequisites: relationships.blockedBy
-      .map((node) => ({
-        id: node.id,
-        number: node.number,
-        url: node.url,
-        state: node.state,
-        scope_revision: digest([
-          normalizeRequirements(node.title),
-          normalizeRequirements(node.body),
-        ]),
-        status: node.projectStatus ?? null,
-      }))
-      .sort((a, b) => a.number - b.number || a.id.localeCompare(b.id)),
-    dependents: relationships.blocking
-      .map((node) => ({ id: node.id, number: node.number, url: node.url }))
-      .sort((a, b) => a.number - b.number || a.id.localeCompare(b.id)),
-    organization: {
-      parent: relationships.parent
-        ? {
-            id: relationships.parent.id,
-            number: relationships.parent.number,
-            url: relationships.parent.url,
-          }
-        : null,
-      children: relationships.subIssues
-        .map((node) => ({ id: node.id, number: node.number, url: node.url }))
-        .sort((a, b) => a.number - b.number || a.id.localeCompare(b.id)),
-    },
-  };
-  return { ...snapshot, revision: digest(snapshot) };
-}
-
-function projectFieldValues(node: unknown): RoadmapFieldValue[] {
-  const fields = qualificationField(node, "fieldValues");
-  if (
-    !isRecord(fields) ||
-    typeof fields.totalCount !== "number" ||
-    !Number.isSafeInteger(fields.totalCount) ||
-    fields.totalCount < 0 ||
-    !Array.isArray(fields.nodes) ||
-    fields.nodes.length !== fields.totalCount ||
-    qualificationField(fields.pageInfo, "hasNextPage") !== false
-  )
-    throw new Error(
-      `incomplete GitHub inventory: Project item ${diagnosticText(qualificationField(node, "id"))} fields are truncated`,
-    );
-  const values: unknown[] = fields.nodes;
-  return values
-    .map((value) => ({
-      name: qualificationField(value, "name"),
-      field: { name: qualificationField(qualificationField(value, "field"), "name") },
-    }))
-    .filter((value) => value.name && value.field.name);
-}
-
-function executionReference(node: unknown): node is ExecutionReference {
-  return (
-    isRecord(node) &&
-    typeof node.id === "string" &&
-    node.id.length > 0 &&
-    typeof node.number === "number" &&
-    Number.isSafeInteger(node.number) &&
-    node.number > 0 &&
-    typeof node.url === "string" &&
-    /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(node.url)
-  );
-}
-function executionHash(value: unknown): value is string {
-  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-}
-function uniqueExecutionReferences(nodes: readonly unknown[]): boolean {
-  // Shape validation follows; this keeps the original uniqueness-before-shape order.
-  return new Set(nodes.map((node) => qualificationField(node, "id"))).size === nodes.length;
-}
-export function validateExecutionSnapshot(snapshot: unknown): ExecutionSnapshot {
-  if (
-    !isRecord(snapshot) ||
-    snapshot.schema_version !== 1 ||
-    !executionReference(snapshot.issue) ||
-    typeof snapshot.repository !== "string" ||
-    !/^[^/\s]+\/[^/\s]+$/.test(snapshot.repository) ||
-    snapshot.issue.url !==
-      `https://github.com/${snapshot.repository}/issues/${snapshot.issue.number}` ||
-    !isRecord(snapshot.issue) ||
-    !["OPEN", "CLOSED"].some((state) => state === qualificationField(snapshot.issue, "state")) ||
-    !executionHash(snapshot.scope_revision) ||
-    !isRecord(snapshot.planning) ||
-    executionFields.some(
-      (name) =>
-        !isRecord(snapshot.planning) ||
-        !(name in snapshot.planning) ||
-        (snapshot.planning[name] !== null && typeof snapshot.planning[name] !== "string"),
-    ) ||
-    !Array.isArray(snapshot.prerequisites) ||
-    !uniqueExecutionReferences(snapshot.prerequisites) ||
-    !isRecord(snapshot.organization) ||
-    !Array.isArray(snapshot.dependents) ||
-    !uniqueExecutionReferences(snapshot.dependents) ||
-    !Array.isArray(snapshot.organization.children) ||
-    !uniqueExecutionReferences(snapshot.organization.children)
-  )
-    throw new Error("invalid consumed requirements snapshot");
-  const prerequisites: unknown[] = snapshot.prerequisites;
-  const dependents: unknown[] = snapshot.dependents;
-  const children: unknown[] = snapshot.organization.children;
-  if (
-    prerequisites.some(
-      (node) =>
-        !executionReference(node) ||
-        !isRecord(node) ||
-        !executionHash(node.scope_revision) ||
-        !["OPEN", "CLOSED"].some((state) => state === node.state) ||
-        (node.status !== null && typeof node.status !== "string"),
-    ) ||
-    dependents.some((node) => !executionReference(node)) ||
-    children.some((node) => !executionReference(node)) ||
-    (snapshot.organization.parent !== null && !executionReference(snapshot.organization.parent))
-  )
-    throw new Error("invalid consumed requirements snapshot");
-  const { revision, ...inputs } = snapshot;
-  if (revision !== digest(inputs)) throw new Error("consumed snapshot identity is invalid");
-  // Complete field and nested reference validation above precedes this boundary projection.
-  return snapshot as Record<string, unknown> & ExecutionSnapshot;
-}
-
-export function compareExecutionSnapshots(currentInput: unknown, consumedInput: unknown = null) {
-  const current = validateExecutionSnapshot(currentInput);
-  if (!consumedInput)
-    return {
-      state: "unknown",
-      changes: [],
-      action: "Read current requirements; no consumed revision was established.",
-    };
-  const consumed = validateExecutionSnapshot(consumedInput);
-  if (current.repository !== consumed.repository || current.issue.id !== consumed.issue.id)
-    throw new Error("consumed revision belongs to another repository or issue");
-  const fields = executionFields.filter(
-    (name) => current.planning[name] !== consumed.planning[name],
-  );
-  const changes = [];
-  if (current.issue.state !== consumed.issue.state) changes.push("issue_state_changed");
-  if (current.scope_revision !== consumed.scope_revision) changes.push("scope_comparison_required");
-  if (fields.length) changes.push("planning_changed");
-  if (digest(current.prerequisites) !== digest(consumed.prerequisites))
-    changes.push("prerequisites_changed");
-  if (digest(current.organization) !== digest(consumed.organization))
-    changes.push("organization_changed");
-  if (digest(current.dependents) !== digest(consumed.dependents)) changes.push("consumers_changed");
-  return {
-    state: changes.length ? "comparison_required" : "unchanged",
-    changes,
-    planning_fields: fields,
-    action: changes.length
-      ? "Assess the actual delta: sequence at a safe handoff; reconcile affected obligations only. A fingerprint is not a scope decision, grant, safety stop or acceptance verdict."
-      : "Continue valid work. Still check applicable owner instructions, full current acceptance and the exact source candidate before final acceptance.",
-  };
-}
-
-function hasConsumptionRecord<T extends { record: ConsumptionRecord | null }>(
-  entry: T,
-): entry is T & { record: ConsumptionRecord } {
-  return entry.record !== null;
-}
-interface ConsumptionRecord {
-  schema_version: 1;
-  kind: "consumed-requirements";
-  runner: string;
-  action: string;
-  evidence: string;
-  observation_revision: string;
-  snapshot: ExecutionSnapshot;
-  coordination_target?: unknown;
-}
-export function parseConsumptionRecord(body: unknown): ConsumptionRecord | null {
-  if (!String(body).startsWith(consumptionMarker)) return null;
-  const lines = String(body).replace(/\r\n/g, "\n").split("\n");
-  if (lines[0] !== consumptionMarker || lines[1] !== "```json" || lines[3] !== "```")
-    throw new Error("incomplete roadmap consumption record");
-  const json = lines[2];
-  if (json === undefined) throw new Error("incomplete roadmap consumption record");
-  const record: unknown = JSON.parse(json);
-  if (
-    !isRecord(record) ||
-    record.schema_version !== 1 ||
-    record.kind !== "consumed-requirements" ||
-    !executionHash(record.observation_revision) ||
-    [record.runner, record.action, record.evidence].some(
-      (value) => typeof value !== "string" || !value.trim(),
-    )
-  )
-    throw new Error("invalid roadmap consumption record");
-  const snapshot = validateExecutionSnapshot(record.snapshot);
-  if (record.coordination_target) validateCoordinationTarget(record.coordination_target, snapshot);
-  return record as Record<string, unknown> & ConsumptionRecord;
-}
-
-export function deriveExecutionContext(
-  config: RoadmapConfig,
-  item: CanonicalProjectIssue,
-  relationships: ExecutionRelationships,
-  {
-    runner,
-    comments,
-    coverage,
-    consumed = null,
-    reservation = null,
-    target = null,
-  }: {
-    runner: unknown;
-    comments: readonly RoadmapComment[];
-    coverage: unknown;
-    consumed?: unknown;
-    reservation?: object | null;
-    target?: ReturnType<typeof coordinationTarget> | null;
-  },
-) {
-  const snapshot = executionSnapshot(config, item, relationships);
-  target ??= coordinationTarget(config, snapshot.issue.number);
-  validateCoordinationTarget(target, snapshot);
-  const observation_revision = executionObservation(item, relationships);
-  const latest = comments
-    .map((comment) => ({ comment, record: matchingConsumption(comment, snapshot, runner, target) }))
-    .filter(hasConsumptionRecord)
-    .at(-1);
-  const previous = consumed ?? latest?.record.snapshot ?? null;
-  const comparison = compareExecutionSnapshots(snapshot, previous);
-  const prerequisites = relationships.blockedBy.map((node) => ({
-    number: node.number,
-    title: node.title,
-    url: node.url,
-    project_status: node.projectStatus,
-    disposition:
-      node.projectStatus === "Done"
-        ? "recorded complete"
-        : node.projectStatus
-          ? "unfinished"
-          : "unknown",
-  }));
-  return {
-    schema_version: 1,
-    observed_at: new Date().toISOString(),
-    snapshot,
-    observation_revision,
-    coordination_target: target,
-    canonical_issue: {
-      number: item.content.number,
-      url: item.content.url,
-      title: item.content.title,
-      state: item.content.state,
-    },
-    current_specification: item.content.body,
-    planning: snapshot.planning,
-    genuine_prerequisites: prerequisites,
-    affected_dependents: relationships.blocking.map((node) => ({
-      number: node.number,
-      title: node.title,
-      url: node.url,
-      state: node.state,
-    })),
-    completion_organization: snapshot.organization,
-    recommendation: {
-      reason:
-        "Explicitly requested task; inspect actual scope, accepted authority and capable route before selecting it.",
-      queue_position: "not observed; use the common next queue",
-      prerequisite_disposition: prerequisites.some((node) => node.disposition === "unknown")
-        ? "unknown"
-        : prerequisites.some((node) => node.disposition === "unfinished")
-          ? "unfinished"
-          : "recorded complete",
-      execution_capability:
-        "not assessed; prepare the smallest capable implementation/validation route from current acceptance and local-check --plan",
-      authority:
-        "Not established by this output, Ready, parentage or an acknowledgment. Use the owner's instructions and standing workflow.",
-    },
-    reservation: reservation
-      ? {
-          assessment:
-            "reference only; verify actual writer activity, source-owner release and current scope",
-          ...reservation,
-        }
-      : {
-          assessment: "unknown",
-          coordination_url: target.url,
-        },
-    comparison,
-    pickup: {
-      reported_runner: runner,
-      current_requirements: latest
-        ? latest.record.snapshot.revision === snapshot.revision
-          ? latest.record.observation_revision === observation_revision
-            ? "recorded consumed"
-            : "raw observation changed; may be editorial, compare before claiming current consumption"
-          : "pending comparison"
-        : "unknown",
-      last_record: latest
-        ? {
-            url: latest.comment.url,
-            recorder: latest.comment.author?.login ?? null,
-            reported_action: latest.record.action,
-            revision: latest.record.snapshot.revision,
-          }
-        : null,
-      history_coverage: coverage,
-      invoked: "unknown",
-      active: "unknown",
-      assigned: "unknown",
-      limit:
-        "Reported consumption is separate from verified worker activity, invocation and accepted reservation. An absent recent record does not prove no pickup.",
-    },
-  };
-}
-
-function executionObservation(item: CanonicalProjectIssue, relationships: ExecutionRelationships) {
-  return digest({
-    scope: [item.content.title, item.content.body],
-    prerequisites: relationships.blockedBy
-      .map((node) => ({ id: node.id, title: node.title, body: node.body }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
-  });
-}
-
-export function consumedReference(
-  comment: RoadmapComment,
-  {
-    repository,
-    runner,
-    issue,
-    target = null,
-  }: {
-    repository: string;
-    runner: unknown;
-    issue: number;
-    target?: ReturnType<typeof coordinationTarget> | null;
-  },
-) {
-  const record = parseConsumptionRecord(comment.body);
-  if (
-    !record ||
-    record.runner !== runner ||
-    record.snapshot.repository !== repository ||
-    record.snapshot.issue.number !== issue
-  )
-    throw new Error("consumed comment does not match this repository, runner and task");
-  const url = comment.html_url ?? comment.url;
-  const legacyPrefix = `https://github.com/${repository}/issues/${legacyCoordinationIssue}#issuecomment-`;
-  const legacy = url?.startsWith(legacyPrefix) && /^[1-9]\d*$/.test(url.slice(legacyPrefix.length));
-  if (
-    !legacy &&
-    !matchingConsumption(
-      comment,
-      record.snapshot,
-      runner,
-      target ?? coordinationTarget({ repository }, issue),
-    )
-  )
-    throw new Error("consumed comment does not match its bound issue/PR target");
-  return record.snapshot;
-}
-
-function executionOptions(parsed: ReturnType<typeof parseArguments>, allowed: readonly string[]) {
-  if (
-    parsed.positionals.length ||
-    Object.keys(parsed.options).some((flag) => !allowed.includes(flag))
-  )
-    throw new Error(`unsupported ${parsed.command} arguments; see --help`);
-  for (const flag of ["--apply", "--json"]) {
-    if (flag in parsed.options && parsed.options[flag] !== true)
-      throw new Error(`${flag} does not accept a value`);
-  }
-}
-
-export function executionQueueData(items: readonly RoadmapIssueItem[]) {
-  return {
-    schema_version: 1,
-    meaning: "Recommendations only; neither runnable, assigned nor active is established.",
-    candidates: selectNextItems(items).map((item, index, queue) => ({
-      number: item.content?.number ?? null,
-      url: itemUrl(item),
-      title: itemTitle(item),
-      position: index + 1,
-      after: index ? itemUrl(queue[index - 1]) : null,
-      planning: Object.fromEntries(
-        executionFields.map((name) => [name, fieldValue(item, name) ?? null]),
-      ),
-      prerequisite_coverage:
-        Number(qualificationField(item.content?.blockedBy, "totalCount") ?? 0) ===
-        blockingNodes(item).length
-          ? "complete"
-          : "incomplete",
-      prerequisites: blockingNodes(item).map((node) => node.number),
-      reservation: "unknown",
-      execution_capability: "not assessed",
-    })),
-  };
-}
-
 export function executeCommitmentRename({
   client,
   config,
@@ -2253,444 +1508,6 @@ export function executeCommitmentRename({
     alreadyApplied: step.action === "keep",
     reconciledAfterError: Boolean(mutationError),
   };
-}
-
-function uniqueItems<T extends RoadmapIssueItem>(items: readonly T[]): T[] {
-  return [
-    ...new Map(
-      items.map((item) => [item?.id ?? `issue:${issueNumber(item) ?? itemTitle(item)}`, item]),
-    ).values(),
-  ];
-}
-
-export function dependencyCycles(items: readonly RoadmapIssueItem[]) {
-  const byNumber = new Map(
-    items
-      .map((item) => [issueNumber(item), item] as const)
-      .filter(([number]) => Number.isInteger(number)),
-  );
-  const cycles: number[][] = [];
-  const completed = new Set<number>();
-  const visiting: number[] = [];
-  const visit = (item: RoadmapIssueItem) => {
-    const number = issueNumber(item);
-    if (number === null || !Number.isInteger(number) || completed.has(number)) return;
-    const activeIndex = visiting.indexOf(number);
-    if (activeIndex >= 0) {
-      cycles.push([...visiting.slice(activeIndex), number]);
-      return;
-    }
-    visiting.push(number);
-    for (const dependency of blockingNodes(item)) {
-      const dependencyItem = byNumber.get(issueNumber(dependency));
-      if (dependencyItem) visit(dependencyItem);
-    }
-    visiting.pop();
-    completed.add(number);
-  };
-  for (const item of byNumber.values()) visit(item);
-  return cycles;
-}
-
-export function analyzeReleaseReadiness(
-  items: readonly RoadmapIssueItem[],
-  release: string,
-  {
-    candidateIssues = null,
-    risk706Approval = JSON.parse(
-      readFileSync(path.join(projectRoot, ".github/linux-beta-risk-706.json"), "utf8"),
-    ),
-    risk706Evidence = null,
-    now = new Date().toISOString(),
-  }: {
-    candidateIssues?: readonly number[] | null;
-    risk706Approval?: unknown;
-    risk706Evidence?: unknown;
-    now?: string;
-  } = {},
-) {
-  if (
-    candidateIssues !== null &&
-    (!Array.isArray(candidateIssues) ||
-      !candidateIssues.length ||
-      candidateIssues.some((number) => !Number.isSafeInteger(number) || number < 1))
-  ) {
-    throw new Error("candidate scope requires explicit positive issue numbers");
-  }
-  if (candidateIssues?.some((number) => !items.some((item) => issueNumber(item) === number))) {
-    throw new Error("candidate scope includes an issue missing from the Project");
-  }
-  const includedReleases = includedReleaseTargets(release);
-  const milestone = !candidateIssues && ["Public beta", "1.0"].includes(release);
-  const migrationConflicts = milestone
-    ? items.filter(
-        (item) =>
-          !itemDone(item) &&
-          legacyReleaseSequence.some((target) => target === fieldValue(item, "Target release")),
-      )
-    : [];
-  let unassignedRequired = items.filter(
-    (item) =>
-      fieldValue(item, "Release commitment") === "Required" &&
-      ![...releaseSequence, "Post-V1", "Post-1.0"].some(
-        (target) => target === fieldValue(item, "Target release"),
-      ),
-  );
-  const targeted = items.filter((item) =>
-    candidateIssues
-      ? candidateIssues.some((number) => number === issueNumber(item))
-      : includedReleases.some((target) => target === fieldValue(item, "Target release")),
-  );
-  const requiredRoots = candidateIssues
-    ? targeted
-    : targeted.filter((item) => fieldValue(item, "Release commitment") === "Required");
-  const relevantUnclassified = targeted.filter((item) => !fieldValue(item, "Release commitment"));
-  let approvedPlanning706 = false;
-  try {
-    // Planning identity is stable after expiry; only the actual release evaluator checks time.
-    validateApproval706(risk706Approval, qualificationField(risk706Approval, "approvedAt"));
-    approvedPlanning706 = release === "Public beta" && !candidateIssues;
-  } catch {
-    /* Missing or altered canonical record retains the ordinary safety rules. */
-  }
-  const scopedRemediation706 = targeted.filter(
-    (item) =>
-      approvedPlanning706 &&
-      [49, 706].some((number) => number === issueNumber(item)) &&
-      itemUrl(item) === `https://github.com/boburning/portcove/issues/${issueNumber(item)}` &&
-      fieldValue(item, "Target release") === "Public beta" &&
-      fieldValue(item, "Platform") === "Linux" &&
-      fieldValue(item, "Status") === "Blocked" &&
-      fieldValue(item, "Work type") === "Security" &&
-      fieldValue(item, "Release commitment") === "Planned" &&
-      !itemDone(item),
-  );
-  // Planning is not candidate eligibility. Only the existing complete release evaluator
-  // may satisfy these two still-open remediation nodes for this ordinary Linux candidate.
-  let candidateDisposition706: ReturnType<typeof decide706> | null = null;
-  if (risk706Evidence) {
-    if (!approvedPlanning706 || !isRecord(risk706Evidence) || risk706Evidence.purpose !== "release")
-      throw new Error(
-        "#706 candidate disposition applies only to ordinary Public beta release readiness",
-      );
-    candidateDisposition706 = decide706({
-      ...risk706Evidence,
-      candidate: risk706Evidence.candidate,
-      scan: risk706Evidence.scan,
-      releases: risk706Evidence.releases,
-      purpose: "release",
-      approval: risk706Approval,
-      now,
-    });
-  }
-  const pendingRiskDispositions = candidateDisposition706 ? [] : scopedRemediation706;
-  const safetyConflicts = targeted.filter(
-    (item) =>
-      !itemDone(item) &&
-      fieldValue(item, "Status") === "Blocked" &&
-      fieldValue(item, "Work type") === "Security" &&
-      fieldValue(item, "Release commitment") !== "Required" &&
-      !scopedRemediation706.includes(item),
-  );
-  const planned = targeted.filter((item) =>
-    ["Planned", "Opportunistic"].some(
-      (commitment) => commitment === fieldValue(item, "Release commitment"),
-    ),
-  );
-  const byNumber = new Map(
-    items
-      .map((item) => [issueNumber(item), item] as const)
-      .filter(([number]) => Number.isInteger(number)),
-  );
-  const effective = new Map<string, RoadmapIssueItem>();
-  const dependencyConflicts: {
-    item: RoadmapIssueItem;
-    dependency: RoadmapIssueItem;
-    commitment: unknown;
-    target: unknown;
-  }[] = [];
-  const missingProjectDependencies: { item: RoadmapIssueItem; dependency: RoadmapIssueItem }[] = [];
-  const truncatedDependencies: RoadmapIssueItem[] = [];
-  const visit = (item: RoadmapIssueItem) => {
-    const key = item?.id ?? `issue:${issueNumber(item) ?? itemTitle(item)}`;
-    if (effective.has(key)) return;
-    effective.set(key, item);
-    const blockedBy = item?.content?.blockedBy ?? item?.blockedBy;
-    if (Number(qualificationField(blockedBy, "totalCount") ?? 0) > blockingNodes(item).length) {
-      truncatedDependencies.push(item);
-    }
-    for (const dependency of blockingNodes(item)) {
-      const number = issueNumber(dependency);
-      const projectItem = byNumber.get(number);
-      if (!projectItem) {
-        const synthetic = {
-          id: `missing-project:${number}`,
-          title: dependency.title,
-          content: { ...dependency, type: "Issue" },
-          missingProject: true,
-        };
-        effective.set(synthetic.id, synthetic);
-        missingProjectDependencies.push({ item, dependency: synthetic });
-        continue;
-      }
-      const commitment = fieldValue(projectItem, "Release commitment");
-      const target = fieldValue(projectItem, "Target release");
-      if (
-        candidateIssues
-          ? !commitment
-          : commitment !== "Required" || !includedReleases.some((release) => release === target)
-      ) {
-        if (
-          !(
-            scopedRemediation706.includes(item) &&
-            scopedRemediation706.includes(projectItem) &&
-            issueNumber(item) === 49 &&
-            number === 706
-          )
-        )
-          dependencyConflicts.push({
-            item,
-            dependency: projectItem,
-            commitment,
-            target,
-          });
-      }
-      visit(projectItem);
-    }
-  };
-  for (const item of uniqueItems([...requiredRoots, ...safetyConflicts, ...scopedRemediation706]))
-    visit(item);
-  const effectiveRequired = [...effective.values()];
-  if (candidateIssues)
-    unassignedRequired = unassignedRequired.filter((item) => effectiveRequired.includes(item));
-  const cycles = dependencyCycles(effectiveRequired.filter((item) => !item.missingProject));
-  const unfinishedRequired = effectiveRequired.filter(
-    (item) => !itemDone(item) && !(candidateDisposition706 && scopedRemediation706.includes(item)),
-  );
-  const statusConflicts = uniqueItems([...targeted, ...effectiveRequired]).filter(
-    repositoryStatusConflict,
-  );
-  return {
-    release: candidateIssues
-      ? "Candidate implementation scope (not publication approval)"
-      : release,
-    includedReleases,
-    targeted,
-    requiredRoots,
-    effectiveRequired,
-    unfinishedRequired,
-    relevantUnclassified,
-    planned,
-    opportunistic: planned, // Historical consumer compatibility; active reports use Planned.
-    safetyConflicts,
-    scopedRemediation706,
-    pendingRiskDispositions,
-    candidateDisposition706,
-    dependencyConflicts,
-    missingProjectDependencies,
-    truncatedDependencies,
-    cycles,
-    migrationConflicts,
-    unassignedRequired,
-    statusConflicts,
-    ready:
-      pendingRiskDispositions.length === 0 &&
-      unfinishedRequired.length === 0 &&
-      relevantUnclassified.length === 0 &&
-      safetyConflicts.length === 0 &&
-      dependencyConflicts.length === 0 &&
-      missingProjectDependencies.length === 0 &&
-      truncatedDependencies.length === 0 &&
-      cycles.length === 0 &&
-      migrationConflicts.length === 0 &&
-      unassignedRequired.length === 0 &&
-      statusConflicts.length === 0,
-  };
-}
-
-export function renderReadinessSummary(analysis: ReturnType<typeof analyzeReleaseReadiness>) {
-  const section = (values: readonly RoadmapIssueItem[]) =>
-    values.length ? values.map(itemLine).join("\n") : "- None recorded.";
-  const dependencyConflicts = analysis.dependencyConflicts.map(
-    ({ item, dependency, commitment, target }) =>
-      `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${diagnosticText(commitment ?? "Unclassified")} / ${diagnosticText(target ?? "Unscheduled")}.`,
-  );
-  const missing = analysis.missingProjectDependencies.map(
-    ({ item, dependency }) =>
-      `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, which has no Project item.`,
-  );
-  const cycles = analysis.cycles.map(
-    (cycle) => `- ${cycle.map((number) => `#${number}`).join(" -> ")}`,
-  );
-  const truncated = analysis.truncatedDependencies.map(
-    (item) =>
-      `- ${markdownLink(item)} has more blocking dependencies than the bounded query returned.`,
-  );
-  dependencyConflicts.push(
-    ...analysis.migrationConflicts.map((item) => `- Unmigrated active target: ${itemLine(item)}`),
-    ...analysis.unassignedRequired.map(
-      (item) => `- Required work has no target: ${itemLine(item)}`,
-    ),
-    ...analysis.statusConflicts.map(
-      (item) => `- Repository/Project status mismatch: ${itemLine(item)}`,
-    ),
-  );
-  return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Scoped Linux beta disposition\n\n${section(analysis.scopedRemediation706)}\n\n${analysis.candidateDisposition706 ? `Exact candidate ${analysis.candidateDisposition706.candidate}: accepted risk under ${analysis.candidateDisposition706.approvalUrl}; raw scan remains failed.` : analysis.pendingRiskDispositions.length ? 'Pending: run readiness --release "Public beta" --linux-beta-706 against the actual candidate with its reviewed GITHUB_REF_NAME. Planned remediation alone does not establish eligibility.' : "No scoped disposition recorded."}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(analysis.planned)}\n`;
-}
-
-export function catalogQualificationSummary(
-  catalog: QualificationCatalogObservation | null | undefined,
-) {
-  const ports: readonly QualificationPortObservation[] = Array.isArray(catalog?.ports)
-    ? catalog.ports
-    : [];
-  const byTier: Record<string, number> = {};
-  const declared = new Set();
-  const automated = new Set();
-  const manual = new Set();
-  for (const port of ports) {
-    byTier[diagnosticText(port.support_tier ?? "unspecified")] =
-      (byTier[diagnosticText(port.support_tier ?? "unspecified")] ?? 0) + 1;
-    for (const platform of port.platforms ?? []) declared.add(`${port.id}:${platform}`);
-    for (const platform of port.automated_tested_platforms ?? [])
-      automated.add(`${port.id}:${platform}`);
-    for (const platform of port.manually_validated_platforms ?? [])
-      manual.add(`${port.id}:${platform}`);
-  }
-  return {
-    ports: ports.length,
-    byTier,
-    declaredPlatformPairs: declared.size,
-    automatedPlatformPairs: automated.size,
-    manuallyValidatedPlatformPairs: manual.size,
-  };
-}
-
-function markdownLink(item: RoadmapIssueItem) {
-  const url = itemUrl(item);
-  const title = itemTitle(item).replaceAll("[", "\\[").replaceAll("]", "\\]");
-  return url ? `[${title}](${url})` : title;
-}
-
-function itemLine(item: RoadmapIssueItem) {
-  const details = [
-    "Status",
-    "Priority",
-    "Horizon",
-    "Target release",
-    "Release commitment",
-    "Work type",
-    "Workstream",
-    "Platform",
-  ]
-    .map((name) =>
-      fieldValue(item, name) ? `${name}: ${diagnosticText(fieldValue(item, name))}` : null,
-    )
-    .filter(Boolean)
-    .join("; ");
-  return `- ${markdownLink(item)}${details ? ` — ${details}` : ""}`;
-}
-
-export function completionEvidenceLinks(items: readonly RoadmapIssueItem[]) {
-  const urls = new Set<string>();
-  for (const item of items) {
-    const body = itemBody(item);
-    const heading = body.match(/^## Completion evidence\s*$/im);
-    const start = heading ? (heading.index ?? 0) + heading[0].length : -1;
-    const following = start >= 0 ? body.slice(start) : "";
-    const nextHeading = following.search(/^##\s/m);
-    const section = start < 0 ? "" : following.slice(0, nextHeading < 0 ? undefined : nextHeading);
-    for (const match of section.matchAll(/https:\/\/[^\s)>]+/g)) urls.add(match[0]);
-    for (const match of body.matchAll(/https:\/\/[^\s)>]+/g)) {
-      const url = match[0].replace(/[.,;:]$/, "");
-      if (
-        /\/pull\/\d+(?:[#?].*)?$/i.test(url) ||
-        /\/(?:actions\/runs|checks?\/|qualification|rehearsal)(?:\/|\?|#|$)/i.test(url)
-      ) {
-        urls.add(url);
-      }
-    }
-  }
-  return [...urls].sort();
-}
-
-export function renderSnapshot({
-  release,
-  generatedAt,
-  commit,
-  projectUrl,
-  items,
-  catalog,
-}: {
-  release: string;
-  generatedAt: string;
-  commit: string;
-  projectUrl: string;
-  items: readonly RoadmapIssueItem[];
-  catalog: QualificationCatalogObservation;
-}) {
-  const readiness = analyzeReleaseReadiness(items, release);
-  const { includedReleases } = readiness;
-  const matching = uniqueItems([...readiness.effectiveRequired, ...readiness.relevantUnclassified]);
-  const complete = readiness.effectiveRequired.filter(itemDone);
-  const unfinished = readiness.unfinishedRequired;
-  const blockers = unfinished.filter((item) => fieldValue(item, "Status") === "Blocked");
-  const inconsistencies = matching.filter((item) => {
-    const state = repositoryState(item);
-    return (
-      ((state === "closed" || state === "merged") && !itemDone(item)) ||
-      (state === "open" && itemDone(item))
-    );
-  });
-  const deferred = items.filter(
-    (item) =>
-      fieldValue(item, "Status") === "Deferred" ||
-      ["Post-V1", "Post-1.0"].some((target) => target === fieldValue(item, "Target release")),
-  );
-  const summary = catalogQualificationSummary(catalog);
-  const tiers =
-    Object.entries(summary.byTier)
-      .sort((left, right) => {
-        const a = `${left[0]},${left[1]}`;
-        const b = `${right[0]},${right[1]}`;
-        return a < b ? -1 : a > b ? 1 : 0;
-      })
-      .map(([name, count]) => `  - ${name}: ${count}`)
-      .join("\n") || "  - none";
-  const section = (values: readonly RoadmapIssueItem[]) =>
-    values.length ? values.map(itemLine).join("\n") : "- None recorded.";
-  const links = completionEvidenceLinks(matching);
-  const conflictLines = readiness.dependencyConflicts.map(
-    ({ item, dependency, commitment, target }) =>
-      `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${diagnosticText(commitment ?? "Unclassified")} / ${diagnosticText(target ?? "Unscheduled")}.`,
-  );
-  conflictLines.push(
-    ...readiness.migrationConflicts.map((item) => `- Unmigrated active target: ${itemLine(item)}`),
-    ...readiness.unassignedRequired.map(
-      (item) => `- Required work has no target: ${itemLine(item)}`,
-    ),
-    ...readiness.statusConflicts.map(
-      (item) => `- Repository/Project status mismatch: ${itemLine(item)}`,
-    ),
-  );
-  conflictLines.push(
-    ...readiness.missingProjectDependencies.map(
-      ({ item, dependency }) =>
-        `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, which has no Project item.`,
-    ),
-  );
-  conflictLines.push(
-    ...readiness.truncatedDependencies.map(
-      (item) =>
-        `- ${markdownLink(item)} has more blocking dependencies than the bounded query returned.`,
-    ),
-  );
-  conflictLines.push(
-    ...readiness.cycles.map(
-      (cycle) => `- Dependency cycle: ${cycle.map((number) => `#${number}`).join(" -> ")}`,
-    ),
-  );
-  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. Project fields and genuine blocking dependencies define readiness after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n- Derived readiness: ${readiness.ready ? "READY" : "NOT READY"}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Relevant unclassified work\n\n${section(readiness.relevantUnclassified)}\n\n## Scoped Linux beta disposition\n\n${section(readiness.scopedRemediation706)}\n\nCandidate decision remains separate; Planned remediation alone does not establish eligibility.\n\n## Commitment and dependency conflicts\n\n${[...readiness.safetyConflicts.map(itemLine), ...conflictLines].join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(readiness.planned)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map((url) => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished, unclassified, conflicting, and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
 }
 
 interface ProjectFieldOption {
@@ -3067,6 +1884,37 @@ interface RepositoryIssueObservation {
   state?: unknown;
   pull_request?: unknown;
 }
+function projectFieldValues(node: unknown): RoadmapFieldValue[] {
+  const fields = qualificationField(node, "fieldValues");
+  if (
+    !isRecord(fields) ||
+    typeof fields.totalCount !== "number" ||
+    !Number.isSafeInteger(fields.totalCount) ||
+    fields.totalCount < 0 ||
+    !Array.isArray(fields.nodes) ||
+    fields.nodes.length !== fields.totalCount ||
+    qualificationField(fields.pageInfo, "hasNextPage") !== false
+  )
+    throw new Error(
+      `incomplete GitHub inventory: Project item ${diagnosticText(qualificationField(node, "id"))} fields are truncated`,
+    );
+  const values: unknown[] = fields.nodes;
+  return values
+    .map((value) => ({
+      name: qualificationField(value, "name"),
+      ...(qualificationField(value, "optionId") !== undefined
+        ? { optionId: qualificationField(value, "optionId") }
+        : {}),
+      field: {
+        name: qualificationField(qualificationField(value, "field"), "name"),
+        ...(qualificationField(qualificationField(value, "field"), "id") !== undefined
+          ? { id: qualificationField(qualificationField(value, "field"), "id") }
+          : {}),
+      },
+    }))
+    .filter((value) => value.name && value.field.name);
+}
+
 function completeProjectContent(value: unknown, includeBodies = true): RoadmapIssueItem {
   if (!isRecord(value))
     throw new InventoryError(
@@ -4212,6 +3060,35 @@ export class RoadmapClient {
     this.graphql(`mutation(${declarations}) { ${selections} }`, variables);
   }
 
+  refreshSetManyPlan(spec: unknown) {
+    this._completeProjectContext = undefined;
+    return this.planSetMany(spec);
+  }
+  private setManyRequireIdentity = false;
+  private setManyExpectedContent = new Map<string, { content_id: string; kind: string }>();
+  validateSetManyBindings(assignments: readonly SetManyAssignment[]) {
+    this.setManyRequireIdentity = true;
+    this.setManyExpectedContent = new Map(
+      assignments
+        .filter((row) => row.target_identity)
+        .map((row) => [row.itemId, row.target_identity!]),
+    );
+    this._completeProjectContext = undefined;
+    const context = this.completeProjectContext();
+    for (const row of assignments) {
+      const input = this.fieldMutationInput(context, row.itemId, row.fieldName, row.to);
+      const current = {
+        project_id: input.projectId,
+        field_id: input.fieldId,
+        option_id: input.value.singleSelectOptionId,
+      };
+      if (
+        !row.mutation_identity ||
+        observationHash(current) !== observationHash(row.mutation_identity)
+      )
+        throw new Error("set-many field or option identity changed during final continuation");
+    }
+  }
   planSetMany(spec: unknown): SetManyPlan<ProjectContext> {
     const validated = validateSetManySpec(this.config, spec);
     const context = this.completeProjectContext();
@@ -4226,8 +3103,22 @@ export class RoadmapClient {
           throw new Error(`duplicate set-many item field: ${update.target} ${fieldName}`);
         itemFields.add(key);
         const observed = fieldValue(item, fieldName) ?? null;
+        const mutation = this.fieldMutationInput(context, item.id, fieldName, transition.to);
         const planned = {
+          mutation_identity: {
+            project_id: mutation.projectId,
+            field_id: mutation.fieldId,
+            option_id: mutation.value.singleSelectOptionId,
+          },
           target: update.target,
+          ...(typeof item.content?.id === "string"
+            ? {
+                target_identity: {
+                  content_id: item.content.id,
+                  kind: String(item.content.__typename),
+                },
+              }
+            : {}),
           itemId: item.id,
           fieldName,
           observed,
@@ -4264,30 +3155,55 @@ export class RoadmapClient {
       ...new Set([...plan.pending, ...plan.alreadyApplied].map((change) => change.itemId)),
     ];
     if (!ids.length) return new Map();
-    const query = `query($ids: [ID!]!) { nodes(ids: $ids) { ... on ProjectV2Item { id fieldValues(first: 100) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } } }`;
-    const nodes = qualificationField(this.graphql(query, { ids }), "nodes");
-    if (!Array.isArray(nodes) || nodes.length !== ids.length)
-      throw new Error("incomplete GitHub inventory: set-many readback item count differs");
+    const query = `query($ids: [ID!]!) { nodes(ids: $ids) { ... on ProjectV2Item { id isArchived project{id} content{__typename ...on Issue{id} ...on DraftIssue{id}} fieldValues(first: 100) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name optionId field { ... on ProjectV2SingleSelectField { id name } } } } pageInfo { hasNextPage endCursor } } } } }`;
     const results = new Map<string, RoadmapFieldValue[]>();
-    const rawNodes: unknown[] = nodes;
-    for (const node of rawNodes) {
-      if (
-        !isRecord(node) ||
-        typeof node.id !== "string" ||
-        !node.id ||
-        results.has(node.id) ||
-        !isRecord(node.fieldValues) ||
-        typeof node.fieldValues.totalCount !== "number" ||
-        !Number.isSafeInteger(node.fieldValues.totalCount) ||
-        node.fieldValues.totalCount < 0 ||
-        !Array.isArray(node.fieldValues.nodes) ||
-        node.fieldValues.nodes.length !== node.fieldValues.totalCount ||
-        qualificationField(node.fieldValues.pageInfo, "hasNextPage") !== false
-      ) {
-        throw new Error("incomplete GitHub inventory: malformed or truncated set-many readback");
+    for (let offset = 0; offset < ids.length; offset += maximumMutationChunkAssignments) {
+      const selected = ids.slice(offset, offset + maximumMutationChunkAssignments);
+      const nodes = qualificationField(this.graphql(query, { ids: selected }), "nodes");
+      if (!Array.isArray(nodes) || nodes.length !== selected.length)
+        throw new Error("incomplete GitHub inventory: set-many readback item count differs");
+      const rawNodes: unknown[] = nodes;
+      for (const node of rawNodes) {
+        if (
+          !isRecord(node) ||
+          typeof node.id !== "string" ||
+          !node.id ||
+          results.has(node.id) ||
+          !selected.includes(node.id) ||
+          !isRecord(node.fieldValues) ||
+          typeof node.fieldValues.totalCount !== "number" ||
+          !Number.isSafeInteger(node.fieldValues.totalCount) ||
+          node.fieldValues.totalCount < 0 ||
+          !Array.isArray(node.fieldValues.nodes) ||
+          node.fieldValues.nodes.length !== node.fieldValues.totalCount ||
+          qualificationField(node.fieldValues.pageInfo, "hasNextPage") !== false
+        ) {
+          throw new Error("incomplete GitHub inventory: malformed or truncated set-many readback");
+        }
+        if (
+          this.setManyRequireIdentity &&
+          node.fieldValues.nodes.some(
+            (value) =>
+              !isRecord(value) ||
+              (("name" in value || "optionId" in value || "field" in value) &&
+                (typeof value.name !== "string" ||
+                  !value.name ||
+                  typeof value.optionId !== "string" ||
+                  !value.optionId ||
+                  !isRecord(value.field) ||
+                  typeof value.field.id !== "string")),
+          )
+        )
+          throw new Error("set-many field or option identity coverage is incomplete");
+        if (this.setManyRequireIdentity)
+          validateSetManyItemBinding(
+            node,
+            this.completeProjectContext().details.id,
+            this.setManyExpectedContent.get(node.id),
+          );
+        const fieldValues = projectFieldValues(node);
+        results.set(node.id, fieldValues);
       }
-      const fieldValues = projectFieldValues(node);
-      results.set(node.id, fieldValues);
     }
     for (const id of ids) {
       if (!results.has(id))
@@ -4296,13 +3212,29 @@ export class RoadmapClient {
     return results;
   }
 
-  verifySetMany<Change extends Pick<SetManyAssignment, "itemId" | "fieldName" | "to">>(plan: {
-    pending: readonly Change[];
-    alreadyApplied: readonly Change[];
-    context?: unknown;
-  }) {
+  verifySetMany<
+    Change extends Pick<SetManyAssignment, "itemId" | "fieldName" | "to"> &
+      Partial<Pick<SetManyAssignment, "mutation_identity">>,
+  >(plan: { pending: readonly Change[]; alreadyApplied: readonly Change[]; context?: unknown }) {
     const items = this.readSetManyItems(plan);
     return [...plan.pending, ...plan.alreadyApplied].map((change) => {
+      if (this.setManyRequireIdentity && change.mutation_identity) {
+        const values = (items.get(change.itemId) ?? []).filter(
+          (value) => value.field?.id === change.mutation_identity!.field_id,
+        );
+        if (values.length > 1)
+          throw new Error("set-many readback repeated an exact field identity");
+        const value = values[0];
+        if (value && typeof value.optionId !== "string")
+          throw new Error("set-many option identity is unavailable");
+        const observed = value?.name ?? null;
+        return {
+          ...change,
+          observed,
+          verified:
+            observed === change.to && value?.optionId === change.mutation_identity.option_id,
+        };
+      }
       const observed =
         fieldValue({ fieldValues: items.get(change.itemId) }, change.fieldName) ?? null;
       return { ...change, observed, verified: observed === change.to };
@@ -4706,24 +3638,15 @@ export function featureIntakeFields(
   return fields;
 }
 
-export function resolveSnapshotOutput(output: string) {
-  const outputPath = path.resolve(projectRoot, output);
-  const releasesRoot = path.join(projectRoot, "docs", "releases");
-  if (outputPath !== releasesRoot && !outputPath.startsWith(`${releasesRoot}${path.sep}`)) {
-    throw new Error("snapshot output must be under docs/releases");
-  }
-  return outputPath;
-}
-
 function requiredOption(options: Readonly<Record<string, unknown>>, name: string): string {
   const value = options[name];
   if (typeof value !== "string" || !value) throw new Error(`${name} is required`);
   return value;
 }
 
-function roadmapLockPath() {
+export function roadmapLockPath(root = projectRoot) {
   const result = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
-    cwd: projectRoot,
+    cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -4750,39 +3673,6 @@ function isDoctorClient(client: unknown): client is DoctorClient {
       (name) => typeof client[name] === "function",
     )
   );
-}
-type LoadedQualificationCatalog = QualificationCatalogObservation & {
-  ports: QualificationPortObservation[];
-};
-export function qualificationCatalogObservation(value: unknown): LoadedQualificationCatalog {
-  if (!isRecord(value) || !Array.isArray(value.ports))
-    throw new Error("catalog diagnostic input requires a port array");
-  const ports: unknown[] = value.ports;
-  for (const port of ports) {
-    if (!isRecord(port) || typeof port.id !== "string")
-      throw new Error("catalog diagnostic port identity is malformed");
-    for (const field of [
-      "platforms",
-      "automated_tested_platforms",
-      "manually_validated_platforms",
-    ] as const) {
-      const entries = port[field];
-      if (
-        entries !== undefined &&
-        (!Array.isArray(entries) || !entries.every((entry: unknown) => typeof entry === "string"))
-      )
-        throw new Error(`catalog diagnostic ${field} is malformed`);
-    }
-  }
-  if (
-    value.source_catalog != null &&
-    (!isRecord(value.source_catalog) ||
-      (value.source_catalog.qualification != null &&
-        !Array.isArray(value.source_catalog.qualification)))
-  )
-    throw new Error("catalog diagnostic qualification collection is malformed");
-  // Only consumed diagnostic fields are projected; Core retains catalog admission authority.
-  return value as Record<string, unknown> & LoadedQualificationCatalog;
 }
 function linkedRepositoryObservation(value: unknown): LinkedProjectRepository {
   if (
@@ -5533,13 +4423,27 @@ async function main(argv: readonly string[]) {
           throw new Error(`unsupported set-many option: ${option}`);
       }
       const specPath = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
-      const spec: unknown = JSON.parse(await readFile(specPath, "utf8"));
+      const input = readSetManyInput(specPath);
+      const spec: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(input));
+      const journal = new SetManyJournal(
+        path.join(
+          path.dirname(roadmapLockPath()),
+          "set-many",
+          parsed.options["--apply"] === true
+            ? setManyJournalName(specPath)
+            : setManyPreviewJournalName(specPath, input, config),
+        ),
+        specPath,
+        input,
+        config,
+      );
       const result = await executeSetMany({
         client,
         config,
         spec,
         apply: parsed.options["--apply"] === true,
         ...(parsed.options["--json"] ? {} : { onPlan: (summary: string) => console.log(summary) }),
+        ...(journal ? { progress: journal } : {}),
       });
       if (parsed.options["--json"]) {
         console.log(
@@ -5775,7 +4679,19 @@ async function main(argv: readonly string[]) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
-    await main(process.argv.slice(2));
+    const args = process.argv.slice(2);
+    if (args[0] === "set-many" && !args.includes("--help") && !args.includes("-h")) {
+      const parsed = parseArguments(args);
+      const spec = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
+      await continueRoadmapCapacity(() => main(args), {
+        identity: () =>
+          createHash("sha256")
+            .update(readSetManyInput(spec))
+            .update(readFileSync(path.join(projectRoot, ".github/roadmap.json")))
+            .digest("hex"),
+        observe: (error) => retainRoadmapQuotaDeferral(projectRoot, error),
+      });
+    } else await main(args);
   } catch (error) {
     const json =
       ["set-many", "context", "next"].includes(process.argv[2] ?? "") &&

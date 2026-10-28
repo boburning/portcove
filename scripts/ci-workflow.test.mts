@@ -1,3 +1,4 @@
+import { readWorkflow } from "./ci-workflow-fixture.mts";
 import { commandTokens } from "./node-test-suites.mts";
 import assert from "node:assert/strict";
 
@@ -18,7 +19,6 @@ import {
   workflowStep,
   executableLines,
   qualificationWorkflow,
-  qualificationCoreArchive,
   desktopScripts,
   windowsQualificationRunner,
   classify,
@@ -29,16 +29,7 @@ import {
   fastRustQuality,
   fastFrontend,
   fastCatalog,
-  rustTests,
-  rustWorkspaceTests,
-  rustClippy,
-  windowsStorage,
-  nativeRust,
-  intelBuild,
-  intelTests,
-  rustDocs,
   rust,
-  rustQuality,
   rustQualityGate,
   frontend,
   frontendGate,
@@ -77,6 +68,32 @@ void test("workflow job selection rejects malformed or duplicate YAML", () => {
     "jobs: {owner: null}",
   ])
     assert.throws(() => workflowJobSource(source, "owner"));
+});
+
+void test("workflow job projections preserve anchored step and job aliases", () => {
+  for (const source of [
+    "steps: &steps [{run: protected-check}]\njobs: {owner: {steps: *steps}}",
+    "template: &template {steps: [{run: protected-check}]}\njobs: {owner: *template}",
+  ]) {
+    const expected = { steps: [{ run: "protected-check" }] };
+    assert.deepEqual(workflowJob("owner", source), expected);
+    const changed = workflowJob("owner", source);
+    assert.ok(Array.isArray(changed.steps));
+    changed.steps.length = 0;
+    assert.deepEqual(workflowJob("owner", source), expected);
+  }
+});
+
+void test("workflow projections cannot mutate another contract's fixture", () => {
+  const first = workflowJob("catalog_full");
+  assert.ok(Array.isArray(first.steps));
+  const expected = structuredClone(first);
+  first.steps.length = 0;
+  assert.deepEqual(workflowJob("catalog_full"), expected);
+  assert.match(
+    workflowJobSource(workflow, "catalog_full"),
+    /Verify repository and release contracts/u,
+  );
 });
 
 void test("missing retired jobs remain absent", () => {
@@ -119,9 +136,7 @@ void test("every CI job has a finite envelope above its declared step limits", (
 
 void test("dependency lanes run actual security review without a custom age audit", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {
-    const block = requiredFixture(
-      requiredFixture(workflow.split("  " + name + ":")[1]).split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0],
-    );
+    const block = workflowJobSource(workflow, name);
     assert.match(block, /actions\/dependency-review-action@/u);
     assert.match(block, /fail-on-severity: high/u);
     assert.doesNotMatch(
@@ -161,9 +176,7 @@ void test("application release records run after the maintained SemVer dependenc
 });
 
 void test("selected contracts install their desktop-owned dependencies before fast contract execution", () => {
-  const block = requiredFixture(
-    requiredFixture(workflow.split("  fast_catalog:")[1]).split(/\n  [a-z_]+:/u)[0],
-  );
+  const block = workflowJobSource(workflow, "fast_catalog");
   const setup = block.indexOf(
     "pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts",
   );
@@ -199,30 +212,39 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
       "ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number || github.ref }}",
     "cancel-in-progress": "${{ !inputs.force_qualification }}",
   });
-  for (const section of [
-    rustTests,
-    qualificationCoreArchive,
-    rustWorkspaceTests,
-    rustClippy,
-    windowsStorage,
-    nativeRust,
-    intelBuild,
-    intelTests,
-    rustDocs,
-    rustQuality,
-    frontend,
-    catalog,
+  for (const name of [
+    "rust_tests",
+    "qualification_core_archive",
+    "rust_workspace_tests",
+    "rust_clippy",
+    "windows_storage",
+    "native_rust",
+    "intel_build",
+    "intel_tests",
+    "rust_docs",
+    "rust_quality_full",
+    "frontend_full",
+    "catalog_full",
   ]) {
-    assert.notEqual(section, "");
-    assert.match(
-      section,
-      section === rustTests
-        ? /^ {4}needs: \[classify, qualification_core_archive\]$/m
-        : /^ {4}needs: (?:classify|\[classify, intel_build\])$/m,
+    const owner = workflowJob(name);
+    const needs = typeof owner.needs === "string" ? [owner.needs] : owner.needs;
+    assert.ok(Array.isArray(needs));
+    assert.deepEqual(
+      needs
+        .map((value: unknown) => {
+          assert.equal(typeof value, "string");
+          return String(value);
+        })
+        .sort((a, b) => a.localeCompare(b)),
+      name === "rust_tests"
+        ? ["classify", "qualification_core_archive"]
+        : name === "intel_tests"
+          ? ["classify", "intel_build"]
+          : ["classify"],
     );
     assert.match(
-      section,
-      /^ {4}if: .*classify\.outputs\.mode == 'qualification'(?: && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\))?$/m,
+      String(owner.if),
+      /classify\.outputs\.mode == 'qualification'(?: && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\))?$/u,
     );
   }
   assert.match(classify, /fetch-depth: 0/);
@@ -237,11 +259,24 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
     /workflow-provenance-\$\{\{ inputs\.provenance_scope \|\| 'ci' \}\}-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
   );
   assert.match(provenance, /retention-days: 7/);
-  assert.match(
-    rustQualityGate,
-    /\[classify, provenance, prose_checks, fast_rust_quality, rust_quality_full\]/,
+  const qualityGate = workflowJob("rust-quality");
+  assert.ok(Array.isArray(qualityGate.needs));
+  assert.deepEqual(
+    qualityGate.needs
+      .map((value: unknown) => {
+        assert.equal(typeof value, "string");
+        return String(value);
+      })
+      .sort((a, b) => a.localeCompare(b)),
+    ["classify", "provenance", "prose_checks", "fast_rust_quality", "rust_quality_full"].sort(
+      (a, b) => a.localeCompare(b),
+    ),
   );
-  assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
+  const resultGate = workflowStep("rust-quality", "Require the expected Rust quality lane");
+  assert.ok(isRecord(resultGate.env));
+  const alwaysResults: unknown = JSON.parse(String(resultGate.env.PORTCOVE_ALWAYS_RESULTS));
+  assert.ok(isRecord(alwaysResults));
+  assert.equal(alwaysResults.provenance, "${{ needs.provenance.result }}");
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
   assert.match(proseChecks, /actions\/setup-node@/);
   const prerequisites = proseChecks.indexOf("node scripts/check-ci-prose.mts --prerequisites");
@@ -383,7 +418,7 @@ async function qualificationCallerSources() {
   return {
     ci: workflow,
     qualification: qualificationWorkflow,
-    release: await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8"),
+    release: await readWorkflow(new URL("../.github/workflows/release.yml", import.meta.url)),
   };
 }
 void test("reusable qualification is read-only, daily, and coalesces without cancelling", async () => {
@@ -506,7 +541,7 @@ void test("ordinary tooling contracts select the workflow contract and full CI r
     checkout: "b".repeat(40),
   });
   assert.ok(baselineContractTests(p).includes("scripts/ci-workflow.test.mts"));
-  assert.match(requiredFixture(workflow.split("  catalog_full:")[1]), /ci-workflow\.test\.mts/);
+  assert.match(workflowJobSource(workflow, "catalog_full"), /ci-workflow\.test\.mts/);
 });
 
 void test("native repository contracts provision pinned Rust before metadata or containment execution", () => {
@@ -526,7 +561,7 @@ void test("extracted validation evidence suite remains in hosted and repository 
     /scripts\/validation-evidence\.test\.mts/u,
   );
   assert.match(
-    requiredFixture(workflow.split("  catalog_full:")[1]),
+    workflowJobSource(workflow, "catalog_full"),
     /scripts\/validation-evidence\.test\.mts/u,
   );
   assert.match(
@@ -539,10 +574,7 @@ void test("hosted plans use bounded transport before checkout and retain the sam
   assert.doesNotMatch(workflow, /PORTCOVE_PLAN_JSON:/);
   assert.match(workflow, /plan_gzip_base64: \$\{\{ steps\.plan\.outputs\.plan_gzip_base64 \}\}/);
   assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_gzip_base64/);
-  const release = await readFile(
-    new URL("../.github/workflows/release.yml", import.meta.url),
-    "utf8",
-  );
+  const release = await readWorkflow(new URL("../.github/workflows/release.yml", import.meta.url));
   assert.match(
     release,
     /PORTCOVE_PLAN_GZIP_BASE64: \$\{\{ needs\.qualification\.outputs\.plan_gzip_base64 \}\}/,

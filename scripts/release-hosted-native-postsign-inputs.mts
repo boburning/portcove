@@ -133,6 +133,19 @@ async function original(state: State) {
   return { source, tools };
 }
 
+function runtimeToolPath(
+  runtimeRoot: string,
+  tools: Awaited<ReturnType<typeof verifiedControllerToolPaths>>,
+  kind: "node" | "rust",
+) {
+  const relative = path.join(
+    "bin",
+    (kind === "node" ? "node" : "portcove-release-tools") +
+      (tools.platform === "windows-x86_64" ? ".exe" : ""),
+  );
+  assert.equal(path.relative(tools.root, tools[kind]), relative);
+  return path.join(runtimeRoot, relative);
+}
 async function child(
   sourceReceipt: object,
   toolsReceipt: object,
@@ -159,13 +172,13 @@ async function child(
       throw new Error("original hosted keyless source expired or changed");
     return { source, tools };
   };
-  const { source } = await recheck();
+  const { source, tools } = await recheck();
   const dependencies = await hostedNativeSupportDependencies(
     runtimeReceipt,
     source.parent_source,
     directory,
   );
-  const node = path.join(runtimeRoot, "bin/node");
+  const node = runtimeToolPath(runtimeRoot, tools, "node");
   const entry = path.join(runtimeRoot, "scripts/release-native-keyless-assembly.bundle.mjs");
   const signal = new EventEmitter();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -238,7 +251,7 @@ export async function acquireActualHostedNativePostSignInputs(
       const tools = await verifiedControllerToolPaths(toolsReceipt);
       sameTools(source, tools);
       const runtime = await requireHostedNativeRuntime(runtimeReceipt, source.parent_source);
-      const runtimeRust = path.join(runtime.root, "bin/portcove-release-tools");
+      const runtimeRust = runtimeToolPath(runtime.root, tools, "rust");
       const sourceHash = sourceBinding(source),
         toolsHash = toolsBinding(tools);
       const configuration = inspectSelectedPublicationAuthorityConfiguration(source.configuration);
@@ -713,7 +726,8 @@ export async function verifyActualHostedNativePostSignPayload(packageReceipt: ob
         keyPath = path.join(directory, "native-payload.key");
       await writeFile(signaturePath, signature, { flag: "wx", mode: 0o600 });
       await writeFile(keyPath, key, { flag: "wx", mode: 0o600 });
-      const rust = path.join(state.runtime_root, "bin/portcove-release-tools");
+      const { tools: paths } = await original(state);
+      const rust = runtimeToolPath(state.runtime_root, paths, "rust");
       const toolBytes = await readControllerToolFile(rust);
       const plan = Buffer.from(
         JSON.stringify({

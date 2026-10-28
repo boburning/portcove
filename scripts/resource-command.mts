@@ -168,7 +168,24 @@ export async function resourceEntrypoint(
 }
 
 if (process.argv[1] && path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  if (process.argv.slice(2).join(" ") === "retire-legacy-entrypoints") {
+  const transition = process.argv[2];
+  if (
+    transition === "adopt-windows-host" ||
+    transition === "rollback-windows-host" ||
+    transition === "recover-windows-host"
+  ) {
+    if (!process.argv[3] || process.argv.length !== 4)
+      throw new Error("Supply one prepared bridge file or applied receipt");
+    const { transitionHostResources } = await import("./resource-adoption.mts");
+    process.exitCode = await transitionHostResources(
+      transition === "adopt-windows-host"
+        ? "adopt"
+        : transition === "rollback-windows-host"
+          ? "rollback"
+          : "recover",
+      process.argv[3],
+    );
+  } else if (process.argv.slice(2).join(" ") === "retire-legacy-entrypoints") {
     console.log(JSON.stringify(await retireLegacyEntrypoints({ workspace: root }), null, 2));
   } else if (process.argv.slice(2).join(" ") === "verify-bootstrap") {
     if (!process.env.PORTCOVE_RESOURCE_RESERVATION)
@@ -184,14 +201,18 @@ if (process.argv[1] && path.resolve(process.argv[1] ?? "") === fileURLToPath(imp
     const profile = commandArgs.shift();
     const bootstrap = commandArgs[0] === "--bootstrap";
     if (bootstrap) commandArgs.shift();
+    const nodeTests = commandArgs[0] === "--node-tests";
+    if (nodeTests) commandArgs.shift();
     const [separator, executable, ...args] = commandArgs;
     if (!profile || separator !== "--" || !executable)
       throw new Error(
-        "usage: resource-command.mts rust|browser|analysis|container [--bootstrap] -- executable [args...]",
+        "usage: resource-command.mts rust|browser|analysis|container [--bootstrap|--node-tests] -- executable [args...]",
       );
     try {
       if (bootstrap && profile !== "rust")
         throw new Error("Bootstrap uses the existing Rust containment profile");
+      if (nodeTests && profile !== "analysis")
+        throw new Error("Node contract suites use the analysis profile");
       process.exitCode = await runResourceCommand(
         profile,
         executable,
@@ -202,7 +223,16 @@ if (process.argv[1] && path.resolve(process.argv[1] ?? "") === fileURLToPath(imp
               environment: { ...process.env, RUSTUP_AUTO_INSTALL: "0" },
               exclusive: bootstrapOutputResources(),
             }
-          : {},
+          : nodeTests
+            ? {
+                exclusive: [
+                  ...bootstrapOutputResources(),
+                  frontendOutputResource(
+                    path.resolve(process.env.CARGO_TARGET_DIR ?? path.join(root, "target")),
+                  ),
+                ],
+              }
+            : {},
       );
     } catch (error) {
       console.error(errorMessage(error));

@@ -10,6 +10,8 @@ import type { DesktopSelection } from "./desktop-scenarios.mts";
 // Package/lock files are reproduction inputs, never claims of executed source.
 export const nativeTransportReceiptSources = Object.freeze([
   "apps/desktop/scripts/desktop-scenario-state.mts",
+  "apps/desktop/scripts/desktop-cover-observations.mts",
+  "apps/desktop/scripts/desktop-scenario-outcomes.mts",
   "apps/desktop/scripts/desktop-review-presentation.mts",
   "apps/desktop/scripts/desktop-staged-layout.mts",
   "apps/desktop/scripts/transport-values.mts",
@@ -66,7 +68,11 @@ export function planDesktopExecution(
   const normalPackageSession = selection.selected_scenarios.includes(
     "native-normal-package-webview-boundary",
   );
+  const acquisitionJourney = selection.selected_scenarios.includes(
+    "native-update-acquisition-lifecycle",
+  );
   const identityBoundSession =
+    acquisitionJourney ||
     selection.selected_scenarios.includes("native-host-publication-recovery") ||
     selection.selected_scenarios.includes("native-real-prepared-runtime") ||
     selection.selected_scenarios.includes("native-direct-preparation-recovery") ||
@@ -95,70 +101,74 @@ export function planDesktopExecution(
     preferencesRecoverySession ||
     bootstrapRecoverySession ||
     librarySwitchRecoverySession;
-  const cleanupName = selection.selected_scenarios.includes("native-host-publication-recovery")
-    ? "host-publication"
-    : selection.selected_scenarios.includes("native-real-prepared-runtime")
-      ? "real-prepared-runtime"
-      : selection.selected_scenarios.includes("native-direct-preparation-recovery")
-        ? "direct-preparation-recovery"
-        : selection.selected_scenarios.includes("native-rejected-listener-registration")
-          ? "rejected-listener-registration"
-          : selection.selected_scenarios.includes("native-late-listener-disposal")
-            ? "late-listener-disposal"
-            : selection.selected_scenarios.includes("native-preliminary-selected-setup")
-              ? "preliminary-selected-setup"
-              : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
-                ? "saved-folder-hash-resume"
-                : selection.selected_scenarios.includes("native-preliminary-source-review")
-                  ? "preliminary-source-review"
-                  : platform === "win32" &&
-                      selection.selected_scenarios.includes(
-                        "native-reviewed-backup-restore-and-delete",
-                      )
-                    ? "backup-review"
+  const cleanupName = acquisitionJourney
+    ? "update-acquisition"
+    : selection.selected_scenarios.includes("native-host-publication-recovery")
+      ? "host-publication"
+      : selection.selected_scenarios.includes("native-real-prepared-runtime")
+        ? "real-prepared-runtime"
+        : selection.selected_scenarios.includes("native-direct-preparation-recovery")
+          ? "direct-preparation-recovery"
+          : selection.selected_scenarios.includes("native-rejected-listener-registration")
+            ? "rejected-listener-registration"
+            : selection.selected_scenarios.includes("native-late-listener-disposal")
+              ? "late-listener-disposal"
+              : selection.selected_scenarios.includes("native-preliminary-selected-setup")
+                ? "preliminary-selected-setup"
+                : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
+                  ? "saved-folder-hash-resume"
+                  : selection.selected_scenarios.includes("native-preliminary-source-review")
+                    ? "preliminary-source-review"
                     : platform === "win32" &&
-                        selection.selected_scenarios.includes("native-game-update-review")
-                      ? "game-update-review"
-                      : selection.selected_scenarios.includes("native-external-runtime-review")
-                        ? "external-runtime-review"
-                        : selection.selected_scenarios.includes("native-startup-network-diagnostic")
-                          ? "startup-network-diagnostic"
-                          : preferencesRecoverySession
-                            ? "startup-preferences-recovery"
-                            : librarySwitchRecoverySession
-                              ? "library-switch-recovery"
-                              : bootstrapRecoverySession
-                                ? "startup-library-recovery"
-                                : normalPackageSession
-                                  ? "normal-package-boundary"
-                                  : ordinaryCloseSession
-                                    ? "ordinary-close-preparation"
-                                    : hostInterruptionSession
-                                      ? "host-interruption"
-                                      : minimizedPreparationSession
-                                        ? "minimized-preparation"
-                                        : selection.selected_scenarios.includes(
-                                              "native-selected-setup-completion",
-                                            )
-                                          ? "selected-setup-completion"
-                                          : platform === "win32" &&
-                                              selection.selected_scenarios.includes(
-                                                "native-retained-contract-repair-state",
+                        selection.selected_scenarios.includes(
+                          "native-reviewed-backup-restore-and-delete",
+                        )
+                      ? "backup-review"
+                      : platform === "win32" &&
+                          selection.selected_scenarios.includes("native-game-update-review")
+                        ? "game-update-review"
+                        : selection.selected_scenarios.includes("native-external-runtime-review")
+                          ? "external-runtime-review"
+                          : selection.selected_scenarios.includes(
+                                "native-startup-network-diagnostic",
+                              )
+                            ? "startup-network-diagnostic"
+                            : preferencesRecoverySession
+                              ? "startup-preferences-recovery"
+                              : librarySwitchRecoverySession
+                                ? "library-switch-recovery"
+                                : bootstrapRecoverySession
+                                  ? "startup-library-recovery"
+                                  : normalPackageSession
+                                    ? "normal-package-boundary"
+                                    : ordinaryCloseSession
+                                      ? "ordinary-close-preparation"
+                                      : hostInterruptionSession
+                                        ? "host-interruption"
+                                        : minimizedPreparationSession
+                                          ? "minimized-preparation"
+                                          : selection.selected_scenarios.includes(
+                                                "native-selected-setup-completion",
                                               )
-                                            ? "retained-contract-repair"
+                                            ? "selected-setup-completion"
                                             : platform === "win32" &&
-                                                !backupFocusSession &&
                                                 selection.selected_scenarios.includes(
-                                                  "native-reviewed-source-reference-removal",
+                                                  "native-retained-contract-repair-state",
                                                 )
-                                              ? "source-reference-removal"
+                                              ? "retained-contract-repair"
                                               : platform === "win32" &&
                                                   !backupFocusSession &&
                                                   selection.selected_scenarios.includes(
-                                                    "native-reviewed-steam-batch-add",
+                                                    "native-reviewed-source-reference-removal",
                                                   )
-                                                ? "steam-batch"
-                                                : "backup-focus";
+                                                ? "source-reference-removal"
+                                                : platform === "win32" &&
+                                                    !backupFocusSession &&
+                                                    selection.selected_scenarios.includes(
+                                                      "native-reviewed-steam-batch-add",
+                                                    )
+                                                  ? "steam-batch"
+                                                  : "backup-focus";
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,
@@ -211,6 +221,12 @@ export function planDesktopExecution(
     )
   )
     inputs.push(receiptSource(new URL("./desktop-source-dialog-test.mts", harnessUrl)));
+  if (acquisitionJourney)
+    for (const name of [
+      "desktop-native-confirmation.mts",
+      "../../../crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
+    ])
+      inputs.push(receiptSource(new URL(name, harnessUrl)));
   if (selection.selected_scenarios.includes("native-selected-setup-completion"))
     for (const name of [
       "desktop-selected-setup-completion-test.mts",
@@ -328,6 +344,7 @@ export function planDesktopExecution(
           "install-progress-cancellation",
           "install-commit-refresh-recovery",
           "native-staged-update-composition",
+          "native-update-acquisition-lifecycle",
         ].includes(id),
       ),
     },
@@ -392,6 +409,7 @@ export function planDesktopExecution(
       preliminaryJourney,
       ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
       completionJourney,
+      ...(acquisitionJourney ? { acquisitionJourney: true } : {}),
       ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
       holdFirstDownload: completionJourney,
       designCompatibility: needs("design-compatibility-fixture"),

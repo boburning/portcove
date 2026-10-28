@@ -620,7 +620,7 @@ export async function sourceDialogScenario({
     const { button, click } = reviewControls(browser);
 
     await openCatalogPortAfterRefresh(browser, port);
-    await revealDetailSection(browser, "Files");
+    await revealDetailSection(browser, "Game files");
     const disclosure = await browser.findElement(By.css(".requirements-disclosure"));
     const detailsOpen = (element: Element) => {
       if (!(element instanceof HTMLDetailsElement))
@@ -791,6 +791,11 @@ export async function sourceDialogScenario({
     );
     const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
+    await click(
+      By.xpath(
+        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+      ),
+    );
     const sourceActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceRegistration.id)}]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
@@ -838,6 +843,11 @@ export async function sourceDialogScenario({
     }
 
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
+    await click(
+      By.xpath(
+        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+      ),
+    );
     const discoveryActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceDiscovery.id)}]//button[@aria-label="Open Game files settings for Portcove library"]`,
     );
@@ -1031,7 +1041,7 @@ async function selectedSetupDetail(
       reason,
       "Portcove will check required game files and verify the release before it becomes active.",
     );
-    // Requirements stay available in Files after successful source registration.
+    // Requirements stay available in Game files after successful source registration.
     assert.equal(
       await browser
         .findElement(By.xpath('//button[normalize-space(.)="Review installation"]'))
