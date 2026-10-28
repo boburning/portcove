@@ -35,10 +35,49 @@ interface Context {
   ) => Promise<WebDriver>;
 }
 
-function samePath(left: string, right: string) {
-  const ordinary = (value: string) => path.resolve(value.replace(/^\\\\\?\\/u, "")).toLowerCase();
+function samePath(left: string, right: string, paths: typeof path.win32 = path) {
+  const ordinary = (value: string) => paths.resolve(value.replace(/^\\\\\?\\/u, "")).toLowerCase();
   return ordinary(left) === ordinary(right);
 }
+interface PublicationPathObservation {
+  read?: (file: string) => Promise<string>;
+  paths?: typeof path.win32;
+}
+
+export async function recordRedirectedPublicationWrite(
+  result: Record<string, unknown>,
+  destination: string,
+  backup: string,
+  { read = realpath, paths = path }: PublicationPathObservation = {},
+) {
+  const destinationReal = await read(destination);
+  const redirectedReal = await read(backup);
+  // Preserve physical observations even when containment refuses the write.
+  result.redirected_write_realpaths = { destination: destinationReal, backup: redirectedReal };
+  const relative = paths.relative(
+    paths.toNamespacedPath(destinationReal),
+    paths.toNamespacedPath(redirectedReal),
+  );
+  assert.ok(relative && !relative.startsWith("..") && !paths.isAbsolute(relative));
+}
+
+export async function assertPublicationImportReadback(
+  destination: string,
+  exported: string,
+  importRoot: string,
+  imported: string,
+  { read = realpath, paths = path }: PublicationPathObservation = {},
+) {
+  const exportedRelative = paths.relative(
+    paths.toNamespacedPath(await read(destination)),
+    paths.toNamespacedPath(await read(exported)),
+  );
+  assert.ok(
+    exportedRelative && !exportedRelative.startsWith("..") && !paths.isAbsolute(exportedRelative),
+  );
+  assert.ok(samePath(imported, paths.join(importRoot, exportedRelative), paths));
+}
+
 function journal(library: string, kind: string, portId: string) {
   const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
   try {
@@ -458,17 +497,7 @@ export async function hostPublicationScenario(context: Context) {
       command(["backup", "create", port.id], library),
     );
     move.result.redirected_write = redirectedWrite;
-    const destinationReal = await realpath(destination);
-    const redirectedReal = await realpath(redirectedWrite.path);
-    move.result.redirected_write_realpaths = {
-      destination: destinationReal,
-      backup: redirectedReal,
-    };
-    const relative = path.relative(
-      path.toNamespacedPath(destinationReal),
-      path.toNamespacedPath(redirectedReal),
-    );
-    assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
+    await recordRedirectedPublicationWrite(move.result, destination, redirectedWrite.path);
     await assertIdentity(newer);
     await assertIdentity(original);
     assert.deepEqual(await readAuthority(library), sourceAuthority);
@@ -615,14 +644,12 @@ export async function hostPublicationScenario(context: Context) {
     assert.ok(importedInstallation);
     assert.equal(importedInstallation.id, exportedInstallation.id);
     assert.deepEqual(importedInstallation.artifact, exportedInstallation.artifact);
-    const exportedRelative = path.relative(
-      path.toNamespacedPath(await realpath(destination)),
-      path.toNamespacedPath(await realpath(exportedInstallation.path)),
+    await assertPublicationImportReadback(
+      destination,
+      exportedInstallation.path,
+      importRoot,
+      importedInstallation.path,
     );
-    assert.ok(
-      exportedRelative && !exportedRelative.startsWith("..") && !path.isAbsolute(exportedRelative),
-    );
-    assert.ok(samePath(importedInstallation.path, path.join(importRoot, exportedRelative)));
     await writeFile(importedSave, "New save after published import host restart.");
     const newImportedSave = await fileIdentity(importedSave);
     // Published import is committed; archive bookkeeping only with the owned host stopped.
