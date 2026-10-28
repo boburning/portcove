@@ -136,27 +136,54 @@ void test(
   "POSIX bootstrap preserves the failed installer status and identifies the command",
   { skip: process.platform === "win32" },
   async () => {
-    const source = await readFile(new URL("./bootstrap-quality-tools.sh", import.meta.url), "utf8");
-    const start = source.indexOf("reported_version() {");
-    const end = source.indexOf("\nfor tool in ", start);
-    assert.ok(start > 0 && end > start);
-    const installFunctions = source.slice(start, end);
-    for (const prebuilt of [false, true]) {
-      const command = `set -euo pipefail\n${installFunctions}\nhas_exact_version() { return 1; }\ncargo() { return 23; }\n${prebuilt ? "cargo-binstall() { :; }" : ""}\ninstall_tool 'fixture-tool|1.2.3|fixture-tool --version'`;
-      const result = spawnSync("/bin/bash", ["-c", command], {
-        encoding: "utf8",
-        timeout: 5000,
-        env: { ...process.env, PATH: "" },
-      });
-      assert.equal(result.status, 23, result.stderr);
-      assert.match(result.stderr, /Could not install fixture-tool 1\.2\.3:/u);
-      assert.match(
-        result.stderr,
-        prebuilt
-          ? /cargo binstall failed with exit code 23/u
-          : /cargo install failed with exit code 23/u,
-      );
-      assert.doesNotMatch(result.stdout, /Installed|ready/u);
+    const root = mkdtempSync(path.join(os.tmpdir(), "quality-bootstrap-status-"));
+    const bootstrap = fileURLToPath(new URL("./bootstrap-quality-tools.sh", import.meta.url));
+    const driver = path.join(root, "driver.sh");
+    writeFileSync(
+      driver,
+      `set -euo pipefail
+source "$1"
+[[ "$(builtin type -t cargo)" == file && "$(builtin type -P cargo)" == "$2/cargo" ]] || exit 96
+install_tool 'fixture-tool|1.2.3|fixture-tool --version'
+`,
+    );
+    try {
+      for (const prebuilt of [false, true]) {
+        const bin = path.join(root, prebuilt ? "prebuilt" : "source");
+        mkdirSync(bin);
+        const attempted = path.join(root, prebuilt ? "prebuilt-args" : "source-args");
+        writeFileSync(
+          path.join(bin, "cargo"),
+          '#!/bin/bash\nprintf \'%s\\0\' "$@" > "$PCV_TEST_CARGO_ARGS"\nexit 23\n',
+          { mode: 0o755 },
+        );
+        if (prebuilt)
+          writeFileSync(path.join(bin, "cargo-binstall"), "#!/bin/bash\nexit 0\n", { mode: 0o755 });
+        const result = spawnSync("/bin/bash", [driver, bootstrap, bin], {
+          cwd: root,
+          encoding: "utf8",
+          timeout: 5000,
+          env: { ...process.env, PATH: bin, PCV_TEST_CARGO_ARGS: attempted },
+        });
+        assert.ifError(result.error);
+        assert.equal(result.status, 23, result.stderr);
+        assert.deepEqual(
+          (await readFile(attempted, "utf8")).split("\0").filter(Boolean),
+          prebuilt
+            ? ["binstall", "--no-confirm", "--locked", "fixture-tool@1.2.3"]
+            : ["install", "--locked", "--version", "1.2.3", "fixture-tool"],
+        );
+        assert.match(result.stderr, /Could not install fixture-tool 1\.2\.3:/u);
+        assert.match(
+          result.stderr,
+          prebuilt
+            ? /cargo binstall failed with exit code 23/u
+            : /cargo install failed with exit code 23/u,
+        );
+        assert.doesNotMatch(result.stdout, /Installed|ready/u);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   },
 );

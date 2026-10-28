@@ -1,3 +1,8 @@
+import {
+  observeProviderSource,
+  validateProviderProgress,
+} from "./provider-release-observation.mts";
+import type { ProviderCapacity, ProviderProgress } from "./provider-release-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   observationHash,
@@ -14,6 +19,7 @@ export interface ObservablePort {
   release: Record<string, unknown> & { repository: string };
 }
 export interface ObservableSource {
+  provider?: "github" | "gitlab" | "direct-manifest";
   key: string;
   repository: string;
   ports: ObservablePort[];
@@ -33,6 +39,9 @@ interface PolicyProgress {
   sha256: string;
 }
 export interface SourceProgress {
+  provider?: "github" | "gitlab" | "direct-manifest";
+  provider_progress?: ProviderProgress;
+  provider_previous_progress?: ProviderProgress;
   repository: string;
   repository_id: number | null;
   attempted_sequence: number;
@@ -59,6 +68,7 @@ export interface CatalogObserverCheckpoint {
   authority: "catalog-upstream-observation-only";
   sequence: number;
   provider_retry_at: string | null;
+  provider_capacities?: Record<string, ProviderCapacity>;
   sources: Record<string, SourceProgress>;
 }
 export const newCatalogObserverCheckpoint = (): CatalogObserverCheckpoint => ({
@@ -92,7 +102,7 @@ export function catalogObservationSources(input: unknown) {
     seen.add(port.id);
     const provider = port.release.provider ?? "github";
     if (typeof provider !== "string") throw new Error("Invalid reviewed release provider");
-    if (provider !== "github") {
+    if (!["github", "gitlab", "direct-manifest"].includes(provider)) {
       held.push({
         port_id: port.id,
         reason: `provider-${String(provider)}-not-observable-by-core`,
@@ -101,18 +111,24 @@ export function catalogObservationSources(input: unknown) {
       });
       continue;
     }
-    const repository = port.release.repository;
+    const repository = provider === "direct-manifest" ? port.id : port.release.repository;
     if (
       typeof repository !== "string" ||
-      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository) ||
+      (provider !== "direct-manifest" && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository)) ||
       !Array.isArray(port.channels) ||
       !port.channels.every((channel: unknown) =>
         ["stable", "beta", "rolling"].includes(String(channel)),
       )
     )
       throw new Error("Invalid reviewed GitHub observation declaration");
-    const key = observationHash({ provider: "github", repository });
-    const source = sources.get(key) ?? { key, repository, ports: [], scope_sha256: "" };
+    const key = observationHash({ provider, repository });
+    const source = sources.get(key) ?? {
+      key,
+      provider: provider as "github" | "gitlab" | "direct-manifest",
+      repository,
+      ports: [],
+      scope_sha256: "",
+    };
     source.ports.push({
       id: port.id,
       definition_sha256: observationHash(port),
@@ -150,11 +166,33 @@ function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpo
     Buffer.byteLength(JSON.stringify(value)) > 32 * 1024 * 1024
   )
     throw new Error("Invalid catalog observer checkpoint");
+  if (value.provider_capacities !== undefined) {
+    if (!isRecord(value.provider_capacities)) throw new Error("Invalid provider capacity evidence");
+    for (const [origin, rate] of Object.entries(value.provider_capacities)) {
+      if (
+        new URL(origin).origin !== origin ||
+        !origin.startsWith("https://") ||
+        !isRecord(rate) ||
+        [rate.remaining, rate.limit].some(
+          (n) => n !== null && (!Number.isSafeInteger(n) || Number(n) < 0),
+        ) ||
+        [rate.reset_at, rate.retry_at].some(
+          (clock) =>
+            clock !== null && (typeof clock !== "string" || !Number.isFinite(Date.parse(clock))),
+        )
+      )
+        throw new Error("Invalid provider quota evidence");
+    }
+  }
   for (const [key, progress] of Object.entries(value.sources)) {
     if (
       !isRecord(progress) ||
       typeof progress.repository !== "string" ||
-      key !== observationHash({ provider: "github", repository: progress.repository }) ||
+      key !==
+        observationHash({
+          provider: progress.provider ?? "github",
+          repository: progress.repository,
+        }) ||
       (progress.repository_id !== null &&
         (!Number.isSafeInteger(progress.repository_id) || Number(progress.repository_id) <= 0)) ||
       !Number.isSafeInteger(progress.attempted_sequence) ||
@@ -190,7 +228,8 @@ function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpo
       progress.last_complete_policies.some(
         (policy: unknown) =>
           !isRecord(policy) ||
-          policy.repository_id !== progress.repository_id ||
+          ((progress.provider ?? "github") === "github" &&
+            policy.repository_id !== progress.repository_id) ||
           policy.facts_sha256 !== progress.last_complete_facts_sha256 ||
           typeof policy.port_id !== "string",
       ) ||
@@ -202,6 +241,15 @@ function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpo
   }
   for (const raw of Object.values(value.sources)) {
     if (!isRecord(raw)) throw new Error("Invalid source progress");
+    if (
+      raw.provider !== undefined &&
+      (typeof raw.provider !== "string" ||
+        !["github", "gitlab", "direct-manifest"].includes(raw.provider))
+    )
+      throw new Error("Invalid provider discriminator");
+    if (raw.provider_progress !== undefined) validateProviderProgress(raw.provider_progress);
+    if (raw.provider_previous_progress !== undefined)
+      validateProviderProgress(raw.provider_previous_progress);
     if (!Array.isArray(raw.retired_configs))
       throw new Error("Invalid retired observer configurations");
     const retiredConfigurations: unknown[] = raw.retired_configs;
@@ -254,6 +302,15 @@ export interface CatalogObservationOptions extends Pick<
   "fetch" | "signal" | "sleep" | "token"
 > {
   now?: () => number;
+  deadline?: number;
+  excludedSources?: ReadonlySet<string>;
+  providerFetch?: typeof fetch;
+  projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
+  exportProvider?: (
+    source: ObservableSource,
+    observations: Record<string, unknown>[],
+    policies: unknown[],
+  ) => Promise<void>;
   config: ObserverConfig;
   policyIdentity: string;
   definitionHash: (portId: string) => string;
@@ -302,10 +359,15 @@ export async function advanceCatalogObservations(
   );
   if ([...definitions.values()].some((value) => !/^[a-f0-9]{64}$/u.test(value)))
     throw new Error("Normalized current Core definition identities are required");
-  const deadline = now() + template.budget.duration_ms;
+  const deadline = Math.min(now() + template.budget.duration_ms, options.deadline ?? Infinity);
+  if (!Number.isFinite(deadline) || deadline <= now())
+    throw new ObservationFailure("budget", "Collector deadline unavailable");
   const scopeBinding = (source: ObservableSource) =>
     observationHash({
       contract: "normalized-current-catalog-core-policy-v1",
+      ...((source.provider ?? "github") !== "github"
+        ? { provider_proof: "explicit-page-coverage-v2" }
+        : {}),
       policy: policyIdentity,
       scope: source.scope_sha256,
       definitions: source.ports.map((port) => [port.id, definitions.get(port.id)]),
@@ -357,6 +419,7 @@ export async function advanceCatalogObservations(
   const failures: { source: string; repository: string; rule: string; details: string }[] = [];
   const pending = sources
     .filter((source) => {
+      if (options.excludedSources?.has(source.key)) return false;
       const progress = state.sources[source.key];
       return (
         !progress ||
@@ -454,9 +517,16 @@ export async function advanceCatalogObservations(
       previousProgress.freshness_observed_at !== null &&
       now() - Date.parse(previousProgress.freshness_observed_at) <
         template.stale_after_hours * 3600000;
-    if (capacity() < 1 && !previousProgress?.policy_progress && !freshOfflineCandidate) continue;
+    if (
+      (source.provider ?? "github") === "github" &&
+      capacity() < 1 &&
+      !previousProgress?.policy_progress &&
+      !freshOfflineCandidate
+    )
+      continue;
     operationBytes = 0;
     const progress = state.sources[source.key] ?? {
+      provider: source.provider ?? "github",
       repository: source.repository,
       repository_id: null,
       attempted_sequence: 0,
@@ -484,6 +554,189 @@ export async function advanceCatalogObservations(
     state.sources[source.key] = progress;
     await options.commit(structuredClone(state));
     attempted.push(source.key);
+    if (source.provider === "gitlab" || source.provider === "direct-manifest") {
+      const before = `${progress.provider_progress?.reads.length ?? 0}:${progress.provider_progress?.validation_cursor ?? 0}`;
+      try {
+        const binding = scopeBinding(source);
+        const previousComplete =
+          progress.completed_scope_sha256 !== null && progress.exception_key === null;
+        if (
+          progress.provider_progress &&
+          (progress.provider_progress.binding !== source.scope_sha256 ||
+            progress.provider_progress.format !== 2)
+        ) {
+          progress.provider_previous_progress = progress.provider_progress;
+          delete progress.provider_progress;
+          progress.policy_progress = null;
+          progress.completed_scope_sha256 = null;
+          await options.commit(structuredClone(state));
+        }
+
+        const reuseComplete =
+          previousComplete &&
+          progress.freshness_observed_at !== null &&
+          now() - Date.parse(progress.freshness_observed_at) <
+            template.stale_after_hours * 3600000 &&
+          progress.completed_scope_sha256 !== binding;
+        if (progress.provider_progress && !reuseComplete && previousComplete) {
+          progress.provider_previous_progress = progress.provider_progress;
+          delete progress.provider_progress;
+          progress.completed_scope_sha256 = null;
+          await options.commit(structuredClone(state));
+        }
+        const result = await observeProviderSource(
+          { ...source, provider: source.provider },
+          progress.provider_progress,
+          {
+            now,
+            deadline,
+            maximumRequests: Math.min(64, template.budget.requests),
+            maximumBytes: template.budget.total_bytes,
+            ...(options.signal ? { signal: options.signal } : {}),
+            ...(options.providerFetch ? { fetch: options.providerFetch } : {}),
+            capacities: (state.provider_capacities ??= {}),
+            bindIdentity: async (identity) => {
+              if (progress.repository_id !== null && progress.repository_id !== identity)
+                throw new ObservationFailure(
+                  "repository-identity",
+                  "GitLab numeric project identity changed; preserve the declared source and historical evidence",
+                );
+              progress.repository_id = identity;
+              await options.commit(structuredClone(state));
+            },
+            reuseComplete,
+            admit: () => {
+              requests++;
+            },
+            charge: (bytes) => {
+              responseBytes += bytes;
+            },
+            commit: async (checkpoint) => {
+              progress.provider_progress = checkpoint;
+              await options.commit(structuredClone(state));
+            },
+            project: async (portId, observation) => {
+              if (!options.projectProvider)
+                throw new ObservationFailure(
+                  "core-provider-capability",
+                  "Provider Core projection capability is unavailable",
+                );
+              if (
+                progress.policy_progress?.binding !== binding ||
+                progress.policy_progress.facts_sha256 !== observation.facts_sha256
+              )
+                progress.policy_progress = {
+                  binding,
+                  facts_sha256: String(observation.facts_sha256),
+                  policies: [],
+                  sha256: observationHash([]),
+                };
+              const retained = progress.policy_progress.policies.find(
+                (policy) => policy.port_id === portId,
+              );
+              if (
+                retained &&
+                retained.catalog_definition_sha256 === definitions.get(portId) &&
+                retained.facts_sha256 === observation.facts_sha256 &&
+                retained.format === 2
+              )
+                return retained;
+              const policy = await options.projectProvider(portId, observation);
+              if (
+                !isRecord(policy) ||
+                policy.format !== 2 ||
+                policy.port_id !== portId ||
+                policy.facts_sha256 !== observation.facts_sha256 ||
+                policy.catalog_definition_sha256 !== definitions.get(portId) ||
+                !Array.isArray(policy.projections)
+              )
+                throw new ObservationFailure(
+                  "core-binding",
+                  "Provider Core projection differs from exact definition and facts",
+                );
+              if (options.signal?.aborted)
+                throw new ObservationFailure(
+                  "cancelled",
+                  "Provider projection cancelled before persistence",
+                );
+              progress.policy_progress.policies.push(structuredClone(policy));
+              progress.policy_progress.sha256 = observationHash(progress.policy_progress.policies);
+              await options.commit(structuredClone(state));
+              return policy;
+            },
+          },
+        );
+        if (!options.exportProvider)
+          throw new ObservationFailure(
+            "provider-handoff",
+            "Existing provider handoff is unavailable",
+          );
+        await options.exportProvider(source, result.observations, result.policies);
+        const factsHash = String(result.observations[0]!.facts_sha256);
+        if (progress.last_complete_facts_sha256 !== factsHash) {
+          if (progress.last_change_at) {
+            const interval = Math.max(1, now() - Date.parse(progress.last_change_at));
+            progress.mean_change_interval_ms =
+              progress.mean_change_interval_ms === null
+                ? interval
+                : (progress.mean_change_interval_ms * progress.change_intervals + interval) /
+                  (progress.change_intervals + 1);
+            progress.change_intervals++;
+          }
+          progress.last_change_at = new Date(now()).toISOString();
+        }
+        progress.completed_at = new Date(now()).toISOString();
+        progress.freshness_observed_at = result.observed_at;
+        progress.next_due_at = new Date(
+          Math.min(
+            now() +
+              Math.max(
+                template.cadence_hours * 3600000,
+                (progress.mean_change_interval_ms ?? 0) / 2,
+              ),
+            Date.parse(result.observed_at) +
+              template.stale_after_hours * 3600000 -
+              template.budget.duration_ms,
+          ),
+        ).toISOString();
+        progress.completed_scope_sha256 = binding;
+        progress.last_complete_facts_sha256 = String(result.observations[0]!.facts_sha256);
+        progress.last_complete_policies = result.policies.map((p) => p as Record<string, unknown>);
+        progress.result_sha256 = observationHash({
+          observations: result.observations.map((o) => o.facts_sha256),
+          policies: result.policies,
+        });
+        progress.exception_key = null;
+        progress.retry_at = null;
+        progress.policy_progress = null;
+        completed.push(source.key);
+      } catch (error) {
+        const rule = error instanceof ObservationFailure ? error.rule : "provider-operation-failed";
+        const key = observationHash({ source: source.key, rule });
+        if (
+          progress.exception_key !== key &&
+          !["budget", "cancelled", "provider-quota"].includes(rule)
+        )
+          notifyException = true;
+        progress.exception_key = key;
+        progress.retry_at = error instanceof ObservationFailure ? error.retryAt : null;
+        failures.push({
+          source: source.key,
+          repository: source.repository,
+          rule,
+          details: error instanceof Error ? error.message : "Provider operation failed",
+        });
+        if (
+          rule === "budget" &&
+          before !==
+            `${progress.provider_progress?.reads.length ?? 0}:${progress.provider_progress?.validation_cursor ?? 0}` &&
+          now() < deadline
+        )
+          pending.push(source);
+      }
+      await options.commit(structuredClone(state));
+      continue;
+    }
     try {
       const legacy =
         source.repository === template.repository &&
@@ -606,6 +859,7 @@ export async function advanceCatalogObservations(
         };
         const previousPosition = position(isRecord(priorSource) ? priorSource.continuation : null);
         const result = await advanceObservation(config, priorSource, {
+          deadline,
           ...(options.fetch ? { fetch: options.fetch } : {}),
           ...(options.token ? { token: options.token } : {}),
           ...(options.signal ? { signal: options.signal } : {}),
@@ -816,9 +1070,26 @@ export async function advanceCatalogObservations(
       authority: "catalog-upstream-observation-only",
       generated_at: new Date(now()).toISOString(),
       total_sources: sources.length,
+      checkpoint_storage: {
+        bytes: Buffer.byteLength(JSON.stringify(state)),
+        limit_bytes: 32 * 1024 * 1024,
+        provider_read_cache_bytes: Object.values(state.sources).reduce(
+          (sum, progress) =>
+            sum +
+            Buffer.byteLength(
+              JSON.stringify({
+                current: progress.provider_progress ?? null,
+                previous: progress.provider_previous_progress ?? null,
+              }),
+            ),
+          0,
+        ),
+      },
       source_statuses: sources.map((source) => {
         const progress = state.sources[source.key];
         return {
+          source_key: source.key,
+          provider: source.provider ?? "github",
           repository: source.repository,
           port_ids: source.ports.map((port) => port.id),
           current_scope_complete:
@@ -852,6 +1123,7 @@ export async function advanceCatalogObservations(
       provider_capacity: state.provider_retry_at
         ? { availability: "unavailable-until-reset", retry_at: state.provider_retry_at }
         : { availability: remaining === null ? "unknown" : "observed", remaining },
+      additional_provider_capacity: state.provider_capacities ?? {},
       response_bytes_charged: responseBytes,
       unknown_response_size_requests: unknownSizeResponses,
       global_eligibility: "not-assessed",

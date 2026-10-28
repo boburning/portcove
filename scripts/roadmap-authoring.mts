@@ -50,11 +50,18 @@ export function validateRoadmapReplacement(
   evaluateScopedRoadmap(config, catalog, [proposed]);
 }
 
-export function validateLiveRoadmapReplacement(number: number, previousBody: string, body: string) {
+export function validateLiveRoadmapReplacement(
+  number: number,
+  previousBody: string,
+  body: string,
+  sharedClient?: RoadmapClient,
+) {
   const config = validateConfig(
     JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
   );
-  const client = new RoadmapClient(config);
+  const client = sharedClient ?? new RoadmapClient(config);
+  if (JSON.stringify(client.config) !== JSON.stringify(config))
+    throw new Error("Roadmap replacement client configuration differs");
   const observed = client.executionIssue(number);
   const item = scopedIssueWithBlockers(observed.item, observed.relationships.blockedBy);
   const catalog = qualificationCatalogObservation(

@@ -68,6 +68,7 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   ),
   [helper("desktop-native-account-session.mts")]: Object.freeze([
     "../../../scripts/native-qualification-account-client.mts",
+    "../../../scripts/release-hosted-native-windows-worker-contract.mts",
   ]),
   [helper("desktop-linux-native-session.mts")]: Object.freeze([
     "../../../scripts/runtime-values.mts",
@@ -82,6 +83,8 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
 });
 export const nativeHelperSharedSources = Object.freeze([
   helper("desktop-capture-target.mts"),
+  helper("desktop-boundary-invoke.mts"),
+  helper("browser-script.mts"),
   "apps/desktop/test/capture-target.ts",
   // Fixed read-only Python modules loaded from hash-checked captured bytes by
   // the public init/services branch. Capture is source custody, not execution.

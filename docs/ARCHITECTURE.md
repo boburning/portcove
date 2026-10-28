@@ -234,6 +234,20 @@ activation and stage-only retry validate that actual destination. Committed
 activation recovery finishes the committed version without reapplying an old
 absence condition. Transfer/import continue verifying retained-plus-retained
 contracts. No new registry, receipt format or lifecycle engine is introduced.
+Explicit retained rollback uses that same proof for empty strict-scope changes in
+either direction. For a smaller target, validate the smaller retained contract's
+immutable permission in reverse, with the larger active copy as the actual target
+of the proof. Both real roots and canonical data must lack every changed path.
+For a larger retained target, use the ordinary empty-expansion proof with that
+actual target. Read-only rollback assessment and locked execution share the
+predicate; execution repeats it after collecting current data, before restoring
+the target and switching the active pointer. Retained authority and receipt scope are
+not widened; ordinary restore completion keeps its existing behavior.
+Populated, mixed, aliased or incompatible changes remain held, including a later
+return if the older runtime has created a changed path. Existing collection,
+backup/restore, interruption recovery and historical transfer authority remain in
+place; this grants no populated migration or save-format compatibility.
+
 Trusted verification projections keep the same exact root receipt-metadata
 exclusions as catalog-captured qualifications. Import still verifies each
 installation's retained scope, immutable identity and independent admission.

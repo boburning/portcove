@@ -1255,3 +1255,25 @@ void test("provider-wide reserve survives batch boundaries and restart without b
   };
   await assert.rejects(advanceHealthMonitor(input, invalid, options()), /provider backoff/);
 });
+
+void test("a shared repository retains more than 4096 catalog identities through collection and resumed history", async () => {
+  const input = catalog(4097);
+  for (const port of input.ports) port.project_url = "https://github.com/owner/shared";
+  const first = await advanceHealthMonitor(input, null, options());
+  assert.equal(first.report.inventory.fresh_complete_port_ids.length, 4097);
+  assert.equal(first.checkpoint!.observations.length, 1);
+  assert.equal(first.checkpoint!.observations[0]!.port_ids.length, 4097);
+  assert.equal(first.report.collection.consumed.requests, 1);
+  const resumed = await advanceHealthMonitor(
+    input,
+    first.checkpoint,
+    options({
+      scope: { mode: "none", port_ids: [] },
+      fetch: async () => {
+        throw new Error("Unexpected provider read");
+      },
+    }),
+  );
+  assert.equal(resumed.report.inventory.fresh_complete_port_ids.length, 4097);
+  assert.equal(resumed.checkpoint!.observations[0]!.port_ids.length, 4097);
+});

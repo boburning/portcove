@@ -1558,9 +1558,23 @@ destination. Missing immutable package files do not make their names adoptable;
 links, case aliases, overlapping paths and uncertain inspection refuse. Recheck
 under the port lock after preparation, synchronization and before activation or
 pending recovery. The new installation retains its full new scope; old copies keep
-their original scope. Shrinking a contract, populated additions and unproven scope
-expansion remain refused. Runtime rollback still carries current data and does not
-rewind saves.
+their original scope. Ordinary contract shrinking, populated additions and
+unproven scope expansion remain refused. Runtime rollback still carries current
+data and does not rewind saves.
+
+Explicit rollback between two authenticated retained ready-archive copies may use
+that same empty-path proof in either direction when one persistence scope strictly
+contains the other. Both copies keep their original manifests and receipt scope; ordinary restore
+completion keeps its existing proof-recording behavior. No current catalog
+reinterpretation grants the older copy a wider scope. Every
+changed path must be absent from both runtime roots and canonical data, with the
+same compatible coordinates, patterns, immutable-member and companion checks.
+Status and execution share the guard; execution repeats it after collecting
+current data and before restoring the target or changing the active pointer.
+This permits returning from an empty expansion and back to its retained larger
+version. If either runtime later creates a changed path, or a path is populated,
+aliased, linked or otherwise uncertain, the switch stays held with the files and
+active copy preserved. Populated scope migration is not supplied by this exception.
 
 If fresh acquisition publishes a staged copy before its final data-compatibility
 check refuses, the error includes `staged_install_id`: that copy and its files stay

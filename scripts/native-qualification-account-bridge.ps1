@@ -83,7 +83,10 @@ function Save-State([string]$Phase, [string]$Failure = '') {
         broker_pid=$PID; broker_created_filetime=([Diagnostics.Process]::GetCurrentProcess().StartTime.ToFileTimeUtc().ToString()); sequence=$sequence;
         observed_at=[DateTime]::UtcNow.ToString('o'); phase=$Phase; failure=$Failure;
         roots=$records; group_remaining_pids=@($group.RemainingPids()); native_acceptance='not-established' }
-    [IO.File]::WriteAllText((Join-Path $configurationValue.capture_root 'bridge-state.json'), ($state | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+    $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($state|ConvertTo-Json -Depth 8 -Compress))
+    if($bytes.Length -gt 65536){throw 'Native bridge state exceeds readback bound'}
+    $file=[IO.FileStream]::new((Join-Path $configurationValue.capture_root 'bridge-state.json'),[IO.FileMode]::Create,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{$file.Write($bytes);$file.Flush($true)}finally{$file.Dispose()}
 }
 function Assert-CaptureHealthy {
     foreach ($process in $roots.Values) { $process.RefuseFaultedCapture() }

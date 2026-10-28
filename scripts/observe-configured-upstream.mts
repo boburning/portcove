@@ -485,12 +485,17 @@ export async function withCheckpointLock<T>(
   }
 }
 
+interface InspectionBounds {
+  deadline: number;
+  now: () => number;
+}
 async function inspectCoreJson(
   cli: string,
   directory: string,
   bytes: Buffer,
   command: string,
   argumentsFor: (input: string) => string[],
+  bounds?: InspectionBounds,
 ): Promise<unknown> {
   if (bytes.length > 4 * 1024 * 1024)
     throw new ObservationFailure(
@@ -501,10 +506,13 @@ async function inspectCoreJson(
   await mkdir(path.dirname(input), { recursive: true });
   try {
     await writeFile(input, bytes, { flag: "wx" });
+    const timeout = bounds ? Math.min(30000, Math.floor(bounds.deadline - bounds.now())) : 30000;
+    if (!Number.isFinite(timeout) || timeout < 1)
+      throw new ObservationFailure("budget", "Core inspection admission exhausted");
     const output = execFileSync(cli, argumentsFor(input), {
       encoding: "utf8",
       windowsHide: true,
-      timeout: 30_000,
+      timeout,
       maxBuffer: 4 * 1024 * 1024,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -520,13 +528,19 @@ async function inspectCoreJson(
   }
 }
 
-export async function inspectCatalogDefinitions(cli: string, directory: string, bytes: Buffer) {
+export async function inspectCatalogDefinitions(
+  cli: string,
+  directory: string,
+  bytes: Buffer,
+  bounds?: InspectionBounds,
+) {
   const report = await inspectCoreJson(
     cli,
     directory,
     bytes,
     "catalog.inspect-proposal",
     (input) => ["--json", "catalog", "inspect-proposal", input],
+    bounds,
   );
   return catalogObservationDefinitionHashes(report, bytes);
 }
@@ -569,6 +583,7 @@ export async function projectObservation(
   config: ObserverConfig,
   directory: string,
   observation: Observation,
+  bounds?: InspectionBounds,
 ): Promise<unknown> {
   return inspectCoreJson(
     cli,
@@ -584,6 +599,24 @@ export async function projectObservation(
       "--repository-id",
       String(config.repository_id),
     ],
+    bounds,
+  );
+}
+
+export async function projectProviderObservation(
+  cli: string,
+  portId: string,
+  directory: string,
+  observation: Record<string, unknown>,
+  bounds?: InspectionBounds,
+): Promise<unknown> {
+  return inspectCoreJson(
+    cli,
+    directory,
+    Buffer.from(JSON.stringify(observation)),
+    "catalog.inspect-observation",
+    (input) => ["--json", "catalog", "inspect-observation", portId, input, "--provider-facts"],
+    bounds,
   );
 }
 

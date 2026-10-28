@@ -1021,3 +1021,31 @@ void test("scoped asset selection resumes bounded batches and automatically rech
   assert.equal(refused.report.exception?.rule, "core-selection");
   assert.equal(refused.report.observation, null);
 });
+
+void test("caller opportunity clamps GitHub fetch and refuses late retry without repeating accepted work", async () => {
+  const server = fixture();
+  let clock = Date.now(),
+    calls = 0;
+  const deadline = clock + 1;
+  await assert.rejects(
+    observeUpstream(config, {
+      now: () => clock,
+      deadline,
+      fetch: async (_url, init) => {
+        calls++;
+        assert.ok(init?.signal);
+        clock = deadline;
+        throw new Error("deadline reached");
+      },
+      sleep: async () => {
+        assert.fail("late transport retry");
+      },
+    }),
+    /opportunity exhausted/,
+  );
+  assert.equal(calls, 1);
+  await assert.rejects(
+    observeUpstream(config, { deadline: NaN, fetch: server.fetch }),
+    /opportunity is unknown/,
+  );
+});

@@ -39,7 +39,15 @@ type CargoMutationFixture = Omit<
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  realpathSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -257,7 +265,9 @@ void test("reviewed hosted bindings retain baseline obligations and reject calle
 });
 
 void test("bootstrap binds actual clean Git inventories and refuses out-of-scope or dirty inputs", async (t) => {
-  const directory = mkdtempSync(path.join(tmpdir(), "portcove-reviewed-binding-"));
+  const directory = realpathSync.native(
+    mkdtempSync(path.join(tmpdir(), "portcove-reviewed-binding-")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");
@@ -553,7 +563,9 @@ void test("bootstrap binds actual clean Git inventories and refuses out-of-scope
 });
 
 void test("candidate consumer binds four original product blobs and retains normal ancestry refusal", async (t) => {
-  const directory = mkdtempSync(path.join(tmpdir(), "portcove-consumer-binding-"));
+  const directory = realpathSync.native(
+    mkdtempSync(path.join(tmpdir(), "portcove-consumer-binding-")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");
@@ -737,7 +749,9 @@ void test("preflight and controller share the exact hosted script authority boun
 });
 
 function hostedFixture(t: TestContext) {
-  const directory = mkdtempSync(path.join(tmpdir(), "portcove-local-check-binding-"));
+  const directory = realpathSync.native(
+    mkdtempSync(path.join(tmpdir(), "portcove-local-check-binding-")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");

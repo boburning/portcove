@@ -609,6 +609,8 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/release-hosted-native-job.test.mts",
     "scripts/release-hosted-native-runner.test.mts",
     "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    "scripts/release-hosted-native-windows-capture.test.mts",
+    "scripts/release-hosted-native-windows-runner.test.mts",
     "scripts/release-hosted-native-windows-source.test.mts",
     "scripts/release-hosted-native-windows-dependency-files.test.mts",
     "scripts/native-qualification-account.test.mts",
@@ -3856,5 +3858,74 @@ void test("resource observation ledger remains an affected consumer of every mai
         hosted.includes("scripts/release-resource-observation.test.mts"),
         file + "/" + variant + "/hosted",
       );
+    }
+});
+
+void test("native transport producers retain their actual Node consumers across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const consumers: [string, string[]][] = [
+    [
+      "desktop-boundary-invoke.mts",
+      ["apps/desktop/scripts/desktop-webview-boundary.native.test.mts"],
+    ],
+    [
+      "desktop-windows-embedded-session.mts",
+      [
+        "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      ],
+    ],
+    [
+      "browser-script.mts",
+      [
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+        "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      ],
+    ],
+  ];
+  for (const [name, tests] of consumers)
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const file = `apps/desktop/scripts/${name}`;
+      const oldPath = variant === "R-new" ? "docs/moved.md" : file;
+      const newPath = variant === "R-old" ? "docs/moved.md" : file;
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath,
+        newPath,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ ...change, path: newPath, ...(oldPath !== newPath ? { previousPath: oldPath } : {}) }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      if (name === "browser-script.mts") {
+        assert.equal(local.ui, true);
+        assert.ok(plan.groups.includes("frontend"));
+        assert.ok(
+          buildPlan(local).some(
+            (entry) => entry.id === "ui-tests" || entry.id === "ui-related-tests",
+          ),
+        );
+        assert.ok(!local.nodeTests.has("apps/desktop/scripts/browser-script.test.mts"));
+        assert.ok(
+          !baselineContractTests(plan, { fileExists: () => false }).includes(
+            "apps/desktop/scripts/browser-script.test.mts",
+          ),
+        );
+      }
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        for (const test of tests) assert.ok(selected.has(test), `${variant}: ${name} -> ${test}`);
     }
 });

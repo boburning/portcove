@@ -472,3 +472,47 @@ void test("closed/deferred owners and repeated cross-source/framework discoverie
     reconcileDiscoveryIdentity(readback, [closed, readback]),
   );
 });
+
+void test("indexed frozen reconciliation exceeds 10000 candidates and canonical records with exact existing owners", () => {
+  const canonical: CanonicalDiscoveryIdentity[] = Array.from({ length: 12001 }, (_, i) => ({
+    repository: `owner/game-${i}`,
+    repository_id: i + 1,
+    issue: i + 1,
+    state: "OPEN",
+  }));
+  const candidates = canonical.map((row, i) => ({
+    repository: row.repository,
+    repository_id: row.repository_id!,
+    kind: "implementation" as const,
+    key: `candidate-${i}`,
+    evidence: `primary-${i}`,
+  }));
+  const report = reconcileDiscoverySnapshot(candidates, canonical);
+  assert.equal(report.length, 12001);
+  assert.ok(report.every((row) => row.disposition === "Existing canonical owner"));
+  assert.deepEqual(report.find((row) => row.key === "candidate-12000")!.issues, [12001]);
+  const updated = [
+    ...canonical,
+    {
+      repository: "owner/game-12001",
+      repository_id: 12002,
+      issue: 12002,
+      state: "CLOSED" as const,
+    },
+  ];
+  assert.deepEqual(
+    reconcileDiscoveryIdentity(
+      { kind: "implementation", repository: "owner/game-12001", repository_id: 12002 },
+      updated,
+    ).issues,
+    [12002],
+  );
+  assert.throws(
+    () =>
+      reconcileDiscoverySnapshot(
+        [{ ...candidate, key: "large", evidence: "x".repeat(32 * 1024 * 1024) }],
+        canonical,
+      ),
+    /byte envelope/u,
+  );
+});

@@ -314,6 +314,28 @@ for (const [file, tests] of [
   ...["scripts/python-test-results.py", "scripts/python-test-results.mts"].map(
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
+  [
+    "apps/desktop/scripts/desktop-boundary-invoke.mts",
+    [
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-windows-embedded-session.mts",
+    [
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/browser-script.mts",
+    [
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
   ["apps/desktop/scripts/native-enlargement.mts", ["scripts/desktop-execution-plan.test.mts"]],
   [
     "apps/desktop/scripts/desktop-capture-target.mts",
@@ -922,6 +944,10 @@ for (const [file, tests] of [
   ],
   ["scripts/release-native-windows-driver.ps1", ["scripts/release-native-windows-driver.test.mts"]],
   [
+    "scripts/native-qualification-runtime-observation.psm1",
+    ["scripts/release-native-windows-driver.test.mts"],
+  ],
+  [
     "scripts/release-native-windows-public-continuation.mts",
     [
       "scripts/release-native-windows-public-continuation.test.mts",
@@ -1178,6 +1204,8 @@ for (const [file, tests] of [
       "scripts/release-hosted-native-job.test.mts",
       "scripts/release-hosted-native-runner.test.mts",
       "scripts/release-hosted-native-windows-bootstrap.test.mts",
+      "scripts/release-hosted-native-windows-capture.test.mts",
+      "scripts/release-hosted-native-windows-runner.test.mts",
       "scripts/release-hosted-native-windows-source.test.mts",
       "scripts/release-hosted-native-windows-dependency-files.test.mts",
       "scripts/native-qualification-account.test.mts",
@@ -1900,6 +1928,11 @@ for (const workflow of [
     "scripts/release-resource-observation.test.mts",
   ]);
 const releaseContractTests = Object.freeze([
+  "scripts/release-hosted-native-windows-capture.test.mts",
+  "scripts/release-hosted-native-windows-runner.test.mts",
+  "scripts/release-hosted-native-windows-session.test.mts",
+  "scripts/release-hosted-native-windows-worker-contract.test.mts",
+  "scripts/release-hosted-native-runtime.test.mts",
   "scripts/release-resource-observation.test.mts",
   "scripts/release-hosted-native-windows-setup.test.mts",
   "scripts/release-native-runtime-custody.test.mts",

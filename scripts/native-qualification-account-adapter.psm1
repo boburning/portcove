@@ -11,6 +11,23 @@ function Open-PortcoveNativeAccountSession {
     if ((Get-FileHash -LiteralPath $BindingPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedBindingSha256) { throw 'Native binding changed' }
     $binding=Get-Content -LiteralPath $BindingPath -Raw | ConvertFrom-Json
     $names=@('invocation_id','configuration_sha256','helper_sha256','broker_pid','broker_created_filetime','capture_root','account_sid','profile_root','work_root','powershell','desktop_tools','controller_root')
+    $harnessRoot=$binding.controller_root
+    if ($binding.PSObject.Properties['hosted']) {
+        $names+=@('hosted')
+        if ((@($binding.hosted.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'harness_root,profile,registry_sha256' -or
+            $binding.hosted.profile -cne 'hosted-windows-worker-v1' -or
+            $binding.hosted.registry_sha256 -cnotmatch '^[a-f0-9]{64}$') { throw 'Closed hosted harness binding required' }
+        $harnessRoot=$binding.hosted.harness_root
+        foreach($root in @($harnessRoot,$binding.controller_root,$binding.work_root)) {
+            if ($root -isnot [string] -or $root.Length -gt 4096 -or $root -cnotmatch '^[A-Za-z]:\\' -or $root.Substring(2).Contains(':') -or
+                [IO.Path]::GetFullPath($root) -cne $root) { throw 'Canonical local hosted binding roots required' }
+            foreach($part in $root.Substring(3).Split('\')) {
+                if (-not $part -or $part -match '[<>"|?*\x00-\x1f]' -or $part -match '[. ]$' -or $part -match '^(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)') { throw 'Hosted binding root alias refused' }
+            }
+        }
+        if ([string]::Equals($harnessRoot,$binding.controller_root,[StringComparison]::OrdinalIgnoreCase) -or
+            [IO.Path]::GetFileName($binding.work_root) -cne 'work') { throw 'Separate fixed hosted roots required' }
+    }
     if ((@($binding.PSObject.Properties.Name | Sort-Object) -join '|') -cne (($names | Sort-Object) -join '|')) { throw 'Native binding schema differs' }
     foreach ($name in @('invocation_id','configuration_sha256','helper_sha256')) {
         if ($binding.$name -isnot [string] -or $binding.$name -cnotmatch '^[a-f0-9]{64}$') { throw 'Native binding digest absent' }
@@ -22,7 +39,7 @@ function Open-PortcoveNativeAccountSession {
     foreach ($name in @('capture_root','profile_root','work_root')) {
         if (-not [IO.Path]::IsPathFullyQualified($binding.$name) -or $binding.$name.StartsWith('\\')) { throw 'Native binding requires local absolute roots' }
     }
-    if (-not [string]::Equals([IO.Path]::GetFullPath((Join-Path $binding.controller_root 'scripts')),[IO.Path]::GetFullPath($PSScriptRoot),[StringComparison]::OrdinalIgnoreCase)) {
+    if (-not [string]::Equals([IO.Path]::GetFullPath((Join-Path $harnessRoot 'scripts')),[IO.Path]::GetFullPath($PSScriptRoot),[StringComparison]::OrdinalIgnoreCase)) {
         throw 'Installer account adapter must use the fixed protected controller root'
     }
     if ([IO.Path]::GetFullPath($binding.capture_root).StartsWith([IO.Path]::GetFullPath($binding.work_root).TrimEnd('\') + '\',[StringComparison]::OrdinalIgnoreCase) -or
@@ -152,6 +169,12 @@ function Read-PortcoveNativeOwnRegistry {
     $id='registry-' + $Session.registry_sequence.ToString('000')
     $exe=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     $reader=Join-Path $PSScriptRoot 'native-qualification-account-registry.ps1'
+    if($Session.binding.PSObject.Properties['hosted']) {
+        $reader=Join-Path ([IO.Path]::GetDirectoryName($Session.binding.work_root)) 'readonly/native-qualification-account-registry.ps1'
+        $item=Get-Item -LiteralPath $reader -Force
+        if ($item.PSIsContainer -or $item.Length -lt 1 -or $item.Length -gt 131072 -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+            (Get-FileHash -LiteralPath $reader -Algorithm SHA256).Hash.ToLowerInvariant() -cne $Session.binding.hosted.registry_sha256) { throw 'Hosted staged registry reader changed' }
+    }
     $root=Start-PortcoveNativeAccountRoot $Session $id $exe @('-NoLogo','-NoProfile','-NonInteractive','-File',$reader,'-Invocation',$Session.binding.invocation_id) $Session.keeper_directory
     $done=Invoke-PortcoveNativeAccountCommand $Session readback $id
     if ($done.root_pid -ne $root.pid -or $done.root_created_filetime -cne $root.started_filetime -or

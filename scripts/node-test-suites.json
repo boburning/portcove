@@ -349,6 +349,13 @@
       ]
     },
     {
+      "file": "scripts/provider-release-observation.test.mts",
+      "memberships": [
+        ["catalog-full", 1202],
+        ["repository-tools", 403]
+      ]
+    },
+    {
       "file": "scripts/check-catalog-repositories.test.mts",
       "memberships": [
         ["windows-storage-3", 200],
@@ -879,7 +886,8 @@
             "POSIX Core warm setup selects only nextest; failed Rust acquisition preserves prior state",
             "POSIX frontend setup selects only its supervisor compiler without Core components or Aqua",
             "POSIX frontend warm setup refreshes hooks and propagates install or hook failures",
-            "frontend pin drift fails before dependency acquisition and preserves previous state"
+            "frontend pin drift fails before dependency acquisition and preserves previous state",
+            "Darwin frontend's empty tool selection preserves cold and warm setup without tool acquisition"
           ]
         },
         {
@@ -1099,7 +1107,7 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
           "cases": [
-            "existing eligible hosted runtime returns success despite a stale native exit code"
+            "hosted runtime timings retain eligible and refused observations without installer effects"
           ]
         }
       ]
@@ -1299,7 +1307,8 @@
           "owner-side native pipe reader bounds actual bytes and rejects invalid UTF-8 without logon",
           "shared native job settles one inert root separately and both roots at attempt teardown",
           "owned-copy hosted memory bridge settles an empty job without credential lookup or taking owner resources",
-          "owned-copy hosted memory bridge cannot renew its original clock through context mutation"
+          "owned-copy hosted memory bridge cannot renew its original clock through context mutation",
+          "owned broker monitor retains early and acknowledged worker failures without waiting for bridge or account effects"
         ]
       }
     },
@@ -4183,6 +4192,41 @@
       "memberships": [
         ["catalog-full-2", 1000011],
         ["release-check", 16210]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-session.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000020],
+        ["release-check", 16220]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-worker-contract.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000021],
+        ["release-check", 16221]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-runtime.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000022],
+        ["release-check", 16222]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-capture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000023],
+        ["release-check", 16223]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-runner.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000024],
+        ["release-check", 16224]
       ]
     }
   ]

@@ -1,7 +1,57 @@
 #!/usr/bin/env bash
+reported_version() {
+  local command_line="$1"
+  eval "$command_line" 2>&1
+}
+
+has_exact_version() {
+  local version="$1"
+  local command_line="$2"
+  local output
+  output="$(reported_version "$command_line")" || return 1
+  [[ "$output" =~ (^|[^0-9])${version//./\.}([^0-9]|$) ]]
+}
+
+install_tool() {
+  local spec="$1"
+  local crate version command_line
+  IFS='|' read -r crate version command_line <<<"$spec"
+
+  if has_exact_version "$version" "$command_line"; then
+    printf 'Using installed %s: %s.\n' "$crate" "$(reported_version "$command_line")"
+    return
+  fi
+
+  if command -v cargo-binstall >/dev/null 2>&1; then
+    if cargo binstall --no-confirm --locked "$crate@$version"; then
+      :
+    else
+      local install_status=$?
+      printf 'Could not install %s %s: cargo binstall failed with exit code %s. See the command output above.\n' "$crate" "$version" "$install_status" >&2
+      return "$install_status"
+    fi
+  else
+    if cargo install --locked --version "$version" "$crate"; then
+      :
+    else
+      local install_status=$?
+      printf 'Could not install %s %s: cargo install failed with exit code %s. See the command output above.\n' "$crate" "$version" "$install_status" >&2
+      return "$install_status"
+    fi
+  fi
+
+  if ! has_exact_version "$version" "$command_line"; then
+    printf 'The installed %s did not report required version %s. Run %s to inspect the installed version.\n' "$crate" "$version" "$command_line" >&2
+    return 1
+  fi
+  printf 'Installed %s: %s.\n' "$crate" "$(reported_version "$command_line")"
+}
+
+# Sourcing defines the same installer decisions without running host setup.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return; fi
 set -euo pipefail
 
-# Bash 3.2 treats empty arrays as unset under nounset; expand them only when populated.
+
 bootstrap_args=("$@")
 include_deep=false
 profile=standard
@@ -127,54 +177,7 @@ if $include_deep; then
   while IFS= read -r tool; do optional_tools+=("$tool"); done < <(node scripts/quality-tools.mts --specs deep)
 fi
 
-reported_version() {
-  local command_line="$1"
-  eval "$command_line" 2>&1
-}
-
-has_exact_version() {
-  local version="$1"
-  local command_line="$2"
-  local output
-  output="$(reported_version "$command_line")" || return 1
-  [[ "$output" =~ (^|[^0-9])${version//./\.}([^0-9]|$) ]]
-}
-
-install_tool() {
-  local spec="$1"
-  local crate version command_line
-  IFS='|' read -r crate version command_line <<<"$spec"
-
-  if has_exact_version "$version" "$command_line"; then
-    printf 'Using installed %s: %s.\n' "$crate" "$(reported_version "$command_line")"
-    return
-  fi
-
-  if command -v cargo-binstall >/dev/null 2>&1; then
-    if cargo binstall --no-confirm --locked "$crate@$version"; then
-      :
-    else
-      local install_status=$?
-      printf 'Could not install %s %s: cargo binstall failed with exit code %s. See the command output above.\n' "$crate" "$version" "$install_status" >&2
-      return "$install_status"
-    fi
-  else
-    if cargo install --locked --version "$version" "$crate"; then
-      :
-    else
-      local install_status=$?
-      printf 'Could not install %s %s: cargo install failed with exit code %s. See the command output above.\n' "$crate" "$version" "$install_status" >&2
-      return "$install_status"
-    fi
-  fi
-
-  if ! has_exact_version "$version" "$command_line"; then
-    printf 'The installed %s did not report required version %s. Run %s to inspect the installed version.\n' "$crate" "$version" "$command_line" >&2
-    return 1
-  fi
-  printf 'Installed %s: %s.\n' "$crate" "$(reported_version "$command_line")"
-}
-
+# Older Bash treats an empty array as unset under nounset; preserve zero arguments.
 for tool in ${required_tools[@]+"${required_tools[@]}"}; do
   install_tool "$tool"
 done
@@ -198,6 +201,6 @@ if [[ "$profile" != standard ]]; then
   node scripts/dev-doctor.mts --profile "$profile"
 fi
 printf 'Requested pinned Portcove tools are ready (%s).\n' "$profile"
-if [[ -n "${optional_failures[*]:-}" ]]; then
+if [[ -n "${optional_failures[*]-}" ]]; then
   printf 'Warning: optional deep tools remain unavailable on this host: %s.\n' "${optional_failures[*]}" >&2
 fi

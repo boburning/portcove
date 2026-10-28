@@ -5,7 +5,8 @@ export function diagnosticText(value: unknown): string {
 export interface RoadmapFieldValue {
   name?: unknown;
   value?: unknown;
-  field?: { name?: unknown } | null;
+  optionId?: unknown;
+  field?: { name?: unknown; id?: unknown } | null;
   option?: { name?: unknown } | null;
 }
 export interface RoadmapIssueItem {
