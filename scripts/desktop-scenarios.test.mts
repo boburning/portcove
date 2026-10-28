@@ -645,7 +645,7 @@ void test("history procfs disappearance retains narrow errors and live identitie
 void test("history fixture helpers import without installed desktop packages", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const module = path.join(root, "apps/desktop/scripts/history.mts");
+  const module = path.join(root, "apps/desktop/scripts/desktop-qualification-history-test.mts");
   await mkdir(path.dirname(module), { recursive: true });
   await mkdir(path.join(root, "scripts"));
   await copyFile(
@@ -666,6 +666,33 @@ void test("history fixture helpers import without installed desktop packages", a
     { cwd: root, encoding: "utf8" },
   );
   assert.equal(result.status, 0, result.stderr);
+  const native = path.join(
+    root,
+    "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+  );
+  await copyFile(
+    new URL(
+      "../apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+      import.meta.url,
+    ),
+    native,
+  );
+  const guard = path.join(root, "no-packages.mjs");
+  await writeFile(
+    guard,
+    `import {registerHooks,isBuiltin} from 'node:module';registerHooks({resolve(specifier,context,next){if(!isBuiltin(specifier)&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))throw Error('Optional package forbidden: '+specifier);return next(specifier,context);}});`,
+  );
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const execution = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(guard).href, "--test", "--test-reporter=tap", native],
+    { cwd: root, env: environment, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
+  );
+  assert.ifError(execution.error);
+  assert.equal(execution.status, 0, execution.stderr + execution.stdout);
+  assert.match(execution.stdout, /^# pass 3$/mu);
+  assert.match(execution.stdout, /^# skipped 0$/mu);
 });
 
 void test(
@@ -2925,24 +2952,14 @@ void test("selected setup completion remains a separate Windows/Linux opt-in wit
   );
 });
 
-void test("unavailable-root wait observes enabled state and preserves read rejection", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-source-dialog-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf('report.checkpoint = "unavailable-root-disabled-review";');
-  const end = source.indexOf('report.checkpoint = "unavailable-root-observations";', start);
-  assert.ok(start >= 0 && end > start, "Execute the actual bounded harness wait");
-  const wait = source.slice(start, end);
+async function disabledSourceReviewBehavior(
+  subject: (browser: unknown, candidate: () => unknown) => Promise<unknown>,
+) {
   const rejection = new Error("Original enabled-state read failed");
   for (const enabled of [true, false, rejection]) {
     let reads = 0;
-    const action = runInNewContext(`(async () => { ${wait} })()`, {
-      report: {},
-      owned: { profiles: ["inert-profile"] },
-      row: (profile: string) => profile,
-      By: { css: (selector: string) => selector },
-      browser: {
+    const action = subject(
+      {
         findElement(profile: string) {
           assert.equal(profile, "inert-profile");
           return {
@@ -2967,12 +2984,33 @@ void test("unavailable-root wait observes enabled state and preserves read rejec
           assert.equal(await predicate(), !enabled);
         },
       },
-    });
+      () => "inert-profile",
+    );
     if (enabled === rejection)
       await assert.rejects(Promise.resolve(action), (error: unknown) => error === rejection);
     else await action;
     assert.equal(reads, 1);
   }
+}
+
+void test("unavailable-root wait observes enabled state and preserves read rejection", () => {
+  const entry = new URL("../apps/desktop/scripts/desktop-source-dialog-test.mts", import.meta.url);
+  const program = `
+    mock.module('selenium-webdriver', {namedExports:{By:{css:value=>value},Key:{},until:{elementLocated:value=>value}}});
+    const {waitForDisabledSourceReview}=await import(entry);
+    await (${String(disabledSourceReviewBehavior)})(waitForDisabledSourceReview);
+  `;
+  runDesktopModuleFixture(entry, program);
+  runDesktopModuleFixture(entry, program, {
+    exportName: "waitForDisabledSourceReview",
+    variant: "aliased",
+  });
+  assert.throws(() =>
+    runDesktopModuleFixture(entry, program, {
+      exportName: "waitForDisabledSourceReview",
+      variant: "wrong-export",
+    }),
+  );
 });
 
 void test("selected setup identities admit both replacements only in the opt-in catalog", async (t) => {

@@ -6,12 +6,13 @@ import { spawnSync } from "node:child_process";
 import { isBuiltin } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import { stripTypeScriptTypes } from "node:module";
 import { parseAst } from "vite-plus";
 import { isRecord } from "./runtime-values.mts";
+import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 
 function* nodes(value: unknown): Generator<Record<string, unknown>> {
   if (Array.isArray(value)) {
@@ -780,6 +781,156 @@ void test("publication scenario retains its exported path observation callers", 
             " */",
         ),
       /Consume the publication observation owner/u,
+    );
+  }
+});
+
+void test("selected setup awaits disabled review before unavailable-root observations", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-source-dialog-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const syntax = [...nodes(parseAst(code))];
+    const exports = syntax.filter((node) => node.type === "ExportNamedDeclaration");
+    function binding(name: string) {
+      const direct = exports.find(
+        (node) =>
+          isRecord(node.declaration) &&
+          node.declaration.type === "FunctionDeclaration" &&
+          identifier(node.declaration.id) === name,
+      );
+      if (direct && isRecord(direct.declaration))
+        return { declaration: direct.declaration, wrapper: direct, specifier: undefined };
+      const alias = exports
+        .flatMap((node) => (Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : []))
+        .find((node) => (identifier(node.exported) ?? literal(node.exported)) === name);
+      const declaration =
+        alias &&
+        syntax.find(
+          (node) =>
+            node.type === "FunctionDeclaration" && identifier(node.id) === identifier(alias.local),
+        );
+      assert.ok(declaration, "Retain exported source review owner " + name);
+      return {
+        declaration,
+        wrapper: exports.find((node) => node.declaration === declaration),
+        specifier: alias,
+      };
+    }
+    const helper = binding("waitForDisabledSourceReview"),
+      owner = binding("selectedSetupScenario");
+    const body = [...nodes(owner.declaration.body)];
+    const block = body.find(
+      (node) =>
+        node.type === "BlockStatement" &&
+        Array.isArray(node.body) &&
+        node.body.some(
+          (statement) =>
+            isRecord(statement) &&
+            identifier(awaited(statement.expression)?.callee) === identifier(helper.declaration.id),
+        ),
+    );
+    assert.ok(
+      block && Array.isArray(block.body),
+      "Await the disabled-review owner in selected setup",
+    );
+    const statements = block.body.filter(isRecord);
+    const waiting = statements.find(
+      (statement) =>
+        identifier(awaited(statement.expression)?.callee) === identifier(helper.declaration.id),
+    );
+    assert.ok(waiting);
+    const checkpoint = (name: string) =>
+      statements.find(
+        (statement) =>
+          isRecord(statement.expression) &&
+          statement.expression.type === "AssignmentExpression" &&
+          literal(statement.expression.right) === name &&
+          isRecord(statement.expression.left) &&
+          statement.expression.left.type === "MemberExpression" &&
+          identifier(statement.expression.left.property) === "checkpoint",
+      );
+    const before = checkpoint("unavailable-root-disabled-review"),
+      after = checkpoint("unavailable-root-observations");
+    assert.ok(before && after, "Retain both source review observation checkpoints");
+    assert.ok(
+      range(before).end < range(waiting).start && range(waiting).end < range(after).start,
+      "Settle disabled review before unavailable-root observations",
+    );
+    return { helper, owner, waiting };
+  }
+  const actual = route(source);
+  const alias = "$disabledReviewObservation";
+  const call = awaited(actual.waiting.expression);
+  assert.ok(call && isRecord(call.callee));
+  const helper = actual.helper;
+  route(
+    edit(source, [
+      { ...range(helper.declaration.id), text: alias },
+      { ...range(call.callee), text: alias },
+      ...(helper.specifier && isRecord(helper.specifier.local)
+        ? [{ ...range(helper.specifier.local), text: alias }]
+        : helper.wrapper
+          ? [{ start: range(helper.wrapper).start, end: range(helper.declaration).start, text: "" }]
+          : []),
+    ]) + (!helper.specifier ? "\nexport {" + alias + " as waitForDisabledSourceReview};" : ""),
+  );
+  const selected = range(helper.wrapper ?? helper.declaration);
+  route(
+    edit(source, [{ ...selected, text: "/* declaration moved */" }]) +
+      "\n" +
+      source.slice(selected.start, selected.end),
+  );
+  const bypass = edit(source, [{ ...range(call.callee), text: "unreviewedObservation" }]);
+  assert.throws(() => route(bypass), /Await the disabled-review owner/u);
+  assert.throws(
+    () => route(bypass + "\n/* await waitForDisabledSourceReview() */"),
+    /Await the disabled-review owner/u,
+  );
+  assert.throws(
+    () =>
+      route(
+        edit(source, [
+          {
+            ...range(actual.waiting.expression),
+            text: source.slice(range(call).start, range(call).end),
+          },
+        ]),
+      ),
+    /Await the disabled-review owner/u,
+  );
+});
+
+void test("module fixtures preserve API aliases and opaque identities before optional packages", (context) => {
+  const directory = disposableDirectory(context, path.join(tmpdir(), "pcv-module-alias-"));
+  const entry = path.join(directory, "owned.mts");
+  writeFileSync(path.join(directory, "transport-values.mts"), "export const unused = true;\n");
+  for (const source of [
+    'export const sentinel={tag:"owned"};export function publicDecision(){return sentinel}',
+    'const sentinel={tag:"owned"};function localDecision(){return sentinel}export {sentinel,localDecision as publicDecision};',
+    'export {sentinel,localDecision as "publicDecision"};function localDecision(){return sentinel}const sentinel={tag:"owned"};',
+  ]) {
+    writeFileSync(entry, source);
+    const program = `
+      assert.throws(()=>process.kill(process.pid,0),/Native process execution is forbidden/);
+      const processes=await import('node:child_process');
+      assert.throws(()=>processes.execFileSync(new URL('./missing-owned-executable',entry).pathname),/Native process execution is forbidden/);
+      const transport=await import(new URL('./transport-values.mts',entry));
+      assert.throws(()=>transport.transportValue('unowned-command',{}),/Native process execution is forbidden/);
+      const subject=await import(entry);assert.deepEqual(subject.sentinel,{tag:"owned"});assert.equal(subject.publicDecision(),subject.sentinel);
+    `;
+    const target = pathToFileURL(entry);
+    runDesktopModuleFixture(target, program);
+    runDesktopModuleFixture(target, program, { exportName: "publicDecision", variant: "aliased" });
+    assert.throws(() =>
+      runDesktopModuleFixture(target, program, {
+        exportName: "publicDecision",
+        variant: "wrong-export",
+      }),
     );
   }
 });

@@ -59,9 +59,11 @@ export function runDesktopModuleFixture(
           const loaded=next(url,context);if(url!==entry||!control)return loaded;
           if(control.variant==='wrong-export')
             return {...loaded,source:'export async function '+control.exportName+'(){}'};
-          const renamed='$actualScenario';
-          return {...loaded,source:String(loaded.source).replaceAll(control.exportName,renamed)+
-            '\\nexport {'+renamed+' as '+control.exportName+'};\\n'};
+          // Native ESM aliases also support implementation-local export aliases.
+          const actual=new URL(entry);actual.searchParams.set('portcove-module-fixture','actual');
+          const from=JSON.stringify(actual.href),name=JSON.stringify(control.exportName);
+          return {...loaded,source:'import {'+name+' as $actualScenario} from '+from+';\\n'+
+            'export * from '+from+';\\nexport {$actualScenario as '+name+'};\\n'};
         }});
         ${program}
       `,
