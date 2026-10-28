@@ -917,3 +917,35 @@ fn prepared_required_mutable_files_require_version_four_and_complete_projection(
         .unwrap() = port;
     assert!(crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).is_err());
 }
+
+#[test]
+fn pinned_native_entries_require_v3_for_new_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("marathon-aleph-one").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(3);
+    for minimum in [1, 2] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 3"));
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        assert!(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .unwrap_err()
+                .message
+                .contains("version 3")
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(3);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+    let ordinary = entry_for_port(catalog.port("openrct2-openrct2").unwrap());
+    assert!(inspect(&ordinary).unwrap().capabilities().compatible);
+}

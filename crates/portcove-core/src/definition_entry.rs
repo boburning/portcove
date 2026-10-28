@@ -173,6 +173,16 @@ impl DefinitionContentIndex {
                 "versioned mod packages require staged-source capability version 24",
             ));
         }
+        if port.adapter == crate::AdapterKind::NativePortable
+            && port.release.provider == crate::ReleaseSource::DirectManifest
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 3
+            })
+        {
+            return Err(PortcoveError::verification(
+                "exactly pinned native archives require capability version 3",
+            ));
+        }
         if crate::preparation::has_manual_marker(&port)
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= 2

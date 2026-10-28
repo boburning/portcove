@@ -3,13 +3,25 @@
   "listing": {
     "id": "marathon-2-durandal-aleph-one",
     "name": "Marathon 2: Durandal (Aleph One)",
-    "summary": "Upstream route: Ready-to-run official packages for all three games on desktop. Limits: Official freely distributed ready-to-run Marathon packages; separate games share Aleph One engine. Upstream platforms: Official ready-to-run Windows/Linux/macOS packages; macOS ARM64 and x86-64 source dependency routes documented. Selected Windows/Linux artifact CPU unknown. Original data: Per-game identities; official freely distributed game-data route, do not impose unnecessary ROM requirement. Portcove setup/gameplay not verified.",
+    "summary": "Marathon 2: Durandal uses its complete official Aleph One Windows package. Shared player profiles remain upstream-owned.",
     "original_game_title": "Marathon 2: Durandal",
     "project_url": "https://github.com/Aleph-One-Marathon/alephone",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Aleph-One-Marathon/alephone",
-    "issue_number": 2589
+    "availability": "packages",
+    "setup_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
+    "issue_number": 2589,
+    "release_url": "https://github.com/Aleph-One-Marathon/alephone/releases/tag/release-20260930",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Play the complete official game package",
+          "instruction": "The complete official Windows package includes this game’s scenario data and native player; no separately supplied commercial original, ROM or setup helper is required. Keep all package companions. This route pins release-20260930; automatic updates are not offered. Explicit Play can read and update an existing shared upstream profile. Core does not adopt that profile. Do not copy legacy Prefs or other old-runtime files into this fresh package. This route starts this bundled game; use a separate upstream copy for custom scenarios or extra data-search paths. Upstream owns shared profiles in Documents/AlephOne (saves, quick saves, recordings, screenshots and logs) and LocalAppData/AlephOne (preferences). Existing legacy Prefs in a separately owned upstream copy remain external. Core manages this separate runtime only; its backups do not include those external profiles. Preserve the creating runtime and actual profile before upstream replacement or older-runtime use; no save/state conversion, populated profile adoption or gameplay compatibility is inferred."
+        }
+      ],
+      "warnings": [
+        "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates."
+      ],
+      "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -22,5 +34,41 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "release-20260930",
+          "url": "https://github.com/Aleph-One-Marathon/alephone/releases/download/release-20260930/Marathon2-20260930-Win.zip",
+          "size": 36214686,
+          "sha256": "d95b0d5769b8d4155246e7d7381d9ff2d966ee6176e22a2bb3a5d5c19cffbacf",
+          "published_at": "2026-10-01T01:46:14Z"
+        }
+      }
+    },
+    "runtime_subdirectory": "Marathon2-20260930",
+    "executable_hints": {
+      "windows-x86-64": ["Classic Marathon 2.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "The complete official Windows package includes this game’s scenario data and native player; no separately supplied commercial original, ROM or setup helper is required. Keep all package companions. This route pins release-20260930; automatic updates are not offered. Explicit Play can read and update an existing shared upstream profile. Core does not adopt that profile. Do not copy legacy Prefs or other old-runtime files into this fresh package. This route starts this bundled game; use a separate upstream copy for custom scenarios or extra data-search paths. Upstream owns shared profiles in Documents/AlephOne (saves, quick saves, recordings, screenshots and logs) and LocalAppData/AlephOne (preferences). Existing legacy Prefs in a separately owned upstream copy remain external. Core manages this separate runtime only; its backups do not include those external profiles. Preserve the creating runtime and actual profile before upstream replacement or older-runtime use; no save/state conversion, populated profile adoption or gameplay compatibility is inferred."
+    },
+    "launch_arguments": ["."],
+    "launch_environment": {
+      "ALEPHONE_DATA": ";",
+      "ALEPHONE_DEFAULT_DATA": "."
+    }
   }
 }

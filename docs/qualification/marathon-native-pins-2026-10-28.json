@@ -1,0 +1,256 @@
+{
+  "format_version": 1,
+  "kind": "dated official-package qualification packet, not live support/status authority",
+  "owners": [2926, 2510, 2588, 2589, 2591],
+  "candidate_base": "843db9cba26e9993494cbd4b7a08d5246ede1283",
+  "frozen_membership": "existing three identities inside858 union; no new listing or historical1422 membership inferred",
+  "repository": {
+    "full_name": "Aleph-One-Marathon/alephone",
+    "id": 39701264,
+    "source_commit": "fc4c274359088614b58c91af5daa541504cb50cf",
+    "source_tag": "release-20260930",
+    "release_inventory": {
+      "terminal_rest_pages": 1,
+      "release_count": 28,
+      "independent_identity_and_count_match": true
+    }
+  },
+  "source_files": [
+    {
+      "path": "README.md",
+      "git_sha": "37de86290232fb68a3c37bdef2bc325239b711db",
+      "sha256": "505dcb092e166c0c43dcde78f5c929752d21e651685ec80a268bf6b6a55700ec",
+      "size": 5358
+    },
+    {
+      "path": "Source_Files/Misc/preferences.cpp",
+      "git_sha": "9ef9039e54fd69c6a47237a0bddc1e1221fb481f",
+      "sha256": "c4a13da2c91bbf416044828f78fa57ac19b8dbbadf92a4c8637ea69d785c4260",
+      "size": 175975
+    },
+    {
+      "path": "VisualStudio/dist-windows.ps1",
+      "git_sha": "53972ca5a7d6bd320588d8dc4c4d071a513a8e11",
+      "sha256": "d576533aad60f222bf349d09f6408ef25e060f7ca02a444e0c42baed906e44da",
+      "size": 7646
+    },
+    {
+      "path": "Source_Files/Files/FileHandler.cpp",
+      "git_sha": "33b74125fa655f4fcb88c3a5679c1627ade620f6",
+      "sha256": "c1c7afdada08e804048264cd6c44299bb53c0db572f33792627a5a914430e65d",
+      "size": 41612
+    },
+    {
+      "path": "Source_Files/shell.cpp",
+      "git_sha": "735bc0ba7a4946ae8232e98afc337a03388ceead",
+      "sha256": "8d5d67937d6dfbf7c9dfec8ca6938664e45f7678ddcf95e93b3e0cd65d62c075",
+      "size": 45773
+    },
+    {
+      "path": "Source_Files/CSeries/cspaths_sdl.cpp",
+      "git_sha": "b562c908cff1bd3bbbd7aa30c97f58183bf80f62",
+      "sha256": "0d51fc3aaa8dda742830434ab4aadf74cefcb31047f014e42482eef185a5ea31",
+      "size": 5043
+    },
+    {
+      "path": "Source_Files/shell_options.cpp",
+      "git_sha": "fd0d41e798afa28be2bd541798c4a7468e2fe256",
+      "sha256": "628b2aaa6334e6a1e891371d24429dc69ecc99ba5cbf1b7492f506c7be0457ba",
+      "size": 5854
+    },
+    {
+      "path": "Source_Files/shell_options.h",
+      "git_sha": "1ebef8402c4c866e0f07be0a2ddfb72847eff2ec",
+      "sha256": "99089cd6ea471be4f33c7f386c2d3712b02897f2d2809ff4a4ea1b53cdf621b9",
+      "size": 609
+    },
+    {
+      "path": "Source_Files/Network/Update.cpp",
+      "git_sha": "1b41cc1e08f65cd946b6e00ec076dc7270c92db6",
+      "sha256": "67b9c428cb34cbef6b8b8ed16e1b1ce55ef4234e64d82d6f1d2b2901f38ae72f",
+      "size": 2518
+    }
+  ],
+  "ports": [
+    {
+      "id": "marathon-aleph-one",
+      "canonical_issue": 2588,
+      "underlying_game": "Marathon",
+      "original_data": "complete official freely distributed scenario in the selected package; no external original",
+      "maintenance": "managed-pinned-release",
+      "pin_reason": "complete per-game and engine-only archives share the unchanged literal selector hints; pin exact full package instead of ambiguous automatic replacement",
+      "package": "Marathon-20260930-Win.zip",
+      "size": 33591851,
+      "sha256": "7955753d1ee198b67a53ed598a98713a1cbfbee8b05aa673af99d924b3ee6dc7",
+      "publisher_digest": "sha256:7955753d1ee198b67a53ed598a98713a1cbfbee8b05aa673af99d924b3ee6dc7",
+      "url": "https://github.com/Aleph-One-Marathon/alephone/releases/download/release-20260930/Marathon-20260930-Win.zip",
+      "version": "release-20260930",
+      "working_directory": "Marathon-20260930",
+      "selected_executable": "Marathon-20260930/Classic Marathon.exe",
+      "before_sha256": "518d947d8a80a3f5cb81ce0f8042c4e5ee7857fd4f8f05226a99a4520f1cf0bd",
+      "authored_sha256": "aa84efe591752cb2dced4c02d922df1a45ae409475cb257b07b4f13d50487c26",
+      "native_evidence": "actual Windows version + two timed startup/normal-close sessions, no regular-file mutation; no visual/gameplay/save or Core lifecycle claim",
+      "automatic_updates": "not offered",
+      "core_backup_of_external_profiles": "not offered",
+      "launch_arguments": ["."],
+      "launch_environment": {
+        "ALEPHONE_DATA": ";",
+        "ALEPHONE_DEFAULT_DATA": "."
+      },
+      "canonical_body_sha256": "3c644e0188a985778df4e620d75714d8623f1820e29c2648df386d5555066ecd"
+    },
+    {
+      "id": "marathon-2-durandal-aleph-one",
+      "canonical_issue": 2589,
+      "underlying_game": "Marathon 2: Durandal",
+      "original_data": "complete official freely distributed scenario in the selected package; no external original",
+      "maintenance": "managed-pinned-release",
+      "pin_reason": "complete per-game and engine-only archives share the unchanged literal selector hints; pin exact full package instead of ambiguous automatic replacement",
+      "package": "Marathon2-20260930-Win.zip",
+      "size": 36214686,
+      "sha256": "d95b0d5769b8d4155246e7d7381d9ff2d966ee6176e22a2bb3a5d5c19cffbacf",
+      "publisher_digest": "sha256:d95b0d5769b8d4155246e7d7381d9ff2d966ee6176e22a2bb3a5d5c19cffbacf",
+      "url": "https://github.com/Aleph-One-Marathon/alephone/releases/download/release-20260930/Marathon2-20260930-Win.zip",
+      "version": "release-20260930",
+      "working_directory": "Marathon2-20260930",
+      "selected_executable": "Marathon2-20260930/Classic Marathon 2.exe",
+      "before_sha256": "20e9df8282300f69593b61a1aaa798dadaccbff708e28dd33a5aa06546640147",
+      "authored_sha256": "916b10bff05a60e4c0b7f024748c3b5d2332744eb0404c25f08814784e68dd74",
+      "native_evidence": "actual Windows version + two timed startup/normal-close sessions, no regular-file mutation; no visual/gameplay/save or Core lifecycle claim",
+      "automatic_updates": "not offered",
+      "core_backup_of_external_profiles": "not offered",
+      "launch_arguments": ["."],
+      "launch_environment": {
+        "ALEPHONE_DATA": ";",
+        "ALEPHONE_DEFAULT_DATA": "."
+      },
+      "canonical_body_sha256": "74c494bf298e031f08a009a97f33e5e8a5963a397f92d216960f780999aaa4da"
+    },
+    {
+      "id": "marathon-infinity-aleph-one",
+      "canonical_issue": 2591,
+      "underlying_game": "Marathon Infinity",
+      "original_data": "complete official freely distributed scenario in the selected package; no external original",
+      "maintenance": "managed-pinned-release",
+      "pin_reason": "complete per-game and engine-only archives share the unchanged literal selector hints; pin exact full package instead of ambiguous automatic replacement",
+      "package": "MarathonInfinity-20260930-Win.zip",
+      "size": 39183079,
+      "sha256": "83561068c281a9cdc0596473eb14bad9712152114afa7339e21c735e9798872c",
+      "publisher_digest": "sha256:83561068c281a9cdc0596473eb14bad9712152114afa7339e21c735e9798872c",
+      "url": "https://github.com/Aleph-One-Marathon/alephone/releases/download/release-20260930/MarathonInfinity-20260930-Win.zip",
+      "version": "release-20260930",
+      "working_directory": "MarathonInfinity-20260930",
+      "selected_executable": "MarathonInfinity-20260930/Classic Marathon Infinity.exe",
+      "before_sha256": "d9217237a6c0804618b7c3b7488521deebc630471579a79a1df33a7d1cae6ff9",
+      "authored_sha256": "ec31f5c6edc446cb2dc68fa04fd969b65e577e791465fbb21e69f4b58901e3f7",
+      "native_evidence": "actual Windows version + two timed startup/normal-close sessions, no regular-file mutation; no visual/gameplay/save or Core lifecycle claim",
+      "automatic_updates": "not offered",
+      "core_backup_of_external_profiles": "not offered",
+      "launch_arguments": ["."],
+      "launch_environment": {
+        "ALEPHONE_DATA": ";",
+        "ALEPHONE_DEFAULT_DATA": "."
+      },
+      "canonical_body_sha256": "812724694caa0ba96d71c1cb59f4af3164ebec419aa7dfd8cb0d805c9c1483bd"
+    }
+  ],
+  "native": {
+    "actual_platform": "windows-x86-64",
+    "source": "release-20260930 / exact publisher ZIPs",
+    "probes": 9,
+    "forced_terminations": 0,
+    "all_exit_codes": [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "exact_environment": {
+      "ALEPHONE_DATA": ";",
+      "ALEPHONE_DEFAULT_DATA": "."
+    },
+    "startup_arguments": ["."],
+    "quiescence_confirmed": true,
+    "runtime_diffs": [
+      {
+        "id": "marathon-aleph-one",
+        "regular_files_before": 183,
+        "new_files": [],
+        "deleted_files": [],
+        "changed_file_hashes": []
+      },
+      {
+        "id": "marathon-2-durandal-aleph-one",
+        "regular_files_before": 171,
+        "new_files": [],
+        "deleted_files": [],
+        "changed_file_hashes": []
+      },
+      {
+        "id": "marathon-infinity-aleph-one",
+        "regular_files_before": 172,
+        "new_files": [],
+        "deleted_files": [],
+        "changed_file_hashes": []
+      }
+    ],
+    "raw_sha256": "ce6aaaf5b2d118d57568e3bac9bc67d2a5d3bd55a7533953c6714f4dcd602940",
+    "scope": "version readback, two timed native startups and normal window-close exits, observed regular files and upstream profiles; no visual/menu rendering, gameplay, save/load, physical input or Core-managed lifecycle acceptance inferred"
+  },
+  "shared_profiles": {
+    "preimage": "both absent before first admitted probe; subsequent exact owned-preimage checks",
+    "documents": "Documents/AlephOne; observed Aleph One Log.txt, source-defined saves/quick saves/screenshots/recordings",
+    "preferences": "LocalAppData/AlephOne; observed distinct Marathon Preferences, Marathon 2 Preferences, Marathon Infinity Preferences",
+    "ownership": "external-user-owned; explicit Play may read/update a shared upstream profile; no Core adoption, backup, rewind or compatibility guarantee",
+    "legacy": "fresh official packages contain no Prefs; copied legacy Prefs are outside route and strict verification holds unexpected additions before Play"
+  },
+  "environment_contract": {
+    "platform": "Windows only",
+    "ALEPHONE_DATA": "; is the exact source empty search-root list, not a fake directory; skips empty separator element and appends no root",
+    "ALEPHONE_DEFAULT_DATA": ". with positional . selects the exact bundled scenario; global profile/plugin choices remain external",
+    "observed_control": "valid other-scenario ambient root provided to probe parent; exact child overrides exercised with all9 exit0"
+  },
+  "runtime_replacement_owner": "Core for separate managed runtime; inspected upstream update worker only reads version metadata using HTTP/SDL thread and does not replace runtime",
+  "capability_contract": {
+    "native_versions_before": [1, 2],
+    "native_versions_after": [1, 2, 3],
+    "independent_direct_entry_minimum": 3,
+    "API_envelope": 82,
+    "operation_events": 3,
+    "definition_capability_schema": 1,
+    "new_transport_fields_or_commands": false,
+    "compiled_current_negotiation": {
+      "v1": true,
+      "v2": true,
+      "v3": true,
+      "v4": false
+    },
+    "scope": "negotiation and parsing do not grant publisher/admission/protected operations; Direct scoped provider acquisition remains separately unavailable where existing authority does not implement it"
+  },
+  "checks": {
+    "rust_local": "33 native-related contracts passed, zero skipped",
+    "authoring_local": "43 authoring/preparation/proposal contracts passed, zero skipped; final prose/feedback checks repeated only after changed source",
+    "Core_catalog_inspection": "compiled CLI accepted complete170-port proposal",
+    "native": "actual Windows exact bytes and controlled environment; timed startup, version, close and observed regular files only",
+    "hosted_exact_head": "pending"
+  },
+  "failure_history": [
+    "Initial generator refused three unreviewed additions; reviewed current additions fixture updated only, historical schema fixtures preserved.",
+    "Old Core inspector rejected NativePortable+Direct; shared archive-pin capability implemented, no weakening of source/helper/mutable runtime constraints.",
+    "Initial focused Rust test compile failed missing Platform import and invalid Preview enum name; corrected to existing Beta.",
+    "Next focused native tests refused empty environment overrides; existing guard preserved, exact upstream Windows empty-list representation used instead.",
+    "Initial PowerShell File invocation was refused before execution; process-scoped existing scripting invocation used, no machine policy changed.",
+    "Initial preparation command used another checkout; receipt is not candidate validation.",
+    "Prior default/blank-environment native observations retained separately; final exact-map observations are qualification scope."
+  ],
+  "limits": [
+    "No graphical rendering/menu content, gameplay, controller, save/load, current profile backwards compatibility or physical-device acceptance inferred.",
+    "No actual Core-managed Windows installation/launch/removal session yet; remains a separate observation until executed.",
+    "No automatic upstream release discovery; later catalog pins need their own artifact and compatibility review.",
+    "Protected publication/unchanged-client Desktop acceptance remains separately owned; no authority widened."
+  ],
+  "acceptance_totals": {
+    "new_operational_definitions": 3,
+    "new_listings": 0,
+    "new_Supported_Project_promotions": 0,
+    "accepted_useful_route_total": "not_evaluated",
+    "supported_operations_total": "not_evaluated"
+  },
+  "compiled_CLI_sha256": "7833faf96419a7b439ba1392feafffd6e8b079c7b3c9689daa96888edabdcba6",
+  "compiled_CLI_scope": "candidate Core rules and public protocol inventory; explicit catalog inspection supplies proposed bytes; no Windows Core lifecycle yet"
+}

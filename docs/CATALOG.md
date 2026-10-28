@@ -74,6 +74,16 @@ upstream profile may still be read on the next explicit Play. A saved Core data
 store or richer preparation/account contract requires its own compatible
 transition rather than guessing at migration or rewriting retained definitions.
 
+When complete game and engine-only packages cannot be distinguished by stable
+literal hints, an exact `direct-manifest` archive can use this same adapter.
+The existing Direct contract requires one Stable version/URL/size/SHA-256 per
+declared platform; it does not discover newer upstream versions. The native
+route still rejects installers, raw executables, custom build/setup commands,
+mutable runtimes and downstream source preparation. A pin does not inherit
+another artifact's qualification. A later reviewed catalog pin remains a new
+artifact/compatibility decision, and runtime rollback does not rewind external
+profiles or certify their older-version compatibility.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route

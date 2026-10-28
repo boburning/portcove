@@ -14,7 +14,7 @@ component fixtures do not complete either production outcome.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises native portable version 2,
+The public inventory additionally advertises native portable versions 2 and 3,
 managed PS1 version 2, N64 portable versions 2 and 3 and
 staged-source portable versions 2–5, 8, 10–12 and 15–24. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
@@ -27,6 +27,16 @@ including the retired CVLoD recipe associated with the still-advertised N64
 portable version 3 and staged-source version 11 path capability. Advertising those
 versions does not restore CVLoD source creation or authorize compilers or scripts.
 Shared path capabilities remain available to their other consumers.
+
+Native portable version 3 admits exact `direct-manifest` archives through the
+existing native lifecycle. New and retained independent entries using that
+combination require minimum version 3. Earlier versions 1/2 retain their GitHub
+package meanings and cannot negotiate this variant. Direct pins bind one Stable
+version, URL, size and expected SHA-256 per platform; they do not discover newer
+upstream versions or inherit another artifact's qualification. Installer, source
+preparation and mutable-runtime exclusions remain in force. Capability and API
+envelope versions remain separate; advertising version 3 grants no publisher,
+installation, protected-delivery or external-profile authority.
 
 Native portable version 2 observes an upstream-owned manual setup completion
 record beneath declared player data. New and retained indexed entries using
