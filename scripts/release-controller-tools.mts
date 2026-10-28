@@ -197,7 +197,7 @@ export function inspectControllerToolManifest(
     value.schema_version !== profile.schema_version ||
     value.platform !== profile.platform ||
     value.node_version !== controllerNodeVersion ||
-    value.bundler !== "vite-plus@1.3.0" ||
+    value.bundler !== "vite-plus@1.4.0" ||
     value.tauri_cli_version !== "2.12.2" ||
     typeof value.source_commit !== "string" ||
     !/^[a-f0-9]{40}$/.test(value.source_commit) ||
@@ -231,7 +231,7 @@ export function inspectControllerToolManifest(
     source_tree: value.source_tree,
     platform: profile.platform,
     node_version: controllerNodeVersion,
-    bundler: "vite-plus@1.3.0",
+    bundler: "vite-plus@1.4.0",
     tauri_cli_version: "2.12.2",
     files,
   };
