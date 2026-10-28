@@ -11,6 +11,10 @@ use std::{
 
 const PORT: &str = "severed-chains";
 
+#[path = "runtime_tests/reflectionhle_progression.rs"]
+#[cfg(windows)]
+mod reflectionhle_progression;
+
 #[path = "runtime_tests/psx_progression.rs"]
 #[cfg(any(windows, target_os = "linux"))]
 mod psx_progression;

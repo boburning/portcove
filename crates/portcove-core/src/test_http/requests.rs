@@ -12,7 +12,7 @@ use std::{
 
 const REQUEST_CAP: usize = 16 * 1024;
 const SOCKET_BUDGET: Duration = Duration::from_secs(2);
-const POLL: Duration = Duration::from_millis(20);
+const POLL: Duration = Duration::from_millis(1);
 
 #[derive(Default)]
 struct Stop {
@@ -110,7 +110,9 @@ fn serve_requests<R: AsRef<[u8]>>(
                 }
                 Err(error) => return Err(error),
             };
-            stream.set_nonblocking(false)?;
+            // Blocking Winsock timeouts leave transfer progress indeterminate.
+            // Poll nonblocking I/O so only successful byte counts advance offsets.
+            stream.set_nonblocking(true)?;
             let _ = connected_tx.send(());
             let deadline = Instant::now() + SOCKET_BUDGET;
             let request = read_request(&mut stream, deadline, &worker_stop)?;
@@ -163,7 +165,7 @@ fn remaining(deadline: Instant, stop: &Stop) -> io::Result<Duration> {
 fn retryable(error: &io::Error) -> bool {
     matches!(
         error.kind(),
-        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut | io::ErrorKind::Interrupted
+        io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
     )
 }
 
@@ -172,7 +174,7 @@ fn read_request(stream: &mut TcpStream, deadline: Instant, stop: &Stop) -> io::R
     let mut length = 0;
     let mut total = None;
     loop {
-        let budget = remaining(deadline, stop)?;
+        remaining(deadline, stop)?;
         if total.is_none()
             && let Some(at) = request[..length].windows(4).position(|s| s == b"\r\n\r\n")
         {
@@ -202,7 +204,6 @@ fn read_request(stream: &mut TcpStream, deadline: Instant, stop: &Stop) -> io::R
                 "HTTP fixture request exceeded 16384 bytes before complete headers",
             ));
         }
-        stream.set_read_timeout(Some(budget.min(POLL)))?;
         match stream.read(&mut request[length..end]) {
             Ok(0) => {
                 return Err(io::Error::new(
@@ -215,7 +216,9 @@ fn read_request(stream: &mut TcpStream, deadline: Instant, stop: &Stop) -> io::R
                 ));
             }
             Ok(read) => length += read,
-            Err(error) if retryable(&error) => continue,
+            Err(error) if retryable(&error) => {
+                thread::sleep(POLL.min(remaining(deadline, stop)?));
+            }
             Err(error) => return Err(error),
         }
     }
@@ -264,7 +267,7 @@ fn write_response(
     stop: &Stop,
 ) -> io::Result<()> {
     while !bytes.is_empty() {
-        stream.set_write_timeout(Some(remaining(deadline, stop)?.min(POLL)))?;
+        remaining(deadline, stop)?;
         // Partial writes must recheck the same absolute deadline and stop flag.
         match stream.write(&bytes[..bytes.len().min(64 * 1024)]) {
             Ok(0) => {
@@ -274,7 +277,9 @@ fn write_response(
                 ));
             }
             Ok(written) => bytes = &bytes[written..],
-            Err(error) if retryable(&error) => continue,
+            Err(error) if retryable(&error) => {
+                thread::sleep(POLL.min(remaining(deadline, stop)?));
+            }
             Err(error) => return Err(error),
         }
     }
@@ -320,6 +325,39 @@ mod tests {
                 .to_string()
                 .contains("handled 0 of 1 required requests")
         );
+    }
+
+    #[test]
+    fn patterned_response_survives_delayed_fragmented_receiver() {
+        let payload: Vec<u8> = (0..8 * 1024 * 1024)
+            .map(|i| ((i / 257) ^ i) as u8)
+            .collect();
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            payload.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&payload);
+        let expected = crate::signed_catalog::digest(&response);
+        let (root, _requests, server) = serve_http_bytes(vec![response]);
+        let mut peer = client(&root, &server);
+        peer.write_all(b"GET /pattern.zip HTTP/1.1\r\nHost: fixture\r\n\r\n")
+            .unwrap();
+        // Exceed the former20ms blocking-send poll while retaining the same
+        // absolute exchange budget. A replayed partial send changes the digest.
+        thread::sleep(Duration::from_millis(150));
+        let mut received = Vec::new();
+        let mut fragment = [0_u8; 4093];
+        loop {
+            let count = peer.read(&mut fragment).unwrap();
+            if count == 0 {
+                break;
+            }
+            received.extend_from_slice(&fragment[..count]);
+            assert!(received.len() <= payload.len() + 1024);
+        }
+        assert_eq!(crate::signed_catalog::digest(&received), expected);
+        server.join().unwrap();
     }
 
     #[test]
