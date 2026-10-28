@@ -2062,6 +2062,11 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // 5s whole-install setup latch before any copy (six fixture HTTP requests).
     // Use the existing 15s setup headroom only for this Windows variant; keep
     // the actual incomplete-copy barrier, cancellation, drain and 30s outer limit.
+    // Windows full qualification40722778038/a1 job122943949649 reached the
+    // first real cache copy 5.302s after installer start, beyond the 5s setup
+    // latch for ArtifactRevocationRestore. Use the existing 15s setup headroom
+    // for this exact variant; retain the incomplete-copy barrier, worker drain,
+    // revocation assertions and finite 30s whole-case safeguard.
     let slow_retention_setup = ((cfg!(target_os = "windows")
         || cfg!(all(target_os = "macos", target_arch = "x86_64")))
         && matches!(
@@ -2074,7 +2079,10 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         || (cfg!(all(target_os = "macos", target_arch = "aarch64"))
             && matches!(intervention, CacheIntervention::CancelRetain))
         || (cfg!(target_os = "windows")
-            && matches!(intervention, CacheIntervention::CancelRestore));
+            && matches!(
+                intervention,
+                CacheIntervention::CancelRestore | CacheIntervention::ArtifactRevocationRestore
+            ));
     let latch_timeout = if slow_retention_setup {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))

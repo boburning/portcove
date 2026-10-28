@@ -965,16 +965,33 @@ void test("instrumentation-only workflow shares the observer with a three-minute
 });
 
 void test("original observer heartbeat refuses stale samples while preserving the same bounded process", async (context) => {
-  const fixture = await hostedResourceObservationFixture(context),
-    started = fixture.invoke(fixture.startPath);
-  assert.equal(started.status, 0, started.stderr || started.stdout);
-  const samplesPath = path.join(fixture.evidence, "samples.jsonl"),
-    original = await readFile(samplesPath, "utf8");
+  const fixture = await hostedResourceObservationFixture(context);
+  const start = await readFile(fixture.startPath, "utf8");
+  const clock = "observed_at=[DateTime]::UtcNow.ToString('o')";
+  assert.equal(start.split(clock).length, 2, "one sampler timestamp boundary");
+  // The real sampler retains exclusive write access until it stops. Supply stale
+  // observations at its clock boundary rather than rewriting its open stream.
   await writeFile(
-    samplesPath,
-    original.replace(/"observed_at":"[0-9]{4}/gu, '"observed_at":"2000'),
+    fixture.startPath,
+    start.replace(clock, "observed_at='2000-01-01T00:00:00.0000000Z'"),
   );
+  const started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const ready = await fixture.read("observer-ready.json");
+  assert.ok(isRecord(ready));
+  const samples = await readFile(path.join(fixture.evidence, "samples.jsonl"), "utf8");
+  assert.match(samples, /"observed_at":"2000-01-01T00:00:00.0000000Z"/u);
   const stale = fixture.invoke(fixture.checkPath);
   assert.notEqual(stale.status, 0);
   assert.match(stale.stderr, /heartbeat stale/u);
+  const same = await fixture.read("observer-ready.json");
+  assert.deepEqual(same, ready, "a refused heartbeat preserves the original observer identity");
+  const inspect = path.join(fixture.root, "same-observer.ps1");
+  await writeFile(
+    inspect,
+    fixture.identityScript(ready.pid, ready.birth_ticks, "Write-Output 'same original observer'"),
+  );
+  const original = fixture.invoke(inspect);
+  assert.equal(original.status, 0, original.stderr || original.stdout);
+  assert.equal(original.stdout.trim(), "same original observer");
 });

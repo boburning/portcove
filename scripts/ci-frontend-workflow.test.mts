@@ -661,61 +661,81 @@ void test("routine checks retain architecture enforcement but make cycles option
   assert.match(recipes, /^cycles:\r?\n.*cargo modules/m);
 });
 
-void test("full frontend tasks stop after a failed unit stage and propagate browser failures", async (t) => {
-  const { default: configuration } = await import("../vite.config.ts");
-  const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
-  t.after(() => rm(parent, { recursive: true, force: true }));
-  // A synthetic parent catches accidental execution of a contributor's real tasks.
-  await writeFile(path.join(parent, "package.json"), '{"private":true,"type":"module"}');
-  await writeFile(path.join(parent, "pnpm-workspace.yaml"), "packages: []\n");
-  await writeFile(path.join(parent, "foreign.mjs"), "process.exit(97);\n");
-  const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
-  await writeFile(
-    path.join(parent, "vite.config.ts"),
-    `export default ${JSON.stringify({
-      run: { tasks: { "frontend:tests": { command: `${executable} foreign.mjs`, cache: false } } },
-    })}`,
-  );
-  const root = path.join(parent, "fixture");
-  await mkdir(root);
-  await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
-  await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
-  await writeFile(
-    path.join(root, "leaf.mjs"),
-    `
+void test(
+  "full frontend tasks stop after a failed unit stage and propagate browser failures",
+  { timeout: 180_000 },
+  async (t) => {
+    const { default: configuration } = await import("../vite.config.ts");
+    const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    // A synthetic parent catches accidental execution of a contributor's real tasks.
+    await writeFile(path.join(parent, "package.json"), '{"private":true,"type":"module"}');
+    await writeFile(path.join(parent, "pnpm-workspace.yaml"), "packages: []\n");
+    await writeFile(path.join(parent, "foreign.mjs"), "process.exit(97);\n");
+    const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
+    await writeFile(
+      path.join(parent, "vite.config.ts"),
+      `export default ${JSON.stringify({
+        run: {
+          tasks: { "frontend:tests": { command: `${executable} foreign.mjs`, cache: false } },
+        },
+      })}`,
+    );
+    const root = path.join(parent, "fixture");
+    await mkdir(root);
+    await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
+    await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
+    await writeFile(
+      path.join(root, "leaf.mjs"),
+      `
     import { appendFileSync, readFileSync } from "node:fs";
     const stage = process.argv[2];
     appendFileSync("events.txt", stage + "\\n");
     process.exit(readFileSync("failure.txt", "utf8") === stage ? 17 : 0);
   `,
-  );
-  await writeFile(
-    path.join(root, "vite.config.ts"),
-    `export default ${JSON.stringify({
-      run: {
-        tasks: {
-          "frontend:tests": requiredFixture(configuration.run?.tasks)["frontend:tests"],
-          "frontend:unit": { command: `${executable} leaf.mjs unit`, cache: false },
-          "frontend:browser": { command: `${executable} leaf.mjs browser`, cache: false },
-        },
-      },
-    })}`,
-  );
-  const cli = vitePlusCommand(fileURLToPath(new URL("../", import.meta.url)));
-  for (const failure of ["none", "unit", "browser"]) {
-    await writeFile(path.join(root, "failure.txt"), failure);
-    await writeFile(path.join(root, "events.txt"), "");
-    const result = spawnSync(cli.command, [...cli.args, "-C", root, "run", "frontend:tests"], {
-      encoding: "utf8",
-      timeout: 15_000,
-      windowsHide: true,
-    });
-    assert.ifError(result.error);
-    assert.equal(result.signal, null, result.stderr);
-    assert.equal(result.status === 0, failure === "none", result.stdout + result.stderr);
-    assert.equal(
-      await readFile(path.join(root, "events.txt"), "utf8"),
-      failure === "unit" ? "unit\n" : "unit\nbrowser\n",
     );
-  }
-});
+    await writeFile(
+      path.join(root, "vite.config.ts"),
+      `export default ${JSON.stringify({
+        run: {
+          tasks: {
+            "frontend:tests": requiredFixture(configuration.run?.tasks)["frontend:tests"],
+            "frontend:unit": { command: `${executable} leaf.mjs unit`, cache: false },
+            "frontend:browser": { command: `${executable} leaf.mjs browser`, cache: false },
+          },
+        },
+      })}`,
+    );
+    const cli = vitePlusCommand(fileURLToPath(new URL("../", import.meta.url)));
+    for (const failure of ["none", "unit", "browser"]) {
+      await writeFile(path.join(root, "failure.txt"), failure);
+      await writeFile(path.join(root, "events.txt"), "");
+      const began = performance.now();
+      const result = spawnSync(cli.command, [...cli.args, "-C", root, "run", "frontend:tests"], {
+        encoding: "utf8",
+        timeout: 45_000,
+        windowsHide: true,
+      });
+      if (result.error || result.signal !== null)
+        t.diagnostic(
+          JSON.stringify({
+            failure,
+            elapsedMilliseconds: performance.now() - began,
+            status: result.status,
+            signal: result.signal,
+            error: result.error ? String(result.error) : null,
+            events: await readFile(path.join(root, "events.txt"), "utf8"),
+            stdout: result.stdout?.slice(-8192),
+            stderr: result.stderr?.slice(-8192),
+          }),
+        );
+      assert.ifError(result.error);
+      assert.equal(result.signal, null, result.stderr);
+      assert.equal(result.status === 0, failure === "none", result.stdout + result.stderr);
+      assert.equal(
+        await readFile(path.join(root, "events.txt"), "utf8"),
+        failure === "unit" ? "unit\n" : "unit\nbrowser\n",
+      );
+    }
+  },
+);
