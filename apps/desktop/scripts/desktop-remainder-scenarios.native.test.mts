@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { runTypeScriptInNewContext as runInNewContext } from "../../../scripts/test-source.mts";
 
@@ -150,60 +151,55 @@ void test("native remainder controller attributes unrelated layout reads and res
 
 void test("native remainder controller retains exact control count and rejects unattributed reads", async () => {
   const original = await controllerObservation();
-  const navigation: WebDriver[] = [];
-  class WebDriver {
-    executeScript() {
-      return { outcome: "api-present-no-controller" };
-    }
-    executeAsyncScript() {
-      assert.equal(navigation.at(-1), this, "Navigate before injecting the controller probe");
-      return profile;
-    }
-  }
-  let profile: unknown = original;
-  const run = callable(
-    runInNewContext(
-      `${await source("./desktop-controller-test.mts", "export async function controllerScenario(", "export async function observeInjectedController(")}\ncontrollerScenario;`,
-      {
-        assert,
-        isRecord,
-        path,
-        writeFile: async () => undefined,
-        WebDriver,
-        selectPrimaryNavigation: async (browser: WebDriver, label: string) => {
-          assert.ok(browser instanceof WebDriver);
-          assert.equal(label, "Library");
-          navigation.push(browser);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        new URL("./desktop-controller-test.mts", import.meta.url),
+        `
+      import path from 'node:path';
+      const {WebDriver}=await import('selenium-webdriver');
+      const navigation=[],reports=[];
+      const fileSystem=await import('node:fs/promises');
+      mock.module('node:fs/promises',{namedExports:{...Object.fromEntries(Object.entries(fileSystem).filter(([name])=>name!=='default')),writeFile:async(file,bytes,options)=>{
+        assert.ok(['controller-capability.json','controller-layout-profile.json'].includes(path.basename(file)));
+        assert.equal(path.dirname(file),'owned-output');
+        assert.deepEqual(options,{flag:'wx'});reports.push({file,value:JSON.parse(bytes)});
+      }}});
+      mock.module(new URL('./desktop-review-controls.mts',entry).href,{namedExports:{
+        selectPrimaryNavigation:async(browser,label)=>{
+          assert.ok(browser instanceof WebDriver);assert.equal(label,'Library');navigation.push(browser);
         },
-        observeGamepadCapability: () => undefined,
-        observeInjectedController: () => undefined,
-      },
-    ),
-  );
-  const context = {
-    browser: new WebDriver(),
-    output: "owned-output",
-    artifacts: [],
-    scenario: async (name: string, work: () => Promise<void>) => {
-      if (name === "native-controller-large-list") await work();
-    },
-  };
-  await run(context);
-  assert.deepEqual(navigation, [context.browser]);
-  const damaged: unknown = JSON.parse(JSON.stringify(original));
-  assert.ok(isRecord(damaged) && Array.isArray(damaged.samples));
-  const direction: unknown = damaged.samples[3];
-  assert.ok(isRecord(direction) && isRecord(direction.fixture_controls));
-  direction.fixture_controls.getBoundingClientRect = 1003;
-  direction.getBoundingClientRect = 1006;
-  profile = damaged;
-  await assert.rejects(async () => run(context), /1003 !== 1000/);
-  direction.fixture_controls.getBoundingClientRect = 1000;
-  await assert.rejects(
-    async () => run(context),
-    /Every layout read must retain its receiver attribution/,
-  );
-  assert.deepEqual(navigation, [context.browser, context.browser, context.browser]);
+      }});
+      const {controllerScenario}=await import(entry);
+      let profile=${JSON.stringify(original)};
+      const original=profile;
+      class ControlledBrowser extends WebDriver{
+        executeScript(){return {outcome:'api-present-no-controller'};}
+        executeAsyncScript(){
+          assert.equal(navigation.at(-1),this,'Navigate before injecting the controller probe');return profile;
+        }
+      }
+      const context={browser:new ControlledBrowser(),output:'owned-output',artifacts:[],
+        scenario:async(name,work)=>{if(name==='native-controller-large-list')await work();}};
+      await controllerScenario(context);
+      assert.deepEqual(navigation,[context.browser]);
+      const damaged=structuredClone(original),direction=damaged.samples[3];
+      direction.fixture_controls.getBoundingClientRect=1003;
+      direction.getBoundingClientRect=1006;profile=damaged;
+      await assert.rejects(()=>controllerScenario(context),/1003 !== 1000/);
+      direction.fixture_controls.getBoundingClientRect=1000;
+      await assert.rejects(()=>controllerScenario(context),/Every layout read must retain its receiver attribution/);
+      assert.deepEqual(navigation,[context.browser,context.browser,context.browser]);
+      assert.deepEqual(context.artifacts,Array.from({length:3},()=>[
+        path.join('owned-output','controller-capability.json'),
+        path.join('owned-output','controller-layout-profile.json')]).flat());
+      assert.equal(reports.length,6);
+      `,
+        variant === "original" ? undefined : { exportName: "controllerScenario", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
 });
 
 void test("native remainder palette walks explicit commands and restores renderer after a failed assertion", async () => {
