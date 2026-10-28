@@ -212,12 +212,24 @@ export async function defaultCoverScenario({
               const img = frame?.querySelector("img");
               if (!frame || !img) throw new Error("Rendered cover elements disappeared");
               const style = getComputedStyle(frame);
+              // CSS minification may serialize the token as hex while WebKit
+              // serializes backgroundColor as rgba. Resolve both through CSS.
+              const surface = document.createElement("span");
+              surface.hidden = true;
+              surface.style.backgroundColor = "var(--color-bg-subtle)";
+              frame.appendChild(surface);
+              let surfaceBackground: string;
+              try {
+                surfaceBackground = getComputedStyle(surface).backgroundColor;
+              } finally {
+                surface.remove();
+              }
               return {
                 width: img.naturalWidth,
                 height: img.naturalHeight,
                 background: style.backgroundColor,
                 identitySurface: frame.classList.contains("[--art-color:var(--color-bg-subtle)]"),
-                surfaceBackground: style.getPropertyValue("--color-bg-subtle").trim(),
+                surfaceBackground,
                 objectFit: getComputedStyle(img).objectFit,
                 fallbackPalette: [...frame.classList].some(
                   (name) =>
