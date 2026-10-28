@@ -311,6 +311,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)",
     "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))",
     "package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/))",
+    "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
   ];
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";

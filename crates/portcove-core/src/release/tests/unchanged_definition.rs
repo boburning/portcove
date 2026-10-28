@@ -1367,3 +1367,104 @@ async fn native_platform_cache_expiry_does_not_hide_a_new_same_os_refusal() {
     );
     server.join().unwrap();
 }
+
+#[tokio::test]
+async fn reflectionhle_shared_release_keeps_all_nine_identities_dynamic_and_refuses_unsafe_assets()
+{
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in [
+        "keen-dreams-reflectionhle",
+        "catacomb-3-d-the-descent-reflectionhle",
+        "the-catacomb-abyss-reflectionhle",
+        "the-catacomb-armageddon-reflectionhle",
+        "the-catacomb-apocalypse-reflectionhle",
+        "wolfenstein-3d-reflectionhle",
+        "spear-of-destiny-reflectionhle",
+        "super-3-d-noah-s-ark-dos-reflectionhle",
+        "bio-menace-reflectionhle",
+    ] {
+        let port = catalog.port(id).unwrap();
+        let definition = serde_json::to_vec(port).unwrap();
+        let mut current = asset("reflectionhle-win64-20260606.zip", None);
+        current["digest"] =
+            "sha256:800e33a38f2b3986f6d0fdbbc67f527c6dc6b54e5949d1e0b02394377bdca3db".into();
+        current["size"] = 7_448_866_u64.into();
+        let observed = release(
+            "release-20260606",
+            vec![
+                current.clone(),
+                asset("reflectionhle-win32-20260606.zip", Some('b')),
+                asset("reflectionhle-source-20260606.zip", Some('c')),
+            ],
+        );
+        // Future metadata is controlled synthetic evidence, not an observed release.
+        let successor = release(
+            "release-20990101",
+            vec![asset("reflectionhle-win64-20990101.zip", Some('d'))],
+        );
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[observed.clone()]),
+            metadata(),
+            releases(&[successor, observed]),
+        ]);
+        let before = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let after = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(before.version, "release-20260606");
+        assert_eq!(before.asset.name, "reflectionhle-win64-20260606.zip");
+        assert_eq!(before.asset.size, 7_448_866);
+        assert_eq!(
+            before.asset.sha256,
+            "800e33a38f2b3986f6d0fdbbc67f527c6dc6b54e5949d1e0b02394377bdca3db"
+        );
+        assert_eq!(after.version, "release-20990101");
+        assert_eq!(after.asset.name, "reflectionhle-win64-20990101.zip");
+        assert_eq!(after.asset.sha256, "d".repeat(64));
+        assert_eq!(serde_json::to_vec(port).unwrap(), definition);
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+        for mutation in ["wrong-cpu", "debug", "ambiguous", "missing-integrity"] {
+            let mut player = current.clone();
+            match mutation {
+                "wrong-cpu" => player["name"] = "reflectionhle-win-arm64-20260606.zip".into(),
+                "debug" => player["name"] = "reflectionhle-win64-debug-20260606.zip".into(),
+                "missing-integrity" => player["digest"] = serde_json::Value::Null,
+                _ => {}
+            }
+            let mut assets = vec![player];
+            if mutation == "ambiguous" {
+                assets.push(asset(
+                    "reflectionhle-win64-alternate-20260606.zip",
+                    Some('e'),
+                ));
+            }
+            let (root, _, server) = serve_http(vec![
+                metadata(),
+                releases(&[release("release-20260606", assets)]),
+            ]);
+            let error = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.code,
+                match mutation {
+                    "ambiguous" => crate::ErrorCode::Conflict,
+                    "missing-integrity" => crate::ErrorCode::Verification,
+                    _ => crate::ErrorCode::NotFound,
+                },
+                "{id}: {mutation}"
+            );
+            server.join().unwrap();
+        }
+    }
+}

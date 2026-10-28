@@ -600,7 +600,7 @@ jobs:
       - name: Test Windows helper and prerequisite controls
         run: |
           # node-suite: windows-helpers-2
-          node --test --test-concurrency=1 --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/resource-capacity.test.mts scripts/resource-command.test.mts scripts/heavy-rust-test-lock.test.mts scripts/run-rust-tests.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/native-confirmation.test.mts scripts/native-session.test.mts scripts/native-session-lock.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/desktop-verify.test.mts scripts/windows-helper-checks.test.mts
+          node --test --test-concurrency=1 --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/resource-capacity.test.mts scripts/resource-command.test.mts scripts/heavy-rust-test-lock.test.mts scripts/run-rust-tests.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/native-confirmation.test.mts scripts/native-session.test.mts scripts/native-session-lock.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/desktop-verify.test.mts scripts/windows-helper-checks.test.mts scripts/windows-historical-bootstrap.test.mts
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: |
           # node-suite: windows-helpers-3
@@ -891,7 +891,7 @@ jobs:
       - name: Test Windows qualification unit contracts
         run: |
           # node-suite: windows-storage-2
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/windows-qualification-session.test.mts scripts/qualification-preparation.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/windows-qualification-session.test.mts scripts/qualification-preparation.test.mts scripts/windows-historical-bootstrap.test.mts
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: |
           # node-suite: windows-helpers-3

@@ -3864,6 +3864,27 @@
       ]
     },
     {
+      "file": "scripts/windows-historical-bootstrap.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 1300],
+        ["windows-storage-2", 300],
+        ["release-check", 16325]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers-2",
+          "category": "platform",
+          "prerequisite": "Windows argument API and path semantics",
+          "reason": "Execute manifest and browser-profile refusal controls on Windows; inert fixtures never execute an installer or application.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suites windows-helpers-2 and windows-storage-2",
+          "cases": [
+            "historical bootstrap refuses changed identities and shared browser profiles before installation"
+          ]
+        }
+      ]
+    },
+    {
       "file": "scripts/windows-qualification-session.integration.test.mts",
       "memberships": [["mutex-owned-payload", 100]],
       "platform_skips": [

@@ -886,32 +886,48 @@ async function main() {
         closeSync(stdout);
         throw error;
       }
+      let exit: number;
       try {
-        assert.equal(
-          await runResourceCommand(
-            "analysis",
-            path.join(built.tools, "bin/node.exe"),
-            [
-              path.join(built.tools, "scripts/release-hosted-native-windows-source.bundle.mjs"),
-              `acquire-${operation}`,
-              planFile,
-            ],
-            {
-              cwd: buildParent,
-              environment: { ...environment, GITHUB_ACTIONS: "true" },
-              output: { stdout, stderr },
-              queueDeadline: deadline,
-              executionTimeoutMilliseconds: Math.floor(deadline - performance.now()),
-              supervise: (args, dependencies) =>
-                runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
-            },
-          ),
-          0,
-          `ordinary Windows ${operation} helper refused; retain evidence`,
+        exit = await runResourceCommand(
+          "analysis",
+          path.join(built.tools, "bin/node.exe"),
+          [
+            path.join(built.tools, "scripts/release-hosted-native-windows-source.bundle.mjs"),
+            `acquire-${operation}`,
+            planFile,
+          ],
+          {
+            cwd: buildParent,
+            environment: { ...environment, GITHUB_ACTIONS: "true" },
+            output: { stdout, stderr },
+            queueDeadline: deadline,
+            executionTimeoutMilliseconds: Math.floor(deadline - performance.now()),
+            supervise: (args, dependencies) =>
+              runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+          },
         );
       } finally {
         closeSync(stdout);
         closeSync(stderr);
+      }
+      if (exit !== 0) {
+        // This credential-free fixture already retains the bounded child record
+        // as a public artifact. Keep its refusal observable in the ordinary job
+        // log too, so a transport failure cannot hide the failing contract.
+        let failure = "failure record unavailable; retain original evidence";
+        try {
+          failure = JSON.stringify(
+            (
+              await readControllerToolFile(
+                path.join(directory, `windows-${operation}.stdout.json`),
+                65536,
+              )
+            ).toString("utf8"),
+          ).slice(0, 16384);
+        } catch {
+          // Preserve the actual helper exit even if its diagnostic is incomplete.
+        }
+        assert.equal(exit, 0, `ordinary Windows ${operation} helper refused: ${failure}`);
       }
       const readback: unknown = JSON.parse(
         (

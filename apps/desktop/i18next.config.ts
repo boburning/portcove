@@ -20,6 +20,7 @@ export default defineConfig({
     acceptedTags: [],
     acceptedAttributes: [],
     checkInterpolationParams: true,
+    checkTranslationPlaceholders: "error",
     checkConcatenation: "error",
   },
   types: {
