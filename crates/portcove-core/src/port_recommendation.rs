@@ -487,7 +487,8 @@ fn assess_candidate(
     let unresolved_regression_ids = regressions
         .iter()
         .filter(|regression| {
-            same_playing_scope(&regression.affected_scope, scope)
+            regression.observed_at <= input.evaluated_at
+                && same_playing_scope(&regression.affected_scope, scope)
                 && !regression_resolved(input, regression, scope, regressions)
         })
         .map(|regression| regression.id.clone())
@@ -711,7 +712,7 @@ fn regression_resolved(
 ) -> bool {
     let unambiguous = regressions
         .iter()
-        .filter(|other| other.id == regression.id)
+        .filter(|other| other.observed_at <= input.evaluated_at && other.id == regression.id)
         .count()
         == 1;
     unambiguous
@@ -781,5 +782,7 @@ fn known_unsuitable(candidate: &RecommendationCandidateAssessment) -> bool {
     })
 }
 
+#[cfg(test)]
+mod temporal_tests;
 #[cfg(test)]
 mod tests;
