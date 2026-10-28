@@ -632,7 +632,10 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
         "};",
     );
     // A moved declaration and formatting preserve the same executable binding.
-    const selected = range(seam);
+    const exportedSeam = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
+    );
+    const selected = range(exportedSeam ?? seam);
     route(
       edit(source, [{ ...selected, text: "/* declaration moved */" }]) +
         "\n" +
