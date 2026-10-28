@@ -355,6 +355,10 @@ and [switching Steam Deck to Desktop Mode](https://help.steampowered.com/en/faqs
 implementation must revalidate those current user-facing routes rather than
 inventing a shortcut API.
 
+The [manual desktop setup and repair guide](reference/manual-desktop-steam.md)
+provides separate Windows/Linux application and selected-game fields, Unicode
+examples, maintenance ownership and the native qualification boundary.
+
 Individual games target:
 
 ```text
@@ -363,10 +367,10 @@ Steam entry -> supported Portcove CLI launch -> managed game
 
 Keep Steam's fields separate; do not paste one shell command into a target field:
 
-| Entry                | Program/target                                                                | Argument array                                                           | Start in                              |
-| -------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------- |
-| Portcove application | The stable current-user AppImage path selected under #213                     | Empty                                                                    | The AppImage's parent directory       |
-| Installed game       | A stable absolute path to `portcove` from the verified standalone CLI archive | `--library`, the absolute library root, `exec`, the stable port ID, `--` | The standalone CLI's parent directory |
+| Entry                | Program/target                                                                | Argument array                                                           | Start in                               |
+| -------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------- |
+| Portcove application | The installed Windows application executable or selected Linux AppImage       | Empty                                                                    | The application executable's directory |
+| Installed game       | A stable absolute path to `portcove` from the verified standalone CLI archive | `--library`, the absolute library root, `exec`, the stable port ID, `--` | The standalone CLI's parent directory  |
 
 The argument-array row is the canonical identity. When entering it in Steam's
 Launch Options field, quote the library value as one argument if it contains
