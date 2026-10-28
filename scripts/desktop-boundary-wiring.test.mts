@@ -479,3 +479,247 @@ void test("installed update entrypoints consume their imported observation owner
     }
   }
 });
+
+void test("preparation and artwork scenarios consume their tested owner seams", async () => {
+  for (const policy of [
+    {
+      file: "desktop-preparation-test.mts",
+      owner: "preparationScenarios",
+      seam: "settleDirectPreparationRecovery",
+      awaited: true,
+    },
+    {
+      file: "desktop-artwork-correction-test.mts",
+      owner: "artworkCorrectionScenario",
+      seam: "renderCorrectedArtwork",
+      awaited: false,
+    },
+  ]) {
+    const source = stripTypeScriptTypes(
+      await readFile(new URL("../apps/desktop/scripts/" + policy.file, import.meta.url), "utf8"),
+      { mode: "strip" },
+    );
+    function route(code: string, seamName = policy.seam) {
+      const syntax = [...nodes(parseAst(code))];
+      let inventory: Record<string, unknown> | undefined;
+      function exportedFunction(name: string) {
+        const exports = syntax.filter((node) => node.type === "ExportNamedDeclaration");
+        const direct = exports.find(
+          (node) =>
+            isRecord(node.declaration) &&
+            node.declaration.type === "FunctionDeclaration" &&
+            identifier(node.declaration.id) === name,
+        );
+        if (direct) return direct.declaration as Record<string, unknown>;
+        const exported = exports
+          .flatMap((node) =>
+            Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : [],
+          )
+          .find((node) => (identifier(node.exported) ?? literal(node.exported)) === name);
+        return (
+          exported &&
+          syntax.find(
+            (node) =>
+              node.type === "FunctionDeclaration" &&
+              identifier(node.id) === identifier(exported.local),
+          )
+        );
+      }
+      const owner = exportedFunction(policy.owner);
+      const seam = exportedFunction(seamName);
+      assert.ok(seam, "Retain tested exported seam " + seamName);
+      const localSeam = identifier(seam.id);
+      assert.ok(owner, "Retain scenario owner " + policy.owner);
+      const body = [...nodes(owner.body)];
+      const calls = body.filter(
+        (node) => node.type === "CallExpression" && identifier(node.callee) === localSeam,
+      );
+      assert.equal(calls.length, 1, "Delegate to tested seam " + seamName);
+      if (policy.awaited) {
+        assert.ok(
+          body.some((node) => awaited(node) === calls[0]),
+          "Await settled recovery before reading Activity",
+        );
+        const activityReader = body.find(
+          (node) =>
+            node.type === "FunctionDeclaration" &&
+            [...nodes(node.body)].some(
+              (child) =>
+                child.type === "CallExpression" &&
+                args(child).some((argument) => literal(argument) === "get_activities"),
+            ),
+        );
+        assert.ok(activityReader, "Retain actual Activity inventory reader");
+        const block = body
+          .filter(
+            (node) =>
+              node.type === "BlockStatement" &&
+              [...nodes(node)].some((child) => awaited(child) === calls[0]),
+          )
+          .sort(
+            (left, right) =>
+              range(left).end - range(left).start - (range(right).end - range(right).start),
+          )[0];
+        assert.ok(block && Array.isArray(block.body), "Locate recovery statement block");
+        const statements = block.body.filter(isRecord);
+        const settlement = statements.findIndex((statement) =>
+          [...nodes(statement)].some((child) => awaited(child) === calls[0]),
+        );
+        const inventories = statements.flatMap((statement, index) =>
+          statement.type === "VariableDeclaration" &&
+          Array.isArray(statement.declarations) &&
+          statement.declarations.some(
+            (declaration) =>
+              isRecord(declaration) &&
+              identifier(awaited(declaration.init)?.callee) === identifier(activityReader.id),
+          )
+            ? [index]
+            : [],
+        );
+        assert.ok(
+          inventories.length > 0 && inventories.every((index) => index > settlement),
+          "Settle recovery before Activity inventory reads",
+        );
+        const firstInventory = inventories[0];
+        assert.ok(firstInventory !== undefined);
+        inventory = statements[firstInventory];
+      } else {
+        const closure = body.find(
+          (node) =>
+            node.type === "VariableDeclarator" &&
+            isRecord(node.init) &&
+            node.init.type === "ArrowFunctionExpression" &&
+            node.init.body === calls[0],
+        );
+        assert.ok(closure, "Return artwork observation to the scenario renderer");
+        const renders = body.filter(
+          (node) =>
+            node.type === "CallExpression" && identifier(node.callee) === identifier(closure.id),
+        );
+        assert.ok(
+          renders.length > 0 &&
+            renders.every((call) => body.some((node) => awaited(node) === call)),
+          "Await every artwork observation in the scenario",
+        );
+      }
+      return { syntax, owner, calls, inventory };
+    }
+    const actual = route(source);
+    const ownerAlias = "$locallyRenamedScenario";
+    const ownerExport = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === actual.owner,
+    );
+    assert.ok(ownerExport);
+    route(
+      edit(source, [
+        { ...range(actual.owner.id), text: ownerAlias },
+        { start: range(ownerExport).start, end: range(actual.owner).start, text: "" },
+      ]) +
+        "\nexport {" +
+        ownerAlias +
+        " as " +
+        policy.owner +
+        "};",
+    );
+    const seam = actual.syntax.find(
+      (node) => node.type === "FunctionDeclaration" && identifier(node.id) === policy.seam,
+    );
+    assert.ok(seam);
+    const alias = "$testedOwnerSeam";
+    const seamExport = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
+    );
+    assert.ok(seamExport);
+    const renamed = edit(source, [
+      { ...range(seam.id), text: alias },
+      { start: range(seamExport).start, end: range(seam).start, text: "" },
+      ...actual.calls.map((node) => ({ ...range(node.callee), text: alias })),
+    ]);
+    route(renamed + "\nexport {" + alias + " as " + policy.seam + "};");
+    // A moved declaration and formatting preserve the same executable binding.
+    const exportedSeam = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
+    );
+    const selected = range(exportedSeam ?? seam);
+    route(
+      edit(source, [{ ...selected, text: "/* declaration moved */" }]) +
+        "\n" +
+        source.slice(selected.start, selected.end),
+    );
+    const bypassed = edit(
+      source,
+      actual.calls.map((node) => ({ ...range(node.callee), text: "unreviewedObservation" })),
+    );
+    assert.throws(() => route(bypassed), /Delegate to tested seam/u);
+    assert.throws(
+      () => route(bypassed + "\n/* " + policy.seam + "() */"),
+      /Delegate to tested seam/u,
+    );
+    if (!policy.awaited) {
+      const body = [...nodes(actual.owner.body)];
+      const closure = body.find(
+        (node) =>
+          node.type === "VariableDeclarator" &&
+          isRecord(node.init) &&
+          node.init.type === "ArrowFunctionExpression" &&
+          node.init.body === actual.calls[0],
+      );
+      assert.ok(closure);
+      for (const wait of body.filter(
+        (node) => identifier(awaited(node)?.callee) === identifier(closure.id),
+      )) {
+        const call = awaited(wait);
+        assert.ok(call);
+        assert.throws(
+          () =>
+            route(
+              edit(source, [
+                { ...range(wait), text: source.slice(range(call).start, range(call).end) },
+              ]),
+            ),
+          /Await every artwork/u,
+        );
+      }
+    }
+    if (policy.awaited) {
+      const recoveryDeclaration = actual.syntax.find(
+        (node) =>
+          node.type === "VariableDeclaration" &&
+          [...nodes(node)].some((child) => awaited(child) === actual.calls[0]),
+      );
+      assert.ok(recoveryDeclaration);
+      const selected = range(recoveryDeclaration);
+      assert.ok(actual.inventory);
+      const endOfInventory = range(actual.inventory).end;
+      assert.ok(endOfInventory > selected.end);
+      assert.throws(
+        () =>
+          route(
+            edit(source, [
+              { ...selected, text: "" },
+              {
+                start: endOfInventory,
+                end: endOfInventory,
+                text: "\n" + source.slice(selected.start, selected.end) + "\n",
+              },
+            ]),
+          ),
+        /Settle recovery before Activity/u,
+      );
+      const wait = actual.syntax.find((node) => awaited(node) === actual.calls[0]);
+      assert.ok(wait);
+      assert.throws(
+        () =>
+          route(
+            edit(source, [
+              {
+                ...range(wait),
+                text: source.slice(range(actual.calls[0]).start, range(actual.calls[0]).end),
+              },
+            ]),
+          ),
+        /Await settled recovery/u,
+      );
+    }
+  }
+});

@@ -126,7 +126,11 @@ export function controllerToolPlatformProfile(platform: ControllerToolPlatform) 
   });
 }
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-export async function readControllerToolFile(filename: string, maximum = 128 * 1024 ** 2) {
+export async function readControllerToolFile(
+  filename: string,
+  maximum = 128 * 1024 ** 2,
+  expected?: { dev: number; ino: number; uid: number; nlink: number },
+) {
   const file = await open(
     filename,
     constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
@@ -135,6 +139,17 @@ export async function readControllerToolFile(filename: string, maximum = 128 * 1
     const before = await file.stat();
     if (!before.isFile() || before.size < 1 || before.size > maximum)
       throw new Error("tool file exceeds regular-file bound");
+    const identityFields = ["dev", "ino", "uid", "nlink"] as const;
+    if (
+      expected &&
+      identityFields.some(
+        (key) =>
+          !Number.isSafeInteger(expected[key]) ||
+          !Number.isSafeInteger(before[key]) ||
+          before[key] !== expected[key],
+      )
+    )
+      throw new Error("tool file held identity differs");
     const output = Buffer.alloc(before.size + 1);
     let length = 0;
     while (length < output.length) {
@@ -152,6 +167,13 @@ export async function readControllerToolFile(filename: string, maximum = 128 * 1
       before.ctimeMs !== after.ctimeMs
     )
       throw new Error("tool file changed during acquisition");
+    if (
+      expected &&
+      identityFields.some(
+        (key) => !Number.isSafeInteger(after[key]) || after[key] !== expected[key],
+      )
+    )
+      throw new Error("tool file held identity changed");
     return output.subarray(0, length);
   } finally {
     await file.close();

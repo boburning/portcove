@@ -1503,3 +1503,46 @@ void test("due maintenance resume delivers earlier undelivered record proposals"
     f.clean();
   }
 });
+
+void test("native exact-pin feedback does not borrow unrelated release hints or authenticity", () => {
+  const pin = {
+    version: "release-20260930",
+    url: "https://github.com/example/project/releases/download/release-20260930/Complete-Win.zip",
+    size: 42,
+    sha256: "a".repeat(64),
+  };
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "pin-fixture",
+      name: "Pinned fixture",
+      summary: "Fixture",
+      project_url: "https://github.com/example/project",
+    },
+    integration: {
+      adapter: "native-portable",
+      platforms: ["windows-x86-64"],
+      release: { provider: "direct-manifest", direct: { "windows-x86-64": pin } },
+      persistent_paths: [],
+    },
+  };
+  const before = structuredClone(record);
+  const feedback = portablePreparationFeedback(record, {
+    assets_complete: true,
+    assets: [{ name: "Wrong-Win.zip", digest: `sha256:${"b".repeat(64)}` }],
+    release: {
+      endpoint: "https://api.github.com/repos/example/project/releases/latest",
+      status: "observed",
+      body: { tag_name: "future-release", prerelease: true },
+    },
+  })!;
+  assert.equal(feedback.maintenance.observed_release_tag, null);
+  assert.equal(feedback.maintenance.observed_provider_prerelease, null);
+  assert.deepEqual(feedback.platforms[0]!.hint_matches, []);
+  assert.deepEqual(feedback.pinned_releases[0]!.declaration, pin);
+  assert.match(feedback.maintenance.next, /capability version 3/);
+  assert.match(feedback.maintenance.scope, /requires a reviewed declaration change/);
+  assert.doesNotMatch(feedback.maintenance.scope, /do not require routine definition edits/);
+  assert.match(feedback.pinned_releases[0]!.scope, /Declared pin only/);
+  assert.deepEqual(record, before);
+});

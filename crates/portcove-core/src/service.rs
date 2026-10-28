@@ -3627,6 +3627,7 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
+        crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
         self.require_portable_runtime_unchanged(previous)
             .map_err(invalid)?;
         if let Some(active) = active {
@@ -4033,6 +4034,7 @@ impl PortcoveService {
                 path: payload_root.clone(),
                 ..install.clone()
             };
+            crate::install::check_retained_runtime_paths(&staged_install, &install.path)?;
             if !installer.verify(&staged_install)?.valid {
                 return Err(PortcoveError::verification(
                     "adopted payload failed its post-copy manifest verification",

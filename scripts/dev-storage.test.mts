@@ -234,6 +234,55 @@ foreach ($call in $calls) {
   },
 );
 
+void test("CLI smoke decodes native UTF-8 paths and restores the caller encoding", (t) => {
+  const root = fixture(t);
+  const script = path.join(root, "smoke-encoding.ps1");
+  const emitter = path.join(root, "emit.cjs");
+  writeFileSync(emitter, "process.stdout.write(JSON.stringify({root:process.argv[2]}));");
+  const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+  writeFileSync(
+    script,
+    `
+$ErrorActionPreference = 'Stop'
+$ast = [Management.Automation.Language.Parser]::ParseFile(${quote(path.join(projectRoot, "scripts/smoke-test-cli-archive.ps1"))}, [ref]$null, [ref]$null)
+$helper = $ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Invoke-IsolatedCliSmoke'}, $false)
+if ($null -eq $helper) { throw 'Actual isolated smoke helper missing' }
+. ([scriptblock]::Create($helper.Extent.Text))
+$node = ${quote(process.execPath)}
+$emitter = ${quote(emitter)}
+$library = Join-Path $PSScriptRoot ('Library ' + [char]0x03A9 + ' space')
+[IO.Directory]::CreateDirectory($library) | Out-Null
+$original = [Console]::OutputEncoding
+try {
+ [Console]::OutputEncoding = [Text.Encoding]::GetEncoding(437)
+ $control = (& $node $emitter $library | Out-String).Trim() | ConvertFrom-Json
+ if ($LASTEXITCODE -ne 0 -or $control.root -ceq $library) { throw 'OEM decoding negative control did not reproduce' }
+ foreach ($fail in @($false, $true)) {
+  $observed = $null
+  try {
+   Invoke-IsolatedCliSmoke -LibraryPath $library -PreferencePath (Join-Path $PSScriptRoot 'preferences.json') -Operation {
+    $data = (& $node $emitter $library | Out-String).Trim() | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $data.root -cne $library -or -not (Test-Path -LiteralPath $data.root)) { throw 'UTF-8 path identity lost' }
+    if ($fail) { throw 'intentional-encoding-smoke-failure' }
+   }
+  } catch { $observed = $_.Exception.Message }
+  if ($fail -and $observed -cne 'intentional-encoding-smoke-failure') { throw 'Original failure lost' }
+  if (-not $fail -and $null -ne $observed) { throw $observed }
+  if ([Console]::OutputEncoding.CodePage -ne 437) { throw 'Caller encoding not restored' }
+ }
+} finally { [Console]::OutputEncoding = $original }
+'native-utf8-paths-and-encoding-restoration-passed'
+`,
+  );
+  const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 15_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /native-utf8-paths-and-encoding-restoration-passed/u);
+});
+
 void test(
   "CLI smoke restores absent empty and conflicting bindings after success and failure",
   { skip: process.platform !== "win32" },

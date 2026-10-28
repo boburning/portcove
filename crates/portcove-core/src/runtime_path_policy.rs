@@ -6,6 +6,20 @@ use crate::{
 };
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath) {
+        return if port.adapter == AdapterKind::NativePortable
+            && port.platforms == [Platform::WindowsX86_64]
+            && port.setup_executable_hints.is_empty()
+            && port.release.user_prepared.is_empty()
+            && port.release.managed_build.is_empty()
+        {
+            Ok(())
+        } else {
+            Err(PortcoveError::usage(
+                "relative Windows file access requires a Windows-only native archive without preparation helpers",
+            ))
+        };
+    }
     // The fixed CV recipe retains N64 source/persistence on its other declared
     // platforms. Only its Windows source build consumes this existing guard;
     // the recipe validator separately fixes its complete route and byte facts.
@@ -47,7 +61,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
 }
 
 pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
-    if port.release.user_prepared.is_empty() {
+    if port.adapter == AdapterKind::NativePortable {
+        4
+    } else if port.release.user_prepared.is_empty() {
         11
     } else {
         17
@@ -62,7 +78,7 @@ pub(crate) fn check_prepared_path(
 ) -> Result<()> {
     check(port, platform, path)?;
     if platform == Platform::WindowsX86_64
-        && port.windows_runtime_path_policy.is_some()
+        && port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
         && path.to_str().is_none_or(|text| text.len() >= 260)
     {
         return Err(path_error());
@@ -85,6 +101,9 @@ pub(crate) fn check_prepared_launch(
     check_executable(port, platform, executable)?;
     check_prepared_path(port, platform, executable)?;
     check_working_directory(port, platform, working_directory)?;
+    if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath) {
+        return Ok(());
+    }
     if platform == Platform::WindowsX86_64 {
         check_prepared_path(
             port,
@@ -102,7 +121,9 @@ pub(crate) fn check_working_directory(
     directory: &Path,
 ) -> Result<()> {
     check(port, platform, directory)?;
-    if platform == Platform::WindowsX86_64 && port.windows_runtime_path_policy.is_some() {
+    if platform == Platform::WindowsX86_64
+        && port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+    {
         require_narrow_windows_path(directory, "\\.snesrecomp_write_probe")
             .map_err(|_| path_error())?;
     }
@@ -117,6 +138,7 @@ pub(crate) fn check(port: &PortDefinition, platform: Platform, path: &Path) -> R
         WindowsRuntimePathPolicy::PrintableAsciiMaxPath => {
             require_narrow_windows_path(path, "").map_err(|_| path_error())
         }
+        WindowsRuntimePathPolicy::RelativeFileMaxPath => require_relative_windows_path(path),
     }
 }
 
@@ -137,12 +159,55 @@ pub(crate) fn check_executable(
     executable: &Path,
 ) -> Result<()> {
     check(port, platform, executable)?;
-    if platform == Platform::WindowsX86_64 && port.windows_runtime_path_policy.is_some() {
+    if platform == Platform::WindowsX86_64
+        && port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+    {
         let parent = executable.parent().ok_or_else(path_error)?;
         require_narrow_windows_path(parent, "\\.snesrecomp_write_probe")
             .map_err(|_| path_error())?;
     }
     Ok(())
+}
+
+/// Check the final coordinates of every authenticated package member, rather
+/// than assuming that a short executable also implies short data filenames.
+pub(crate) fn check_package_paths<'a>(
+    port: &PortDefinition,
+    platform: Platform,
+    root: &Path,
+    members: impl IntoIterator<Item = &'a str>,
+) -> Result<()> {
+    if platform == Platform::WindowsX86_64
+        && port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath)
+    {
+        for member in members {
+            require_relative_windows_path(&root.join(member))?;
+        }
+    }
+    Ok(())
+}
+
+fn require_relative_windows_path(path: &Path) -> Result<()> {
+    let text = path.to_str().ok_or_else(relative_path_error)?;
+    let ordinary = if let Some(unc) = text.strip_prefix("\\\\?\\UNC\\") {
+        format!("\\\\{unc}")
+    } else {
+        text.strip_prefix("\\\\?\\").unwrap_or(text).to_owned()
+    };
+    // The supported envelope includes the runtime's relative `.\` spelling;
+    // 260 includes the terminating NUL. Count Windows UTF-16 units, not UTF-8.
+    if ordinary.is_empty() || ordinary.encode_utf16().count().saturating_add(2) >= 260 {
+        return Err(relative_path_error());
+    }
+    Ok(())
+}
+
+fn relative_path_error() -> PortcoveError {
+    PortcoveError::unsupported(
+        "This game needs a shorter Windows installation folder for its packaged files. Choose a shorter output folder in setup options, then review the installation again.",
+    )
+    .detail("runtime_path_requirement", "relative-file-max-path")
+    .with_known_cause(crate::failure::KnownFailureCause::RuntimePathRequirement)
 }
 
 fn path_error() -> PortcoveError {

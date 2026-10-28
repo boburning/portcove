@@ -147,6 +147,7 @@ pub(crate) fn recover_published_install(
                     ));
                 }
                 require_install_publication_authority(service, operation, &staged)?;
+                crate::install::check_retained_runtime_paths(&staged, &install.path)?;
                 fs::create_dir_all(
                     install
                         .path
@@ -155,7 +156,9 @@ pub(crate) fn recover_published_install(
                 )?;
                 crate::durability::rename_noreplace(&payload, &install.path)?;
             }
-            (false, true) => {}
+            (false, true) => {
+                crate::install::check_retained_runtime_paths(&install, &install.path)?;
+            }
             (true, true) => {
                 return Err(PortcoveError::conflict(
                     "both prepared and published payloads exist; refusing automatic repair",
@@ -177,6 +180,7 @@ pub(crate) fn recover_published_install(
         }
     }
     if operation.phase == LifecyclePhase::PayloadPublished {
+        crate::install::check_retained_runtime_paths(&install, &install.path)?;
         if !Installer::new(service.library.clone())?
             .verify(&install)?
             .valid

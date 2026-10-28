@@ -1,0 +1,532 @@
+{
+  "kind": "dated-existing-installed-receipt-inspection",
+  "observed_date": "2026-10-28",
+  "source_inspected": "cee99ee2506f73958b81eb5fe5f36b46e2fcf4ed",
+  "authority": "none; issues and live Project retain acceptance and planning authority",
+  "new_native_execution": false,
+  "windows": {
+    "run": 39869759804,
+    "attempt": 1,
+    "artifact": 12469746656,
+    "archive_bytes": 7452,
+    "archive_sha256": "8ba3c96434d6b3ad05b5ff691cab8d23da1fa34651f72e102fcd9f217fdb35b1",
+    "report_bytes": 29165,
+    "report_sha256": "b74c0027efee798b10a7d937f8fc887d991623aa09e3bf522570dac0aa856a9a",
+    "observation_identity": {
+      "schema_version": 1,
+      "harness": "scripts/test-windows-installer.ps1",
+      "harness_sha256": "10044112f8f58849b42b99d0d77e6b43cf4021fc52d503e70d0f793752c9d342",
+      "source_commit": "d21b70316e5add275b5468e54307b536f7126045",
+      "source_tree": "1c8c9bf215b74fb7293e170852ec39e7d2bc0edb",
+      "started_at": "2026-10-23T00:30:02.1594229Z",
+      "host_os": "Microsoft Windows 10.0.20348",
+      "host_architecture": "X64",
+      "powershell": "7.6.6",
+      "authority": "none; local native observation requires independently authenticated handoff"
+    },
+    "token": {
+      "process_integrity_sid": "S-1-16-12288",
+      "administrator_token": true,
+      "os_version": "Microsoft Windows NT 10.0.20348.0",
+      "os_architecture": "X64"
+    },
+    "package_inputs": {
+      "installer_sha256": "8e7e3e59bbe468cfd9439b09be2dbd135086fd9fe58da34637cbd079f99f34f2",
+      "predecessor_installer_sha256": "645056bcac373e68f902c0f44686f22742ff4285781aa787313d0973ce67c4c7"
+    },
+    "staged_payload": {
+      "version": "1.0.0",
+      "sha256": "8e7e3e59bbe468cfd9439b09be2dbd135086fd9fe58da34637cbd079f99f34f2",
+      "bytes": 12075649,
+      "predecessor_preserved": true,
+      "renderer_evidence": "renderer-qualification/evidence/renderer-update-evidence.json"
+    },
+    "authenticode": "NotSigned",
+    "candidate_executable_sha256": "17a2a0b0502bf2c98adbd2422696d131a8fbd0d38d57fae0fe337b6e68b5e056",
+    "signature_and_feed_bytes": "not retained in this downloaded artifact; no independent re-verification claimed",
+    "preservation_before": {
+      "library": [
+        {
+          "path": "artwork-cache/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "artwork-cache/492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050.jpg",
+          "type": "file",
+          "bytes": 5603,
+          "sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050"
+        },
+        {
+          "path": "artwork-cache/683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0.jpg",
+          "type": "file",
+          "bytes": 5038,
+          "sha256": "683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0"
+        },
+        {
+          "path": "artwork-cache/d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365.jpg",
+          "type": "file",
+          "bytes": 7080,
+          "sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365"
+        },
+        {
+          "path": "backups/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "downloads/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "locks/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "locks/artwork.lock",
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "locks/library.lock",
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "locks/migration.lock",
+          "type": "file",
+          "bytes": 46,
+          "sha256": "676648c83a865e1b2fe9d9bc4a5459d04fd2e914b131487a9d7b04e54ef0cf39"
+        },
+        {
+          "path": "locks/migration.owner.json",
+          "type": "file",
+          "bytes": 54,
+          "sha256": "a2850699e90f44c5267fffc2ef119343b0a6b792bc465d5e3846e26693b5abb5"
+        },
+        {
+          "path": "logs/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "portcove.sqlite3",
+          "type": "file",
+          "bytes": 327680,
+          "sha256": "cd8edb0c4b4cef4db0a756216b580545b32f1cf57c3b7eb9306f56813a5d8107"
+        },
+        {
+          "path": "portcove.sqlite3-shm",
+          "type": "file",
+          "bytes": 32768,
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+        },
+        {
+          "path": "portcove.sqlite3-wal",
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "recovery/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "source-inbox/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "staging/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "toolchains/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "user/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "user/installer-qualification/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "user/installer-qualification/preserve.txt",
+          "type": "file",
+          "bytes": 32,
+          "sha256": "c52a43496489d8ee6ffaeca5302feb8b389958b387c37082fb80306759971cb1"
+        },
+        {
+          "path": "versions/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        }
+      ],
+      "preferences": {
+        "present": true,
+        "bytes": 91,
+        "sha256": "b860478f3a2db77cbd98a6e42f876aa0d96e810120eb81dbfcfb6bc0a4ad1251"
+      }
+    },
+    "preservation_after": {
+      "library": [
+        {
+          "path": "artwork-cache/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "artwork-cache/492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050.jpg",
+          "type": "file",
+          "bytes": 5603,
+          "sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050"
+        },
+        {
+          "path": "artwork-cache/683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0.jpg",
+          "type": "file",
+          "bytes": 5038,
+          "sha256": "683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0"
+        },
+        {
+          "path": "artwork-cache/d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365.jpg",
+          "type": "file",
+          "bytes": 7080,
+          "sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365"
+        },
+        {
+          "path": "backups/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "downloads/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "locks/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "locks/artwork.lock",
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "locks/library.lock",
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "locks/migration.lock",
+          "type": "file",
+          "bytes": 46,
+          "sha256": "676648c83a865e1b2fe9d9bc4a5459d04fd2e914b131487a9d7b04e54ef0cf39"
+        },
+        {
+          "path": "locks/migration.owner.json",
+          "type": "file",
+          "bytes": 54,
+          "sha256": "a2850699e90f44c5267fffc2ef119343b0a6b792bc465d5e3846e26693b5abb5"
+        },
+        {
+          "path": "logs/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "portcove.sqlite3",
+          "type": "file",
+          "bytes": 327680,
+          "sha256": "cd8edb0c4b4cef4db0a756216b580545b32f1cf57c3b7eb9306f56813a5d8107"
+        },
+        {
+          "path": "portcove.sqlite3-shm",
+          "type": "file",
+          "bytes": 32768,
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+        },
+        {
+          "path": "portcove.sqlite3-wal",
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "recovery/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "source-inbox/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "staging/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "toolchains/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "user/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "user/installer-qualification/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        },
+        {
+          "path": "user/installer-qualification/preserve.txt",
+          "type": "file",
+          "bytes": 32,
+          "sha256": "c52a43496489d8ee6ffaeca5302feb8b389958b387c37082fb80306759971cb1"
+        },
+        {
+          "path": "versions/",
+          "type": "directory",
+          "bytes": null,
+          "sha256": null
+        }
+      ],
+      "preferences": {
+        "present": true,
+        "bytes": 91,
+        "sha256": "b860478f3a2db77cbd98a6e42f876aa0d96e810120eb81dbfcfb6bc0a4ad1251"
+      }
+    },
+    "process_outcomes": [
+      {
+        "role": "predecessor_installer",
+        "executable_sha256": "645056bcac373e68f902c0f44686f22742ff4285781aa787313d0973ce67c4c7",
+        "status": "exit_observed",
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "predecessor_smoke",
+        "executable_sha256": "6c9f0ea1e77945d1669dcea8730b22193308c1dd455f19e3d998afe78ec8fd6f",
+        "status": "exit_observed",
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "installed_update_truncated_stage",
+        "executable_sha256": "6c9f0ea1e77945d1669dcea8730b22193308c1dd455f19e3d998afe78ec8fd6f",
+        "status": "exit_observed",
+        "exit_code": 1,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "installed_update_tampered_stage",
+        "executable_sha256": "6c9f0ea1e77945d1669dcea8730b22193308c1dd455f19e3d998afe78ec8fd6f",
+        "status": "exit_observed",
+        "exit_code": 1,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "installed_update_recovery_status",
+        "executable_sha256": "6c9f0ea1e77945d1669dcea8730b22193308c1dd455f19e3d998afe78ec8fd6f",
+        "status": "exit_observed",
+        "exit_code": 1,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "installed_update_recovery_repair",
+        "executable_sha256": "6c9f0ea1e77945d1669dcea8730b22193308c1dd455f19e3d998afe78ec8fd6f",
+        "status": "exit_observed",
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "installed_update_recovery_verified",
+        "executable_sha256": "6c9f0ea1e77945d1669dcea8730b22193308c1dd455f19e3d998afe78ec8fd6f",
+        "status": "exit_observed",
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "candidate_smoke",
+        "executable_sha256": "17a2a0b0502bf2c98adbd2422696d131a8fbd0d38d57fae0fe337b6e68b5e056",
+        "status": "exit_observed",
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "candidate_uninstaller",
+        "executable_sha256": "4dc6e4b7e747be321f3b953a34288cc050f40586f340371b42867ed6b2365119",
+        "status": "exit_observed",
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle"
+      },
+      {
+        "role": "candidate_uninstaller_child",
+        "executable_sha256": "4dc6e4b7e747be321f3b953a34288cc050f40586f340371b42867ed6b2365119",
+        "status": "exit_observed",
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle"
+      }
+    ]
+  },
+  "linux": {
+    "run": 39857300449,
+    "attempt": 1,
+    "artifact": 12465479029,
+    "archive_bytes": 135422,
+    "archive_sha256": "19071ab19fd5f9f1ac918318cddbb59d08d5177a505fd19247a258e291d7b77b",
+    "report_bytes": 8588,
+    "report_sha256": "769219437062430630c71593be848203d26869f8c5a5c8d8430a7ef645b2ef72",
+    "observation_identity": {
+      "schema_version": 1,
+      "harness": "scripts/test-linux-appimage-update.ps1",
+      "harness_sha256": "94c17fabadbe21c360d5fab26fd0ebb4e95c49ab0f3acc9bb91ac07fb4a0bcaa",
+      "source_commit": "2c595e2ee6711fef7893bbfa6515c8dbd979f68c",
+      "source_tree": "d31ec6fa5032b11a773341b405eb1798128bfcb4",
+      "started_at": "2026-10-22T23:11:27.6688400Z",
+      "host_os": "Ubuntu 24.04.5 LTS",
+      "host_architecture": "X64",
+      "powershell": "7.6.6",
+      "authority": "none; local native observation requires independently authenticated handoff"
+    },
+    "predecessor": {
+      "version": "1.0.0-rc.2",
+      "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/qualified-1.0.0-rc.2-bundles/appimage/Portcove_1.0.0-rc.2_amd64.AppImage",
+      "sha256": "dd33c424f7238aea36d8cc7878035319d167022a32868e6b00cd81a1da666c49"
+    },
+    "candidate": {
+      "version": "1.0.0",
+      "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/1.0.0-linux-x86_64/Portcove_1.0.0_amd64.AppImage",
+      "sha256": "3c38d83113d0c6321e398d5b542be51d916407c13cfc6717ca84b1d4b779bad2"
+    },
+    "staged_payload": {
+      "version": "1.0.0",
+      "sha256": "3c38d83113d0c6321e398d5b542be51d916407c13cfc6717ca84b1d4b779bad2",
+      "bytes": 95279608,
+      "staged_payload_sha256": "3c38d83113d0c6321e398d5b542be51d916407c13cfc6717ca84b1d4b779bad2",
+      "stable_preserved": true
+    },
+    "rootless_lifecycle": {
+      "package_format": "appimage",
+      "install_scope": "current-user-direct-file",
+      "stable_path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/Applications/Portcove/Portcove.AppImage",
+      "current_user_owned": true,
+      "desktop_entry": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/.local/share/applications/com.boburning.portcove.desktop",
+      "desktop_entry_sha256": "51E11D1E40E9114E1E401F537240FC43512BFFC7F5FBD436287BDBCA77B4CAA6",
+      "preserved_user_paths": {
+        "library": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/user/application-update-qualification/preserve.txt",
+        "game_files": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/games/rootless-qualification/game.bin",
+        "saves": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/saves/rootless-qualification/save.bin",
+        "backups": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/backups/rootless-qualification/backup.bin",
+        "logs": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/logs/rootless-qualification.log"
+      },
+      "preserved_user_sha256": {
+        "library": "B7659B33C66AACAE84208E50276A7A7595E534960D0D037D253CA0327E9C66CF",
+        "game_files": "3B908F6159337BE19F75A3F5EF67B279F5C2F9E905D1ECD2C367BE656BE96FAD",
+        "saves": "829506D30B4609F2747D6EAD599DD6C89774403091A7FCE335CF0026C963DAF7",
+        "backups": "5F11145E2AB31382F31A94693DEF8314A47C91EF88AAE05DE4EA72B5775DD036",
+        "logs": "532D2320FC9E841B2C1621A575ECEF2AE5AA1CEEF45FEB1F18CEA470777C1644"
+      },
+      "update_desktop_entry_preserved": true,
+      "update_user_paths_preserved": true,
+      "uninstall_stable_removed": true,
+      "uninstall_desktop_entry_removed": true,
+      "uninstall_user_paths_preserved": true
+    },
+    "caller_uid_gid": "not recorded in this historical report",
+    "payload_signature_failures": {
+      "wrong_disposable_public_key_sha256": "0b14daf6a2fd40a131a4251f0baf6063de5ad5ca202fe7411d2755db5dee9c34",
+      "missing": {
+        "exit_code": 1,
+        "rejected": true,
+        "staging_authority_absent": true,
+        "stable_preserved": true,
+        "data_preserved": true,
+        "recovery_apply_revision": 2,
+        "recovery_candidate_sha256": "3c38d83113d0c6321e398d5b542be51d916407c13cfc6717ca84b1d4b779bad2",
+        "recovery_role_versions": {
+          "timestamp": 2,
+          "snapshot": 2,
+          "targets": 2
+        },
+        "recovered": true,
+        "fixture_cleaned": true
+      },
+      "wrong_key": {
+        "exit_code": 1,
+        "rejected": true,
+        "staging_authority_absent": true,
+        "stable_preserved": true,
+        "data_preserved": true,
+        "recovery_apply_revision": 2,
+        "recovery_candidate_sha256": "3c38d83113d0c6321e398d5b542be51d916407c13cfc6717ca84b1d4b779bad2",
+        "recovery_role_versions": {
+          "timestamp": 2,
+          "snapshot": 2,
+          "targets": 2
+        },
+        "recovered": true,
+        "fixture_cleaned": true
+      }
+    },
+    "private_signing_inputs_absent": {
+      "payload_private_key": true,
+      "tuf_private_root": true,
+      "signing_private_key_environment": true,
+      "signing_password_environment": true
+    },
+    "production_signing": false,
+    "signature_and_feed_bytes": "not retained in this downloaded artifact; role recovery versions are observations, not metadata identities",
+    "renderer_report_sha256": "dc9b98f2239e30e32791bace56ee6bdab813649b25f75b758938e287160baf5b"
+  },
+  "local_preflight": {
+    "build": "26300",
+    "os": "Microsoft Windows 11 Home",
+    "registrations": [],
+    "portcove_processes": [],
+    "administrator_token": false
+  },
+  "local_linux_capacity_fixture": "sudo -n true refused: interactive authentication is required; no mount or privilege change attempted"
+}

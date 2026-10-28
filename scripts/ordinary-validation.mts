@@ -337,6 +337,7 @@ for (const [file, tests] of [
       "scripts/desktop-scenarios.test.mts",
       "scripts/desktop-real-runtime.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
+      "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
     ],
   ],
   [
@@ -1207,6 +1208,10 @@ for (const [file, tests] of [
     file,
     ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
   ]),
+  [
+    "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    ["scripts/desktop-scenarios.test.mts"],
+  ],
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
   [
     "scripts/fixtures/disposable-directory.mts",
@@ -1569,7 +1574,13 @@ for (const [file, tests] of [
       "scripts/native-session-lock.test.mts",
     ],
   ],
-  ["apps/desktop/scripts/desktop-preparation-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  ...[
+    "apps/desktop/scripts/desktop-preparation-test.mts",
+    "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ]),
   [
     "apps/desktop/scripts/desktop-scenario-outcomes.mts",
     ["scripts/desktop-scenarios.test.mts", "scripts/native-helper-dependencies.test.mts"],
@@ -1650,6 +1661,8 @@ for (const [file, tests] of [
       "scripts/dev-doctor.test.mts",
     ],
   ],
+  [".config/recovery-tools/aqua.yaml", ["scripts/recovery-tools.test.mts"]],
+  [".config/recovery-tools/aqua-checksums.json", ["scripts/recovery-tools.test.mts"]],
   [
     "scripts/roadmap-issue.mts",
     [
