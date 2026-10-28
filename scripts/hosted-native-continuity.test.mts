@@ -987,6 +987,33 @@ void test("connected diagnostic workflow stays source-held and writes exactly th
   };
   assert.equal(workflow.on.workflow_dispatch.inputs.connected_private_diagnostic?.default, false);
   const steps = workflow.jobs["installed-prerequisite"]!.steps;
+  const publicDiagnostics = steps.find(
+    (step) => step.name === "Retain only selected public diagnostics",
+  );
+  assert.ok(publicDiagnostics && isRecord(publicDiagnostics.with));
+  const publicPaths = String(publicDiagnostics.with.path).trim().split("\n");
+  assert.deepEqual(
+    publicPaths.filter((name) => name.includes("derivation")),
+    ["work/updater-rehearsal/windows-fixture-derivation.json"],
+  );
+  assert.ok(!publicPaths.some((name) => /(?:^|\/)(?:private|owner)(?:\/|$)/u.test(name)));
+  const producer = await readFile(
+    new URL("./rehearse-updater-artifacts.ps1", import.meta.url),
+    "utf8",
+  );
+  const publication = producer.slice(producer.lastIndexOf("if($captureFixtureDerivation){"));
+  assert.match(publication, /Private rehearsal input remains before derivation publication/u);
+  assert.match(
+    publication,
+    /if\(\$bytes.Length -gt 65536\)\{throw 'Fixture derivation report exceeds bound'\}/u,
+  );
+  assert.match(publication, /'windows-fixture-derivation.json'\),\[IO.FileMode\]::CreateNew/u);
+  const record = publication.split("\n").find((line) => line.includes("$derivation=[ordered]"));
+  assert.ok(record);
+  assert.doesNotMatch(
+    record,
+    /\$(?:privateKey|password|credential)\b|\$env:(?!GITHUB_(?:RUN_ID|RUN_ATTEMPT|WORKFLOW_REF)\b)/iu,
+  );
   const preflight = steps.findIndex((step) => step.id === "diagnostic_preflight"),
     native = steps.findIndex((step) => step.name === "Provision pinned Windows native driver");
   assert.ok(preflight > 0 && preflight < native);

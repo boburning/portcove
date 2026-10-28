@@ -476,6 +476,7 @@ jobs:
           path: |
             work/hosted-continuity-evidence/*.json
             work/updater-rehearsal/rehearsal-result.json
+            work/updater-rehearsal/windows-fixture-derivation.json
             work/updater-rehearsal/windows-installed-update.json
             work/updater-rehearsal/windows-installed-update-summary.json
             work/updater-rehearsal/windows-renderer-evidence/*.json
