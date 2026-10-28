@@ -188,8 +188,8 @@ try {
       revision: result.revision,
       status: result.status,
       applicationExit: exit,
-      error: result.error?.slice(0, 2048),
-      cleanupError: result.cleanupError?.slice(0, 2048),
+      hasError: result.error !== undefined,
+      hasCleanupError: result.cleanupError !== undefined,
     })}`,
   );
 }

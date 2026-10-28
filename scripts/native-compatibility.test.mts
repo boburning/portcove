@@ -98,13 +98,22 @@ void test("native compatibility retains exact primary and cleanup failures while
         evidence !== null &&
           typeof evidence === "object" &&
           "status" in evidence &&
+          "artifact" in evidence &&
+          "revision" in evidence &&
           "applicationExit" in evidence,
       );
       assert.equal(evidence.status, "failed");
       const prefix = "Native compatibility result: ";
       const records = logs.filter((value) => value.startsWith(prefix));
       assert.equal(records.length, 1);
-      assert.deepEqual(JSON.parse(records[0]!.slice(prefix.length)), evidence);
+      assert.deepEqual(JSON.parse(records[0]!.slice(prefix.length)), {
+        artifact: evidence.artifact,
+        revision: evidence.revision,
+        status: evidence.status,
+        applicationExit: evidence.applicationExit,
+        hasError: Object.hasOwn(evidence, "error"),
+        hasCleanupError: Object.hasOwn(evidence, "cleanupError"),
+      });
       assert.equal(
         JSON.stringify(evidence.applicationExit),
         JSON.stringify({ code: 0, signal: null }),
