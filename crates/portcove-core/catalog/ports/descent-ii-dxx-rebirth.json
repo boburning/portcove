@@ -6,7 +6,6 @@
     "summary": "Set up Descent II through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Descent II",
     "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
     "issue_number": 2653,
@@ -44,5 +43,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "dxx-rebirth/dxx-rebirth",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your own retail descent2.hog, descent2.ham, descent2.s22 and all six alien1/alien2/fire/groupa/ice/water PIG files. Optional movies stay optional. The separate documented PC/Mac Descent II demo uses its own complete demo set; Descent I shareware does not supply this game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d2x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable. Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+    }
   }
 }
