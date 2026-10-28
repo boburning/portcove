@@ -1,3 +1,4 @@
+import type { PortIdentity } from "./port-identity";
 import {
   createContext,
   useCallback,
@@ -116,4 +117,17 @@ export function useCatalogMedia(
     if (media && visible) cache?.loadMedia(portId, media, () => interest.current === media, true);
   };
   return { display, retry };
+}
+
+/** Shared hero selection preserves local artwork precedence and catalog media attribution. */
+export function useHeaderArtwork(port: PortIdentity & { id: string }, visible: boolean) {
+  const { display: local } = useArtwork(port.id, "detail", visible);
+  const header = port.presentation?.media?.find((asset) => asset.role === "header");
+  const allowCatalog = Boolean(local.state && !local.state.choice.asset_sha256);
+  const { display: catalog } = useCatalogMedia(port.id, header, visible && allowCatalog);
+  const usingCatalog = Boolean(allowCatalog && catalog.image);
+  return {
+    display: usingCatalog ? catalog : local,
+    catalogMedia: usingCatalog ? catalog.media : undefined,
+  };
 }

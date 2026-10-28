@@ -60,7 +60,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "https://github.com/Inkub0/dude",
+      "repository": "Inkub0/dude",
       "user_prepared": {
         "windows-x86-64": {
           "trust": "user-selected",

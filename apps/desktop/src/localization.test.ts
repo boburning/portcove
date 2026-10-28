@@ -24,6 +24,13 @@ describe("localization foundation", () => {
     const instance = initializeLocalization(["en-US"]);
     expect(instance.t("language.sample", { count: 2 })).toBe("2 localized messages are ready.");
     const runtimeTranslate = instance.t as unknown as (key: string) => string;
-    expect(runtimeTranslate("unknown.key")).toBe("Translation unavailable");
+    for (const key of [
+      "unknown.key",
+      "language.constructor",
+      "language.toString",
+      "language.__proto__.constructor",
+    ]) {
+      expect(runtimeTranslate(key)).toBe("Translation unavailable");
+    }
   });
 });

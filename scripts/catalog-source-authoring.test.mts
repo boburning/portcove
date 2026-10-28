@@ -10,6 +10,7 @@ import {
   parseCatalogSource,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 
 import {
   requiredFixture,
@@ -19,6 +20,13 @@ import {
   record as fixtureRecord,
   records as fixtureRecords,
 } from "./fixtures/catalog-generator-fixtures.mts";
+
+void test("current authored operational routes remain valid read-only health inventory inputs", () => {
+  // Core-readable prepared routes still need canonical explicit repository
+  // names. Validate the whole authored inventory without fetching or waiting
+  // for the slower command/report fixture; this does not assess live health.
+  assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
+});
 
 void test("shared upstream family facts stay consistent while game and permission facts remain independent", () => {
   const source = readCatalogSource(catalogRoot);

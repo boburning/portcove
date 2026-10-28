@@ -87,7 +87,7 @@ it("gives every disposable detail route five real tabs and binds external Play t
     "Registered external installation",
   );
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
-  await page.getByRole("button", { name: "Review prepared update", exact: true }).click();
+  await page.getByRole("button", { name: "Update prepared", exact: true }).click();
   await expect
     .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
     .toHaveFocus();

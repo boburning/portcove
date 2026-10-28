@@ -215,6 +215,61 @@ function requiredFixture<T>(value: T | null | undefined): T {
     ]);
   });
 
+  void test("prepared repository URLs reuse upstream validation and preserve acquisition metadata roles", async () => {
+    for (const repository of [
+      "https://github.com/OWNER/shared",
+      "https://github.com/owner/shared.git/",
+      "HTTPS://GITHUB.COM/owner/shared",
+    ]) {
+      const report = await collect(
+        catalog(port("managed", "owner/shared"), {
+          ...port("prepared", repository, "user-prepared"),
+          project_url: "https://github.com/owner/shared",
+        }),
+      );
+      assert.equal(report.outcome, "complete");
+      assert.equal(report.coverage.repositories, 1);
+      const observed = requiredFixture(report.observations[0]);
+      assert.equal(observed.repository.toLowerCase(), "owner/shared");
+      assert.deepEqual(observed.port_ids, ["managed", "prepared"]);
+      assert.deepEqual(observed.acquisition_port_ids, ["managed", "prepared"]);
+      assert.deepEqual(observed.original_upstream_port_ids, ["prepared"]);
+      assert.deepEqual(observed.release_providers, ["github", "user-prepared"]);
+      assert.equal(observed.artifact_identities, undefined);
+    }
+    const requests: string[] = [];
+    const report = await collect(
+      catalog({ ...port("prepared", "https://gitlab.com/group/sub/project", "user-prepared") }),
+      async (url) => {
+        requests.push(url);
+        return response({ id: 19, path_with_namespace: "group/sub/project", archived: false });
+      },
+    );
+    assert.equal(report.outcome, "complete");
+    assert.deepEqual(requests, ["https://gitlab.com/api/v4/projects/group%2Fsub%2Fproject"]);
+    assert.equal(requiredFixture(report.observations[0]).provider, "gitlab");
+    assert.equal(requiredFixture(report.observations[0]).repository, "group/sub/project");
+    for (const repository of [
+      "https://github.com/owner/project/extra",
+      "https://github.com/owner/project?token=x",
+      "https://name:secret@github.com/owner/project",
+      "https://github.com:444/owner/project",
+      "https://github.com/owner/project#ref",
+      "http://github.com/owner/project",
+      "https://example.com/owner/project",
+    ]) {
+      await assert.rejects(
+        collect(catalog(port("prepared", repository, "user-prepared"))),
+        /Unsupported (?:original upstream|hosted catalog)/,
+      );
+    }
+    for (const provider of ["github", "gitlab"])
+      await assert.rejects(
+        collect(catalog(port("managed", "https://github.com/owner/project", provider))),
+        /Unsupported hosted catalog repository/,
+      );
+  });
+
   void test("project-only prepared runtimes observe their upstream without claiming artifact delivery", async () => {
     const reviewed = requiredFixture(
       reviewedHealthAccounting.pins.find(

@@ -68,7 +68,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "https://github.com/MaurycyLiebner/eZeus",
+      "repository": "MaurycyLiebner/eZeus",
       "user_prepared": {
         "windows-x86-64": {
           "trust": "user-selected",

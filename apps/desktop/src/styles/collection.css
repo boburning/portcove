@@ -3,6 +3,9 @@
     align-items: center;
     padding-block-start: 4px;
   }
+  .browse-toolbar > .filter-row {
+    display: contents;
+  }
   .library-query-tools > .filter-row {
     flex: 0 1 auto;
   }
@@ -68,14 +71,49 @@
   }
 
   .continue-card {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    min-block-size: 8rem;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-block-size: 7rem;
+  }
+  .continue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
   .continue-art {
-    inline-size: 4rem;
-    aspect-ratio: 2 / 3;
-    border-radius: var(--radius-md);
-    overflow: hidden;
+    position: absolute;
+    z-index: -2;
+    opacity: 0.12;
+    inset: 0;
+    border: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .continue-art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .port-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: var(--space-4);
+  }
+  .port-comparison-project {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 7;
+    align-content: start;
+    gap: var(--space-2);
+  }
+  .port-comparison-project h4 {
+    margin-block: var(--space-2) 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
   }
   .discover-grid {
     align-items: stretch;
@@ -95,6 +133,7 @@
   }
   .discover-game-identity {
     align-content: start;
+    grid-template-columns: minmax(0, 1fr);
   }
   .discover-game-personal-actions {
     min-block-size: var(--control-height-sm);
@@ -103,11 +142,88 @@
     margin-block-start: var(--space-3);
   }
 
+  .discover-rows {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .discover-rows .discover-game {
+    width: 100%;
+    justify-self: stretch;
+    grid-row: auto;
+    grid-template-rows: auto auto;
+    grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.6fr) auto;
+    padding-block: var(--space-3);
+    border-block-end: 1px solid var(--color-border);
+    column-gap: var(--space-4);
+  }
+  .discover-rows .discover-game-identity {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+  }
+  .discover-rows .collection-art {
+    grid-row: span 2;
+  }
+  .discover-rows .collection-title,
+  .discover-rows .collection-project {
+    display: block;
+    min-block-size: 0;
+    margin-block: 0;
+  }
+  .discover-rows .discover-game-metadata {
+    grid-column: 1;
+    padding-inline-start: calc(2.5rem + var(--space-3));
+  }
+  .discover-rows .discover-game-observation {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .discover-rows .discover-game-actions {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+  @container library-query (max-width: 46em) {
+    .discover-rows .discover-game {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto auto;
+    }
+    .discover-rows .discover-game-observation {
+      grid-column: 1;
+      grid-row: 3;
+      padding-inline-start: calc(2.5rem + var(--space-3));
+    }
+    .discover-rows .discover-game-actions {
+      grid-column: 2;
+      grid-row: 1 / span 3;
+    }
+  }
+  @container library-query (max-width: 28em) {
+    .discover-rows .discover-game {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .discover-rows .discover-game-actions {
+      grid-column: 1;
+      grid-row: 4;
+      padding-inline-start: calc(2.5rem + var(--space-3));
+    }
+  }
+  @media (forced-colors: active) {
+    .continue-art {
+      display: none;
+    }
+  }
   @container library-query (max-width: 40em) {
+    .continue-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      max-inline-size: 9rem;
+    }
+  }
+  @container library-query (max-width: 14em) {
     .continue-card {
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
     }
     .continue-actions {
+      display: flex;
+      max-inline-size: none;
       grid-column: 1 / -1;
     }
   }
@@ -245,6 +361,21 @@
     }
   }
   @container library-query (max-width: 32rem) {
+    .browse-toolbar .collection-readiness {
+      flex-basis: 100%;
+    }
+    .browse-toolbar .browse-sort {
+      flex: 1 1 7rem;
+      width: auto;
+    }
+    .browse-sort [data-slot="select-trigger"] > span[aria-hidden="true"] {
+      display: none;
+    }
+    .continue-card {
+      gap: var(--space-2);
+      padding: var(--space-3);
+      min-block-size: 0;
+    }
     .library-query-tools .filter-row {
       flex-basis: 100%;
       min-width: 0;
@@ -276,7 +407,7 @@
     }
   }
   @container library-query (max-width: 46em) {
-    .discover-grid {
+    .discover-grid.discover-covers {
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
     }
   }

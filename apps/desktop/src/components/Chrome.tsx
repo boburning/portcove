@@ -1,4 +1,3 @@
-import { PortSearch } from "./PortSearch";
 import { OperationProgress } from "./OperationProgress";
 import { cn } from "cn";
 import { RadioGroup } from "@base-ui/react/radio-group";
@@ -283,8 +282,6 @@ function NavigationStatus({
 
 export function PageHeader({
   view,
-  query,
-  setQuery,
   portCount,
   libraryCount,
   onOpenCommands,
@@ -325,7 +322,6 @@ export function PageHeader({
         className="header-tools flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2 max-[75rem]:ms-auto"
         data-focus-group
       >
-        {view === "catalog" && <PortSearch query={query} setQuery={setQuery} />}
         {onAddGames && (
           <Button
             data-focusable

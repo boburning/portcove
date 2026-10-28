@@ -21,6 +21,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   localStorage.clear();
   document.documentElement.style.removeProperty("font-size");
+  document.documentElement.style.removeProperty("zoom");
   delete document.documentElement.dataset.theme;
 });
 
@@ -85,6 +86,9 @@ it.each([
       })
       .toBeGreaterThanOrEqual(160);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
+    await page.screenshot({
+      path: `../../../../outputs/ui-refinement/continue-${theme}-${width}-100.png`,
+    });
     const add = document.querySelector<HTMLButtonElement>(
       "[data-library-header] [data-add-games-trigger]",
     )!;
@@ -98,6 +102,43 @@ it.each([
     await expect
       .poll(() => document.activeElement?.hasAttribute("data-add-games-trigger"))
       .toBe(true);
+  },
+);
+
+it.each(["dark", "light"])(
+  "keeps the production Continue strip and toolbar reachable at 130%% interface zoom in %s",
+  async (theme) => {
+    await page.viewport(740, 960);
+    document.documentElement.style.zoom = "1.3";
+    const snapshot = workspace("collection");
+    snapshot.statuses[0]!.last_launched_at = 1;
+    snapshot.statuses[0]!.successful_launches = 1;
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    await mount(theme);
+    const continuation = page.getByRole("region", { name: /^Continue / });
+    await expect.element(continuation).toBeVisible();
+    await expect
+      .element(continuation.getByRole("button", { name: "Play again", exact: true }))
+      .toBeEnabled();
+    await expect
+      .poll(() => {
+        const image = continuation.element().querySelector<HTMLImageElement>(".continue-art img");
+        return Boolean(image?.complete && image.naturalWidth > 0);
+      })
+      .toBe(true);
+    expect(document.querySelectorAll(".continue-card")).toHaveLength(1);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+    expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+    await page.screenshot({
+      path: `../../../../outputs/ui-refinement/continue-${theme}-740-interface-130.png`,
+    });
+    await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
+    await expect.element(page.getByRole("button", { name: "Done", exact: true })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect
+      .poll(() => document.activeElement)
+      .toBe(page.getByRole("button", { name: "Filters (0)", exact: true }).element());
   },
 );
 
@@ -118,7 +159,10 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   expect(document.body.textContent).toContain("2 of 12 library entries");
-  const commands = document.querySelector<HTMLDetailsElement>(".library-query-tools details")!;
+  const commands = page
+    .getByText("Collection commands", { exact: true })
+    .element()
+    .closest("details")!;
   commands.open = true;
   expect(commands.textContent).toContain("12 installed entries");
   expect(commands.textContent).toContain("hidden by filters");

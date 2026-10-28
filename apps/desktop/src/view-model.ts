@@ -198,7 +198,7 @@ export function formatCountMessage(
 export type View = "library" | "catalog" | "updates" | "settings";
 export type DetailDestination = "updates" | "saves";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
-export type CatalogSort = "catalog" | "name" | "installed-first";
+export type CatalogSort = "catalog" | "name" | "name-desc" | "recent" | "installed-first";
 export type PortReadiness =
   | "available"
   | "ready"
@@ -462,7 +462,11 @@ export function filterPorts(
     ...context,
     catalogUniverse: context.catalogUniverse ?? ports,
   }).ports.filter((port) => searchableText(port).includes(normalizedQuery));
-  if (view !== "catalog" || (catalogSort === "catalog" && !context.devicePlatform)) return visible;
+  if (
+    (view !== "catalog" && view !== "library") ||
+    (catalogSort === "catalog" && !context.devicePlatform)
+  )
+    return visible;
   return visible
     .map((port, index) => ({ port, index }))
     .sort((left, right) => {
@@ -470,22 +474,26 @@ export function filterPorts(
         catalogSort === "catalog"
           ? catalogRank(left.port, selectedStatuses.get(left.port.id), context.devicePlatform) -
             catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
-          : catalogSort === "name"
-            ? gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
+          : catalogSort === "name" || catalogSort === "name-desc"
+            ? (catalogSort === "name-desc" ? -1 : 1) *
+              gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
                 sensitivity: "base",
               })
-            : Number(
-                Boolean(
-                  selectedStatuses.get(right.port.id)?.active ||
-                  selectedStatuses.get(right.port.id)?.external_runtime,
-                ),
-              ) -
-              Number(
-                Boolean(
-                  selectedStatuses.get(left.port.id)?.active ||
-                  selectedStatuses.get(left.port.id)?.external_runtime,
-                ),
-              );
+            : catalogSort === "recent"
+              ? (selectedStatuses.get(right.port.id)?.last_launched_at ?? 0) -
+                (selectedStatuses.get(left.port.id)?.last_launched_at ?? 0)
+              : Number(
+                  Boolean(
+                    selectedStatuses.get(right.port.id)?.active ||
+                    selectedStatuses.get(right.port.id)?.external_runtime,
+                  ),
+                ) -
+                Number(
+                  Boolean(
+                    selectedStatuses.get(left.port.id)?.active ||
+                    selectedStatuses.get(left.port.id)?.external_runtime,
+                  ),
+                );
       return comparison || left.index - right.index;
     })
     .map(({ port }) => port);

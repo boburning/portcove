@@ -157,7 +157,7 @@ describe("desktop components", () => {
     expect(onePort).toContain("Browse 1 native game port.");
     expect(catalog).toContain('<h1 tabindex="-1">Discover</h1>');
     expect(catalog).toContain("Browse 61 native game ports.");
-    expect(catalog).toContain('id="port-search"');
+    expect(catalog).not.toContain('id="port-search"');
     expect(updates).toContain('<h1 tabindex="-1">Activity</h1>');
     expect(settings).toContain('<h1 tabindex="-1">Settings</h1>');
     for (const header of [library, catalog, updates, settings]) {

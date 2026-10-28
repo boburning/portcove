@@ -13,8 +13,14 @@ it("restores each library's profile view without changing its existing browsing 
   localStorage.setItem(collectionLayoutKey(a), "invalid");
   const root = createRoot(document.createElement("div"));
   let current!: ReturnType<typeof useCollectionLayout>;
-  function Fixture({ library }: { library: string }) {
-    current = useCollectionLayout(library);
+  function Fixture({
+    library,
+    workspace = "library",
+  }: {
+    library: string;
+    workspace?: "library" | "catalog";
+  }) {
+    current = useCollectionLayout(library, workspace);
     return null;
   }
   try {
@@ -25,6 +31,16 @@ it("restores each library's profile view without changing its existing browsing 
     expect(current.value).toBe("covers");
     await act(async () => root.render(<Fixture library={a} />));
     expect(current.value).toBe("rows");
+    await act(async () => root.render(<Fixture library={a} workspace="catalog" />));
+    expect(current.value).toBe("covers");
+    await act(async () => current.set("rows"));
+    await act(async () => root.render(<Fixture library={a} />));
+    expect(current.value).toBe("rows");
+    await act(async () => current.set("covers"));
+    await act(async () => root.render(<Fixture library={a} workspace="catalog" />));
+    expect(current.value).toBe("rows");
+    await act(async () => root.render(<Fixture library={a} />));
+    await act(async () => current.set("rows"));
     expect(localStorage.getItem(libraryBrowsingPreferenceKey(a))).toBe(untouched);
     const write = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
       throw new Error("storage unavailable");
@@ -36,6 +52,7 @@ it("restores each library's profile view without changing its existing browsing 
   } finally {
     await act(async () => root.unmount());
     localStorage.removeItem(collectionLayoutKey(a));
+    localStorage.removeItem(collectionLayoutKey(a, "catalog"));
     localStorage.removeItem(collectionLayoutKey(b));
     localStorage.removeItem(libraryBrowsingPreferenceKey(a));
     vi.restoreAllMocks();

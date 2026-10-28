@@ -2129,6 +2129,11 @@ collection nor an accounted condition establishes installability.
 DirectManifest entries retain their exact version/platform/digest/size and
 acquisition URL. Declared project and acquisition roles are inventoried
 separately, so a project URL change does not erase an older release repository.
+A user-prepared runtime may name its repository with a hosted slug or a complete
+HTTPS GitHub/GitLab repository URL. The health collector applies its existing
+upstream URL validation and retains the acquisition role independently of the
+project role; this observes repository metadata without inferring a delivered
+runtime or accepted artifact. Other hosted providers retain their slug contract.
 Hosted endpoints use bounded metadata requests; direct artifact and other project
 endpoints use credential-free HEAD without following redirects. Matching
 Content-Length establishes endpoint reachability only. Accepted bytes remain
