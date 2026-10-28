@@ -323,7 +323,10 @@ fn managed_tfe_cannot_omit_or_widen_its_capability_floor() {
 
 #[test]
 fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() {
+    let clock = std::time::Instant::now();
+    println!("full catalog projection setup begin: {:?}", clock.elapsed());
     let document = projection();
+    println!("full catalog projection loaded: {:?}", clock.elapsed());
     let contract = serde_json::to_vec_pretty(&document).unwrap();
     let entries: Vec<_> = (0..document["catalog"]["ports"].as_array().unwrap().len())
         .map(|port_index| {
@@ -336,9 +339,15 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
         .iter()
         .map(|(value, bytes)| (value, bytes.as_slice()))
         .collect();
+    println!(
+        "full catalog projection entries prepared: {}; {:?}",
+        entries.len(),
+        clock.elapsed()
+    );
     let inventory = index(&indexed, &contract);
+    println!("full catalog projection index ready: {:?}", clock.elapsed());
 
-    for (value, bytes) in &entries {
+    for (position, (value, bytes)) in entries.iter().enumerate() {
         let inspected = inventory
             .inspect_entry("official", value["stable_id"].as_str().unwrap(), bytes)
             .unwrap();
@@ -348,10 +357,23 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
             serde_json::to_value(inspected.port()).unwrap(),
             value["port"]
         );
+        if position % 25 == 0 || position + 1 == entries.len() {
+            println!(
+                "full catalog projection entry {}/{} {} verified: {:?}",
+                position + 1,
+                entries.len(),
+                value["stable_id"].as_str().unwrap(),
+                clock.elapsed()
+            );
+        }
     }
 
     // Full catalog validation is independent of the selected port. Exercise it
     // once while the loop above keeps exact entry coverage for every port.
+    println!(
+        "full catalog projection graph validation begin: {:?}",
+        clock.elapsed()
+    );
     let (value, bytes) = &entries[0];
     let result = inventory
         .inspect_catalog_projection(

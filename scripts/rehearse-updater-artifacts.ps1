@@ -414,13 +414,17 @@ try {
         $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $repository "targets")).Path
         $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/', '\') + '/')).AbsoluteUri
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/', '\') + '/')).AbsoluteUri
-        # Only the disposable installed predecessor exposes the embedded driver.
-        # The candidate above retains its ordinary production feature set.
+        # Both endpoint builds retain application-update qualification support.
+        # Only the predecessor additionally exposes the embedded compatibility driver.
         $nativeCompatibility = Get-Content (Join-Path $root "apps/desktop/src-tauri/tauri.native-compatibility.conf.json") -Raw | ConvertFrom-Json -AsHashtable
         $configuration.app = @{ security = @{ capabilities = $nativeCompatibility.app.security.capabilities } }
         $configuration | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8
         Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "build", "--bundles", "nsis", "--config", $configPath, "--ci", "--features", "application-update-qualification,native-compatibility-qualification")
-        $predecessor = Join-Path $bundleRoot "nsis/Portcove_$($predecessorVersion)_x64-setup.exe"
+        # Retain the exact feed-enabled predecessor that is actually installed,
+        # rather than only the preliminary same-version package inventory.
+        $qualifiedBundleName = "qualified-$predecessorVersion-bundles"
+        Move-RehearsalInput $bundleRoot $qualifiedBundleName
+        $predecessor = Join-Path $runRoot "$qualifiedBundleName/nsis/Portcove_$($predecessorVersion)_x64-setup.exe"
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item -LiteralPath $tufConfigPath -Force
         $privateTufAbsent = -not [IO.Directory]::Exists((Join-Path $fixtureRoot "private"))

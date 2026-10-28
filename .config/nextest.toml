@@ -111,13 +111,18 @@ success-output = "immediate"
 # phase/assertion, cleanup, two slots and zero retries. Exact Core60s and CLI90s
 # harness room matches existing full lifecycle allowances, not product deadlines
 # or a performance improvement. The original failed receipts remain retained.
+# The same full run's Intel hash2/2 job122942829051 reached startup and
+# rollback-action projection for curated_activation_withdrawal at22.513s
+# before its30.024s cutoff. The exhaustive current-port projection case also
+# exceeded30.059s; retain every port/graph assertion and expose bounded phase
+# progress before allowing the same finite60s safeguard for these exact cases.
 # Full qualification40722778038/a1 Intel hash1/2 job122942829026 stopped
 # restore_remains_authoritative_after_launch_rollback_and_staged_activation
 # at30.019s after publishing restore at25.440s and completing initial launch.
 # Give this exact progressing fixture the existing60s lifecycle safeguard.
 [[profile.default.overrides]]
 platform = 'x86_64-apple-darwin'
-filter = 'package(portcove-core) & (test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/) | test(/^service::tests::backups::recovers_restore_version_synchronized$/) | test(/^service::tests::backups::restore_preserves_its_journal_when_a_retained_save_path_is_a_symlink$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))'
+filter = 'package(portcove-core) & (test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/) | test(/^service::tests::backups::recovers_restore_version_synchronized$/) | test(/^service::tests::backups::restore_preserves_its_journal_when_a_retained_save_path_is_a_symlink$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/) | test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 

@@ -488,12 +488,21 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
       owner: "preparationScenarios",
       seam: "settleDirectPreparationRecovery",
       awaited: true,
+      capture: false,
     },
     {
       file: "desktop-artwork-correction-test.mts",
       owner: "artworkCorrectionScenario",
       seam: "renderCorrectedArtwork",
       awaited: false,
+      capture: false,
+    },
+    {
+      file: "desktop-preparation-test.mts",
+      owner: "preparationScenarios",
+      seam: "captureLibraryAction",
+      awaited: false,
+      capture: true,
     },
   ]) {
     const source = stripTypeScriptTypes(
@@ -536,7 +545,25 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
         (node) => node.type === "CallExpression" && identifier(node.callee) === localSeam,
       );
       assert.equal(calls.length, 1, "Delegate to tested seam " + seamName);
-      if (policy.awaited) {
+      if (policy.capture) {
+        assert.ok(
+          body.some((node) => awaited(node) === calls[0]),
+          "Await Library capture evidence",
+        );
+        assert.equal(args(calls[0]).length, 6, "Pass complete Library capture context");
+        assert.ok(Array.isArray(owner.params) && isRecord(owner.params[0]));
+        const properties = owner.params[0].properties;
+        assert.ok(Array.isArray(properties));
+        const artifacts = properties
+          .filter(isRecord)
+          .find((node) => identifier(node.key) === "artifacts");
+        assert.ok(artifacts && identifier(artifacts.value));
+        assert.equal(
+          identifier(args(calls[0])[5]),
+          identifier(artifacts.value),
+          "Retain scenario artifact receiver",
+        );
+      } else if (policy.awaited) {
         assert.ok(
           body.some((node) => awaited(node) === calls[0]),
           "Await settled recovery before reading Activity",
@@ -603,40 +630,44 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
           "Await every artwork observation in the scenario",
         );
       }
-      return { syntax, owner, calls, inventory };
+      return { syntax, owner, seam, calls, inventory };
     }
     const actual = route(source);
     const ownerAlias = "$locallyRenamedScenario";
     const ownerExport = actual.syntax.find(
       (node) => node.type === "ExportNamedDeclaration" && node.declaration === actual.owner,
     );
-    assert.ok(ownerExport);
+    const exportedSpecifier = (name: string) =>
+      actual.syntax.find(
+        (node) =>
+          node.type === "ExportSpecifier" &&
+          (identifier(node.exported) ?? literal(node.exported)) === name,
+      );
+    const ownerSpecifier = exportedSpecifier(policy.owner);
+    assert.ok(ownerExport || ownerSpecifier);
     route(
       edit(source, [
         { ...range(actual.owner.id), text: ownerAlias },
-        { start: range(ownerExport).start, end: range(actual.owner).start, text: "" },
-      ]) +
-        "\nexport {" +
-        ownerAlias +
-        " as " +
-        policy.owner +
-        "};",
+        ...(ownerSpecifier
+          ? [{ ...range(ownerSpecifier.local), text: ownerAlias }]
+          : [{ start: range(ownerExport).start, end: range(actual.owner).start, text: "" }]),
+      ]) + (!ownerSpecifier ? "\nexport {" + ownerAlias + " as " + policy.owner + "};" : ""),
     );
-    const seam = actual.syntax.find(
-      (node) => node.type === "FunctionDeclaration" && identifier(node.id) === policy.seam,
-    );
-    assert.ok(seam);
+    const seam = actual.seam;
     const alias = "$testedOwnerSeam";
     const seamExport = actual.syntax.find(
       (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
     );
-    assert.ok(seamExport);
+    const seamSpecifier = exportedSpecifier(policy.seam);
+    assert.ok(seamExport || seamSpecifier);
     const renamed = edit(source, [
       { ...range(seam.id), text: alias },
-      { start: range(seamExport).start, end: range(seam).start, text: "" },
+      ...(seamSpecifier
+        ? [{ ...range(seamSpecifier.local), text: alias }]
+        : [{ start: range(seamExport).start, end: range(seam).start, text: "" }]),
       ...actual.calls.map((node) => ({ ...range(node.callee), text: alias })),
     ]);
-    route(renamed + "\nexport {" + alias + " as " + policy.seam + "};");
+    route(renamed + (!seamSpecifier ? "\nexport {" + alias + " as " + policy.seam + "};" : ""));
     // A moved declaration and formatting preserve the same executable binding.
     const exportedSeam = actual.syntax.find(
       (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
@@ -656,7 +687,7 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
       () => route(bypassed + "\n/* " + policy.seam + "() */"),
       /Delegate to tested seam/u,
     );
-    if (!policy.awaited) {
+    if (!policy.awaited && !policy.capture) {
       const body = [...nodes(actual.owner.body)];
       const closure = body.find(
         (node) =>
@@ -681,6 +712,29 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
           /Await every artwork/u,
         );
       }
+    }
+    if (policy.capture) {
+      const wait = actual.syntax.find((node) => awaited(node) === actual.calls[0]);
+      assert.ok(wait);
+      assert.throws(
+        () =>
+          route(
+            edit(source, [
+              {
+                ...range(wait),
+                text: source.slice(range(actual.calls[0]).start, range(actual.calls[0]).end),
+              },
+            ]),
+          ),
+        /Await Library capture/u,
+      );
+      assert.throws(
+        () =>
+          route(
+            edit(source, [{ ...range(args(actual.calls[0])[5]), text: "unreviewedArtifacts" }]),
+          ),
+        /Retain scenario artifact receiver/u,
+      );
     }
     if (policy.awaited) {
       const recoveryDeclaration = actual.syntax.find(
