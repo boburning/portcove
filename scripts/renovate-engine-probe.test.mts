@@ -531,7 +531,7 @@ async function inspectProbeEvidenceWiring(source: string) {
   assert.equal(probeIdentifier(stringify.callee.object), "JSON");
   assert.equal(probeIdentifier(stringify.callee.property), "stringify");
   assert.equal(probeIdentifier(stringify.arguments[0]), report);
-  return { helper, call, awaited, args, finalizers: args[3], caller };
+  return { helper, call, awaited, args, finalizers: args[3], caller, saved };
 }
 
 void test("the actual probe driver retains its evidence owner across naming, layout and declaration changes", async (t) => {
@@ -669,8 +669,8 @@ import { PassThrough as UnusedProbePassThrough } from "node:stream";
       },
     );
   }
-  const save = probeProperty(wiring.finalizers, "save");
-  assert.ok(isRecord(save));
+  const saveInitializer = wiring.saved.init;
+  assert.ok(isRecord(saveInitializer));
   const getter = probeArrowValue(probeProperty(wiring.finalizers, "loggerStream"));
   assert.ok(isRecord(getter));
   const reportArgument = wiring.args[0];
@@ -721,7 +721,7 @@ import { PassThrough as UnusedProbePassThrough } from "node:stream";
         text: '{ state: "running" }',
       },
     ],
-    ["omitted-save", { ...probeSourceRange(save), text: "() => {}" }],
+    ["omitted-save", { ...probeSourceRange(saveInitializer), text: "() => {}" }],
     ["wrong-logger", { ...probeSourceRange(getter), text: "undefined" }],
   ] as const;
   for (const [name, change] of negatives) {
