@@ -222,9 +222,22 @@
     "scope": "Source-observed same-job build derivation; not independently recomputed private binaries, reproducible build, publisher authentication, or protected acceptance"
   },
   "ordinary_driver": {
-    "version": "156.0.4314.50",
-    "source": "native-driver ok log observation",
-    "binary_sha256": "not retained publicly in this attempt; original diagnostic driver loader was not reached"
+    "source": "public updater-rehearsal/windows-installed-update.json -> driver_host_baseline.drivers",
+    "native_driver": {
+      "reported": "Microsoft Edge WebDriver 156.0.4314.50 (af2ba23ae0ecf7084d900446fc59d5119dd5fd5e)",
+      "exit_code": 0,
+      "sha256": "dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3"
+    },
+    "tauri_driver": {
+      "reported": "Error: unused arguments left: [\"--version\"]\r\nUSAGE: tauri-driver [FLAGS] [OPTIONS]\r\n\r\nFLAGS:\r\n  -h, --help              Prints help information\r\n\r\nOPTIONS:\r\n  --port NUMBER           Sets the tauri-driver intermediary port\r\n  --native-port NUMBER    Sets the port of the underlying WebDriver\r\n  --native-host HOST      Sets the host of the underlying WebDriver (Linux only)\r\n  --native-driver PATH    Sets the path to the native WebDriver binary",
+      "exit_code": 1,
+      "sha256": "244ba01e84673215658a3870db21d2145c991b0092a0e373b14ad6ece6688077",
+      "configured_version": "2.0.6",
+      "observed_version": "not-established; --version unsupported"
+    },
+    "webview2_runtime_versions": ["156.0.4314.50"],
+    "cached_webview2_version": "156.0.4314.50",
+    "scope": "Actual ordinary administrator-token public driver baseline hashes/version output; source-observed, no independent binary recomputation, private-session proof or publisher authentication inferred"
   },
   "artifacts": [
     {

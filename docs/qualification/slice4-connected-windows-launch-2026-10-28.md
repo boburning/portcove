@@ -11,8 +11,14 @@ exact artifacts, phases, bytes, hashes and scope.
 
 The maintained runtime/driver step passed in 109 seconds; runtime preparation
 itself took 55113ms and changed 131.0.2903.86 to 156.0.4314.50 above floor 155.0.4283.62.
-The driver version check reported 156.0.4314.50. Its binary hash was not retained
-publicly in this attempt; no older run's driver hash is attributed to it. The
+The current public `windows-installed-update.json` driver baseline reports EdgeDriver
+156.0.4314.50/exit0, SHA-256
+`dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3`.
+The same actual record reports Tauri-driver SHA-256
+`244ba01e84673215658a3870db21d2145c991b0092a0e373b14ad6ece6688077`;
+its unsupported `--version` exited1. Configured2.0.6 is the source pin, not an
+independently observed version. These are source-observed ordinary driver facts,
+not external binary recomputation or private-session/publisher acceptance. The
 feature compile passed in 252 seconds and ordinary two-version installed updater
 rehearsal passed in 3556 seconds. The same-job producer retained its bounded 8128-byte
 fixture-derivation record after restoring the original tracked metadata and

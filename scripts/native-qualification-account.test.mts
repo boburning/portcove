@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, copyFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, copyFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { windowsOwnerEnvironment } from "./release-windows-owner-mechanism.mts";
@@ -793,21 +793,18 @@ void test(
     const good = path.join(first, "node.exe"),
       bad = path.join(second, "node.exe");
     copyFileSync(process.execPath, good);
-    const compile = spawnSync(
-      windowsSourceSystemExecutables.powershell,
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        `Add-Type -TypeDefinition 'public static class NodeVersionFixture { public static int Main(string[] args) { System.Console.WriteLine("v0.0.0"); return 0; } }' -Language CSharp -OutputAssembly $env:PORTCOVE_TEST_BAD_NODE -OutputType ConsoleApplication`,
-      ],
-      {
-        encoding: "utf8",
-        timeout: 30000,
-        windowsHide: true,
-        env: { ...process.env, PORTCOVE_TEST_BAD_NODE: bad },
-      },
+    // Reuse the existing Windows Framework compiler fixture route; PS7 cannot emit ConsoleApplication.
+    const compiler = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe";
+    const badSource = path.join(root, "NodeVersionFixture.cs");
+    writeFileSync(
+      badSource,
+      'public static class NodeVersionFixture { public static int Main(string[] args) { System.Console.WriteLine("v0.0.0"); return 0; } }',
     );
+    const compile = spawnSync(compiler, ["/nologo", "/target:exe", `/out:${bad}`, badSource], {
+      encoding: "utf8",
+      timeout: 30000,
+      windowsHide: true,
+    });
     assert.equal(compile.status, 0, compile.stderr);
     assert.equal(existsSync(bad), true);
     const source = readFileSync(
