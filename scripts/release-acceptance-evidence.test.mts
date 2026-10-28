@@ -36,6 +36,16 @@ const document = {
     },
   ],
 };
+void test("SPDX producer compatibility admits the current scanner while retaining historical evidence", () => {
+  const current = structuredClone(document);
+  current.creationInfo.creators = ["Tool: syft-1.55.0"];
+  assert.doesNotThrow(() => inspectReleaseSpdx(current));
+  assert.doesNotThrow(() => inspectReleaseSpdx(document));
+  for (const creator of ["Tool: syft-1.55.1", "Tool: syft-1.55.0-unreviewed", "Tool: other"]) {
+    current.creationInfo.creators = [creator];
+    assert.throws(() => inspectReleaseSpdx(current), /pinned Syft producer/);
+  }
+});
 void test("imported SPDX summaries cannot appoint retained publication document bytes", async () => {
   await assert.rejects(requireVerifiedReleaseSbomDocument({}), /actual same-process/);
   await assert.rejects(
