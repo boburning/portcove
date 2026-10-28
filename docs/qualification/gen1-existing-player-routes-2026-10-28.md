@@ -58,3 +58,12 @@ The delivery PR owns independent review, existing regression coverage, five
 exact-head checks, guarded merge and remote readback. Canonical issues keep their
 remaining acceptance; accepted useful-route and supported-operation totals remain
 unevaluated until those observations are joined.
+
+Initial CI 40620795809/a1 at `cadca3890566dba20343b8d73f67cd158dcf5d6a`
+failed only the Linux Desktop early-failure diagnostics flush assertion. The
+fixture omitted the scenario and complete health, so the cause is not established.
+The diagnostic repair retains bootstrap timeout/health and adds the scenario to
+that same assertion. Typed phases, private-safe stderr, nonempty records,
+flush-complete checks and all production deadlines remain unchanged. Every other
+required leaf passed. Fresh exact-head qualification is required; a subsequent
+pass would not establish a causal engine/catalog repair.

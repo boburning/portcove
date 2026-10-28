@@ -544,5 +544,17 @@
         "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
       }
     }
-  ]
+  ],
+  "retained_qualification_failure": {
+    "source": "cadca3890566dba20343b8d73f67cd158dcf5d6a",
+    "run": 40620795809,
+    "attempt": 1,
+    "checkout": "f42414b73398d2261afecb26809f29d375796167",
+    "failed_producer_job": 122594934866,
+    "failed_aggregate_job": 122596226822,
+    "test": "portcove-cli::desktop_host_diagnostics::desktop_early_failures_keep_typed_phases_and_fixed_private_safe_stderr",
+    "observation": "flush_complete was false; scenario and complete health were not printed. All other required leaves passed; no cancellation.",
+    "cause": "not established; no catalog/source/engine causal claim",
+    "diagnostic_change": "Owned fixture summary now retains bootstrap_timed_out and complete health; flush assertion includes scenario and summary. Existing typed phases, private-safe stderr, nonempty records, flush-complete assertion and production deadlines are unchanged. Fresh required exact-head qualification is mandatory; a later pass is not a causal repair."
+  }
 }
