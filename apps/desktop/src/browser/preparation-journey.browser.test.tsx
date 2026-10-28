@@ -101,6 +101,7 @@ it.each(["orchard", "summit"])(
     await page
       .getByRole("button", { name: `View details for ${title} ${title}`, exact: true })
       .click();
+    await page.getByRole("tab", { name: "Game files", exact: true }).click();
     await page.getByRole("button", { name: "Review setup", exact: true }).click();
     expect(review).toHaveBeenCalledWith(portId, 1);
     const dialog = page.getByRole("dialog", { name: "Prepare game data", exact: true });
@@ -187,6 +188,7 @@ it("leaves preparation, visits another entry, and revisits the original task wit
       exact: true,
     })
     .click();
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
   await page.getByRole("button", { name: "Review setup", exact: true }).click();
   await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
   await page.getByRole("button", { name: "Continue browsing", exact: true }).click();

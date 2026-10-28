@@ -88,6 +88,7 @@ it.for(["dark", "light"] as const)(
       }),
     );
     applyWebTheme(theme);
+    await page.getByRole("tab", { name: "Game files", exact: true }).click();
     await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
     await expect.element(page.getByRole("dialog")).toBeVisible();
     const dialog = page.getByRole("dialog").element() as HTMLElement;

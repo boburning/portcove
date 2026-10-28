@@ -256,7 +256,7 @@ it("returns focus to the backup heading when the final backup is deleted", async
   );
 });
 
-it("returns focus to Saves & backups when the uninstalled detail consumer removes all backup history", async () => {
+it("returns focus to visible Saved data when the uninstalled detail consumer removes all backup history", async () => {
   let finish!: (result: boolean) => void;
   const deleteBackup = vi.fn((_backup: BackupRecord) => {
     updateBackups([]);
@@ -308,10 +308,14 @@ it("returns focus to Saves & backups when the uninstalled detail consumer remove
   expect(opener.isConnected).toBe(false);
   expect(container.querySelector(".backup-history")).toBeNull();
   await vi.waitFor(() =>
-    expect(document.activeElement).toBe(container.querySelector("#detail-saves-and-storage")),
+    expect(document.activeElement).toBe(
+      [...container.querySelectorAll("h3")].find((heading) => heading.textContent === "Saved data"),
+    ),
   );
   await act(async () => finish(true));
-  expect(document.activeElement).toBe(container.querySelector("#detail-saves-and-storage"));
+  expect(document.activeElement).toBe(
+    [...container.querySelectorAll("h3")].find((heading) => heading.textContent === "Saved data"),
+  );
 });
 
 it("returns focus to the original delete action on cancellation without applying", async () => {

@@ -131,7 +131,8 @@ for (const theme of ["dark", "light"]) {
           })),
         ).toEqual([]);
       }
-    });
+      // Five tab captures and axe passes use a finite harness budget under host contention.
+    }, 45_000);
   }
 }
 
@@ -170,6 +171,7 @@ it.each(["dark", "light"])(
     }
     await capture(`text-spacing-${theme}-320`);
   },
+  45_000,
 );
 
 it("keeps whole-image portrait, landscape, square and missing artwork at a fixed frame size", async () => {

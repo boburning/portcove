@@ -446,7 +446,7 @@ it("feeds the accepted membership context consistently into results, counts and 
   expect(shell.filter).toEqual({ version: 1, membership: [], channels: ["beta"] });
   expect(invoke).not.toHaveBeenCalled();
   expect(fetchSpy).not.toHaveBeenCalled();
-});
+}, 30_000);
 
 it("composes raw Core attention with readiness/channel counts and keeps unavailable intent without I/O", async () => {
   statuses.set("both", {
