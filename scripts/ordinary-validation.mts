@@ -315,6 +315,13 @@ for (const [file, tests] of [
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
   [
+    "apps/desktop/scripts/desktop-webview-boundary.mts",
+    [
+      "scripts/desktop-boundary-wiring.test.mts",
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+    ],
+  ],
+  [
     "apps/desktop/scripts/desktop-boundary-invoke.mts",
     [
       "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",

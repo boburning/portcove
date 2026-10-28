@@ -3868,6 +3868,13 @@ void test("native transport producers retain their actual Node consumers across 
     await import("./windows-helper-checks.mts");
   const consumers: [string, string[]][] = [
     [
+      "apps/desktop/scripts/desktop-webview-boundary.mts",
+      [
+        "scripts/desktop-boundary-wiring.test.mts",
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      ],
+    ],
+    [
       "apps/desktop/scripts/desktop-boundary-invoke.mts",
       ["apps/desktop/scripts/desktop-webview-boundary.native.test.mts"],
     ],
