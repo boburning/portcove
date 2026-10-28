@@ -655,6 +655,13 @@ function useWorkspace(props: WorkspaceProps) {
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
+        backLabel={
+          ui.view === "library"
+            ? "Back to Library"
+            : ui.view === "catalog"
+              ? "Back to Discover"
+              : undefined
+        }
         libraryRoot={bootstrap.library_root ?? undefined}
         organization={organization}
         openSupport={() => {

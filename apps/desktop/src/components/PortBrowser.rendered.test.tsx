@@ -317,7 +317,9 @@ describe("desktop components", () => {
     expect(filteredEmptyLibrary).toContain("No matching games");
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
     expect(filteredEmptyLibrary).toContain("Reset view");
-    expect(filteredEmptyLibrary).toContain("Clear the search or change the readiness filter.");
+    expect(filteredEmptyLibrary).toContain(
+      "Reset filters, quick views and collection selection to browse again.",
+    );
     expect(filteredEmptyLibrary).not.toContain("Your installed ports are still in this library.");
     expect(filteredEmptyLibrary).not.toContain("Your library is empty");
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");

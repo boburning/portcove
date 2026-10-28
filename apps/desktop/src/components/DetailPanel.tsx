@@ -1831,7 +1831,13 @@ function InstalledPlayActions({
   if (preparationRequired)
     return <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />;
   return (
-    <div className={cn("actions primary-actions flex flex-wrap gap-2", !compact && "mt-4")}>
+    <div
+      className={cn(
+        "actions primary-actions flex flex-wrap gap-2",
+        !compact && "mt-4",
+        hero && "detail-hero-primary",
+      )}
+    >
       <Button
         data-focusable
         data-launch-action

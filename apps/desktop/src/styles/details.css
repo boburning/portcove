@@ -1,6 +1,11 @@
 @layer components {
+  .detail-hero-primary {
+    inline-size: 12rem;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+  }
   .detail-hero-action {
-    min-inline-size: min(100%, 12rem);
+    inline-size: 100%;
   }
 
   .detail-panel {

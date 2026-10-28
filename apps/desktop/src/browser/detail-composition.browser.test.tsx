@@ -345,8 +345,14 @@ it("opens and focuses the real artwork disclosure from the hero menu after Manag
 
 it.each(["Library", "Discover"])("names and restores the known %s origin", async (origin) => {
   await mount("dark");
-  if (origin === "Discover") await page.getByRole("button", { name: /^Discover / }).click();
-  await open();
+  if (origin === "Discover") await page.getByRole("button", { name: /^Discover(?:\s|$)/ }).click();
+  if (origin === "Discover") {
+    await userEvent.click(
+      document.querySelector<HTMLButtonElement>(
+        '[data-detail-origin="catalog:card:comparison-0"]',
+      )!,
+    );
+  } else await open();
   const back = page.getByRole("button", { name: `Back to ${origin}`, exact: true });
   await expect.element(back).toBeVisible();
   await back.click();
@@ -362,7 +368,7 @@ it("clears search inline, returns focus and retains the declared platform constr
   await userEvent.keyboard("{Escape}");
   await page.getByRole("button", { name: "Done", exact: true }).click();
   const search = page.getByRole("textbox", { name: "Search your library", exact: true });
-  await search.fill("Harbor");
+  await search.fill("Harbor Adventure");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   await page.getByRole("button", { name: "Clear search", exact: true }).click();
   await expect.element(search).toHaveValue("");
@@ -371,4 +377,48 @@ it("clears search inline, returns focus and retains the declared platform constr
     .element(page.getByRole("button", { name: "Remove Windows filter", exact: true }))
     .toBeVisible();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+});
+
+it.each([1440, 1024, 740])(
+  "keeps hero Play comfortably wide and contained at %ipx",
+  async (width) => {
+    await page.viewport(width, 900);
+    await mount("dark");
+    await open(2);
+    for (const scale of [1, 1.3]) {
+      document.documentElement.style.fontSize = `${16 * scale}px`;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const actions = document.querySelector<HTMLElement>(".detail-header-actions")!;
+      const play = [...actions.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent?.trim() === "Play",
+      )!;
+      const bounds = play.getBoundingClientRect();
+      expect(bounds.width).toBeGreaterThanOrEqual(Math.min(192 * scale, actions.clientWidth) - 1);
+      expect(bounds.right).toBeLessThanOrEqual(actions.getBoundingClientRect().right + 1);
+      expect(play.disabled).toBe(false);
+      play.focus();
+      await expect.element(play).toHaveFocus();
+      contained();
+    }
+  },
+);
+
+it.each(["dark", "light"])("gives search its own full row at 740px in %s", async (theme) => {
+  await page.viewport(740, 900);
+  await mount(theme);
+  for (const scale of [1, 1.3]) {
+    document.documentElement.style.fontSize = `${16 * scale}px`;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const search = page
+      .getByRole("textbox", { name: "Search your library", exact: true })
+      .element();
+    const searchRow = search.closest<HTMLElement>(".search")!;
+    const toolbar = searchRow.closest<HTMLElement>(".browse-toolbar")!;
+    const filter = page.getByRole("button", { name: "Filters (0)", exact: true }).element();
+    expect(searchRow.getBoundingClientRect().width).toBeCloseTo(toolbar.clientWidth, 0);
+    expect(filter.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      searchRow.getBoundingClientRect().bottom,
+    );
+    contained();
+  }
 });

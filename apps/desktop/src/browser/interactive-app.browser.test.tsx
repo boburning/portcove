@@ -86,7 +86,10 @@ it.each(["dark", "light"])(
     expect(readiness.getBoundingClientRect().height).toBeLessThanOrEqual(
       parseFloat(getComputedStyle(readiness).lineHeight) + 1,
     );
-    const play = row.querySelector<HTMLButtonElement>('button[data-variant="primary"]')!;
+    const play = [...row.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Play",
+    )!;
+    expect(play.dataset.variant).toBe("outline");
     expect(play.textContent).toBe("Play");
     play.focus();
     await expect.element(play).toHaveFocus();

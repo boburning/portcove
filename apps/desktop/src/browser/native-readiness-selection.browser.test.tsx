@@ -27,7 +27,7 @@ async function mount(width: number) {
     </LocalizationProvider>,
   );
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
-  return page.getByRole("group", { name: "Library filters" }).element();
+  return page.getByRole("group", { name: "Library quick views" }).element();
 }
 
 function readinessClosed(id: string) {

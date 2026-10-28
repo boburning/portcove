@@ -494,7 +494,7 @@ it("composes quick views with declared filters and clears only quick-view scope 
   await openAdvancedFilters("Filters (0)");
   await userEvent.click(await filterChoice("Windows (2)"));
   await closeFilters();
-  await page.getByRole("button", { name: "Favorites (2)", exact: true }).click();
+  await page.getByRole("button", { name: "Favorites (1)", exact: true }).click();
   const quick = page.getByRole("group", { name: "Library quick views", exact: true });
   await quick.getByRole("button", { name: "Updates", exact: true }).click();
   await expect
@@ -508,7 +508,7 @@ it("composes quick views with declared filters and clears only quick-view scope 
   await expect.element(button("Remove Windows filter")).toBeVisible();
   await expect.element(button("Remove Available at last check filter")).not.toBeInTheDocument();
   await expect.element(button("Remove Matching update staged filter")).not.toBeInTheDocument();
-  await expect.element(button("Favorites (2)")).toHaveAttribute("aria-pressed", "false");
+  await expect.element(button("Favorites (1)")).toHaveAttribute("aria-pressed", "false");
   await expect
     .element(quick.getByRole("button", { name: "Updates", exact: true }))
     .toHaveAttribute("aria-pressed", "false");

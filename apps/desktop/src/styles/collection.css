@@ -6,11 +6,6 @@
   .browse-navigation > [aria-label="Library quick views"] {
     flex: 1 1 auto;
   }
-  @container library-query (max-width: 52em) {
-    .browse-toolbar > .search {
-      flex-basis: 100%;
-    }
-  }
   .browse-toolbar > .filter-row {
     display: contents;
   }
@@ -30,6 +25,11 @@
   .library-query-tools .search {
     flex: 1 1 17rem;
     max-width: none;
+  }
+  @container library-query (max-width: 52em) {
+    .browse-toolbar > .search {
+      flex-basis: 100%;
+    }
   }
   .header-tools > .search {
     width: min(330px, 34vw);

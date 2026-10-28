@@ -1,3 +1,4 @@
+import { expect } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
 /** Open the actual field, preserving the containing panel and its independent query. */
@@ -40,6 +41,7 @@ export async function openAdvancedFilters() {
   );
   if (close) await userEvent.click(close);
   const trigger = page.getByRole("button", { name: /^Filters \(\d+\)$/ });
+  await expect.element(trigger).toBeVisible();
   if (trigger.element().getAttribute("aria-expanded") !== "true") await trigger.click();
   const advanced = page.getByText("Advanced filters", { exact: true });
   if (!advanced.element().closest("details")?.open) await advanced.click();
