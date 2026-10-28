@@ -3,6 +3,9 @@
     align-items: center;
     padding-block-start: 4px;
   }
+  .browse-toolbar > .filter-row {
+    display: contents;
+  }
   .library-query-tools > .filter-row {
     flex: 0 1 auto;
   }

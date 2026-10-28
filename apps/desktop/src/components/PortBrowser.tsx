@@ -1079,6 +1079,7 @@ function PortCardStatus({
             variant="outline"
             size="sm"
             className="library-card-action"
+            data-detail-origin={`${detailOrigin}:task`}
             onClick={() =>
               onTask
                 ? onTask(action.pending?.context.activityId)
@@ -1371,7 +1372,7 @@ function renderSortPortBrowserView(
 ) {
   return (
     model.setCatalogSort && (
-      <div className="w-52 shrink-0">
+      <div className="w-52 max-w-full min-w-0">
         <ChoiceSelect
           label="Sort"
           value={model.catalogSort}

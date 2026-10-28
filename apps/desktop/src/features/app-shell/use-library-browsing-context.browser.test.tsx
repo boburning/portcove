@@ -563,9 +563,9 @@ it("persists version1 update choices by section/library and retains unknown cand
   expect(browsing.ui.filter).toBe("all");
 });
 
-it.each([["recent"], { value: "recent" }, 1])(
+it.each([{ sort: ["recent"] }, { sort: { value: "recent" } }, { sort: 1 }])(
   "preserves malformed Library sort preferences for explicit recovery (%#)",
-  async (sort) => {
+  async ({ sort }) => {
     const key = libraryBrowsingPreferenceKey(libraryRoot);
     const serialized = JSON.stringify({
       version: 2,
