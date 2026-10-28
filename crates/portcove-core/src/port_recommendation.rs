@@ -572,18 +572,22 @@ fn assess_evidence(
     let mut records = groups
         .values()
         .flat_map(|group| {
+            let observed_count = group
+                .iter()
+                .filter(|evidence| evidence.observed_at <= evaluated_at)
+                .count();
             group.iter().map(move |evidence| {
                 let disposition = if evidence.scope != candidate.scope {
                     D::HistoricalScope
-                } else if group.len() != 1
+                } else if evidence.observed_at > evaluated_at {
+                    D::FutureObservation
+                } else if observed_count != 1
                     || evidence.id.trim().is_empty()
                     || evidence.source.trim().is_empty()
                     || evidence.explanation.trim().is_empty()
                     || matches!(evidence.claim, RecommendationClaim::Rating { value } if value > 5)
                 {
                     D::Invalid
-                } else if evidence.observed_at > evaluated_at {
-                    D::FutureObservation
                 } else if evidence.kind.strength(evidence.dimension) == 0 {
                     D::UnsupportedObservationKind
                 } else {
@@ -611,7 +615,9 @@ fn assess_evidence(
             .map(|id| {
                 original
                     .iter()
-                    .filter(|prior| prior.evidence.id == *id)
+                    .filter(|prior| {
+                        prior.evidence.observed_at <= evaluated_at && prior.evidence.id == *id
+                    })
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();

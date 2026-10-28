@@ -66,8 +66,9 @@ Strength is a reproducible coefficient, not probability of successful play:
 | Maintenance observed | Maintenance                                  | 1000/1000 |
 
 Unsupported observation-kind/dimension combinations supply no strength. Future
-observations supply no present strength. Unchanged exact-artifact observations do
-not decay merely with age. Exact duplicate records are deduplicated; corroborating
+observations remain inspectable but supply no present strength, duplicate-ID
+ambiguity or supersession targets. Unchanged exact-artifact observations do not
+decay merely with age. Exact duplicate records are deduplicated; corroborating
 ratings use the strongest applicable evidence, never a report-count bonus.
 Contradictory ratings, or a rating versus not-applicable, remain conflicting and
 cannot support a default. Duplicate IDs carrying different facts are invalid.
@@ -114,6 +115,8 @@ Numeric fields are diagnostics, not a public universal ranking.
 
 The input separates retained failures from newly observed accepted failures. The
 result returns their deterministic union, preserving originals even after a fix.
+Future failures remain in that union but affect eligibility only from their
+observation time. Correction ambiguity uses the same evaluation-time cutoff.
 The existing observation owner must carry that union into the next refresh; the
 engine creates no second store. A failure persists across omission from the latest
 collection, elapsed time and a new release/artifact for the same game, edition,

@@ -165,3 +165,93 @@ fn a_future_correction_does_not_clear_a_present_failure_during_historical_replay
     assert!(after.candidates[0].recommendation_eligible);
     assert_eq!(after.retained_regressions, before.retained_regressions);
 }
+
+#[test]
+fn future_ordinary_duplicates_preserve_current_evidence_until_their_timestamp() {
+    for malformed in [false, true] {
+        let mut input = fixture();
+        let baseline = assess_port_recommendations(&input).unwrap();
+        let mut future = input.candidates[0].evidence[0].clone();
+        future.observed_at = 101;
+        if malformed {
+            future.claim = RecommendationClaim::Rating { value: 6 };
+            future.source.clear();
+        }
+        input.candidates[0].evidence.push(future.clone());
+        let before = assess_port_recommendations(&input).unwrap();
+        assert_eq!(before.status, baseline.status);
+        let candidate = &before.candidates[0];
+        assert!(candidate.recommendation_eligible);
+        assert_eq!(candidate.dimensions, baseline.candidates[0].dimensions);
+        assert_eq!(
+            candidate.ranking_score_basis_points,
+            baseline.candidates[0].ranking_score_basis_points
+        );
+        assert!(candidate.evidence.iter().any(|record| {
+            record.evidence == future
+                && record.disposition == RecommendationEvidenceDisposition::FutureObservation
+        }));
+        input.candidates[0].evidence.reverse();
+        assert_eq!(assess_port_recommendations(&input).unwrap(), before);
+
+        input.evaluated_at = 101;
+        let after = assess_port_recommendations(&input).unwrap();
+        assert!(!after.candidates[0].recommendation_eligible);
+        assert!(
+            after.candidates[0]
+                .reasons
+                .contains(&RecommendationReason::InvalidEvidence)
+        );
+        assert_eq!(
+            after.candidates[0]
+                .evidence
+                .iter()
+                .filter(|record| {
+                    record.evidence.id == future.id
+                        && record.disposition == RecommendationEvidenceDisposition::Invalid
+                })
+                .count(),
+            2
+        );
+    }
+}
+
+#[test]
+fn a_future_duplicate_does_not_invalidate_present_supersession_targets() {
+    let mut input = fixture();
+    let original = input.candidates[0].evidence[0].clone();
+    let mut correction = original.clone();
+    correction.id = "corrected-gameplay".into();
+    correction.observed_at = 30;
+    correction.claim = RecommendationClaim::Rating { value: 5 };
+    correction.supersedes.insert(original.id.clone());
+    input.candidates[0].evidence.push(correction);
+    let baseline = assess_port_recommendations(&input).unwrap();
+    assert!(baseline.candidates[0].recommendation_eligible);
+    let mut future = original.clone();
+    future.observed_at = 101;
+    input.candidates[0].evidence.push(future.clone());
+
+    let before = assess_port_recommendations(&input).unwrap();
+    assert!(before.candidates[0].recommendation_eligible);
+    assert_eq!(
+        before.candidates[0].dimensions,
+        baseline.candidates[0].dimensions
+    );
+    assert!(before.candidates[0].evidence.iter().any(|record| {
+        record.evidence == original
+            && record.disposition == RecommendationEvidenceDisposition::Superseded
+    }));
+    assert!(before.candidates[0].evidence.iter().any(|record| {
+        record.evidence == future
+            && record.disposition == RecommendationEvidenceDisposition::FutureObservation
+    }));
+    input.evaluated_at = 101;
+    let after = assess_port_recommendations(&input).unwrap();
+    assert!(!after.candidates[0].recommendation_eligible);
+    assert!(
+        after.candidates[0]
+            .reasons
+            .contains(&RecommendationReason::InvalidEvidence)
+    );
+}
