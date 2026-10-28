@@ -8,11 +8,13 @@ import {
   assertHostedEvent,
   hostedRequestMarker,
   hostedBody,
+  hostedPlanHash,
   probeHostedProjectWrite,
   assertHostedCatalogIdentity,
 } from "./hosted-discovery-intake.mts";
 import { RoadmapClient, portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
+import { observationHash } from "./upstream-observer.mts";
 
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
@@ -112,7 +114,7 @@ void test("real Project field writes use the complete API schema without CLI com
     },
   ]);
 });
-function fixture() {
+function fixture(candidates = [candidate]) {
   const comments = new Map<
     number,
     { id: number; body: string; user: { login: string }; issue_url: string }
@@ -120,7 +122,7 @@ function fixture() {
   const issueUrl = "https://api.github.com/repos/boburning/portcove/issues/177";
   const request = {
     id: 100,
-    body: encode(proposal),
+    body: encode({ ...proposal, candidates }),
     user: { login: "boburning" },
     issue_url: issueUrl,
   };
@@ -181,41 +183,42 @@ function fixture() {
       "attempt receipt must precede POST",
     );
     if (postFailure) throw new Error("Transport result unknown");
+    const number = 199 + creations;
     const issue = {
-      id: "I200",
-      node_id: "I200",
-      number: 200,
+      id: `I${number}`,
+      node_id: `I${number}`,
+      number,
       body: input.body!,
       title: `[Port] ${input.title}`,
       state: "OPEN",
-      url: "https://github.com/boburning/portcove/issues/200",
-      html_url: "https://github.com/boburning/portcove/issues/200",
+      url: `https://github.com/boburning/portcove/issues/${number}`,
+      html_url: `https://github.com/boburning/portcove/issues/${number}`,
       updatedAt: "2026-10-28T00:00:00Z",
     };
     issues.push(issue);
     input.onIssueCreated?.(issue);
     if (projectFailure) throw new Error("Project mutation interrupted");
-    return { ...issue, itemId: "PVTI200" };
+    return { ...issue, itemId: `PVTI${number}` };
   };
   client.repositoryIssue = (n) => {
     const i = issues.find((i) => i.number === n);
     if (!i) throw new Error("Missing issue");
     return { ...i, number: n };
   };
-  client.normalizePortIssue = () => {
+  client.normalizePortIssue = ({ number }) => {
     normalizations++;
     return {
-      issue: issues[0]!.url,
+      issue: issues.find((i) => i.number === Number(number))!.url,
       bodyChanged: false,
       projectItemAdded: false,
       fieldsChanged: [],
-      itemId: "PVTI200",
+      itemId: `PVTI${number}`,
     };
   };
   client.executionIssue = (number) =>
     ({
       item: {
-        id: [177, 3849].includes(number) ? "PVTICANARY" : "PVTI200",
+        id: [177, 3849].includes(number) ? "PVTICANARY" : `PVTI${number}`,
         content: [177, 3849].includes(number)
           ? {
               id: "ICANARY",
@@ -225,7 +228,7 @@ function fixture() {
               url: `https://github.com/boburning/portcove/issues/${number}`,
               body: hostedBody({ ...candidate, port_key: "neutral-canary" }, 99),
             }
-          : { ...issues[0]! },
+          : { ...issues.find((i) => i.number === number)! },
         ...([177, 3849].includes(number) ? portFieldInitialization(null) : fields),
       },
       relationships: { parent: null, subIssues: [], blockedBy: [], blocking: [] },
@@ -238,8 +241,12 @@ function fixture() {
   const bridge = new HostedIntakeBridge(
     client,
     "a".repeat(40),
-    () => ({
-      metadata: { id: candidate.repository_id, full_name: "example/native-game" },
+    (upstream) => ({
+      metadata: {
+        id: candidates.find((c) => new URL(c.upstream).pathname.slice(1) === upstream)!
+          .repository_id,
+        full_name: upstream,
+      },
       releases: [],
       selected: [],
       readme: {
@@ -264,7 +271,7 @@ function fixture() {
       observed_at: new Date().toISOString(),
       issues,
       items: issues.map((i) => ({
-        id: "PVTI200",
+        id: `PVTI${i.number}`,
         isArchived: false,
         content: { ...i },
         ...fields,
@@ -379,6 +386,76 @@ void test("a lost issue POST response stays held when absence is ambiguous", asy
   await assert.rejects(f.bridge.process(f.request, f.all()), /unknown/u);
   await assert.rejects(f.bridge.process(f.request, f.all()), /do not recapture/u);
   assert.equal(f.creations, 1);
+});
+void test("delivery refreshes only for a remaining candidate or mandatory global input", async (t) => {
+  for (const count of [1, 2, 11]) {
+    await t.test(`${count} candidates`, async () => {
+      const f = fixture(
+        Array.from({ length: count }, (_, i) => ({
+          ...candidate,
+          title: `Game ${i}`,
+          game: `Game ${i}`,
+          upstream: `https://github.com/x/g${i}`,
+          port_key: `g${i}`,
+          evidence: "Source only; gameplay Unknown.",
+          resume: "Revisit release.",
+          repository_id: candidate.repository_id + i,
+        })),
+      );
+      if (count > 10) {
+        // A retained large plan still owes global validation even when its
+        // current creation-envelope reservation would refuse new capture.
+        const input = parseHostedRequest(f.request.body);
+        const plan = input.candidates.map((c) => f.bridge.primary(c, f.request.id));
+        const hash = observationHash(f.request.body);
+        const receipt = {
+          schema_version: 1,
+          request_comment: f.request.id,
+          request_sha256: hash,
+          investigator: input.investigator,
+          plan_sha256: hostedPlanHash(hash, plan),
+          plan,
+          delivery: plan.map(() => ({ status: "prepared" })),
+          status: "prepared",
+          head: f.bridge.head,
+          run: "retained",
+          attempt: "1",
+          plan_origin: { head: f.bridge.head, run: "retained", attempt: "1" },
+        };
+        f.comments.set(999, {
+          id: 999,
+          issue_url: f.request.issue_url,
+          user: { login: "github-actions[bot]" },
+          body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(receipt)}\n\`\`\``,
+        });
+      }
+      const inventory = f.bridge.inventory.bind(f.bridge);
+      const refreshedAfterDelivery = new Set<number>();
+      f.bridge.inventory = (cache) => {
+        const retained = f.all().find((c) => c.user.login === "github-actions[bot]");
+        const receipt = (
+          retained ? JSON.parse(retained.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) : null
+        ) as { delivery: { status: string }[] } | null;
+        const delivered =
+          receipt?.delivery.filter((d: { status: string }) => d.status === "delivered").length ?? 0;
+        if (delivered) refreshedAfterDelivery.add(delivered);
+        if (delivered === count) throw new Error("Final global input cannot be collected");
+        return inventory(cache);
+      };
+      if (count > 10) {
+        await assert.rejects(f.bridge.process(f.request, f.all()), /Final global input/u);
+        assert(refreshedAfterDelivery.has(count), "global doctor requires a fresh final inventory");
+      } else {
+        const receipt = await f.bridge.process(f.request, f.all());
+        assert.equal(receipt?.status, "complete");
+        assert(receipt?.delivery.every((d) => d.status === "delivered" && d.doctor));
+        assert(!refreshedAfterDelivery.has(count), "final small-batch snapshot has no consumer");
+      }
+      for (let n = 1; n < count; n++)
+        assert(refreshedAfterDelivery.has(n), "remaining candidates require fresh inventory");
+      assert.equal(f.creations, count);
+    });
+  }
 });
 void test("interrupted Project delivery recovers the same issue without another POST", async () => {
   const f = fixture();

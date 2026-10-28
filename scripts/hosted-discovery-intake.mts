@@ -607,7 +607,7 @@ export class HostedIntakeBridge {
         d.doctor = compactDoctor(doctor);
         d.status = "delivered";
         persist();
-        inventory = this.inventory(inventory);
+        if (index < plan.length - 1 || plan.length > 10) inventory = this.inventory(inventory);
       }
       if (plan.length > 10) {
         const global = await runDoctor(this.client.config, this.client, {
