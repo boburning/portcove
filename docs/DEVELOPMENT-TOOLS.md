@@ -1162,7 +1162,7 @@ post-upgrade execution or replace Aqua's install-time checksum and attestation
 verification.
 
 Routine non-security development-tool proposals are eligible throughout the week
-after the existing release-age check, within the four concurrent proposal slots.
+after the existing release-age check, within the six concurrent proposal slots.
 Aqua and its managed Ruff, actionlint, and ShellCheck pins are proposed as one
 qualification group. Renovate does not independently advance the standard
 registry ref: if an actual tool update is unavailable in the pinned registry, or
