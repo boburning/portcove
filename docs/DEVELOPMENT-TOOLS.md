@@ -2837,7 +2837,7 @@ The supported frontend, native-build, native-verification and container routes
 reuse the existing process supervisor and descendant cleanup. On Windows/Linux,
 heavy frontend and host bundle preparation therefore need the pinned Rust compiler
 for the small cached supervisor; frontend profile setup/doctor includes it.
-Formatting, explicit-file lint, Node contract tests, Git/API reads, editing and
+Formatting, explicit-file lint, pure Node contracts, Git/API reads, editing and
 review do not acquire capacity or provision Rust, browsers or Docker. No validation
 command implicitly installs a missing compiler. `desktop:build` resolves the
 pinned Tauri adapter and declares Rust/frontend output ownership. Interactive
@@ -2846,7 +2846,8 @@ finite admitted phase. Do not overlap its compilation/output mutation with finit
 commands in that checkout; use a separate worktree and the native session rules.
 Raw Cargo/Vitest/Tauri commands and independently launched WSL jobs do not gain
 universal host enforcement. Windows-driven WSL verification participates through
-its host guard; a separate Linux user/kernel domain does not share host identity.
+its host guard. Other WSL commands can select the optional Windows-host bridge
+below; separate users and kernels retain separate process identities.
 
 Docker browser and builder adapters reserve host capacity before expensive image,
 dependency and bundle preparation, retain it through exact labelled container
@@ -2894,3 +2895,81 @@ sharing the download/tool cache does not share generated `node_modules`.
 Capacity queues probe at five-second intervals by default. A bounded process-identity
 probe failure keeps work queued within the same admission deadline; it never proves
 availability or starts a payload. Queue and execution failures remain distinct.
+
+### Windows-host coordination for WSL
+
+An optional machine configuration forwards participating WSL admission to the
+existing Windows capacity pool. Both configurations select one slot for one
+heavy payload across the participating host. Other machines retain their defaults.
+No drive letter, username, distribution name or scratch location is a repository
+default. An unconfigured contributor keeps the existing two-slot defaults and
+ordinary Node contract route; this extension adds no setup requirement to it.
+Linux retains a local proxy lease for native identity, nested ownership and output
+checks; Windows retains external custody until Linux cleanup is proven.
+
+The Linux hostBridge configuration identifies the Windows Node executable and
+entry script, Linux Node/probe paths, distribution/user and closureSha256. Stage
+the bridge, observation module, static import closure and required tool-pin files
+with the existing module-closure reader. The bridge-manifest.json binds format 1,
+the exact runtime version and each relative file path and sha256. All bounded,
+regular module bytes are verified before evaluation. Retain each content-addressed
+snapshot for the lifetime of its external records; recovery uses its original
+verifier rather than a mutable worktree.
+
+The exact Linux supervisor is registered before the host ACK permits the original
+payload gate to open. Release independently checks supervisor exit, cleanup
+receipt and directory identity. Connection loss or uncertain cleanup retains
+custody. Windows process-identity inspection retains a finite 15-second harness
+budget under host I/O load; host release allows 65 seconds for its bounded
+remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
+invocation before using existing external-capacity recovery. Prelaunch recovery
+requires an explicit completion marker; PID absence alone is insufficient.
+
+Prepare the scoped [scratch profiles](DEVELOPMENT-STORAGE.md#machine-scratch-profiles),
+then run from the updated WSL checkout:
+
+    node scripts/resource-command.mts adopt-windows-host /absolute/prepared-bridge.json
+
+Adoption holds all predecessor slots in both domains, verifies the inherited
+reservations, saves configuration/profile preimages in both migrations directories,
+selects pending during writes and reads back every result. Linux workspace scopes
+come from registered worktrees; the prepared Windows profile names its scopes
+explicitly. Repeating unchanged adoption performs no configuration writes.
+Ordinary failures restore unchanged preimages while reservations remain held.
+Crashes or concurrent changes retain pending state and receipts. After proving
+the original external operation stopped, recover its original adoption/rollback
+receipt:
+
+    node scripts/resource-command.mts recover-windows-host /absolute/original-host-domain.json
+
+Only an all-slot maintenance request bound to both domains' original receipt
+digests can enter pending domains. Recovery restores exact predecessor bytes from
+recognized previous, next or staged-pending values; foreign changes remain
+untouched and block recovery. A retained live/unknown lease still blocks this
+request. Never toggle mode or delete records merely to unblock work.
+
+For an intentional rollback from a settled adopted configuration:
+
+    node scripts/resource-command.mts rollback-windows-host /absolute/original-host-domain.json
+
+Rollback binds the applied original receipt and current preimages to the same
+all-slot boundary. It restores configuration and profiles without removing scratch
+contents or controller snapshots. Retire old entrypoints at a verified checkpoint.
+Older strict readers refuse hostBridge, but old unguarded Node suites and arbitrary
+third-party commands remain outside coverage until updated or retired.
+
+The existing Node suite registry's optional localResourceProfile value analysis
+marks fixture-heavy families. Maintained storage/local-check execution guards
+them only when the user's resource configuration explicitly enables nodeSuites.
+For that opt-in, the maintained execution path guards
+matching selections, conservatively guards unknown selections, and reserves the
+checkout, Cargo target and shared tool cache before nesting. Known cheap selections
+keep their cheap route; hosted arguments and authority remain unchanged.
+
+    just resource-status --sample-seconds 30 --json
+
+This retains bounded Linux pressure/disk/process counters and the configured
+Windows pool/counter observation. Plain output includes an I/O summary. Process
+counters are cumulative and may include waited-for children; they are not rates
+or current-hotspot proof. Inaccessible or unregistered work remains unobserved;
+missing records never establish machine idle.

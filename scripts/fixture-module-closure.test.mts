@@ -298,12 +298,18 @@ void test("cover and catalog Native contracts execute without optional package i
     "desktop-default-cover.native.test.mts",
     "desktop-catalog-update.native.test.mts",
   ].map((name) => prefix + name);
-  const closure = readFixtureModuleClosure(root, entries);
-  for (const dependency of closure.external) assert.ok(isBuiltin(dependency), dependency);
+  const production = ["desktop-default-cover-test.mts", "desktop-catalog-update-test.mts"].map(
+    (name) => prefix + name,
+  );
+  const closure = readFixtureModuleClosure(root, [...entries, ...production]);
+  // The real production graph is copied. The fixture replaces WebDriver/axe
+  // package shapes and the native transport boundary before their evaluation.
+  const optionalPackages = ["ajv/dist/2020.js", "axe-core", "selenium-webdriver"];
+  assert.deepEqual(
+    closure.external.filter((dependency) => !isBuiltin(dependency)),
+    optionalPackages,
+  );
   for (const module of closure.modules) write(directory, module.path, module.bytes);
-  // These read-only wiring observations are not imported runtime dependencies.
-  for (const source of ["desktop-default-cover-test.mts", "desktop-catalog-update-test.mts"])
-    write(directory, prefix + source, readFileSync(path.join(root, prefix, source)));
   const environment = { ...process.env };
   delete environment.NODE_TEST_CONTEXT;
   const result = spawnSync(process.execPath, ["--test", ...entries], {
