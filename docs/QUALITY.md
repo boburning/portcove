@@ -172,6 +172,13 @@ replacing a nonzero native exit. Invalid declarations or pre-execution IO can
 leave the command unexecuted, with no inferred native outcome.
 These declarations never execute ignored cases or grant their prerequisites.
 
+Frontend case observations also declare the Windows-only lifecycle timeout unit
+case's platform prerequisite and maintained Windows frontend-unit route. Its skip
+is expected only off Windows; a skip on Windows remains unexpected, and a missing
+case remains a missing route. These case declarations do not widen whole-file UI
+skip permissions or execute the route. A non-Windows skip is not a Windows process
+observation or native application acceptance.
+
 Windows archive consumers retain the same compiled skip-route observations under
 `work/test-results/windows-rust-skip-routes/`, including the complete native listing,
 its hash, the source/run binding, report and report hash. Both ordinary and Core
