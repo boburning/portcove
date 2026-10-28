@@ -1202,6 +1202,7 @@ for (const [file, tests] of [
   [
     "scripts/fixtures/disposable-directory.mts",
     [
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/node-platform-skips.test.mts",
@@ -1238,6 +1239,7 @@ for (const [file, tests] of [
   [
     "scripts/fixtures/module-closure.mts",
     [
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/daily-discovery.test.mts",
