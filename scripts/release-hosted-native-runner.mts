@@ -531,6 +531,38 @@ export async function prepareConfiguredHostedWindowsSource(
 }
 
 export const hostedWindowsNativeJobExecutionAuthorized = false;
+async function retainWindowsStageRoute(
+  root: string,
+  stage: "pre-sign" | "post-sign",
+  directory: string,
+  producer: { run_id: string; run_attempt: number; controller_revision: string },
+) {
+  const phase = stage === "pre-sign" ? "payload-signing" : "release-publication";
+  const relative = path.relative(root, directory).split(path.sep).join("/");
+  assert.match(
+    relative,
+    new RegExp(`^hosted-native-parent-[A-Za-z0-9]{6}/windows-session/${phase}/capture$`, "u"),
+  );
+  assert.match(producer.run_id, /^[1-9][0-9]{0,15}$/u);
+  assert.equal(producer.run_attempt, 1);
+  assert.match(producer.controller_revision, /^[a-f0-9]{40}$/u);
+  const identity = (await import("./heavy-rust-test-lock.mts")).readProcessIdentity(process.pid);
+  assert.ok(identity, "original Windows runner birth identity unavailable");
+  await (
+    await import("./release-routing-marker.mts")
+  ).retainCompletedReleaseRoutingRecord(path.join(root, `windows-native-${stage}-stage.json`), {
+    schema_version: 1,
+    platform: "windows-x86_64",
+    stage,
+    directory: relative,
+    owner_pid: process.pid,
+    owner_identity: identity,
+    run_id: producer.run_id,
+    run_attempt: producer.run_attempt,
+    revision: producer.controller_revision,
+    authority: "none",
+  });
+}
 /** One original realm retains both stages and proofs across the fixed Actions upload rendezvous. */
 export async function runConfiguredHostedWindowsNativeJob(
   raw: unknown,
@@ -558,12 +590,14 @@ export async function runConfiguredHostedWindowsNativeJob(
   } = await import("./release-hosted-native-windows-session.mts");
   const session = await startActualHostedWindowsSession(prepared.installation);
   try {
-    const pre = await prepareActualHostedWindowsPreSignStage(session);
-    const preRoot = (await requireActualHostedWindowsStage(pre)).directory;
-    await runActualHostedWindowsStageUpload(preRoot, prepared.deadline, pre);
     const { requireActualHostedNativeParentSource } =
       await import("./release-hosted-native-parent.mts");
     const parent = await requireActualHostedNativeParentSource(prepared.parent);
+    const pre = await prepareActualHostedWindowsPreSignStage(session);
+    const preRoot = (await requireActualHostedWindowsStage(pre)).directory;
+    await retainWindowsStageRoute(root, "pre-sign", preRoot, parent.producer);
+    await requireActualHostedWindowsStage(pre);
+    await runActualHostedWindowsStageUpload(preRoot, prepared.deadline, pre);
     const { GitHubApiClient, createGitHubRunner } = await import("./github-api.mts");
     const { waitForNativePostSignReadiness } =
       await import("./release-native-postsign-readiness.mts");
@@ -617,6 +651,8 @@ export async function runConfiguredHostedWindowsNativeJob(
     }
     const post = await prepareActualHostedWindowsPostSignStage(session);
     const postRoot = (await requireActualHostedWindowsStage(post)).directory;
+    await retainWindowsStageRoute(root, "post-sign", postRoot, parent.producer);
+    await requireActualHostedWindowsStage(post);
     await runActualHostedWindowsStageUpload(postRoot, prepared.deadline, post);
     const settlement = await finishActualHostedWindowsSession(session);
     const terminalDeadline = Math.min(prepared.deadline, settlement.deadline);

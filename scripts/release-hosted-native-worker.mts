@@ -40,6 +40,7 @@ import { runRustTests, inspectLinuxSupervisor } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { retainReleaseRoutingMarker } from "./release-routing-marker.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import { homedir } from "node:os";
 
 const sourceRoot = fileURLToPath(new URL("../", import.meta.url));
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -558,14 +559,99 @@ export async function signalFixedHostedLinuxPostStart() {
   supervisorActive();
 }
 
+/** One attested Windows Node realm retains the existing private owner/session
+ * across both upload rendezvous. An interrupted worker has no terminal success;
+ * the original intent/effects remain held for the existing recovery boundary. */
+export async function superviseFixedHostedWindowsNativeJob() {
+  const bootstrap = await import("./release-hosted-native-bootstrap.mts");
+  assert.ok(
+    bootstrap.hostedWindowsBootstrapExecutionAuthorized,
+    "Windows workflow worker awaits separate bootstrap execution authority",
+  );
+  const scope = await bootstrap.readActualHostedWindowsBootstrapScope("pre-sign");
+  const intentFile = path.join(scope.temporary, "portcove-native-windows-workflow-start.json");
+  const custody = inspectNativeRuntimeCustody([intentFile]);
+  const bytes = await readControllerToolFile(intentFile, 8192);
+  const intent: unknown = JSON.parse(bytes.toString("utf8"));
+  assert.ok(
+    isRecord(intent) &&
+      Object.keys(intent).sort().join(",") ===
+        "authority,automatic_retry,binding,deadline_ns,platform,schema_version",
+  );
+  assert.equal(intent.schema_version, 1);
+  assert.equal(intent.authority, "none");
+  assert.equal(intent.automatic_retry, false);
+  assert.equal(intent.binding, scope.binding);
+  assert.equal(intent.platform, "windows-x86_64");
+  assert.ok(
+    typeof intent.deadline_ns === "string" && /^[1-9][0-9]{0,19}$/u.test(intent.deadline_ns),
+  );
+  const end = BigInt(intent.deadline_ns);
+  const active = () => {
+    scope.unchanged();
+    recheckNativeRuntimeCustody([intentFile], custody);
+    assert.ok(
+      process.hrtime.bigint() < end && end - process.hrtime.bigint() <= 570000000000n,
+      "original Windows workflow clock expired or changed",
+    );
+  };
+  active();
+  const home = homedir();
+  assert.ok(path.isAbsolute(home) && path.normalize(home) === home);
+  const root = path.join(home, `.pcn-${scope.binding.slice(0, 32)}`);
+  try {
+    active();
+    const settlement = await bootstrap.launchFixedHostedWindowsNativeJob(end);
+    active();
+    const origin = process.hrtime.bigint(),
+      remaining = Math.floor(settlement.deadline - performance.now());
+    assert.ok(remaining > 0);
+    const terminal = origin + BigInt(remaining) * 1000000n;
+    const terminalEnd = terminal < end ? terminal : end;
+    const completed = (await import("./release-routing-marker.mts"))
+      .retainCompletedReleaseRoutingRecord;
+    await completed(path.join(root, "native-supervision-settlement.json"), {
+      schema_version: 1,
+      binding: scope.binding,
+      platform: "windows-x86_64",
+      phase: "complete",
+      pre_sign_complete: true,
+      post_sign_complete: true,
+      exit_code: 0,
+      recovery_required: false,
+      automatic_retry: false,
+      deadline_ns: String(terminalEnd),
+      authority: "none",
+      native_acceptance: "not-established",
+    });
+    active();
+    assert.ok(
+      process.hrtime.bigint() < terminalEnd,
+      "original Windows terminal clock expired during publication",
+    );
+  } catch (error) {
+    await retain(path.join(scope.temporary, "portcove-native-windows-workflow-refusal.json"), {
+      schema_version: 1,
+      binding: scope.binding,
+      recovery_required: true,
+      automatic_retry: false,
+      authority: "none",
+      reason: "Windows worker refused or terminal settlement incomplete",
+    });
+    throw error;
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const operation = process.argv.length === 3 ? process.argv[2] : null;
   const running =
     operation === "run"
       ? superviseFixedHostedLinuxNativeStages()
-      : operation === "post-start"
-        ? signalFixedHostedLinuxPostStart()
-        : Promise.reject(new Error("fixed hosted native worker operation required"));
+      : operation === "windows-run"
+        ? superviseFixedHostedWindowsNativeJob()
+        : operation === "post-start"
+          ? signalFixedHostedLinuxPostStart()
+          : Promise.reject(new Error("fixed hosted native worker operation required"));
   running.catch(() => {
     console.error(
       "fixed hosted native supervision refused; retain original stage state and effects; no automatic retry",

@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';import {registerHooks} from 'node:module
 const entry=${JSON.stringify(entry)},root=process.argv[1],session={},installation={},parent={},pre={},post={},hash=b=>createHash('sha256').update(b).digest('hex');
 let clock=1000,directory,scenario,order,recoveries,tasks,api;
 const deadline=100000;
-const stage=value=>{assert.ok(value===pre||value===post);assert.ok(clock<deadline,'original deadline exhausted');return {kind:value===pre?'payload-signing':'release-publication',directory:path.join(directory,value===pre?'pre':'post'),deadline}};
+const stage=value=>{assert.ok(value===pre||value===post);assert.ok(clock<deadline,'original deadline exhausted');return {kind:value===pre?'payload-signing':'release-publication',directory:path.join(directory,'hosted-native-parent-ABCDEF','windows-session',value===pre?'payload-signing':'release-publication','capture'),deadline}};
 globalThis.f={performance:{now:()=>clock},
  prepare:async(raw,root,end,executing)=>{assert.equal(root,directory);assert.equal(end,deadline);assert.equal(executing,'fixed.bundle');order.push('installation');return {installation,parent,deadline}},
  start:async token=>{assert.equal(token,installation);order.push('session');return session},
@@ -23,7 +23,7 @@ globalThis.f={performance:{now:()=>clock},
  stage:async token=>stage(token),
  finish:async token=>{assert.equal(token,session);order.push('finish');if(scenario==='late-finish')clock=5000;return {authority:'none',deadline:['short-issuer','late-finish'].includes(scenario)?5000:deadline}},
  refuse:async token=>{assert.equal(token,session);recoveries++},
- parent:async token=>{assert.equal(token,parent);return {producer:{run_id:'123',controller_revision:'a'.repeat(40)},recheck(){assert.ok(clock<deadline)}}},
+ parent:async token=>{assert.equal(token,parent);return {producer:{run_id:'123',run_attempt:1,controller_revision:'a'.repeat(40)},recheck(){assert.ok(clock<deadline)}}},
  prepareJob:async token=>{
   const actual=stage(token),label=token===pre?'pre':'post';order.push('prepare-'+label);
   const proof=path.join(actual.directory,'proof');await mkdir(proof,{mode:0o700});const files=[];
@@ -49,7 +49,7 @@ const routes={
 registerHooks({resolve(s,c,next){if(c.parentURL===entry&&routes[s])return {url:'connected:'+s,shortCircuit:true};return next(s,c)},load(u,c,next){if(u===entry){let source=readFileSync(new URL(u),'utf8');const boundary=source.indexOf('/** Preparation completes in one original bundle realm and under its job clock. */');assert.ok(boundary>0);source=source.slice(0,boundary)+'export const prepareConfiguredHostedWindowsInstallation=(...args)=>globalThis.f.prepare(...args);';source=source.replace('export const hostedWindowsNativeJobExecutionAuthorized = false;','export const hostedWindowsNativeJobExecutionAuthorized = true;');return {format:'module-typescript',source,shortCircuit:true}}if(u.startsWith('connected:'))return {format:'module',source:Object.entries(routes[u.slice('connected:'.length)]).map(([name,key])=>'export const '+name+'=globalThis.f.'+key+';').join('\n'),shortCircuit:true};return next(u,c)}});
 api=await import(entry);
 for(const name of ['success','short-issuer','late-finish','failed-prerequisite','late-prerequisite','partial-prerequisite','corrupt-ack','late-ack','provider']){
- scenario=name;clock=1000;order=[];recoveries=0;tasks=[];directory=path.join(root,name);await mkdir(directory,{mode:0o700});for(const leaf of ['pre','post'])await mkdir(path.join(directory,leaf),{mode:0o700});
+ scenario=name;clock=1000;order=[];recoveries=0;tasks=[];directory=path.join(root,name);await mkdir(directory,{mode:0o700});for(const leaf of ['payload-signing','release-publication'])await mkdir(path.join(directory,'hosted-native-parent-ABCDEF','windows-session',leaf,'capture'),{mode:0o700,recursive:true});
  const running=api.runConfiguredHostedWindowsNativeJob({},directory,deadline,'fixed.bundle');
  if(name==='success'||name==='short-issuer'){const settlement=await running;assert.equal(settlement.authority,'none');assert.equal(settlement.deadline,name==='short-issuer'?5000:deadline);assert.equal(recoveries,0);assert.deepEqual(order,['installation','session','pre','prepare-pre','readback-pre','GET','post','prepare-post','readback-post','finish'])}
  else {await assert.rejects(running);assert.equal(recoveries,1);assert.equal(order.includes('finish'),name==='late-finish');if(!['provider','late-finish'].includes(name))assert.equal(order.includes('post'),false)}
