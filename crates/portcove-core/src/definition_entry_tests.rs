@@ -387,7 +387,11 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+        let version = if port.adapter == crate::AdapterKind::NativePortable
+            && port.release.provider == crate::ReleaseSource::DirectManifest
+        {
+            3
+        } else if port.adapter == crate::AdapterKind::PsxRecompManaged {
             2
         } else if port
             .release
