@@ -31,17 +31,18 @@ records original report identities, exact package/signature/public-key bytes,
 metadata role signatures/key IDs/versions/digests, fixture feed locations,
 preserved-file hashes and explicit limits.
 
-| Item | Bytes | SHA-256 |
-| --- | ---: | --- |
+| Item                                       |      Bytes | SHA-256                                                            |
+| ------------------------------------------ | ---------: | ------------------------------------------------------------------ |
 | Updater-enabled qualified `0.1.0` AppImage | 98,425,336 | `9bb86e232293cae9c4e82ce855b734340494a1b93a9e7975f7b5433e5aa96f92` |
-| Candidate/staged/stable `0.2.0` AppImage | 98,183,672 | `a41626f5f749498bb332daf0d881b51966ea3e6d800f7fa5adb9729c97b267b0` |
+| Candidate/staged/stable `0.2.0` AppImage   | 98,183,672 | `a41626f5f749498bb332daf0d881b51966ea3e6d800f7fa5adb9729c97b267b0` |
 | Separate ordinary default-feature AppImage | 98,212,344 | `0b1562a1ba99a3847df0779968c480eb52a2070dfd5fd8b67217ccdc6970196d` |
 
 The maintained Rust release verifier additionally verified both exact retained
 endpoint payloads and their Tauri signatures offline on Windows. Its executable
 SHA-256 is `009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2`;
-both results bind public-key-file SHA-256
+both results bind decoded Tauri/Minisign public-key text SHA-256
 `7be944f06f4ee8588fb73b2cfe31d31ba4c8b95baca9f5da1056eedc65787921`.
+The encoded `.pub` file's raw-byte digest is recorded separately in the JSON.
 That is signature-component verification, not another installed Linux journey.
 An initial auxiliary invocation failed without a verification result or retained
 native exit code. A subsequent invocation with the standard Windows command

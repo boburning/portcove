@@ -68,7 +68,9 @@
     "path": "updater-rehearsal/disposable.key.pub",
     "bytes": 152,
     "sha256": "ddd4c31d6356e94b2c3cfb689fe7bc2e3c66642b154fec6f7cfc647ca3e6dc55",
-    "tauri_public_key": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU1MUQ2NjRDQjM5RjczMzgKUldRNGM1K3pUR1lkNVpTaHBPNDN2V24zaTFjSERGVnZXK0JRMjVxYkVRL3F3NnhWaFZGVmtjRGIK"
+    "tauri_public_key": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU1MUQ2NjRDQjM5RjczMzgKUldRNGM1K3pUR1lkNVpTaHBPNDN2V24zaTFjSERGVnZXK0JRMjVxYkVRL3F3NnhWaFZGVmtjRGIK",
+    "decoded_text_sha256": "7be944f06f4ee8588fb73b2cfe31d31ba4c8b95baca9f5da1056eedc65787921",
+    "encoding": "raw file contains base64-encoded Tauri/Minisign public-key text"
   },
   "compiled_fixture_feed": {
     "metadata_base_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/",
