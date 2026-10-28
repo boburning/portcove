@@ -15131,6 +15131,9 @@
           "game_slug": "pokemon-red-version",
           "match_kind": "underlying-game"
         }
+      },
+      "launch_environment": {
+        "POKEPORT_PORTMASTER_MANAGED": "1"
       }
     },
     {

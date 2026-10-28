@@ -2741,6 +2741,15 @@ mod tests {
         // Keep frozen port facts except the reviewed metadata/runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
+        // Historical readers keep the unmodified launch recipe. Only the current
+        // definition gains the reviewed upstream update-owner switch.
+        let gen1 = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "gen1recomp")
+            .unwrap();
+        assert!(gen1.launch_environment.is_empty());
+        gen1.launch_environment
+            .insert("POKEPORT_PORTMASTER_MANAGED".into(), "1".into());
         let battleship = expected_ports
             .iter_mut()
             .find(|port| port.id == "battleship")
@@ -4183,6 +4192,12 @@ mod tests {
             vec!["5ca7ba01642a3b27b0cc0b5349b52792795b62d3ed977e98a09390659af96b7b"]
         );
         let port = catalog.port("gen1recomp").unwrap();
+        // The upstream packaged runtime must not mount/download an independent
+        // update payload over the Core-owned version (including portable mode).
+        assert_eq!(
+            port.launch_environment.get("POKEPORT_PORTMASTER_MANAGED"),
+            Some(&"1".to_string())
+        );
         assert!(port.portable_marker);
         assert_eq!(
             port.source_environment.as_deref(),
