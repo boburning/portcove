@@ -130,6 +130,55 @@ The existing diagnostic helper now records cumulative monotonic phases after its
 
 ## Fit, margins and proposed calibration
 
+### October 28 — held standalone source preparation
+
+The existing runtime-readiness diagnostic now has a false-default
+`use_standalone_installer` input. Selecting it still refuses before evidence,
+network or installation because the helper's separately reviewed execution gate
+is literal `false`. No workflow input, downloaded record or digest can open it.
+The ordinary bootstrapper path keeps its existing gate and behavior.
+
+The prepared alternate consumes the exact official x64 source observed above:
+214,884,560 bytes / SHA-256
+`1c401b327fbc7bb9731b4e350a2194f083cbc3ede46508d52e1cae6610a39bea`.
+It follows at most one HTTPS redirect from the fixed Microsoft link to the
+declared Microsoft delivery host, refuses further redirects/encoding, streams
+under a 256-MiB ceiling and one 120-second download deadline, and requires exact
+size/hash plus valid Microsoft Authenticode before the existing installer path.
+It repeats that identity/signature check immediately before launch. The original
+five-minute installer limit, post-install shipping-floor readback, retained
+failure, single attempt and no-retry behavior remain. Every attempted download
+retains its proposed identity and bounds before acquisition; interrupted owned
+partials remain evidence. The installer stays outside the controller-tool bundle
+and is excluded from the diagnostic artifact's JSON-only upload. The 128-MiB
+per-tool and 320-MiB expanded-tool limits remain unchanged.
+
+The source descriptor keeps `runtime_version: null`. Microsoft's
+[Evergreen distribution documentation](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution)
+distinguishes the full offline installer from Fixed Version deployment. Its
+[pinned WinUI maintenance guidance](https://github.com/microsoft/microsoft-ui-xaml/blob/b9fa30e549de859f15fb84f153cc6136b981d10a/controls/dev/WebView2/WebView2-update.md)
+also distinguishes the enclosed runtime version from the outer Edge Update
+wrapper. No wrapper-version substitution, Fixed Version switch, runtime approval
+or redistribution right is inferred here.
+
+Thirteen inert full-helper scenarios exercise held selection, bounded successful
+copy, foreign/second redirect, declared/actual length, encoding, cancellation,
+interruption, changed bytes, missing signature and pre-launch substitution.
+Only private fixture copies alter host/source pins and open the gate, with inert
+HTTP/signature/process peers; actual file/stream/hash and success/failure receipts
+remain exercised. A separate control executes the maintained workflow step with
+inert helper peers to check boolean mapping and reject interpretation as code.
+These are controlled framework checks, not a real installer, runtime, hosted
+timing or production observation.
+
+Resume real standalone qualification only after the exact source/storage and
+bounded diagnostic execution scope is independently reviewed and authorized.
+Then retain actual signature, installer result, runtime version, matching driver,
+loaded-engine and measured timing/custody identities. This preparation neither
+activates the protected Windows job nor supplies complete-opportunity, grant,
+signing/publication or unchanged-client acceptance. Production and resource
+ratification remain held; no new diagnostic dispatch occurred.
+
 A 99-minute sum does not establish that either native job fits ten minutes. The Windows preparation caps 90+180+90=360 seconds plus the existing210-second capture/recovery reserve already total570 seconds before cold setup. Waiting for a separately bounded payload signer may add up to its own 570-second role window after pre-sign readiness. Those maxima cannot all fit one 570-second native execution window. Issuer expiry can shorten it further. Do not remove custody checks, mandatory qualification or cleanup to force that arithmetic.
 
 The recommended model is a named per-job plan with explicit purpose membership, measured equivalent cold/hot workloads, bounded upstream wait dependencies and mandatory cleanup reserves. Derive each purpose envelope from that plan rather than selecting 100 or another unrelated scalar. Keep candidate compilation and report-repair accounting separately visible. An added platform must produce a drift finding and a new exact digest/ratification; it must not silently increase active authority. Per-job margins should use observed maxima and meaningful variance samples, plus deterministic mandatory waits and recovery, not a claimed percentile from one run.
