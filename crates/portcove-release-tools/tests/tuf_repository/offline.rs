@@ -169,7 +169,7 @@ impl Ceremony {
         let result = self.cli(command, &config);
         assert!(
             !result.status.success(),
-            "unexpected success: {}",
+            "unexpected success for {command} using {name}: {}",
             String::from_utf8_lossy(&result.stdout)
         );
         if let Some(output) = output {
