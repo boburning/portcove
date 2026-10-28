@@ -14,7 +14,7 @@ Other destructive reviews retain their own consent contracts.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library retains Catalog order by default and offers Title A–Z, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter
@@ -92,7 +92,7 @@ not installed. Readiness never establishes ownership.
 The contained 2:3 cover frame is independent of title length: 128 by 192 CSS pixels
 ordinarily, 148 by 222 in wide detail containers and 96 by 144 in compact
 containers. Narrow layouts omit the cover and retain the complete identity and
-actions. The illustrated hero uses a directional opacity mask behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
+actions. The illustrated hero uses a directional opacity mask behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. The shared directional artwork mask keeps Continue copy readable while exposing more image toward its action edge. Loaded galleries use three columns in wide containers when at least three images exist, two at medium widths, and one in compact containers; per-slot attribution, errors and lightbox focus remain with the media owner. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
 cache/provenance, overrides and quiet fallback remain with Artwork; both artwork
 slots are accessible through Change artwork in Manage. No cover crop or provider
 mapping is inferred.
@@ -503,6 +503,38 @@ and details. Named collection-container queries expand text when its available
 width is below 60rem, including enlarged root text, without changing
 the artwork frame. Search matches the game, project, variant and stable port ID;
 name sorting uses the game title. Matching game titles never combine cards.
+
+Library uses Title A–Z only when no sort preference exists; explicit legacy Catalog
+order and saved sorts remain available. Unreadable stored preferences retain Catalog
+order for explicit recovery and are not replaced without an explicit save. Discover
+retains Suggested order. Everyday
+Library quick views compose existing query and favorites state; collection editing
+and Hidden stay in the collection menu. Clear filters retains search; Reset view
+states that it also clears search, quick views and collection selection. At compact
+widths search occupies its own toolbar row.
+
+Common filters use compact labeled checkbox popovers. Selection stays multi-select,
+with OR within a category and AND across categories; route-dependent predicates
+must still match the same observed route. Advanced filters and per-field help retain
+technical semantics. Escape closes the active popover before the containing panel.
+
+Repeated collection Play controls use neutral secondary emphasis. The selected-game
+hero and Continue keep primary emphasis. Detail Back labels follow the captured
+Library, Discover or active Add games origin; unknown origins use generic wording.
+Card metadata supports two lines without
+reserving blank lines on every short title. Detail uses current-state summaries and
+compact management rows around existing operation/review owners. File paths never
+establish file validation. Saves & backups distinguishes unknown/error history from
+known empty history; Manage distinguishes installed paths from future defaults.
+Update coverage, errors and unchecked state precede secondary statistics; version
+arrows require both known installed and offered versions. Task records retain their
+operation identity and diagnostics, with exact-operation recovery cross-links; no
+records are grouped by game name or inferred installation identity.
+
+Comparison separates original system, runtime targets and release channels, and
+reports observed ownership. Feature comparison remains unavailable until the shared
+catalog contract carries revalidated, sourced and dated claims. Presentation code
+must not supply project-specific feature maps.
 
 At enlarged text sizes the full application shell must reflow as well as the
 cards. Header search and command controls may wrap onto separate rows; neither

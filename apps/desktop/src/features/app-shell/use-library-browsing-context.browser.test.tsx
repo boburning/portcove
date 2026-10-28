@@ -583,5 +583,13 @@ it.each([{ sort: ["recent"] }, { sort: { value: "recent" } }, { sort: 1 }])(
     expect(browsing.preferenceFailure).toBe("read");
     expect(localStorage.getItem(key)).toBe(serialized);
     expect(browsing.ui.librarySort).toBe("catalog");
+    await act(async () => {
+      expect(browsing.saveBrowsingPreferences()).toBe(true);
+    });
+    const recovered: unknown = JSON.parse(localStorage.getItem(key)!);
+    expect(recovered).toMatchObject({ inputs: { sections: { library: { sort: "catalog" } } } });
+    await remount();
+    expect(browsing.preferenceFailure).toBeUndefined();
+    expect(browsing.ui.librarySort).toBe("catalog");
   },
 );

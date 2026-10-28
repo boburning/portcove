@@ -119,7 +119,7 @@ it("opens the reported game from another detail without repeating the failed mut
   const review = host.querySelector<HTMLButtonElement>(
     '[data-detail-origin="error:preparation-review"]',
   )!;
-  expect(review.textContent).toBe("Review game preparation");
+  expect(review.textContent).toBe("Review setup");
   await act(async () => review.click());
   expect(host.querySelector("h1")?.textContent).toBe(port.id);
   expect(task).toHaveBeenCalledOnce();

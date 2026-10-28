@@ -26,8 +26,9 @@ export function LanguageSettings() {
   return (
     <SettingsRow className="language-card" data-focus-group>
       <h2>{localization.t("language.title")}</h2>
-      <p>{localization.t("language.description")}</p>
+      <p>{localization.t("language.current", { language: resolvedLanguage })}</p>
       <ChoiceSelect
+        inline
         triggerId={triggerId}
         label={localization.t("language.pickerLabel")}
         value={choice}
@@ -40,7 +41,7 @@ export function LanguageSettings() {
           void localization.select(nextChoice);
         }}
       />
-      <p>{localization.t("language.current", { language: resolvedLanguage })}</p>
+      <p>{localization.t("language.description")}</p>
       {locale === "ar-XB" && (
         <div role="note">
           <strong>{localization.t("language.previewTitle")}</strong>

@@ -149,16 +149,20 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   expect(document.querySelector(".library-query-tools #port-search")).not.toBeNull();
   expect(document.querySelector(".header-tools #port-search")).toBeNull();
   expect(document.body.textContent).toContain("12 entries · On this computer");
-  const plays = page
-    .getByRole("region", { name: "Library entries" })
-    .getByRole("button", { name: "Play", exact: true });
-  await plays.nth(0).click();
+  const portCard = (id: string) =>
+    page.elementLocator(
+      document
+        .querySelector(`[data-detail-game-id="${id}"]`)!
+        .closest<HTMLElement>(".collection-entry")!,
+    );
+  await portCard("collection-0").getByRole("button", { name: "Play", exact: true }).click();
   await expect.poll(() => launch.mock.calls[0]).toEqual(["collection-0", "", 1]);
-  await plays.nth(1).click();
+  await portCard("collection-1").getByRole("button", { name: "Play", exact: true }).click();
   await expect.poll(() => launch.mock.calls[1]).toEqual(["collection-1", "", 1]);
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   expect(document.body.textContent).toContain("2 of 12 library entries");
+  await page.getByText("Collections · All games", { exact: true }).click();
   const commands = page
     .getByText("Collection commands", { exact: true })
     .element()
@@ -166,13 +170,13 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   commands.open = true;
   expect(commands.textContent).toContain("12 installed entries");
   expect(commands.textContent).toContain("hidden by filters");
-  await page.getByRole("button", { name: "Clear search and filters", exact: true }).click();
+  await page.getByRole("button", { name: "Reset view", exact: true }).click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
   const more = page.getByRole("button", { name: /^More actions for/ }).first();
   await more.click();
   await expect.element(page.getByRole("menu", { name: /^More actions for/ })).toHaveFocus();
   await userEvent.keyboard("{End}");
-  await expect.element(page.getByRole("menuitem", { name: "Saves and storage" })).toHaveFocus();
+  await expect.element(page.getByRole("menuitem", { name: "Saves & backups" })).toHaveFocus();
   await userEvent.keyboard("{Escape}");
   await expect.element(more).toHaveFocus();
 });
@@ -192,11 +196,11 @@ it("plays the distinct duplicate port from details and returns to its filtered r
     .click();
   const detail = page.getByRole("region", { name: "Super Mario 64", exact: true });
   await expect
-    .element(detail.getByText("Port project: Mario modern port · Modern renderer", { exact: true }))
+    .element(detail.getByText("Mario modern port · Modern renderer", { exact: true }))
     .toBeVisible();
   await detail.getByRole("button", { name: "Play", exact: true }).click();
   await expect.poll(() => launch.mock.calls[0]).toEqual(["collection-1", "", 1]);
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   await expect.element(search).toHaveValue("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-row").length).toBe(2);
   await expect
@@ -231,7 +235,7 @@ it("names exact port choices from their visible identity and readiness inside gr
   expect(choice.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
   await userEvent.click(choice);
   await expect
-    .element(page.getByText("Port project: Mario modern port · Modern renderer", { exact: true }))
+    .element(page.getByText("Mario modern port · Modern renderer", { exact: true }))
     .toBeVisible();
   expect(document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id")).toBe(
     "collection-1",
@@ -272,9 +276,12 @@ it("shares the narrow filter row without losing query, independent readiness or 
   await search.fill("Super Mario 64");
   const favorites = page.getByRole("button", { name: "Favorites (0)", exact: true }).element();
   const filters = page.getByRole("button", { name: "Filters (0)", exact: true }).element();
-  expect(
-    Math.abs(favorites.getBoundingClientRect().top - filters.getBoundingClientRect().top),
-  ).toBeLessThanOrEqual(2);
+  expect(favorites.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    search.element().getBoundingClientRect().top,
+  );
+  expect(filters.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    search.element().getBoundingClientRect().bottom,
+  );
   await page.getByRole("button", { name: "Compact rows", exact: true }).click();
   await expect.poll(() => document.querySelectorAll(".collection-row").length).toBe(2);
   await expect.element(search).toHaveValue("Super Mario 64");
@@ -307,7 +314,7 @@ it("opens Continue playing details and restores its exact trigger after Back", a
   await expect.element(page.getByText("Continue playing", { exact: true })).toBeVisible();
   const origin = '[data-detail-origin="library:continue-details:collection-0"]';
   await page.getByRole("button", { name: "View details", exact: true }).click();
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   await expect.poll(() => document.activeElement?.matches(origin)).toBe(true);
   const target = document.querySelector<HTMLElement>(origin)!;
   expect(target.closest(".continue-card")).not.toBeNull();
@@ -363,9 +370,9 @@ it.each([
     await expect
       .element(page.getByRole("heading", { name: title, exact: true }))
       .toHaveAccessibleName(title);
-    await expect.element(page.getByText(`Port project: ${project}`, { exact: true })).toBeVisible();
+    await expect.element(page.getByText(project, { exact: true })).toBeVisible();
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     const play = continuation.getByRole("button", { name: "Play again", exact: true });
     await expect.element(play).toBeEnabled();
     play.element().scrollIntoView({ block: "nearest" });
@@ -388,7 +395,7 @@ for (const theme of ["dark", "light"]) {
     const count = document.querySelectorAll(".collection-entry").length;
     const action = [
       ...document.querySelectorAll<HTMLButtonElement>(
-        ".collection-actions button[data-variant=primary]",
+        ".collection-actions button[data-variant=outline]",
       ),
     ].at(-1)!;
     action.focus();
@@ -529,7 +536,7 @@ for (const theme of ["dark", "light"]) {
         document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
       )
       .toBe("collection-1");
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await expect
       .poll(() => document.activeElement?.getAttribute("data-detail-origin"))
       .toBe("catalog:card:collection-0");

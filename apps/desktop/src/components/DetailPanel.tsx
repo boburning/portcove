@@ -1,3 +1,5 @@
+import { gameFilesPresentation } from "../features/port-actions/browse-presentation";
+import { CurrentStateSummary, ManagementRow } from "./ui/patterns";
 import { DetailLayout } from "./DetailLayout";
 import { SetupStatement, UpdateNoticePreferences, type DetailOrganization } from "./DetailChoices";
 import {
@@ -120,6 +122,8 @@ export interface DetailActions {
 type AsyncAction = () => void | Promise<unknown>;
 
 interface DetailPanelProps {
+  backLabel?: string | undefined;
+  favoriteControl?: ReactNode;
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
@@ -297,6 +301,8 @@ export function DetailPanel(props: DetailPanelProps) {
       ));
   const renderDetailBody = () => (
     <DetailBody
+      backLabel={props.backLabel}
+      favoriteControl={props.favoriteControl}
       state={state}
       opening={props.opening}
       extraFiles={props.extraFiles}
@@ -374,6 +380,8 @@ interface DetailState {
 }
 
 function DetailBody(model: {
+  backLabel?: string | undefined;
+  favoriteControl?: ReactNode;
   state: DetailState;
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
@@ -434,6 +442,8 @@ function DetailBody(model: {
   });
   return (
     <DetailLayout
+      backLabel={model.backLabel}
+      favoriteControl={model.favoriteControl}
       port={model.displayPort ?? model.port}
       projectUrl={model.port.project_url}
       openSupport={model.openSupport}
@@ -477,7 +487,7 @@ function DetailBody(model: {
               if (directInstall) void model.actions.reviewInstall();
             }}
           >
-            {model.installed ? "Review game files" : directInstall ? "Install" : "Set up game"}
+            {directInstall ? "Install" : "Set up"}
           </Button>
         )
       }
@@ -494,9 +504,6 @@ function DetailBody(model: {
           ) : model.state.tone !== "ready" ? (
             <p>
               <span data-detail-reason>{model.state.description}</span>{" "}
-              <Button variant="link" onClick={() => reveal("files")}>
-                Review files
-              </Button>
             </p>
           ) : null}
           {(model.runtimeUpdateAvailable || model.stagedVersion) && (
@@ -625,29 +632,42 @@ function StatusActionsGroupView({
         model.sources.biosPath,
       ),
     );
+  const fileState = gameFilesPresentation(model.port, model.status);
+  const fileSummary = (
+    <CurrentStateSummary
+      title={fileState.title}
+      headingRef={nextStep}
+      className="border-0 bg-transparent p-0"
+    >
+      <p className="m-0 text-sm text-pc-muted-foreground">{fileState.description}</p>
+    </CurrentStateSummary>
+  );
   const manualSetup =
     model.installed &&
     model.port.adapter === "native-portable" &&
     hasPendingSetupAction(model.status);
   if (usesExternalRuntimeRoute(model.port, model.status)) {
     return (
-      <ExternalStatusActions
-        {...{
-          hidePlay: model.hidePlay,
-          port: model.port,
-          status: model.status,
-          sources: model.sources,
-          sourceReady: model.sourceReady,
-          biosReady: model.biosReady,
-          launchReady: model.launchReady,
-          busy: model.busy,
-          libraryGeneration: model.libraryGeneration,
-          onChanged: model.onChanged,
-          actions: model.actions,
-          actionPresentation,
-          trial,
-        }}
-      />
+      <>
+        {fileSummary}
+        <ExternalStatusActions
+          {...{
+            hidePlay: model.hidePlay,
+            port: model.port,
+            status: model.status,
+            sources: model.sources,
+            sourceReady: model.sourceReady,
+            biosReady: model.biosReady,
+            launchReady: model.launchReady,
+            busy: model.busy,
+            libraryGeneration: model.libraryGeneration,
+            onChanged: model.onChanged,
+            actions: model.actions,
+            actionPresentation,
+            trial,
+          }}
+        />
+      </>
     );
   }
   if (!model.installed && !model.stagedVersion && actionPresentation.blocked)
@@ -658,6 +678,7 @@ function StatusActionsGroupView({
         aria-label="Game actions"
         className="grid gap-3"
       >
+        {fileSummary}
         <RetiredNotice port={model.port} />
         <p role="status">{actionPresentation.reason}</p>
         <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
@@ -686,15 +707,9 @@ function StatusActionsGroupView({
       aria-label="Game actions"
       className="grid gap-3"
     >
+      {fileSummary}
       <RetiredNotice port={model.port} />
       {actionPresentation.blocked && <p role="status">{actionPresentation.reason}</p>}
-      {(!model.launchReady || model.managedPreparation) && (
-        <h2 ref={nextStep} tabIndex={-1} className="m-0 text-base">
-          {model.managedPreparation && model.pendingSetup
-            ? "Next step: prepare game data"
-            : "Next step"}
-        </h2>
-      )}
       {<ManualSetupActions {...{ model, manualSetup }} />}
       {<ManagedPreparationAction {...{ gameActions, nextStep, model }} />}
       {!model.hidePlay && !manualSetup && (
@@ -927,16 +942,20 @@ function SavesStorageGroup({
     backupProblems.length > 0 ||
     (backupReadState !== undefined && backupReadState.status !== "idle");
   return (
-    <DetailGroup title="Saves and storage" headingRef={heading}>
-      <TrustStrip status={status} />
-      <SavesAndSettingsSummary port={port} status={status} />
-      <StorageSummary status={status} />
-      <DataActions
-        busy={busy}
-        actions={actions}
-        assessment={backupCreateAssessment}
-        readState={backupReadState}
-      />
+    <DetailGroup title="Saves & backups" headingId="detail-saves-and-storage" hideHeading>
+      <CurrentStateSummary title="Saved data" headingRef={heading}>
+        <StorageSummary status={status} />
+        <DataActions
+          busy={busy}
+          actions={actions}
+          assessment={backupCreateAssessment}
+          readState={backupReadState}
+        />
+        <p className="m-0 text-sm text-pc-muted-foreground">
+          Backups cover managed saves and settings. Game-version rollback, library metadata and
+          other folders are separate.
+        </p>
+      </CurrentStateSummary>
       {hasBackupHistory && (
         <BackupHistory
           gameName={gameIdentityLabel(port)}
@@ -954,6 +973,11 @@ function SavesStorageGroup({
           focusFallback={() => heading.current}
         />
       )}
+      <details className="text-sm">
+        <summary className="cursor-pointer py-2 font-medium">Coverage and recorded rules</summary>
+        <SavesAndSettingsSummary port={port} status={status} />
+        <TrustStrip status={status} />
+      </details>
     </DetailGroup>
   );
 }
@@ -985,15 +1009,24 @@ function DetailGroup({
   title,
   children,
   headingRef,
+  hideHeading = false,
+  headingId: explicitHeadingId,
 }: {
   title: string;
   children: React.ReactNode;
   headingRef?: RefObject<HTMLHeadingElement | null>;
+  hideHeading?: boolean;
+  headingId?: string;
 }) {
-  const headingId = `detail-${title.toLowerCase().replaceAll(" ", "-")}`;
+  const headingId = explicitHeadingId ?? `detail-${title.toLowerCase().replaceAll(" ", "-")}`;
   return (
     <section className="detail-group mt-7 grid gap-4 first:mt-0" aria-labelledby={headingId}>
-      <h2 ref={headingRef} id={headingId} tabIndex={-1} className="m-0 text-base">
+      <h2
+        ref={headingRef}
+        id={headingId}
+        tabIndex={-1}
+        className={cn("m-0 text-base", hideHeading && "sr-only")}
+      >
         {title}
       </h2>
       <div className="grid gap-4">{children}</div>
@@ -1042,25 +1075,19 @@ function InstallationVersionSummary({
           <dd>{status.staged.version}</dd>
         </div>
       )}
-      {status?.active && (
-        <div className="col-span-full border-t border-pc-border">
-          <dt>Installed folder</dt>
-          <dd>{status.active.path}</dd>
-        </div>
-      )}
     </dl>
   );
 }
 
 function StorageSummary({ status }: { status?: PortStatus | undefined }) {
   return (
-    <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
-      <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-        <small className="mb-[5px] block text-[var(--color-text-muted)]">
-          Saves and settings folder
-        </small>
-        {status?.user_data_root ?? "Created inside the selected library"}
-      </span>
+    <div className="text-sm wrap-anywhere">
+      <span className="text-pc-muted-foreground">Saves and settings folder</span>
+      {status?.user_data_root ? (
+        <p className="mt-1 select-text">{status.user_data_root}</p>
+      ) : (
+        <p className="mt-1">Folder not available</p>
+      )}
     </div>
   );
 }
@@ -1782,6 +1809,7 @@ function PrimaryActions({
 
 function InstalledPlayActions({
   compact = false,
+  hero = false,
   trial = false,
   preparationRequired,
   launchReady,
@@ -1791,6 +1819,7 @@ function InstalledPlayActions({
   actions,
 }: {
   compact?: boolean;
+  hero?: boolean;
   trial?: boolean;
   preparationRequired: boolean;
   launchReady: boolean;
@@ -1802,12 +1831,18 @@ function InstalledPlayActions({
   if (preparationRequired)
     return <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />;
   return (
-    <div className={cn("actions primary-actions flex flex-wrap gap-2", !compact && "mt-4")}>
+    <div
+      className={cn(
+        "actions primary-actions flex flex-wrap gap-2",
+        !compact && "mt-4",
+        hero && "detail-hero-primary",
+      )}
+    >
       <Button
         data-focusable
         data-launch-action
         data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
-        className={compact ? undefined : "wide flex-1"}
+        className={cn(compact ? undefined : "wide flex-1", hero && "detail-hero-action")}
         variant="primary"
         size="lg"
         title={
@@ -2242,6 +2277,7 @@ function VersionRollback({
 
 function MaintenanceActions({
   port,
+  reveal,
   libraryGeneration,
   status,
   verificationPrimary,
@@ -2249,6 +2285,7 @@ function MaintenanceActions({
   actions,
 }: {
   port: PortDefinition;
+  reveal: import("./DetailLayout").RevealDetailSection;
   libraryGeneration: number;
   status?: PortStatus | undefined;
   verificationPrimary: boolean;
@@ -2258,8 +2295,10 @@ function MaintenanceActions({
   return (
     <>
       {!verificationPrimary && (
-        <DetailGroup title="Check installed files">
-          <p>Check for missing or changed port files without changing your saved data.</p>
+        <ManagementRow
+          title="File verification"
+          description="Check for missing or changed port files without changing saved data."
+        >
           <Button
             data-focusable
             variant="outline"
@@ -2269,7 +2308,17 @@ function MaintenanceActions({
             <Icon glyph={ShieldCheck} />
             Verify installation
           </Button>
-        </DetailGroup>
+        </ManagementRow>
+      )}
+      {verificationPrimary && (
+        <ManagementRow
+          title="File verification"
+          description="The recorded installation needs repair. Review its current requirements in Game files."
+        >
+          <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
+            Review verification
+          </Button>
+        </ManagementRow>
       )}
       <DetailGroup title="Remove from library">
         <p>Review the exact files to remove and the data to keep before confirming.</p>
@@ -2771,7 +2820,9 @@ function backupCreateExplanation(
     if (readState?.status === "current") return unavailable;
     if (readState?.status === "failed")
       return "Your saved data could not be checked. Retry the backup inventory read.";
-    return "Checking your saved data…";
+    return readState?.status === "pending"
+      ? "Checking your saved data…"
+      : "Saved-data availability has not been checked.";
   }
   if (available) return "Back up saves and settings managed by Portcove.";
   if (!consistent) return unavailable;
@@ -3282,11 +3333,7 @@ function DetailFilesSection({
         )}
       </div>
       <aside className="detail-setup-context">
-        <h3 className="mb-3 text-base">Before you continue</h3>
-        <p className="text-sm text-pc-muted-foreground">
-          Portcove reviews the selected files and installation before making changes. Your saved
-          choices are inputs for a new review.
-        </p>
+        <h3 className="mb-3 text-base">File details</h3>
         <details className="my-4">
           <summary className="cursor-pointer py-2 text-sm font-medium">
             File matching details
@@ -3309,32 +3356,42 @@ function DetailManageSection({
 }) {
   return (
     <>
-      {model.status?.external_runtime && (
-        <DetailGroup title="Existing installation">
-          <dl className="m-0 grid gap-4 text-sm [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-pc-muted-foreground">
-            <div>
-              <dt>Folder</dt>
-              <dd>{model.status.external_runtime.path}</dd>
-            </div>
-            <div>
-              <dt>Who maintains it</dt>
-              <dd>You maintain this folder and its updates.</dd>
-            </div>
-          </dl>
-          <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
-            Edit external launch details
-          </Button>
-        </DetailGroup>
-      )}
-
-      {model.status?.active && (
-        <DetailGroup title="Installation location">
-          <p className="[overflow-wrap:anywhere]">{model.status.active.path}</p>
-          <p>Portcove manages this installation. Saved data has its own coverage in Saves.</p>
-        </DetailGroup>
-      )}
+      <CurrentStateSummary
+        title={
+          !model.status
+            ? "Installation status unavailable"
+            : model.status.active || model.status.external_runtime
+              ? "Installation ownership"
+              : "No active installation"
+        }
+      >
+        {model.status?.active && (
+          <div className="text-sm wrap-anywhere">
+            <p className="m-0 font-medium">Managed installation</p>
+            <p className="my-1 select-text">{model.status.active.path}</p>
+            <p className="m-0 text-pc-muted-foreground">
+              Portcove manages this installation. Saved-data coverage is shown in Saves & backups.
+            </p>
+          </div>
+        )}
+        {model.status?.external_runtime && (
+          <div className="text-sm wrap-anywhere">
+            <p className="m-0 font-medium">Registered external installation</p>
+            <p className="my-1 select-text">{model.status.external_runtime.path}</p>
+            <p className="m-0 text-pc-muted-foreground">
+              You maintain this folder and its updates.
+            </p>
+            <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
+              Edit external launch details
+            </Button>
+          </div>
+        )}
+      </CurrentStateSummary>
       {(!external || model.port.adapter === "native-portable") && (
-        <DetailGroup title="Installation folder">
+        <details className="my-4 text-sm">
+          <summary className="cursor-pointer py-2 font-medium">
+            Advanced installation settings
+          </summary>
           <FutureSetupDisclosure
             title="Folder for a future install"
             description="Choosing an output folder does not move or install a game."
@@ -3349,18 +3406,24 @@ function DetailManageSection({
               onApplying={model.outputApplying}
             />
           </FutureSetupDisclosure>
-        </DetailGroup>
+        </details>
       )}
-      <DetailGroup title="Artwork">
+      <ManagementRow
+        title="Artwork"
+        targetId="detail-artwork"
+        description="Change this game’s artwork using the existing local and catalog choices."
+      >
         <ArtworkControls
           key={`controls:${model.port.id}:${model.libraryGeneration}`}
           port={model.port}
         />
-      </DetailGroup>
+      </ManagementRow>
       {model.extraFiles}
       {!external && (
-        <DetailGroup title="Steam shortcut">
-          <p>Review adding, repairing or removing this game’s shortcut in Steam.</p>
+        <ManagementRow
+          title="Steam shortcut"
+          description="Review adding, repairing or removing this game’s shortcut in Steam."
+        >
           <span id="detail-steam" tabIndex={-1} />
           <SteamEntryControl
             key={`steam:${model.port.id}:${model.libraryGeneration}`}
@@ -3369,10 +3432,11 @@ function DetailManageSection({
             installed={model.installed}
             busy={Boolean(model.busy)}
           />
-        </DetailGroup>
+        </ManagementRow>
       )}
       {!external && model.installed && (
         <MaintenanceActions
+          reveal={reveal}
           port={model.port}
           libraryGeneration={model.libraryGeneration}
           status={model.status}
@@ -3407,14 +3471,14 @@ function DetailSavesSection({
   return (
     <>
       {external ? (
-        <DetailGroup title="Saves and storage">
+        <CurrentStateSummary title="Saves managed externally">
           <section aria-label="Saved-data coverage">
             <p>
               This installation’s saves and settings stay outside Portcove’s managed backups,
               updates and removal. Follow the port’s instructions to copy them separately.
             </p>
           </section>
-        </DetailGroup>
+        </CurrentStateSummary>
       ) : (
         <SavesStorageGroup
           port={model.port}
@@ -3600,6 +3664,7 @@ function DetailHeaderAction({
 }: Pick<{ model: Parameters<typeof DetailBody>[0]; busy: string | undefined }, "model" | "busy">) {
   return (
     <InstalledPlayActions
+      hero
       compact
       trial={
         hasUnconfirmedLaunchInput(model.status, model.port) ||

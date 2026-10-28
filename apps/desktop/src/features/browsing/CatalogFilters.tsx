@@ -17,7 +17,7 @@ import {
   type Filter,
 } from "../../view-model";
 import { Button } from "../../components/ui/button";
-import { ChipButton } from "../../components/ui/chip";
+import { Chip, ChipButton } from "../../components/ui/chip";
 import { IdentityIcon } from "../identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../identity/identity-style";
 import {
@@ -29,6 +29,9 @@ import {
 import { states } from "./game-file-query-context";
 import { GameFileFilterControls } from "./GameFileFilterControls";
 import type { GameFileFilterState } from "./use-game-file-filter-context";
+
+import { Checkbox } from "../../components/ui/checkbox";
+import { CompactFilterField } from "../../components/ui/field";
 
 const fixedGroups = [
   {
@@ -72,13 +75,21 @@ const fixedGroups = [
   },
 ] as const;
 type Group = (typeof fixedGroups)[number]["key"] | "originalSystems";
+const commonGroups: readonly Group[] = [
+  "platforms",
+  "originalSystems",
+  "channels",
+  "portOptions",
+  "membership",
+  "gameFiles",
+];
 interface FilterGroup {
   key: Group;
   label: string;
   values: readonly string[];
 }
 
-function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
+export function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
   return typeof filter === "string"
     ? {
         version: ["all", "stable", "beta", "rolling"].includes(filter) ? 1 : 0,
@@ -120,7 +131,9 @@ export function CatalogFilters({
   before,
   after,
   summary,
+  advanced,
 }: {
+  advanced?: ReactNode;
   before?: ReactNode;
   after?: ReactNode;
   summary?: ReactNode;
@@ -189,10 +202,7 @@ export function CatalogFilters({
       );
   const additional = additionalCount > 0;
   const hasAdvancedSelection =
-    selected.some(
-      ({ group }) =>
-        !["originalSystems", "platforms", "channels", "membership", "portOptions"].includes(group),
-    ) || additional;
+    selected.some(({ group }) => !commonGroups.includes(group)) || additional;
   const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedSelection);
   const activeCount = selected.length + additionalCount;
   const remove = (group: Group, value: string) =>
@@ -243,9 +253,12 @@ export function CatalogFilters({
           <h2 ref={heading} tabIndex={-1}>
             {view === "library" ? "Library" : "Discover"} filters
           </h2>
-          <p className="text-sm text-pc-muted-foreground">
-            Choose one or more options. Results match at least one option in each selected group.
-          </p>
+          <details className="my-2 text-sm text-pc-muted-foreground">
+            <summary className="cursor-pointer py-1">How filters work</summary>
+            <p>
+              Choose one or more options. Results match at least one option in each selected group.
+            </p>
+          </details>
           {!editable && (
             <p role="alert">
               {result.state === "unresolved"
@@ -260,13 +273,7 @@ export function CatalogFilters({
             </p>
           )}
           <div className="catalog-filter-groups items-start">
-            {groups
-              .filter((group) =>
-                ["originalSystems", "platforms", "channels", "membership", "portOptions"].includes(
-                  group.key,
-                ),
-              )
-              .map(renderGroup)}
+            {commonGroups.map((key) => groups.find((group) => group.key === key)!).map(renderGroup)}
           </div>
           <details
             open={advancedOpen}
@@ -278,19 +285,9 @@ export function CatalogFilters({
               remain unknown.
             </p>
             <div className="catalog-filter-groups items-start pt-3">
+              {advanced}
               {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
-              {groups
-                .filter(
-                  (group) =>
-                    ![
-                      "originalSystems",
-                      "platforms",
-                      "channels",
-                      "membership",
-                      "portOptions",
-                    ].includes(group.key),
-                )
-                .map(renderGroup)}
+              {groups.filter((group) => !commonGroups.includes(group.key)).map(renderGroup)}
             </div>
           </details>
           <div className="flex flex-wrap justify-end gap-2">
@@ -373,73 +370,79 @@ export function CatalogFilters({
   );
 
   function renderGroup(group: FilterGroup) {
+    const chosen = supported ? (query[group.key] ?? []) : [];
+    const help: Partial<Record<Group, string>> = {
+      platforms:
+        "Package targets, not tested device compatibility. For this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
+      membership:
+        "Includes managed installations, registered runtimes and downloads awaiting setup. Membership does not imply readiness.",
+      updates:
+        "Uses the current installation’s last check and matching verified staged update. Choosing a filter does not check for updates.",
+      gameFiles:
+        "Uses the same setup or installation as your other filters. Changed or unreadable files need checking; they are not counted as missing.",
+      attention: "Recorded needs for the current installation. Unavailable details remain unknown.",
+    };
     return (
-      <fieldset key={group.key} className="grid min-w-0 content-start items-start gap-2">
-        <legend className="mb-2 font-medium">{group.label}</legend>
-        {group.key === "platforms" && (
-          <p>
-            Platforms describe release targets, not tested compatibility. For this device uses this
-            PC’s platform.
-          </p>
-        )}
-        {group.key === "membership" && (
-          <p>
-            Includes managed installations, registered runtimes and downloads awaiting setup in this
-            library. Readiness may still need checking.
-          </p>
-        )}
-        {group.key === "updates" && (
-          <p>
-            Uses the last check for the current installation. A matching staged update is downloaded
-            and verified. Filtering does not check for newer releases.
-          </p>
-        )}
-        {group.key === "gameFiles" && (
-          <p>
-            Uses the same setup or installation as your other filters. Changed or unreadable files
-            need checking; they are not counted as missing.
-          </p>
-        )}
-        {group.key === "attention" && (
-          <p>
-            Shows recorded needs for the current installation. Unavailable details remain unknown.
-          </p>
-        )}
-        <div className="flex flex-wrap items-start gap-2">
-          {group.values.map((value) => (
-            <ChipButton
-              style={identityStyle(
-                group.key === "platforms" ? (value.split("-")[0] ?? value) : value,
-                group.key === "channels",
-              )}
+      <CompactFilterField
+        key={group.key}
+        label={group.label}
+        value={
+          !supported
+            ? "Review restored query"
+            : chosen.length > 1
+              ? `${chosen.length} selected`
+              : chosen.length
+                ? label(group.key, chosen[0]!)!
+                : "All"
+        }
+        help={help[group.key]}
+      >
+        {group.values.map((value) => {
+          const count = candidates === undefined ? null : result.counts[group.key][value];
+          const unknown = result.unknownCounts?.[group.key][value] ?? 0;
+          const countText =
+            count == null
+              ? "unavailable"
+              : unknown > 0
+                ? `${count} known; ${unknown} unknown`
+                : String(count);
+          const text = label(group.key, value);
+          const optionId = `${panelId}:${group.key}:${value}`;
+          return (
+            <label
               key={value}
-              data-focusable
-              size="sm"
-              variant={supported && query[group.key]?.includes(value) ? "selected" : "outline"}
-              aria-pressed={supported && query[group.key]?.includes(value) === true}
-              disabled={!editable || result.counts[group.key][value] === null}
-              onClick={() => toggle(group.key, value)}
+              htmlFor={optionId}
+              className="flex min-w-0 cursor-pointer items-start gap-2 rounded-pc-sm p-2 hover:bg-pc-secondary"
             >
-              {["originalSystems", "platforms", "channels"].includes(group.key) && (
-                <IdentityIcon
-                  name={group.key === "platforms" ? (value.split("-")[0] ?? value) : value}
-                  channel={group.key === "channels"}
-                />
-              )}
-              {label(group.key, value)} (
-              {candidates === undefined
-                ? "unavailable"
-                : (result.counts[group.key][value] ?? "unavailable")}
-              {candidates !== undefined &&
-                result.counts[group.key][value] != null &&
-                (result.unknownCounts?.[group.key][value] ?? 0) > 0 && (
-                  <> known; {result.unknownCounts?.[group.key][value]} unknown</>
-                )}
-              )
-            </ChipButton>
-          ))}
-        </div>
-      </fieldset>
+              <Checkbox
+                id={optionId}
+                data-focusable
+                aria-label={`${text} (${countText})`}
+                checked={supported && query[group.key]?.includes(value) === true}
+                disabled={!editable || result.counts[group.key][value] === null}
+                onCheckedChange={() => toggle(group.key, value)}
+              />
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm">
+                <Chip
+                  style={identityStyle(
+                    group.key === "platforms" ? (value.split("-")[0] ?? value) : value,
+                    group.key === "channels",
+                  )}
+                >
+                  {["originalSystems", "platforms", "channels"].includes(group.key) && (
+                    <IdentityIcon
+                      name={group.key === "platforms" ? (value.split("-")[0] ?? value) : value}
+                      channel={group.key === "channels"}
+                    />
+                  )}
+                  {text}
+                </Chip>
+                <span className="text-xs text-pc-muted-foreground">({countText})</span>
+              </span>
+            </label>
+          );
+        })}
+      </CompactFilterField>
     );
   }
 }

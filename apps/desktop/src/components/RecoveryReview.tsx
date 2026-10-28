@@ -192,7 +192,7 @@ export function RecoveryReview({
                     <Button
                       data-focusable
                       data-detail-origin={origin}
-                      variant="outline"
+                      variant={action.label === "View related task record" ? "link" : "outline"}
                       size="sm"
                       className="mt-2"
                       onClick={action.open}
@@ -238,7 +238,7 @@ function recoveryNavigation(
     case "partial_operation":
     case "cleanup_pending":
       return destinations.activity
-        ? { label: "Review activity", open: destinations.activity }
+        ? { label: "View related task record", open: destinations.activity }
         : game
           ? { label: "Review game details", open: () => game() }
           : storage;
