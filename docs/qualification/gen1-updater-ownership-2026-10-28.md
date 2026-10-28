@@ -46,3 +46,18 @@ existing working copies; no populated-data adoption, shrinking scope, save
 conversion or old/new compatibility is approved here. Additional Gen1 engine
 identities require their own original, maturity and route evidence. This switch
 alone neither admits them nor completes the finite beta workstream.
+
+Initial required CI run 40618977256/a1 at `e6cda2f4b377caa89202ff9bb9d29ecda1305399`
+failed only the frozen schema-1/current-projection comparison. Its explicit
+reviewed-delta allowlist omitted this new environment flag. The repair keeps the
+frozen fixture unchanged, asserts its historical environment is empty, and adds
+only this switch to the expected current projection. All other required producer
+leaves passed. This failure remains retained; the repaired source needs fresh
+independent review and all required exact-head checks.
+
+The corrected frozen-projection test passed locally (one selected case, nextest
+native status 0). The outer admitted wrapper exited 1 because its Linux reaper
+did not finish within the cleanup budget and retained the shared lock. This is
+not a complete local-pass or proven-quiescence receipt. No bypass/reclaim or
+repeated local run was used to erase that uncertainty. Fresh hosted qualification
+remains required for the repaired source.
