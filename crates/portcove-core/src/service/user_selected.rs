@@ -774,6 +774,149 @@ mod tests {
         );
     }
 
+    // Bind the real embedded identities to Core's offered operations with an
+    // owned native probe. These are not game/ROM observations. Separate cases
+    // keep each complete consent/restart/launch/removal sequence independently
+    // bounded by the ordinary harness; no case or assertion is sampled away.
+    fn assert_historical_prepared_player_route(id: &str) {
+        let (_temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert!(service.catalog.port(id).is_err());
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        let executable_before = fs::read(&executable).unwrap();
+        let arguments = vec![
+            "--record".into(),
+            "route-binding".into(),
+            id.into(),
+            "literal argument with spaces".into(),
+        ];
+        let preview = service
+            .preview_user_selected_runtime(id, &executable, &working, &arguments)
+            .unwrap();
+        assert!(
+            service
+                .register_user_selected_runtime(id, &executable, &working, &arguments, "")
+                .is_err()
+        );
+        assert!(
+            service
+                .authorize_user_selected_runtime(
+                    id,
+                    &executable,
+                    &working,
+                    &[],
+                    &preview.preview_sha256,
+                )
+                .is_err()
+        );
+        let authorization = service
+            .authorize_user_selected_runtime(
+                id,
+                &executable,
+                &working,
+                &arguments,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let record = service
+            .register_user_selected_runtime(
+                id,
+                &executable,
+                &working,
+                &arguments,
+                &authorization.token,
+            )
+            .unwrap();
+        assert_eq!(record.executable, preview.executable);
+        assert_eq!(record.path, preview.path);
+        assert_eq!(record.user_selected.unwrap().arguments, arguments);
+        assert!(
+            service
+                .preview_user_selected_runtime(id, &executable, &working, &arguments)
+                .is_err()
+        );
+
+        let root = service.library.root().to_path_buf();
+        drop(service);
+        let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+        let status = service.listing_status(id).unwrap();
+        assert!(
+            status
+                .actions
+                .iter()
+                .any(|action| { action.action == crate::ListingAction::Launch && action.allowed })
+        );
+        for action in [
+            PortAction::Install,
+            PortAction::Update,
+            PortAction::RemoveManaged,
+        ] {
+            assert!(status.status.port_actions.iter().any(|assessment| {
+                assessment.action == action
+                    && assessment.availability == PortActionAvailability::NotOffered
+            }));
+        }
+        assert!(service.rollback(id).is_err());
+        let launch = service
+            .supervise_launch(id, None, &[], LaunchStdio::Null, |_| {})
+            .unwrap();
+        assert!(launch.successful);
+        assert_eq!(
+            fs::read_to_string(working.join("route-binding")).unwrap(),
+            format!("{id}\nliteral argument with spaces")
+        );
+        let removal = service.preview_external_removal(id).unwrap();
+        let consent = service
+            .authorize_external_removal(id, &removal.preview_sha256)
+            .unwrap();
+        service.remove_external_runtime(id, &consent.token).unwrap();
+        assert_eq!(fs::read(&executable).unwrap(), executable_before);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+        assert_eq!(
+            fs::read_to_string(working.join("route-binding")).unwrap(),
+            format!("{id}\nliteral argument with spaces")
+        );
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(id)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    macro_rules! historical_prepared_player_case {
+        ($name:ident, $id:literal) => {
+            #[test]
+            fn $name() {
+                assert_historical_prepared_player_route($id);
+            }
+        };
+    }
+
+    historical_prepared_player_case!(historical_route_zelda3, "zelda3");
+    historical_prepared_player_case!(historical_route_smw, "super-mario-world-snesrev-smw");
+    historical_prepared_player_case!(historical_route_sonic3air, "sonic-3-knuckles-sonic-3-a-i-r");
+    historical_prepared_player_case!(historical_route_sm64coopdx, "super-mario-64-sm64-co-op-dx");
+    historical_prepared_player_case!(historical_route_wipeout, "wipeout-phantom-edition");
+    historical_prepared_player_case!(historical_route_emerald, "pokemon-emerald-emeraldrecomp");
+    historical_prepared_player_case!(
+        historical_route_firered,
+        "pokemon-firered-fireredleafgreenrecomp"
+    );
+    historical_prepared_player_case!(
+        historical_route_leafgreen,
+        "pokemon-leafgreen-fireredleafgreenrecomp"
+    );
+    historical_prepared_player_case!(historical_route_ruby, "pokemon-ruby-rubysapphirerecomp");
+    historical_prepared_player_case!(
+        historical_route_sapphire,
+        "pokemon-sapphire-rubysapphirerecomp"
+    );
+
     #[test]
     fn generic_route_beside_managed_definition_does_not_change_the_managed_contract() {
         let (_temporary, mut service, executable, working) = fixture("generic-alternative");

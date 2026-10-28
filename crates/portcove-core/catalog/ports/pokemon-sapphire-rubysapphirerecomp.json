@@ -3,12 +3,12 @@
   "listing": {
     "id": "pokemon-sapphire-rubysapphirerecomp",
     "name": "Pokémon Sapphire / RubySapphireRecomp",
-    "summary": "Explore Pokémon Sapphire / RubySapphireRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use the upstream SapphireRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
     "project_url": "https://github.com/mstan/RubySapphireRecomp",
     "issue_number": 338,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mstan/RubySapphireRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/mstan/RubySapphireRecomp/blob/308071c623af3e611a03b151625ecd7c282b550d/README.md",
     "artwork": {
       "game_id": 1515,
       "cover_id": 92653,
@@ -16,6 +16,32 @@
       "image_sha256": "0d2217a9ea352407dbc491b55a004f8aaf07b46ad7173e784acab1be41dcf073",
       "game_slug": "pokemon-sapphire-version",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Preserve the exact game original and separate BIOS",
+          "instruction": "Use your own unchanged Pokémon Sapphire USA rev1 GBA original, SHA-1 4722efb8cd45772ca32555b98fd3b9719f8e60a9, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+        },
+        {
+          "title": "Finish upstream setup and select this game player",
+          "instruction": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+        },
+        {
+          "title": "Preserve the actual data and compiler coordinates",
+          "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_sapphire.ini, keybinds_sapphire.ini, rom_sapphire.cfg and bios_sapphire.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+        },
+        {
+          "title": "Register the prepared player and use explicit Play",
+          "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+        }
+      ],
+      "warnings": [
+        "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+        "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+      ],
+      "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
     }
   }
 }

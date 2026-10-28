@@ -89,7 +89,7 @@
           "sha256": "fb42bdb3dcc7b7e831e9aec0b8153eb7e75695f74adfb0e6a58f5c36ac0a773b"
         }
       ],
-      "record_sha256": "b53a5198592fc8da1498e718b2f45c0c6482b442665279ec196f1944f4135b5a"
+      "record_sha256": "da2592560ce710190b3b9028d6dcd33ed9c83b58f5833ce46f6a37f756b51ec4"
     },
     {
       "id": "super-mario-world-snesrev-smw",
@@ -172,7 +172,7 @@
           "sha256": "47aab1cbfb231429341dff2d348512441ef41e31dcf61cda5913a5673a017e4e"
         }
       ],
-      "record_sha256": "5d08fd518c7b87ccfb183a90c1b4579a19c5a3aff1cebe1e9be7cb9bfa003dab"
+      "record_sha256": "87a750be9e2e7b305a95a25e82da06a10bf78106d0b190a870e0ccc7d86e159f"
     },
     {
       "id": "sonic-3-knuckles-sonic-3-a-i-r",
@@ -243,7 +243,7 @@
           "sha256": "148db55af6f736bd5cb7f09eb9756ffee7f7364ab97cfeec86f7b43240932b05"
         }
       ],
-      "record_sha256": "e9eb3fec1a84319cfe02e1f8e9950666edd230e1bfece2ae131b712da5b50d86"
+      "record_sha256": "24bfa21fa7a74acbb8b5712dc219c3d8f1d1b06106f96a75d3482f0ee6e79339"
     },
     {
       "id": "super-mario-64-sm64-co-op-dx",
@@ -338,7 +338,7 @@
           "sha256": "d86e2bca318b84eeaffe0c946381ae379b53de837c98642f1d3ed625a2640bb0"
         }
       ],
-      "record_sha256": "511a2d50b338e6e036f3c0c8cbc56150f3c5566d2069407f4cc8b29c137470c3"
+      "record_sha256": "1cca8061904e5290d2d16da0d07d38c35981875e477c44e5a21ecd7aa10f98c0"
     },
     {
       "id": "wipeout-phantom-edition",
@@ -379,7 +379,7 @@
           "sha256": "f91f6a4b792e223fa1926683687d4f0648c6ae85d17014c87781b27c6b1e4ca2"
         }
       ],
-      "record_sha256": "9cf8453c75da144e8a18555d1d6060e12e2d47f3921aa000d214a0e468558866"
+      "record_sha256": "bc2c6f8c2f2e5f86e57087c6eaca9b150f9d00308f938a426a3b4ec945655307"
     }
   ],
   "held_sixth": {
@@ -393,5 +393,8 @@
     "Source tag and release binary build provenance are not proven equivalent. In particular zelda3 v0.3 tag main.c uses DAT while released package includes BPS.",
     "Existing support arrays, integrations, source profiles and retained Direct/legacy decisions remain unchanged.",
     "Frozen historical membership remains317rows/316identities; the5 are existing members, zero additions. Accepted useful routes and supported-operation totals remain not_evaluated."
-  ]
+  ],
+  "offered_operation_contract": "Existing user-selected executable/working-directory/literal-argument registration, explicit supervised Play, retained restart and registration-only removal; no managed runtime or gameplay acceptance.",
+  "operation_binding_regression": "service::user_selected::tests::historical_route_* (ten independently bounded cases sharing assert_historical_prepared_player_route)",
+  "operation_probe_scope": "Owned inert native probe for the five actual embedded IDs; observes exact literal arguments and working directory after retained restart, consent refusal, single owner, unavailable management and file-preserving removal. Not a game, original or gameplay observation. Existing generic adversarial tests retain spawn-time path/ownership rechecks and relink/cancellation controls."
 }

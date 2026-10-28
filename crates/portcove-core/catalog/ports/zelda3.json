@@ -38,7 +38,7 @@
         }
       ],
       "warnings": [
-        "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+        "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
         "Managed asset preparation and retained state compatibility remain separate #136 work. The v0.3 release asset includes a BPS file although the tag main.c asset loader uses DAT inputs; source-to-binary build provenance/complete output ownership is not established. Keep this a non-owning prepared-player route until those facts and exact runtime data coordinates are qualified."
       ],
       "help_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3"

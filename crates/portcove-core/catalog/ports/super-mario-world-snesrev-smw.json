@@ -38,7 +38,7 @@
         }
       ],
       "warnings": [
-        "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+        "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
         "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute."
       ],
       "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"

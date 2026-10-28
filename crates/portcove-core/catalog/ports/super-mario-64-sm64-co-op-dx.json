@@ -46,7 +46,7 @@
         }
       ],
       "warnings": [
-        "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+        "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
         "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested."
       ],
       "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1"

@@ -29588,12 +29588,14 @@
     {
       "id": "pokemon-emerald-emeraldrecomp",
       "name": "Pokémon Emerald / EmeraldRecomp",
-      "summary": "Explore Pokémon Emerald / EmeraldRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream EmeraldRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/EmeraldRecomp",
       "issue_number": 334,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/EmeraldRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/EmeraldRecomp/blob/1bd517bc8ce8def93b91b4363af12c4ae540dce2/README.md",
       "artwork": {
         "game_id": 1517,
         "cover_id": 92655,
@@ -29601,6 +29603,32 @@
         "image_sha256": "f044cb533d5abbe24cca261e4785ce37a957bb2507aeb1a6c0dc541005c73d51",
         "game_slug": "pokemon-emerald-version",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon Emerald USA GBA original, SHA-1 f3ae088181bf583e55daf962a92bb46f4f1d07b7, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.1.3 release and extract its complete EmeraldRecomp-windows-x64-v0.1.3.zip package into a separate writable folder for this exact game. Keep EmeraldRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working EmeraldRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3"
       }
     },
     {
@@ -29659,12 +29687,14 @@
     {
       "id": "pokemon-firered-fireredleafgreenrecomp",
       "name": "Pokémon FireRed / FireRedLeafGreenRecomp",
-      "summary": "Explore Pokémon FireRed / FireRedLeafGreenRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream FireRedRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "issue_number": 335,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp/blob/6174de77a599d0c1e125747b9553d90409a76a27/README.md",
       "artwork": {
         "game_id": 1559,
         "cover_id": 92690,
@@ -29672,6 +29702,32 @@
         "image_sha256": "118a2c3a72c7fd65b0d71dd804c31f6cfb3d674004593f455c00bd1e6a78b808",
         "game_slug": "pokemon-firered-version",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon FireRed USA v1.0/rev0 GBA original, SHA-1 41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
       }
     },
     {
@@ -29749,12 +29805,14 @@
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
       "name": "Pokémon LeafGreen / FireRedLeafGreenRecomp",
-      "summary": "Explore Pokémon LeafGreen / FireRedLeafGreenRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream LeafGreenRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "issue_number": 336,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp/blob/6174de77a599d0c1e125747b9553d90409a76a27/README.md",
       "artwork": {
         "game_id": 1516,
         "cover_id": 92689,
@@ -29762,6 +29820,32 @@
         "image_sha256": "0d1252f456aa2893afbfe1dfb54884c984966c49aa9acc3219f8933e069d04d0",
         "game_slug": "pokemon-leafgreen-version",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon LeafGreen USA v1.0/rev0 GBA original, SHA-1 574fa542ffebb14be69902d1d36f1ec0a4afd71e, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
       }
     },
     {
@@ -29948,12 +30032,14 @@
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
       "name": "Pokémon Ruby / RubySapphireRecomp",
-      "summary": "Explore Pokémon Ruby / RubySapphireRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream RubyRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "issue_number": 337,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/RubySapphireRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/RubySapphireRecomp/blob/308071c623af3e611a03b151625ecd7c282b550d/README.md",
       "artwork": {
         "game_id": 1557,
         "cover_id": 92654,
@@ -29961,6 +30047,32 @@
         "image_sha256": "ea548cc345d8a4abd1f98ec519e5be484431cef94bf340735cf82cacfa358dfe",
         "game_slug": "pokemon-ruby-version",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon Ruby USA rev1 GBA original, SHA-1 610b96a9c9a7d03d2bafb655e7560ccff1a6d894, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_ruby.ini, keybinds_ruby.ini, rom_ruby.cfg and bios_ruby.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
       }
     },
     {
@@ -30019,12 +30131,14 @@
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
       "name": "Pokémon Sapphire / RubySapphireRecomp",
-      "summary": "Explore Pokémon Sapphire / RubySapphireRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream SapphireRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "issue_number": 338,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/RubySapphireRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/RubySapphireRecomp/blob/308071c623af3e611a03b151625ecd7c282b550d/README.md",
       "artwork": {
         "game_id": 1515,
         "cover_id": 92653,
@@ -30032,6 +30146,32 @@
         "image_sha256": "0d2217a9ea352407dbc491b55a004f8aaf07b46ad7173e784acab1be41dcf073",
         "game_slug": "pokemon-sapphire-version",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon Sapphire USA rev1 GBA original, SHA-1 4722efb8cd45772ca32555b98fd3b9719f8e60a9, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_sapphire.ini, keybinds_sapphire.ini, rom_sapphire.cfg and bios_sapphire.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
       }
     },
     {
@@ -34124,7 +34264,7 @@
           }
         ],
         "warnings": [
-          "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
           "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration."
         ],
         "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
@@ -35982,7 +36122,7 @@
           }
         ],
         "warnings": [
-          "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
           "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested."
         ],
         "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1"
@@ -36337,7 +36477,7 @@
           }
         ],
         "warnings": [
-          "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
           "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute."
         ],
         "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"
@@ -42206,7 +42346,7 @@
           }
         ],
         "warnings": [
-          "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
           "Managed disc preparation and exact writer/retained-data coordinates remain unqualified; missing PS1 family primitives belong to #135. This safe existing prepared-player guide does not substitute a per-title parser or claim complete loose-file authentication."
         ],
         "help_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256"
@@ -43643,7 +43783,7 @@
           }
         ],
         "warnings": [
-          "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
           "Managed asset preparation and retained state compatibility remain separate #136 work. The v0.3 release asset includes a BPS file although the tag main.c asset loader uses DAT inputs; source-to-binary build provenance/complete output ownership is not established. Keep this a non-owning prepared-player route until those facts and exact runtime data coordinates are qualified."
         ],
         "help_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3"

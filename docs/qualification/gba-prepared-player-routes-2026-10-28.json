@@ -1,0 +1,669 @@
+{
+  "format_version": 1,
+  "kind": "dated shared gbarecomp nonowning fitting and five historical consumers; not a live registry",
+  "owners": [1422, 2510, 2926],
+  "historical_identities": 5,
+  "new_listings": 0,
+  "new_operational_definitions": 0,
+  "new_source_profiles": 0,
+  "framework_commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+  "launcher_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+  "framework_source_files": [
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "src/runtime/runtime.cpp",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "64668626a1efd5d0039f1faf2c64a1265e3a632d",
+      "sha256": "44f17e0a48e9d4465c3cd9e1f985d8bff57d96c5aeb2f0b60917b5f7ba8b20da"
+    },
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "src/runtime/runtime.h",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "7e086e486373e6f0d0af10461438f7767538fdde",
+      "sha256": "e546e58123aa7e0414e1a4d6aec3b120fed961825a2644de98bb02faba1abac7"
+    },
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "src/runtime/asset_picker.cpp",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "a0b4ee32acbe14d4c3d357063bee9169b80b752f",
+      "sha256": "5ba229c892a77c4af1edbc310403febfa42d0f002c1bdceec3fabc0a48da98a2"
+    },
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "src/runtime/save_config.cpp",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "a804704b64e4b893ebe1e34df5bef9086ff80a5c",
+      "sha256": "a13cbf6aaf8e02249655ffc72d33e1f7b7dea203a3ba217ef5440ea3bf0bce59"
+    },
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "src/runtime/host_platform.cpp",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "07f5de5e01b3f5364dc59840f6e78495598afc19",
+      "sha256": "ec035ca878aabdd47501b98be1bc1dd56ae0c298992521cfa03286d3fc15ad61"
+    },
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "src/runtime/overlay_compile.cpp",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "5bb495dac053cd992af2bee7011051d4b57a8c69",
+      "sha256": "959342c79f38f42ac8a8f9c692a553af85648156f64b49e93c822fea3fcd44b6"
+    },
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "src/runtime/overlay_loader.cpp",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "d6d43469c45b25a784a0cf6e94c36e6f51bcbc3d",
+      "sha256": "5368eaae27b776b4d7624c5613406e9b9b516d866395d3417b282a697505b09a"
+    },
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "src/runtime/launcher_seam.h",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "ba1da4d5df5adb5046f78bea392110590e01d956",
+      "sha256": "bbd598ab43e7a0fd6bbbbc361ae9805a303b13bfb1bc13acbf0ec28a08543bc7"
+    },
+    {
+      "repo": "mstan/gbarecomp",
+      "path": "bios/README.md",
+      "commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
+      "blob": "ec791799cea6ac8f96be0deb10930834f9afe80c",
+      "sha256": "2e2f58c244a43167a614935ff049ef34084db9bfae26c0909e556ba42a9c1840"
+    },
+    {
+      "repo": "mstan/recomp-ui",
+      "path": "src/common/launcher_settings.inc",
+      "commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "blob": "352a5878f8b75b1a4178d221a879f14918784a0b",
+      "sha256": "99dccd6f0041aa889a79464d9fa7c3be9a7f397f97a6eac28e07387a3983249c"
+    },
+    {
+      "repo": "mstan/recomp-ui",
+      "path": "src/common/launcher_ini.inc",
+      "commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "blob": "7d2ff6980558e53a4cf73f771a01d2f967c4670e",
+      "sha256": "4be074fed0daf360abdddcfdc56a3e9bae6a89c59eb4214dc493a81fff5532c4"
+    },
+    {
+      "repo": "mstan/recomp-ui",
+      "path": "src/common/launcher_files.c",
+      "commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "blob": "0272a7e9025c6501e05935df5dbcfd473b2d95f5",
+      "sha256": "5d41dc8d3b6250b7f3482c235cf48c521784decf91cfc0a582d773592069ce8f"
+    },
+    {
+      "repo": "mstan/recomp-ui",
+      "path": "src/common/launcher_model.c",
+      "commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "blob": "febe98d96df215e729f4ac4bb5bc47d3f2b4c336",
+      "sha256": "f297401833cb1c87f8daebda4e3419a3275849d5fe83ac060fc1bf5f0bd57363"
+    }
+  ],
+  "shared_fitting_decision": "Use upstream-prepared/user-owned existing installations with explicit register+Play. Upstream owns ROM/BIOS selection, writable code-generation cache and actual save/state paths. A new managed immutable runtime is not admitted by these guides. Complete source/output/maintenance qualification remains separate shared #2510/#2926 work, not a per-title engine substitute.",
+  "operation_evidence": "Extend the common real-ID Core route-binding regression; owned inert native probe only, no original/gameplay acceptance. Existing generic adversarial registration/relink/spawn/removal coverage remains applicable.",
+  "limits": [
+    "Package hashes match selected official SHA256SUMS; no code-signing/protected acceptance or source-to-binary build equivalence is inferred.",
+    "Own retail BIOS is required; do not infer ROM-only setup from short quickstart prose. Asset picker has warn-and-try behavior; final runtime ROM check remains separate.",
+    "Default ROM-adjacent saves/states and variant launcher sidecars differ from an immutable EXE-parent-only contract; preserve actual overrides and creating runtime.",
+    "No populated adoption, cross-engine/state compatibility, native gameplay, save/load, multiplayer, input or support promotion is claimed.",
+    "All five identities already belong to the frozen316 and broader858 union; no additive membership credit."
+  ],
+  "routes": [
+    {
+      "id": "pokemon-emerald-emeraldrecomp",
+      "canonical_issue": 334,
+      "game": "Emerald",
+      "upstream": "mstan/EmeraldRecomp",
+      "repository_id": 1277354501,
+      "tag": {
+        "tag": "v0.1.3",
+        "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2"
+      },
+      "player": {
+        "path": "EmeraldRecomp.exe",
+        "bytes": 213900800,
+        "pe_machine": "0x8664",
+        "sha256": "e590093a3e462950d2689a977628a9efa6329fdfabcc147c7896780ec6ea7f60"
+      },
+      "original_game_sha1": "f3ae088181bf583e55daf962a92bb46f4f1d07b7",
+      "original_game_edition": "USA",
+      "bios": {
+        "bytes": 16384,
+        "sha1": "300c20df6731a33952ded8c436f7f186d25d3492",
+        "owner": "user-owned retail GBA system BIOS; never supplied/downloaded"
+      },
+      "package": {
+        "tag": "v0.1.3",
+        "release_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3",
+        "publisher_checksum": "12b02ed891e5088c61c419f222e72c69f5388c0d9b0fd4229861a5c472cc2348",
+        "computed_sha256": "12b02ed891e5088c61c419f222e72c69f5388c0d9b0fd4229861a5c472cc2348"
+      },
+      "asset": {
+        "id": 682813037,
+        "name": "EmeraldRecomp-windows-x64-v0.1.3.zip",
+        "size": 82437014,
+        "browser_download_url": "https://github.com/mstan/EmeraldRecomp/releases/download/v0.1.3/EmeraldRecomp-windows-x64-v0.1.3.zip",
+        "digest": "sha256:12b02ed891e5088c61c419f222e72c69f5388c0d9b0fd4229861a5c472cc2348"
+      },
+      "source_files": [
+        {
+          "path": ".gitmodules",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "8b161fd86e32664138f36be82f103994dba27d7f",
+          "sha256": "3055448da8f98d96a6fa17bfd291e1f06753d2a5f6a300d2a7c7bb3e764d6ba9"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "1c327afe4a8d451d1d00cce4a896f681b8b66a3d",
+          "sha256": "c5950babe767bc2ea5379fe44885710ecf87937ce014dc686caf2b9027a35496"
+        },
+        {
+          "path": "LICENSE",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+          "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50"
+        },
+        {
+          "path": "README.md",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "8da46f86784fb64742602973bf0cd8e342e74bd7",
+          "sha256": "1676f2f439c49eb84d143845b80dad0e393cbbd510c6d1b2974a28a877fc2e01"
+        },
+        {
+          "path": "src/emerald_extended_view.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "928c18ae63f62337879ade72dd83f6f817ce226d",
+          "sha256": "a5b85b19259081af3252e1df0861a57ba9570e9ce49d59cdf9bcf87727f871e3"
+        },
+        {
+          "path": "src/emerald_extended_view.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "43da57ac0f7c5889c133539d87b50947af0f2061",
+          "sha256": "2e9355fb39db8bf49141cac6c06a45b8ad9eeddb053007cb65c28b848a98cdfc"
+        },
+        {
+          "path": "src/emerald_multiplayer.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "870bd849ebda901adfe7a976708bc5bf4674e0b5",
+          "sha256": "1bf86d4522241b5e0a2b6961ea02e15884309e105a4fa248f7080b906e99386c"
+        },
+        {
+          "path": "src/emerald_object_view.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "7ad06bec24818b16f032840d8bf8c90e3344bc80",
+          "sha256": "6d1ef23f3c99a50c40c84bf061588c28ae84c540193be3d15b84394d8bea137c"
+        },
+        {
+          "path": "src/emerald_object_view.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "4bd08a98875b76028833b5acfd97e5ec123cca97",
+          "sha256": "aeeef1400b90ddb8affffaabb8e7492b3e58ff43e6c7cd3e6688e4b17ede6744"
+        },
+        {
+          "path": "src/emerald_ram_dispatch.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "5b3381d2b4dd2b0b50ec62e9bcb61d84c498302a",
+          "sha256": "b0d11328ae965945c9c9141fadf258d6befaa2efaa2d871cf6e221a1e324ebb8"
+        },
+        {
+          "path": "src/emerald_ui_view.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "fd872d56140a1f9d211870254d9fa2264d03a584",
+          "sha256": "62eb702c424f51654598e782c6bcbcbb4d9d7bd1034b6c31d319856051548305"
+        },
+        {
+          "path": "src/emerald_ui_view.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "1c020ef8a4919e8a238324370e022269a0ca8e81",
+          "sha256": "10be3809f194e09dea2521a88bd57a1082502905a39d1db35527c286c1460039"
+        },
+        {
+          "path": "src/game_launcher_boot.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "6e231cc89c9cea9a30732d21c93e9e0e110475bb",
+          "sha256": "854cd26aac54e8696e348980a159e3be5a73a5689642e7ee952b8fa218301994"
+        },
+        {
+          "path": "src/game_launcher_boot.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "486c23f3a0f20af3a7909943b5d5aaa377d7f5d1",
+          "sha256": "c9677f15d2fac7f6ef6f69b213ac7b4b58e4b3dc5d997600b8391037b3f68c47"
+        },
+        {
+          "path": "src/main.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "21e0e4930d9c5a6ff96b59dd78aeb03640d4515a",
+          "sha256": "68bab72bcd48f552227ecf92ff3fce91487118f76aaa15d242efd59a9f38bf5a"
+        },
+        {
+          "path": "src/mods/emerald_absolute_rtc_plugin.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "28d66177811ac6bb9670aab57ffd1ac0e2dd50d0",
+          "sha256": "bf40e2e0c07434f73b7b9e9655b296909f88196190f89d82e006e01f8a53120e"
+        },
+        {
+          "path": "src/mods/emerald_adaptive_view_plugin.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "e0a1cd6bb17dc0e11dab8b882cd4ab07d20f079f",
+          "sha256": "faaf8eb9df9152cd69f191733d30e5989a70080f655f939abdcafe94f39ea97d"
+        },
+        {
+          "path": "src/touch/emerald_guest.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "006afdbcf432f3a862dccba3cc28cd9848267a22",
+          "sha256": "87b6a568193737ace29c1a567e24bf546f31479c48398ac1287dc4c5a230a9e4"
+        },
+        {
+          "path": "src/touch/emerald_scene.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "c24c3e6c2aa23ae4bbf8e909fcd076395a1993e4",
+          "sha256": "c1b9ab95eb14eece433ee8acf9dc2a757c15876458eff64a02c3422f58727104"
+        },
+        {
+          "path": "src/touch/emerald_scene.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "533e5960773a7c6634eaa8eb5eb380750f15e447",
+          "sha256": "8b9d84693f931ddd2af9e21d889dabab7f02ad3aa0a9a8d65def921329088193"
+        },
+        {
+          "path": "src/touch/emerald_touch.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "06b18e17823c52e46593fef90c1056cc569adf54",
+          "sha256": "9b973ce81f4d5e5d1bd35bc4351bfd236fcb0eb3d46a315f9a0cb8161ea7141b"
+        },
+        {
+          "path": "src/touch/emerald_touch.h",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "8cf69131ea3b10280d7604a9ee4165870018f455",
+          "sha256": "d83a8389f909a0487526d6414cb13c9da5b35b870690bbc6a01e4b027b4759ca"
+        },
+        {
+          "path": "src/touch/emerald_touch_battle.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "1654fb6ad6378905ed9a657f98360f00df32935c",
+          "sha256": "1f1d73939d7121de3b3eb9d6ca85140d4d67853b553a38d1e9299d8af30ccd3d"
+        },
+        {
+          "path": "src/touch/emerald_touch_field.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "6985fa6f3c80680601e0cba9b7b8ffb0bfd090ca",
+          "sha256": "a4b9fe4e3c4909d80b045213579f32d98d39525b0d80ccf2d96078bcd90ea194"
+        },
+        {
+          "path": "src/touch/emerald_touch_menus.cpp",
+          "commit": "1bd517bc8ce8def93b91b4363af12c4ae540dce2",
+          "blob": "b4c7d4e8067882f36f4d775c7eb5406a33620f3a",
+          "sha256": "3ad04fde448fa2ce4650b43ddd1d0d5317e7323a51d9b29c6b42a2e7daa11595"
+        }
+      ],
+      "record_sha256": "2c45ac22bb43d3fb51c5c72b48b93419f33139ce4105cd84494c20c2c69a8806"
+    },
+    {
+      "id": "pokemon-firered-fireredleafgreenrecomp",
+      "canonical_issue": 335,
+      "game": "FireRed",
+      "upstream": "mstan/FireRedLeafGreenRecomp",
+      "repository_id": 1277354245,
+      "tag": {
+        "tag": "v0.0.6",
+        "commit": "6174de77a599d0c1e125747b9553d90409a76a27"
+      },
+      "player": {
+        "path": "FireRedRecomp.exe",
+        "bytes": 161010688,
+        "pe_machine": "0x8664",
+        "sha256": "39153fe01b1e6361310e008445f3c6076a1fd1e8dfd75e906ac20e18ae09baaa"
+      },
+      "original_game_sha1": "41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc",
+      "original_game_edition": "USA v1.0/rev0",
+      "bios": {
+        "bytes": 16384,
+        "sha1": "300c20df6731a33952ded8c436f7f186d25d3492",
+        "owner": "user-owned retail GBA system BIOS; never supplied/downloaded"
+      },
+      "package": {
+        "tag": "v0.0.6",
+        "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6",
+        "publisher_checksum": "7be028c42bb5e3fd17b211553ddb34ac915a95a5408eaa0dd3fca8ffbeb51d44",
+        "computed_sha256": "7be028c42bb5e3fd17b211553ddb34ac915a95a5408eaa0dd3fca8ffbeb51d44"
+      },
+      "asset": {
+        "id": 682837778,
+        "name": "FireRedRecomp-windows-x64-v0.0.6.zip",
+        "size": 63944552,
+        "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/FireRedRecomp-windows-x64-v0.0.6.zip",
+        "digest": "sha256:7be028c42bb5e3fd17b211553ddb34ac915a95a5408eaa0dd3fca8ffbeb51d44"
+      },
+      "source_files": [
+        {
+          "path": ".gitmodules",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "07bb84728dd31920c0b171142280d08ac5626145",
+          "sha256": "a77f3b7c28eb1238ef02a3a947ded4c58ff3c8cf4a8cde3534045badf5ccb52f"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "d6c0eac07aef0c0465f25d736100fcee87e109dd",
+          "sha256": "5d773fd923478d5811a2cb0f294b8bfc6da3c87b4b3c2ec2277145c1488537b8"
+        },
+        {
+          "path": "LICENSE",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+          "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50"
+        },
+        {
+          "path": "README.md",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "027225e02d32380de14fc21a1adfeeb111a32470",
+          "sha256": "135acd4449f086e5e46aae005d6ec38445370bef5cbdafaf1e73810a60a00600"
+        },
+        {
+          "path": "src/game_launcher_boot.cpp",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "6e231cc89c9cea9a30732d21c93e9e0e110475bb",
+          "sha256": "854cd26aac54e8696e348980a159e3be5a73a5689642e7ee952b8fa218301994"
+        },
+        {
+          "path": "src/game_launcher_boot.h",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "486c23f3a0f20af3a7909943b5d5aaa377d7f5d1",
+          "sha256": "c9677f15d2fac7f6ef6f69b213ac7b4b58e4b3dc5d997600b8391037b3f68c47"
+        },
+        {
+          "path": "src/gen3_profile.cpp",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "2c5cd271772949f4e984e8f78869ec15cec9aaa1",
+          "sha256": "483c360f0b074f2dd6053605662aa5ec6f12e620ffc07df76ce58043130b39c9"
+        },
+        {
+          "path": "src/main.cpp",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "02c3726f6eaaf18269e12836735ee9892f002be7",
+          "sha256": "b616632b0149aa0e4055de978b8a60623bc849b901a0ae1fd66fd71c402d1890"
+        }
+      ],
+      "record_sha256": "f559f5c8740d0203b672c399f9bf7b073436803c851a49845ee58794bb71c6ef"
+    },
+    {
+      "id": "pokemon-leafgreen-fireredleafgreenrecomp",
+      "canonical_issue": 336,
+      "game": "LeafGreen",
+      "upstream": "mstan/FireRedLeafGreenRecomp",
+      "repository_id": 1277354245,
+      "tag": {
+        "tag": "v0.0.6",
+        "commit": "6174de77a599d0c1e125747b9553d90409a76a27"
+      },
+      "player": {
+        "path": "LeafGreenRecomp.exe",
+        "bytes": 160998912,
+        "pe_machine": "0x8664",
+        "sha256": "4fa10fcc46373b348153a1057ed3f0ede7b4d49b90196e478904fa5aadb30c29"
+      },
+      "original_game_sha1": "574fa542ffebb14be69902d1d36f1ec0a4afd71e",
+      "original_game_edition": "USA v1.0/rev0",
+      "bios": {
+        "bytes": 16384,
+        "sha1": "300c20df6731a33952ded8c436f7f186d25d3492",
+        "owner": "user-owned retail GBA system BIOS; never supplied/downloaded"
+      },
+      "package": {
+        "tag": "v0.0.6",
+        "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6",
+        "publisher_checksum": "2b500dfc7fe97c95731d0374958d169c39d246c0f054f589d84cd760bf73b861",
+        "computed_sha256": "2b500dfc7fe97c95731d0374958d169c39d246c0f054f589d84cd760bf73b861"
+      },
+      "asset": {
+        "id": 682837782,
+        "name": "LeafGreenRecomp-windows-x64-v0.0.6.zip",
+        "size": 63939825,
+        "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/LeafGreenRecomp-windows-x64-v0.0.6.zip",
+        "digest": "sha256:2b500dfc7fe97c95731d0374958d169c39d246c0f054f589d84cd760bf73b861"
+      },
+      "source_files": [
+        {
+          "path": ".gitmodules",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "07bb84728dd31920c0b171142280d08ac5626145",
+          "sha256": "a77f3b7c28eb1238ef02a3a947ded4c58ff3c8cf4a8cde3534045badf5ccb52f"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "d6c0eac07aef0c0465f25d736100fcee87e109dd",
+          "sha256": "5d773fd923478d5811a2cb0f294b8bfc6da3c87b4b3c2ec2277145c1488537b8"
+        },
+        {
+          "path": "LICENSE",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+          "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50"
+        },
+        {
+          "path": "README.md",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "027225e02d32380de14fc21a1adfeeb111a32470",
+          "sha256": "135acd4449f086e5e46aae005d6ec38445370bef5cbdafaf1e73810a60a00600"
+        },
+        {
+          "path": "src/game_launcher_boot.cpp",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "6e231cc89c9cea9a30732d21c93e9e0e110475bb",
+          "sha256": "854cd26aac54e8696e348980a159e3be5a73a5689642e7ee952b8fa218301994"
+        },
+        {
+          "path": "src/game_launcher_boot.h",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "486c23f3a0f20af3a7909943b5d5aaa377d7f5d1",
+          "sha256": "c9677f15d2fac7f6ef6f69b213ac7b4b58e4b3dc5d997600b8391037b3f68c47"
+        },
+        {
+          "path": "src/gen3_profile.cpp",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "2c5cd271772949f4e984e8f78869ec15cec9aaa1",
+          "sha256": "483c360f0b074f2dd6053605662aa5ec6f12e620ffc07df76ce58043130b39c9"
+        },
+        {
+          "path": "src/main.cpp",
+          "commit": "6174de77a599d0c1e125747b9553d90409a76a27",
+          "blob": "02c3726f6eaaf18269e12836735ee9892f002be7",
+          "sha256": "b616632b0149aa0e4055de978b8a60623bc849b901a0ae1fd66fd71c402d1890"
+        }
+      ],
+      "record_sha256": "0b61ee73691613955591aeafb1c29dc571aac70577bfff187b0aa6969427c714"
+    },
+    {
+      "id": "pokemon-ruby-rubysapphirerecomp",
+      "canonical_issue": 337,
+      "game": "Ruby",
+      "upstream": "mstan/RubySapphireRecomp",
+      "repository_id": 1277354425,
+      "tag": {
+        "tag": "v0.0.7",
+        "commit": "308071c623af3e611a03b151625ecd7c282b550d"
+      },
+      "player": {
+        "path": "RubyRecomp.exe",
+        "bytes": 149478400,
+        "pe_machine": "0x8664",
+        "sha256": "c5928ddec5e85ca8812bab38cdac2f1c9c60eb0c6d9435d659dcbab455fa77e4"
+      },
+      "original_game_sha1": "610b96a9c9a7d03d2bafb655e7560ccff1a6d894",
+      "original_game_edition": "USA rev1",
+      "bios": {
+        "bytes": 16384,
+        "sha1": "300c20df6731a33952ded8c436f7f186d25d3492",
+        "owner": "user-owned retail GBA system BIOS; never supplied/downloaded"
+      },
+      "package": {
+        "tag": "v0.0.7",
+        "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+        "publisher_checksum": "3f34028b09fee2ee7978e05f6791b232f6e566ad488a870a09a55e09a7d3273c",
+        "computed_sha256": "3f34028b09fee2ee7978e05f6791b232f6e566ad488a870a09a55e09a7d3273c"
+      },
+      "asset": {
+        "id": 682838568,
+        "name": "RubyRecomp-windows-x64-v0.0.7.zip",
+        "size": 59272757,
+        "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.7/RubyRecomp-windows-x64-v0.0.7.zip",
+        "digest": "sha256:3f34028b09fee2ee7978e05f6791b232f6e566ad488a870a09a55e09a7d3273c"
+      },
+      "source_files": [
+        {
+          "path": ".gitmodules",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "65c4f63e386a8329ac94abb507e5bb09633cfe16",
+          "sha256": "279cb7f63a84365df5a15ab31c1c3cf0cf287e5392f0ea075e0108013e3b0986"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "08201beb46f7c559beb48436b8298a9bc7a02724",
+          "sha256": "74409f3eb3fe98307646aac4dee628f9d49cd98ffd119c19a5082fea2e7568b2"
+        },
+        {
+          "path": "LICENSE",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+          "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50"
+        },
+        {
+          "path": "README.md",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "ba14fccd5d420e84edf024eeba9a1eed4e7438c5",
+          "sha256": "1994317a8bd9c29707b25aef6499ba31e297d4c1a0e51b9ae44e53bccb399c20"
+        },
+        {
+          "path": "src/game_launcher_boot.cpp",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "6e231cc89c9cea9a30732d21c93e9e0e110475bb",
+          "sha256": "854cd26aac54e8696e348980a159e3be5a73a5689642e7ee952b8fa218301994"
+        },
+        {
+          "path": "src/game_launcher_boot.h",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "486c23f3a0f20af3a7909943b5d5aaa377d7f5d1",
+          "sha256": "c9677f15d2fac7f6ef6f69b213ac7b4b58e4b3dc5d997600b8391037b3f68c47"
+        },
+        {
+          "path": "src/gen3_profile.cpp",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "cbfa09284173d2288361e9a5267adcdf99f280f7",
+          "sha256": "646d357394afa508a6a1db354feaa798263b409a59a9d5161e31b9e4af74b2ce"
+        },
+        {
+          "path": "src/main.cpp",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "f01b0424f1dcd2fc89508869ca8283b397fcf887",
+          "sha256": "6622dc76193a3155c48d88747342338037ce01c583f6a283a90a87688348bdcd"
+        },
+        {
+          "path": "src/mods/rs_absolute_rtc_plugin.cpp",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "e1e3e73e298a40ee13f6be28e9a7222e2760beaa",
+          "sha256": "64f61d3fdfee4be6557e319a4eaf95e1f81d0de380d50bfbe1bafebe1f621a63"
+        }
+      ],
+      "record_sha256": "849bf2c6de13c4f63b5712882f6a1732879e6a3156256194e88bebed1c6e9284"
+    },
+    {
+      "id": "pokemon-sapphire-rubysapphirerecomp",
+      "canonical_issue": 338,
+      "game": "Sapphire",
+      "upstream": "mstan/RubySapphireRecomp",
+      "repository_id": 1277354425,
+      "tag": {
+        "tag": "v0.0.7",
+        "commit": "308071c623af3e611a03b151625ecd7c282b550d"
+      },
+      "player": {
+        "path": "SapphireRecomp.exe",
+        "bytes": 149659136,
+        "pe_machine": "0x8664",
+        "sha256": "266ca411402da98942f1891bb5627eafad2286e09b68f2f3d7cbe72f536dea9b"
+      },
+      "original_game_sha1": "4722efb8cd45772ca32555b98fd3b9719f8e60a9",
+      "original_game_edition": "USA rev1",
+      "bios": {
+        "bytes": 16384,
+        "sha1": "300c20df6731a33952ded8c436f7f186d25d3492",
+        "owner": "user-owned retail GBA system BIOS; never supplied/downloaded"
+      },
+      "package": {
+        "tag": "v0.0.7",
+        "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+        "publisher_checksum": "fc2e45643aa8b03d43570f64d1709436bc02e8e83a399fd428da51ef8cbfef50",
+        "computed_sha256": "fc2e45643aa8b03d43570f64d1709436bc02e8e83a399fd428da51ef8cbfef50"
+      },
+      "asset": {
+        "id": 682838569,
+        "name": "SapphireRecomp-windows-x64-v0.0.7.zip",
+        "size": 59619442,
+        "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.7/SapphireRecomp-windows-x64-v0.0.7.zip",
+        "digest": "sha256:fc2e45643aa8b03d43570f64d1709436bc02e8e83a399fd428da51ef8cbfef50"
+      },
+      "source_files": [
+        {
+          "path": ".gitmodules",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "65c4f63e386a8329ac94abb507e5bb09633cfe16",
+          "sha256": "279cb7f63a84365df5a15ab31c1c3cf0cf287e5392f0ea075e0108013e3b0986"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "08201beb46f7c559beb48436b8298a9bc7a02724",
+          "sha256": "74409f3eb3fe98307646aac4dee628f9d49cd98ffd119c19a5082fea2e7568b2"
+        },
+        {
+          "path": "LICENSE",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+          "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50"
+        },
+        {
+          "path": "README.md",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "ba14fccd5d420e84edf024eeba9a1eed4e7438c5",
+          "sha256": "1994317a8bd9c29707b25aef6499ba31e297d4c1a0e51b9ae44e53bccb399c20"
+        },
+        {
+          "path": "src/game_launcher_boot.cpp",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "6e231cc89c9cea9a30732d21c93e9e0e110475bb",
+          "sha256": "854cd26aac54e8696e348980a159e3be5a73a5689642e7ee952b8fa218301994"
+        },
+        {
+          "path": "src/game_launcher_boot.h",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "486c23f3a0f20af3a7909943b5d5aaa377d7f5d1",
+          "sha256": "c9677f15d2fac7f6ef6f69b213ac7b4b58e4b3dc5d997600b8391037b3f68c47"
+        },
+        {
+          "path": "src/gen3_profile.cpp",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "cbfa09284173d2288361e9a5267adcdf99f280f7",
+          "sha256": "646d357394afa508a6a1db354feaa798263b409a59a9d5161e31b9e4af74b2ce"
+        },
+        {
+          "path": "src/main.cpp",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "f01b0424f1dcd2fc89508869ca8283b397fcf887",
+          "sha256": "6622dc76193a3155c48d88747342338037ce01c583f6a283a90a87688348bdcd"
+        },
+        {
+          "path": "src/mods/rs_absolute_rtc_plugin.cpp",
+          "commit": "308071c623af3e611a03b151625ecd7c282b550d",
+          "blob": "e1e3e73e298a40ee13f6be28e9a7222e2760beaa",
+          "sha256": "64f61d3fdfee4be6557e319a4eaf95e1f81d0de380d50bfbe1bafebe1f621a63"
+        }
+      ],
+      "record_sha256": "b0fa6487f81905640af163579a1bbcbd3370763158891589c617e6311f71b1fc"
+    }
+  ]
+}

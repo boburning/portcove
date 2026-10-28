@@ -38,7 +38,7 @@
         }
       ],
       "warnings": [
-        "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+        "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
         "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration."
       ],
       "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
