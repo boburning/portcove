@@ -306,7 +306,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
     JSON.stringify([value.platform ?? null, value.filter]);
   const intelRecoveryFilter =
-    "package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))";
+    "package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))";
   assert.deepEqual(
     outputOverrides.map(outputIdentity).sort(),
     [
