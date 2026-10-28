@@ -37,7 +37,7 @@ export function runDesktopModuleFixture(
         }});
         registerHooks({resolve(specifier,context,next){
           if(specifier==='selenium-webdriver')return {url:'data:text/javascript,'+encodeURIComponent(
-            'export class WebDriver{};export const By={css:value=>value,xpath:value=>value,id:value=>value};export const Key={};export const until={elementLocated:value=>value};'
+            'export class WebDriver{};export const By={css:value=>({using:"css selector",value}),xpath:value=>({using:"xpath",value}),id:value=>({using:"id",value})};export const Key={};export const until={elementLocated:value=>value,elementIsVisible:element=>({fn:()=>element.isDisplayed()}),elementIsEnabled:element=>({fn:()=>element.isEnabled()})};'
           ),shortCircuit:true};
           if(specifier==='axe-core')return {url:'data:text/javascript,export default {}',shortCircuit:true};
           if(!isBuiltin(specifier)&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))
