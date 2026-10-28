@@ -2,7 +2,7 @@ import { useState } from "react";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
-import { GroupedDiscover } from "./GroupedDiscover";
+import { PortBrowser } from "../../components/PortBrowser";
 import { CatalogFilters } from "./CatalogFilters";
 import type { CatalogQuery } from "./catalog-query";
 import type { CatalogEntry } from "./catalog-entry";
@@ -43,15 +43,24 @@ it.each(["covers", "rows"] as const)(
     await page.viewport(1440, 900);
     const select = vi.fn();
     await render(
-      <GroupedDiscover
-        layout={layout}
-        all={entries}
-        matching={[entries[0]!]}
+      <PortBrowser
+        view="catalog"
+        collectionLayout={layout}
+        catalogUniverse={entries}
+        ports={[entries[0]!]}
         statuses={new Map()}
+        overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={vi.fn()}
+        query=""
+        setQuery={vi.fn()}
         onSelect={select}
-        onFavoriteToggle={vi.fn()}
+        loading={false}
       />,
     );
+    await expect
+      .element(page.getByRole("textbox", { name: "Search Find games", exact: true }))
+      .toBeVisible();
     await page.getByRole("button", { name: "View port", exact: true }).click();
     expect(select).toHaveBeenCalledExactlyOnceWith(entries[0]!.id, "catalog:card:harbor-0:details");
     const compare = page.getByRole("button", { name: "Compare all 2", exact: true });
