@@ -1520,7 +1520,10 @@ void test("temporary diagnostic scope accepts only the literal branch and origin
     {
       GITHUB_WORKFLOW_REF: ref.replace("feature/534-connected-native-node-canary-20261028", "main"),
     },
-    { GITHUB_WORKFLOW_REF: ref.replace("connected-native-s2-20261028", "other") },
+    {
+      GITHUB_WORKFLOW_REF:
+        "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-other",
+    },
     {
       GITHUB_WORKFLOW_REF: ref.replace(
         "refs/heads/feature/534-connected-native-node-canary-20261028",
@@ -1537,8 +1540,15 @@ void test("temporary diagnostic scope accepts only the literal branch and origin
     { PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "false" },
     { GITHUB_RUN_ID: "" },
     { GITHUB_SHA: "" },
-  ])
+  ]) {
+    if ("GITHUB_WORKFLOW_REF" in changed)
+      assert.notEqual(
+        changed.GITHUB_WORKFLOW_REF,
+        ref,
+        "Wrong-ref control must change the admitted ref",
+      );
     assert.throws(() => check({ ...context, env: { ...environment, ...changed } }));
+  }
   assert.throws(() => check({ ...context, platform: "linux" }));
   assert.throws(() => check({ ...context, arch: "arm64" }));
 });
