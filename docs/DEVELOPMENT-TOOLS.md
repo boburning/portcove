@@ -2362,8 +2362,12 @@ closes that anchored group; reaper pipe
 loss makes the Node supervisor close its own group without inventing a receipt.
 The reaper stays outside the killed group, drains direct and adopted children, and
 publishes an atomic positive receipt only after actual group absence and completed
-reaping, within the existing five-second cleanup bound. A failed, missing or late
-receipt, failed handshake or failed reaper exit preserves ownership and the
+reaping, within the existing five-second cleanup bound. If procfs omits
+`task/<pid>/children`, Linux cleanup
+uses a bounded process-stat inventory to find only the reaper's direct children,
+then revalidates each parent before signaling; it still requires completed reaping
+and actual group absence. An unreadable or incomplete inventory fails closed.
+A failed, missing or late receipt, failed handshake or failed reaper exit preserves ownership and the
 invocation's original evidence directory. Other Unix hosts retain the detached
 group and out-of-group watchdog; Windows retains the kill-on-close Job Object.
 A new acquirer still requires valid cleanup evidence before reclaiming a dead

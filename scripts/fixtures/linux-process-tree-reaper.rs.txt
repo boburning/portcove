@@ -48,8 +48,12 @@ fn atomic_file(path: &Path, contents: &str) -> io::Result<()> {
 }
 
 fn stat(pid: i32) -> io::Result<Vec<String>> {
+    stat_at(Path::new("/proc"), pid)
+}
+
+fn stat_at(root: &Path, pid: i32) -> io::Result<Vec<String>> {
     let mut value = String::new();
-    fs::File::open(format!("/proc/{pid}/stat"))?.take(8_193).read_to_string(&mut value)?;
+    fs::File::open(root.join(pid.to_string()).join("stat"))?.take(8_193).read_to_string(&mut value)?;
     if value.len() > 8_192 { return Err(io::Error::other("process stat exceeds bound")); }
     let closing = value.rfind(')').ok_or_else(|| io::Error::other("invalid process stat"))?;
     let fields: Vec<_> = value[closing + 2..].split_whitespace().map(str::to_owned).collect();
@@ -57,6 +61,48 @@ fn stat(pid: i32) -> io::Result<Vec<String>> {
         return Err(io::Error::other("incomplete process stat"));
     }
     Ok(fields)
+}
+
+fn direct_children(root: &Path, own_pid: i32, deadline: Instant) -> io::Result<Vec<i32>> {
+    let mut children = String::new();
+    let task = root.join("self/task").join(own_pid.to_string()).join("children");
+    match fs::File::open(task) {
+        Ok(file) => {
+            file.take(65_537).read_to_string(&mut children)?;
+            if children.len() > 65_536 {
+                return Err(io::Error::other("owned child inventory exceeds cleanup bound"));
+            }
+            children.split_whitespace().map(|child| {
+                child.parse::<i32>().map_err(|_| io::Error::other("invalid owned child PID"))
+            }).collect()
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            // Some supported procfs implementations omit task/children. Enumerate
+            // their process stat records instead; only our own direct children
+            // may be returned. No child is reaped during discovery or signaling,
+            // so a verified child's PID cannot be recycled underneath us.
+            let mut owned = Vec::new();
+            for (index, entry) in fs::read_dir(root)?.enumerate() {
+                if index >= 65_536 || Instant::now() >= deadline {
+                    return Err(io::Error::other("process inventory exceeds cleanup bound"));
+                }
+                let entry = entry?;
+                let name = entry.file_name();
+                let Some(name) = name.to_str() else { continue; };
+                if name.is_empty() || !name.bytes().all(|value| value.is_ascii_digit()) { continue; }
+                let pid = name.parse::<i32>().map_err(|_| io::Error::other("invalid process PID"))?;
+                match stat_at(root, pid) {
+                    Ok(fields) if fields[1] == own_pid.to_string() => owned.push(pid),
+                    Ok(_) => {},
+                    // Unrelated processes may exit while the inventory is read.
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => {},
+                    Err(error) => return Err(error),
+                }
+            }
+            Ok(owned)
+        }
+        Err(error) => Err(error),
+    }
 }
 
 fn process_identity(pid: i32) -> io::Result<String> {
@@ -191,19 +237,12 @@ fn drain_and_prove_absence(group: i32) -> io::Result<()> {
         // snapshot, parent validation and kill: even an exiting direct child's
         // PID remains pinned by its unreaped status. Never signal a discovered
         // process that is not our own direct child.
-        let own_pid = std::process::id().to_string();
-        let mut children = String::new();
-        fs::File::open(format!("/proc/self/task/{own_pid}/children"))?
-            .take(65_537).read_to_string(&mut children)?;
-        if children.len() > 65_536 {
-            return Err(io::Error::other("owned child inventory exceeds cleanup bound"));
-        }
-        for child in children.split_whitespace() {
+        let own_pid = i32::try_from(std::process::id()).map_err(|_| io::Error::other("invalid reaper PID"))?;
+        for pid in direct_children(Path::new("/proc"), own_pid, deadline)? {
             if Instant::now() >= deadline {
                 return Err(io::Error::other("owned child closure exceeded cleanup deadline"));
             }
-            let pid = child.parse::<i32>().map_err(|_| io::Error::other("invalid owned child PID"))?;
-            if pid <= 1 || child == own_pid || stat(pid)?[1] != own_pid {
+            if pid <= 1 || pid == own_pid || stat(pid)?[1] != own_pid.to_string() {
                 return Err(io::Error::other("owned child parent identity mismatch"));
             }
             if Instant::now() >= deadline {
@@ -294,4 +333,70 @@ fn main() -> ExitCode {
         return ExitCode::from(1);
     }
     ExitCode::from(u8::from(outcome != "quiescent"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    struct Fixture(PathBuf);
+    impl Fixture {
+        fn new() -> Self {
+            let root = env::temp_dir().join(format!("portcove-proc-{}-{}", std::process::id(),
+                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+            fs::create_dir(&root).unwrap();
+            Self(root)
+        }
+        fn process(&self, pid: i32, parent: i32) {
+            let root = self.0.join(pid.to_string());
+            fs::create_dir(&root).unwrap();
+            fs::write(root.join("stat"), format!("{pid} (fixture) S {parent} {}", "0 ".repeat(18))).unwrap();
+        }
+        fn deadline(&self) -> Instant { Instant::now() + Duration::from_secs(1) }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) { fs::remove_dir_all(&self.0).unwrap(); }
+    }
+
+    #[test]
+    fn missing_task_children_discovers_only_own_direct_children() {
+        let fixture = Fixture::new();
+        fixture.process(42, 1);
+        fixture.process(43, 42);
+        fixture.process(44, 43);
+        fixture.process(45, 1);
+        fs::create_dir(fixture.0.join("46")).unwrap(); // unrelated exit race
+        fs::create_dir(fixture.0.join("self")).unwrap();
+        assert_eq!(direct_children(&fixture.0, 42, fixture.deadline()).unwrap(), vec![43]);
+    }
+
+    #[test]
+    fn existing_task_children_keeps_native_inventory() {
+        let fixture = Fixture::new();
+        let task = fixture.0.join("self/task/42");
+        fs::create_dir_all(&task).unwrap();
+        fs::write(task.join("children"), "43 44\n").unwrap();
+        assert_eq!(direct_children(&fixture.0, 42, fixture.deadline()).unwrap(), vec![43, 44]);
+        fs::write(task.join("children"), "invalid").unwrap();
+        assert!(direct_children(&fixture.0, 42, fixture.deadline()).is_err());
+    }
+
+    #[test]
+    fn fallback_refuses_incomplete_observations_and_expired_deadline() {
+        let fixture = Fixture::new();
+        fixture.process(43, 42);
+        assert!(direct_children(&fixture.0, 42, Instant::now()).is_err());
+        fs::write(fixture.0.join("43/stat"), "malformed").unwrap();
+        assert!(direct_children(&fixture.0, 42, fixture.deadline()).is_err());
+        assert!(direct_children(&fixture.0.join("missing"), 42, fixture.deadline()).is_err());
+    }
+
+    #[test]
+    fn unreadable_task_children_does_not_enable_fallback() {
+        let fixture = Fixture::new();
+        let task = fixture.0.join("self/task/42/children");
+        fs::create_dir_all(&task).unwrap();
+        assert!(direct_children(&fixture.0, 42, fixture.deadline()).is_err());
+    }
 }
