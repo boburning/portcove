@@ -22141,13 +22141,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "Bio Menace",
         "manual_setup": {
           "steps": [
             {
               "title": "Use the matching original DOS edition",
-              "instruction": "Use the complete matching original DOS episode folders with BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE and their corresponding BM1/BM2/BM3 data. The upstream tables distinguish shareware, registered and freeware revisions. Keep companion files; a BioMenace Remastered installation is not established as an interchangeable input. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+              "instruction": "Use the complete matching original DOS episode data. Episode1 has separate shareware, registered, freeware and Gold Medallion revisions; episodes2/3 have their own registered/freeware revisions. Most use BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE, while Gold Medallion uses BM1GM.EXE. The tagged source also recognizes the BioHazard1992 beta with BHAZARD1.EXE. Keep every companion for that exact revision. The launcher lists supported sets with exact names, sizes and CRCs. BioMenace Remastered is not established as interchangeable. Select legally obtained originals without moving them; a DOS executable is input, while reflectionhle.exe is the Windows player."
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
@@ -22165,7 +22165,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         },
@@ -22854,7 +22854,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "Catacomb 3-D: The Descent",
         "manual_setup": {
           "steps": [
@@ -22878,7 +22878,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         }
@@ -25339,7 +25339,7 @@
     {
       "id": "keen-dreams-reflectionhle",
       "name": "Keen Dreams (ReflectionHLE)",
-      "summary": "Play Keen Dreams through ReflectionHLE with the matching original DOS game files.",
+      "summary": "Play Keen Dreams through ReflectionHLE with the matching game files.",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "support_tier": "beta",
       "channels": [
@@ -25488,13 +25488,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "Keen Dreams",
         "manual_setup": {
           "steps": [
             {
               "title": "Use the matching original DOS edition",
-              "instruction": "Keep the complete matching DOS edition, including KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and its EGA or CGA graphics. The exact executable and data revision must match one launcher entry; the modern Keen Dreams remaster and Keen 4/5/6 data are separate products. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+              "instruction": "Select the complete legally obtained data folder for one supported edition: DOS EGA v1.00/v1.13/v1.20/v1.93, DOS CGA v1.00/v1.05, or Keen Dreams 2015. DOS editions require their matching KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and EGA/CGA files. The 2015 edition instead uses its complete external data set, including KDREAMS.CGA/CMP/EGA/MAP/SND and required KDR tables; it requires no DOS executable. The launcher lists each exact file, size and CRC requirement. Other remasters and Keen 4/5/6 data are not established as interchangeable. Select the original folder without moving it. Any required DOS executable is input data; reflectionhle.exe is the Windows player."
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
@@ -25512,7 +25512,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         },
@@ -29441,7 +29441,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "Spear of Destiny",
         "manual_setup": {
           "steps": [
@@ -29465,7 +29465,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         }
@@ -29880,7 +29880,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "Super 3-D Noah's Ark (DOS)",
         "manual_setup": {
           "steps": [
@@ -29904,7 +29904,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         },
@@ -30357,13 +30357,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "The Catacomb Abyss",
         "manual_setup": {
           "steps": [
             {
               "title": "Use the matching original DOS edition",
-              "instruction": "Use a complete supported DOS Abyss edition, including CATABYSS.EXE and its ABS files. The upstream tables distinguish the shareware and registered revisions and require companion help/shape files. An arbitrary Abyss EXE or another Catacomb game is not a substitute. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+              "instruction": "Select your complete matching DOS Abyss edition. Version1.13 requires CATABYSS.EXE and DEMOCAT.EXE; version1.24 requires ABYSGAME.EXE and HINTCAT.EXE. Keep matching ABS data and every required help/shape companion. The upstream tables and launcher distinguish editions by exact file sizes and CRCs; another Catacomb game or arbitrary executable is not a substitute. Select the original folder without moving it. Those DOS executables are inputs; reflectionhle.exe is the Windows player."
             },
             {
               "title": "Choose a fresh managed runtime or keep your external player",
@@ -30381,7 +30381,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         },
@@ -30610,7 +30610,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "The Catacomb Apocalypse",
         "manual_setup": {
           "steps": [
@@ -30634,7 +30634,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         }
@@ -30855,7 +30855,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "The Catacomb Armageddon",
         "manual_setup": {
           "steps": [
@@ -30879,7 +30879,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         }
@@ -31369,7 +31369,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "The ordinary upstream launcher performs original-folder and exact-version selection; Core does not run original DOS EXEs or authenticate a new source profile. Fixed arguments -datadir . -cfgdir . bind new configuration, original-location witnesses and every supported version’s writable directory to the actual native player working directory. These are fresh private managed paths, not imports from AppData/DOS/external players. Keep complete matching originals external. Old user-selected registrations and profiles remain separate. Existing generic lifecycle/persistence/recovery guards apply; no save/state conversion or compatibility is inferred. Exact native writer/lifetime and full offered lifecycle qualification remain pending.",
+        "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility.",
         "original_game_title": "Wolfenstein 3D",
         "manual_setup": {
           "steps": [
@@ -31393,7 +31393,7 @@
           "warnings": [
             "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
             "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-            "Source/package and synthetic lifecycle evidence are distinct from actual game, audio, physical input and save-load observations. Managed qualification is pending."
+            "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
         }

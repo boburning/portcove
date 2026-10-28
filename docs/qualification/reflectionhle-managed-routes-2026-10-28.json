@@ -2,7 +2,7 @@
   "format_version": 1,
   "kind": "Dated ReflectionHLE managed-fit candidate evidence, not a live planning authority",
   "owners": [2510, 2926],
-  "status": "CANDIDATE; initial nineteen controls passed. Second CI preserved eight lifecycle budget cutoffs and three other fixture failures; finite harness/shared-socket repair, fresh exact-head qualification and actual managed Core qualification pending.",
+  "status": "CANDIDATE; source0ae9c80a passedall5/all8WindowsandcompletedactualnineCorequalification. Corrected original-input/player guidance awaits fresh exact-head delivery; earlier failures remain preserved.",
   "scope": "Nine existing affected-312 identities. PR3888 merged0a55f1917b8397ce7b190ba68570f9d60796fea9 with247definitions; this candidate replaces exactly9 and preserves the other238/sourcecatalog. No new listing, original source profile or historical1422 credit.",
   "upstream": {
     "repository": "ReflectionHLE/ReflectionHLE",
@@ -3100,10 +3100,10 @@
       "canonical_issue": 2683,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "47d68da2ce8929956a67d9842917569ec71a7a26641d6d2ffce2d732bfdb99e2",
+      "authored_sha256": "2631d9f924e7fc9baf2da9dc9576ee8c8ae6975cf88b9f491ea3a1ec8832c284",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
-      "original_data": "Keep the complete matching DOS edition, including KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and its EGA or CGA graphics. The exact executable and data revision must match one launcher entry; the modern Keen Dreams remaster and Keen 4/5/6 data are separate products. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "original_data": "Select the complete legally obtained data folder for one supported edition: DOS EGA v1.00/v1.13/v1.20/v1.93, DOS CGA v1.00/v1.05, or Keen Dreams 2015. DOS editions require their matching KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and EGA/CGA files. The 2015 edition instead uses its complete external data set, including KDREAMS.CGA/CMP/EGA/MAP/SND and required KDR tables; it requires no DOS executable. The launcher lists each exact file, size and CRC requirement. Other remasters and Keen 4/5/6 data are not established as interchangeable. Select the original folder without moving it. Any required DOS executable is input data; reflectionhle.exe is the Windows player.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
       "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
       "canonical_body_sha256_at_initial_managed_pickup": "66e685c9bdb3fbc3a96b3e6c466ca1449525cf85e8c8d3bc693fb4c21c755fb4",
@@ -3114,7 +3114,7 @@
       "canonical_issue": 2684,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "a97fa5ae7d5189fbc76ab310fb674ea75eb54923c33de8bff959b6829244d1aa",
+      "authored_sha256": "ae5728329506c30f443cddf20a4502cbe79bd05ee17d4275e5af9961da135e80",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Keep your own complete matching DOS Descent data, including CAT3D.EXE, AUDIO.C3D, EGAGRAPH.C3D and GAMEMAPS.C3D. The upstream tables distinguish v1.00 and v1.22 by sizes and CRCs. Abyss shareware does not provide Descent. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
@@ -3128,10 +3128,10 @@
       "canonical_issue": 2685,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "420d125adc5a8e95a09e61a3b6a9138ac9f1f00d3cc23b2d1b5f03d4e48d4b30",
+      "authored_sha256": "f2f744ec2317d33b608003a583e7c40d6dad14411c161bc5b6d978f3f86693d8",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
-      "original_data": "Use a complete supported DOS Abyss edition, including CATABYSS.EXE and its ABS files. The upstream tables distinguish the shareware and registered revisions and require companion help/shape files. An arbitrary Abyss EXE or another Catacomb game is not a substitute. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "original_data": "Select your complete matching DOS Abyss edition. Version1.13 requires CATABYSS.EXE and DEMOCAT.EXE; version1.24 requires ABYSGAME.EXE and HINTCAT.EXE. Keep matching ABS data and every required help/shape companion. The upstream tables and launcher distinguish editions by exact file sizes and CRCs; another Catacomb game or arbitrary executable is not a substitute. Select the original folder without moving it. Those DOS executables are inputs; reflectionhle.exe is the Windows player.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
       "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
       "canonical_body_sha256_at_initial_managed_pickup": "23c21706757d32cdd0924a791a1a38493828a9f0fcfb6646e08ee0bad8b5e368",
@@ -3142,7 +3142,7 @@
       "canonical_issue": 2686,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "5285435f0034849c28b5352f71bcf8e091b7e45e4d9363b67469ec1671f45318",
+      "authored_sha256": "7cf63a93b8b535caa01ba23f09d0ae135f349144eadb28c061e292fad5265c8a",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete matching DOS Armageddon folder, including ARMGAME.EXE, AUDIO.ARM, EGAGRAPH.ARM, GAMEMAPS.ARM and the required SHP companion files. Abyss shareware does not supply Armageddon. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
@@ -3156,7 +3156,7 @@
       "canonical_issue": 2687,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "9b1aaac612f6125ed9a2c1211de851224e46b84582cdca3ed2a33910dae51a5c",
+      "authored_sha256": "4aa6a1fee65d6c2d0c9849dc2b737160540b4df628b2369ac971a596ecc068a5",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete matching DOS Apocalypse folder, including APOCGAME.EXE, AUDIO.APC, EGAGRAPH.APC, GAMEMAPS.APC and the required SHP companion files. Abyss shareware does not supply Apocalypse. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
@@ -3170,7 +3170,7 @@
       "canonical_issue": 2688,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "13a8ad14dc5f6c17be4ae2f4cca56ed542fe4fa392273e20f174407543b7ad88",
+      "authored_sha256": "b6bf94370d1c81e8dc3fc987720d84c35ec5e06ca337e0d17f96be3ff537e1e2",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete original DOS Wolfenstein 3D folder with WOLF3D.EXE and the matching WL1 or WL6 data. Shareware, registered and publisher revisions are separate launcher entries with exact size/CRC checks. Spear of Destiny and remastered/console data are not this game. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
@@ -3184,7 +3184,7 @@
       "canonical_issue": 2689,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "c1f7943f2f63082eba3c3e07e525f06fa5f541fbc817bac3f55bcd7f6afc73b3",
+      "authored_sha256": "8d305e11d4dd0951a2fdfbf4960c8d6e8badc5f12cbac9d01b87a54cb2c94c3d",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete matching DOS Spear folder, including SPEAR.EXE and its SOD/SD data. The upstream version tables distinguish the original game and mission packs. Preserve each owned mission and its matching files; Wolfenstein WL6 files are not Spear data. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
@@ -3198,7 +3198,7 @@
       "canonical_issue": 2690,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "286d24911d24e38a4406d0c5fc3eb72696639b007b41005e579bc1cdeb483d31",
+      "authored_sha256": "45d6daddfb9749726e4fad0c5286b89c3f3ce044fad41bcbcc5dafa84ead7f56",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete original DOS folder with NOAH3D.EXE or NOAH3DOS.EXE and matching N3D data, including AUDIOHED, AUDIOT, GAMEMAPS, MAPHEAD, VGADICT, VGAGRAPH, VGAHEAD and VSWAP. The upstream table requires exact sizes and CRCs; the SNES original is a different representation. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
@@ -3212,10 +3212,10 @@
       "canonical_issue": 2692,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "25f5412c5f42f7643b2708c68e787f1954fd30bd9f2a28ad57cfcb2e97f2929a",
+      "authored_sha256": "ac375083c2e03cef9b8721dc29908092804c9b24bf8f3fdd00c0a1fd17d2e2af",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
-      "original_data": "Use the complete matching original DOS episode folders with BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE and their corresponding BM1/BM2/BM3 data. The upstream tables distinguish shareware, registered and freeware revisions. Keep companion files; a BioMenace Remastered installation is not established as an interchangeable input. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
+      "original_data": "Use the complete matching original DOS episode data. Episode1 has separate shareware, registered, freeware and Gold Medallion revisions; episodes2/3 have their own registered/freeware revisions. Most use BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE, while Gold Medallion uses BM1GM.EXE. The tagged source also recognizes the BioHazard1992 beta with BHAZARD1.EXE. Keep every companion for that exact revision. The launcher lists supported sets with exact names, sizes and CRCs. BioMenace Remastered is not established as interchangeable. Select legally obtained originals without moving them; a DOS executable is input, while reflectionhle.exe is the Windows player.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
       "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
       "canonical_body_sha256_at_initial_managed_pickup": "1d74bb629bec1cdf64b34e2a15c08a3e6b2fd5d6a49dd32b66d6be623c786ced",
@@ -3487,5 +3487,3539 @@
       "winsock_contract": "https://learn.microsoft.com/en-us/windows/win32/winsock/sol-socket-socket-options"
     },
     "actual_core": "Exact-source CI artifact12844778937 authenticated and selectively extracted with source/run/attempt/checkout/API digest/inner SHA/bounds. Managed execution not yet observed; metadata inspection only. No product or upstream runtime bytes changed by these fixture repairs."
+  },
+  "original_input_tables": {
+    "source": "74f07efcc40142a5727caacebec848c48b141eca",
+    "release": "release-20260606",
+    "scope": "Tagged supported-original tables only; no original files obtained or authenticated, no game execution or rights inferred. Pipe filename expressions preserve upstream alternatives; required arrays are separate from embedded-resource/executable-image-offset tables.",
+    "ports": [
+      {
+        "issue": 2683,
+        "variants": [
+          {
+            "key": "kdreamse100",
+            "display_name": "Keen Dreams EGA v1.00",
+            "definition": "g_be_gamever_kdreamse100",
+            "required_file_array": "g_be_reqgameverfiles_kdreamse100",
+            "source": "src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIO.KDR",
+                "bytes": 3498,
+                "crc32": "0x80ac85e5"
+              },
+              {
+                "filename_expression": "EGAGRAPH.KDR",
+                "bytes": 213045,
+                "crc32": "0x2dc94687"
+              },
+              {
+                "filename_expression": "GAMEMAPS.KDR",
+                "bytes": 63497,
+                "crc32": "0x7b517fa0"
+              },
+              {
+                "filename_expression": "KDREAMS.EXE",
+                "bytes": 77694,
+                "crc32": "0xc73b8cb2"
+              }
+            ]
+          },
+          {
+            "key": "kdreamsc100",
+            "display_name": "Keen Dreams CGA v1.00",
+            "definition": "g_be_gamever_kdreamsc100",
+            "required_file_array": "g_be_reqgameverfiles_kdreamsc100",
+            "source": "src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIO.KDR",
+                "bytes": 3498,
+                "crc32": "0x80ac85e5"
+              },
+              {
+                "filename_expression": "CGAGRAPH.KDR",
+                "bytes": 134691,
+                "crc32": "0x05e32626"
+              },
+              {
+                "filename_expression": "GAMEMAPS.KDR",
+                "bytes": 63497,
+                "crc32": "0x7b517fa0"
+              },
+              {
+                "filename_expression": "KDREAMS.EXE",
+                "bytes": 75015,
+                "crc32": "0xb6ff595a"
+              }
+            ]
+          },
+          {
+            "key": "kdreamse113",
+            "display_name": "Keen Dreams EGA v1.13",
+            "definition": "g_be_gamever_kdreamse113",
+            "required_file_array": "g_be_reqgameverfiles_kdreamse113",
+            "source": "src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "required_files": [
+              {
+                "filename_expression": "KDREAMS.AUD",
+                "bytes": 3498,
+                "crc32": "0x80ac85e5"
+              },
+              {
+                "filename_expression": "KDREAMS.CMP",
+                "bytes": 14189,
+                "crc32": "0x97628ca0"
+              },
+              {
+                "filename_expression": "KDREAMS.EGA",
+                "bytes": 213045,
+                "crc32": "0x2dc94687"
+              },
+              {
+                "filename_expression": "KDREAMS.EXE",
+                "bytes": 81619,
+                "crc32": "0x9dce0a39"
+              },
+              {
+                "filename_expression": "KDREAMS.MAP",
+                "bytes": 65673,
+                "crc32": "0x8dce09af"
+              },
+              {
+                "filename_expression": "LAST.SHL",
+                "bytes": 1634,
+                "crc32": "0xc0a3560f"
+              }
+            ]
+          },
+          {
+            "key": "kdreamsc105",
+            "display_name": "Keen Dreams CGA v1.05",
+            "definition": "g_be_gamever_kdreamsc105",
+            "required_file_array": "g_be_reqgameverfiles_kdreamsc105",
+            "source": "src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIO.KDR",
+                "bytes": 3498,
+                "crc32": "0x80ac85e5"
+              },
+              {
+                "filename_expression": "CGAGRAPH.KDR",
+                "bytes": 134691,
+                "crc32": "0x05e32626"
+              },
+              {
+                "filename_expression": "GAMEMAPS.KDR",
+                "bytes": 65736,
+                "crc32": "0x4b92df5f"
+              },
+              {
+                "filename_expression": "KDREAMS.EXE",
+                "bytes": 78253,
+                "crc32": "0x5af7ce2b"
+              }
+            ]
+          },
+          {
+            "key": "kdreamse193",
+            "display_name": "Keen Dreams EGA v1.93",
+            "definition": "g_be_gamever_kdreamse193",
+            "required_file_array": "g_be_reqgameverfiles_kdreamse193",
+            "source": "src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "required_files": [
+              {
+                "filename_expression": "KDREAMS.AUD",
+                "bytes": 3498,
+                "crc32": "0x80ac85e5"
+              },
+              {
+                "filename_expression": "KDREAMS.CMP",
+                "bytes": 14620,
+                "crc32": "0x1681bc21"
+              },
+              {
+                "filename_expression": "KDREAMS.EGA",
+                "bytes": 213045,
+                "crc32": "0x2dc94687"
+              },
+              {
+                "filename_expression": "KDREAMS.EXE",
+                "bytes": 80715,
+                "crc32": "0x3d0cd9ed"
+              },
+              {
+                "filename_expression": "KDREAMS.MAP",
+                "bytes": 65674,
+                "crc32": "0x78bd24fc"
+              }
+            ]
+          },
+          {
+            "key": "kdreamse120",
+            "display_name": "Keen Dreams EGA v1.20",
+            "definition": "g_be_gamever_kdreamse120",
+            "required_file_array": "g_be_reqgameverfiles_kdreamse120",
+            "source": "src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "required_files": [
+              {
+                "filename_expression": "KDREAMS.AUD",
+                "bytes": 3498,
+                "crc32": "0x80ac85e5"
+              },
+              {
+                "filename_expression": "KDREAMS.CMP",
+                "bytes": 14620,
+                "crc32": "0x1681bc21"
+              },
+              {
+                "filename_expression": "KDREAMS.EGA",
+                "bytes": 213045,
+                "crc32": "0x2dc94687"
+              },
+              {
+                "filename_expression": "KDREAMS.EXE",
+                "bytes": 81519,
+                "crc32": "0xf36f0edf"
+              },
+              {
+                "filename_expression": "KDREAMS.MAP",
+                "bytes": 65674,
+                "crc32": "0x78bd24fc"
+              }
+            ]
+          },
+          {
+            "key": "kdreams2015",
+            "display_name": "Keen Dreams 2015",
+            "definition": "g_be_gamever_kdreams2015",
+            "required_file_array": "g_be_reqgameverfiles_kdreams2015",
+            "source": "src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_kdreams.h",
+            "required_files": [
+              {
+                "filename_expression": "CONTEXT.KDR",
+                "bytes": 1331,
+                "crc32": "0x70920ec3"
+              },
+              {
+                "filename_expression": "EGADICT.CGA",
+                "bytes": 1024,
+                "crc32": "0x75a458f2"
+              },
+              {
+                "filename_expression": "EGADICT.KDR",
+                "bytes": 1024,
+                "crc32": "0xfe21f5c4"
+              },
+              {
+                "filename_expression": "EGAHEAD.CGA",
+                "bytes": 12068,
+                "crc32": "0x38c15a01"
+              },
+              {
+                "filename_expression": "EGAHEAD.KDR",
+                "bytes": 12068,
+                "crc32": "0xdeb318b3"
+              },
+              {
+                "filename_expression": "GAMETEXT.KDR",
+                "bytes": 4314,
+                "crc32": "0x0996e7f2"
+              },
+              {
+                "filename_expression": "KDREAMS.CGA",
+                "bytes": 179725,
+                "crc32": "0x83b0c6c4"
+              },
+              {
+                "filename_expression": "KDREAMS.CMP",
+                "bytes": 40878,
+                "crc32": "0xf8a33e2f"
+              },
+              {
+                "filename_expression": "KDREAMS.EGA",
+                "bytes": 213221,
+                "crc32": "0xee1024b9"
+              },
+              {
+                "filename_expression": "KDREAMS.MAP",
+                "bytes": 65674,
+                "crc32": "0x934cd898"
+              },
+              {
+                "filename_expression": "KDREAMS.SND",
+                "bytes": 1449826,
+                "crc32": "0xfb74b9a2"
+              },
+              {
+                "filename_expression": "MAPDICT.KDR",
+                "bytes": 1020,
+                "crc32": "0x6bb0de32"
+              },
+              {
+                "filename_expression": "MAPHEAD.KDR",
+                "bytes": 11824,
+                "crc32": "0xff335e8c"
+              },
+              {
+                "filename_expression": "SOUNDDCT.KDR",
+                "bytes": 1024,
+                "crc32": "0x2217ceb9"
+              },
+              {
+                "filename_expression": "SOUNDHHD.KDR",
+                "bytes": 228,
+                "crc32": "0xb8b39c5c"
+              },
+              {
+                "filename_expression": "STORY.KDR",
+                "bytes": 2526,
+                "crc32": "0xcafc1d15"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "issue": 2684,
+        "variants": [
+          {
+            "key": "cat3d100",
+            "display_name": "Catacomb 3-D v1.00",
+            "definition": "g_be_gamever_cat3d100",
+            "required_file_array": "g_be_reqgameverfiles_cat3d100",
+            "source": "src/backend/gamedefs/be_gamedefs_cat3d.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_cat3d.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIO.C3D",
+                "bytes": 5062,
+                "crc32": "0x074f7525"
+              },
+              {
+                "filename_expression": "EGAGRAPH.C3D",
+                "bytes": 258007,
+                "crc32": "0x7b756d01"
+              },
+              {
+                "filename_expression": "GAMEMAPS.C3D",
+                "bytes": 14288,
+                "crc32": "0x1d8d501e"
+              },
+              {
+                "filename_expression": "CAT3D.EXE",
+                "bytes": 78483,
+                "crc32": "0xe20992c7"
+              }
+            ]
+          },
+          {
+            "key": "cat3d122",
+            "display_name": "Catacomb 3-D v1.22",
+            "definition": "g_be_gamever_cat3d122",
+            "required_file_array": "g_be_reqgameverfiles_cat3d122",
+            "source": "src/backend/gamedefs/be_gamedefs_cat3d.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_cat3d.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIO.C3D",
+                "bytes": 5062,
+                "crc32": "0x074f7525"
+              },
+              {
+                "filename_expression": "EGAGRAPH.C3D",
+                "bytes": 256899,
+                "crc32": "0xbc122f40"
+              },
+              {
+                "filename_expression": "GAMEMAPS.C3D",
+                "bytes": 14288,
+                "crc32": "0x1ecb107b"
+              },
+              {
+                "filename_expression": "CAT3D.EXE",
+                "bytes": 78285,
+                "crc32": "0xfaa27410"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "issue": 2685,
+        "variants": [
+          {
+            "key": "catabyss113",
+            "display_name": "Catacomb Abyss v1.13",
+            "definition": "g_be_gamever_catabyss113",
+            "required_file_array": "g_be_reqgameverfiles_catabyss113",
+            "source": "src/backend/gamedefs/be_gamedefs_catabyss.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_catabyss.h",
+            "required_files": [
+              {
+                "filename_expression": "ARMAPC.ABS",
+                "bytes": 10489,
+                "crc32": "0x9562020e"
+              },
+              {
+                "filename_expression": "AUDIO.ABS",
+                "bytes": 6904,
+                "crc32": "0x462d2eb2"
+              },
+              {
+                "filename_expression": "CATABYSS.EXE",
+                "bytes": 82662,
+                "crc32": "0xbc3b015e"
+              },
+              {
+                "filename_expression": "EGAGRAPH.ABS",
+                "bytes": 336143,
+                "crc32": "0x3b2464a2"
+              },
+              {
+                "filename_expression": "GAMEMAPS.ABS",
+                "bytes": 20433,
+                "crc32": "0x97ddb354"
+              },
+              {
+                "filename_expression": "HELP.TXT",
+                "bytes": 15491,
+                "crc32": "0x7f8c4a59"
+              },
+              {
+                "filename_expression": "LAST.ABS",
+                "bytes": 1290,
+                "crc32": "0xc36ba646"
+              },
+              {
+                "filename_expression": "SHP01.ABS",
+                "bytes": 1376,
+                "crc32": "0xe04a6d1e"
+              },
+              {
+                "filename_expression": "SHP02.ABS",
+                "bytes": 15181,
+                "crc32": "0x0198b8f7"
+              },
+              {
+                "filename_expression": "SHP03.ABS",
+                "bytes": 13158,
+                "crc32": "0x0d6b4986"
+              },
+              {
+                "filename_expression": "SHP04.ABS",
+                "bytes": 12648,
+                "crc32": "0x3bd5ccbc"
+              },
+              {
+                "filename_expression": "SHP05.ABS",
+                "bytes": 724,
+                "crc32": "0x857573eb"
+              },
+              {
+                "filename_expression": "SHP06.ABS",
+                "bytes": 9182,
+                "crc32": "0x86ce4004"
+              },
+              {
+                "filename_expression": "SHP07.ABS",
+                "bytes": 9930,
+                "crc32": "0x6a22743f"
+              },
+              {
+                "filename_expression": "SHP08.ABS",
+                "bytes": 398,
+                "crc32": "0x99404417"
+              },
+              {
+                "filename_expression": "SHP09.ABS",
+                "bytes": 417,
+                "crc32": "0x201133a8"
+              },
+              {
+                "filename_expression": "SHP10.ABS",
+                "bytes": 329,
+                "crc32": "0xaa51f92a"
+              },
+              {
+                "filename_expression": "SHP11.ABS",
+                "bytes": 10595,
+                "crc32": "0x5a95691e"
+              },
+              {
+                "filename_expression": "SHP12.ABS",
+                "bytes": 9182,
+                "crc32": "0x378b5984"
+              },
+              {
+                "filename_expression": "ALTAR.CAT",
+                "bytes": 15014,
+                "crc32": "0x833d1ca7"
+              },
+              {
+                "filename_expression": "APC.CAT",
+                "bytes": 12828,
+                "crc32": "0x009ec08a"
+              },
+              {
+                "filename_expression": "CEMETRY.CAT",
+                "bytes": 14983,
+                "crc32": "0x8cfb3741"
+              },
+              {
+                "filename_expression": "COOKIE.CAT",
+                "bytes": 16837,
+                "crc32": "0xee83c4f4"
+              },
+              {
+                "filename_expression": "CRYSTAL.CAT",
+                "bytes": 15320,
+                "crc32": "0x16fa18f0"
+              },
+              {
+                "filename_expression": "DEMOCAT.EXE",
+                "bytes": 32066,
+                "crc32": "0xce326ea2"
+              },
+              {
+                "filename_expression": "DRAGONS.CAT",
+                "bytes": 7107,
+                "crc32": "0x54ea7eb5"
+              },
+              {
+                "filename_expression": "EGYPT.CAT",
+                "bytes": 8863,
+                "crc32": "0xc78451d7"
+              },
+              {
+                "filename_expression": "FLAME.CAT",
+                "bytes": 7062,
+                "crc32": "0xe422aa64"
+              },
+              {
+                "filename_expression": "FOLLOW.CAT",
+                "bytes": 10437,
+                "crc32": "0xbec4bd75"
+              },
+              {
+                "filename_expression": "GRATE.CAT",
+                "bytes": 8306,
+                "crc32": "0x8f7cb569"
+              },
+              {
+                "filename_expression": "GROUPIC.CAT",
+                "bytes": 20563,
+                "crc32": "0x93531dd8"
+              },
+              {
+                "filename_expression": "HOMEBBS.CAT",
+                "bytes": 3233,
+                "crc32": "0xaf3d0e16"
+              },
+              {
+                "filename_expression": "INFERNO.CAT",
+                "bytes": 13934,
+                "crc32": "0x3ddd36e9"
+              },
+              {
+                "filename_expression": "INVITED.CAT",
+                "bytes": 9723,
+                "crc32": "0xacc2ce73"
+              },
+              {
+                "filename_expression": "LAST.CAT",
+                "bytes": 1247,
+                "crc32": "0x73f1ec9e"
+              },
+              {
+                "filename_expression": "LEGEND.CAT",
+                "bytes": 10977,
+                "crc32": "0xc99a5540"
+              },
+              {
+                "filename_expression": "LOUNGE.CAT",
+                "bytes": 10665,
+                "crc32": "0xb799f029"
+              },
+              {
+                "filename_expression": "OPEN.CAT",
+                "bytes": 4445,
+                "crc32": "0xe90e743b"
+              },
+              {
+                "filename_expression": "ORCMINE.CAT",
+                "bytes": 8903,
+                "crc32": "0xf8821eda"
+              },
+              {
+                "filename_expression": "QUEST.CAT",
+                "bytes": 13076,
+                "crc32": "0x252de058"
+              },
+              {
+                "filename_expression": "REDHALL.CAT",
+                "bytes": 8214,
+                "crc32": "0x0d9bd58e"
+              },
+              {
+                "filename_expression": "SCRIPT.CAT",
+                "bytes": 174,
+                "crc32": "0x45973aa6"
+              },
+              {
+                "filename_expression": "TRILOGY.CAT",
+                "bytes": 11397,
+                "crc32": "0xe09a1995"
+              },
+              {
+                "filename_expression": "VAULT.CAT",
+                "bytes": 8737,
+                "crc32": "0x43d6dba7"
+              },
+              {
+                "filename_expression": "VICTORY.CAT",
+                "bytes": 7194,
+                "crc32": "0x70846fc6"
+              }
+            ]
+          },
+          {
+            "key": "catabyss124",
+            "display_name": "Catacomb Abyss v1.24",
+            "definition": "g_be_gamever_catabyss124",
+            "required_file_array": "g_be_reqgameverfiles_catabyss124",
+            "source": "src/backend/gamedefs/be_gamedefs_catabyss.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_catabyss.h",
+            "required_files": [
+              {
+                "filename_expression": "ABYSGAME.EXE",
+                "bytes": 82479,
+                "crc32": "0x5f0319db"
+              },
+              {
+                "filename_expression": "AUDIO.ABS",
+                "bytes": 6904,
+                "crc32": "0x462d2eb2"
+              },
+              {
+                "filename_expression": "EGAGRAPH.ABS",
+                "bytes": 335994,
+                "crc32": "0xfd9995ad"
+              },
+              {
+                "filename_expression": "GAMEMAPS.ABS",
+                "bytes": 20433,
+                "crc32": "0x97ddb354"
+              },
+              {
+                "filename_expression": "HELP.TXT",
+                "bytes": 15042,
+                "crc32": "0xc47ce06e"
+              },
+              {
+                "filename_expression": "SHP01.ABS",
+                "bytes": 1376,
+                "crc32": "0xe04a6d1e"
+              },
+              {
+                "filename_expression": "SHP02.ABS",
+                "bytes": 14912,
+                "crc32": "0xffc72620"
+              },
+              {
+                "filename_expression": "SHP03.ABS",
+                "bytes": 13186,
+                "crc32": "0x7b73bb7b"
+              },
+              {
+                "filename_expression": "SHP04.ABS",
+                "bytes": 12648,
+                "crc32": "0x3bd5ccbc"
+              },
+              {
+                "filename_expression": "SHP05.ABS",
+                "bytes": 724,
+                "crc32": "0x857573eb"
+              },
+              {
+                "filename_expression": "SHP06.ABS",
+                "bytes": 9182,
+                "crc32": "0x86ce4004"
+              },
+              {
+                "filename_expression": "SHP07.ABS",
+                "bytes": 9930,
+                "crc32": "0x6a22743f"
+              },
+              {
+                "filename_expression": "SHP08.ABS",
+                "bytes": 398,
+                "crc32": "0x99404417"
+              },
+              {
+                "filename_expression": "SHP09.ABS",
+                "bytes": 417,
+                "crc32": "0x201133a8"
+              },
+              {
+                "filename_expression": "SHP10.ABS",
+                "bytes": 329,
+                "crc32": "0xaa51f92a"
+              },
+              {
+                "filename_expression": "SHP11.ABS",
+                "bytes": 10328,
+                "crc32": "0x08ee65f4"
+              },
+              {
+                "filename_expression": "SHP12.ABS",
+                "bytes": 1652,
+                "crc32": "0xbeb87fbd"
+              },
+              {
+                "filename_expression": "AQUDUCT.HNT",
+                "bytes": 7886,
+                "crc32": "0x66a11ac1"
+              },
+              {
+                "filename_expression": "CEMETRY.HNT",
+                "bytes": 10376,
+                "crc32": "0xf7b3f888"
+              },
+              {
+                "filename_expression": "COVEN.HNT",
+                "bytes": 13550,
+                "crc32": "0xc3fdd8a4"
+              },
+              {
+                "filename_expression": "CRYPT.HNT",
+                "bytes": 11233,
+                "crc32": "0x46ca0a4b"
+              },
+              {
+                "filename_expression": "DEN.HNT",
+                "bytes": 10520,
+                "crc32": "0xbea64562"
+              },
+              {
+                "filename_expression": "GARDEN.HNT",
+                "bytes": 11125,
+                "crc32": "0x8c2385b6"
+              },
+              {
+                "filename_expression": "HAUNT.HNT",
+                "bytes": 7743,
+                "crc32": "0x2b9ef944"
+              },
+              {
+                "filename_expression": "HINTCAT.EXE",
+                "bytes": 16328,
+                "crc32": "0x2bd569ac"
+              },
+              {
+                "filename_expression": "HINTGO1.HNT",
+                "bytes": 9751,
+                "crc32": "0x4fa00485"
+              },
+              {
+                "filename_expression": "HINTGO2.HNT",
+                "bytes": 9902,
+                "crc32": "0x6640c7b6"
+              },
+              {
+                "filename_expression": "HINTGO3.HNT",
+                "bytes": 8372,
+                "crc32": "0x8e743b2c"
+              },
+              {
+                "filename_expression": "INFERNO.HNT",
+                "bytes": 11658,
+                "crc32": "0x9d59623a"
+              },
+              {
+                "filename_expression": "MAUSGND.HNT",
+                "bytes": 11305,
+                "crc32": "0x70655f30"
+              },
+              {
+                "filename_expression": "MAUSOL.HNT",
+                "bytes": 12075,
+                "crc32": "0xee9b8745"
+              },
+              {
+                "filename_expression": "ORCMINE.HNT",
+                "bytes": 12664,
+                "crc32": "0x35502713"
+              },
+              {
+                "filename_expression": "PASSAGE.HNT",
+                "bytes": 10159,
+                "crc32": "0x126e01a5"
+              },
+              {
+                "filename_expression": "SANCTUM.HNT",
+                "bytes": 12030,
+                "crc32": "0x16c785e6"
+              },
+              {
+                "filename_expression": "SCRIPT.HNT",
+                "bytes": 155,
+                "crc32": "0x985da39a"
+              },
+              {
+                "filename_expression": "SUBVALT.HNT",
+                "bytes": 12110,
+                "crc32": "0xfb4d589d"
+              },
+              {
+                "filename_expression": "TITANS.HNT",
+                "bytes": 9821,
+                "crc32": "0xd491ac71"
+              },
+              {
+                "filename_expression": "TROLLS.HNT",
+                "bytes": 13409,
+                "crc32": "0x68a6a6e9"
+              },
+              {
+                "filename_expression": "VICTORY.HNT",
+                "bytes": 7301,
+                "crc32": "0xb2a16e89"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "issue": 2686,
+        "variants": [
+          {
+            "key": "catarm102",
+            "display_name": "Catacomb Armageddon v1.02",
+            "definition": "g_be_gamever_catarm102",
+            "required_file_array": "g_be_reqgameverfiles_catarm102",
+            "source": "src/backend/gamedefs/be_gamedefs_catarm.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_catarm.h",
+            "required_files": [
+              {
+                "filename_expression": "ARMGAME.EXE",
+                "bytes": 82198,
+                "crc32": "0x7bf5e3d5"
+              },
+              {
+                "filename_expression": "AUDIO.ARM",
+                "bytes": 7104,
+                "crc32": "0xb6c28bc7"
+              },
+              {
+                "filename_expression": "EGAGRAPH.ARM",
+                "bytes": 355832,
+                "crc32": "0x8eea3210"
+              },
+              {
+                "filename_expression": "GAMEMAPS.ARM",
+                "bytes": 17653,
+                "crc32": "0x787794bf"
+              },
+              {
+                "filename_expression": "SHP10.ARM",
+                "bytes": 9930,
+                "crc32": "0x6a22743f"
+              },
+              {
+                "filename_expression": "SHP11.ARM",
+                "bytes": 398,
+                "crc32": "0x99404417"
+              },
+              {
+                "filename_expression": "SHP12.ARM",
+                "bytes": 417,
+                "crc32": "0x201133a8"
+              },
+              {
+                "filename_expression": "SHP13.ARM",
+                "bytes": 329,
+                "crc32": "0xaa51f92a"
+              },
+              {
+                "filename_expression": "SHP14.ARM",
+                "bytes": 1688,
+                "crc32": "0x98e0af99"
+              },
+              {
+                "filename_expression": "SHP1.ARM",
+                "bytes": 1376,
+                "crc32": "0xe04a6d1e"
+              },
+              {
+                "filename_expression": "SHP2.ARM",
+                "bytes": 3991,
+                "crc32": "0x1b4bb85b"
+              },
+              {
+                "filename_expression": "SHP3.ARM",
+                "bytes": 15036,
+                "crc32": "0xe7c6a5a3"
+              },
+              {
+                "filename_expression": "SHP4.ARM",
+                "bytes": 15568,
+                "crc32": "0x9fa3faee"
+              },
+              {
+                "filename_expression": "SHP5.ARM",
+                "bytes": 13234,
+                "crc32": "0x3f90b11d"
+              },
+              {
+                "filename_expression": "SHP6.ARM",
+                "bytes": 10861,
+                "crc32": "0x42faf6e5"
+              },
+              {
+                "filename_expression": "SHP7.ARM",
+                "bytes": 9414,
+                "crc32": "0x1a969278"
+              },
+              {
+                "filename_expression": "SHP8.ARM",
+                "bytes": 749,
+                "crc32": "0x086438f0"
+              },
+              {
+                "filename_expression": "SHP9.ARM",
+                "bytes": 9182,
+                "crc32": "0x86ce4004"
+              },
+              {
+                "filename_expression": "HINT01.HNT",
+                "bytes": 9664,
+                "crc32": "0xb6ecee18"
+              },
+              {
+                "filename_expression": "HINT02.HNT",
+                "bytes": 9833,
+                "crc32": "0xa01e9cba"
+              },
+              {
+                "filename_expression": "HINT03.HNT",
+                "bytes": 12060,
+                "crc32": "0xa8857173"
+              },
+              {
+                "filename_expression": "HINT04.HNT",
+                "bytes": 10438,
+                "crc32": "0x60866c28"
+              },
+              {
+                "filename_expression": "HINT05.HNT",
+                "bytes": 11555,
+                "crc32": "0x0973da05"
+              },
+              {
+                "filename_expression": "HINT06.HNT",
+                "bytes": 10339,
+                "crc32": "0x1e5089d5"
+              },
+              {
+                "filename_expression": "HINT07.HNT",
+                "bytes": 12888,
+                "crc32": "0x0bc7121d"
+              },
+              {
+                "filename_expression": "HINT08.HNT",
+                "bytes": 10400,
+                "crc32": "0x0b33d707"
+              },
+              {
+                "filename_expression": "HINT09.HNT",
+                "bytes": 10754,
+                "crc32": "0x4f787690"
+              },
+              {
+                "filename_expression": "HINT10.HNT",
+                "bytes": 10262,
+                "crc32": "0xbddb06e5"
+              },
+              {
+                "filename_expression": "HINT11.HNT",
+                "bytes": 12006,
+                "crc32": "0x47104911"
+              },
+              {
+                "filename_expression": "HINT12.HNT",
+                "bytes": 12757,
+                "crc32": "0x340d8383"
+              },
+              {
+                "filename_expression": "HINT13.HNT",
+                "bytes": 11662,
+                "crc32": "0xe2e1890f"
+              },
+              {
+                "filename_expression": "HINT14.HNT",
+                "bytes": 9271,
+                "crc32": "0x74bbe8c7"
+              },
+              {
+                "filename_expression": "HINT15.HNT",
+                "bytes": 11624,
+                "crc32": "0x8e842f18"
+              },
+              {
+                "filename_expression": "HINT16.HNT",
+                "bytes": 12067,
+                "crc32": "0xffccf406"
+              },
+              {
+                "filename_expression": "HINT17.HNT",
+                "bytes": 12342,
+                "crc32": "0xf24371ec"
+              },
+              {
+                "filename_expression": "HINT18.HNT",
+                "bytes": 8896,
+                "crc32": "0x18567f5d"
+              },
+              {
+                "filename_expression": "HINT19.HNT",
+                "bytes": 9308,
+                "crc32": "0xdb5b1b65"
+              },
+              {
+                "filename_expression": "HINT20.HNT",
+                "bytes": 7301,
+                "crc32": "0xb2a16e89"
+              },
+              {
+                "filename_expression": "HINTCAT.EXE",
+                "bytes": 15973,
+                "crc32": "0x79cc6ee3"
+              },
+              {
+                "filename_expression": "SCRIPT.HNT",
+                "bytes": 90,
+                "crc32": "0x79a7f746"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "issue": 2687,
+        "variants": [
+          {
+            "key": "catapoc101",
+            "display_name": "Catacomb Apocalypse v1.01",
+            "definition": "g_be_gamever_catapoc101",
+            "required_file_array": "g_be_reqgameverfiles_catapoc101",
+            "source": "src/backend/gamedefs/be_gamedefs_catapoc.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_catapoc.h",
+            "required_files": [
+              {
+                "filename_expression": "APOCGAME.EXE",
+                "bytes": 82386,
+                "crc32": "0x48ca6808"
+              },
+              {
+                "filename_expression": "AUDIO.APC",
+                "bytes": 7366,
+                "crc32": "0x23934cec"
+              },
+              {
+                "filename_expression": "EGAGRAPH.APC",
+                "bytes": 382078,
+                "crc32": "0x291893c3"
+              },
+              {
+                "filename_expression": "GAMEMAPS.APC",
+                "bytes": 18855,
+                "crc32": "0xd317b2c9"
+              },
+              {
+                "filename_expression": "SHP10.APC",
+                "bytes": 9930,
+                "crc32": "0x6a22743f"
+              },
+              {
+                "filename_expression": "SHP11.APC",
+                "bytes": 398,
+                "crc32": "0x99404417"
+              },
+              {
+                "filename_expression": "SHP12.APC",
+                "bytes": 417,
+                "crc32": "0x201133a8"
+              },
+              {
+                "filename_expression": "SHP13.APC",
+                "bytes": 329,
+                "crc32": "0xaa51f92a"
+              },
+              {
+                "filename_expression": "SHP14.APC",
+                "bytes": 1668,
+                "crc32": "0xa4a8e44e"
+              },
+              {
+                "filename_expression": "SHP1.APC",
+                "bytes": 1376,
+                "crc32": "0xe04a6d1e"
+              },
+              {
+                "filename_expression": "SHP2.APC",
+                "bytes": 6329,
+                "crc32": "0xff48bc57"
+              },
+              {
+                "filename_expression": "SHP3.APC",
+                "bytes": 13187,
+                "crc32": "0x5800b7f5"
+              },
+              {
+                "filename_expression": "SHP4.APC",
+                "bytes": 13592,
+                "crc32": "0x1c498a90"
+              },
+              {
+                "filename_expression": "SHP5.APC",
+                "bytes": 12698,
+                "crc32": "0xf2fa1802"
+              },
+              {
+                "filename_expression": "SHP6.APC",
+                "bytes": 11131,
+                "crc32": "0x110da23b"
+              },
+              {
+                "filename_expression": "SHP7.APC",
+                "bytes": 13266,
+                "crc32": "0x9ec74514"
+              },
+              {
+                "filename_expression": "SHP8.APC",
+                "bytes": 640,
+                "crc32": "0x864e6d0c"
+              },
+              {
+                "filename_expression": "SHP9.APC",
+                "bytes": 9182,
+                "crc32": "0x86ce4004"
+              },
+              {
+                "filename_expression": "HINT01.HNT",
+                "bytes": 9664,
+                "crc32": "0x1641c8f0"
+              },
+              {
+                "filename_expression": "HINT02.HNT",
+                "bytes": 9823,
+                "crc32": "0x0d319717"
+              },
+              {
+                "filename_expression": "HINT03.HNT",
+                "bytes": 10822,
+                "crc32": "0x994d94cd"
+              },
+              {
+                "filename_expression": "HINT04.HNT",
+                "bytes": 11654,
+                "crc32": "0xe754554f"
+              },
+              {
+                "filename_expression": "HINT05.HNT",
+                "bytes": 8021,
+                "crc32": "0xfd819cab"
+              },
+              {
+                "filename_expression": "HINT06.HNT",
+                "bytes": 9839,
+                "crc32": "0x13f601ce"
+              },
+              {
+                "filename_expression": "HINT07.HNT",
+                "bytes": 10314,
+                "crc32": "0xa049c277"
+              },
+              {
+                "filename_expression": "HINT08.HNT",
+                "bytes": 9616,
+                "crc32": "0xa5990371"
+              },
+              {
+                "filename_expression": "HINT09.HNT",
+                "bytes": 9074,
+                "crc32": "0x61e1681e"
+              },
+              {
+                "filename_expression": "HINT10.HNT",
+                "bytes": 9744,
+                "crc32": "0x38ae11c9"
+              },
+              {
+                "filename_expression": "HINT11.HNT",
+                "bytes": 14563,
+                "crc32": "0x7c233efa"
+              },
+              {
+                "filename_expression": "HINT12.HNT",
+                "bytes": 9261,
+                "crc32": "0x714bd15a"
+              },
+              {
+                "filename_expression": "HINT13.HNT",
+                "bytes": 10056,
+                "crc32": "0xebf72992"
+              },
+              {
+                "filename_expression": "HINT14.HNT",
+                "bytes": 6552,
+                "crc32": "0x5039141c"
+              },
+              {
+                "filename_expression": "HINT15.HNT",
+                "bytes": 10738,
+                "crc32": "0x60fd9f81"
+              },
+              {
+                "filename_expression": "HINT16.HNT",
+                "bytes": 8302,
+                "crc32": "0xcace81b8"
+              },
+              {
+                "filename_expression": "HINT17.HNT",
+                "bytes": 8348,
+                "crc32": "0x00783edb"
+              },
+              {
+                "filename_expression": "HINT18.HNT",
+                "bytes": 9990,
+                "crc32": "0x04e56bbe"
+              },
+              {
+                "filename_expression": "HINT19.HNT",
+                "bytes": 7301,
+                "crc32": "0xb2a16e89"
+              },
+              {
+                "filename_expression": "HINTCAT.EXE",
+                "bytes": 16215,
+                "crc32": "0xfefa177c"
+              },
+              {
+                "filename_expression": "SCRIPT.HNT",
+                "bytes": 88,
+                "crc32": "0x8dd529b2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "issue": 2688,
+        "variants": [
+          {
+            "key": "wl920312",
+            "display_name": "Wolfenstein 3D March '92 Proto.",
+            "definition": "g_be_gamever_wl920312",
+            "required_file_array": "g_be_reqgameverfiles_wl920312",
+            "source": "src/backend/gamedefs/be_gamedefs_wl920312.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl920312.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL1",
+                "bytes": 576,
+                "crc32": "0x7b9e338a"
+              },
+              {
+                "filename_expression": "AUDIOT.WL1",
+                "bytes": 77265,
+                "crc32": "0x6df8532f"
+              },
+              {
+                "filename_expression": "HELPART.WL1",
+                "bytes": 1103,
+                "crc32": "0x52fe336b"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL1",
+                "bytes": 402,
+                "crc32": "0xeb984d14"
+              },
+              {
+                "filename_expression": "MAPTEMP.WL1",
+                "bytes": 62660,
+                "crc32": "0xcdd4c671"
+              },
+              {
+                "filename_expression": "ORDERART.WL1",
+                "bytes": 150,
+                "crc32": "0xfa51dce3"
+              },
+              {
+                "filename_expression": "VGADICT.WL1",
+                "bytes": 1024,
+                "crc32": "0x78092916"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL1",
+                "bytes": 195624,
+                "crc32": "0x9d2c7f3b"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL1",
+                "bytes": 1281,
+                "crc32": "0x0e0aa60b"
+              },
+              {
+                "filename_expression": "VSWAP.WL1",
+                "bytes": 561192,
+                "crc32": "0x80cb7a9e"
+              },
+              {
+                "filename_expression": "WOLF1V.EXE",
+                "bytes": 83375,
+                "crc32": "0x92b9a37f"
+              }
+            ]
+          },
+          {
+            "key": "wl6gt14b",
+            "display_name": "Wolfenstein 3D: GT #2",
+            "definition": "g_be_gamever_wl6gt14b",
+            "required_file_array": "g_be_reqgameverfiles_wl6gt14b",
+            "source": "src/backend/gamedefs/be_gamedefs_wl6gt14b.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl6gt14b.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL6",
+                "bytes": 1156,
+                "crc32": "0x2f3bcb70"
+              },
+              {
+                "filename_expression": "AUDIOT.WL6",
+                "bytes": 320209,
+                "crc32": "0xc79efd4c"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL6",
+                "bytes": 150652,
+                "crc32": "0xada5c827"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL6",
+                "bytes": 402,
+                "crc32": "0x015803e9"
+              },
+              {
+                "filename_expression": "VGADICT.WL6",
+                "bytes": 1024,
+                "crc32": "0xaa22054e"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL6",
+                "bytes": 275774,
+                "crc32": "0xa4b1de1d"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL6",
+                "bytes": 450,
+                "crc32": "0xab2b44d3"
+              },
+              {
+                "filename_expression": "VSWAP.WL6",
+                "bytes": 1544376,
+                "crc32": "0xe610c664"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 109589,
+                "crc32": "0xfcdf5431"
+              }
+            ]
+          },
+          {
+            "key": "wl6gt14a",
+            "display_name": "Wolfenstein 3D: GT #1",
+            "definition": "g_be_gamever_wl6gt14a",
+            "required_file_array": "g_be_reqgameverfiles_wl6gt14a",
+            "source": "src/backend/gamedefs/be_gamedefs_wl6gt14a_id14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl6gt14a_id14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL6",
+                "bytes": 1156,
+                "crc32": "0x2f3bcb70"
+              },
+              {
+                "filename_expression": "AUDIOT.WL6",
+                "bytes": 320209,
+                "crc32": "0xc79efd4c"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL6",
+                "bytes": 150652,
+                "crc32": "0xada5c827"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL6",
+                "bytes": 402,
+                "crc32": "0x015803e9"
+              },
+              {
+                "filename_expression": "VGADICT.WL6",
+                "bytes": 1024,
+                "crc32": "0x8b4ad0f8"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL6",
+                "bytes": 276096,
+                "crc32": "0xe0df1ea0"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL6",
+                "bytes": 450,
+                "crc32": "0x27ee37c4"
+              },
+              {
+                "filename_expression": "VSWAP.WL6",
+                "bytes": 1545400,
+                "crc32": "0x859e8ffc"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 259310,
+                "crc32": "0xcf660f1b"
+              }
+            ]
+          },
+          {
+            "key": "wl6id14",
+            "display_name": "Wolfenstein 3D: id",
+            "definition": "g_be_gamever_wl6id14",
+            "required_file_array": "g_be_reqgameverfiles_wl6id14",
+            "source": "src/backend/gamedefs/be_gamedefs_wl6gt14a_id14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl6gt14a_id14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL6",
+                "bytes": 1156,
+                "crc32": "0x2f3bcb70"
+              },
+              {
+                "filename_expression": "AUDIOT.WL6",
+                "bytes": 320209,
+                "crc32": "0xc79efd4c"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL6",
+                "bytes": 150652,
+                "crc32": "0xada5c827"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL6",
+                "bytes": 402,
+                "crc32": "0x015803e9"
+              },
+              {
+                "filename_expression": "VGADICT.WL6",
+                "bytes": 1024,
+                "crc32": "0x8b4ad0f8"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL6",
+                "bytes": 276096,
+                "crc32": "0xe0df1ea0"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL6",
+                "bytes": 450,
+                "crc32": "0x27ee37c4"
+              },
+              {
+                "filename_expression": "VSWAP.WL6",
+                "bytes": 1545400,
+                "crc32": "0x859e8ffc"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 259310,
+                "crc32": "0xded9ff6f"
+              }
+            ]
+          },
+          {
+            "key": "wl6ap11",
+            "display_name": "Wolfenstein 3D 6-ep Apogee v1.1",
+            "definition": "g_be_gamever_wl6ap11",
+            "required_file_array": "g_be_reqgameverfiles_wl6ap11",
+            "source": "src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL6",
+                "bytes": 1156,
+                "crc32": "0x56ac3db"
+              },
+              {
+                "filename_expression": "AUDIOT.WL6",
+                "bytes": 317049,
+                "crc32": "0x1585d305"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL6",
+                "bytes": 150746,
+                "crc32": "0xdb7b0962"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL6",
+                "bytes": 402,
+                "crc32": "0x74b8087"
+              },
+              {
+                "filename_expression": "VGADICT.WL6",
+                "bytes": 1024,
+                "crc32": "0x28687d1a"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL6",
+                "bytes": 302374,
+                "crc32": "0xe1d6765f"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL6",
+                "bytes": 477,
+                "crc32": "0x53b4b582"
+              },
+              {
+                "filename_expression": "VSWAP.WL6",
+                "bytes": 1545400,
+                "crc32": "0x97fe030d"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 98402,
+                "crc32": "0xeeb3decc"
+              }
+            ]
+          },
+          {
+            "key": "wl6ap12",
+            "display_name": "Wolfenstein 3D 6-ep Apogee v1.2",
+            "definition": "g_be_gamever_wl6ap12",
+            "required_file_array": "g_be_reqgameverfiles_wl6ap12",
+            "source": "src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL6",
+                "bytes": 1156,
+                "crc32": "0x56ac3db"
+              },
+              {
+                "filename_expression": "AUDIOT.WL6",
+                "bytes": 317049,
+                "crc32": "0x1585d305"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL6",
+                "bytes": 150758,
+                "crc32": "0x1029c727"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL6",
+                "bytes": 402,
+                "crc32": "0x5e43caee"
+              },
+              {
+                "filename_expression": "VGADICT.WL6",
+                "bytes": 1024,
+                "crc32": "0x28687d1a"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL6",
+                "bytes": 302374,
+                "crc32": "0xe1d6765f"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL6",
+                "bytes": 477,
+                "crc32": "0x53b4b582"
+              },
+              {
+                "filename_expression": "VSWAP.WL6",
+                "bytes": 1545400,
+                "crc32": "0x97fe030d"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 98402,
+                "crc32": "0xeeb3decc"
+              }
+            ]
+          },
+          {
+            "key": "wl3ap12",
+            "display_name": "Wolfenstein 3D 3-ep Apogee v1.2",
+            "definition": "g_be_gamever_wl3ap12",
+            "required_file_array": "g_be_reqgameverfiles_wl3ap12",
+            "source": "src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL3",
+                "bytes": 1156,
+                "crc32": "0x56ac3db"
+              },
+              {
+                "filename_expression": "AUDIOT.WL3",
+                "bytes": 317049,
+                "crc32": "0x1585d305"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL3",
+                "bytes": 71141,
+                "crc32": "0x01a6b7d8"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL3",
+                "bytes": 402,
+                "crc32": "0xc44efb79"
+              },
+              {
+                "filename_expression": "VGADICT.WL3",
+                "bytes": 1024,
+                "crc32": "0xd56f7e83"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL3",
+                "bytes": 300914,
+                "crc32": "0x9ae56a69"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL3",
+                "bytes": 468,
+                "crc32": "0x6d312eb9"
+              },
+              {
+                "filename_expression": "VSWAP.WL3",
+                "bytes": 1265152,
+                "crc32": "0xdee68a15"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 98402,
+                "crc32": "0xeeb3decc"
+              }
+            ]
+          },
+          {
+            "key": "wl1ap12",
+            "display_name": "Wolfenstein 3D Shareware v1.2",
+            "definition": "g_be_gamever_wl1ap12",
+            "required_file_array": "g_be_reqgameverfiles_wl1ap12",
+            "source": "src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl6ap11.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL1",
+                "bytes": 1156,
+                "crc32": "0x52133dc4"
+              },
+              {
+                "filename_expression": "AUDIOT.WL1",
+                "bytes": 132613,
+                "crc32": "0x87bfc399"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL1",
+                "bytes": 27450,
+                "crc32": "0x1751b3a1"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL1",
+                "bytes": 402,
+                "crc32": "0x0f499e20"
+              },
+              {
+                "filename_expression": "VGADICT.WL1",
+                "bytes": 1024,
+                "crc32": "0x779a9b48"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL1",
+                "bytes": 296813,
+                "crc32": "0xf7aa4e63"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL1",
+                "bytes": 462,
+                "crc32": "0xdaa52442"
+              },
+              {
+                "filename_expression": "VSWAP.WL1",
+                "bytes": 742912,
+                "crc32": "0x708157b5"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 97676,
+                "crc32": "0x3dc4b0ce"
+              }
+            ]
+          },
+          {
+            "key": "wl6ac14",
+            "display_name": "Wolfenstein 3D: Activision",
+            "definition": "g_be_gamever_wl6ac14",
+            "required_file_array": "g_be_reqgameverfiles_wl6ac14",
+            "source": "src/backend/gamedefs/be_gamedefs_wl6ac14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl6ac14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL6",
+                "bytes": 1156,
+                "crc32": "0x2f3bcb70"
+              },
+              {
+                "filename_expression": "AUDIOT.WL6",
+                "bytes": 320209,
+                "crc32": "0xc79efd4c"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL6",
+                "bytes": 150652,
+                "crc32": "0xada5c827"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL6",
+                "bytes": 402,
+                "crc32": "0x015803e9"
+              },
+              {
+                "filename_expression": "VGADICT.WL6",
+                "bytes": 1024,
+                "crc32": "0xaa22054e"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL6",
+                "bytes": 275774,
+                "crc32": "0xa4b1de1d"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL6",
+                "bytes": 450,
+                "crc32": "0xab2b44d3"
+              },
+              {
+                "filename_expression": "VSWAP.WL6",
+                "bytes": 1544376,
+                "crc32": "0xe610c664"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 108779,
+                "crc32": "0x6d818dbe"
+              }
+            ]
+          },
+          {
+            "key": "wl6ap14",
+            "display_name": "Wolfenstein 3D 6-ep Apogee v1.4",
+            "definition": "g_be_gamever_wl6ap14",
+            "required_file_array": "g_be_reqgameverfiles_wl6ap14",
+            "source": "src/backend/gamedefs/be_gamedefs_wl1ap14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl1ap14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL6",
+                "bytes": 1156,
+                "crc32": "0x2f3bcb70"
+              },
+              {
+                "filename_expression": "AUDIOT.WL6",
+                "bytes": 320209,
+                "crc32": "0xc79efd4c"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL6",
+                "bytes": 150652,
+                "crc32": "0xada5c827"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL6",
+                "bytes": 402,
+                "crc32": "0x15803e9"
+              },
+              {
+                "filename_expression": "VGADICT.WL6",
+                "bytes": 1024,
+                "crc32": "0xbe27100"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL6",
+                "bytes": 334506,
+                "crc32": "0x6aa208a5"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL6",
+                "bytes": 486,
+                "crc32": "0xeddd83f8"
+              },
+              {
+                "filename_expression": "VSWAP.WL6",
+                "bytes": 1545400,
+                "crc32": "0x859e8ffc"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 110715,
+                "crc32": "0xfbe11eb3"
+              }
+            ]
+          },
+          {
+            "key": "wl3ap14",
+            "display_name": "Wolfenstein 3D 3-ep Apogee v1.4",
+            "definition": "g_be_gamever_wl3ap14",
+            "required_file_array": "g_be_reqgameverfiles_wl3ap14",
+            "source": "src/backend/gamedefs/be_gamedefs_wl1ap14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl1ap14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL3",
+                "bytes": 1156,
+                "crc32": "0x056ac3db"
+              },
+              {
+                "filename_expression": "AUDIOT.WL3",
+                "bytes": 317049,
+                "crc32": "0x1585d305"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL3",
+                "bytes": 70957,
+                "crc32": "0x13568404"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL3",
+                "bytes": 402,
+                "crc32": "0x7d9a2db7"
+              },
+              {
+                "filename_expression": "VGADICT.WL3",
+                "bytes": 1024,
+                "crc32": "0x039a249a"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL3",
+                "bytes": 331199,
+                "crc32": "0xfa10430e"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL3",
+                "bytes": 477,
+                "crc32": "0xe52dccf5"
+              },
+              {
+                "filename_expression": "VSWAP.WL3",
+                "bytes": 1265152,
+                "crc32": "0xdee68a15"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 110715,
+                "crc32": "0xfbe11eb3"
+              }
+            ]
+          },
+          {
+            "key": "wl1ap14",
+            "display_name": "Wolfenstein 3D Shareware v1.4",
+            "definition": "g_be_gamever_wl1ap14",
+            "required_file_array": "g_be_reqgameverfiles_wl1ap14",
+            "source": "src/backend/gamedefs/be_gamedefs_wl1ap14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl1ap14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL1",
+                "bytes": 1156,
+                "crc32": "0x52133dc4"
+              },
+              {
+                "filename_expression": "AUDIOT.WL1",
+                "bytes": 132613,
+                "crc32": "0x87bfc399"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL1",
+                "bytes": 27425,
+                "crc32": "0xcc53d341"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL1",
+                "bytes": 402,
+                "crc32": "0x088f7551"
+              },
+              {
+                "filename_expression": "VGADICT.WL1",
+                "bytes": 1024,
+                "crc32": "0x358ab877"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL1",
+                "bytes": 326568,
+                "crc32": "0x746da9f0"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL1",
+                "bytes": 471,
+                "crc32": "0xa60a98f0"
+              },
+              {
+                "filename_expression": "VSWAP.WL1",
+                "bytes": 742912,
+                "crc32": "0x85efac55"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 109959,
+                "crc32": "0x213d5d76"
+              }
+            ]
+          },
+          {
+            "key": "wl1ap11",
+            "display_name": "Wolfenstein 3D Shareware v1.1",
+            "definition": "g_be_gamever_wl1ap11",
+            "required_file_array": "g_be_reqgameverfiles_wl1ap11",
+            "source": "src/backend/gamedefs/be_gamedefs_wl1ap11.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl1ap11.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL1",
+                "bytes": 1156,
+                "crc32": "0x52133dc4"
+              },
+              {
+                "filename_expression": "AUDIOT.WL1",
+                "bytes": 132613,
+                "crc32": "0x73569f4d"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WL1",
+                "bytes": 27448,
+                "crc32": "0x7750e1d4"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL1",
+                "bytes": 402,
+                "crc32": "0x205253ac"
+              },
+              {
+                "filename_expression": "VGADICT.WL1",
+                "bytes": 1024,
+                "crc32": "0xfcad3538"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL1",
+                "bytes": 296826,
+                "crc32": "0x9cb49fea"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL1",
+                "bytes": 462,
+                "crc32": "0xd3b22c3c"
+              },
+              {
+                "filename_expression": "VSWAP.WL1",
+                "bytes": 742912,
+                "crc32": "0xbb85f24c"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 97605,
+                "crc32": "0xbef1a88b"
+              }
+            ]
+          },
+          {
+            "key": "wl1ap10",
+            "display_name": "Wolfenstein 3D Shareware v1.0",
+            "definition": "g_be_gamever_wl1ap10",
+            "required_file_array": "g_be_reqgameverfiles_wl1ap10",
+            "source": "src/backend/gamedefs/be_gamedefs_wl1ap10.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wl1ap10.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WL1",
+                "bytes": 988,
+                "crc32": "0x384a9496"
+              },
+              {
+                "filename_expression": "AUDIOT.WL1",
+                "bytes": 130696,
+                "crc32": "0xf65031a7"
+              },
+              {
+                "filename_expression": "MAPHEAD.WL1",
+                "bytes": 402,
+                "crc32": "0xe35f606a"
+              },
+              {
+                "filename_expression": "MAPTEMP.WL1",
+                "bytes": 56618,
+                "crc32": "0xf323bce2"
+              },
+              {
+                "filename_expression": "VGADICT.WL1",
+                "bytes": 1024,
+                "crc32": "0x3796b7e2"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WL1",
+                "bytes": 295394,
+                "crc32": "0xf431f4a4"
+              },
+              {
+                "filename_expression": "VGAHEAD.WL1",
+                "bytes": 447,
+                "crc32": "0x1343524f"
+              },
+              {
+                "filename_expression": "VSWAP.WL1",
+                "bytes": 707072,
+                "crc32": "0xf97fe230"
+              },
+              {
+                "filename_expression": "WOLF3D.EXE",
+                "bytes": 94379,
+                "crc32": "0x6c6bac36"
+              }
+            ]
+          },
+          {
+            "key": "wj6im14",
+            "display_name": "Wolfenstein 3D: Imagineer",
+            "definition": "g_be_gamever_wj6im14",
+            "required_file_array": "g_be_reqgameverfiles_wj6im14",
+            "source": "src/backend/gamedefs/be_gamedefs_wj6im14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_wj6im14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.WJ6",
+                "bytes": 1156,
+                "crc32": "0x2f3bcb70"
+              },
+              {
+                "filename_expression": "AUDIOT.WJ6",
+                "bytes": 320209,
+                "crc32": "0xc79efd4c"
+              },
+              {
+                "filename_expression": "GAMEMAPS.WJ6",
+                "bytes": 150652,
+                "crc32": "0xada5c827"
+              },
+              {
+                "filename_expression": "MAPHEAD.WJ6",
+                "bytes": 402,
+                "crc32": "0x015803e9"
+              },
+              {
+                "filename_expression": "VGADICT.WJ6",
+                "bytes": 1024,
+                "crc32": "0xd7d6cd64"
+              },
+              {
+                "filename_expression": "VGAGRAPH.WJ6",
+                "bytes": 1178641,
+                "crc32": "0xa64ea29f"
+              },
+              {
+                "filename_expression": "VGAHEAD.WJ6",
+                "bytes": 516,
+                "crc32": "0x44cbff76"
+              },
+              {
+                "filename_expression": "VSWAP.WJ6",
+                "bytes": 1545400,
+                "crc32": "0x859e8ffc"
+              },
+              {
+                "filename_expression": "WOLF3D_J.EXE",
+                "bytes": 254046,
+                "crc32": "0x35a74dd2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "issue": 2689,
+        "variants": [
+          {
+            "key": "sodfg14",
+            "display_name": "Spear of Destiny Formgen v1.4",
+            "definition": "g_be_gamever_sodfg14",
+            "required_file_array": "g_be_reqgameverfiles_sodfg14",
+            "source": "src/backend/gamedefs/be_gamedefs_sodfg14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodfg14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD1|GAMEMAPS.SD4",
+                "bytes": 68290,
+                "crc32": "0xb564a0be"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD1|MAPHEAD.SD4",
+                "bytes": 402,
+                "crc32": "0xcdb40ca8"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 112835,
+                "crc32": "0xf8dd4a07"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD1|VSWAP.SD4",
+                "bytes": 1616544,
+                "crc32": "0x591cc4dc"
+              }
+            ]
+          },
+          {
+            "key": "sd2fg14",
+            "display_name": "Spear of Destiny M2 Formgen v1.4",
+            "definition": "g_be_gamever_sd2fg14",
+            "required_file_array": "g_be_reqgameverfiles_sd2fg14",
+            "source": "src/backend/gamedefs/be_gamedefs_sodfg14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodfg14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD2|GAMEMAPS.SD4",
+                "bytes": 135024,
+                "crc32": "0x5110f693"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD2|MAPHEAD.SD4",
+                "bytes": 86,
+                "crc32": "0xdd7bb542"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 112835,
+                "crc32": "0xf8dd4a07"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD2|VSWAP.SD4",
+                "bytes": 1879712,
+                "crc32": "0x861dcbf7"
+              }
+            ]
+          },
+          {
+            "key": "sd3fg14",
+            "display_name": "Spear of Destiny M3 Formgen v1.4",
+            "definition": "g_be_gamever_sd3fg14",
+            "required_file_array": "g_be_reqgameverfiles_sd3fg14",
+            "source": "src/backend/gamedefs/be_gamedefs_sodfg14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodfg14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD3|GAMEMAPS.SD4",
+                "bytes": 148534,
+                "crc32": "0x0b941824"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD3|MAPHEAD.SD4",
+                "bytes": 86,
+                "crc32": "0x4e55a796"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 112835,
+                "crc32": "0xf8dd4a07"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD3|VSWAP.SD4",
+                "bytes": 1881760,
+                "crc32": "0x01db521a"
+              }
+            ]
+          },
+          {
+            "key": "sodfg10",
+            "display_name": "Spear of Destiny Formgen v1.0",
+            "definition": "g_be_gamever_sodfg10",
+            "required_file_array": "g_be_reqgameverfiles_sodfg10",
+            "source": "src/backend/gamedefs/be_gamedefs_sodfg10.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodfg10.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD1|GAMEMAPS.SD4",
+                "bytes": 68290,
+                "crc32": "0xb564a0be"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD1|MAPHEAD.SD4",
+                "bytes": 402,
+                "crc32": "0xcdb40ca8"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 113273,
+                "crc32": "0xbeebc1f9"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD1|VSWAP.SD4",
+                "bytes": 1616544,
+                "crc32": "0x591cc4dc"
+              }
+            ]
+          },
+          {
+            "key": "sd2fg10",
+            "display_name": "Spear of Destiny M2 Formgen v1.0",
+            "definition": "g_be_gamever_sd2fg10",
+            "required_file_array": "g_be_reqgameverfiles_sd2fg10",
+            "source": "src/backend/gamedefs/be_gamedefs_sodfg10.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodfg10.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD2|GAMEMAPS.SD4",
+                "bytes": 135024,
+                "crc32": "0x5110f693"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD2|MAPHEAD.SD4",
+                "bytes": 86,
+                "crc32": "0xdd7bb542"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 113273,
+                "crc32": "0xbeebc1f9"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD2|VSWAP.SD4",
+                "bytes": 1879712,
+                "crc32": "0x861dcbf7"
+              }
+            ]
+          },
+          {
+            "key": "sd3fg10",
+            "display_name": "Spear of Destiny M3 Formgen v1.0",
+            "definition": "g_be_gamever_sd3fg10",
+            "required_file_array": "g_be_reqgameverfiles_sd3fg10",
+            "source": "src/backend/gamedefs/be_gamedefs_sodfg10.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodfg10.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD3|GAMEMAPS.SD4",
+                "bytes": 148534,
+                "crc32": "0x0b941824"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD3|MAPHEAD.SD4",
+                "bytes": 86,
+                "crc32": "0x4e55a796"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 113273,
+                "crc32": "0xbeebc1f9"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD3|VSWAP.SD4",
+                "bytes": 1881760,
+                "crc32": "0x01db521a"
+              }
+            ]
+          },
+          {
+            "key": "sodac14",
+            "display_name": "Spear of Destiny: Activision",
+            "definition": "g_be_gamever_sodac14",
+            "required_file_array": "g_be_reqgameverfiles_sodac14",
+            "source": "src/backend/gamedefs/be_gamedefs_sodac14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodac14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD1|GAMEMAPS.SD4",
+                "bytes": 68290,
+                "crc32": "0xb564a0be"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD1|MAPHEAD.SD4",
+                "bytes": 402,
+                "crc32": "0xcdb40ca8"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 113418,
+                "crc32": "0x4d38a060"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD1|VSWAP.SD4",
+                "bytes": 1616544,
+                "crc32": "0x591cc4dc"
+              }
+            ]
+          },
+          {
+            "key": "sd2ac14",
+            "display_name": "Spear of Destiny M2: Activision",
+            "definition": "g_be_gamever_sd2ac14",
+            "required_file_array": "g_be_reqgameverfiles_sd2ac14",
+            "source": "src/backend/gamedefs/be_gamedefs_sodac14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodac14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD2|GAMEMAPS.SD4",
+                "bytes": 135024,
+                "crc32": "0x5110f693"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD2|MAPHEAD.SD4",
+                "bytes": 86,
+                "crc32": "0xdd7bb542"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 113418,
+                "crc32": "0x4d38a060"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD2|VSWAP.SD4",
+                "bytes": 1879712,
+                "crc32": "0x861dcbf7"
+              }
+            ]
+          },
+          {
+            "key": "sd3ac14",
+            "display_name": "Spear of Destiny M3: Activision",
+            "definition": "g_be_gamever_sd3ac14",
+            "required_file_array": "g_be_reqgameverfiles_sd3ac14",
+            "source": "src/backend/gamedefs/be_gamedefs_sodac14.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sodac14.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SOD",
+                "bytes": 1072,
+                "crc32": "0x13ce3958"
+              },
+              {
+                "filename_expression": "AUDIOT.SOD",
+                "bytes": 328620,
+                "crc32": "0x96d183ec"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SOD|GAMEMAPS.SD3|GAMEMAPS.SD4",
+                "bytes": 148534,
+                "crc32": "0x0b941824"
+              },
+              {
+                "filename_expression": "MAPHEAD.SOD|MAPHEAD.SD3|MAPHEAD.SD4",
+                "bytes": 86,
+                "crc32": "0x4e55a796"
+              },
+              {
+                "filename_expression": "SPEAR.EXE",
+                "bytes": 113418,
+                "crc32": "0x4d38a060"
+              },
+              {
+                "filename_expression": "VGADICT.SOD",
+                "bytes": 1024,
+                "crc32": "0xb9b960ac"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SOD",
+                "bytes": 947979,
+                "crc32": "0x5936dddb"
+              },
+              {
+                "filename_expression": "VGAHEAD.SOD",
+                "bytes": 510,
+                "crc32": "0xdfb1b473"
+              },
+              {
+                "filename_expression": "VSWAP.SOD|VSWAP.SD3|VSWAP.SD4",
+                "bytes": 1881760,
+                "crc32": "0x01db521a"
+              }
+            ]
+          },
+          {
+            "key": "sdmfg10",
+            "display_name": "Spear of Destiny Demo v1.0",
+            "definition": "g_be_gamever_sdmfg10",
+            "required_file_array": "g_be_reqgameverfiles_sdmfg10",
+            "source": "src/backend/gamedefs/be_gamedefs_sdmfg10.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_sdmfg10.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.SDM",
+                "bytes": 1072,
+                "crc32": "0xb6ba466b"
+              },
+              {
+                "filename_expression": "AUDIOT.SDM",
+                "bytes": 93412,
+                "crc32": "0x5ca9f085"
+              },
+              {
+                "filename_expression": "GAMEMAPS.SDM",
+                "bytes": 5534,
+                "crc32": "0xc9f3afee"
+              },
+              {
+                "filename_expression": "MAPHEAD.SDM",
+                "bytes": 402,
+                "crc32": "0xb2b8f1fd"
+              },
+              {
+                "filename_expression": "SOD.EXE",
+                "bytes": 108215,
+                "crc32": "0x0d81eedc"
+              },
+              {
+                "filename_expression": "VGADICT.SDM",
+                "bytes": 1024,
+                "crc32": "0x5723eb53"
+              },
+              {
+                "filename_expression": "VGAGRAPH.SDM",
+                "bytes": 305891,
+                "crc32": "0x52182e63"
+              },
+              {
+                "filename_expression": "VGAHEAD.SDM",
+                "bytes": 402,
+                "crc32": "0x3f4ad2e4"
+              },
+              {
+                "filename_expression": "VSWAP.SDM",
+                "bytes": 730624,
+                "crc32": "0x5e8cc78b"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "issue": 2690,
+        "variants": [
+          {
+            "key": "n3dwt10",
+            "display_name": "Super 3-D Noah's Ark",
+            "definition": "g_be_gamever_n3dwt10",
+            "required_file_array": "g_be_reqgameverfiles_n3dwt10",
+            "source": "src/backend/gamedefs/be_gamedefs_n3dwt10.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_n3dwt10.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.N3D",
+                "bytes": 576,
+                "crc32": "0x769028e9"
+              },
+              {
+                "filename_expression": "AUDIOT.N3D",
+                "bytes": 45043,
+                "crc32": "0x10022c23"
+              },
+              {
+                "filename_expression": "GAMEMAPS.N3D",
+                "bytes": 60195,
+                "crc32": "0x5cb6a201"
+              },
+              {
+                "filename_expression": "MAPHEAD.N3D",
+                "bytes": 402,
+                "crc32": "0x420cd93c"
+              },
+              {
+                "filename_expression": "NOAH3D.EXE|NOAH3DOS.EXE",
+                "bytes": 448468,
+                "crc32": "0xbac8f80a"
+              },
+              {
+                "filename_expression": "VGADICT.N3D",
+                "bytes": 1024,
+                "crc32": "0x11390697"
+              },
+              {
+                "filename_expression": "VGAGRAPH.N3D",
+                "bytes": 235451,
+                "crc32": "0xb203e02e"
+              },
+              {
+                "filename_expression": "VGAHEAD.N3D",
+                "bytes": 405,
+                "crc32": "0x841542a2"
+              },
+              {
+                "filename_expression": "VSWAP.N3D",
+                "bytes": 1048708,
+                "crc32": "0xd676f182"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "issue": 2692,
+        "variants": [
+          {
+            "key": "bm3v11r",
+            "display_name": "BioMenace Ep3 Registered v1.1",
+            "definition": "g_be_gamever_bm3v11r",
+            "required_file_array": "g_be_reqgameverfiles_bm3v11r",
+            "source": "src/backend/gamedefs/be_gamedefs_bm3v11r.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm3v11r.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM3",
+                "bytes": 552,
+                "crc32": "0x7db93b51"
+              },
+              {
+                "filename_expression": "AUDIOT.BM3",
+                "bytes": 201662,
+                "crc32": "0x2e831f51"
+              },
+              {
+                "filename_expression": "BMENACE3.EXE",
+                "bytes": 89048,
+                "crc32": "0x33b6551d"
+              },
+              {
+                "filename_expression": "EGADICT.BM3",
+                "bytes": 1024,
+                "crc32": "0x9256a0be"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM3",
+                "bytes": 412364,
+                "crc32": "0xa3303aa3"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM3",
+                "bytes": 12693,
+                "crc32": "0xa90ed136"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM3",
+                "bytes": 21336,
+                "crc32": "0x6aa1b2fd"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM3",
+                "bytes": 197166,
+                "crc32": "0x17118070"
+              }
+            ]
+          },
+          {
+            "key": "bm3v11f",
+            "display_name": "BioMenace Ep3 Freeware v1.1",
+            "definition": "g_be_gamever_bm3v11f",
+            "required_file_array": "g_be_reqgameverfiles_bm3v11f",
+            "source": "src/backend/gamedefs/be_gamedefs_bm3v11f.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm3v11f.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM3",
+                "bytes": 552,
+                "crc32": "0x7db93b51"
+              },
+              {
+                "filename_expression": "AUDIOT.BM3",
+                "bytes": 201662,
+                "crc32": "0x2e831f51"
+              },
+              {
+                "filename_expression": "BMENACE3.EXE",
+                "bytes": 89754,
+                "crc32": "0xa85c7923"
+              },
+              {
+                "filename_expression": "EGADICT.BM3",
+                "bytes": 1024,
+                "crc32": "0x9256a0be"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM3",
+                "bytes": 412364,
+                "crc32": "0xa3303aa3"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM3",
+                "bytes": 12693,
+                "crc32": "0xa90ed136"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM3",
+                "bytes": 21336,
+                "crc32": "0x6aa1b2fd"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM3",
+                "bytes": 197166,
+                "crc32": "0x17118070"
+              }
+            ]
+          },
+          {
+            "key": "bm3v10r",
+            "display_name": "BioMenace Ep3 Registered v1.0",
+            "definition": "g_be_gamever_bm3v10r",
+            "required_file_array": "g_be_reqgameverfiles_bm3v10r",
+            "source": "src/backend/gamedefs/be_gamedefs_bm3v10r.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm3v10r.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM3",
+                "bytes": 552,
+                "crc32": "0x7db93b51"
+              },
+              {
+                "filename_expression": "AUDIOT.BM3",
+                "bytes": 201662,
+                "crc32": "0x2e831f51"
+              },
+              {
+                "filename_expression": "BMENACE3.EXE",
+                "bytes": 89062,
+                "crc32": "0x6dc5bf43"
+              },
+              {
+                "filename_expression": "EGADICT.BM3",
+                "bytes": 1024,
+                "crc32": "0x9256a0be"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM3",
+                "bytes": 412364,
+                "crc32": "0xa3303aa3"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM3",
+                "bytes": 12693,
+                "crc32": "0xa90ed136"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM3",
+                "bytes": 21336,
+                "crc32": "0x6aa1b2fd"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM3",
+                "bytes": 197166,
+                "crc32": "0x17118070"
+              }
+            ]
+          },
+          {
+            "key": "bm2v11r",
+            "display_name": "BioMenace Ep2 Registered v1.1",
+            "definition": "g_be_gamever_bm2v11r",
+            "required_file_array": "g_be_reqgameverfiles_bm2v11r",
+            "source": "src/backend/gamedefs/be_gamedefs_bm2v11r.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm2v11r.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM2",
+                "bytes": 564,
+                "crc32": "0xd007b1fb"
+              },
+              {
+                "filename_expression": "AUDIOT.BM2",
+                "bytes": 244224,
+                "crc32": "0xfdd31c14"
+              },
+              {
+                "filename_expression": "BMENACE2.EXE",
+                "bytes": 89231,
+                "crc32": "0xae9296b2"
+              },
+              {
+                "filename_expression": "EGADICT.BM2",
+                "bytes": 1024,
+                "crc32": "0x1d5b8daa"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM2",
+                "bytes": 479241,
+                "crc32": "0x0633cb47"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM2",
+                "bytes": 13947,
+                "crc32": "0xc3d8b425"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM2",
+                "bytes": 21120,
+                "crc32": "0x89a765d5"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM2",
+                "bytes": 196526,
+                "crc32": "0x67bfed4c"
+              }
+            ]
+          },
+          {
+            "key": "bm2v11f",
+            "display_name": "BioMenace Ep2 Freeware v1.1",
+            "definition": "g_be_gamever_bm2v11f",
+            "required_file_array": "g_be_reqgameverfiles_bm2v11f",
+            "source": "src/backend/gamedefs/be_gamedefs_bm2v11f.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm2v11f.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM2",
+                "bytes": 564,
+                "crc32": "0xd007b1fb"
+              },
+              {
+                "filename_expression": "AUDIOT.BM2",
+                "bytes": 244224,
+                "crc32": "0xfdd31c14"
+              },
+              {
+                "filename_expression": "BMENACE2.EXE",
+                "bytes": 89921,
+                "crc32": "0xb82db8db"
+              },
+              {
+                "filename_expression": "EGADICT.BM2",
+                "bytes": 1024,
+                "crc32": "0x1d5b8daa"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM2",
+                "bytes": 479241,
+                "crc32": "0x0633cb47"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM2",
+                "bytes": 13947,
+                "crc32": "0xc3d8b425"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM2",
+                "bytes": 21120,
+                "crc32": "0x89a765d5"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM2",
+                "bytes": 196526,
+                "crc32": "0x67bfed4c"
+              }
+            ]
+          },
+          {
+            "key": "bm2v10r",
+            "display_name": "BioMenace Ep2 Registered v1.0",
+            "definition": "g_be_gamever_bm2v10r",
+            "required_file_array": "g_be_reqgameverfiles_bm2v10r",
+            "source": "src/backend/gamedefs/be_gamedefs_bm2v10r.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm2v10r.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM2",
+                "bytes": 564,
+                "crc32": "0xd007b1fb"
+              },
+              {
+                "filename_expression": "AUDIOT.BM2",
+                "bytes": 244224,
+                "crc32": "0xfdd31c14"
+              },
+              {
+                "filename_expression": "BMENACE2.EXE",
+                "bytes": 89245,
+                "crc32": "0xd0c3a77d"
+              },
+              {
+                "filename_expression": "EGADICT.BM2",
+                "bytes": 1024,
+                "crc32": "0x1d5b8daa"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM2",
+                "bytes": 479241,
+                "crc32": "0x0633cb47"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM2",
+                "bytes": 13947,
+                "crc32": "0xc3d8b425"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM2",
+                "bytes": 21120,
+                "crc32": "0x89a765d5"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM2",
+                "bytes": 196526,
+                "crc32": "0x67bfed4c"
+              }
+            ]
+          },
+          {
+            "key": "bm1v11s",
+            "display_name": "BioMenace Ep1 Shareware v1.1",
+            "definition": "g_be_gamever_bm1v11s",
+            "required_file_array": "g_be_reqgameverfiles_bm1v11s",
+            "source": "src/backend/gamedefs/be_gamedefs_bm1v11s.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm1v11s.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM1",
+                "bytes": 580,
+                "crc32": "0x84dfc7b8"
+              },
+              {
+                "filename_expression": "AUDIOT.BM1",
+                "bytes": 205754,
+                "crc32": "0x920e8faf"
+              },
+              {
+                "filename_expression": "BMENACE1.EXE",
+                "bytes": 89166,
+                "crc32": "0x263588e5"
+              },
+              {
+                "filename_expression": "EGADICT.BM1",
+                "bytes": 1024,
+                "crc32": "0x629503df"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM1",
+                "bytes": 501816,
+                "crc32": "0x2454d561"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM1",
+                "bytes": 13866,
+                "crc32": "0x77c23274"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM1",
+                "bytes": 22200,
+                "crc32": "0xb8ededc7"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM1",
+                "bytes": 165402,
+                "crc32": "0x2aea356c"
+              }
+            ]
+          },
+          {
+            "key": "bm1v11r",
+            "display_name": "BioMenace Ep1 Registered v1.1",
+            "definition": "g_be_gamever_bm1v11r",
+            "required_file_array": "g_be_reqgameverfiles_bm1v11r",
+            "source": "src/backend/gamedefs/be_gamedefs_bm1v11r.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm1v11r.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM1",
+                "bytes": 580,
+                "crc32": "0x84dfc7b8"
+              },
+              {
+                "filename_expression": "AUDIOT.BM1",
+                "bytes": 205754,
+                "crc32": "0x920e8faf"
+              },
+              {
+                "filename_expression": "BMENACE1.EXE",
+                "bytes": 89274,
+                "crc32": "0xa445576c"
+              },
+              {
+                "filename_expression": "EGADICT.BM1",
+                "bytes": 1024,
+                "crc32": "0x629503df"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM1",
+                "bytes": 501816,
+                "crc32": "0x2454d561"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM1",
+                "bytes": 13866,
+                "crc32": "0x77c23274"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM1",
+                "bytes": 22200,
+                "crc32": "0xb8ededc7"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM1",
+                "bytes": 165402,
+                "crc32": "0x2aea356c"
+              }
+            ]
+          },
+          {
+            "key": "bm1v11gm",
+            "display_name": "BioMenace Ep1 Gold Medallion v1.1",
+            "definition": "g_be_gamever_bm1v11gm",
+            "required_file_array": "g_be_reqgameverfiles_bm1v11gm",
+            "source": "src/backend/gamedefs/be_gamedefs_bm1v11gm.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm1v11gm.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM1",
+                "bytes": 580,
+                "crc32": "0x84dfc7b8"
+              },
+              {
+                "filename_expression": "AUDIOT.BM1",
+                "bytes": 205754,
+                "crc32": "0x920e8faf"
+              },
+              {
+                "filename_expression": "BM1GM.EXE",
+                "bytes": 90488,
+                "crc32": "0x56a5760e"
+              },
+              {
+                "filename_expression": "EGADICT.BM1",
+                "bytes": 1024,
+                "crc32": "0x6d083cf4"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM1",
+                "bytes": 514263,
+                "crc32": "0x54b4404e"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM1",
+                "bytes": 13869,
+                "crc32": "0x17476067"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM1",
+                "bytes": 22200,
+                "crc32": "0xb8ededc7"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM1",
+                "bytes": 165402,
+                "crc32": "0x2aea356c"
+              }
+            ]
+          },
+          {
+            "key": "bm1v11f",
+            "display_name": "BioMenace Ep1 Freeware v1.1",
+            "definition": "g_be_gamever_bm1v11f",
+            "required_file_array": "g_be_reqgameverfiles_bm1v11f",
+            "source": "src/backend/gamedefs/be_gamedefs_bm1v11f.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm1v11f.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM1",
+                "bytes": 580,
+                "crc32": "0x84dfc7b8"
+              },
+              {
+                "filename_expression": "AUDIOT.BM1",
+                "bytes": 205754,
+                "crc32": "0x920e8faf"
+              },
+              {
+                "filename_expression": "BMENACE1.EXE",
+                "bytes": 90046,
+                "crc32": "0xd81d1f1f"
+              },
+              {
+                "filename_expression": "EGADICT.BM1",
+                "bytes": 1024,
+                "crc32": "0x629503df"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM1",
+                "bytes": 501816,
+                "crc32": "0x2454d561"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM1",
+                "bytes": 13866,
+                "crc32": "0x77c23274"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM1",
+                "bytes": 22200,
+                "crc32": "0xb8ededc7"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM1",
+                "bytes": 165402,
+                "crc32": "0x2aea356c"
+              }
+            ]
+          },
+          {
+            "key": "bm1v10s",
+            "display_name": "BioMenace Ep1 Shareware v1.0",
+            "definition": "g_be_gamever_bm1v10s",
+            "required_file_array": "g_be_reqgameverfiles_bm1v10s",
+            "source": "src/backend/gamedefs/be_gamedefs_bm1v10s.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm1v10s.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM1",
+                "bytes": 580,
+                "crc32": "0x84dfc7b8"
+              },
+              {
+                "filename_expression": "AUDIOT.BM1",
+                "bytes": 205754,
+                "crc32": "0x920e8faf"
+              },
+              {
+                "filename_expression": "BMENACE1.EXE",
+                "bytes": 89160,
+                "crc32": "0x6990e6a4"
+              },
+              {
+                "filename_expression": "EGADICT.BM1",
+                "bytes": 1024,
+                "crc32": "0x33172d91"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM1",
+                "bytes": 485148,
+                "crc32": "0x5aa722b7"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM1",
+                "bytes": 13863,
+                "crc32": "0x3e3bb196"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM1",
+                "bytes": 22200,
+                "crc32": "0xb8ededc7"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM1",
+                "bytes": 165402,
+                "crc32": "0x2aea356c"
+              }
+            ]
+          },
+          {
+            "key": "bm1v10r",
+            "display_name": "BioMenace Ep1 Registered v1.0",
+            "definition": "g_be_gamever_bm1v10r",
+            "required_file_array": "g_be_reqgameverfiles_bm1v10r",
+            "source": "src/backend/gamedefs/be_gamedefs_bm1v10r.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bm1v10r.h",
+            "required_files": [
+              {
+                "filename_expression": "AUDIOHED.BM1",
+                "bytes": 580,
+                "crc32": "0x84dfc7b8"
+              },
+              {
+                "filename_expression": "AUDIOT.BM1",
+                "bytes": 205754,
+                "crc32": "0x920e8faf"
+              },
+              {
+                "filename_expression": "BMENACE1.EXE",
+                "bytes": 89270,
+                "crc32": "0x130d4552"
+              },
+              {
+                "filename_expression": "EGADICT.BM1",
+                "bytes": 1024,
+                "crc32": "0x33172d91"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BM1",
+                "bytes": 485148,
+                "crc32": "0x5aa722b7"
+              },
+              {
+                "filename_expression": "EGAHEAD.BM1",
+                "bytes": 13863,
+                "crc32": "0x3e3bb196"
+              },
+              {
+                "filename_expression": "FILE_ID.DIZ",
+                "bytes": 442,
+                "crc32": "0xef56dbbc"
+              },
+              {
+                "filename_expression": "MAPHEAD.BM1",
+                "bytes": 22200,
+                "crc32": "0xb8ededc7"
+              },
+              {
+                "filename_expression": "MAPTEMP.BM1",
+                "bytes": 165402,
+                "crc32": "0x2aea356c"
+              }
+            ]
+          },
+          {
+            "key": "bh071592",
+            "display_name": "BioHazard (BioMenace) 1992-7 Beta",
+            "definition": "g_be_gamever_bh071592",
+            "required_file_array": "g_be_reqgameverfiles_bh071592",
+            "source": "src/backend/gamedefs/be_gamedefs_bh071592.h",
+            "source_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/src/backend/gamedefs/be_gamedefs_bh071592.h",
+            "required_files": [
+              {
+                "filename_expression": "ABOUT.BH1",
+                "bytes": 102,
+                "crc32": "0x65a39961"
+              },
+              {
+                "filename_expression": "AUDIOHED.BH1",
+                "bytes": 528,
+                "crc32": "0x6505e79e"
+              },
+              {
+                "filename_expression": "AUDIOT.BH1",
+                "bytes": 225140,
+                "crc32": "0xff6ab4d3"
+              },
+              {
+                "filename_expression": "BHAZARD1.EXE",
+                "bytes": 83840,
+                "crc32": "0x5f5a337c"
+              },
+              {
+                "filename_expression": "BHAZARD1.EXE",
+                "bytes": 83840,
+                "crc32": "0x8f2daa9c"
+              },
+              {
+                "filename_expression": "CONTRART.BH1",
+                "bytes": 2936,
+                "crc32": "0x57426cdd"
+              },
+              {
+                "filename_expression": "DEMO0.BH1",
+                "bytes": 304,
+                "crc32": "0xf47e6a70"
+              },
+              {
+                "filename_expression": "EGADICT.BH1",
+                "bytes": 1024,
+                "crc32": "0xeb176e79"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BH1",
+                "bytes": 430864,
+                "crc32": "0x0d13bb9a"
+              },
+              {
+                "filename_expression": "EGAGRAPH.BH1",
+                "bytes": 430864,
+                "crc32": "0xbc2b6787"
+              },
+              {
+                "filename_expression": "EGAHEAD.BH1",
+                "bytes": 13794,
+                "crc32": "0x0f401bd9"
+              },
+              {
+                "filename_expression": "ENDART.BH1",
+                "bytes": 361,
+                "crc32": "0xf54bba4c"
+              },
+              {
+                "filename_expression": "HELPART.BH1",
+                "bytes": 4062,
+                "crc32": "0xb52a2dea"
+              },
+              {
+                "filename_expression": "MAPHEAD.BH1",
+                "bytes": 21120,
+                "crc32": "0x73a78f95"
+              },
+              {
+                "filename_expression": "MAPTEMP.BH1",
+                "bytes": 171126,
+                "crc32": "0x94657a52"
+              },
+              {
+                "filename_expression": "ORDERART.BH1",
+                "bytes": 4724,
+                "crc32": "0x61bf89da"
+              },
+              {
+                "filename_expression": "STORYART.BH1",
+                "bytes": 4062,
+                "crc32": "0xb52a2dea"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "original_input_correction": {
+    "source": "74f07efcc40142a5727caacebec848c48b141eca",
+    "source_files_verified_again": 42,
+    "changes": [
+      {
+        "id": "keen-dreams-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      },
+      {
+        "id": "catacomb-3-d-the-descent-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      },
+      {
+        "id": "the-catacomb-abyss-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      },
+      {
+        "id": "the-catacomb-armageddon-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      },
+      {
+        "id": "the-catacomb-apocalypse-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      },
+      {
+        "id": "wolfenstein-3d-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      },
+      {
+        "id": "spear-of-destiny-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      },
+      {
+        "id": "super-3-d-noah-s-ark-dos-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      },
+      {
+        "id": "bio-menace-reflectionhle",
+        "scope": "presentation and listing guidance/outcome only; all non-presentation integration fields unchanged"
+      }
+    ],
+    "runtime_projection": [
+      {
+        "id": "keen-dreams-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      },
+      {
+        "id": "catacomb-3-d-the-descent-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      },
+      {
+        "id": "the-catacomb-abyss-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      },
+      {
+        "id": "the-catacomb-armageddon-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      },
+      {
+        "id": "the-catacomb-apocalypse-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      },
+      {
+        "id": "wolfenstein-3d-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      },
+      {
+        "id": "spear-of-destiny-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      },
+      {
+        "id": "super-3-d-noah-s-ark-dos-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      },
+      {
+        "id": "bio-menace-reflectionhle",
+        "runtime_fields_unchanged": true,
+        "sha256": "7bf93efbdbe48e416957216f505a43a2fbd3dd55c8471dde4976199750c16734"
+      }
+    ],
+    "scope": "Exact supported-original tables resolve retained revision uncertainty; no originals obtained/authenticated and no original-data licensing inferred. Correct Keen2015noEXE, Abyss1.24ABYSGAME/HINTCAT and BioMenaceGoldMedallion/BioHazard names. Remove stale candidate-qualification language from player instructions while preserving consent/external-data/compatibility limits.",
+    "prior_qualified_source": "0ae9c80ad82a5f749168b55c44fb945bae23f935",
+    "qualification": "Priorall5/all8Windowsandactual9Coreobservationsremainatthat source. Fresh exact-headCIandnative/buildreuseassessmentrequired; no automatic extension."
   }
 }
