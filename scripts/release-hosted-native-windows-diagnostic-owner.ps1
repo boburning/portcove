@@ -2,8 +2,15 @@ param([Parameter(Mandatory)][string]$ContextBase64)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 # Fresh nonproduction candidate/account/recovery scope only; no production authority.
-$hostedDiagnosticExecutionAuthorized=$false
+$hostedDiagnosticExecutionAuthorized=$true
 if(-not $hostedDiagnosticExecutionAuthorized){throw 'Connected Windows diagnostic awaits exact source/account/candidate/recovery authority; no account or station effects'}
+# Validate original hosted scope before even parsing caller context or reading files.
+if(-not $IsWindows -or [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne 'X64' -or
+    $env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+    $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or $env:GITHUB_JOB -cne 'installed-prerequisite' -or
+    $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
+    $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,15}$' -or
+    $env:GITHUB_WORKFLOW_REF -cne 'boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-node-canary-20261028'){throw 'Fixed hosted Windows diagnostic owner context required'}
 function Read-OwnerWrapperBytes([string]$File,[int]$Maximum) {
     $item=Get-Item -LiteralPath $File -Force
     if($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Original unlinked owner file required'}

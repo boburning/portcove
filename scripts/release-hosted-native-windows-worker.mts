@@ -21,6 +21,7 @@ import {
   inspectHostedWindowsWorkerRequest,
   inspectHostedWindowsWorkerAcknowledgment,
   hostedWindowsWorkerAbi,
+  hostedWindowsDiagnosticWorkflowRef,
 } from "./release-hosted-native-windows-worker-contract.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -33,7 +34,7 @@ import {
 const root = fileURLToPath(new URL("../", import.meta.url));
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export const hostedWindowsStageExecutionAuthorized = false;
-export const hostedWindowsDiagnosticStageExecutionAuthorized = false;
+export const hostedWindowsDiagnosticStageExecutionAuthorized = true;
 export function readHostedWindowsWorkerAbi() {
   return {
     abi: hostedWindowsWorkerAbi,
@@ -95,10 +96,19 @@ export function readHostedWindowsDiagnosticWorkerAbi() {
     scope: "separately held connected diagnostic worker only; data only",
   };
 }
-export async function runHostedWindowsDiagnosticWorkerStage(file: string, expected: string) {
+export async function runHostedWindowsDiagnosticWorkerStage(
+  file: string,
+  expected: string,
+  workflowRef: string,
+) {
   assert.ok(
     hostedWindowsDiagnosticStageExecutionAuthorized,
     "Connected diagnostic worker awaits exact separate authority",
+  );
+  assert.equal(
+    workflowRef,
+    hostedWindowsDiagnosticWorkflowRef,
+    "Fixed diagnostic worker workflow ref required",
   );
   assert.ok(
     ["payload-signing", "release-publication"].some(
