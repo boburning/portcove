@@ -69,6 +69,7 @@ function fixture() {
   const fields = { ...portFieldInitialization(null) };
   let normalizations = 0;
   const snapshots: unknown[] = [];
+  let lastInventorySnapshot: unknown;
   const client = new RoadmapClient(config);
   client.api.request = (_method, endpoint, body) => {
     const value = body as { body: string };
@@ -92,6 +93,11 @@ function fixture() {
     };
   };
   client.createPortIssue = (input) => {
+    assert.deepEqual(
+      lastInventorySnapshot,
+      snapshots.at(-1),
+      "canonical inventory must follow the last durable receipt write",
+    );
     creations++;
     assert(
       snapshots.some((v) => JSON.stringify(v).includes("create-attempted")),
@@ -172,17 +178,25 @@ function fixture() {
     }),
     () => {},
   );
-  bridge.inventory = () => ({
-    format: 1,
-    repository: config.repository,
-    repository_node_id: "R",
-    observed_at: new Date().toISOString(),
-    issues,
-    items: issues.map((i) => ({ id: "PVTI200", isArchived: false, content: { ...i }, ...fields })),
-    archivedItems: [],
-    body_reads: 0,
-    projectId: "PVT",
-  });
+  bridge.inventory = () => {
+    lastInventorySnapshot = structuredClone(snapshots.at(-1));
+    return {
+      format: 1,
+      repository: config.repository,
+      repository_node_id: "R",
+      observed_at: new Date().toISOString(),
+      issues,
+      items: issues.map((i) => ({
+        id: "PVTI200",
+        isArchived: false,
+        content: { ...i },
+        ...fields,
+      })),
+      archivedItems: [],
+      body_reads: 0,
+      projectId: "PVT",
+    };
+  };
   const all = () => [...comments.values()].map((c) => structuredClone(c));
   const approve = (
     plan: Awaited<ReturnType<HostedIntakeBridge["process"]>>,

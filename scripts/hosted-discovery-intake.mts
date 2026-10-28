@@ -549,6 +549,7 @@ export class HostedIntakeBridge {
     try {
       const writeProof = await probeHostedProjectWrite(this.client, 177);
       this.save(`write-proof-${request.id}`, writeProof);
+      inventory = this.inventory(inventory);
       for (const [index, p] of plan.entries()) {
         const d = receipt.delivery[index];
         if (!d) throw new Error("Retained delivery coverage differs");
@@ -581,8 +582,20 @@ export class HostedIntakeBridge {
           });
           d.item_id = normalized.itemId;
         } else {
-          this.fresh(request);
-          this.fresh(approved.c);
+          // Persist the attempt before recollection: publishing it advances
+          // #177's revision, so the negative inventory must come afterwards.
+          d.status = "create-attempted";
+          persist();
+          try {
+            inventory = this.inventory(inventory);
+            this.fresh(request);
+            this.fresh(approved.c);
+            this.duplicates(inventory, p);
+          } catch (error) {
+            d.status = "reviewed"; // No POST has begun in this preflight.
+            persist();
+            throw error;
+          }
           discoveryPost(
             d,
             () =>
@@ -598,7 +611,7 @@ export class HostedIntakeBridge {
                   persist();
                 },
               }),
-            persist,
+            () => this.save(`receipt-${request.id}`, receipt),
           );
         }
         const issue = this.client.repositoryIssue(d.created_issue!);

@@ -26,10 +26,10 @@ on:
   workflow_dispatch:
     inputs:
       hosted_intake:
-        description: "Owner qualification of the reviewed hosted bridge ref; empty keeps ordinary Roadmap checks"
+        description: "Owner qualification of the reviewed hosted bridge ref; none keeps ordinary Roadmap checks"
         type: choice
-        options: ["", process, probe]
-        default: ""
+        options: [none, process, probe]
+        default: none
       issue:
         description: "Issue number for a scoped check; leave empty for substantial-change or release-readiness audit"
         required: false
@@ -44,7 +44,7 @@ permissions:
 
 jobs:
   hosted-intake:
-    if: github.event_name == 'workflow_dispatch' && inputs.hosted_intake != '' && github.actor == 'boburning'
+    if: github.event_name == 'workflow_dispatch' && inputs.hosted_intake != 'none' && inputs.hosted_intake != '' && github.actor == 'boburning'
     permissions:
       contents: read
       issues: write
@@ -55,7 +55,7 @@ jobs:
     secrets:
       PORTCOVE_ROADMAP_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
   configuration:
-    if: github.event_name != 'workflow_dispatch' || inputs.hosted_intake == ''
+    if: github.event_name != 'workflow_dispatch' || inputs.hosted_intake == 'none' || inputs.hosted_intake == ''
     runs-on: ubuntu-latest
     timeout-minutes: 1
     permissions: {}
