@@ -97,6 +97,7 @@ export const nativeHelperSharedSources = Object.freeze([
   // Launcher and admission code is already loaded when prelaunch capture begins.
   // These are trusted verifier/reproduction observations, never proof that a
   // retained copy was the immutable module consumed by the target process.
+  "scripts/desktop-test-cli.mts",
   "scripts/resource-command.mts",
   "scripts/resource-capacity.mts",
   "scripts/resource-paths.mts",

@@ -1314,6 +1314,14 @@ for (const [file, tests] of [
     ],
   ],
   [".config/nextest.toml", [...rustWorkflowContractTests, "scripts/nextest-equivalence.test.mts"]],
+  [
+    "scripts/desktop-test-cli.mts",
+    [
+      "scripts/development-evidence.test.mts",
+      "scripts/development-cli-help.test.mts",
+      "scripts/retained-package.test.mts",
+    ],
+  ],
   ...[
     "scripts/qualification-rustdoc.mts",
     "scripts/rustdoc-outcomes.mts",
