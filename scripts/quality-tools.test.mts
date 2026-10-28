@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mts";
@@ -79,6 +79,38 @@ void test("quality manifest diagnostics retain the invalid field and tool identi
     () => validateQualityManifest(invalid),
     /"just" has an invalid `ci_install` strategy: "unknown"/u,
   );
+});
+
+void test("quality CLI canonicalizes both entry paths while imported tools remain inert", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-quality-entry-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const scripts = path.join(root, "scripts");
+  mkdirSync(scripts);
+  for (const file of ["quality-tools.mts", "runtime-values.mts"])
+    copyFileSync(new URL(file, import.meta.url), path.join(scripts, file));
+  const alias = path.join(root, "aliased-scripts");
+  symlinkSync(scripts, alias, process.platform === "win32" ? "junction" : "dir");
+  const result = spawnSync(
+    process.execPath,
+    ["--preserve-symlinks-main", path.join(alias, "quality-tools.mts"), "--help"],
+    { encoding: "utf8", timeout: 5000, env: { ...process.env, PATH: "" }, cwd: root },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Usage:/u);
+  assert.equal(result.stderr, "");
+  const imported = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      "await import(" +
+        JSON.stringify(pathToFileURL(path.join(scripts, "quality-tools.mts")).href) +
+        ");console.log('IMPORTED');",
+    ],
+    { encoding: "utf8", timeout: 5000, env: { ...process.env, PATH: "" }, cwd: root },
+  );
+  assert.equal(imported.status, 0, imported.stderr);
+  assert.equal(imported.stdout, "IMPORTED\n");
 });
 
 void test("quality-tool CLI preserves machine output and diagnoses unknown, failed and mismatched tools", (t) => {

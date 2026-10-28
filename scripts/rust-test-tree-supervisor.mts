@@ -162,4 +162,4 @@ async function main() {
 }
 
 const invoked = process.argv[1] ? await realpath(process.argv[1]).catch(() => null) : null;
-if (invoked === fileURLToPath(import.meta.url)) await main();
+if (invoked !== null && invoked === (await realpath(fileURLToPath(import.meta.url)))) await main();
