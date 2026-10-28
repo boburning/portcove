@@ -5,7 +5,7 @@
   "pickup_main": "8d9d71b30392dc38020d8bfa99bcc43d0064fc6d",
   "historical_identities": 5,
   "new_listings": 0,
-  "new_operational_definitions": 0,
+  "new_operational_definitions": 5,
   "new_source_profiles": 0,
   "routes": [
     {
@@ -89,7 +89,7 @@
           "sha256": "fb42bdb3dcc7b7e831e9aec0b8153eb7e75695f74adfb0e6a58f5c36ac0a773b"
         }
       ],
-      "record_sha256": "da2592560ce710190b3b9028d6dcd33ed9c83b58f5833ce46f6a37f756b51ec4"
+      "record_sha256": "2bb874ff36c1beda6c38c8bbe3fe8ba03bdb6d59d691a589f945874875314725"
     },
     {
       "id": "super-mario-world-snesrev-smw",
@@ -172,7 +172,7 @@
           "sha256": "47aab1cbfb231429341dff2d348512441ef41e31dcf61cda5913a5673a017e4e"
         }
       ],
-      "record_sha256": "87a750be9e2e7b305a95a25e82da06a10bf78106d0b190a870e0ccc7d86e159f"
+      "record_sha256": "2326422613a3fb23a44565dabcde55692dbbe53050c0a98b6b4527ab1fabf1ef"
     },
     {
       "id": "sonic-3-knuckles-sonic-3-a-i-r",
@@ -243,7 +243,7 @@
           "sha256": "148db55af6f736bd5cb7f09eb9756ffee7f7364ab97cfeec86f7b43240932b05"
         }
       ],
-      "record_sha256": "24bfa21fa7a74acbb8b5712dc219c3d8f1d1b06106f96a75d3482f0ee6e79339"
+      "record_sha256": "a8d535fe3bfcd57233d55bb47c38adf66e3ee958946837134ba55b8b185249b2"
     },
     {
       "id": "super-mario-64-sm64-co-op-dx",
@@ -338,7 +338,7 @@
           "sha256": "d86e2bca318b84eeaffe0c946381ae379b53de837c98642f1d3ed625a2640bb0"
         }
       ],
-      "record_sha256": "1cca8061904e5290d2d16da0d07d38c35981875e477c44e5a21ecd7aa10f98c0"
+      "record_sha256": "7d48564e154b7be408d531ba331cacd18a6b5d2e911d1db2f14e5a53c506b146"
     },
     {
       "id": "wipeout-phantom-edition",
@@ -379,7 +379,7 @@
           "sha256": "f91f6a4b792e223fa1926683687d4f0648c6ae85d17014c87781b27c6b1e4ca2"
         }
       ],
-      "record_sha256": "bc2c6f8c2f2e5f86e57087c6eaca9b150f9d00308f938a426a3b4ec945655307"
+      "record_sha256": "b063ed4a055cc231a827dd4bacda8f20ba8ec5e154ebc941e24b7a179b378298"
     }
   ],
   "held_sixth": {
@@ -396,5 +396,6 @@
   ],
   "offered_operation_contract": "Existing user-selected executable/working-directory/literal-argument registration, explicit supervised Play, retained restart and registration-only removal; no managed runtime or gameplay acceptance.",
   "operation_binding_regression": "service::user_selected::tests::historical_route_* (ten independently bounded cases sharing assert_historical_prepared_player_route)",
-  "operation_probe_scope": "Owned inert native probe for the five actual embedded IDs; observes exact literal arguments and working directory after retained restart, consent refusal, single owner, unavailable management and file-preserving removal. Not a game, original or gameplay observation. Existing generic adversarial tests retain spawn-time path/ownership rechecks and relink/cancellation controls."
+  "operation_probe_scope": "Ten individually bounded real-ID cases. Windows exercises the declared selected-runtime definition and retained platform contract; Linux exercises generic user-selected fallback. Existing generic adversarial guards and a pre-declaration registration continuation control retain their distinct authority.",
+  "definition_contract": "Existing DKR-R UserPrepared/UserSelected contract, Windows x86-64, user-managed runtime, no immutable package/source/persistence authority; declaration offers explicit registration/Play and registration-only removal."
 }

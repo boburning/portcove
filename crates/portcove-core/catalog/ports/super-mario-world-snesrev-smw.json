@@ -6,7 +6,6 @@
     "summary": "Use an upstream-prepared Super Mario World / snesrev smw player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/snesrev/smw",
     "issue_number": 339,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/snesrev/smw/blob/eae20c65c58930c8b62c76188d259579ad4130f1/README.md",
     "artwork": {
@@ -42,6 +41,36 @@
         "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute."
       ],
       "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "snesrev/smw",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
     }
   }
 }

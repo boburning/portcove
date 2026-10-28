@@ -6,7 +6,6 @@
     "summary": "Use the upstream FireRedRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
     "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
     "issue_number": 335,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp/blob/6174de77a599d0c1e125747b9553d90409a76a27/README.md",
     "artwork": {
@@ -42,6 +41,36 @@
         "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
       ],
       "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "mstan/FireRedLeafGreenRecomp",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
     }
   }
 }

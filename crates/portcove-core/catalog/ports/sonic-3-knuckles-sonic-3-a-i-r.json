@@ -6,7 +6,6 @@
     "summary": "Use an upstream-prepared Sonic 3 & Knuckles / Sonic 3 A.I.R. player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/Eukaryot/sonic3air",
     "issue_number": 323,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Eukaryot/sonic3air/blob/29cf83c9dcc22c949e9a3e4cafda3f76b945981a/README.md",
     "artwork": {
@@ -42,6 +41,36 @@
         "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration."
       ],
       "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "Eukaryot/sonic3air",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
     }
   }
 }

@@ -4,7 +4,7 @@
   "owners": [1422, 2510, 2926],
   "historical_identities": 5,
   "new_listings": 0,
-  "new_operational_definitions": 0,
+  "new_operational_definitions": 5,
   "new_source_profiles": 0,
   "framework_commit": "cf1680122fda0cc49c4e8774d9b065b5c8b768e6",
   "launcher_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
@@ -299,7 +299,7 @@
           "sha256": "3ad04fde448fa2ce4650b43ddd1d0d5317e7323a51d9b29c6b42a2e7daa11595"
         }
       ],
-      "record_sha256": "2c45ac22bb43d3fb51c5c72b48b93419f33139ce4105cd84494c20c2c69a8806"
+      "record_sha256": "f89c111a8e98c50f3348ef96e587e92ddae2818c4f255b78226b3d7fd54b7caf"
     },
     {
       "id": "pokemon-firered-fireredleafgreenrecomp",
@@ -387,7 +387,7 @@
           "sha256": "b616632b0149aa0e4055de978b8a60623bc849b901a0ae1fd66fd71c402d1890"
         }
       ],
-      "record_sha256": "f559f5c8740d0203b672c399f9bf7b073436803c851a49845ee58794bb71c6ef"
+      "record_sha256": "5dd42e6aa4edf1c53c527b0a2e830fc39364bafb88625e67ad42f1673541724e"
     },
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
@@ -475,7 +475,7 @@
           "sha256": "b616632b0149aa0e4055de978b8a60623bc849b901a0ae1fd66fd71c402d1890"
         }
       ],
-      "record_sha256": "0b61ee73691613955591aeafb1c29dc571aac70577bfff187b0aa6969427c714"
+      "record_sha256": "7677290f710cb0699daa2d94410119d2ba2da03121a2c886db88155bacaf2744"
     },
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
@@ -569,7 +569,7 @@
           "sha256": "64f61d3fdfee4be6557e319a4eaf95e1f81d0de380d50bfbe1bafebe1f621a63"
         }
       ],
-      "record_sha256": "849bf2c6de13c4f63b5712882f6a1732879e6a3156256194e88bebed1c6e9284"
+      "record_sha256": "644da6731efc8a6ed01d4c22a636ac46cf0d0509cca5b534750b69553107ee68"
     },
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
@@ -663,7 +663,62 @@
           "sha256": "64f61d3fdfee4be6557e319a4eaf95e1f81d0de380d50bfbe1bafebe1f621a63"
         }
       ],
-      "record_sha256": "b0fa6487f81905640af163579a1bbcbd3370763158891589c617e6311f71b1fc"
+      "record_sha256": "585b66083ca42880ac52aee2f4322dc669f9c069d47f48a2216c1357d8e3dd5e"
     }
-  ]
+  ],
+  "definition_contract": "Existing DKR-R UserPrepared/UserSelected contract, Windows x86-64, user-managed runtime, no immutable package/source/persistence authority; declaration offers explicit registration/Play and registration-only removal.",
+  "operation_probe_scope": "Ten individually bounded real-ID cases. Windows exercises the declared selected-runtime definition and retained platform contract; Linux exercises generic user-selected fallback. Existing generic adversarial guards and a pre-declaration registration continuation control retain their distinct authority.",
+  "pre_declaration_native_evidence": {
+    "source": "2adfe6c4b2678d531f23a8b42b7eac372a1bb01b",
+    "checkout": "d3224d3675fe89ac64ef5afeb88d3e9b06035337",
+    "run": 40686000051,
+    "attempt": 1,
+    "artifact_id": 12815486420,
+    "artifact_sha256": "f242b5e005d922727761189fcb44b0e6bb57ea0fd39712265c820a6ae53e4ea4",
+    "cli_sha256": "5107e77e8808633f6c9b76d5bca1ab7da5862bfe6b12f92a6f0d23e8940f409e",
+    "raw_sha256": "89eb680fabd34235aefcd2c7e686d12d796548f1be277e1a5daf86de0aec764b",
+    "management_commands": 32,
+    "management_exits": [
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    ],
+    "native_launches": 10,
+    "native_exits": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "native_cli_exits": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "forced_terminations": 0,
+    "quiescence_confirmed": true,
+    "removals": [
+      {
+        "port": "pokemon-emerald-emeraldrecomp",
+        "runtime_files": 142,
+        "data_files": 2,
+        "external_files_preserved": true
+      },
+      {
+        "port": "pokemon-firered-fireredleafgreenrecomp",
+        "runtime_files": 129,
+        "data_files": 2,
+        "external_files_preserved": true
+      },
+      {
+        "port": "pokemon-leafgreen-fireredleafgreenrecomp",
+        "runtime_files": 129,
+        "data_files": 2,
+        "external_files_preserved": true
+      },
+      {
+        "port": "pokemon-ruby-rubysapphirerecomp",
+        "runtime_files": 130,
+        "data_files": 2,
+        "external_files_preserved": true
+      },
+      {
+        "port": "pokemon-sapphire-rubysapphirerecomp",
+        "runtime_files": 130,
+        "data_files": 2,
+        "external_files_preserved": true
+      }
+    ],
+    "scope": "actual five upstream GBA players using private exact NAS original/BIOS copies and pre-declaration generic-listing Core route; no image/rendered menu/gameplay/save-load/input/Supported claim",
+    "remaining": "after adding explicit existing UserPrepared/UserSelected declarations, qualify the final head and strict-selection/retained-registration contracts separately"
+  }
 }

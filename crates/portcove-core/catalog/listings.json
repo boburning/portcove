@@ -29591,9 +29591,6 @@
       "summary": "Use the upstream EmeraldRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/EmeraldRecomp",
       "issue_number": 334,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/mstan/EmeraldRecomp/blob/1bd517bc8ce8def93b91b4363af12c4ae540dce2/README.md",
       "artwork": {
@@ -29629,7 +29626,10 @@
           "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
         ],
         "help_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-emerald-gen1recomp",
@@ -29690,9 +29690,6 @@
       "summary": "Use the upstream FireRedRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "issue_number": 335,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp/blob/6174de77a599d0c1e125747b9553d90409a76a27/README.md",
       "artwork": {
@@ -29728,7 +29725,10 @@
           "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
         ],
         "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-firered-gen1recomp",
@@ -29808,9 +29808,6 @@
       "summary": "Use the upstream LeafGreenRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "issue_number": 336,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp/blob/6174de77a599d0c1e125747b9553d90409a76a27/README.md",
       "artwork": {
@@ -29846,7 +29843,10 @@
           "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
         ],
         "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-leafgreen-gen1recomp",
@@ -30035,9 +30035,6 @@
       "summary": "Use the upstream RubyRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "issue_number": 337,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/mstan/RubySapphireRecomp/blob/308071c623af3e611a03b151625ecd7c282b550d/README.md",
       "artwork": {
@@ -30073,7 +30070,10 @@
           "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
         ],
         "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-sapphire-gen1recomp",
@@ -30134,9 +30134,6 @@
       "summary": "Use the upstream SapphireRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "issue_number": 338,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/mstan/RubySapphireRecomp/blob/308071c623af3e611a03b151625ecd7c282b550d/README.md",
       "artwork": {
@@ -30172,7 +30169,10 @@
           "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
         ],
         "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-silver-gen1recomp",
@@ -34230,9 +34230,6 @@
       "summary": "Use an upstream-prepared Sonic 3 & Knuckles / Sonic 3 A.I.R. player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/Eukaryot/sonic3air",
       "issue_number": 323,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Eukaryot/sonic3air/blob/29cf83c9dcc22c949e9a3e4cafda3f76b945981a/README.md",
       "artwork": {
@@ -34268,7 +34265,10 @@
           "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration."
         ],
         "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sonic-advance-2-sat-r-sa2-repository",
@@ -36080,9 +36080,6 @@
       "summary": "Use an upstream-prepared Super Mario 64 / SM64 Co-op DX player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/coop-deluxe/sm64coopdx",
       "issue_number": 322,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md",
       "artwork": {
@@ -36126,7 +36123,10 @@
           "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested."
         ],
         "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "super-mario-all-stars-smas-launcher",
@@ -36443,9 +36443,6 @@
       "summary": "Use an upstream-prepared Super Mario World / snesrev smw player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/snesrev/smw",
       "issue_number": 339,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/snesrev/smw/blob/eae20c65c58930c8b62c76188d259579ad4130f1/README.md",
       "artwork": {
@@ -36481,7 +36478,10 @@
           "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute."
         ],
         "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "super-metroid-snesrev-sm",
@@ -42312,9 +42312,6 @@
       "summary": "Use an upstream-prepared WipeOut Phantom Edition player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
       "issue_number": 119,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/blob/1d0141ebc6594902c7de176d034529a763079ed2/README.md",
       "artwork": {
@@ -42350,7 +42347,10 @@
           "Managed disc preparation and exact writer/retained-data coordinates remain unqualified; missing PS1 family primitives belong to #135. This safe existing prepared-player guide does not substitute a per-title parser or claim complete loose-file authentication."
         ],
         "help_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "witherblitz-nsmb-wii-multiplayer-recompilation",
@@ -43749,9 +43749,6 @@
       "summary": "Use an upstream-prepared Zelda3 player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/snesrev/zelda3",
       "issue_number": 127,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/snesrev/zelda3/blob/43db8cc0f529a2b8004a684526d91582d0d6d5d7/README.md",
       "artwork": {
@@ -43787,7 +43784,10 @@
           "Managed asset preparation and retained state compatibility remain separate #136 work. The v0.3 release asset includes a BPS file although the tag main.c asset loader uses DAT inputs; source-to-binary build provenance/complete output ownership is not established. Keep this a non-owning prepared-player route until those facts and exact runtime data coordinates are qualified."
         ],
         "help_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "zeldawwhdrecomp-zeldawwhdrecomp",
