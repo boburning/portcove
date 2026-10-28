@@ -5,11 +5,7 @@ import type * as Generated from "./transport-types.generated";
 
 export type { ReleaseChannel } from "./transport-types.generated";
 export type { OriginalGameIdentity } from "./transport-types.generated";
-export type {
-  CatalogMediaAsset,
-  CatalogMediaRole,
-  CatalogMediaSubject,
-} from "./transport-types.generated";
+export type { CatalogMediaAsset } from "./transport-types.generated";
 
 export type { UpdatePolicy } from "./transport-types.generated";
 
@@ -54,7 +50,6 @@ export type PreparationPlan = Generated.TransportOutputs["preparation_plan"];
 export type PreparationCleanupPreview = Generated.TransportOutputs["preparation_cleanup_preview"];
 export type GameUpdatePlan = Generated.TransportOutputs["game_update_plan"];
 export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
-export type GameUpdateAcquisitionPhase = GameUpdateAcquisition["phase"];
 
 export type { SourceHealth } from "./transport-types.generated";
 

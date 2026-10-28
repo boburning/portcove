@@ -89,6 +89,47 @@ const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
   { value: "installed-first", label: "In library first" },
 ];
 
+function firstLibraryVisit({
+  view,
+  loading,
+  recent,
+  installed,
+  portCount,
+  constrained,
+  query,
+}: {
+  view: View;
+  loading: boolean;
+  recent: RecentPort | undefined;
+  installed: number;
+  portCount: number;
+  constrained: boolean;
+  query: string;
+}) {
+  return (
+    view === "library" &&
+    !loading &&
+    !recent &&
+    installed === 0 &&
+    portCount === 0 &&
+    !constrained &&
+    query.trim().length === 0
+  );
+}
+function visibleRecentPort(
+  recent: RecentPort | undefined,
+  organization: Organization | undefined,
+  ports: CatalogEntry[],
+  statuses: Map<string, PortStatus>,
+) {
+  return organization?.snapshot?.hidden_port_ids.includes(recent?.port.id ?? "")
+    ? mostRecentPort(
+        ports.filter((port) => !organization.snapshot?.hidden_port_ids.includes(port.id)),
+        statuses,
+      )
+    : recent;
+}
+
 function usePortBrowser({
   organization,
   catalogUniverse,
@@ -242,14 +283,15 @@ function usePortBrowser({
     filterConstrained(filter) ||
     favorites?.only === true ||
     (composedLibrary && libraryReadiness !== "all");
-  const firstUseEmpty =
-    view === "library" &&
-    !loading &&
-    !recent &&
-    overview.installed === 0 &&
-    ports.length === 0 &&
-    !constrained &&
-    query.trim().length === 0;
+  const firstUseEmpty = firstLibraryVisit({
+    view,
+    loading,
+    recent,
+    installed: overview.installed,
+    portCount: ports.length,
+    constrained,
+    query,
+  });
   return {
     favorites,
     organization,
@@ -263,14 +305,7 @@ function usePortBrowser({
     setLibraryReadiness,
     statuses,
     overview,
-    recent: organization?.snapshot?.hidden_port_ids.includes(recent?.port.id ?? "")
-      ? mostRecentPort(
-          (catalogUniverse ?? ports).filter(
-            (port) => !organization.snapshot?.hidden_port_ids.includes(port.id),
-          ),
-          statuses,
-        )
-      : recent,
+    recent: visibleRecentPort(recent, organization, catalogUniverse ?? ports, statuses),
     filter,
     query,
     setQuery,
@@ -376,6 +411,41 @@ function PortBrowserView({
         />
       }
       {<SuggestedOrderHint {...{ model }} />}
+      <BrowserFilterRecovery model={model} />
+      <BrowserResults
+        layout={model.view === "library" ? model.collectionLayout : "covers"}
+        view={model.view}
+        ports={model.visiblePorts}
+        allCatalogPorts={model.catalogUniverse ?? model.declaredCandidates ?? model.visiblePorts}
+        organization={model.organization}
+        restoreAfter={model.restoreAfter}
+        favorites={favorites}
+        onFavoriteToggle={model.onFavoriteToggle}
+        installedCount={model.overview.installed}
+        constrained={model.constrained || model.query.trim().length > 0}
+        statuses={model.statuses}
+        onSelect={model.onSelect}
+        onLaunch={model.onContinue}
+        onBrowseCatalog={model.onBrowseCatalog}
+        onConnectGameFiles={model.onConnectGameFiles}
+        clearFilters={model.reset}
+        loading={model.loading || model.resultsUnavailable}
+        nativeSourceDrag={model.nativeSourceDrag}
+      />
+    </div>
+  );
+}
+
+function BrowserFilterRecovery({
+  model,
+}: {
+  model: Omit<
+    ReturnType<typeof usePortBrowser>,
+    "browserRoot" | "filterButton" | "favorites" | "setCollectionLayout"
+  >;
+}) {
+  return (
+    <>
       {model.view === "library" &&
         !model.firstUseEmpty &&
         (model.constrained || model.query.trim()) && (
@@ -409,27 +479,7 @@ function PortBrowserView({
             Search all platforms
           </Button>
         )}
-      <BrowserResults
-        layout={model.view === "library" ? model.collectionLayout : "covers"}
-        view={model.view}
-        ports={model.visiblePorts}
-        allCatalogPorts={model.catalogUniverse ?? model.declaredCandidates ?? model.visiblePorts}
-        organization={model.organization}
-        restoreAfter={model.restoreAfter}
-        favorites={favorites}
-        onFavoriteToggle={model.onFavoriteToggle}
-        installedCount={model.overview.installed}
-        constrained={model.constrained || model.query.trim().length > 0}
-        statuses={model.statuses}
-        onSelect={model.onSelect}
-        onLaunch={model.onContinue}
-        onBrowseCatalog={model.onBrowseCatalog}
-        onConnectGameFiles={model.onConnectGameFiles}
-        clearFilters={model.reset}
-        loading={model.loading || model.resultsUnavailable}
-        nativeSourceDrag={model.nativeSourceDrag}
-      />
-    </div>
+    </>
   );
 }
 
@@ -672,6 +722,16 @@ function BrowserEmptyState({
   );
 }
 
+function continueLaunchable(port: CatalogEntry, status: PortStatus, blocked: boolean) {
+  return (
+    (!port.listing || listingActionAssessment(port.listingStatus, "launch").allowed) &&
+    !port.pendingSetup &&
+    status.readiness?.launchable === true &&
+    status.readiness.blockers.length === 0 &&
+    !blocked
+  );
+}
+
 function ContinueCard({
   recent,
   launch,
@@ -683,12 +743,7 @@ function ContinueCard({
 }) {
   const { port, status } = recent;
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
-  const launchable =
-    (!port.listing || listingActionAssessment(port.listingStatus, "launch").allowed) &&
-    !port.pendingSetup &&
-    status.readiness?.launchable === true &&
-    status.readiness.blockers.length === 0 &&
-    !action.readiness.blocked;
+  const launchable = continueLaunchable(port, status, action.readiness.blocked);
   const trial = hasUnconfirmedLaunchInput(status, port);
   const previouslyPlayed = status.successful_launches > 0;
   return (
@@ -1435,21 +1490,13 @@ function LibraryEntryState({
           {gameUpdateAcquisitionLabel(status.acquisition.phase)}
         </span>
       )}
-      {(status?.staged || status?.acquisition || updateAvailable) && (
-        <Button
-          variant="link"
-          size="sm"
-          className="h-auto min-h-6 p-0 text-start text-xs whitespace-normal"
-          data-detail-origin={`${detailOrigin}:update`}
-          onClick={() => onSelect(port.id, `${detailOrigin}:update`, "updates")}
-        >
-          {status?.staged
-            ? "Review prepared update"
-            : status?.acquisition
-              ? "Review update archive"
-              : "Review update seen at last check"}
-        </Button>
-      )}
+      <LibraryUpdateReview
+        port={port}
+        status={status}
+        detailOrigin={detailOrigin}
+        onSelect={onSelect}
+        updateAvailable={updateAvailable}
+      />
       {status?.staged && updateAvailable && (
         <p className="m-0 mt-1 text-pc-interactive-foreground">
           Another update available at last check
@@ -1471,6 +1518,37 @@ function LibraryEntryState({
         </div>
       )}
     </div>
+  );
+}
+
+function LibraryUpdateReview({
+  port,
+  status,
+  detailOrigin,
+  onSelect,
+  updateAvailable,
+}: Pick<
+  Parameters<typeof LibraryEntryState>[0],
+  "port" | "status" | "detailOrigin" | "onSelect" | "updateAvailable"
+>) {
+  return (
+    <>
+      {(status?.staged || status?.acquisition || updateAvailable) && (
+        <Button
+          variant="link"
+          size="sm"
+          className="h-auto min-h-6 p-0 text-start text-xs whitespace-normal"
+          data-detail-origin={`${detailOrigin}:update`}
+          onClick={() => onSelect(port.id, `${detailOrigin}:update`, "updates")}
+        >
+          {status?.staged
+            ? "Review prepared update"
+            : status?.acquisition
+              ? "Review update archive"
+              : "Review update seen at last check"}
+        </Button>
+      )}
+    </>
   );
 }
 

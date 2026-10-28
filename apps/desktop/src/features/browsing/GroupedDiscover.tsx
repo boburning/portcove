@@ -294,60 +294,26 @@ function DiscoverGameCard({
         {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
         {exact && <IdentityChips port={first} />}
       </div>
-      <div className="discover-game-observation grid content-start gap-1">
-        {exact ? (
-          <>
-            {group.ports.length > 1 && (
-              <p className="text-xs text-pc-muted-foreground">Matching port: {firstProject}</p>
-            )}
-            <BrowsePortObservations
-              port={first}
-              status={status}
-              observation={observation}
-              descriptionId={descriptionId}
-              noticeChoice={organization?.snapshot?.update_notices[first.id]}
-            />
-          </>
-        ) : (
-          <p className="text-xs text-pc-muted-foreground">
-            Compare the matching ports for their own setup requirements and installation status.
-          </p>
-        )}
-      </div>
-      <div className="discover-game-actions grid content-start justify-items-start gap-2">
-        <div className="discover-game-personal-actions flex flex-wrap items-start gap-2">
-          {group.ports.length === 1 && favorite(first)}
-          <SaveGameButton port={first} groupPorts={group.ports} organization={organization} />
-        </div>
-        <Button
-          data-focusable
-          variant="outline"
-          size="sm"
-          data-detail-origin={`${detailOrigin}:details`}
-          aria-describedby={describedBy}
-          onClick={(event) =>
-            group.matchingPorts.length === 1
-              ? open(first, `${detailOrigin}:details`)
-              : compare(group, event.currentTarget)
-          }
-        >
-          {group.matchingPorts.length === 1
-            ? memberLabel(first, statuses.get(first.id))
-            : "Compare ports"}
-          <ArrowRight aria-hidden="true" />
-        </Button>
-        {group.ports.length > 1 && group.matchingPorts.length === 1 && (
-          <Button
-            data-focusable
-            size="sm"
-            variant="ghost"
-            onClick={(event) => compare(group, event.currentTarget)}
-          >
-            <GitCompareArrows aria-hidden="true" />
-            Compare all {group.ports.length}
-          </Button>
-        )}
-      </div>
+      <DiscoverGameObservation
+        group={group}
+        first={first}
+        status={status}
+        observation={observation}
+        descriptionId={descriptionId}
+        firstProject={firstProject}
+        organization={organization}
+      />
+      <DiscoverGameActions
+        group={group}
+        statuses={statuses}
+        favorite={favorite}
+        first={first}
+        organization={organization}
+        detailOrigin={detailOrigin}
+        describedBy={describedBy}
+        open={open}
+        compare={compare}
+      />
       {dropEligible && (
         <div
           aria-hidden="true"
@@ -357,6 +323,104 @@ function DiscoverGameCard({
         </div>
       )}
     </article>
+  );
+}
+
+function DiscoverGameObservation({
+  group,
+  first,
+  status,
+  observation,
+  descriptionId,
+  firstProject,
+  organization,
+}: {
+  group: GameGroup;
+  first: CatalogEntry;
+  status: PortStatus | undefined;
+  observation: ReturnType<typeof browsePortPresentation>;
+  descriptionId: string;
+  firstProject: string;
+  organization: Organization | undefined;
+}) {
+  const exact = group.matchingPorts.length === 1;
+  return (
+    <div className="discover-game-observation grid content-start gap-1">
+      {exact ? (
+        <>
+          {group.ports.length > 1 && (
+            <p className="text-xs text-pc-muted-foreground">Matching port: {firstProject}</p>
+          )}
+          <BrowsePortObservations
+            port={first}
+            status={status}
+            observation={observation}
+            descriptionId={descriptionId}
+            noticeChoice={organization?.snapshot?.update_notices[first.id]}
+          />
+        </>
+      ) : (
+        <p className="text-xs text-pc-muted-foreground">
+          Compare the matching ports for their own setup requirements and installation status.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DiscoverGameActions({
+  group,
+  statuses,
+  favorite,
+  first,
+  organization,
+  detailOrigin,
+  describedBy,
+  open,
+  compare,
+}: Pick<
+  Parameters<typeof DiscoverGameCard>[0],
+  "group" | "statuses" | "favorite" | "organization" | "open" | "compare"
+> & {
+  first: CatalogEntry;
+  detailOrigin: string;
+  describedBy: string | undefined;
+}) {
+  return (
+    <div className="discover-game-actions grid content-start justify-items-start gap-2">
+      <div className="discover-game-personal-actions flex flex-wrap items-start gap-2">
+        {group.ports.length === 1 && favorite(first)}
+        <SaveGameButton port={first} groupPorts={group.ports} organization={organization} />
+      </div>
+      <Button
+        data-focusable
+        variant="outline"
+        size="sm"
+        data-detail-origin={`${detailOrigin}:details`}
+        aria-describedby={describedBy}
+        onClick={(event) =>
+          group.matchingPorts.length === 1
+            ? open(first, `${detailOrigin}:details`)
+            : compare(group, event.currentTarget)
+        }
+      >
+        {group.matchingPorts.length === 1
+          ? memberLabel(first, statuses.get(first.id))
+          : "Compare ports"}
+        <ArrowRight aria-hidden="true" />
+      </Button>
+      {group.ports.length > 1 && group.matchingPorts.length === 1 && (
+        <Button
+          data-focusable
+          size="sm"
+          variant="ghost"
+          onClick={(event) => compare(group, event.currentTarget)}
+        >
+          <GitCompareArrows aria-hidden="true" />
+          Compare all {group.ports.length}
+        </Button>
+      )}
+    </div>
   );
 }
 

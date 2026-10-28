@@ -1012,6 +1012,40 @@ function ActivityRow({
           <OperationCancellation operationId={activity.id} state={activity.cancellation} />
         </div>
       )}
+      <ActivityFailure activity={activity} target={target} onSelect={onSelect} />
+      {activity.operation === "prepare" && (
+        <ActivityDiagnostic
+          key={`${generation}:${activity.id}`}
+          activityId={activity.id}
+          generation={generation}
+        />
+      )}
+      <details className={activityDetailsClass}>
+        <summary data-focusable className="cursor-pointer py-1">
+          Task details
+        </summary>
+        <dl className="mt-2 grid gap-1">
+          <dt className="text-pc-muted-foreground">Operation ID</dt>
+          <dd className="m-0 [overflow-wrap:anywhere] select-text">
+            <code>{activity.id}</code>
+          </dd>
+        </dl>
+      </details>
+    </div>
+  );
+}
+
+function ActivityFailure({
+  activity,
+  target,
+  onSelect,
+}: {
+  activity: ActivityRecord;
+  target: ReturnType<typeof activityTarget>;
+  onSelect: (portId: string, originKey?: string) => void;
+}) {
+  return (
+    <>
       {activity.failure ? (
         <div className={activityDetailsClass}>
           <p>{activity.failure.presentation.summary}</p>
@@ -1037,25 +1071,7 @@ function ActivityRow({
           <p className={activityDetailsClass}>More details may be available in a support bundle.</p>
         )
       )}
-      {activity.operation === "prepare" && (
-        <ActivityDiagnostic
-          key={`${generation}:${activity.id}`}
-          activityId={activity.id}
-          generation={generation}
-        />
-      )}
-      <details className={activityDetailsClass}>
-        <summary data-focusable className="cursor-pointer py-1">
-          Task details
-        </summary>
-        <dl className="mt-2 grid gap-1">
-          <dt className="text-pc-muted-foreground">Operation ID</dt>
-          <dd className="m-0 [overflow-wrap:anywhere] select-text">
-            <code>{activity.id}</code>
-          </dd>
-        </dl>
-      </details>
-    </div>
+    </>
   );
 }
 
