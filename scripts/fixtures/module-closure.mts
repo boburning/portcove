@@ -2,9 +2,7 @@ import { createHash } from "node:crypto";
 import { closeSync, fstatSync, lstatSync, openSync, readSync, realpathSync } from "node:fs";
 import { isBuiltin, stripTypeScriptTypes } from "node:module";
 import path from "node:path";
-import { initSync, parse } from "es-module-lexer";
-
-initSync();
+import { parse } from "es-module-lexer";
 const moduleLimit = 1024 * 1024;
 const closureLimit = 8 * moduleLimit;
 
@@ -61,11 +59,11 @@ export function readFixtureModuleClosure(
       ? stripTypeScriptTypes(source, { sourceUrl: file })
       : source;
     for (const specifier of parse(runtime, relative)[0]) {
-      if (specifier.d === -2) continue; // import.meta has no dependency.
-      if (specifier.d >= 0 && options.includeDynamicImports === false) continue;
-      if (specifier.n === undefined)
+      if (specifier.type === "import-meta") continue;
+      if (specifier.type === "dynamic" && options.includeDynamicImports === false) continue;
+      if (specifier.specifier === undefined || (specifier.type === "dynamic" && specifier.glob))
         throw new Error(`Fixture module closure cannot resolve a computed import: ${relative}`);
-      const name = specifier.n;
+      const name = specifier.specifier;
       if (name.includes("\\"))
         throw new Error(`Fixture module closure requires URL import separators: ${name}`);
       if (name.startsWith("./") || name.startsWith("../")) {
