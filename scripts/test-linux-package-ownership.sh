@@ -89,7 +89,9 @@ else
     echo "RPM qualification requires dnf so package dependencies use the native transaction" >&2
     exit 1
   fi
-  "${privilege[@]}" dnf --assumeyes install "$package_file"
+  # This headless ownership probe needs the package's required dependency closure,
+  # not optional desktop multimedia recommendations and their codec downloads.
+  "${privilege[@]}" dnf --assumeyes --setopt=install_weak_deps=False install "$package_file"
 fi
 package_installed=true
 
