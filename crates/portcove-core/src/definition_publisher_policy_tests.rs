@@ -2067,11 +2067,10 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // Reuse the existing15s setup calibration for this exact intervention;
     // retain the partial-copy barrier, revocation/refusal assertions, worker
     // drain and unchanged finite30s whole-case safeguard.
-    // CI40748640908/a1 job123033582656 and CI40749249694/a1 job123036078777
-    // reached WithdrawalRestore's first real64KiB copy5.259s and5.106s
-    // after installer start, beyond its5s latch. Use the same finite15s
-    // setup allowance for this exact restore variant; retain the incomplete-copy
-    // barrier, policy refusal, worker drain and unchanged30s outer cap.
+    // Windows CI40748640908/a1 job123033582656 reached WithdrawalRestore's
+    // first real64KiB copy5.259s after installer start, beyond its5s latch.
+    // Use the same finite15s setup allowance for this exact restore variant;
+    // retain the incomplete-copy barrier, policy refusal, drain and30s outer cap.
     let slow_retention_setup = ((cfg!(target_os = "windows")
         || cfg!(all(target_os = "macos", target_arch = "x86_64")))
         && matches!(
