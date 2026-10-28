@@ -170,7 +170,9 @@ it("keeps an unknown external installation's folder and maintenance facts distin
     "Readiness unavailable",
   );
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
-  const facts = page.getByRole("region", { name: "Installation ownership", exact: true });
+  const ownership = page.getByRole("heading", { name: "Installation ownership", exact: true });
+  await expect.element(ownership).toBeVisible();
+  const facts = page.elementLocator(ownership.element().closest("section")!);
   await expect
     .element(facts.getByText(status.external_runtime.path, { exact: true }))
     .toBeVisible();

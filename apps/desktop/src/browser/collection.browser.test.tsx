@@ -264,7 +264,7 @@ for (const theme of ["dark", "light"]) {
         ".collection-actions button[data-detail-origin$=':review']",
       )) {
         const visibleAction = action.textContent.trim();
-        expect(visibleAction).toBe("Review game");
+        expect(visibleAction).toBe("Review setup");
         expect(action.getAttribute("aria-label")).toContain(visibleAction);
       }
     }
@@ -285,7 +285,7 @@ for (const theme of ["dark", "light"]) {
     expect(entryFor(3).textContent).toContain("Update prepared");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entryFor(4).textContent).toContain("Game files missing");
-    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review game");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).toContain("Stable");
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).not.toContain("Preview");
     expect(entryFor(0).querySelector(".collection-state")?.textContent).toContain(

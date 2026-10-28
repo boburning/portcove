@@ -123,7 +123,7 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   await expect.element(input).not.toBeInTheDocument();
   expect(document.querySelector(".detail-artwork")).toBeNull();
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
-  await page.getByText("Advanced", { exact: true }).click();
+  await page.getByText("Advanced installation settings", { exact: true }).click();
   await folder.click();
   await expect.element(input).toBeVisible();
   await input.fill("fixture/future-draft");

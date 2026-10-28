@@ -260,7 +260,7 @@ it("keeps host, setup method and membership on one context through details and r
   await userEvent.click(await filterChoice("Portable upstream package (0)"));
   await closeFilters();
   await expect
-    .element(page.getByText("No ports match these filters", { exact: true }))
+    .element(page.getByRole("heading", { name: "No matching games", exact: true }))
     .toBeInTheDocument();
   await openAdvancedFilters("Filters (3)");
   await expect.element(await filterChoice("Portable upstream package (0)")).toBeChecked();
@@ -497,7 +497,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Switch library"));
     await userEvent.click(roleButton("Toggle candidate download"));
     await expect
-      .element(page.getByText("No ports match these filters", { exact: true }))
+      .element(page.getByRole("heading", { name: "No matching games", exact: true }))
       .toBeInTheDocument();
     await openAdvancedFilters("Filters (1)");
     await expect.element(await filterChoice("Matching update staged (0)")).toBeChecked();
