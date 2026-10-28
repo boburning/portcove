@@ -15863,6 +15863,8 @@ fn main() {
         let phase = |name: &str| {
             if retained_format == 3 {
                 eprintln!("[authenticated-retention] {name}: {:?}", started.elapsed());
+            } else if retained_format == 2 {
+                eprintln!("[indexed-retention] {name}: {:?}", started.elapsed());
             }
         };
         phase("start");
