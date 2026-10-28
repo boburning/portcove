@@ -62,7 +62,7 @@ struct DelegatedPublicKeys {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct PublicKeyInput {
+pub(super) struct PublicKeyInput {
     path: String,
     sha256: String,
 }
@@ -262,7 +262,7 @@ fn expected(bytes: &[u8], digest: &str) -> Result<(), TufRepositoryError> {
     Ok(())
 }
 
-fn public_key(base: &Path, input: &PublicKeyInput) -> Result<Key, TufRepositoryError> {
+pub(super) fn public_key(base: &Path, input: &PublicKeyInput) -> Result<Key, TufRepositoryError> {
     let bytes = read_input(
         &resolve(base, &input.path, "public key")?,
         MAX_CONFIG_BYTES,

@@ -464,6 +464,17 @@ into one shared custody location. The approved single-owner replacement above
 deliberately uses a different custody arrangement. No production key creation
 is authorized by this implementation or its disposable tests.
 
+For independently authorized recovery inspection, `inspect-existing-tuf-key
+CONFIG` accepts exactly `{ "schema_version": 1, "private_key": "restored.pk8",
+"expected_public_key": { "path": "appointed-public.json", "sha256":
+"<independently-pinned-public-file-sha256>" } }`. It validates that public input
+before reading the bounded, unlinked private input, then uses the existing Tough
+key parser to compare its public projection. It emits only the public key ID and
+`authority: "none"`; it generates no key, signature or output file. A missing or
+different key refuses. This is a TUF key identity check, not an encrypted vault,
+payload-key check, role appointment, backup restore qualification or permission
+to read production keys. Existing custody and production gates still apply.
+
 1. `prepare-offline-root CONFIG` reads **public files only**: exactly three
    `root_public_keys`, and separate `targets_public_key`, `snapshot_public_key`
    and `timestamp_public_key`, plus `expires`. It emits an unsigned Root proposal
