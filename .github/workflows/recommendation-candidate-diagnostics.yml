@@ -1,0 +1,78 @@
+name: Recommendation candidate diagnostics
+
+on:
+  push:
+    branches: [feature/game-port-recommendations]
+    paths:
+      - .github/workflows/recommendation-candidate-diagnostics.yml
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Capture exact tracked candidate source
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Archive tracked source without credentials or working files
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/recommendation-source"
+          git rev-parse HEAD > "$RUNNER_TEMP/recommendation-source/revision.txt"
+          git archive --format=tar HEAD > "$RUNNER_TEMP/recommendation-source/source.tar"
+          sha256sum "$RUNNER_TEMP/recommendation-source/source.tar" > "$RUNNER_TEMP/recommendation-source/source.sha256"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: recommendation-source-${{ github.sha }}
+          path: ${{ runner.temp }}/recommendation-source/
+          retention-days: 3
+          if-no-files-found: error
+
+  source-checkpoint:
+    name: Diagnose source publication fixture on Windows
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PORTCOVE_HEAD_SHA: ${{ github.sha }}
+      PORTCOVE_CHECKOUT_SHA: ${{ github.sha }}
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      CARGO_PROFILE_TEST_DEBUG: line-tables-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - name: Read pinned test runner
+        id: nextest
+        shell: pwsh
+        run: |
+          $manifest = Get-Content .github/quality-tools.json -Raw | ConvertFrom-Json
+          $version = ($manifest.tools | Where-Object id -eq 'cargo-nextest').version
+          if (-not $version) { throw 'Missing cargo-nextest version' }
+          "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
+      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91
+        with:
+          tool: ${{ steps.nextest.outputs.spec }}
+      - name: Run unchanged source-publication family with retained output
+        shell: pwsh
+        run: |
+          node scripts/run-rust-tests.mts --locked -p portcove-core -E 'test(preparation::source::tests)' --test-threads=1 --success-output immediate --failure-output immediate
+          exit $LASTEXITCODE
+      - name: Retain diagnostic outcomes without replacing ordinary CI
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: recommendation-source-checkpoint-${{ github.sha }}
+          path: |
+            work/nextest-default-outcomes/
+            work/test-results/
+            target/nextest/
+          retention-days: 3
+          if-no-files-found: warn
