@@ -2217,6 +2217,11 @@ Matching-birth Linux zombies count as exited execution and are retained as exact
 `unreaped_terminal` observations with `all_reaped: false`. They cannot serve the
 old session. Reaping remains a separate outer-supervisor cleanup observation;
 these restart receipts do not claim complete process disappearance.
+Full-catalog cache observations require zero rejected image-host requests before
+the missing-cache control. Explicit selections instead record the aggregate
+host baseline alongside selected cache digests and rendered images. The control
+requires fresh rejected traffic and the withheld DKR image's honest fallback;
+host-level counts do not attribute a request to an individual image.
 
 The native harness opens application windows, takes focus and sends keyboard
 input in the current desktop session. Its isolated files do not isolate the

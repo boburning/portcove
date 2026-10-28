@@ -13,11 +13,22 @@ import {
   restoreCacheAfterObservation,
   selectDefaultCoverIds,
   assertDefaultCoverPresentation,
+  assertCachedCoverTraffic,
 } from "./desktop-cover-observations.mts";
 import {
   parseDesktopHarnessOptions,
   resolveDesktopHarnessSelection,
 } from "../../../scripts/desktop-execution-plan.mts";
+
+void test("cached cover traffic preserves full-scope refusal and reports bounded host baselines", () => {
+  assert.equal(assertCachedCoverTraffic(["other-origin"], false), 0);
+  assert.throws(
+    () => assertCachedCoverTraffic(["images.igdb.com"], false),
+    /without an IGDB request/,
+  );
+  assert.equal(assertCachedCoverTraffic(["images.igdb.com", "other-origin"], true), 1);
+  assert.equal(assertCachedCoverTraffic([], true), 0);
+});
 
 void test("real cover presentation keeps neutral identity surfaces and rejects generated mattes", () => {
   const image = {

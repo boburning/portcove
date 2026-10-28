@@ -3,6 +3,7 @@ import {
   restoreCacheAfterObservation,
   selectDefaultCoverIds,
   assertDefaultCoverPresentation,
+  assertCachedCoverTraffic,
   type WithheldCover,
 } from "./desktop-cover-observations.mts";
 import { revealDetailSection, selectCatalogPort } from "./desktop-review-controls.mts";
@@ -65,6 +66,7 @@ interface MissingCacheContext extends Pick<
   cache: string;
   offlineEnvironment: NodeJS.ProcessEnv | undefined;
   refusedOrigins: string[];
+  explicitScope: boolean;
   captureSettled: CaptureSettled;
   onWithheld: (value: WithheldCover) => void;
 }
@@ -281,6 +283,7 @@ export async function defaultCoverScenario({
               restart,
               offlineEnvironment,
               refusedOrigins,
+              explicitScope: coverPortIds.length > 0,
               invoke,
               captureSettled,
               onWithheld: (value) => {
@@ -362,15 +365,12 @@ async function missingCacheNegativeControl({
   restart,
   offlineEnvironment,
   refusedOrigins,
+  explicitScope,
   invoke,
   captureSettled,
   onWithheld,
 }: MissingCacheContext) {
-  assert.equal(
-    refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
-    0,
-    "All mapped cached covers render after restart without an IGDB request",
-  );
+  const refusedImageRequestsBeforeControl = assertCachedCoverTraffic(refusedOrigins, explicitScope);
   const port = ports.find((port) => port.id === "dkr-r");
   assert.ok(port?.presentation?.artwork, "Negative control requires the maintained DKR mapping");
   const digest = port.presentation.artwork.image_sha256;
@@ -393,7 +393,9 @@ async function missingCacheNegativeControl({
   const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
   await browser.wait(until.elementLocated(By.css(selector)), 10_000);
   await browser.wait(
-    () => refusedOrigins.includes("images.igdb.com"),
+    () =>
+      refusedOrigins.filter((origin) => origin === "images.igdb.com").length >
+      refusedImageRequestsBeforeControl,
     15_000,
     "Missing cache must exercise actual rejected backend image traffic",
   );
@@ -402,11 +404,14 @@ async function missingCacheNegativeControl({
       executeBrowserScript(
         browser,
         (selector) => {
-          const frame = document.querySelector<HTMLElement>(`${selector} .collection-art`);
+          const card = document.querySelector(selector)?.closest(".collection-entry");
+          const frame = card?.querySelector<HTMLElement>(".collection-art");
           return (
             frame?.dataset.artworkSource === "generated_fallback" &&
             !frame.querySelector("img") &&
-            frame.querySelector(".artwork-image-note")?.textContent === "Image unavailable"
+            Array.from(card?.querySelectorAll(".collection-state > p") ?? []).some(
+              (note) => note.textContent === "Image unavailable",
+            )
           );
         },
         selector,
@@ -425,6 +430,11 @@ async function missingCacheNegativeControl({
     id: port.id,
     digest,
     refusedImageRequests: refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
+    refusedImageRequestsBeforeControl,
+    refusedImageRequestsDuringControl:
+      refusedOrigins.filter((origin) => origin === "images.igdb.com").length -
+      refusedImageRequestsBeforeControl,
+    trafficAttribution: "aggregate-host-only",
     fallback: true,
   };
 }

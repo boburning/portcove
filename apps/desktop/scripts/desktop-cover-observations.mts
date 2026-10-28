@@ -5,6 +5,14 @@ import { createServer } from "node:http";
 import type { Socket } from "node:net";
 import path from "node:path";
 
+/** Host-level counts cannot attribute a CONNECT request to a selected image. */
+export function assertCachedCoverTraffic(origins: readonly string[], explicitScope: boolean) {
+  const count = origins.filter((origin) => origin === "images.igdb.com").length;
+  if (!explicitScope)
+    assert.equal(count, 0, "All mapped cached covers render after restart without an IGDB request");
+  return count;
+}
+
 export function assertDefaultCoverPresentation(image: {
   background: string;
   identitySurface: boolean;
