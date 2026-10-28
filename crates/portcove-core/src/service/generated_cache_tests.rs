@@ -106,6 +106,7 @@ fn generated_cache_declared_outputs_and_exact_metadata_remain_usable() {
 
 #[test]
 fn generated_cache_unclaimed_outputs_hold_every_prewrite_data_route() {
+    let clock = std::time::Instant::now();
     for active in [false, true] {
         for unknown in [
             "saves/red/slot1.lua",
@@ -113,7 +114,15 @@ fn generated_cache_unclaimed_outputs_hold_every_prewrite_data_route() {
             "options.lua.tmp",
             "save.lua.tmp",
         ] {
+            eprintln!(
+                "generated-cache-matrix phase=fixture-begin active={active} path={unknown} elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
             let (_temporary, service, install) = fixture(active);
+            eprintln!(
+                "generated-cache-matrix phase=fixture-ready active={active} path={unknown} elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
             write(&install.path, "save.lua", b"runtime progress");
             write(
                 &service.library.user_dir(ID),
@@ -130,22 +139,54 @@ fn generated_cache_unclaimed_outputs_hold_every_prewrite_data_route() {
                     .collect_user_data_from_install(ID, &install.path)
                     .is_err()
             );
+            eprintln!(
+                "generated-cache-matrix phase=collect-refused elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
             assert!(
                 service
                     .restore_user_data_to(service.catalog.port(ID).unwrap(), &install.path)
                     .is_err()
             );
+            eprintln!(
+                "generated-cache-matrix phase=restore-refused elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
             assert!(service.prepare_retained_install_data(&install).is_err());
+            eprintln!(
+                "generated-cache-matrix phase=prepare-refused elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
             assert!(service.preview_removal(ID).is_err());
+            eprintln!(
+                "generated-cache-matrix phase=preview-refused elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
             assert!(service.create_backup(ID).is_err());
+            eprintln!(
+                "generated-cache-matrix phase=backup-refused elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
             assert!(service.create_backup_locked(ID).is_err());
+            eprintln!(
+                "generated-cache-matrix phase=locked-backup-refused elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
             assert_preserved(&service, &install);
             assert_eq!(
                 fs::read(install.path.join(unknown)).unwrap(),
                 b"unclaimed progress or recovery witness"
             );
+            eprintln!(
+                "generated-cache-matrix phase=assertions-complete active={active} path={unknown} elapsed_ms={}",
+                clock.elapsed().as_millis()
+            );
         }
     }
+    eprintln!(
+        "generated-cache-matrix phase=complete elapsed_ms={}",
+        clock.elapsed().as_millis()
+    );
 }
 
 #[test]
