@@ -337,6 +337,7 @@ for (const [file, tests] of [
       "scripts/desktop-scenarios.test.mts",
       "scripts/desktop-real-runtime.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
+      "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
     ],
   ],
   [
@@ -1573,7 +1574,13 @@ for (const [file, tests] of [
       "scripts/native-session-lock.test.mts",
     ],
   ],
-  ["apps/desktop/scripts/desktop-preparation-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  ...[
+    "apps/desktop/scripts/desktop-preparation-test.mts",
+    "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ]),
   [
     "apps/desktop/scripts/desktop-scenario-outcomes.mts",
     ["scripts/desktop-scenarios.test.mts", "scripts/native-helper-dependencies.test.mts"],

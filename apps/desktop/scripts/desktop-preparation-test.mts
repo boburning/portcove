@@ -960,6 +960,27 @@ export function assertPreparedLibrarySummary(
   );
 }
 
+export async function settleDirectPreparationRecovery(browser: WebDriver) {
+  const action = By.css('[data-detail-origin="error:preparation-review"]');
+  await browser.wait(until.elementLocated(action), 15_000);
+  // The failure notice can render before the completed review's modal layer
+  // unmounts. Wait for actual dismissal before exercising ordinary navigation;
+  // never click through the overlay or dismiss it on the test's behalf.
+  await browser.wait(
+    async () => (await browser.findElements(By.css('[data-slot="dialog-overlay"]'))).length === 0,
+    15_000,
+    "The settled preparation review must release its modal overlay before navigation",
+  );
+  await browser
+    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
+    .click();
+  await browser.wait(
+    async () => (await browser.findElements(By.css("section[data-detail-workspace]"))).length === 0,
+    15_000,
+  );
+  return action;
+}
+
 export async function preparationScenarios({
   browser,
   invoke: invokeRaw,
@@ -3019,25 +3040,7 @@ export async function preparationScenarios({
       });
       assert.ok(failure.presentation.recovery_actions.includes("review_preparation"));
       observations.failed_activity = failed;
-      const action = By.css('[data-detail-origin="error:preparation-review"]');
-      await browser.wait(until.elementLocated(action), 15_000);
-      // The failure notice can render before the completed review's modal layer
-      // unmounts. Wait for actual dismissal before exercising ordinary navigation;
-      // never click through the overlay or dismiss it on the test's behalf.
-      await browser.wait(
-        async () =>
-          (await browser.findElements(By.css('[data-slot="dialog-overlay"]'))).length === 0,
-        15_000,
-        "The settled preparation review must release its modal overlay before navigation",
-      );
-      await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
-        .click();
-      await browser.wait(
-        async () =>
-          (await browser.findElements(By.css("section[data-detail-workspace]"))).length === 0,
-        15_000,
-      );
+      const action = await settleDirectPreparationRecovery(browser);
       const inventory = await activities();
       const readOnlyReview = By.xpath(
         '//div[contains(@class,"error-actions")]//button[normalize-space(.)="Review current state"]',

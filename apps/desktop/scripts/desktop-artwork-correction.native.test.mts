@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
@@ -18,8 +19,7 @@ function object(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
   return value as Record<string, unknown>;
 }
-void test("serialized artwork correction reads cached pixels and preserves fallback observations", async () => {
-  const render = segment("const render = async", "const capture = async");
+async function artworkRenderBehavior(subject: (context: unknown) => Promise<unknown>) {
   const color = [241, 7, 3, 255];
   let image: { complete: boolean; naturalWidth: number; src: string } | null = {
     complete: true,
@@ -60,24 +60,20 @@ void test("serialized artwork correction reads cached pixels and preserves fallb
     );
   };
   const browser = {
+    executeScript: (callback: unknown, ...args: unknown[]) =>
+      executeBrowserScript(undefined, callback, ...args),
     wait: async (predicate: (() => unknown) | string) => {
       if (typeof predicate === "function") assert.equal(await predicate(), true);
       return { sendKeys: async () => {} };
     },
   };
-  const observation: unknown = await runInNewContext(
-    `(async () => { ${render} return render("igdb_cover"); })()`,
-    {
-      browser,
-      executeBrowserScript,
-      click: async () => {},
-      By: { xpath: () => "nav", id: () => "search" },
-      Key: { CONTROL: "control", NULL: "null" },
-      until: { elementLocated: () => "located" },
-      originalName: "Owned",
-      portId: "owned",
-    },
-  );
+  const observation = await subject({
+    browser,
+    source: "igdb_cover",
+    click: async () => {},
+    originalName: "Owned",
+    portId: "owned",
+  });
   assert.equal(
     JSON.stringify(observation),
     JSON.stringify({ source: "igdb_cover", image: "owned://red.jpg", pixel: color }),
@@ -86,24 +82,38 @@ void test("serialized artwork correction reads cached pixels and preserves fallb
   assert.equal(draws[0]?.[0], image);
   image = null;
   artworkSource = "generated_fallback";
-  const fallback: unknown = await runInNewContext(
-    `(async () => { ${render} return render("generated_fallback"); })()`,
-    {
-      browser,
-      executeBrowserScript,
-      click: async () => {},
-      By: { xpath: () => "nav", id: () => "search" },
-      Key: { CONTROL: "control", NULL: "null" },
-      until: { elementLocated: () => "located" },
-      originalName: "Owned",
-      portId: "owned",
-    },
-  );
+  const fallback = await subject({
+    browser,
+    source: "generated_fallback",
+    click: async () => {},
+    originalName: "Owned",
+    portId: "owned",
+  });
   assert.equal(
     JSON.stringify(fallback),
     JSON.stringify({ source: "generated_fallback", image: null, pixel: null }),
   );
+}
+
+void test("serialized artwork correction reads cached pixels and preserves fallback observations", () => {
+  const entry = new URL("./desktop-artwork-correction-test.mts", import.meta.url);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        entry,
+        `
+      import {runInNewContext} from 'node:vm';
+      mock.module('selenium-webdriver',{namedExports:{By:{xpath:()=>"nav",id:()=>"search",css:value=>value},Key:{CONTROL:"control",NULL:"null"},until:{elementLocated:()=>"located"}}});
+      const {renderCorrectedArtwork}=await import(entry);
+      await (${String(artworkRenderBehavior)})(renderCorrectedArtwork);
+    `,
+        variant === "original" ? undefined : { exportName: "renderCorrectedArtwork", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
 });
+
 void test("serialized stale catalog intent retains the reviewed identity and unregisters callbacks", async () => {
   const call = segment("await browser.executeAsyncScript", "reviewedPlan.source,");
   for (const outcome of ["success", "failure"] as const) {
