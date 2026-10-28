@@ -11,7 +11,7 @@ import { driveInstalledUpdateToRestart } from "./desktop-application-update-jour
 import { loadedWebKitLibraries } from "./desktop-linux-webkit-inspector.mts";
 import {
   createAppImageProcessObservations,
-  observeHealthyAppImageRestart,
+  waitForHealthyAppImageRestart,
   awaitInstalledUpdateDriver,
   connectInstalledUpdateDriver,
   hashFile,
@@ -266,11 +266,13 @@ try {
     await waitFor(() => readJson(relaunchMarker), "helper-owned candidate process marker", 60_000),
   );
   report.relaunch_identity = await verifiedRelaunchIdentity(report.relaunch_process_marker);
-  const restart = await waitFor(
-    () => observeHealthyAppImageRestart({ app, candidateSha, staging, stageMarker, stagedPayload }),
-    "renderer-driven restart and healthy-startup reconciliation",
-    90_000,
-  );
+  const restart = await waitForHealthyAppImageRestart({
+    app,
+    candidateSha,
+    staging,
+    stageMarker,
+    stagedPayload,
+  });
   report.restart = restart;
   await waitFor(
     async () => !(await procIdentity(restart.marker.process_id)),

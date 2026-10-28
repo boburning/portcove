@@ -343,3 +343,18 @@ export async function observeHealthyAppImageRestart(
     stable_sha256: candidateSha,
   };
 }
+
+/** Keep the existing reconciliation label and finite polling budget together. */
+export function waitForHealthyAppImageRestart(
+  context: Parameters<typeof observeHealthyAppImageRestart>[0],
+  options: NonNullable<Parameters<typeof observeHealthyAppImageRestart>[1]> & {
+    poll?: typeof waitFor;
+  } = {},
+) {
+  const { poll = waitFor, ...observation } = options;
+  return poll(
+    () => observeHealthyAppImageRestart(context, observation),
+    "renderer-driven restart and healthy-startup reconciliation",
+    90_000,
+  );
+}

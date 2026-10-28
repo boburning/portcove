@@ -5,12 +5,13 @@ import {
   createAppImageProcessObservations,
   readAppImageProcessIdentity,
   observeHealthyAppImageRestart,
+  waitForHealthyAppImageRestart,
 } from "./desktop-installed-update-harness.mts";
 
 void test("AppImage healthy reconciliation requires actual payload absence, not an inspection failure", async () => {
   for (const code of ["ENOENT", "EACCES", "EIO", "ENOTDIR"]) {
     const failure = Object.assign(new Error(code), { code });
-    const result = observeHealthyAppImageRestart(
+    const result = waitForHealthyAppImageRestart(
       {
         app: "/owned/Portcove.AppImage",
         candidateSha: "a".repeat(64),
@@ -25,6 +26,13 @@ void test("AppImage healthy reconciliation requires actual payload absence, not 
             : { intent: null, phase: "reconciled" },
         hash: async () => ({ sha256: "a".repeat(64) }),
         inspect: () => Promise.reject(failure),
+        poll: async (predicate, label, budget) => {
+          assert.equal(label, "renderer-driven restart and healthy-startup reconciliation");
+          assert.equal(budget, 90_000);
+          const value = await predicate();
+          assert.ok(value);
+          return value;
+        },
       },
     );
     if (code === "ENOENT") {
