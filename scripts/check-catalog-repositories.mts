@@ -785,8 +785,9 @@ function recordOriginalMembership(record: LocationRecord, portId: string, releas
     record.original_upstream_port_ids.push(portId);
 }
 
-function inventoryOriginalLocation(records: Map<string, LocationRecord>, port: HealthPort) {
-  const releaseProvider = port.release?.provider ?? "github";
+function originalLocation(
+  port: Pick<HealthPort, "project_url">,
+): Pick<LocationRecord, "provider" | "repository"> | null {
   // Changing provider does not remove the declared original upstream.
   let project;
   try {
@@ -813,11 +814,7 @@ function inventoryOriginalLocation(records: Map<string, LocationRecord>, port: H
       repository.length > 200
     )
       throw new Error("Unsupported original upstream repository");
-    const key = `${provider}:${provider === "github" ? repository.toLowerCase() : repository}`;
-    if (!records.has(key))
-      records.set(key, { provider, repository, port_ids: [], release_providers: [] });
-    const record = requiredValue(records.get(key));
-    recordOriginalMembership(record, port.id, releaseProvider);
+    return { provider, repository };
   } else if (project) {
     if (
       project.protocol !== "https:" ||
@@ -832,17 +829,23 @@ function inventoryOriginalLocation(records: Map<string, LocationRecord>, port: H
       /^(?:[0-9.]+|.*\.local|.*\.localhost)$/iu.test(project.hostname)
     )
       throw new Error("Unsupported original upstream location");
-    const key = `project-page:${project.href}`;
-    if (!records.has(key))
-      records.set(key, {
-        provider: "project-page",
-        repository: project.href,
-        port_ids: [],
-        release_providers: [],
-      });
-    const record = requiredValue(records.get(key));
-    recordOriginalMembership(record, port.id, releaseProvider);
+    return { provider: "project-page", repository: project.href };
   }
+  return null;
+}
+
+function inventoryOriginalLocation(records: Map<string, LocationRecord>, port: HealthPort) {
+  const location = originalLocation(port);
+  if (!location) return;
+  const { provider, repository } = location;
+  const key = `${provider}:${provider === "github" ? repository.toLowerCase() : repository}`;
+  if (!records.has(key))
+    records.set(key, { provider, repository, port_ids: [], release_providers: [] });
+  recordOriginalMembership(
+    requiredValue(records.get(key)),
+    port.id,
+    port.release?.provider ?? "github",
+  );
 }
 
 function recordHistoricalScope(record: LocationRecord, scope: HistoricalIdentity) {
@@ -926,9 +929,19 @@ function inventory(catalog: HealthCatalog) {
     // A prepared runtime may declare only project_url. The original-location
     // pass below inventories that upstream without inferring release artifacts.
     // An explicitly supplied repository still requires normal hosted validation.
-    const repository = port.release?.repository;
+    let repository = port.release?.repository;
     if (releaseProvider === "user-prepared" && repository === undefined) continue;
-    const provider = releaseProvider === "user-prepared" ? "github" : releaseProvider;
+    let provider = releaseProvider === "user-prepared" ? "github" : releaseProvider;
+    if (
+      releaseProvider === "user-prepared" &&
+      typeof repository === "string" &&
+      /^https:\/\//iu.test(repository)
+    ) {
+      const location = originalLocation({ project_url: repository });
+      if (!location || !["github", "gitlab"].includes(location.provider))
+        throw new Error("Unsupported hosted catalog repository");
+      ({ provider, repository } = location);
+    }
     const pattern =
       provider === "github"
         ? /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u

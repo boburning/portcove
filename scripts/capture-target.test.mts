@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 import type { WebDriver, WebElement } from "selenium-webdriver";
 import { captureKeyboardTarget } from "../apps/desktop/scripts/desktop-capture-target.mts";
 import { observeVisibleTarget } from "../apps/desktop/scripts/browser-readiness.mts";
@@ -109,11 +111,10 @@ void test("moving or hung target probes terminate within their finite preflight"
   );
 });
 
-void test("Library native capture centers fractional clipping before strict settled capture and refuses unscrollable clipping", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const { stripTypeScriptTypes } = await import("node:module");
-  const { runInNewContext } = await import("node:vm");
-  const { observeVisibleTarget } = await import("../apps/desktop/scripts/browser-readiness.mts");
+async function libraryCaptureBehavior(
+  captureLibraryAction: typeof import("../apps/desktop/scripts/desktop-preparation-test.mts").captureLibraryAction,
+  installCapture: (capture: unknown) => void,
+) {
   function assertObservation(value: unknown): asserts value is CaptureTargetObservation & {
     clipping: { edge: number; limit: number }[];
   } {
@@ -135,17 +136,6 @@ void test("Library native capture centers fractional clipping before strict sett
       assert.equal(typeof edge.limit, "number");
     }
   }
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-preparation-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf(
-    'const exactTarget = await more.getAttribute("data-detail-origin");',
-  );
-  const endText = "artifacts.push(capture.image.path, capture.receipt);";
-  const end = source.indexOf(endText, start);
-  assert.ok(start >= 0 && end > start);
-  const executable = stripTypeScriptTypes(source.slice(start, end + endText.length));
   for (const scrollable of [true, false]) {
     let y = 348.1171875;
     let captures = 0;
@@ -227,41 +217,99 @@ void test("Library native capture centers fractional clipping before strict sett
     assert.equal(clippedEdge.edge, 384.1171875);
     assert.equal(clippedEdge.limit, 384);
     assert.throws(() => requireCompleteCaptureTarget(clipped, selector));
-    const capture: unknown = runInNewContext(`(async () => { ${executable} })()`, {
-      assert,
-      more,
-      browser: {},
-      output: "owned-output",
-      theme: "dark",
-      layout: "Covers",
-      artifacts: [],
-      observeVisibleTarget,
-      prepareCaptureTarget,
-      requireUnchangedCaptureTarget,
-      executeBrowserScript: execute,
-      captureSettledVisual: async (options: {
-        observeTarget: () => Promise<ReturnType<typeof observeVisibleTarget>>;
-        readiness: () => Promise<{ ready: boolean }>;
-      }) => {
-        captures++;
-        assert.equal((await options.readiness()).ready, true);
-        const before = await options.observeTarget();
-        requireCompleteCaptureTarget(before, selector);
-        assert.equal(JSON.stringify(await options.observeTarget()), JSON.stringify(before));
-        assert.equal(document.activeElement, more);
-        return {
-          image: { path: "owned-output/capture.png" },
-          receipt: "owned-output/capture.json",
-        };
-      },
-    });
+    const artifacts: string[] = [];
+    let moveDuringCapture = false;
+    const changedDuringCapture = new Error("owned target moved during capture");
+    const captureVisual = async (options: {
+      observeTarget: () => Promise<ReturnType<typeof observeVisibleTarget>>;
+      readiness: () => Promise<{ ready: boolean }>;
+      target: string;
+      scenario: string;
+      name: string;
+    }) => {
+      captures++;
+      assert.equal(options.target, selector);
+      assert.equal(options.scenario, "native-library-layout");
+      assert.equal(options.name, "library-dark-covers-200");
+      assert.equal((await options.readiness()).ready, true);
+      const before = await options.observeTarget();
+      requireCompleteCaptureTarget(before, selector);
+      if (moveDuringCapture) {
+        y += 1;
+        await assert.rejects(options.observeTarget(), /changed during screenshot/);
+        throw changedDuringCapture;
+      }
+      assert.equal(JSON.stringify(await options.observeTarget()), JSON.stringify(before));
+      assert.equal(document.activeElement, more);
+      return {
+        image: { path: "owned-output/capture.png" },
+        receipt: "owned-output/capture.json",
+      };
+    };
+    installCapture(captureVisual);
+    const capture = captureLibraryAction(
+      {
+        executeScript: (fn: unknown, ...args: unknown[]) => execute(null, fn, ...args),
+      } as unknown as WebDriver,
+      more as unknown as WebElement,
+      "owned-output",
+      "dark",
+      "Covers",
+      artifacts,
+    );
     if (scrollable) {
       await capture;
+      assert.deepEqual(artifacts, ["owned-output/capture.png", "owned-output/capture.json"]);
       assert.equal(captures, 1);
+      moveDuringCapture = true;
+      const refusedArtifacts: string[] = [];
+      await assert.rejects(
+        captureLibraryAction(
+          {
+            executeScript: (fn: unknown, ...args: unknown[]) => execute(null, fn, ...args),
+          } as unknown as WebDriver,
+          more as unknown as WebElement,
+          "owned-output",
+          "dark",
+          "Covers",
+          refusedArtifacts,
+        ),
+        (error) => error === changedDuringCapture,
+      );
+      assert.deepEqual(refusedArtifacts, []);
     } else {
       await assert.rejects(Promise.resolve(capture), /one identified visible target/);
       assert.equal(captures, 0);
+      assert.deepEqual(artifacts, []);
     }
+  }
+}
+
+void test("Library native capture centers fractional clipping before strict settled capture and refuses unscrollable clipping", async () => {
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        new URL("../apps/desktop/scripts/desktop-preparation-test.mts", import.meta.url),
+        `
+        import {runInNewContext} from 'node:vm';
+        import {isRecord} from ${JSON.stringify(new URL("./runtime-values.mts", import.meta.url).href)};
+        import {observeVisibleTarget} from ${JSON.stringify(new URL("../apps/desktop/scripts/browser-readiness.mts", import.meta.url).href)};
+        import {requireCompleteCaptureTarget} from ${JSON.stringify(new URL("../apps/desktop/test/capture-target.ts", import.meta.url).href)};
+        mock.module('selenium-webdriver',{namedExports:{
+          WebDriver:class{},Session:class{},Capabilities:class{},
+          By:{css:value=>({using:'css selector',value})},Key:{},until:{},
+        }});
+        let captureVisual;
+        mock.module(new URL('../../../scripts/native-readiness.mts',entry).href, {namedExports:{
+          captureSettledVisual:(...args)=>captureVisual(...args),
+        }});
+        const {captureLibraryAction}=await import(entry);
+        await (${libraryCaptureBehavior.toString()})(captureLibraryAction, callback=>{captureVisual=callback;});
+      `,
+        variant === "original" ? undefined : { exportName: "captureLibraryAction", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
   }
 });
 

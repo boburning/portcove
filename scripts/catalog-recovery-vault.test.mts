@@ -14,6 +14,8 @@ import {
   chmod,
   open,
   readlink,
+  rename,
+  lstat,
 } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
@@ -25,10 +27,279 @@ import {
   createCatalogRecoveryVault,
   restoreCatalogRecoveryVault,
   readCatalogCustodyMaterial,
+  inspectPassphraseRecoveryHeader,
+  inspectOwnerTerminalUtility,
 } from "./catalog-recovery-vault.mts";
+import {
+  parseOwnerRecoveryArguments,
+  prepareOwnerRecoveryReview,
+} from "./catalog-recovery-vault-cli.mts";
 import { disposableCatalogRecoveryFixture } from "./fixtures/catalog-recovery-fixture.mts";
 const hash = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
 const run = promisify(execFile);
+
+void test("owner passphrase entry refuses secret arguments, nonterminals and unbounded scrypt before custody", async () => {
+  const utility = {
+    isFile: () => true,
+    isSymbolicLink: () => false,
+    uid: 0,
+    mode: 0o100755,
+    size: 11352352,
+  };
+  inspectOwnerTerminalUtility(utility);
+  for (const mode of [0o104755, 0o102755, 0o100775, 0o100757])
+    assert.throws(() => inspectOwnerTerminalUtility({ ...utility, mode }), /root-maintained/u);
+  assert.throws(() => inspectOwnerTerminalUtility({ ...utility, uid: 1000 }), /root-maintained/u);
+  assert.throws(
+    () => parseOwnerRecoveryArguments(["create", "--config", "/fixture", "--passphrase", "never"]),
+    /unknown\/duplicate/u,
+  );
+  assert.throws(
+    () => parseOwnerRecoveryArguments(["review", "--config", "/fixture"]),
+    /complete explicit/u,
+  );
+  assert.throws(
+    () =>
+      inspectPassphraseRecoveryHeader(
+        Buffer.from(
+          "age-encryption.org/v1\n-> scrypt " +
+            "A".repeat(22) +
+            " 22\n" +
+            "B".repeat(43) +
+            "\n--- " +
+            "C".repeat(43) +
+            "\n",
+        ),
+      ),
+    /logN18/u,
+  );
+  const result = await run(
+    process.execPath,
+    [
+      "scripts/catalog-recovery-vault-cli.mts",
+      "create",
+      "--config",
+      "/nonexistent-owner-custody",
+      "--config-sha256",
+      "0".repeat(64),
+      "--expected-plan",
+      "0".repeat(64),
+      "--name",
+      "never",
+    ],
+    { timeout: 5000, maxBuffer: 4096 },
+  ).catch((error: unknown) => {
+    assert.ok(error instanceof Error && "code" in error && "stderr" in error);
+    return error as Error & { code: number; stderr: string };
+  });
+  assert.ok("code" in result);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /direct ordinary-owner terminal|offline ordinary-owner/u);
+  assert.doesNotMatch(result.stderr, /ENOENT/u);
+});
+
+void test(
+  "actual private-terminal age passphrase create, lost-primary restore and interruption preserve the complete catalog set",
+  {
+    skip:
+      !process.env.PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL ||
+      !process.env.PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT,
+    timeout: 900000,
+  },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "catalog-owner-tty-"));
+    try {
+      const fixture = await disposableCatalogRecoveryFixture(path.join(root, "fixture"));
+      const publicConfig = path.join(root, "catalog.json"),
+        configPath = path.join(root, "owner.json");
+      const publicBytes = Buffer.from(JSON.stringify(fixture.config));
+      await writeFile(publicConfig, publicBytes, { mode: 0o600 });
+      const key_paths: Record<string, string> = {};
+      for (const [role, bytes] of fixture.material) {
+        key_paths[role] = path.join(root, role + ".primary");
+        await writeFile(key_paths[role], bytes, { mode: 0o600 });
+      }
+      await writeFile(
+        configPath,
+        JSON.stringify({
+          schema_version: 1,
+          profile: "catalog-owner-passphrase-tty-v1",
+          configuration: { path: publicConfig, sha256: hash(publicBytes) },
+          app_public_captures: fixture.captures,
+          inspector: {
+            path: process.env.PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL,
+            sha256: process.env.PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_SHA256,
+            source_commit: process.env.PORTCOVE_CATALOG_RECOVERY_SOURCE_COMMIT,
+            source_tree: process.env.PORTCOVE_CATALOG_RECOVERY_SOURCE_TREE,
+          },
+          public_inputs: {
+            trusted_root: path.join(root, "fixture", "root.json"),
+            offline_targets: path.join(root, "fixture", "targets.json"),
+          },
+          tool_parent: process.env.PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT,
+          private_parent: root,
+          key_paths,
+        }),
+        { mode: 0o600 },
+      );
+      const tty = async (mode: string, args: string[]) => {
+        const observed = JSON.parse(
+          (
+            await run(
+              "python3",
+              [
+                "scripts/fixtures/catalog-recovery-tty.py",
+                mode,
+                process.execPath,
+                "scripts/fixtures/catalog-recovery-tty-entry.mts",
+                ...args,
+              ],
+              { timeout: 190000, maxBuffer: 131072 },
+            )
+          ).stdout,
+        ) as {
+          exit_code: number;
+          prompts: number;
+          terminal_restored: boolean;
+          checked_before_caller_exit: boolean;
+          output: string;
+        };
+        t.diagnostic(
+          JSON.stringify({
+            operation: args[0],
+            attempt: args[args.indexOf("--name") + 1],
+            mode,
+            exit_code: observed.exit_code,
+            prompts: observed.prompts,
+            terminal_restored: observed.terminal_restored,
+            checked_before_caller_exit: observed.checked_before_caller_exit,
+          }),
+        );
+        return observed;
+      };
+      const configSha = hash(await readFile(configPath));
+      const approvedConfigBytes = await readFile(configPath);
+      const substitutedConfig = JSON.parse(approvedConfigBytes.toString()) as {
+        inspector: { path: string; sha256: string };
+      };
+      const unapproved = path.join(root, "unreviewed-inspector"),
+        marker = path.join(root, "unreviewed-inspector-invoked");
+      const unapprovedBytes = Buffer.from("#!/bin/sh\nprintf invoked > '" + marker + "'\n");
+      await writeFile(unapproved, unapprovedBytes, { mode: 0o700 });
+      substitutedConfig.inspector.path = unapproved;
+      substitutedConfig.inspector.sha256 = hash(unapprovedBytes);
+      await writeFile(configPath, JSON.stringify(substitutedConfig), { mode: 0o600 });
+      await assert.rejects(
+        prepareOwnerRecoveryReview(configPath, "create", configSha),
+        /configuration pin differs before tool execution/u,
+      );
+      await assert.rejects(readFile(marker));
+      await writeFile(configPath, approvedConfigBytes, { mode: 0o600 });
+      const replaced = (args: string[], flag: string, value: string) => {
+        const next = [...args];
+        next[next.indexOf(flag) + 1] = value;
+        return next;
+      };
+      const createReview = await prepareOwnerRecoveryReview(configPath, "create", configSha);
+      const createArgs = [
+        "create",
+        "--config",
+        configPath,
+        "--config-sha256",
+        configSha,
+        "--expected-plan",
+        createReview.review.expected_plan,
+        "--name",
+        "encrypted",
+      ];
+      const stale = await tty("correct", replaced(createArgs, "--expected-plan", "0".repeat(64)));
+      assert.equal(stale.exit_code, 1);
+      assert.equal(stale.prompts, 0);
+      assert.match(stale.output, /review is stale/u);
+      const created = await tty("correct", createArgs);
+      assert.equal(created.exit_code, 0, created.output);
+      assert.equal(created.prompts, 2);
+      assert.equal(created.terminal_restored, true);
+      const ciphertext = path.join(root, "encrypted", "catalog.age"),
+        encrypted = await readFile(ciphertext);
+      inspectPassphraseRecoveryHeader(encrypted);
+      const interrupted = await tty("interrupt", replaced(createArgs, "--name", "interrupted"));
+      assert.equal(interrupted.exit_code, 1, interrupted.output);
+      assert.equal(interrupted.prompts, 1);
+      assert.equal(interrupted.terminal_restored, true);
+      assert.equal(interrupted.checked_before_caller_exit, true);
+      await assert.rejects(readFile(path.join(root, "interrupted", "complete.json")));
+      const overwritten = await tty("correct", createArgs);
+      assert.equal(overwritten.exit_code, 1);
+      assert.equal(overwritten.prompts, 0);
+      for (const filename of Object.values(key_paths)) await rm(filename);
+      // Public restore preparation intentionally never stats or reads missing primary custody.
+      const restoreReview = await prepareOwnerRecoveryReview(configPath, "restore", configSha);
+      assert.equal(restoreReview.review.private_key_content_read, false);
+      const restoreArgs = [
+        "restore",
+        "--config",
+        configPath,
+        "--config-sha256",
+        configSha,
+        "--expected-plan",
+        restoreReview.review.expected_plan,
+        "--name",
+        "restored",
+        "--ciphertext",
+        ciphertext,
+        "--sha256",
+        hash(encrypted),
+      ];
+      const wrong = await tty("wrong", replaced(restoreArgs, "--name", "wrong"));
+      assert.equal(wrong.exit_code, 1, wrong.output);
+      assert.equal(wrong.prompts, 1);
+      assert.equal(wrong.terminal_restored, true);
+      await assert.rejects(readFile(path.join(root, "wrong", "complete.json")));
+      const highKdf = Buffer.from(encrypted);
+      const factor = highKdf.indexOf(Buffer.from(" 18\n"));
+      assert.ok(factor > 0);
+      highKdf.write(" 22\n", factor);
+      const hostile = path.join(root, "hostile.age");
+      await writeFile(hostile, highKdf, { mode: 0o600 });
+      const hostileResult = await tty(
+        "correct",
+        replaced(
+          replaced(replaced(restoreArgs, "--name", "hostile"), "--ciphertext", hostile),
+          "--sha256",
+          hash(highKdf),
+        ),
+      );
+      assert.equal(hostileResult.exit_code, 1);
+      assert.equal(hostileResult.prompts, 0);
+      assert.match(hostileResult.output, /logN18/u);
+      const corrupt = Buffer.from(encrypted);
+      corrupt[corrupt.length - 1] = corrupt[corrupt.length - 1]! ^ 1;
+      const corruptPath = path.join(root, "corrupt.age");
+      await writeFile(corruptPath, corrupt, { mode: 0o600 });
+      const corruptResult = await tty(
+        "correct",
+        replaced(
+          replaced(replaced(restoreArgs, "--name", "corrupt"), "--ciphertext", corruptPath),
+          "--sha256",
+          hash(corrupt),
+        ),
+      );
+      assert.equal(corruptResult.exit_code, 1);
+      assert.equal(corruptResult.prompts, 1);
+      await assert.rejects(readFile(path.join(root, "corrupt", "complete.json")));
+      const restored = await tty("correct", restoreArgs);
+      assert.equal(restored.exit_code, 0, restored.output);
+      assert.equal(restored.prompts, 1);
+      for (const [role, bytes] of fixture.material)
+        assert.deepEqual(await readFile(path.join(root, "restored", role + ".key")), bytes);
+      await assert.rejects(prepareOwnerRecoveryReview(configPath, "create", configSha), /ENOENT/u);
+      for (const bytes of fixture.material.values()) bytes.fill(0);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 void test("Actions custody refusal occurs before any private file is opened", async () => {
   const result = await run(
@@ -140,7 +411,7 @@ void test("complete catalog plan refuses profile, source, role, App and alias su
 void test(
   "authorized custody reader enforces offline owner and bounded single-link acquisition",
   { skip: process.platform !== "linux" },
-  async () => {
+  async (t) => {
     const root = await mkdtemp(path.join(os.tmpdir(), "catalog-custody-reader-"));
     try {
       const file = path.join(root, "disposable.key");
@@ -154,6 +425,33 @@ void test(
         return;
       }
       assert.equal((await readCatalogCustodyMaterial(file)).toString(), "disposable");
+      const approved = await lstat(file);
+      const moved = path.join(root, "original-approved");
+      await rename(file, moved);
+      await writeFile(file, Buffer.from("substituted-unapproved-private-content"), { mode: 0o600 });
+      const handle = await open(file, "r");
+      const prototype: FileHandle = Object.getPrototypeOf(handle) as FileHandle;
+      await handle.close();
+      let reads = 0;
+      const original = prototype.read;
+      const spy = t.mock.method(
+        prototype,
+        "read",
+        function (this: FileHandle, ...args: Parameters<FileHandle["read"]>) {
+          reads++;
+          return original.apply(this, args);
+        },
+      );
+      await assert.rejects(
+        readCatalogCustodyMaterial(file, approved),
+        /reviewed custody metadata differs|held identity differs/u,
+      );
+      assert.equal(
+        reads,
+        0,
+        "renamed substitution is rejected by approved metadata/held identity before any content read",
+      );
+      spy.mock.restore();
       await symlink(file, path.join(root, "alias"));
       await assert.rejects(readCatalogCustodyMaterial(path.join(root, "alias")), /single-link/u);
       await link(file, path.join(root, "hardlink"));

@@ -8720,9 +8720,6 @@
       "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate II (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "issue_number": 2629,
@@ -8749,7 +8746,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "baldur-s-gate-original-gemrb",
@@ -8757,9 +8757,6 @@
       "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "issue_number": 2628,
@@ -8786,7 +8783,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "banjo-kazooie-nuts-bolts-renut",
@@ -9204,9 +9204,6 @@
       "summary": "Use Bio Menace with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Bio Menace",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "artwork": {
@@ -9247,7 +9244,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "bitsandbreakpoints-d-psx-pc-recomp",
@@ -9431,9 +9431,6 @@
       "original_game_title": "Blake Stone: Aliens of Gold",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2555,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
       "artwork": {
@@ -9467,7 +9464,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "blake-stone-planet-strike-bstone",
@@ -9476,9 +9476,6 @@
       "original_game_title": "Blake Stone: Planet Strike",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2556,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
       "artwork": {
@@ -9512,7 +9509,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "blast-corps-blastcorps-recompiled",
@@ -10880,9 +10880,6 @@
       "summary": "Set up Cannon Fodder 2 through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Cannon Fodder 2",
       "project_url": "https://github.com/OpenFodder/openfodder",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
       "artwork": {
@@ -10922,7 +10919,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cannon-fodder-open-fodder",
@@ -10930,9 +10930,6 @@
       "summary": "Set up Cannon Fodder through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Cannon Fodder",
       "project_url": "https://github.com/OpenFodder/openfodder",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
       "issue_number": 2641,
@@ -10964,7 +10961,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cannonball-dx-outrun",
@@ -11195,9 +11195,6 @@
       "summary": "Use Catacomb 3-D: The Descent with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Catacomb 3-D: The Descent",
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
       "issue_number": 2643,
@@ -11232,7 +11229,10 @@
           "CatacombGL-Windows-64bit-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "catacomb-3-d-the-descent-reflectionhle",
@@ -11240,9 +11240,6 @@
       "summary": "Use Catacomb 3-D: The Descent with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Catacomb 3-D: The Descent",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2684,
@@ -11275,7 +11272,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cave-story-nxengine-evo",
@@ -11939,9 +11939,6 @@
       "summary": "Use Commander Keen 4 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 4",
       "project_url": "https://github.com/sulix/omnispeak",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
       "issue_number": 2648,
@@ -11974,7 +11971,10 @@
           "omnispeak-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "commander-keen-5-omnispeak",
@@ -11982,9 +11982,6 @@
       "summary": "Use Commander Keen 5 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 5",
       "project_url": "https://github.com/sulix/omnispeak",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
       "issue_number": 2649,
@@ -12017,7 +12014,10 @@
           "omnispeak-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "commander-keen-6-omnispeak",
@@ -12025,9 +12025,6 @@
       "summary": "Use Commander Keen 6 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 6",
       "project_url": "https://github.com/sulix/omnispeak",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
       "artwork": {
@@ -12070,7 +12067,10 @@
           "omnispeak-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "conan2007recomp-crazyriddler-conan-2007",
@@ -14154,9 +14154,6 @@
       "summary": "Set up Descent through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
       "issue_number": 2652,
@@ -14181,7 +14178,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "descent-ii-dxx-rebirth",
@@ -14189,9 +14189,6 @@
       "summary": "Set up Descent II through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent II",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
       "issue_number": 2653,
@@ -14216,7 +14213,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "dethrace-labs-dethrace",
@@ -14286,9 +14286,6 @@
       "original_game_title": "Diablo",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2563,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
       "release_url": "https://github.com/diasurgical/DevilutionX/releases",
@@ -14319,7 +14316,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "diablo-hellfire-devilutionx",
@@ -14328,9 +14328,6 @@
       "original_game_title": "Diablo: Hellfire",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2564,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
       "artwork": {
@@ -14369,7 +14366,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "diablo-ii-resurrected-reign-of-the-warlock-d2r-mobile",
@@ -15042,9 +15042,6 @@
       "original_game_title": "Doom 3 (classic)",
       "project_url": "https://github.com/dhewm/dhewm3",
       "issue_number": 2567,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
       "release_url": "https://github.com/dhewm/dhewm3/releases",
@@ -15076,7 +15073,10 @@
         ],
         "warnings": [],
         "help_url": "https://dhewm3.org/#how-to-install"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
@@ -15130,9 +15130,6 @@
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
       "project_url": "https://github.com/dhewm/dhewm3",
       "issue_number": 2568,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
       "release_url": "https://github.com/dhewm/dhewm3/releases",
@@ -15164,7 +15161,10 @@
         ],
         "warnings": [],
         "help_url": "https://dhewm3.org/#how-to-install"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
@@ -15217,9 +15217,6 @@
       "summary": "Use Doom II with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Doom II",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "issue_number": 2655,
@@ -15252,7 +15249,10 @@
           "crispy-doom-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-ii-rpg-doomiirpg-re",
@@ -15354,9 +15354,6 @@
       "summary": "Use Doom / The Ultimate Doom with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Doom / The Ultimate Doom",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "issue_number": 2654,
@@ -15389,7 +15386,10 @@
           "crispy-doom-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom-macnativeports",
@@ -17519,9 +17519,6 @@
       "summary": "Use Final Doom with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Final Doom",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "issue_number": 2656,
@@ -17554,7 +17551,10 @@
           "crispy-doom-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "final-fantasy-resonance-ffresonancerecomp",
@@ -20273,9 +20273,6 @@
       "summary": "Use Heretic with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Heretic",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "artwork": {
@@ -20316,7 +20313,10 @@
           "crispy-heretic-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "heroes-of-might-and-magic-ii-fheroes2",
@@ -20361,9 +20361,6 @@
       "summary": "Use Hexen with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Hexen",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "issue_number": 2662,
@@ -20396,7 +20393,10 @@
           "crispy-hexen-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "hg-kunodemetries-haunting-ground",
@@ -20676,9 +20676,6 @@
       "summary": "Set up Icewind Dale II through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale II",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
@@ -20713,7 +20710,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "icewind-dale-original-gemrb",
@@ -20721,9 +20721,6 @@
       "summary": "Set up Icewind Dale (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
@@ -20758,7 +20755,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "ico-pc-nathanialf",
@@ -22107,9 +22107,6 @@
       "summary": "Use Keen Dreams with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Keen Dreams",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "artwork": {
@@ -22150,7 +22147,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "keriew-augustus",
@@ -29428,9 +29428,6 @@
       "summary": "Set up Planescape: Torment (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Planescape: Torment (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
@@ -29465,7 +29462,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "poka-poka-jm5557-monster-hunter-diary-poka-poka-felyne-village-g",
@@ -29531,9 +29531,6 @@
       "summary": "Import your own exact blue original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Blue",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "issue_number": 2866,
@@ -29568,7 +29565,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-crystal-gen1recomp",
@@ -29642,9 +29642,6 @@
       "summary": "Import your own exact emerald original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Emerald",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -29687,7 +29684,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-firered-fireredleafgreenrecomp",
@@ -29742,9 +29742,6 @@
       "summary": "Import your own exact firered original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon FireRed",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -29787,7 +29784,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-gold-gen1recomp",
@@ -29861,9 +29861,6 @@
       "summary": "Import your own exact leafgreen original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon LeafGreen",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -29906,7 +29903,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-legends-z-a-pokez-arecomp",
@@ -29989,9 +29989,6 @@
       "summary": "Import your own exact ruby original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Ruby",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -30034,7 +30031,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
@@ -30089,9 +30089,6 @@
       "summary": "Import your own exact sapphire original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Sapphire",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -30134,7 +30131,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
@@ -30205,12 +30205,11 @@
     {
       "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
       "name": "Pokémon Stadium / SS Anne / PokemonStadiumRecomp",
-      "summary": "Explore Pokémon Stadium / SS Anne / PokemonStadiumRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register your already working SS Anne Pokémon Stadium US v1.0 player. Upstream setup, runtime replacement and all game and Transfer Pak data remain yours.",
       "project_url": "https://github.com/mstan/PokemonStadiumRecomp",
       "issue_number": 331,
-      "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/mstan/PokemonStadiumRecomp",
+      "setup_url": "https://github.com/mstan/PokemonStadiumRecomp/blob/fb68669321b02ba8eb7e5743d04079d252bd466f/README.md",
       "artwork": {
         "game_id": 2289,
         "cover_id": 91957,
@@ -30218,7 +30217,37 @@
         "image_sha256": "313a80282d458179c2eb1f5d0a2c0e5fb3a173c1920727a166cf9ae41b930416",
         "game_slug": "pokemon-stadium",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Pokémon Stadium",
+      "release_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the exact originals and complete data",
+            "instruction": "Use your own Pokémon Stadium US v1.0 original: canonical big-endian .z64 is 33554432 bytes, MD5 ed1378bc12115f71209a77844965ba50. Upstream also documents .n64/.v64 input; Rev A/v1.1 is incompatible. Optional Game Boy/Color Transfer Pak games and saves are separate user-owned inputs. No originals or cartridge data are supplied by Portcove."
+          },
+          {
+            "title": "Choose a working upstream Windows folder",
+            "instruction": "Use an already permitted, working Windows x64 upstream-prepared v0.4.7-beta folder with PokemonStadiumRecomp.exe, all DLLs, assets and packaged GPL/component notices. This route registers an existing prepared folder; Portcove does not acquire or extract this package. Keep any archive or operating-system trust refusal in force; do not change protection settings to make the runtime pass. Select the actual PokemonStadiumRecomp.exe and its containing folder as working directory, then use its integrated SS Anne setup/PLAY screen. Keep all companions rather than selecting a helper or an isolated EXE."
+          },
+          {
+            "title": "Preserve runtime and separate cartridge coordinates",
+            "instruction": "Preserve the complete executable/working folder: rom.cfg, launcher.cfg, the registered configuration/FlashRAM store, actual logs/crash reports and all other created files. launcher.cfg p1_rom/p1_save through p4_rom/p4_save resolve relative to the executable folder or as absolute paths. PSR_TRANSFER_PAK_P1_ROM/SAVE through P4 override them. Transfer Pak and GB Tower can write these separate cartridge saves during Play; keep complete original/safe writable copies, configured paths, creating runtimes and saves together. Registration/removal does not adopt, copy, migrate or delete these files; no save/state compatibility or managed backup is promised."
+          },
+          {
+            "title": "Review upstream limits before explicit Play",
+            "instruction": "Maintenance has ceased; known bugs and incomplete cup/Gym Leader Castle coverage remain. The tagged source keeps its SS Anne launcher and game in the player process, and starts unauthenticated loopback debug control at 127.0.0.1:4371, including input/memory mutation and quit; PSR_DEBUG_PORT changes the valid port rather than disabling it. No network/debug isolation is claimed. User-selected trust requires your explicit review and consent. Upstream/user own preparation and replacement; preserve complete actual runtime/data first. Core offers registration, explicit supervised Play and reviewed registration-only removal; managed Install/Update/Backup/Rollback/migration/external deletion remain unavailable."
+          }
+        ],
+        "warnings": [
+          "This route only registers a permitted, already working external player. Core does not acquire or extract the selected archive, authenticate the original, or provide managed maintenance or save/state compatibility.",
+          "The inspected tagged source starts unauthenticated loopback debug control. Transfer Pak and GB Tower can write separately configured cartridge saves; preserve the actual paths and creating runtimes. No actual game or Transfer Pak execution has been qualified."
+        ],
+        "help_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-sword-swsh-recomp",
@@ -30245,9 +30274,6 @@
       "summary": "Import your own exact yellow original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Yellow",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "issue_number": 2867,
@@ -30282,7 +30308,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-yellow-recomp",
@@ -34900,9 +34929,6 @@
       "summary": "Use Spear of Destiny with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Spear of Destiny",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2689,
@@ -34935,7 +34961,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "spicywonda-castlevania-chronicles-recomp",
@@ -35911,9 +35940,6 @@
       "summary": "Use Strife with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Strife",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "artwork": {
@@ -35954,7 +35980,10 @@
           "crispy-strife-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "strike-gunner-s-t-g-strike-gunner-stg-recomp",
@@ -36043,9 +36072,6 @@
       "summary": "Use Super 3-D Noah's Ark (DOS) with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Super 3-D Noah's Ark (DOS)",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "artwork": {
@@ -36086,7 +36112,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "super-mario-64-sm64-co-op-dx",
@@ -37555,9 +37584,6 @@
       "summary": "Use The Catacomb Abyss with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Abyss",
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
       "artwork": {
@@ -37600,7 +37626,10 @@
           "CatacombGL-Windows-64bit-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-abyss-reflectionhle",
@@ -37608,9 +37637,6 @@
       "summary": "Use The Catacomb Abyss with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Abyss",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "artwork": {
@@ -37651,7 +37677,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-apocalypse-catacombgl",
@@ -37659,9 +37688,6 @@
       "summary": "Use The Catacomb Apocalypse with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Apocalypse",
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
       "issue_number": 2646,
@@ -37696,7 +37722,10 @@
           "CatacombGL-Windows-64bit-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-apocalypse-reflectionhle",
@@ -37704,9 +37733,6 @@
       "summary": "Use The Catacomb Apocalypse with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Apocalypse",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2687,
@@ -37739,7 +37765,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-armageddon-catacombgl",
@@ -37747,9 +37776,6 @@
       "summary": "Use The Catacomb Armageddon with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Armageddon",
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
       "issue_number": 2645,
@@ -37784,7 +37810,10 @@
           "CatacombGL-Windows-64bit-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-armageddon-reflectionhle",
@@ -37792,9 +37821,6 @@
       "summary": "Use The Catacomb Armageddon with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Armageddon",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2686,
@@ -37827,7 +37853,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-darkness-xbox-360-2007-estacado",
@@ -37846,9 +37875,6 @@
       "summary": "Set up The Elder Scrolls III: Morrowind through its upstream openmw player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "The Elder Scrolls III: Morrowind",
       "project_url": "https://github.com/OpenMW/openmw",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenMW/openmw/blob/f4bec41444214a7903bebd178389ca22ca13f646/README.md",
       "artwork": {
@@ -37889,7 +37915,10 @@
         ],
         "warnings": [],
         "help_url": "https://openmw.readthedocs.io/en/latest/manuals/installation/index.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
@@ -40176,9 +40205,6 @@
       "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",
       "project_url": "https://github.com/OpenXcom/OpenXcom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
       "issue_number": 2619,
@@ -40203,7 +40229,10 @@
         ],
         "warnings": [],
         "help_url": "https://openxcom.org/"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "ultima-vii-part-two-serpent-isle-exult",
@@ -40211,9 +40240,6 @@
       "summary": "Set up Ultima VII Part Two: Serpent Isle through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII Part Two: Serpent Isle",
       "project_url": "https://github.com/exult/exult",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
       "issue_number": 2622,
@@ -40238,7 +40264,10 @@
         ],
         "warnings": [],
         "help_url": "https://exult.info/docs.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "ultima-vii-the-black-gate-exult",
@@ -40246,9 +40275,6 @@
       "summary": "Set up Ultima VII: The Black Gate through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII: The Black Gate",
       "project_url": "https://github.com/exult/exult",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
       "artwork": {
@@ -40281,7 +40307,10 @@
         ],
         "warnings": [],
         "help_url": "https://exult.info/docs.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "umjamlamrecomp-njh-1001-um-jammer-lammy",
@@ -42393,9 +42422,6 @@
       "summary": "Use Wolfenstein 3D with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Wolfenstein 3D",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2688,
@@ -42428,7 +42454,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "wolfenstein-enemy-territory-et-legacy",
@@ -43217,9 +43246,6 @@
       "summary": "Set up X-COM: Terror from the Deep through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "X-COM: Terror from the Deep",
       "project_url": "https://github.com/OpenXcom/OpenXcom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
       "artwork": {
@@ -43252,7 +43278,10 @@
         ],
         "warnings": [],
         "help_url": "https://openxcom.org/"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "x-men-destiny-xmd-recompiled",

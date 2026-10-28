@@ -531,7 +531,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
     failure,
   } = control;
   const finalFocus = () => {
-    if (applying && actionRegion.current?.isConnected) return actionRegion.current;
+    if ((applying || pending) && actionRegion.current?.isConnected) return actionRegion.current;
     if (reviewButton.current?.isConnected && !reviewButton.current.disabled)
       return reviewButton.current;
     return false;
@@ -547,25 +547,44 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       {!compact && <h3>{archiveOnly ? "Update archive" : "Game update"}</h3>}
       {completionNeedsRefresh && (
         <p role="status" className="my-3 text-xs text-pc-muted-foreground">
-          The last command completed. Current library state still needs a successful refresh. A
-          command receipt does not authorize preparing, installing or discarding an archive.
+          The operation finished, but library status could not be refreshed. Refresh status before
+          continuing.
         </p>
       )}
       <RetainedUpdateArchive control={control} portId={props.portId} />
       {!archiveOnly && !plan && (
-        <ChoiceSelect<UpdateIntent>
-          label="What would you like to do?"
-          value={selectedIntent}
-          disabled={pending || (exclusiveBusy && acquireBusy)}
-          onChange={setIntent}
-          options={[
-            { value: "install", label: "Install update" },
-            ...(!existingArchive
-              ? [{ value: "download" as const, label: "Download for later" }]
-              : []),
-            { value: "prepare", label: "Prepare for later" },
-          ]}
-        />
+        <div className="grid gap-2">
+          <ChoiceSelect<UpdateIntent>
+            label="What would you like to do?"
+            value={selectedIntent}
+            disabled={pending || (exclusiveBusy && acquireBusy)}
+            onChange={setIntent}
+            options={[
+              { value: "install", label: "Update now" },
+              ...(selectedIntent === "prepare"
+                ? [{ value: "prepare" as const, label: "Prepare for later" }]
+                : []),
+              ...(!existingArchive
+                ? [{ value: "download" as const, label: "Download for later" }]
+                : []),
+            ]}
+          />
+          <details inert={pending || applying}>
+            <summary data-focusable>Advanced update choice</summary>
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={pending || (exclusiveBusy && acquireBusy)}
+              onClick={() => setIntent("prepare")}
+            >
+              Prepare for later
+            </Button>
+            <p>
+              Prepare verified staged content without activating it. A downloaded archive still
+              needs preparation.
+            </p>
+          </details>
+        </div>
       )}
       {!archiveOnly && (
         <Button
@@ -684,7 +703,7 @@ function GameUpdateAlternativeActions({
           disabled={exclusiveBusy || pending}
           onClick={() => void review("install")}
         >
-          Review install now
+          Update now
         </Button>
       )}
       {reviewed.activate && reviewed.plan.action !== "download" && (
@@ -694,7 +713,7 @@ function GameUpdateAlternativeActions({
           disabled={exclusiveBusy || pending}
           onClick={() => void review("prepare")}
         >
-          Review keeping for later
+          Keep for later
         </Button>
       )}
       {reviewed.plan.action === "download" && (downloadOnly || reviewed.activate) && (
@@ -704,7 +723,7 @@ function GameUpdateAlternativeActions({
           disabled={exclusiveBusy || pending}
           onClick={() => void review("prepare")}
         >
-          Review prepare for later
+          Prepare for later
         </Button>
       )}
       {reviewed.plan.action === "download" &&
@@ -717,7 +736,7 @@ function GameUpdateAlternativeActions({
             disabled={acquireBusy || pending}
             onClick={() => void review("download")}
           >
-            Review download for later
+            Download for later
           </Button>
         )}
     </>

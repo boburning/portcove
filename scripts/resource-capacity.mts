@@ -1,3 +1,4 @@
+import { replacePreparedFile } from "./prepared-file-replacement.mts";
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import type {
   ResourceConfiguration,
@@ -68,7 +69,7 @@ import {
 import { resolvePhysicalPath } from "./dev-storage.mts";
 import { fallowSource } from "./fallow-source.mts";
 import { createHash, randomUUID } from "node:crypto";
-import { readFile, readdir, mkdir, writeFile, rm, rename } from "node:fs/promises";
+import { readFile, readdir, mkdir, writeFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -912,7 +913,7 @@ export async function retireLegacyEntrypoints(
     await writeFile(evidence, JSON.stringify(receipt, null, 2) + "\n", { flag: "wx" });
     const temporary = path.join(root, `config-${randomUUID()}.next`);
     await writeFile(temporary, JSON.stringify(receipt.next, null, 2) + "\n", { flag: "wx" });
-    await rename(temporary, path.join(root, "config.json"));
+    await replacePreparedFile(temporary, path.join(root, "config.json"));
     return { root, config: receipt.next, evidence };
   } finally {
     for (const lock of bridge.held.reverse()) await lock.release();

@@ -5,10 +5,6 @@ import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import { stripTypeScriptTypes } from "node:module";
-import { runInNewContext } from "node:vm";
-import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   runDistinctPublicationEffects,
@@ -394,16 +390,28 @@ void test("publication preserves old signed context while an actual recovery cus
   );
 });
 
-void test("fixed publication source function freezes caller locators before the controlled receiver await", async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "fixed-publication-alias-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const source = await readFile(
-    new URL("./release-publication-controller.mts", import.meta.url),
-    "utf8",
+type FixtureBoundary = {
+  url: string;
+  exports: { name: string; callable: boolean; value?: unknown }[];
+};
+
+async function publicationConfigurationBehavior(
+  entry: string,
+  root: string,
+  boundaries: FixtureBoundary[],
+) {
+  const { mock } = await import("node:test");
+  const childProcess = await import("node:child_process");
+  function forbidden(): never {
+    throw new Error("Unowned process or publication effect is forbidden in this fixture");
+  }
+  const processes = Object.fromEntries(
+    Object.entries(childProcess)
+      .filter(([name]) => name !== "default")
+      .map(([name, value]) => [name, typeof value === "function" ? forbidden : value]),
   );
-  const start = source.indexOf("export async function runFixedPublicationConfiguration(");
-  const end = source.indexOf("/** Exact successful logical effects", start);
-  assert.ok(start >= 0 && end > start);
+  mock.module("node:child_process", { namedExports: processes, defaultExport: processes });
+  process.kill = forbidden;
   const identity = {
     audience: "portcove-release-publication-reader-v1",
     subject: "fixed-inert-subject",
@@ -413,6 +421,13 @@ void test("fixed publication source function freezes caller locators before the 
     run_id: "12345",
     run_attempt: 1,
   };
+  Object.assign(process.env, {
+    GITHUB_RUN_ID: identity.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: identity.controller_revision,
+    GITHUB_REF: identity.controller_ref,
+    RUNNER_TEMP: root,
+  });
   const roles = ["releases", "preview", "stable", "snapshot", "timestamp"].map((role) => ({
     role,
     marker: "original",
@@ -422,62 +437,130 @@ void test("fixed publication source function freezes caller locators before the 
     tools: { artifact: { marker: "original-artifact" }, bundle: { marker: "original-bundle" } },
     context: { marker: "original-context" },
     roles,
-    configuration: { marker: "original-configuration" },
+    configuration: {
+      admission_configuration: { namespace: "inert" },
+      aggregate: { marker: "original-configuration" },
+      native_locators: [],
+    },
   };
-  const reached = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
+  const reached = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>();
   const observed: unknown[] = [];
-  const entry = runInNewContext(
-    stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
-      "\nrunFixedPublicationConfiguration",
-    {
-      structuredClone,
-      isRecord,
-      path,
-      mkdtemp,
-      inspectAssemblerIdentityExpectation,
-      withCoordinatorDeadline,
-      process: {
-        env: {
-          GITHUB_RUN_ID: identity.run_id,
-          GITHUB_RUN_ATTEMPT: "1",
-          GITHUB_SHA: identity.controller_revision,
-          GITHUB_REF: identity.controller_ref,
-          RUNNER_TEMP: root,
-        },
-      },
-      console: { log: () => {} },
-      currentPublicationJobDeadline: () => performance.now() + 10000,
+  const toolsReceipt = Object.freeze({ kind: "inert-tools" });
+  const contextReceipt = Object.freeze({ kind: "inert-context" });
+  const receivedRoles: object[] = [];
+  const boundary = new Error(
+    "Controlled read-only aggregate boundary; no admission or publication",
+  );
+  const replacements: Record<string, Record<string, unknown>> = {
+    [new URL("release-controller-tool-admission.mts", entry).href]: {
       receiveControllerTools: async (_root: string, artifact: unknown, bundle: unknown) => {
         observed.push(structuredClone({ artifact, bundle }));
         reached.resolve();
         await release.promise;
-        return {};
+        return toolsReceipt;
       },
-      receiveSigningContextArtifact: async (_root: string, context: unknown) => {
-        observed.push(context);
+      verifiedControllerToolPaths: async (receipt: object) => {
+        assert.equal(receipt, toolsReceipt);
         return {};
-      },
-      receiveTufRoleArtifact: async (_context: unknown, _root: string, role: unknown) => {
-        observed.push(role);
-        return {};
-      },
-      prepareActualTufPublication: async () => ({}),
-      runReleasePublicationController: async (configuration: unknown) => {
-        observed.push(configuration);
-        return { decision: "immutable-release-and-result-prepared" };
       },
     },
-  ) as (raw: unknown, deadline?: number) => Promise<unknown>;
-  const pending = entry(input, performance.now() + 10000);
-  await reached.promise;
+    [new URL("release-signing-context-artifact.mts", entry).href]: {
+      receiveSigningContextArtifact: async (_root: string, context: unknown) => {
+        observed.push(context);
+        return contextReceipt;
+      },
+      requireReceivedSigningContext: async (receipt: object) => {
+        assert.equal(receipt, contextReceipt);
+        return {};
+      },
+    },
+    [new URL("release-tuf-role-artifact.mts", entry).href]: {
+      receiveTufRoleArtifact: async (_context: unknown, _root: string, role: unknown) => {
+        assert.equal(_context, contextReceipt);
+        observed.push(role);
+        const receipt = Object.freeze({ role });
+        receivedRoles.push(receipt);
+        return receipt;
+      },
+    },
+    [new URL("release-tuf-publication.mts", entry).href]: {
+      prepareActualTufPublication: async (context: object, tools: object, roles: object[]) => {
+        assert.equal(context, contextReceipt);
+        assert.equal(tools, toolsReceipt);
+        assert.equal(roles.length, 5);
+        assert.equal(receivedRoles.length, 5);
+        for (const [index, receipt] of roles.entries()) assert.equal(receipt, receivedRoles[index]);
+        return {};
+      },
+    },
+    [new URL("release-payload-preparation.mts", entry).href]: {
+      inspectControllerAggregateLocator: (aggregate: unknown) => {
+        observed.push(aggregate);
+        throw boundary;
+      },
+    },
+    [new URL("github-api.mts", entry).href]: {
+      createGitHubRunner: () => forbidden,
+      GitHubApiClient: class {
+        request(method: string, endpoint: string) {
+          assert.equal(method, "GET");
+          assert.equal(
+            endpoint,
+            `repos/boburning/portcove/actions/runs/${identity.run_id}/attempts/1/jobs?per_page=100`,
+          );
+          return {
+            status: 200,
+            body: {
+              total_count: 1,
+              jobs: [
+                {
+                  id: 42,
+                  name: "Publish immutable application release",
+                  run_id: Number(identity.run_id),
+                  run_attempt: 1,
+                  head_sha: identity.controller_revision,
+                  status: "in_progress",
+                  started_at: new Date().toISOString(),
+                },
+              ],
+            },
+          };
+        }
+      },
+    },
+  };
+  for (const module of boundaries)
+    mock.module(module.url, {
+      namedExports: Object.fromEntries(
+        module.exports.map((item) => [
+          item.name,
+          replacements[module.url]?.[item.name] ?? (item.callable ? forbidden : item.value),
+        ]),
+      ),
+    });
+  const actual: unknown = await import(entry);
+  assert.ok(actual !== null && typeof actual === "object");
+  const invoke: unknown = Reflect.get(actual, "runFixedPublicationConfiguration");
+  assert.equal(typeof invoke, "function");
+  const pending = Promise.resolve(
+    Reflect.apply(invoke as (...args: unknown[]) => unknown, undefined, [
+      input,
+      performance.now() + 10000,
+    ]),
+  );
+  // A replaced entry/receiver must fail rather than leave the handshake pending.
+  await Promise.race([
+    reached.promise,
+    pending.then(() => assert.fail("Publication entry skipped its first receiver")),
+  ]);
   input.context.marker = "changed-context";
-  input.configuration.marker = "changed-configuration";
+  input.configuration.aggregate.marker = "changed-configuration";
   input.tools.artifact.marker = "changed-artifact";
   input.roles.splice(0, 5, ...roles.map((role) => ({ ...role, marker: "changed-role" })));
   release.resolve();
-  await pending;
-  assert.deepEqual(JSON.parse(JSON.stringify(observed)), [
+  await assert.rejects(pending, (error) => error === boundary);
+  assert.deepEqual(observed, [
     { artifact: { marker: "original-artifact" }, bundle: { marker: "original-bundle" } },
     { marker: "original-context" },
     ...["releases", "preview", "stable", "snapshot", "timestamp"].map((role) => ({
@@ -486,4 +569,46 @@ void test("fixed publication source function freezes caller locators before the 
     })),
     { marker: "original-configuration" },
   ]);
+}
+
+void test("fixed publication source function freezes caller locators before the controlled receiver await", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "fixed-publication-alias-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const entry = new URL("./release-publication-controller.mts", import.meta.url);
+  const boundaries: FixtureBoundary[] = [];
+  for (const name of [
+    "release-controller-tool-admission.mts",
+    "release-signing-context-artifact.mts",
+    "release-tuf-role-artifact.mts",
+    "release-tuf-publication.mts",
+    "release-payload-preparation.mts",
+    "github-api.mts",
+  ]) {
+    const url = new URL(name, entry).href;
+    const namespace: unknown = await import(url);
+    assert.ok(isRecord(namespace));
+    boundaries.push({
+      url,
+      exports: Object.entries(namespace).map(([name, value]) => ({
+        name,
+        callable: typeof value === "function",
+        ...(typeof value === "function" ? {} : { value }),
+      })),
+    });
+  }
+  const { spawnSync } = await import("node:child_process");
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--experimental-test-module-mocks",
+      "--input-type=module",
+      "--eval",
+      `import assert from 'node:assert/strict';await (${publicationConfigurationBehavior.toString()})(${JSON.stringify(entry.href)},${JSON.stringify(root)},${JSON.stringify(boundaries)});`,
+    ],
+    { env: environment, encoding: "utf8", timeout: 15000, maxBuffer: 65536 },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });

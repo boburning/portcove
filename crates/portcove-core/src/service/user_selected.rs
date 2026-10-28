@@ -1004,6 +1004,11 @@ mod tests {
         "serious-sam-the-second-encounter-serioussamclassic"
     );
 
+    prepared_player_case!(
+        historical_route_stadium,
+        "pokemon-stadium-ss-anne-pokemonstadiumrecomp"
+    );
+
     #[test]
     fn pre_declaration_selected_registration_keeps_its_creating_listing_contract() {
         let id = "super-mario-64-sm64-co-op-dx";
@@ -1053,6 +1058,116 @@ mod tests {
             b"player save"
         );
     }
+
+    prepared_player_case!(
+        desktop_prepared_route_2555,
+        "blake-stone-aliens-of-gold-bstone"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2556,
+        "blake-stone-planet-strike-bstone"
+    );
+    prepared_player_case!(desktop_prepared_route_2652, "descent-dxx-rebirth");
+    prepared_player_case!(desktop_prepared_route_2653, "descent-ii-dxx-rebirth");
+    prepared_player_case!(
+        desktop_prepared_route_2619,
+        "ufo-enemy-unknown-x-com-ufo-defense-openxcom"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2620,
+        "x-com-terror-from-the-deep-openxcom"
+    );
+    prepared_player_case!(desktop_prepared_route_2628, "baldur-s-gate-original-gemrb");
+    prepared_player_case!(
+        desktop_prepared_route_2629,
+        "baldur-s-gate-ii-original-gemrb"
+    );
+    prepared_player_case!(desktop_prepared_route_2630, "icewind-dale-original-gemrb");
+    prepared_player_case!(desktop_prepared_route_2631, "icewind-dale-ii-gemrb");
+    prepared_player_case!(
+        desktop_prepared_route_2632,
+        "planescape-torment-original-gemrb"
+    );
+    prepared_player_case!(desktop_prepared_route_2641, "cannon-fodder-open-fodder");
+    prepared_player_case!(desktop_prepared_route_2642, "cannon-fodder-2-open-fodder");
+    prepared_player_case!(
+        desktop_prepared_route_2621,
+        "ultima-vii-the-black-gate-exult"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2622,
+        "ultima-vii-part-two-serpent-isle-exult"
+    );
+    prepared_player_case!(desktop_prepared_route_2563, "diablo-devilutionx");
+    prepared_player_case!(desktop_prepared_route_2564, "diablo-hellfire-devilutionx");
+    prepared_player_case!(
+        desktop_prepared_route_2616,
+        "the-elder-scrolls-iii-morrowind-openmw"
+    );
+    prepared_player_case!(desktop_prepared_route_2567, "doom-3-classic-dhewm3");
+    prepared_player_case!(
+        desktop_prepared_route_2568,
+        "doom-3-resurrection-of-evil-classic-dhewm3"
+    );
+    prepared_player_case!(desktop_prepared_route_2683, "keen-dreams-reflectionhle");
+    prepared_player_case!(
+        desktop_prepared_route_2684,
+        "catacomb-3-d-the-descent-reflectionhle"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2685,
+        "the-catacomb-abyss-reflectionhle"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2686,
+        "the-catacomb-armageddon-reflectionhle"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2687,
+        "the-catacomb-apocalypse-reflectionhle"
+    );
+    prepared_player_case!(desktop_prepared_route_2688, "wolfenstein-3d-reflectionhle");
+    prepared_player_case!(
+        desktop_prepared_route_2689,
+        "spear-of-destiny-reflectionhle"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2690,
+        "super-3-d-noah-s-ark-dos-reflectionhle"
+    );
+    prepared_player_case!(desktop_prepared_route_2692, "bio-menace-reflectionhle");
+    prepared_player_case!(
+        desktop_prepared_route_2654,
+        "doom-the-ultimate-doom-crispy-doom-family"
+    );
+    prepared_player_case!(desktop_prepared_route_2655, "doom-ii-crispy-doom-family");
+    prepared_player_case!(desktop_prepared_route_2656, "final-doom-crispy-doom-family");
+    prepared_player_case!(desktop_prepared_route_2657, "heretic-crispy-doom-family");
+    prepared_player_case!(desktop_prepared_route_2662, "hexen-crispy-doom-family");
+    prepared_player_case!(desktop_prepared_route_2663, "strife-crispy-doom-family");
+    prepared_player_case!(
+        desktop_prepared_route_2643,
+        "catacomb-3-d-the-descent-catacombgl"
+    );
+    prepared_player_case!(desktop_prepared_route_2644, "the-catacomb-abyss-catacombgl");
+    prepared_player_case!(
+        desktop_prepared_route_2645,
+        "the-catacomb-armageddon-catacombgl"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2646,
+        "the-catacomb-apocalypse-catacombgl"
+    );
+    prepared_player_case!(desktop_prepared_route_2648, "commander-keen-4-omnispeak");
+    prepared_player_case!(desktop_prepared_route_2649, "commander-keen-5-omnispeak");
+    prepared_player_case!(desktop_prepared_route_2650, "commander-keen-6-omnispeak");
+    prepared_player_case!(desktop_prepared_route_2866, "pokemon-blue-gen1recomp");
+    prepared_player_case!(desktop_prepared_route_2875, "pokemon-emerald-gen1recomp");
+    prepared_player_case!(desktop_prepared_route_2871, "pokemon-firered-gen1recomp");
+    prepared_player_case!(desktop_prepared_route_2872, "pokemon-leafgreen-gen1recomp");
+    prepared_player_case!(desktop_prepared_route_2873, "pokemon-ruby-gen1recomp");
+    prepared_player_case!(desktop_prepared_route_2874, "pokemon-sapphire-gen1recomp");
+    prepared_player_case!(desktop_prepared_route_2867, "pokemon-yellow-gen1recomp");
 
     #[test]
     fn generic_route_beside_managed_definition_does_not_change_the_managed_contract() {

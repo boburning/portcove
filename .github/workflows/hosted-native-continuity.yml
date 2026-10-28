@@ -13,6 +13,11 @@ on:
         required: false
         type: boolean
         default: false
+      connected_private_diagnostic:
+        description: Separately held S2 private-session diagnostic; source/account approval required
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,6 +37,7 @@ jobs:
       CARGO_NET_RETRY: "0"
       PORTCOVE_HOSTED_PLATFORM: ${{ inputs.platform }}
       PORTCOVE_HOSTED_OBSERVATION_ONLY: ${{ inputs.resource_observer_only && 'true' || 'false' }}
+      PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: ${{ inputs.connected_private_diagnostic && 'true' || 'false' }}
     steps:
       - name: Start bounded runner resource observation before checkout
         shell: pwsh
@@ -256,6 +262,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Refuse held S2 before runtime, driver, dependency or build work
+        id: diagnostic_preflight
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        shell: pwsh
+        run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Preflight
       - if: ${{ !inputs.resource_observer_only }}
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -337,6 +348,102 @@ jobs:
             $taskPrevious=$taskCurrent
             if($taskIndex -lt 2){Start-Sleep -Seconds 6}
           }
+      - name: Start the separately held original connected diagnostic controller
+        id: diagnostic_start
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        timeout-minutes: 6
+        shell: pwsh
+        run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Start
+      - name: Read original diagnostic initial-stage upload request
+        id: diagnostic_pre
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $taskRequest = (& node scripts/release-hosted-native-windows-diagnostic.mts request payload-signing) | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage request refused' }
+          $taskDelimiter = 'PORTCOVE_DIAGNOSTIC_PATHS'
+          $taskOutput = @(('request_sha256=' + $taskRequest.request_sha256), ('name=' + $taskRequest.name), ('paths<<' + $taskDelimiter)) + @($taskRequest.files) + @($taskDelimiter)
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ($taskOutput -join "`n") + "`n")
+      - name: Upload only four original diagnostic initial-stage public records
+        id: diagnostic_pre_upload
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.diagnostic_pre.outputs.name }}
+          path: ${{ steps.diagnostic_pre.outputs.paths }}
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+          compression-level: 0
+      - name: Acknowledge the original diagnostic initial-stage provider upload
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        shell: pwsh
+        env:
+          DIAGNOSTIC_REQUEST: ${{ steps.diagnostic_pre.outputs.request_sha256 }}
+          DIAGNOSTIC_ARTIFACT: ${{ steps.diagnostic_pre_upload.outputs.artifact-id }}
+          DIAGNOSTIC_DIGEST: ${{ steps.diagnostic_pre_upload.outputs.artifact-digest }}
+        run: |
+          & node scripts/release-hosted-native-windows-diagnostic.mts ack payload-signing $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage acknowledgement refused' }
+      - name: Read original diagnostic compatible-transition upload request
+        id: diagnostic_post
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $taskRequest = (& node scripts/release-hosted-native-windows-diagnostic.mts request release-publication) | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition request refused' }
+          $taskDelimiter = 'PORTCOVE_DIAGNOSTIC_PATHS'
+          $taskOutput = @(('request_sha256=' + $taskRequest.request_sha256), ('name=' + $taskRequest.name), ('paths<<' + $taskDelimiter)) + @($taskRequest.files) + @($taskDelimiter)
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ($taskOutput -join "`n") + "`n")
+      - name: Upload only four original diagnostic compatible-transition public records
+        id: diagnostic_post_upload
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.diagnostic_post.outputs.name }}
+          path: ${{ steps.diagnostic_post.outputs.paths }}
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+          compression-level: 0
+      - name: Acknowledge the original diagnostic compatible-transition provider upload
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        shell: pwsh
+        env:
+          DIAGNOSTIC_REQUEST: ${{ steps.diagnostic_post.outputs.request_sha256 }}
+          DIAGNOSTIC_ARTIFACT: ${{ steps.diagnostic_post_upload.outputs.artifact-id }}
+          DIAGNOSTIC_DIGEST: ${{ steps.diagnostic_post_upload.outputs.artifact-digest }}
+        run: |
+          & node scripts/release-hosted-native-windows-diagnostic.mts ack release-publication $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition acknowledgement refused' }
+      - name: Request original diagnostic recovery after a failed Actions transition
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && failure() && steps.diagnostic_start.outcome == 'success' }}
+        timeout-minutes: 1
+        shell: pwsh
+        run: |
+          & node scripts/release-hosted-native-windows-diagnostic.mts abort
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic abort request unavailable; retain its original bounded recovery evidence' }
+      - name: Read the original diagnostic terminal result without resuming another owner
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_start.outcome == 'success' }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          & node scripts/release-hosted-native-windows-diagnostic.mts settle
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic did not settle successfully; preserve partial evidence' }
+      - name: Retain only bounded diagnostic source and cleanup records
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_preflight.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hosted-native-diagnostic-settlement-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json
+            ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json
+          if-no-files-found: warn
+          retention-days: 7
+          overwrite: false
+          compression-level: 0
       - name: Stop the original resource observer and retain sampled coverage
         if: always()
         shell: pwsh
@@ -369,6 +476,7 @@ jobs:
           path: |
             work/hosted-continuity-evidence/*.json
             work/updater-rehearsal/rehearsal-result.json
+            work/updater-rehearsal/windows-fixture-derivation.json
             work/updater-rehearsal/windows-installed-update.json
             work/updater-rehearsal/windows-installed-update-summary.json
             work/updater-rehearsal/windows-renderer-evidence/*.json

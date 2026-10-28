@@ -470,6 +470,12 @@ void test("manual rehearsal retains the complete matrix without production crede
   assert.match(workflow, /windows-renderer-evidence\/\*\.png/);
   assert.match(workflow, /renderer-qualification\/evidence\/\*\.json/);
   assert.doesNotMatch(workflow, /renderer-qualification\/\*\*/);
+  for (const file of ["Portcove_0.1.0_x64-setup.exe", "Portcove_0.1.0_x64-setup.exe.sig"])
+    assert.ok(
+      retained(`work/updater-rehearsal/qualified-0.1.0-bundles/nsis/${file}`),
+      `loses installed predecessor ${file}`,
+    );
+  assert.equal(retained("work/updater-rehearsal/qualified-0.1.0-bundles/nsis/private.key"), false);
   assert.match(workflow, /qualified-\*-bundles\/appimage\/\*\*/);
   assert.match(workflow, /qualified-\*-bundles\/macos\/Portcove\.app\/\*\*/);
   assert.match(
@@ -582,7 +588,7 @@ void test("manual rehearsal retains the complete matrix without production crede
   assert.match(rehearsal, /wrong_signature_verified_with_distinct_key = \$true/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$wrongPrivateRoot -Recurse -Force/);
   const outerFinally = rehearsal.match(
-    /} finally \{\r?\n(?<body>(?:    [^\r\n]*\r?\n)+)}\r?\n\[ordered]@\{ source_commit = \$revision; platform = \$PlatformLabel; status = "passed"/,
+    /} finally \{\r?\n(?<body>(?:    [^\r\n]*\r?\n)+)}\r?\nif\(\$captureFixtureDerivation\)\{/,
   );
   assert.ok(outerFinally?.groups?.body);
   assert.match(

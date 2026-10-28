@@ -110,6 +110,18 @@ export interface ReleaseAsset {
   bytes: number;
   sha256: string;
 }
+/** Byte identity only; no filesystem custody, reservation or publication authority. */
+export function releaseAssetIdentity(filename: string, bytes: Buffer): ReleaseAsset {
+  return { filename, bytes: bytes.length, sha256: sha(bytes) };
+}
+
+export function releaseChecksumBytes(assets: readonly ReleaseAsset[]) {
+  const files = [...assets].sort((a, b) => a.filename.localeCompare(b.filename));
+  const manifest = Buffer.from(files.map((file) => `${file.sha256}  ${file.filename}\n`).join(""));
+  parseReleaseChecksumManifest(manifest.toString("utf8"), "final signed release");
+  return { files, manifest };
+}
+
 export interface ReleasePublicationIdentity {
   version: string;
   source_commit: string;
@@ -645,29 +657,19 @@ export async function prepareImmutableReleasePublication(
       );
     if (finalized.error || finalized.status !== 0 || finalized.signal)
       throw new Error("maintained exact-source Linux/SBOM finalization refused");
-    const files = [...packages];
+    const payloadFiles = [...packages];
     const sbomBytes = await boundedBytes(path.join(assetsRoot, releaseSbomName), 16 * 1024 * 1024);
-    files.push({ filename: releaseSbomName, bytes: sbomBytes.length, sha256: sha(sbomBytes) });
+    payloadFiles.push(releaseAssetIdentity(releaseSbomName, sbomBytes));
     for (const signature of signatures) {
       await writeFile(path.join(assetsRoot, signature.filename), signature.bytes, {
         flag: "wx",
         mode: 0o600,
       });
-      files.push({
-        filename: signature.filename,
-        bytes: signature.bytes.length,
-        sha256: sha(signature.bytes),
-      });
+      payloadFiles.push(releaseAssetIdentity(signature.filename, signature.bytes));
     }
-    files.sort((a, b) => a.filename.localeCompare(b.filename));
-    const manifest = Buffer.from(files.map((f) => `${f.sha256}  ${f.filename}\n`).join(""));
-    parseReleaseChecksumManifest(manifest.toString("utf8"), "final signed release");
+    const { files, manifest } = releaseChecksumBytes(payloadFiles);
     await writeFile(path.join(assetsRoot, policy.checksum_manifest), manifest);
-    files.push({
-      filename: policy.checksum_manifest,
-      bytes: manifest.length,
-      sha256: sha(manifest),
-    });
+    files.push(releaseAssetIdentity(policy.checksum_manifest, manifest));
     phase = "reservation-after";
     await requireReservation(request.descriptor, await recover());
     const session = Object.freeze({

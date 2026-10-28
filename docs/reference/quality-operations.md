@@ -638,6 +638,14 @@ release checksums by architecture, and desktop-driver pins.
 `.config/powershell-resources.psd1` owns the exact PSScriptAnalyzer module version
 downloaded from PSGallery through PSResourceGet on Windows.
 
+The provider-selected pnpm must match `package.json`. `pmOnFail: error` refuses a
+mismatched provider without downloading a replacement and keeps pnpm 12's
+toolchain integrity document when lock maintenance regenerates `pnpm-lock.yaml`.
+`pmOnFail: ignore` suppresses generation of that document. The required dependency
+automation contracts validate the root pin, maintained platform artifacts and
+complete recorded dependency closure separately from application dependencies.
+Keep `runtimeOnFail: ignore`; the active environment continues to own Node.
+
 The Windows bootstrap verifies and atomically promotes these payloads beneath the
 shared local application-data cache, then writes ignored checkout shims. Aqua
 roots are content-keyed from every applicable repository pin. Repository command

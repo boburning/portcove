@@ -335,10 +335,12 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-default-cover.native.test.mts",
       "apps/desktop/scripts/desktop-reload.native.test.mts",
       "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-real-runtime.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+      "scripts/capture-target.test.mts",
     ],
   ],
   [
@@ -1588,7 +1590,13 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-artwork-correction-test.mts",
   ].map((file): [string, string[]] => [
     file,
-    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      ...(file === "apps/desktop/scripts/desktop-preparation-test.mts"
+        ? ["scripts/capture-target.test.mts"]
+        : []),
+    ],
   ]),
   [
     "apps/desktop/scripts/desktop-scenario-outcomes.mts",
@@ -1610,7 +1618,10 @@ for (const [file, tests] of [
     file,
     ["scripts/desktop-scenarios.test.mts", "scripts/fixture-module-closure.test.mts"],
   ]),
-  ["apps/desktop/scripts/desktop-source-dialog-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  [
+    "apps/desktop/scripts/desktop-source-dialog-test.mts",
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
   ...[
     "apps/desktop/scripts/desktop-review-controls.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",
@@ -1810,6 +1821,7 @@ for (const file of [
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/production-aggregate-steps.test.mts",
+  "scripts/renovate-engine-probe.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",
@@ -1945,6 +1957,7 @@ for (const file of [
   "scripts/quality-tools.mts",
   "scripts/resource-command.mts",
   "scripts/resource-capacity.mts",
+  "scripts/prepared-file-replacement.mts",
   "scripts/runtime-values.mts",
 ]) {
   explicitNodeTests.set(file, [
@@ -2540,6 +2553,16 @@ function classifyOnePath(
   }
 
   if (
+    ["aqua.yaml", "aqua-checksums.json", ".aqua-version", ".config/tool-bootstrap.json"].includes(
+      file,
+    )
+  ) {
+    selection.scopes.add("script-toolchain");
+    selection.pythonLint = true;
+    selection.pythonFiles.add("apps/desktop/assets/brand/models/v2");
+  }
+
+  if (
     file === ".editorconfig" ||
     file === ".oxfmtrc.json" ||
     file === ".oxlintrc.json" ||
@@ -2811,6 +2834,15 @@ export function buildPlan(
         "check",
         ...sorted(selection.pythonFiles),
       ]),
+    );
+  if (selection.scopes.has("script-toolchain"))
+    commands.push(
+      command(
+        "lint-tool-fixtures",
+        "script toolchain positive and negative controls",
+        process.execPath,
+        ["scripts/lint-tools.integration.mts", "ruff", "shellcheck", "actionlint"],
+      ),
     );
   if (selection.rustfmt || broad)
     commands.push(
