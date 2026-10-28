@@ -1,0 +1,2532 @@
+{
+  "schema_version": 1,
+  "kind": "dated-windows-historical-manual-bootstrap-and-authenticated-skipped-update-observation",
+  "owners": [224, 52],
+  "authority": "none; ordinary non-elevated installed qualification observation, not production publication",
+  "source_composition": {
+    "historical_package_source": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+    "qualified_product_source": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+    "historical_harness_source": "e077d8bfbbcd89f9a3728604c1af7b170e9e5687",
+    "rebased_code_head": "54c719bdc6d15f92e44c71f370f0ecefe72221f8",
+    "runtime_harness_sha256": "0ba4cfd85428ebeafa6f4fba1be81dfdf85747b28e27367c6404bc0dc3b91d1b",
+    "runtime_harness_equal_to_rebased_code": true,
+    "waiting_shared_driver_source": "19c6d00cc502496d5d5043470f65f282ebe300aa",
+    "helper_os_observer_source": "ff99495460f25cbcf7a0721145441b164e2d8cfe",
+    "scope": "published updater-less Alpha2 followed by current-source qualification-instrumented 0.1.0 and0.3.0; no production/default-feature updater claim",
+    "execution_composition": {
+      "harness_source": "e077d8bfbbcd89f9a3728604c1af7b170e9e5687",
+      "harness_sha256": "0ba4cfd85428ebeafa6f4fba1be81dfdf85747b28e27367c6404bc0dc3b91d1b",
+      "product_source": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+      "historical_package": {
+        "schema_version": 1,
+        "version": "0.1.0-alpha.2",
+        "source_commit": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+        "installer_path": "E:\\Codex-Evidence\\beta-updater-20261028\\historical-alpha2-bootstrap-inputs\\Portcove_0.1.0-alpha.2_x64-setup.exe",
+        "installer_sha256": "2e2b6a3c5a0134924b5133f865842dd68c06ef6082885be6d1837235adf16a85",
+        "installer_bytes": 8331357,
+        "release_tag": "v0.1.0-alpha.2",
+        "release_asset_id": 550866264,
+        "release_url": "https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2"
+      },
+      "legacy_pe_requested_execution_level": "asInvoker; exact retained bytes scanned before execution",
+      "scope": "startup/close of genuine historical package; manual updater bootstrap; qualification fixture signed skipped upgrade; no credential preservation or production authority",
+      "prior_failure": "first historical observation retained as failed; new SDK-child oracle and fresh private result root",
+      "wrapper_sha256": "09f9b5dd100964644b388e4adc843d4ba127eab982aaf1bd5e3c7ea6958442be",
+      "input_tuple_sha256": "f3a278955ff37a19ed4cd7e5ac3bb633369ab99da202f9e696d01e74e3f7c68a"
+    },
+    "main_integration_code_head": "8a4197ac9e00d823194423a90ec2a15f29eb7d1a"
+  },
+  "historical_input": {
+    "declared_package": {
+      "schema_version": 1,
+      "version": "0.1.0-alpha.2",
+      "source_commit": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+      "installer_path": "E:\\Codex-Evidence\\beta-updater-20261028\\historical-alpha2-bootstrap-inputs\\Portcove_0.1.0-alpha.2_x64-setup.exe",
+      "installer_sha256": "2e2b6a3c5a0134924b5133f865842dd68c06ef6082885be6d1837235adf16a85",
+      "installer_bytes": 8331357,
+      "release_tag": "v0.1.0-alpha.2",
+      "release_asset_id": 550866264,
+      "release_url": "https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2"
+    },
+    "static_inspection": {
+      "observed_at": "2026-10-28T19:13:49.5070435Z",
+      "inspection_only": true,
+      "authenticode_status": "NotSigned",
+      "signer_thumbprint": null,
+      "file_version": "0.1.0-alpha.2",
+      "product_version": "0.1.0-alpha.2",
+      "sha256": "2e2b6a3c5a0134924b5133f865842dd68c06ef6082885be6d1837235adf16a85"
+    },
+    "payload_signature": null,
+    "signed_metadata_or_feed": null,
+    "signature_scope": "Original published SHA256SUMS/provider digest and unsigned Authenticode state; not a fabricated payload signature. Historical release describes manual application updates.",
+    "custody": {
+      "observed_at": "2026-10-28T18:33:24.746632+00:00",
+      "release_tag": "v0.1.0-alpha.2",
+      "source": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+      "assets": [
+        {
+          "name": "Portcove_0.1.0-alpha.2_amd64.AppImage",
+          "asset_id": 550866257,
+          "bytes": 89795064,
+          "sha256": "42588ac5f637f7b48ad08c8154fee53d40c51486ad789c36e71593f30627709d",
+          "asset_url": "https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_amd64.AppImage"
+        },
+        {
+          "name": "Portcove_0.1.0-alpha.2_x64-setup.exe",
+          "asset_id": 550866264,
+          "bytes": 8331357,
+          "sha256": "2e2b6a3c5a0134924b5133f865842dd68c06ef6082885be6d1837235adf16a85",
+          "asset_url": "https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_x64-setup.exe"
+        },
+        {
+          "name": "SHA256SUMS-linux-x86_64.txt",
+          "asset_id": 550866311,
+          "bytes": 400,
+          "sha256": "3c73cc0af7976e8e92150dc5abbbd2cfdab7ac3568b2eff117b36573320de1b6",
+          "asset_url": "https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/SHA256SUMS-linux-x86_64.txt"
+        },
+        {
+          "name": "SHA256SUMS-windows-x86_64.txt",
+          "asset_id": 550866323,
+          "bytes": 197,
+          "sha256": "47eebc045df91de3c866c58bea60a8f818a94189ece7721df370478dd0c4b2b8",
+          "asset_url": "https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/SHA256SUMS-windows-x86_64.txt"
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "asset_id": 550866322,
+          "bytes": 986,
+          "sha256": "db8937ddf47722881b79001c4ac44a2de016e3406dca5f16244947200353c726",
+          "asset_url": "https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/SHA256SUMS.txt"
+        }
+      ],
+      "scope": "original published bytes rehashed; no installation or bootstrap observation; provider digest/checksum is not payload or TUF signature proof"
+    }
+  },
+  "consumed_qualified_packages": [
+    {
+      "role": "qualified-predecessor",
+      "filename": "Portcove_0.1.0_x64-setup.exe",
+      "bytes": 14439023,
+      "sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b",
+      "signature": {
+        "filename": "Portcove_0.1.0_x64-setup.exe.sig",
+        "bytes": 436,
+        "sha256": "5b0ed50ff9f73f66624c578b8d33d029f5b956b674f2c87d20989277e28d5ad6",
+        "encoded_signature_text": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEp3SHpVcUptZ2YyYUwyRWZiQVl1cXVUYXRORXIvMEhqTXVjOGh2NEp5R1pOdi92N05JTkJoQW5HOVprUzdYMWVhV1hOZjNSR1BaZGZaSHk4UFBkRE9GR0d4dG1lRkFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTk2MjQ3CWZpbGU6UG9ydGNvdmVfMC4xLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4wClhoaVVnRUMzOGpRa1hnS3pyTEdtYXJzdENsNVJKS0g2clFjM1doVStjQlF6Uzc3RkFQZXV4MGwwRUFOQnowaDJyQTlIc1pPSDVjRnkyR08zT3BoZURBPT0K"
+      },
+      "public_key_file": {
+        "filename": "disposable.key.pub",
+        "bytes": 152,
+        "sha256": "9e19eb70c99de2a4354f91fd5ad0480eb9259ae7acb95c702f952a1ef52e9398",
+        "encoding": "base64 wrapper around Tauri/Minisign public-key text",
+        "decoded_text_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+        "encoded_public_key_text": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxNjZBMjUyRjMwMTI3NEIKUldSTEp3SHpVcUptZ2FudVJaNXQ4RU8rMXZZdTFneWl6RW1qYkpwZ0FFckNydXFHeXZLWkw0dm4K"
+      },
+      "offline_verification": {
+        "retained_raw_role_label": "actual-qualified-predecessor",
+        "label_is_not_a_feature_or_production_claim": true,
+        "verifier_sha256": "009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2",
+        "observed_at": "2026-10-28T14:55:11.0477633Z",
+        "exit_code": 0,
+        "result": {
+          "schema_version": 1,
+          "bytes": 14439023,
+          "sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b",
+          "public_key_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+          "signature_verified": true
+        }
+      }
+    },
+    {
+      "role": "qualification-candidate",
+      "filename": "Portcove_0.3.0_x64-setup.exe",
+      "bytes": 13729439,
+      "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+      "signature": {
+        "filename": "Portcove_0.3.0_x64-setup.exe.sig",
+        "bytes": 436,
+        "sha256": "c9fa8417d405e0c10b22fabe9bcb428ba6dbe02026ccb8122a619d3ca7148bf7",
+        "encoded_signature_text": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEp3SHpVcUptZ1RBZTVuMDZmdlFFR1Mxa05aY0JnQkovYTVPNWs4TE0xQVlyOTR3endmVVUwcDdEcytUN2VPbjZ2ZVFuY1FzU3FUZ21ycHRMMXNnVHJYNU9UZDdJQnc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTk1OTE5CWZpbGU6UG9ydGNvdmVfMC4zLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMy4wCkFVczlsbGdHVTRxZHp6alJvSUtvRjdMWTZVQUViWklZdHpCQTM0azlLWlRILzRjSVQ0bkx6T3hJc2JtVENJcjZob05jOTFFek5NVmtpalVrczNoQ0FnPT0K"
+      },
+      "public_key_file": {
+        "filename": "disposable.key.pub",
+        "bytes": 152,
+        "sha256": "9e19eb70c99de2a4354f91fd5ad0480eb9259ae7acb95c702f952a1ef52e9398",
+        "encoding": "base64 wrapper around Tauri/Minisign public-key text",
+        "decoded_text_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+        "encoded_public_key_text": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxNjZBMjUyRjMwMTI3NEIKUldSTEp3SHpVcUptZ2FudVJaNXQ4RU8rMXZZdTFneWl6RW1qYkpwZ0FFckNydXFHeXZLWkw0dm4K"
+      },
+      "offline_verification": {
+        "retained_raw_role_label": "ordinary-candidate",
+        "label_is_not_a_feature_or_production_claim": true,
+        "verifier_sha256": "009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2",
+        "observed_at": "2026-10-28T14:55:11.0781631Z",
+        "exit_code": 0,
+        "result": {
+          "schema_version": 1,
+          "bytes": 13729439,
+          "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+          "public_key_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+          "signature_verified": true
+        }
+      }
+    }
+  ],
+  "feed": {
+    "scope": "disposable local file transport only; not production publication",
+    "metadata_url": "file:///H:/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/windows-installed-update-qualification/repository/metadata/",
+    "targets_url": "file:///H:/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/windows-installed-update-qualification/repository/targets/",
+    "sequential_reused_uri_requires_this_exact_root_and_role_tuple": true,
+    "fixture_qualified_run_one_is_not_actual_github_execution": true,
+    "metadata": [
+      {
+        "path": "windows-installed-update-qualification/trusted-root.json",
+        "bytes": 3069,
+        "sha256": "cae5a8eb19d399c38f040fc2a8014355fc95961f09bcbb72596ca1b3c782881e",
+        "signed": {
+          "_type": "root",
+          "spec_version": "1.0.0",
+          "consistent_snapshot": true,
+          "version": 1,
+          "expires": "2027-08-24T13:58:54.024187Z",
+          "keys": {
+            "2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "2e5fa8729b5c57e93746d9ff20f41ec99d74d89fea316416f9fc516cffe4cfa8"
+              },
+              "scheme": "ed25519"
+            },
+            "194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "1c73e0113dfd231e9e574c0596f28052b501270a587302b1345e79e395ff5f45"
+              },
+              "scheme": "ed25519"
+            },
+            "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "a8fb01df31eda1555b1bf5eb5290c5d9b8df610a4d2a036c5860d83a0e4f3a83"
+              },
+              "scheme": "ed25519"
+            },
+            "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "7d1f14691545695277c3dde14065410b685483670734d2ed0cc5baf6a4c1e02d"
+              },
+              "scheme": "ed25519"
+            },
+            "4a1d33bd3a18b4368db8ed716852fb6f07b289edcf20a3ebdf23b5e79d5064be": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "f1b6578784ec389cf2fc97ca31c4cc8f14e2ce9b4b46d186a22fc3c030097696"
+              },
+              "scheme": "ed25519"
+            },
+            "c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "00b347e11ccf3200f344ed4c5fa8c016e7f8df7440d17be985178a6fdfb09bd2"
+              },
+              "scheme": "ed25519"
+            }
+          },
+          "roles": {
+            "root": {
+              "keyids": [
+                "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c",
+                "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3",
+                "4a1d33bd3a18b4368db8ed716852fb6f07b289edcf20a3ebdf23b5e79d5064be"
+              ],
+              "threshold": 2
+            },
+            "timestamp": {
+              "keyids": ["2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b"],
+              "threshold": 1
+            },
+            "snapshot": {
+              "keyids": ["194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6"],
+              "threshold": 1
+            },
+            "targets": {
+              "keyids": ["c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53"],
+              "threshold": 1
+            }
+          }
+        },
+        "signatures": [
+          {
+            "keyid": "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c",
+            "sig": "f86e7d28fef845592008b739047a2ee3058d9cc43ff4dcb2495ebb0e393875418d4bc85a7d048f8553dcac99621580f669991e5259add5d73683a86deb49440f"
+          },
+          {
+            "keyid": "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3",
+            "sig": "24cd5cf18345a3f88aa8f29389e7269502ed607736e92e66d064e0e33a58c6dbc84ac48b8e5bc77479fc7529bff2f678f802ce2ed27a01109fe5473ab005700a"
+          }
+        ]
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+        "bytes": 698,
+        "sha256": "58da1e7cdaae2066ca50e9b9aa39a766eaa664399613738664bda9c3a38274fa",
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-04T13:58:54.029475100Z",
+          "targets": {
+            "channels/preview/windows-x86_64/nsis/0.3.0.json": {
+              "length": 391,
+              "hashes": {
+                "sha256": "dcc1f7d591d68ebc6725b1bdd4ceed1b93cb86d8c4ebe75a24d923571a2f7e14"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        },
+        "signatures": [
+          {
+            "keyid": "3d4cdea7097c986a760edc1c94ddcdd0905d55fd8694cab771102cbd692e99fb",
+            "sig": "d54811b7dddcf967aa454d63221b786937018014d98db975a3ed47c300f9b32567ef9d2f05207321dc269b1779ae5631a09498293705de28a15c49abb5dd4901"
+          }
+        ]
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+        "bytes": 691,
+        "sha256": "956e92c6d444d707bfe91be6361fd4975e1970214980dc4b117fea4898d67d4b",
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-27T13:58:54.029475100Z",
+          "targets": {
+            "releases/0.3.0/windows-x86_64/nsis.json": {
+              "length": 1938,
+              "hashes": {
+                "sha256": "a73a4beb5fd85aba7c65d9d2929a58d9dc6696ee5b45f3fd5048abeb2b104acb"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        },
+        "signatures": [
+          {
+            "keyid": "4cd04dfbf903451724d5ec6a52d0c2d0269c9b94a0efe9bcb9a9fd1e73ff5d74",
+            "sig": "600c959da84f885cce904d7c6f08391d5934d43a21ce157d01dd8b39873bdf44a1092164ad378ec6e0ee44d314efb41ceeebbcd4a699d1c899fcd48a0998ae0d"
+          }
+        ]
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+        "bytes": 3069,
+        "sha256": "cae5a8eb19d399c38f040fc2a8014355fc95961f09bcbb72596ca1b3c782881e",
+        "signed": {
+          "_type": "root",
+          "spec_version": "1.0.0",
+          "consistent_snapshot": true,
+          "version": 1,
+          "expires": "2027-08-24T13:58:54.024187Z",
+          "keys": {
+            "2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "2e5fa8729b5c57e93746d9ff20f41ec99d74d89fea316416f9fc516cffe4cfa8"
+              },
+              "scheme": "ed25519"
+            },
+            "194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "1c73e0113dfd231e9e574c0596f28052b501270a587302b1345e79e395ff5f45"
+              },
+              "scheme": "ed25519"
+            },
+            "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "a8fb01df31eda1555b1bf5eb5290c5d9b8df610a4d2a036c5860d83a0e4f3a83"
+              },
+              "scheme": "ed25519"
+            },
+            "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "7d1f14691545695277c3dde14065410b685483670734d2ed0cc5baf6a4c1e02d"
+              },
+              "scheme": "ed25519"
+            },
+            "4a1d33bd3a18b4368db8ed716852fb6f07b289edcf20a3ebdf23b5e79d5064be": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "f1b6578784ec389cf2fc97ca31c4cc8f14e2ce9b4b46d186a22fc3c030097696"
+              },
+              "scheme": "ed25519"
+            },
+            "c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "00b347e11ccf3200f344ed4c5fa8c016e7f8df7440d17be985178a6fdfb09bd2"
+              },
+              "scheme": "ed25519"
+            }
+          },
+          "roles": {
+            "root": {
+              "keyids": [
+                "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c",
+                "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3",
+                "4a1d33bd3a18b4368db8ed716852fb6f07b289edcf20a3ebdf23b5e79d5064be"
+              ],
+              "threshold": 2
+            },
+            "timestamp": {
+              "keyids": ["2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b"],
+              "threshold": 1
+            },
+            "snapshot": {
+              "keyids": ["194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6"],
+              "threshold": 1
+            },
+            "targets": {
+              "keyids": ["c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53"],
+              "threshold": 1
+            }
+          }
+        },
+        "signatures": [
+          {
+            "keyid": "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c",
+            "sig": "f86e7d28fef845592008b739047a2ee3058d9cc43ff4dcb2495ebb0e393875418d4bc85a7d048f8553dcac99621580f669991e5259add5d73683a86deb49440f"
+          },
+          {
+            "keyid": "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3",
+            "sig": "24cd5cf18345a3f88aa8f29389e7269502ed607736e92e66d064e0e33a58c6dbc84ac48b8e5bc77479fc7529bff2f678f802ce2ed27a01109fe5473ab005700a"
+          }
+        ]
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+        "bytes": 1205,
+        "sha256": "8017c1be215858f546abdbd97c9fa7c17159b794e1238011b7c542592a23f35b",
+        "signed": {
+          "_type": "snapshot",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-04T13:58:54.029475100Z",
+          "meta": {
+            "releases.json": {
+              "length": 691,
+              "hashes": {
+                "sha256": "956e92c6d444d707bfe91be6361fd4975e1970214980dc4b117fea4898d67d4b"
+              },
+              "version": 1
+            },
+            "preview.json": {
+              "length": 698,
+              "hashes": {
+                "sha256": "58da1e7cdaae2066ca50e9b9aa39a766eaa664399613738664bda9c3a38274fa"
+              },
+              "version": 1
+            },
+            "stable.json": {
+              "length": 486,
+              "hashes": {
+                "sha256": "56d5a2006d1a4ec5e7583ed3215be10280f209da2f480cd6ec14dc39b6166790"
+              },
+              "version": 1
+            },
+            "targets.json": {
+              "length": 2424,
+              "hashes": {
+                "sha256": "97673bb27d23ecd9e176beaa81ad657b1f8bc59c1ac913146570e2679a63e461"
+              },
+              "version": 1
+            }
+          }
+        },
+        "signatures": [
+          {
+            "keyid": "194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6",
+            "sig": "82f28ab45e3ae787324dcfcd28748945f33b7aeac5648b0b60e97f35b011f62bcce4110dad7b4fc08071eec9f99d684ecbf63ebfdd94e99eaef19952ab53e60b"
+          }
+        ]
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+        "bytes": 486,
+        "sha256": "56d5a2006d1a4ec5e7583ed3215be10280f209da2f480cd6ec14dc39b6166790",
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-04T13:58:54.029475100Z",
+          "targets": {},
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        },
+        "signatures": [
+          {
+            "keyid": "1abb96ae97d4809cb0c611afd29638079a84e634350101acb1949591f797b27a",
+            "sig": "cb0292b7b03ba610e662b3ac5f2b9fb055cf29b35288f3e09970a074ecb03f9d590559788e408eb03f0cabbdb1608cdeca390ed408d396af944717e1490dd80e"
+          }
+        ]
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+        "bytes": 2424,
+        "sha256": "97673bb27d23ecd9e176beaa81ad657b1f8bc59c1ac913146570e2679a63e461",
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-27T13:58:54.029475100Z",
+          "targets": {
+            "keys/payload.json": {
+              "length": 315,
+              "hashes": {
+                "sha256": "38aea5f72648c4b639d90c3d2a88c5d8d9060c55a3c8451d36cc2cddb06ecc22"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {
+              "4cd04dfbf903451724d5ec6a52d0c2d0269c9b94a0efe9bcb9a9fd1e73ff5d74": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "8b118a7e337b6bb91babccb1292cc9d8e89a900df94dfb189f2c21f1b6326ffb"
+                },
+                "scheme": "ed25519"
+              },
+              "3d4cdea7097c986a760edc1c94ddcdd0905d55fd8694cab771102cbd692e99fb": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "7cd54dfa502431d83e7469b7941d1b184a97ca7c111cf294187e5b8a0d21fc8e"
+                },
+                "scheme": "ed25519"
+              },
+              "1abb96ae97d4809cb0c611afd29638079a84e634350101acb1949591f797b27a": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "3d398cbec0718f4dfb41a8d259093e14bd98fca03fcaad71c42d783eb7d9058b"
+                },
+                "scheme": "ed25519"
+              }
+            },
+            "roles": [
+              {
+                "name": "releases",
+                "keyids": ["4cd04dfbf903451724d5ec6a52d0c2d0269c9b94a0efe9bcb9a9fd1e73ff5d74"],
+                "threshold": 1,
+                "paths": ["releases/0.3.0/windows-x86_64/nsis.json"],
+                "terminating": true
+              },
+              {
+                "name": "preview",
+                "keyids": ["3d4cdea7097c986a760edc1c94ddcdd0905d55fd8694cab771102cbd692e99fb"],
+                "threshold": 1,
+                "paths": ["channels/preview/windows-x86_64/nsis/0.3.0.json"],
+                "terminating": true
+              },
+              {
+                "name": "stable",
+                "keyids": ["1abb96ae97d4809cb0c611afd29638079a84e634350101acb1949591f797b27a"],
+                "threshold": 1,
+                "paths": ["channels/stable/*/*/*.json"],
+                "terminating": true
+              }
+            ]
+          }
+        },
+        "signatures": [
+          {
+            "keyid": "c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53",
+            "sig": "3b3307cb0a46d914f61d2a51749ca16c77e69b74134731f361f1de7e7c4ffb9ad9fef4ee798c59f1f2c5961e6f67c1ffe9ddb6251e1a8ab8853743506cfedd06"
+          }
+        ]
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+        "bytes": 622,
+        "sha256": "f2618f064a45896236d6cc1d8f2b367d4ab7609c024fe65a530c4f8b587501cc",
+        "signed": {
+          "_type": "timestamp",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-10-30T13:58:54.029475100Z",
+          "meta": {
+            "snapshot.json": {
+              "length": 1205,
+              "hashes": {
+                "sha256": "8017c1be215858f546abdbd97c9fa7c17159b794e1238011b7c542592a23f35b"
+              },
+              "version": 1
+            }
+          }
+        },
+        "signatures": [
+          {
+            "keyid": "2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b",
+            "sig": "67b25bfbc15561e8f43a1413d7443f904f174e300660f24181d7b3b2dce8be087d83c11cd8e3dddbd5c98f4aacbe7eaaf95a2150e9298b2904176d7d76d06b0f"
+          }
+        ]
+      }
+    ],
+    "signed_record_inputs": [
+      {
+        "path": "windows-installed-update-qualification/inputs/descriptor.json",
+        "bytes": 1069,
+        "sha256": "35855afd2ed6750900e27929710664dabef24b385e799ed81ea85e138829b25d",
+        "contents": {
+          "schema_version": 1,
+          "releases": [
+            {
+              "inventory": "updater-inventory.json",
+              "signature": "candidate.sig",
+              "source_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+              "qualified_run": {
+                "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+                "workflow_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+                "run_id": 1,
+                "attempt": 1
+              },
+              "execution_context": "installed-current-user",
+              "compatibility": {
+                "minimum_os_version": "10.0.26300",
+                "required_capabilities": ["library-lock-v1"],
+                "cli_protocol": {
+                  "min": 82,
+                  "max": 82
+                },
+                "catalog_formats": [2],
+                "library": {
+                  "read": {
+                    "min": 1,
+                    "max": 43
+                  },
+                  "write_schema": 43,
+                  "lock_protocol": "library-lock-v1"
+                }
+              },
+              "evidence_ids": ["updater-artifact-rehearsal-1-windows-x86_64"]
+            }
+          ]
+        }
+      },
+      {
+        "path": "windows-installed-update-qualification/inputs/eligibility.json",
+        "bytes": 166,
+        "sha256": "de463d21e0c434bdb721b85648bdefe916c4832bebfa212e620ab4c2657cd45b",
+        "contents": {
+          "v0.3.0": {
+            "version": "0.3.0",
+            "preview_eligible": true,
+            "production_eligible": false,
+            "targets": ["windows-x86_64"]
+          }
+        }
+      },
+      {
+        "path": "windows-installed-update-qualification/inputs/updater-inventory.json",
+        "bytes": 1241,
+        "sha256": "eee1e936cc14d49727c0caa50582b3e0c5bfe6d4ace6e04da743c883f0cf3554",
+        "contents": {
+          "schema_version": 1,
+          "repository": "boburning/portcove",
+          "version": "0.3.0",
+          "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+          "platform_label": "windows-x86_64",
+          "application_identifier": "io.github.portcove.portcove",
+          "packages": [
+            {
+              "id": "desktop-windows-x86_64-nsis",
+              "filename": "Portcove_0.3.0_x64-setup.exe",
+              "bytes": 13729439,
+              "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b"
+            },
+            {
+              "id": "cli-windows-x86_64-zip",
+              "filename": "portcove-cli-0.3.0-windows-x86_64.zip",
+              "bytes": 12625500,
+              "sha256": "248bb90c175bc4890d76e02a86cdeb30d7b3ed28fb675dd831a094b47967f620"
+            }
+          ],
+          "updater": {
+            "id": "desktop-windows-x86_64-nsis",
+            "target": "windows-x86_64",
+            "format": "nsis",
+            "filename": "Portcove_0.3.0_x64-setup.exe",
+            "bytes": 13729439,
+            "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+            "signature": {
+              "filename": "Portcove_0.3.0_x64-setup.exe.sig",
+              "bytes": 436,
+              "sha256": "c9fa8417d405e0c10b22fabe9bcb428ba6dbe02026ccb8122a619d3ca7148bf7"
+            },
+            "public_key_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617"
+          }
+        }
+      }
+    ],
+    "signed_record_inputs_custody": {
+      "source_receipt": "windows-updater-nonelevated-observation-2026-10-28.json",
+      "profile": "legacy-skipped",
+      "original_archive": {
+        "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-legacy-skipped.zip",
+        "bytes": 160913893,
+        "sha256": "03c053a8e6bc5aa1e5b4dd0e861daf80f58842fbd4f3fc9d219662e70b6d2849"
+      },
+      "scope": "the three signed record input source files are retained in this earlier archive; not members of the new174file capsule"
+    }
+  },
+  "caller": {
+    "fresh_driver_host_baseline": {
+      "captured_at": "2026-10-28T21:01:20.6829421Z",
+      "process_integrity_sid": "S-1-16-8192",
+      "process_integrity_group_count": 1,
+      "whoami_exit_code": 0,
+      "administrator_token": false,
+      "webview2_runtime_versions": ["156.0.4314.50"],
+      "cached_webview2_version": "156.0.4314.50",
+      "drivers": {
+        "tauri_driver": {
+          "reported": "Error: unused arguments left: [\"--version\"]\r\nUSAGE: tauri-driver [FLAGS] [OPTIONS]\r\n\r\nFLAGS:\r\n  -h, --help              Prints help information\r\n\r\nOPTIONS:\r\n  --port NUMBER           Sets the tauri-driver intermediary port\r\n  --native-port NUMBER    Sets the port of the underlying WebDriver\r\n  --native-host HOST      Sets the host of the underlying WebDriver (Linux only)\r\n  --native-driver PATH    Sets the path to the native WebDriver binary",
+          "exit_code": 1,
+          "sha256": "276497b108f72a4930c12d13601754f7d68df6e9a29484d4cf07842c2fec63ab"
+        },
+        "native_driver": {
+          "reported": "Microsoft Edge WebDriver 156.0.4314.50 (af2ba23ae0ecf7084d900446fc59d5119dd5fd5e)",
+          "exit_code": 0,
+          "sha256": "dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3"
+        }
+      },
+      "os_version": "Microsoft Windows NT 10.0.26300.0",
+      "os_architecture": "X64"
+    },
+    "enforced_before_effects": "WindowsPrincipal Administrator=false; no existing Portcove registration or desktop process; historical PE requestedExecutionLevel asInvoker",
+    "scope": "current non-elevated medium-integrity split-admin environment; child tokens and NTFS owner SIDs were not individually captured; not pure standard-account/clean-VM proof"
+  },
+  "native_lifecycle": {
+    "format": 1,
+    "observation_identity": {
+      "schema_version": 1,
+      "harness": "scripts/test-windows-installer.ps1",
+      "harness_sha256": "0ba4cfd85428ebeafa6f4fba1be81dfdf85747b28e27367c6404bc0dc3b91d1b",
+      "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+      "source_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+      "started_at": "2026-10-28T21:01:11.8684190Z",
+      "host_os": "Microsoft Windows 10.0.26300",
+      "host_architecture": "X64",
+      "powershell": "7.6.9",
+      "authority": "none; local native observation requires independently authenticated handoff"
+    },
+    "package_inputs": {
+      "installer_sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+      "predecessor_installer_sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b",
+      "historical_bootstrap": {
+        "schema_version": 1,
+        "version": "0.1.0-alpha.2",
+        "source_commit": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+        "installer_path": "E:\\Codex-Evidence\\beta-updater-20261028\\historical-alpha2-bootstrap-inputs\\Portcove_0.1.0-alpha.2_x64-setup.exe",
+        "installer_sha256": "2e2b6a3c5a0134924b5133f865842dd68c06ef6082885be6d1837235adf16a85",
+        "installer_bytes": 8331357,
+        "release_tag": "v0.1.0-alpha.2",
+        "release_asset_id": 550866264,
+        "release_url": "https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2"
+      }
+    },
+    "phase": "complete",
+    "process_runs": [
+      {
+        "id": "c47a8912933445e5b526b06e3887e472",
+        "role": "historical_bootstrap_installer",
+        "requested_at": "2026-10-28T21:01:12.1120227Z",
+        "requested_at_filetime": 134376948721120227,
+        "executable_path": "E:\\Codex-Evidence\\beta-updater-20261028\\historical-alpha2-bootstrap-inputs\\Portcove_0.1.0-alpha.2_x64-setup.exe",
+        "executable_sha256": "2e2b6a3c5a0134924b5133f865842dd68c06ef6082885be6d1837235adf16a85",
+        "arguments": [
+          "/S",
+          "/D=H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed"
+        ],
+        "status": "exit_observed",
+        "pid": 27348,
+        "start_time": "2026-10-28T21:01:12.1633950Z",
+        "start_time_filetime": 134376948721633950,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "observed_image_path": "E:\\Codex-Evidence\\beta-updater-20261028\\historical-alpha2-bootstrap-inputs\\Portcove_0.1.0-alpha.2_x64-setup.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+      },
+      {
+        "id": "6521875fba9449bab4327d4af7469825",
+        "role": "historical_bootstrap_smoke",
+        "requested_at": "2026-10-28T21:01:14.3780451Z",
+        "requested_at_filetime": 134376948743780451,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "executable_sha256": "57ff821a84d6eca24a0f32d42c26d2df529d626ed6a07c5a89a71d7115eac619",
+        "arguments": [],
+        "status": "exit_observed",
+        "pid": 27920,
+        "start_time": "2026-10-28T21:01:14.4247049Z",
+        "start_time_filetime": 134376948744247049,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy",
+        "close_request": {
+          "requested_at": "2026-10-28T21:01:15.5514063Z",
+          "window_title": "Portcove",
+          "window_handle": 7865596,
+          "accepted": true
+        }
+      },
+      {
+        "id": "94c545a80ad04ec1838df97ad09fed89",
+        "role": "predecessor_installer",
+        "requested_at": "2026-10-28T21:01:15.6589261Z",
+        "requested_at_filetime": 134376948756589261,
+        "executable_path": "E:\\Codex-Evidence\\beta-updater-20261028\\windows-qualified-predecessors\\legacy-skipped\\Portcove_0.1.0_x64-setup.exe",
+        "executable_sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b",
+        "arguments": ["/P", "/UPDATE"],
+        "status": "exit_observed",
+        "pid": 12044,
+        "start_time": "2026-10-28T21:01:15.6870629Z",
+        "start_time_filetime": 134376948756870629,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "observed_image_path": "E:\\Codex-Evidence\\beta-updater-20261028\\windows-qualified-predecessors\\legacy-skipped\\Portcove_0.1.0_x64-setup.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+      },
+      {
+        "id": "037a49e514ac46188ee4b703074c5153",
+        "role": "predecessor_smoke",
+        "requested_at": "2026-10-28T21:01:19.2640986Z",
+        "requested_at_filetime": 134376948792640986,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+        "arguments": [],
+        "status": "exit_observed",
+        "pid": 24032,
+        "start_time": "2026-10-28T21:01:19.3488604Z",
+        "start_time_filetime": 134376948793488604,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "output_relative": "predecessor-smoke.stdout.log",
+        "error_relative": "predecessor-smoke.stderr.log",
+        "start_info_observation": "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy",
+        "close_request": {
+          "requested_at": "2026-10-28T21:01:19.6868194Z",
+          "window_title": "Portcove",
+          "window_handle": 31262728,
+          "accepted": true
+        }
+      },
+      {
+        "id": "9e4cd7ed5c794cf2b6de9f0ad9ca07a0",
+        "role": "installed_update_truncated_stage",
+        "requested_at": "2026-10-28T21:01:33.3392669Z",
+        "requested_at_filetime": 134376948933392669,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+        "arguments": [
+          "--portcove-qualify-update-stage",
+          "\"H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\truncated-candidate.exe\""
+        ],
+        "status": "exit_observed",
+        "pid": 11652,
+        "start_time": "2026-10-28T21:01:33.3973177Z",
+        "start_time_filetime": 134376948933973177,
+        "exit_code": 1,
+        "exit_observation": "Observed through the retained launch handle",
+        "output_relative": "installed-update-truncated-stage.stdout.log",
+        "error_relative": "installed-update-truncated-stage.stderr.log",
+        "start_info_observation": "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+      },
+      {
+        "id": "dfcb804f85f14d24b9bf72c602279abc",
+        "role": "installed_update_tampered_stage",
+        "requested_at": "2026-10-28T21:01:33.6605719Z",
+        "requested_at_filetime": 134376948936605719,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+        "arguments": [
+          "--portcove-qualify-update-stage",
+          "\"H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\tampered-candidate.exe\""
+        ],
+        "status": "exit_observed",
+        "pid": 18552,
+        "start_time": "2026-10-28T21:01:33.7417314Z",
+        "start_time_filetime": 134376948937417314,
+        "exit_code": 1,
+        "exit_observation": "Observed through the retained launch handle",
+        "output_relative": "installed-update-tampered-stage.stdout.log",
+        "error_relative": "installed-update-tampered-stage.stderr.log",
+        "start_info_observation": "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+      },
+      {
+        "id": "2a9e30bf1a664cdc9ce04b01bef7cf5b",
+        "role": "installed_update_recovery_status",
+        "requested_at": "2026-10-28T21:01:33.9685233Z",
+        "requested_at_filetime": 134376948939685233,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+        "arguments": ["--application-update-recovery", "status"],
+        "status": "exit_observed",
+        "pid": 27548,
+        "start_time": "2026-10-28T21:01:34.0387972Z",
+        "start_time_filetime": 134376948940387972,
+        "exit_code": 1,
+        "exit_observation": "Observed through the retained launch handle",
+        "output_relative": "installed-update-recovery-status-stage.stdout.log",
+        "error_relative": "installed-update-recovery-status-stage.stderr.log",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+      },
+      {
+        "id": "7ecbeb3f01ee41a0854bd66e1e58552e",
+        "role": "installed_update_recovery_repair",
+        "requested_at": "2026-10-28T21:01:34.1202028Z",
+        "requested_at_filetime": 134376948941202028,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+        "arguments": ["--application-update-recovery", "repair", "staging"],
+        "status": "exit_observed",
+        "pid": 27252,
+        "start_time": "2026-10-28T21:01:34.1788116Z",
+        "start_time_filetime": 134376948941788116,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "output_relative": "installed-update-recovery-repair-stage.stdout.log",
+        "error_relative": "installed-update-recovery-repair-stage.stderr.log",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+      },
+      {
+        "id": "5612516379104121ad875d7cf24e664f",
+        "role": "installed_update_recovery_verified",
+        "requested_at": "2026-10-28T21:01:34.2468438Z",
+        "requested_at_filetime": 134376948942468438,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+        "arguments": ["--application-update-recovery", "status"],
+        "status": "exit_observed",
+        "pid": 27588,
+        "start_time": "2026-10-28T21:01:34.3106263Z",
+        "start_time_filetime": 134376948943106263,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "output_relative": "installed-update-recovery-verified-stage.stdout.log",
+        "error_relative": "installed-update-recovery-verified-stage.stderr.log",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+      },
+      {
+        "id": "26bf2a33374047e4bfa2a04567e325c5",
+        "role": "candidate_smoke",
+        "requested_at": "2026-10-28T21:02:10.8804396Z",
+        "requested_at_filetime": 134376949308804396,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "executable_sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9",
+        "arguments": [],
+        "status": "exit_observed",
+        "pid": 19368,
+        "start_time": "2026-10-28T21:02:10.9346689Z",
+        "start_time_filetime": 134376949309346689,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "output_relative": "candidate-smoke.stdout.log",
+        "error_relative": "candidate-smoke.stderr.log",
+        "start_info_observation": "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy",
+        "close_request": {
+          "requested_at": "2026-10-28T21:02:11.2469855Z",
+          "window_title": "Portcove",
+          "window_handle": 32180232,
+          "accepted": true
+        }
+      },
+      {
+        "id": "36f1f584cc6f42ce8c767b2b3637dbff",
+        "role": "candidate_uninstaller",
+        "requested_at": "2026-10-28T21:02:11.5597403Z",
+        "requested_at_filetime": 134376949315597403,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\uninstall.exe",
+        "executable_sha256": "1bc5129ec1fd1fc4c175b30f8de8d6faba60c0dd1c6b850c0425299df96728a9",
+        "arguments": ["/S"],
+        "status": "exit_observed",
+        "pid": 8084,
+        "start_time": "2026-10-28T21:02:11.5660021Z",
+        "start_time_filetime": 134376949315660021,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\uninstall.exe",
+        "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+      },
+      {
+        "id": "59aea8c844ae4b70bdfe2ed014258f69",
+        "role": "candidate_uninstaller_child",
+        "parent_run_id": "36f1f584cc6f42ce8c767b2b3637dbff",
+        "parent_pid": 8084,
+        "requested_at": "2026-10-28T21:02:11.5597403Z",
+        "requested_at_filetime": 134376949315597403,
+        "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\~nsu1.tmp\\Un.exe",
+        "executable_sha256": "1bc5129ec1fd1fc4c175b30f8de8d6faba60c0dd1c6b850c0425299df96728a9",
+        "arguments": [],
+        "status": "exit_observed",
+        "pid": 29992,
+        "start_time": "2026-10-28T21:02:11.6267140Z",
+        "start_time_filetime": 134376949316267140,
+        "exit_code": 0,
+        "exit_observation": "Observed through the retained launch handle",
+        "image_observation": "Observed the retained child handle, parent PID, start time and exact self-copy in the owned temporary root"
+      }
+    ],
+    "unverified_child_observations": [],
+    "unverified_child_capture_failed": false,
+    "owned_paths": {
+      "run_root_relative": "run-40ef1b0b99ad4150a4f596c14d8771af",
+      "install_relative": "run-40ef1b0b99ad4150a4f596c14d8771af/installed",
+      "library_relative": "run-40ef1b0b99ad4150a4f596c14d8771af/library"
+    },
+    "failure": null,
+    "private_signing_inputs_absent": {
+      "payload_private_key": true,
+      "tuf_private_root": true,
+      "signing_private_key_environment": true,
+      "signing_private_key_path_environment": true,
+      "signing_password_environment": true
+    },
+    "historical_bootstrap": {
+      "webview_profile_observations": [
+        {
+          "pid": 15992,
+          "parent_pid": 27920,
+          "created_utc": "2026-10-28T21:01:14.5506650Z",
+          "image": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "configured_user_data_directory": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\historical-bootstrap\\webview-profile",
+          "argument_count": 1,
+          "diagnostic_arguments": [
+            "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\historical-bootstrap\\webview-profile\\EBWebView"
+          ],
+          "diagnostic_arguments_truncated": false,
+          "identity_verified": true,
+          "accepted": true
+        }
+      ],
+      "declared_package": {
+        "schema_version": 1,
+        "version": "0.1.0-alpha.2",
+        "source_commit": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+        "installer_path": "E:\\Codex-Evidence\\beta-updater-20261028\\historical-alpha2-bootstrap-inputs\\Portcove_0.1.0-alpha.2_x64-setup.exe",
+        "installer_sha256": "2e2b6a3c5a0134924b5133f865842dd68c06ef6082885be6d1837235adf16a85",
+        "installer_bytes": 8331357,
+        "release_tag": "v0.1.0-alpha.2",
+        "release_asset_id": 550866264,
+        "release_url": "https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2"
+      },
+      "source_scope": "published updater-less manual bootstrap into one existing installed chain",
+      "library_root": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\library",
+      "preferences_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\historical-bootstrap\\preferences.json",
+      "expected_webview_directory": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\historical-bootstrap\\webview-profile",
+      "credential_scope": "fixed historical namespace; startup/close only, no authentication-changing actions; neither isolated credential store nor credential preservation proven",
+      "before_install": {
+        "library": [
+          {
+            "path": "user/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/preserve.txt",
+            "type": "file",
+            "bytes": 32,
+            "sha256": "82c1cd0dc5c2caa4d3365a2892549ff89415c9e809b4574b42c3c9660989ae21"
+          }
+        ],
+        "preferences": {
+          "present": false,
+          "bytes": null,
+          "sha256": null
+        }
+      },
+      "existing_desktop_processes_before_install": [],
+      "registration_path": "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
+      "installed_executable_sha256": "57ff821a84d6eca24a0f32d42c26d2df529d626ed6a07c5a89a71d7115eac619",
+      "smoke": {
+        "responding": true,
+        "window_title": "Portcove",
+        "exit_code": 0,
+        "historical_webview_profile": {
+          "pid": 15992,
+          "parent_pid": 27920,
+          "created_utc": "2026-10-28T21:01:14.5506650Z",
+          "image": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "user_data_directory": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\historical-bootstrap\\webview-profile\\EBWebView",
+          "configured_user_data_directory": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\historical-bootstrap\\webview-profile",
+          "sdk_browser_subdirectory": true,
+          "observation": "held live application plus exact CIM/browser creation and image identity"
+        }
+      },
+      "after_startup": {
+        "library": [
+          {
+            "path": "backups/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "downloads/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/library.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/migration.lock",
+            "type": "file",
+            "bytes": 47,
+            "sha256": "ed1d39060d217c54b5bdbd3fae1cab55e49820a9872761c7a0c3fa73ddf2f28a"
+          },
+          {
+            "path": "logs/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "logs/portcove-desktop.jsonl",
+            "type": "file",
+            "bytes": 2635,
+            "sha256": "d64750153898205febe6bf57a7467c9c67df36a8dec6fafa285145195fa3b39f"
+          },
+          {
+            "path": "portcove.sqlite3",
+            "type": "file",
+            "bytes": 143360,
+            "sha256": "adaa80ecc4d2a03e7f9489e1ff4ec8a72df80803667dda3ae1872e3aac092112"
+          },
+          {
+            "path": "recovery/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "source-inbox/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "staging/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "toolchains/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/preserve.txt",
+            "type": "file",
+            "bytes": 32,
+            "sha256": "82c1cd0dc5c2caa4d3365a2892549ff89415c9e809b4574b42c3c9660989ae21"
+          },
+          {
+            "path": "versions/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          }
+        ],
+        "preferences": {
+          "present": false,
+          "bytes": null,
+          "sha256": null
+        }
+      },
+      "after_manual_install": {
+        "library": [
+          {
+            "path": "backups/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "downloads/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/library.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/migration.lock",
+            "type": "file",
+            "bytes": 47,
+            "sha256": "ed1d39060d217c54b5bdbd3fae1cab55e49820a9872761c7a0c3fa73ddf2f28a"
+          },
+          {
+            "path": "logs/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "logs/portcove-desktop.jsonl",
+            "type": "file",
+            "bytes": 2635,
+            "sha256": "d64750153898205febe6bf57a7467c9c67df36a8dec6fafa285145195fa3b39f"
+          },
+          {
+            "path": "portcove.sqlite3",
+            "type": "file",
+            "bytes": 143360,
+            "sha256": "adaa80ecc4d2a03e7f9489e1ff4ec8a72df80803667dda3ae1872e3aac092112"
+          },
+          {
+            "path": "recovery/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "source-inbox/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "staging/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "toolchains/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/preserve.txt",
+            "type": "file",
+            "bytes": 32,
+            "sha256": "82c1cd0dc5c2caa4d3365a2892549ff89415c9e809b4574b42c3c9660989ae21"
+          },
+          {
+            "path": "versions/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          }
+        ],
+        "preferences": {
+          "present": false,
+          "bytes": null,
+          "sha256": null
+        }
+      },
+      "after_updater_enabled_startup": {
+        "library": [
+          {
+            "path": "backups/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "downloads/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/library.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/migration.lock",
+            "type": "file",
+            "bytes": 47,
+            "sha256": "90768ddc7ef03c94a61379a22e2c56461f78d19fade442600dc3caf5008486b5"
+          },
+          {
+            "path": "locks/migration.owner.json",
+            "type": "file",
+            "bytes": 55,
+            "sha256": "890b8ca5c0031e84f7e525a9c70907e073d2c39b267cff905ba5981b014942da"
+          },
+          {
+            "path": "logs/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "logs/portcove-desktop.jsonl",
+            "type": "file",
+            "bytes": 2635,
+            "sha256": "d64750153898205febe6bf57a7467c9c67df36a8dec6fafa285145195fa3b39f"
+          },
+          {
+            "path": "portcove.sqlite3",
+            "type": "file",
+            "bytes": 348160,
+            "sha256": "9b5f9ae95a1440f74ac45047d9c121a3cb8efb593c95a77433d4fe8a0b05f3a7"
+          },
+          {
+            "path": "portcove.sqlite3-shm",
+            "type": "file",
+            "bytes": 32768,
+            "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+          },
+          {
+            "path": "portcove.sqlite3-wal",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "recovery/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "source-inbox/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "staging/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "toolchains/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/preserve.txt",
+            "type": "file",
+            "bytes": 32,
+            "sha256": "82c1cd0dc5c2caa4d3365a2892549ff89415c9e809b4574b42c3c9660989ae21"
+          },
+          {
+            "path": "versions/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          }
+        ],
+        "preferences": {
+          "present": false,
+          "bytes": null,
+          "sha256": null
+        }
+      },
+      "preservation_scope": "same selected library and untouched synthetic sentinel; snapshots record migration bytes, not semantic existing-record/preference/credential continuity"
+    },
+    "uninstaller_sha256": "1bc5129ec1fd1fc4c175b30f8de8d6faba60c0dd1c6b850c0425299df96728a9",
+    "details": {
+      "installer": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\updater-rehearsal\\0.3.0-windows-x86_64\\Portcove_0.3.0_x64-setup.exe",
+      "installer_sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+      "signature_status": "NotSigned",
+      "install_exit_code": null,
+      "install_mode": "Passive",
+      "update_path": "installed_app_renderer",
+      "registered_version": "0.3.0",
+      "registration_account_sid": null,
+      "registration_path": "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
+      "installed_executable_sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9",
+      "expected_executable": {
+        "raw_sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9",
+        "bundled_sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9",
+        "bundle_slot_patched": false
+      },
+      "uninstall_registration_count": 1,
+      "application_responding": true,
+      "application_window_title": "Portcove",
+      "application_exit_code": 0,
+      "upgrade": {
+        "predecessor_installer_sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b",
+        "predecessor_executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+        "predecessor_smoke": {
+          "responding": true,
+          "window_title": "Portcove",
+          "exit_code": 0
+        }
+      },
+      "persistent_data_preserved": true,
+      "uninstall_exit_code": 0,
+      "managed_files_removed": true,
+      "registration_removed": true,
+      "preservation_manifest_before_uninstall": {
+        "library": [
+          {
+            "path": "artwork-cache/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "artwork-cache/492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050.jpg",
+            "type": "file",
+            "bytes": 5603,
+            "sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050"
+          },
+          {
+            "path": "artwork-cache/4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421.jpg",
+            "type": "file",
+            "bytes": 26182,
+            "sha256": "4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421"
+          },
+          {
+            "path": "artwork-cache/683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0.jpg",
+            "type": "file",
+            "bytes": 5038,
+            "sha256": "683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0"
+          },
+          {
+            "path": "artwork-cache/d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365.jpg",
+            "type": "file",
+            "bytes": 7080,
+            "sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365"
+          },
+          {
+            "path": "artwork-cache/f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5.jpg",
+            "type": "file",
+            "bytes": 23126,
+            "sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5"
+          },
+          {
+            "path": "backups/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "downloads/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/artwork.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/library.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/migration.lock",
+            "type": "file",
+            "bytes": 47,
+            "sha256": "046fca6e5d273594b769f4748b59adac9a23911f7519c1a2a723e3c823cc18eb"
+          },
+          {
+            "path": "locks/migration.owner.json",
+            "type": "file",
+            "bytes": 55,
+            "sha256": "822a7ef415aa8d6db1dafbeb4cf13aa7762b56fb93f0625fede73f7e22ed8271"
+          },
+          {
+            "path": "logs/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "logs/portcove-desktop.jsonl",
+            "type": "file",
+            "bytes": 2635,
+            "sha256": "d64750153898205febe6bf57a7467c9c67df36a8dec6fafa285145195fa3b39f"
+          },
+          {
+            "path": "portcove.sqlite3",
+            "type": "file",
+            "bytes": 348160,
+            "sha256": "9b5f9ae95a1440f74ac45047d9c121a3cb8efb593c95a77433d4fe8a0b05f3a7"
+          },
+          {
+            "path": "portcove.sqlite3-shm",
+            "type": "file",
+            "bytes": 32768,
+            "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+          },
+          {
+            "path": "portcove.sqlite3-wal",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "recovery/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "source-inbox/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "staging/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "toolchains/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/preserve.txt",
+            "type": "file",
+            "bytes": 32,
+            "sha256": "82c1cd0dc5c2caa4d3365a2892549ff89415c9e809b4574b42c3c9660989ae21"
+          },
+          {
+            "path": "versions/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          }
+        ],
+        "preferences": {
+          "present": false,
+          "bytes": null,
+          "sha256": null
+        }
+      },
+      "preservation_manifest_after_uninstall": {
+        "library": [
+          {
+            "path": "artwork-cache/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "artwork-cache/492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050.jpg",
+            "type": "file",
+            "bytes": 5603,
+            "sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050"
+          },
+          {
+            "path": "artwork-cache/4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421.jpg",
+            "type": "file",
+            "bytes": 26182,
+            "sha256": "4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421"
+          },
+          {
+            "path": "artwork-cache/683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0.jpg",
+            "type": "file",
+            "bytes": 5038,
+            "sha256": "683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0"
+          },
+          {
+            "path": "artwork-cache/d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365.jpg",
+            "type": "file",
+            "bytes": 7080,
+            "sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365"
+          },
+          {
+            "path": "artwork-cache/f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5.jpg",
+            "type": "file",
+            "bytes": 23126,
+            "sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5"
+          },
+          {
+            "path": "backups/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "downloads/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/artwork.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/library.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/migration.lock",
+            "type": "file",
+            "bytes": 47,
+            "sha256": "046fca6e5d273594b769f4748b59adac9a23911f7519c1a2a723e3c823cc18eb"
+          },
+          {
+            "path": "locks/migration.owner.json",
+            "type": "file",
+            "bytes": 55,
+            "sha256": "822a7ef415aa8d6db1dafbeb4cf13aa7762b56fb93f0625fede73f7e22ed8271"
+          },
+          {
+            "path": "logs/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "logs/portcove-desktop.jsonl",
+            "type": "file",
+            "bytes": 2635,
+            "sha256": "d64750153898205febe6bf57a7467c9c67df36a8dec6fafa285145195fa3b39f"
+          },
+          {
+            "path": "portcove.sqlite3",
+            "type": "file",
+            "bytes": 348160,
+            "sha256": "9b5f9ae95a1440f74ac45047d9c121a3cb8efb593c95a77433d4fe8a0b05f3a7"
+          },
+          {
+            "path": "portcove.sqlite3-shm",
+            "type": "file",
+            "bytes": 32768,
+            "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+          },
+          {
+            "path": "portcove.sqlite3-wal",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "recovery/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "source-inbox/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "staging/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "toolchains/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/preserve.txt",
+            "type": "file",
+            "bytes": 32,
+            "sha256": "82c1cd0dc5c2caa4d3365a2892549ff89415c9e809b4574b42c3c9660989ae21"
+          },
+          {
+            "path": "versions/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          }
+        ],
+        "preferences": {
+          "present": false,
+          "bytes": null,
+          "sha256": null
+        }
+      },
+      "current_installed_boundary": null,
+      "isolated_account_boundary": null,
+      "package_rollback": null
+    },
+    "driver_host_baseline": {
+      "captured_at": "2026-10-28T21:01:20.6829421Z",
+      "process_integrity_sid": "S-1-16-8192",
+      "process_integrity_group_count": 1,
+      "whoami_exit_code": 0,
+      "administrator_token": false,
+      "webview2_runtime_versions": ["156.0.4314.50"],
+      "cached_webview2_version": "156.0.4314.50",
+      "drivers": {
+        "tauri_driver": {
+          "reported": "Error: unused arguments left: [\"--version\"]\r\nUSAGE: tauri-driver [FLAGS] [OPTIONS]\r\n\r\nFLAGS:\r\n  -h, --help              Prints help information\r\n\r\nOPTIONS:\r\n  --port NUMBER           Sets the tauri-driver intermediary port\r\n  --native-port NUMBER    Sets the port of the underlying WebDriver\r\n  --native-host HOST      Sets the host of the underlying WebDriver (Linux only)\r\n  --native-driver PATH    Sets the path to the native WebDriver binary",
+          "exit_code": 1,
+          "sha256": "276497b108f72a4930c12d13601754f7d68df6e9a29484d4cf07842c2fec63ab"
+        },
+        "native_driver": {
+          "reported": "Microsoft Edge WebDriver 156.0.4314.50 (af2ba23ae0ecf7084d900446fc59d5119dd5fd5e)",
+          "exit_code": 0,
+          "sha256": "dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3"
+        }
+      },
+      "os_version": "Microsoft Windows NT 10.0.26300.0",
+      "os_architecture": "X64"
+    },
+    "driver_preflight_baseline": "passed",
+    "installed_truncated_stage": {
+      "exit_code": 1,
+      "staging_empty": true,
+      "predecessor_preserved": true,
+      "sentinel_preserved": true
+    },
+    "installed_tampered_stage": {
+      "expected_bytes": 13729439,
+      "actual_bytes": 13729439,
+      "expected_sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+      "actual_sha256": "54767529b9b3534e1cb5493bd639c7da6d00ef1dbab7a4572b0f24ead60ce95a",
+      "exit_code": 1,
+      "staging_empty": true,
+      "predecessor_preserved": true,
+      "sentinel_preserved": true,
+      "original_candidate_preserved": true
+    },
+    "installed_recovery": {
+      "invalid_journal_fixture": "not-json",
+      "invalid_journal_sha256": "0c21a879c732a67910d80988df4919d794f6a070aab610ef865032a28046b021",
+      "stray_payload_bytes": 1,
+      "status_exit_code": 1,
+      "status_stdout": "Application update recovery is required for:\n  - staging\n    portcove-desktop --application-update-recovery repair staging\nRun only the listed fixed-area repairs, then run status again.\nNo update check, download, install, restart, or native prompt was started.",
+      "repair_exit_code": 0,
+      "repair_stdout": "Repaired application update staging state.\nThe damaged staged payload and journal were cleared; a fresh verified download is required.\nNo update check, download, install, restart, or native prompt was started.",
+      "healthy_status_exit_code": 0,
+      "healthy_status_stdout": "Application update coordination state is healthy.\nNo update check, download, install, restart, or native prompt was started.",
+      "repaired_journal_sha256": "f5d6b20d8ad0c738401bd26d1c9837c8f00d32b068cd5f901e2ae07dd6dca247",
+      "repaired_journal_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgInBoYXNlIjogImVtcHR5IiwKICAiY2FuZGlkYXRlIjogbnVsbCwKICAicHJldmlvdXNfY2FuZGlkYXRlIjogbnVsbAp9Cg==",
+      "repaired_journal": {
+        "schema_version": 1,
+        "phase": "empty",
+        "candidate": null,
+        "previous_candidate": null
+      },
+      "predecessor_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+      "predecessor_registration_version": "0.1.0",
+      "sentinel_sha256": "82c1cd0dc5c2caa4d3365a2892549ff89415c9e809b4574b42c3c9660989ae21",
+      "staging_empty": true
+    },
+    "driver_preflight_fixture_env": "passed",
+    "installed_stage": {
+      "version": "0.3.0",
+      "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+      "bytes": 13729439,
+      "predecessor_preserved": true,
+      "renderer_evidence": "renderer-qualification/evidence/renderer-update-evidence.json"
+    }
+  },
+  "native_renderer": {
+    "schema_version": 1,
+    "phase": "complete",
+    "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+    "app": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+    "initial_executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+    "candidate_installer_sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+    "candidate_executable_sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9",
+    "candidate_version": "0.3.0",
+    "actions": [
+      "stable-manual-settings-saved",
+      "stable-waiting-without-staging-or-current-claim",
+      "installed-gui-opened",
+      "preview-manual-settings-saved",
+      "signed-candidate-presented",
+      "exact-installed-candidate-status-read-back",
+      "renderer-downloaded-and-verified",
+      "candidate-restarted-and-reconciled"
+    ],
+    "transport": "embedded",
+    "failure": null,
+    "embedded_listener": {
+      "ready": true,
+      "pid": 28880,
+      "address": "127.0.0.1",
+      "port": 60366,
+      "started_filetime": "134376949075791286"
+    },
+    "embedded_startup": {
+      "captured_at": "2026-10-28T21:01:48.5141803Z",
+      "driver": {
+        "pid": 28880,
+        "path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "started_filetime": "134376949075791286"
+      },
+      "application_pid": 28880,
+      "processes": [
+        {
+          "pid": 28880,
+          "path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+          "started_filetime": "134376949075791286"
+        },
+        {
+          "pid": 25260,
+          "path": "C:\\WINDOWS\\system32\\conhost.exe",
+          "started_filetime": "134376949075829245"
+        },
+        {
+          "pid": 28676,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949077322820"
+        },
+        {
+          "pid": 28308,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949077452405"
+        },
+        {
+          "pid": 22744,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949078529212"
+        },
+        {
+          "pid": 11640,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949078574911"
+        },
+        {
+          "pid": 9704,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949078985067"
+        },
+        {
+          "pid": 3312,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949080068040"
+        }
+      ],
+      "root_kind": "direct-application",
+      "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+    },
+    "stable_waiting": {
+      "before": {
+        "schedule": {
+          "last_success_unix_seconds": null,
+          "consecutive_failures": 2,
+          "next_automatic_check_unix_seconds": 1793223180
+        },
+        "staged": null,
+        "apply": null,
+        "install_eligibility": "eligible",
+        "recovery_required": []
+      },
+      "after": {
+        "schedule": {
+          "last_success_unix_seconds": null,
+          "consecutive_failures": 2,
+          "next_automatic_check_unix_seconds": 1793223180
+        },
+        "staged": null,
+        "apply": null,
+        "install_eligibility": "eligible",
+        "recovery_required": []
+      },
+      "checked_at": "2026-10-28T21:01:51.150Z",
+      "message": "No eligible release is published for the selected channel.",
+      "authority": "none",
+      "scope": "ordinary Stable waiting UI only",
+      "installed_executable_sha256_before": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+      "installed_executable_sha256_after": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+    },
+    "ordinary_staging": {
+      "before": {
+        "schedule": {
+          "last_success_unix_seconds": null,
+          "consecutive_failures": 2,
+          "next_automatic_check_unix_seconds": 1793223180
+        },
+        "staged": null,
+        "apply": null,
+        "install_eligibility": "eligible",
+        "recovery_required": []
+      },
+      "staged": {
+        "schedule": {
+          "last_success_unix_seconds": 1793221311,
+          "consecutive_failures": 0,
+          "next_automatic_check_unix_seconds": 1793307711
+        },
+        "staged": {
+          "version": "0.3.0",
+          "channel": "preview",
+          "bytes": 13729439
+        },
+        "apply": null,
+        "install_eligibility": "eligible",
+        "recovery_required": []
+      },
+      "authority": "none",
+      "scope": "ordinary UI staging only"
+    },
+    "staged": {
+      "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+      "bytes": 13729439
+    },
+    "native_processes_before_restart": {
+      "captured_at": "2026-10-28T21:01:53.0085324Z",
+      "driver": {
+        "pid": 28880,
+        "path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+        "started_filetime": "134376949075791286"
+      },
+      "application_pid": 28880,
+      "processes": [
+        {
+          "pid": 28880,
+          "path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+          "started_filetime": "134376949075791286"
+        },
+        {
+          "pid": 25260,
+          "path": "C:\\WINDOWS\\system32\\conhost.exe",
+          "started_filetime": "134376949075829245"
+        },
+        {
+          "pid": 28676,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949077322820"
+        },
+        {
+          "pid": 28308,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949077452405"
+        },
+        {
+          "pid": 22744,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949078529212"
+        },
+        {
+          "pid": 11640,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949078574911"
+        },
+        {
+          "pid": 9704,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949078985067"
+        },
+        {
+          "pid": 3312,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134376949080068040"
+        }
+      ],
+      "root_kind": "direct-application",
+      "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+    },
+    "bootstrap_before_restart": {
+      "ok": true,
+      "value": {
+        "ready": true,
+        "library_root": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\library",
+        "selection": {
+          "root": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\library",
+          "source": "invocation"
+        },
+        "generation": 1,
+        "error": null
+      }
+    },
+    "restart_action_attempted": true,
+    "restart_click": "returned",
+    "helper_process_marker": {
+      "executable": "\\\\?\\H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\application-update\\workers\\revision-2\\attempt-28880-1793221313198951800-0\\portcove-update-worker.exe",
+      "process_id": 12744,
+      "schema_version": 1
+    },
+    "relaunch_process_marker": {
+      "executable": "\\\\?\\H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\installed\\portcove-desktop.exe",
+      "process_id": 29044,
+      "schema_version": 1
+    },
+    "restart": {
+      "marker": {
+        "process_id": 29044,
+        "schema_version": 1,
+        "stage": "Tauri setup"
+      },
+      "installed_executable_sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9"
+    },
+    "helper_result": {
+      "exit_code": 0,
+      "process_id": 12744,
+      "schema_version": 1
+    },
+    "helper_os_exit": {
+      "kind": "observation",
+      "observation": {
+        "status": "exit-observed",
+        "pid": 12744,
+        "exit_code": 0,
+        "path": "\\\\?\\H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\application-update\\workers\\revision-2\\attempt-28880-1793221313198951800-0\\portcove-update-worker.exe",
+        "started_filetime": "134376949136116802",
+        "observation": "retained-process-handle"
+      }
+    },
+    "natural_process_exit": {
+      "candidate": {
+        "capture": {
+          "status": "exited",
+          "pid": 29044
+        },
+        "exit": {
+          "status": "exited",
+          "pid": 29044
+        }
+      },
+      "helper": {
+        "capture": {
+          "status": "exited",
+          "pid": 12744
+        },
+        "exit": {
+          "status": "exited",
+          "pid": 12744
+        }
+      }
+    },
+    "updater_process_cleanup": {
+      "candidate": "exited naturally before cleanup",
+      "helper": "exited naturally before cleanup"
+    },
+    "embedded_cleanup": {
+      "forced": false,
+      "exit_code": 0,
+      "signal": null
+    }
+  },
+  "continuity": {
+    "same_registration_path": "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
+    "manual_predecessor_arguments": ["/P", "/UPDATE"],
+    "library_root": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-sdk-replay-legacy-skipped\\installer-test\\run-40ef1b0b99ad4150a4f596c14d8771af\\library",
+    "sentinel_sha256": "82c1cd0dc5c2caa4d3365a2892549ff89415c9e809b4574b42c3c9660989ae21",
+    "sentinel_scope": "created before Alpha2 installation and not reseeded across any leg",
+    "snapshot_scope": "before install, after Alpha2 startup/close, after manual replacement, after updater-enabled startup; database migration bytes recorded, no semantic existing-record continuity asserted",
+    "preferences_scope": "absent in all four snapshots; no preference continuity credit",
+    "uninstall_manifest_equality_scope": "uninstall only; no broad recursive equality across upgrade"
+  },
+  "source_restoration": [
+    {
+      "matches_original": true,
+      "sha256": "d554105b0a400be29e2ca9750de46d0bf9de8aedcfaf4690f90accb14ff12119",
+      "path": "Cargo.toml"
+    },
+    {
+      "matches_original": true,
+      "sha256": "dc4fd806e9d40e8972352b6cc46752ad4f4ed5c0371c408705e4bff8431115e9",
+      "path": "Cargo.lock"
+    },
+    {
+      "matches_original": true,
+      "sha256": "ba1be53dc72151f0fcfe53bb73b88315c8df31158f59c3094e4272d70bb8ab41",
+      "path": "apps/desktop/package.json"
+    },
+    {
+      "matches_original": true,
+      "sha256": "d94fbb455bf3908a285d3dac091e2af752dbf68f1d3cb1414a65657a57a60719",
+      "path": "apps/desktop/src-tauri/tauri.conf.json"
+    },
+    {
+      "matches_original": true,
+      "sha256": "40801b1dd6ee3b672510bc65a4e7a5953649dfc239e388cbeb88c581a37e4055",
+      "path": "scripts/test-windows-installer.ps1"
+    }
+  ],
+  "original_failure_and_settlement": {
+    "failed_case_sha256": "87f63f078c679af77eeea754fcb72d83d6f3167cdf775d737a3064c9cc878cff",
+    "original_phase": "failed",
+    "original_failure": "Historical WebView used a different profile; no isolation claim",
+    "scope": "First attempt installed Alpha2 and forced-stopped its smoke after a profile-oracle refusal. Raw original profile path was not recorded, and the attempt remains failed. New actual run observes the documented EBWebView child.",
+    "first_uninstall_controller_interruption": {
+      "scope": "interrupt only exact task-owned recovery worker after read-only supplemental serialization stalled; no application acceptance",
+      "pid": 29480,
+      "created": "2026-10-28T20:43:21.3953290Z",
+      "image": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+      "private_bytes": 3125190656,
+      "journal_present_before": false,
+      "stopped": true,
+      "exit_code": -1
+    },
+    "controller_scope": "Raw registry provider serialization stalled before first journal and before any uninstaller dispatch; exact worker interrupted. Corrected controller projects only scalar registry fields. This is not application interruption/reboot acceptance.",
+    "owned_settlement": {
+      "format": 1,
+      "phase": "recovery_complete",
+      "failure": null,
+      "process_runs": [
+        {
+          "id": "941850c03bbf41d2979b4d575e83385d",
+          "role": "candidate_uninstaller",
+          "requested_at": "2026-10-28T20:58:54.7593444Z",
+          "requested_at_filetime": 134376947347593444,
+          "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-replay-legacy-skipped\\installer-test\\run-9970b919016b4a45b6aa9384dd78bbf6\\installed\\uninstall.exe",
+          "executable_sha256": "827516e578de450924e7f9c89133979e6717b31b29899cb7bd10d513f785fd2c",
+          "arguments": ["/S"],
+          "status": "exit_observed",
+          "pid": 3728,
+          "start_time": "2026-10-28T20:58:54.8107785Z",
+          "start_time_filetime": 134376947348107785,
+          "exit_code": 0,
+          "exit_observation": "Observed through the retained launch handle",
+          "observed_image_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-replay-legacy-skipped\\installer-test\\run-9970b919016b4a45b6aa9384dd78bbf6\\installed\\uninstall.exe",
+          "image_observation": "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+        },
+        {
+          "id": "74567efca41749ac924782ad6d98e8ea",
+          "role": "candidate_uninstaller_child",
+          "parent_run_id": "941850c03bbf41d2979b4d575e83385d",
+          "parent_pid": 3728,
+          "requested_at": "2026-10-28T20:58:54.7593444Z",
+          "requested_at_filetime": 134376947347593444,
+          "executable_path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-replay-legacy-skipped\\installer-test\\run-9970b919016b4a45b6aa9384dd78bbf6\\~nsu1.tmp\\Un.exe",
+          "executable_sha256": "827516e578de450924e7f9c89133979e6717b31b29899cb7bd10d513f785fd2c",
+          "arguments": [],
+          "status": "exit_observed",
+          "pid": 11060,
+          "start_time": "2026-10-28T20:58:54.8845801Z",
+          "start_time_filetime": 134376947348845801,
+          "exit_code": 0,
+          "exit_observation": "Observed through the retained launch handle",
+          "image_observation": "Observed the retained child handle, parent PID, start time and exact self-copy in the owned temporary root"
+        }
+      ],
+      "unverified_child_observations": [],
+      "unverified_child_capture_failed": false,
+      "original_failed_receipt": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-replay-legacy-skipped\\windows-historical-bootstrap-replay.json",
+      "original_failed_sha256": "87f63f078c679af77eeea754fcb72d83d6f3167cdf775d737a3064c9cc878cff",
+      "scope": "owned partial-install settlement only, not successful bootstrap acceptance",
+      "uninstaller_sha256": "827516e578de450924e7f9c89133979e6717b31b29899cb7bd10d513f785fd2c",
+      "private_run_root": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-replay-legacy-skipped\\installer-test\\run-9970b919016b4a45b6aa9384dd78bbf6",
+      "registration_before": [
+        {
+          "path": "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
+          "version": "0.1.0-alpha.2",
+          "install_location": "\"H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-replay-legacy-skipped\\installer-test\\run-9970b919016b4a45b6aa9384dd78bbf6\\installed\"",
+          "uninstall_string": "\"H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\historical-bootstrap-replay-legacy-skipped\\installer-test\\run-9970b919016b4a45b6aa9384dd78bbf6\\installed\\uninstall.exe\""
+        }
+      ],
+      "preservation_before": {
+        "library": [
+          {
+            "path": "backups/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "downloads/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/library.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/migration.lock",
+            "type": "file",
+            "bytes": 47,
+            "sha256": "50518a7fdc2ce0129914e78086182df65887ea9522da01690c58ce830866bb89"
+          },
+          {
+            "path": "logs/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "logs/portcove-desktop.jsonl",
+            "type": "file",
+            "bytes": 343,
+            "sha256": "0de9e626dfeecc9db37b8ac8c03a053d216443bd255198835a891fe71c6b66e3"
+          },
+          {
+            "path": "portcove.sqlite3",
+            "type": "file",
+            "bytes": 143360,
+            "sha256": "8c73208e46b03e921c3f8edef16a14eb210a452b3dc8cc657d1a085d5b6574c0"
+          },
+          {
+            "path": "recovery/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "source-inbox/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "staging/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "toolchains/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/preserve.txt",
+            "type": "file",
+            "bytes": 32,
+            "sha256": "d07061c11921a8a36e6465686b9e568992abccead384de2bd3cc9816c6424eba"
+          },
+          {
+            "path": "versions/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          }
+        ],
+        "preferences": {
+          "present": false,
+          "bytes": null,
+          "sha256": null
+        }
+      },
+      "remaining_managed_files": [],
+      "remaining_registration": [],
+      "remaining_scoped_processes": [],
+      "preservation_after": {
+        "library": [
+          {
+            "path": "backups/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "downloads/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "locks/library.lock",
+            "type": "file",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "locks/migration.lock",
+            "type": "file",
+            "bytes": 47,
+            "sha256": "50518a7fdc2ce0129914e78086182df65887ea9522da01690c58ce830866bb89"
+          },
+          {
+            "path": "logs/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "logs/portcove-desktop.jsonl",
+            "type": "file",
+            "bytes": 343,
+            "sha256": "0de9e626dfeecc9db37b8ac8c03a053d216443bd255198835a891fe71c6b66e3"
+          },
+          {
+            "path": "portcove.sqlite3",
+            "type": "file",
+            "bytes": 143360,
+            "sha256": "8c73208e46b03e921c3f8edef16a14eb210a452b3dc8cc657d1a085d5b6574c0"
+          },
+          {
+            "path": "recovery/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "source-inbox/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "staging/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "toolchains/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "user/installer-qualification/preserve.txt",
+            "type": "file",
+            "bytes": 32,
+            "sha256": "d07061c11921a8a36e6465686b9e568992abccead384de2bd3cc9816c6424eba"
+          },
+          {
+            "path": "versions/",
+            "type": "directory",
+            "bytes": null,
+            "sha256": null
+          }
+        ],
+        "preferences": {
+          "present": false,
+          "bytes": null,
+          "sha256": null
+        }
+      },
+      "original_failure_unchanged": true
+    },
+    "settlement_scope": "retained-handle parent/self-copy OS0, managed files and registrations absent, executable-path-scoped processes absent, library/preference manifests equal. External WebView-profile process quiescence was not separately established; failed profile retained."
+  },
+  "custody": {
+    "recorded_at": "2026-10-28T21:08:19.149915+00:00",
+    "path": "E:/Codex-Evidence/beta-updater-20261028/3900-continuation/historical-bootstrap-capsule.zip",
+    "bytes": 8808352,
+    "sha256": "6703b801463258781906ef5262a33bf710c1d8ef67c8d107b348e8282bc1ff03",
+    "files": 174,
+    "expanded_bytes": 18390424,
+    "scope": "successful native historical bootstrap chain plus retained original failure and bounded owned settlement; prior signed package/feed record inputs remain separately retained in original legacy-skipped archives"
+  },
+  "independent_review": "non-writing review reconciled all174 capsule member hashes and material native/package/source joins; subsequent receipt projection review remains part of delivery",
+  "limits": [
+    "No real installed game/original/save/general preference/credential continuity; current qualification sentinel is synthetic and preference files absent.",
+    "No original historical uninstaller hash was separately retained at the successful manual-replacement boundary; failed-case settlement retains its own independently observed uninstaller hash.",
+    "No pure standard-account or clean-VM/minimum-host proof, individually observed child tokens or NTFS owner SIDs.",
+    "No default-feature production updater journey, production Root/key/feed/publication or retrospective production signing credit; #534 remains separate.",
+    "This is one historical bootstrap then authenticated skipped chain; other adjacent/Preview-final observations retain their original receipt scopes.",
+    "No all-channel withdrawal/promotion/downgrade or real OS reboot acceptance.",
+    "No Linux, macOS, Steam Deck or later full1.0 qualification inferred."
+  ],
+  "qualified_pair_custody": {
+    "original_archive": {
+      "profile": "legacy-skipped",
+      "file_count": 377,
+      "expanded_bytes": 244943811,
+      "archive": {
+        "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-legacy-skipped.zip",
+        "bytes": 160913893,
+        "sha256": "03c053a8e6bc5aa1e5b4dd0e861daf80f58842fbd4f3fc9d219662e70b6d2849"
+      },
+      "manifest": {
+        "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-legacy-skipped-manifest.json",
+        "bytes": 89302,
+        "sha256": "9d474ee261dbbe0348412d010430a36af287782d4c3d630f8831450bf4fc0822"
+      }
+    },
+    "qualified_predecessor_additional_custody": {
+      "profile": "legacy-skipped",
+      "consumed_identity_source": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-evidence-adcbeaad-legacy-skipped/windows-installed-update.json",
+      "report_sha256": "c35d2831773c683c1662d8bee69c4f40a245ca7bff575ef7e73c932942489cf9",
+      "files": [
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/previous-bundles/nsis/Portcove_0.1.0_x64-setup.exe",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-qualified-predecessors/legacy-skipped/Portcove_0.1.0_x64-setup.exe",
+          "bytes": 14439023,
+          "sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b"
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/previous-bundles/nsis/Portcove_0.1.0_x64-setup.exe.sig",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-qualified-predecessors/legacy-skipped/Portcove_0.1.0_x64-setup.exe.sig",
+          "bytes": 436,
+          "sha256": "5b0ed50ff9f73f66624c578b8d33d029f5b956b674f2c87d20989277e28d5ad6"
+        }
+      ]
+    }
+  }
+}
