@@ -224,10 +224,10 @@ pub use port_recommendation::{
     PortRecommendationStatus, RecommendationCandidate, RecommendationCandidateAssessment,
     RecommendationClaim, RecommendationContext, RecommendationDimension,
     RecommendationDimensionAssessment, RecommendationDimensionState, RecommendationEvidence,
-    RecommendationEvidenceAssessment, RecommendationEvidenceDisposition, RecommendationEvidenceKind,
-    RecommendationOperationEligibility, RecommendationReason, RecommendationRegression,
-    RecommendationRequirement, RecommendationScope, RecommendationVerifiedCorrection,
-    assess_port_recommendations,
+    RecommendationEvidenceAssessment, RecommendationEvidenceDisposition,
+    RecommendationEvidenceKind, RecommendationOperationEligibility, RecommendationReason,
+    RecommendationRegression, RecommendationRequirement, RecommendationScope,
+    RecommendationVerifiedCorrection, assess_port_recommendations,
 };
 pub use portability::{
     LibraryContentKind, LibraryContentRoot, LibraryLaunchHistory, LibraryMetadata,

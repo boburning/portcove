@@ -43,7 +43,9 @@ pub struct RecommendationContext {
     pub required_capabilities: BTreeSet<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum RecommendationDimension {
     Gameplay,
@@ -65,7 +67,9 @@ impl RecommendationDimension {
     ];
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum RecommendationEvidenceKind {
     UpstreamDeclared,
@@ -93,7 +97,9 @@ impl RecommendationEvidenceKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum RecommendationClaim {
     Rating { value: u8 },
@@ -332,8 +338,7 @@ pub fn assess_port_recommendations(
         comparable = eligible
             .iter()
             .filter(|candidate| {
-                best_score
-                    .saturating_sub(candidate.ranking_score_basis_points.unwrap_or_default())
+                best_score.saturating_sub(candidate.ranking_score_basis_points.unwrap_or_default())
                     <= COMPARABLE_MARGIN
                     || shared_evidence_advantage(best, candidate) <= i64::from(COMPARABLE_MARGIN)
             })
@@ -434,7 +439,10 @@ fn assess_candidate(
     if scope.platform != context.platform || scope.environment_id != context.environment_id {
         reasons.push(R::DifferentPlatformOrEnvironment);
     }
-    if !context.available_source_profiles.contains(&scope.source_profile_id) {
+    if !context
+        .available_source_profiles
+        .contains(&scope.source_profile_id)
+    {
         reasons.push(R::SourceNotSelected);
     }
     match candidate.operation_eligibility {
@@ -491,17 +499,29 @@ fn assess_candidate(
     }
     let coverage = dimensions
         .iter()
-        .map(|dimension| u32::from(dimension.weight_percent) * u32::from(dimension.strength_permille))
+        .map(|dimension| {
+            u32::from(dimension.weight_percent) * u32::from(dimension.strength_permille)
+        })
         .sum::<u32>()
         / 100;
     if coverage < u32::from(MINIMUM_COVERAGE) {
         reasons.push(R::InsufficientCoverage);
     }
     for (dimension, unknown, low) in [
-        (RecommendationDimension::Gameplay, R::GameplayUnobserved, R::GameplayBelowDefaultFloor),
-        (RecommendationDimension::Stability, R::StabilityUnobserved, R::StabilityBelowDefaultFloor),
+        (
+            RecommendationDimension::Gameplay,
+            R::GameplayUnobserved,
+            R::GameplayBelowDefaultFloor,
+        ),
+        (
+            RecommendationDimension::Stability,
+            R::StabilityUnobserved,
+            R::StabilityBelowDefaultFloor,
+        ),
     ] {
-        let result = dimensions.iter().find(|result| result.dimension == dimension);
+        let result = dimensions
+            .iter()
+            .find(|result| result.dimension == dimension);
         match result {
             Some(result) if result.strength_permille == 1000 => {
                 if result.rating.is_some_and(|rating| rating < 3) {
@@ -515,8 +535,8 @@ fn assess_candidate(
         .iter()
         .map(|dimension| {
             let rating = i64::from(dimension.rating.unwrap_or_default());
-            let estimate = 5000
-                + i64::from(dimension.strength_permille) * (rating * 2000 - 5000) / 1000;
+            let estimate =
+                5000 + i64::from(dimension.strength_permille) * (rating * 2000 - 5000) / 1000;
             i64::from(dimension.weight_percent) * estimate
         })
         .sum::<i64>()
@@ -587,7 +607,12 @@ fn assess_evidence(
         let targets = correction
             .supersedes
             .iter()
-            .map(|id| original.iter().filter(|prior| prior.evidence.id == *id).collect::<Vec<_>>())
+            .map(|id| {
+                original
+                    .iter()
+                    .filter(|prior| prior.evidence.id == *id)
+                    .collect::<Vec<_>>()
+            })
             .collect::<Vec<_>>();
         let valid = targets.iter().all(|matches| {
             matches.len() == 1
@@ -684,7 +709,11 @@ fn regression_resolved(
     scope: &RecommendationScope,
     regressions: &[RecommendationRegression],
 ) -> bool {
-    let unambiguous = regressions.iter().filter(|other| other.id == regression.id).count() == 1;
+    let unambiguous = regressions
+        .iter()
+        .filter(|other| other.id == regression.id)
+        .count()
+        == 1;
     unambiguous
         && input.verified_corrections.iter().any(|correction| {
             correction.regression_id == regression.id
@@ -713,7 +742,8 @@ fn materially_better_play(
     let better_stability = rating(better, RecommendationDimension::Stability);
     let worse_stability = rating(worse, RecommendationDimension::Stability);
     (better_gameplay >= worse_gameplay.saturating_add(2) && better_stability >= worse_stability)
-        || (better_stability >= worse_stability.saturating_add(2) && better_gameplay >= worse_gameplay)
+        || (better_stability >= worse_stability.saturating_add(2)
+            && better_gameplay >= worse_gameplay)
 }
 
 // A neutral unknown must not create an advantage over an observed low rating.

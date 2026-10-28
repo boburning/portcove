@@ -101,12 +101,18 @@ fn dimension(
 #[test]
 fn weights_are_normalized_and_all_six_rubrics_cover_zero_through_five() {
     assert_eq!(
-        RecommendationDimension::WEIGHTED.iter().map(|(_, weight)| weight).sum::<u16>(),
+        RecommendationDimension::WEIGHTED
+            .iter()
+            .map(|(_, weight)| weight)
+            .sum::<u16>(),
         100
     );
     for rating in 0..=5 {
         let result = assessment(&fixture_input(vec![fixture_candidate("a", rating)]));
-        assert_eq!(result.candidates[0].ranking_score_basis_points, Some(u16::from(rating) * 2000));
+        assert_eq!(
+            result.candidates[0].ranking_score_basis_points,
+            Some(u16::from(rating) * 2000)
+        );
         assert_eq!(result.candidates[0].evidence_coverage_permille, 1000);
         assert_eq!(result.candidates[0].dimensions.len(), 6);
         for dimension in &result.candidates[0].dimensions {
@@ -123,7 +129,10 @@ fn unknown_has_no_displayed_neutral_score_or_manufactured_winner() {
         candidate.evidence.clear();
     }
     let result = assessment(&fixture_input(candidates));
-    assert_eq!(result.status, PortRecommendationStatus::InsufficientEvidence);
+    assert_eq!(
+        result.status,
+        PortRecommendationStatus::InsufficientEvidence
+    );
     assert!(result.recommended.is_none());
     for candidate in &result.candidates {
         assert_eq!(candidate.ranking_score_basis_points, None);
@@ -141,13 +150,25 @@ fn unknown_and_not_applicable_keep_their_weights_without_inflating_coverage() {
     let assessed = &result.candidates[0];
     assert_eq!(assessed.ranking_score_basis_points, Some(8500));
     assert_eq!(assessed.evidence_coverage_permille, 700);
-    assert_eq!(dimension(assessed, RecommendationDimension::Performance).state, RecommendationDimensionState::Unknown);
-    assert_eq!(dimension(assessed, RecommendationDimension::Setup).state, RecommendationDimensionState::NotApplicable);
+    assert_eq!(
+        dimension(assessed, RecommendationDimension::Performance).state,
+        RecommendationDimensionState::Unknown
+    );
+    assert_eq!(
+        dimension(assessed, RecommendationDimension::Setup).state,
+        RecommendationDimensionState::NotApplicable
+    );
     candidate.evidence.remove(4);
     candidate.evidence.remove(2);
     let absent = assessment(&fixture_input(vec![candidate]));
-    assert_eq!(absent.candidates[0].ranking_score_basis_points, assessed.ranking_score_basis_points);
-    assert_eq!(absent.candidates[0].evidence_coverage_permille, assessed.evidence_coverage_permille);
+    assert_eq!(
+        absent.candidates[0].ranking_score_basis_points,
+        assessed.ranking_score_basis_points
+    );
+    assert_eq!(
+        absent.candidates[0].evidence_coverage_permille,
+        assessed.evidence_coverage_permille
+    );
 }
 
 #[test]
@@ -158,14 +179,25 @@ fn fixed_strengths_do_not_turn_launch_or_artifact_inspection_into_gameplay() {
     }
     let result = assessment(&fixture_input(vec![candidate]));
     assert_eq!(result.candidates[0].evidence_coverage_permille, 112);
-    assert!(result.candidates[0].reasons.contains(&RecommendationReason::GameplayUnobserved));
-    assert!(result.candidates[0].reasons.contains(&RecommendationReason::StabilityUnobserved));
+    assert!(
+        result.candidates[0]
+            .reasons
+            .contains(&RecommendationReason::GameplayUnobserved)
+    );
+    assert!(
+        result.candidates[0]
+            .reasons
+            .contains(&RecommendationReason::StabilityUnobserved)
+    );
     assert!(!result.candidates[0].recommendation_eligible);
     let mut candidate = fixture_candidate("b", 5);
     for observation in &mut candidate.evidence {
         observation.kind = RecommendationEvidenceKind::ArtifactInspected;
     }
-    assert_eq!(assessment(&fixture_input(vec![candidate])).candidates[0].evidence_coverage_permille, 150);
+    assert_eq!(
+        assessment(&fixture_input(vec![candidate])).candidates[0].evidence_coverage_permille,
+        150
+    );
 }
 
 #[test]
@@ -177,7 +209,10 @@ fn upstream_claims_are_weak_evidence_and_never_qualified_gameplay() {
     let result = assessment(&fixture_input(vec![candidate]));
     assert_eq!(result.candidates[0].ranking_score_basis_points, Some(6250));
     assert_eq!(result.candidates[0].evidence_coverage_permille, 250);
-    assert_eq!(result.status, PortRecommendationStatus::InsufficientEvidence);
+    assert_eq!(
+        result.status,
+        PortRecommendationStatus::InsufficientEvidence
+    );
 }
 
 #[test]
@@ -192,8 +227,14 @@ fn repeated_identical_reports_cannot_inflate_strength_or_coverage() {
     extra.id = "another-report".to_owned();
     corroborated.evidence.push(extra);
     let result = assessment(&fixture_input(vec![corroborated]));
-    assert_eq!(result.candidates[0].ranking_score_basis_points, baseline.candidates[0].ranking_score_basis_points);
-    assert_eq!(result.candidates[0].evidence_coverage_permille, baseline.candidates[0].evidence_coverage_permille);
+    assert_eq!(
+        result.candidates[0].ranking_score_basis_points,
+        baseline.candidates[0].ranking_score_basis_points
+    );
+    assert_eq!(
+        result.candidates[0].evidence_coverage_permille,
+        baseline.candidates[0].evidence_coverage_permille
+    );
 }
 
 #[test]
@@ -205,7 +246,11 @@ fn contradictory_duplicate_ids_are_invalid_and_order_independent() {
     let first = assessment(&fixture_input(vec![candidate.clone()]));
     candidate.evidence.reverse();
     assert_eq!(assessment(&fixture_input(vec![candidate])), first);
-    assert!(first.candidates[0].reasons.contains(&RecommendationReason::InvalidEvidence));
+    assert!(
+        first.candidates[0]
+            .reasons
+            .contains(&RecommendationReason::InvalidEvidence)
+    );
     assert!(!first.candidates[0].recommendation_eligible);
 }
 
@@ -218,14 +263,30 @@ fn conflicting_claims_remain_visible_until_an_explicit_qualified_correction() {
     correction.claim = RecommendationClaim::Rating { value: 3 };
     candidate.evidence.push(correction);
     let conflict = assessment(&fixture_input(vec![candidate.clone()]));
-    assert_eq!(dimension(&conflict.candidates[0], RecommendationDimension::Gameplay).state, RecommendationDimensionState::Conflicting);
+    assert_eq!(
+        dimension(&conflict.candidates[0], RecommendationDimension::Gameplay).state,
+        RecommendationDimensionState::Conflicting
+    );
     assert!(!conflict.candidates[0].recommendation_eligible);
     let previous_id = candidate.evidence[0].id.clone();
-    candidate.evidence.last_mut().unwrap().supersedes.insert(previous_id);
+    candidate
+        .evidence
+        .last_mut()
+        .unwrap()
+        .supersedes
+        .insert(previous_id);
     let corrected = assessment(&fixture_input(vec![candidate]));
-    assert_eq!(dimension(&corrected.candidates[0], RecommendationDimension::Gameplay).rating, Some(3));
+    assert_eq!(
+        dimension(&corrected.candidates[0], RecommendationDimension::Gameplay).rating,
+        Some(3)
+    );
     assert!(corrected.candidates[0].recommendation_eligible);
-    assert!(corrected.candidates[0].evidence.iter().any(|record| record.disposition == RecommendationEvidenceDisposition::Superseded));
+    assert!(
+        corrected.candidates[0]
+            .evidence
+            .iter()
+            .any(|record| record.disposition == RecommendationEvidenceDisposition::Superseded)
+    );
 }
 
 #[test]
@@ -240,7 +301,10 @@ fn a_release_note_cannot_supersede_an_observed_gameplay_failure() {
     claim.supersedes.insert(candidate.evidence[0].id.clone());
     candidate.evidence.push(claim);
     let result = assessment(&fixture_input(vec![candidate]));
-    assert_eq!(dimension(&result.candidates[0], RecommendationDimension::Gameplay).rating, Some(0));
+    assert_eq!(
+        dimension(&result.candidates[0], RecommendationDimension::Gameplay).rating,
+        Some(0)
+    );
     assert!(!result.candidates[0].recommendation_eligible);
 }
 
@@ -257,7 +321,13 @@ fn new_artifacts_and_changed_environments_do_not_inherit_observations() {
         }
         let result = assessment(&fixture_input(vec![changed]));
         assert_eq!(result.candidates[0].evidence_coverage_permille, 0);
-        assert!(result.candidates[0].evidence.iter().all(|record| record.disposition == RecommendationEvidenceDisposition::HistoricalScope));
+        assert!(
+            result.candidates[0]
+                .evidence
+                .iter()
+                .all(|record| record.disposition
+                    == RecommendationEvidenceDisposition::HistoricalScope)
+        );
     }
 }
 
@@ -279,19 +349,32 @@ fn future_observations_do_not_supply_present_evidence() {
     }
     let result = assessment(&fixture_input(vec![candidate]));
     assert_eq!(result.candidates[0].ranking_score_basis_points, None);
-    assert!(result.candidates[0].evidence.iter().all(|record| record.disposition == RecommendationEvidenceDisposition::FutureObservation));
+    assert!(
+        result.candidates[0].evidence.iter().all(
+            |record| record.disposition == RecommendationEvidenceDisposition::FutureObservation
+        )
+    );
 }
 
 #[test]
 fn qualified_advantage_and_close_scores_have_distinct_deterministic_outcomes() {
-    let winner = assessment(&fixture_input(vec![fixture_candidate("b", 3), fixture_candidate("a", 4)]));
-    assert_eq!(winner.status, PortRecommendationStatus::RecommendedStartingPoint);
+    let winner = assessment(&fixture_input(vec![
+        fixture_candidate("b", 3),
+        fixture_candidate("a", 4),
+    ]));
+    assert_eq!(
+        winner.status,
+        PortRecommendationStatus::RecommendedStartingPoint
+    );
     assert_eq!(winner.recommended.unwrap().port_id, "a");
     let mut a = fixture_candidate("a", 4);
     a.evidence[5].claim = RecommendationClaim::Rating { value: 5 };
     let input = fixture_input(vec![fixture_candidate("b", 4), a]);
     let tied = assessment(&input);
-    assert_eq!(tied.status, PortRecommendationStatus::ComparableAlternatives);
+    assert_eq!(
+        tied.status,
+        PortRecommendationStatus::ComparableAlternatives
+    );
     assert!(tied.recommended.is_none());
     assert_eq!(tied.comparable.len(), 2);
     let mut reversed = input;
@@ -309,7 +392,10 @@ fn missing_low_rating_cannot_manufacture_a_winner_from_neutral_unknowns() {
     let mut sparse = fixture_candidate("sparse", 4);
     sparse.evidence.remove(2);
     let result = assessment(&fixture_input(vec![observed, sparse]));
-    assert_eq!(result.status, PortRecommendationStatus::ComparableAlternatives);
+    assert_eq!(
+        result.status,
+        PortRecommendationStatus::ComparableAlternatives
+    );
     assert!(result.recommended.is_none());
     assert_eq!(result.comparable.len(), 2);
 }
@@ -317,26 +403,50 @@ fn missing_low_rating_cannot_manufacture_a_winner_from_neutral_unknowns() {
 #[test]
 fn a_single_candidate_is_assessed_without_claiming_best() {
     let result = assessment(&fixture_input(vec![fixture_candidate("a", 5)]));
-    assert_eq!(result.status, PortRecommendationStatus::AssessedSingleCandidate);
+    assert_eq!(
+        result.status,
+        PortRecommendationStatus::AssessedSingleCandidate
+    );
     assert!(result.recommended.is_none());
     let mut other_game = fixture_candidate("b", 5);
     other_game.scope.game_id = "another-game".to_owned();
     let result = assessment(&fixture_input(vec![fixture_candidate("a", 5), other_game]));
-    assert_eq!(result.status, PortRecommendationStatus::AssessedSingleCandidate);
+    assert_eq!(
+        result.status,
+        PortRecommendationStatus::AssessedSingleCandidate
+    );
     assert!(result.recommended.is_none());
 }
 
 #[test]
 fn explicit_requirements_are_noncompensable_and_unknown_is_not_unsupported() {
     let mut input = fixture_input(vec![fixture_candidate("a", 5), fixture_candidate("b", 4)]);
-    input.context.required_capabilities.insert("multiplayer".to_owned());
-    input.candidates[0].capabilities.insert("multiplayer".to_owned(), RecommendationRequirement::Unsupported);
-    input.candidates[1].capabilities.insert("multiplayer".to_owned(), RecommendationRequirement::Satisfied);
+    input
+        .context
+        .required_capabilities
+        .insert("multiplayer".to_owned());
+    input.candidates[0].capabilities.insert(
+        "multiplayer".to_owned(),
+        RecommendationRequirement::Unsupported,
+    );
+    input.candidates[1].capabilities.insert(
+        "multiplayer".to_owned(),
+        RecommendationRequirement::Satisfied,
+    );
     assert_eq!(assessment(&input).recommended.unwrap().port_id, "b");
     input.candidates[1].capabilities.clear();
-    assert_eq!(assessment(&input).status, PortRecommendationStatus::InsufficientEvidence);
-    input.candidates[1].capabilities.insert("multiplayer".to_owned(), RecommendationRequirement::Unsupported);
-    assert_eq!(assessment(&input).status, PortRecommendationStatus::NoSuitableCandidate);
+    assert_eq!(
+        assessment(&input).status,
+        PortRecommendationStatus::InsufficientEvidence
+    );
+    input.candidates[1].capabilities.insert(
+        "multiplayer".to_owned(),
+        RecommendationRequirement::Unsupported,
+    );
+    assert_eq!(
+        assessment(&input).status,
+        PortRecommendationStatus::NoSuitableCandidate
+    );
 }
 
 #[test]
@@ -348,7 +458,10 @@ fn operation_holds_are_preserved_and_never_averaged_into_quality() {
     let result = assessment(&fixture_input(vec![candidate.clone()]));
     assert_eq!(result.status, PortRecommendationStatus::NoSuitableCandidate);
     assert_eq!(result.candidates[0].ranking_score_basis_points, Some(10000));
-    assert_eq!(result.candidates[0].operation_eligibility, candidate.operation_eligibility);
+    assert_eq!(
+        result.candidates[0].operation_eligibility,
+        candidate.operation_eligibility
+    );
     assert!(!result.candidates[0].recommendation_eligible);
 }
 
@@ -356,7 +469,10 @@ fn operation_holds_are_preserved_and_never_averaged_into_quality() {
 fn setup_and_other_polish_cannot_compensate_for_materially_worse_play() {
     let mut playing = fixture_candidate("playing", 0);
     for evidence in &mut playing.evidence {
-        if matches!(evidence.dimension, RecommendationDimension::Gameplay | RecommendationDimension::Stability) {
+        if matches!(
+            evidence.dimension,
+            RecommendationDimension::Gameplay | RecommendationDimension::Stability
+        ) {
             evidence.claim = RecommendationClaim::Rating { value: 5 };
         }
     }
@@ -365,13 +481,19 @@ fn setup_and_other_polish_cannot_compensate_for_materially_worse_play() {
     polished.evidence[1].claim = RecommendationClaim::Rating { value: 3 };
     let result = assessment(&fixture_input(vec![playing, polished]));
     assert_eq!(result.recommended.unwrap().port_id, "playing");
-    assert!(result.candidates[1].reasons.contains(&RecommendationReason::MateriallyWorsePlayingExperience));
+    assert!(
+        result.candidates[1]
+            .reasons
+            .contains(&RecommendationReason::MateriallyWorsePlayingExperience)
+    );
 }
 
 #[test]
 fn critical_failures_survive_omission_tag_advancement_and_elapsed_time() {
     let mut input = fixture_input(vec![fixture_candidate("a", 5)]);
-    input.observed_regressions.push(regression(&input.candidates[0].scope));
+    input
+        .observed_regressions
+        .push(regression(&input.candidates[0].scope));
     let first = assessment(&input);
     assert_eq!(first.status, PortRecommendationStatus::NoSuitableCandidate);
     input.retained_regressions = first.retained_regressions;
@@ -380,7 +502,10 @@ fn critical_failures_survive_omission_tag_advancement_and_elapsed_time() {
     input.candidates[0].scope.release_id = "new-tag".to_owned();
     input.evaluated_at = u64::MAX;
     let later = assessment(&input);
-    assert_eq!(later.candidates[0].unresolved_regression_ids, vec!["accepted-save-regression"]);
+    assert_eq!(
+        later.candidates[0].unresolved_regression_ids,
+        vec!["accepted-save-regression"]
+    );
     assert_eq!(later.retained_regressions.len(), 1);
     assert!(!later.candidates[0].recommendation_eligible);
 }
@@ -388,7 +513,9 @@ fn critical_failures_survive_omission_tag_advancement_and_elapsed_time() {
 #[test]
 fn only_exact_accepted_gameplay_corrections_resolve_critical_failure() {
     let mut input = fixture_input(vec![fixture_candidate("a", 5)]);
-    input.retained_regressions.push(regression(&input.candidates[0].scope));
+    input
+        .retained_regressions
+        .push(regression(&input.candidates[0].scope));
     let correction = RecommendationVerifiedCorrection {
         regression_id: "accepted-save-regression".to_owned(),
         scope: input.candidates[0].scope.clone(),
@@ -421,13 +548,15 @@ fn conflicting_regression_identity_cannot_be_cleared_by_one_fix() {
     let mut conflicting = failure.clone();
     conflicting.explanation = "Conflicting retained identity.".to_owned();
     input.retained_regressions = vec![failure, conflicting];
-    input.verified_corrections.push(RecommendationVerifiedCorrection {
-        regression_id: "accepted-save-regression".to_owned(),
-        scope: input.candidates[0].scope.clone(),
-        observed_at: 30,
-        source: "fixture://verified-correction".to_owned(),
-        kind: RecommendationEvidenceKind::GameplayObserved,
-    });
+    input
+        .verified_corrections
+        .push(RecommendationVerifiedCorrection {
+            regression_id: "accepted-save-regression".to_owned(),
+            scope: input.candidates[0].scope.clone(),
+            observed_at: 30,
+            source: "fixture://verified-correction".to_owned(),
+            kind: RecommendationEvidenceKind::GameplayObserved,
+        });
     assert!(!assessment(&input).candidates[0].recommendation_eligible);
 }
 
@@ -439,7 +568,8 @@ fn assessment_is_read_only_and_serialization_replays_identically() {
     assert_eq!(serde_json::to_value(&input).unwrap(), before);
     let replayed: PortRecommendationInput = serde_json::from_value(before).unwrap();
     assert_eq!(assessment(&replayed), result);
-    let decoded: PortRecommendationAssessment = serde_json::from_str(&serde_json::to_string(&result).unwrap()).unwrap();
+    let decoded: PortRecommendationAssessment =
+        serde_json::from_str(&serde_json::to_string(&result).unwrap()).unwrap();
     assert_eq!(decoded, result);
 }
 
@@ -461,9 +591,16 @@ fn out_of_range_ratings_are_invalid_not_clamped_into_quality() {
     let mut candidate = fixture_candidate("a", 5);
     candidate.evidence[0].claim = RecommendationClaim::Rating { value: 255 };
     let result = assessment(&fixture_input(vec![candidate]));
-    assert!(result.candidates[0].reasons.contains(&RecommendationReason::InvalidEvidence));
+    assert!(
+        result.candidates[0]
+            .reasons
+            .contains(&RecommendationReason::InvalidEvidence)
+    );
     assert!(!result.candidates[0].recommendation_eligible);
-    assert_eq!(dimension(&result.candidates[0], RecommendationDimension::Gameplay).rating, None);
+    assert_eq!(
+        dimension(&result.candidates[0], RecommendationDimension::Gameplay).rating,
+        None
+    );
 }
 
 #[test]
@@ -479,20 +616,24 @@ fn platform_and_selected_source_change_suitability_without_changing_quality() {
         }
     }
     let mut input = fixture_input(vec![windows, linux]);
-    input.context.available_source_profiles = BTreeSet::from([
-        "source-a".to_owned(),
-        "source-b".to_owned(),
-    ]);
+    input.context.available_source_profiles =
+        BTreeSet::from(["source-a".to_owned(), "source-b".to_owned()]);
     let first = assessment(&input);
     assert_eq!(first.recommended.unwrap().port_id, "windows");
     input.context.platform = Platform::LinuxX86_64;
     let second = assessment(&input);
     assert_eq!(second.recommended.unwrap().port_id, "linux");
     for (before, after) in first.candidates.iter().zip(&second.candidates) {
-        assert_eq!(before.ranking_score_basis_points, after.ranking_score_basis_points);
+        assert_eq!(
+            before.ranking_score_basis_points,
+            after.ranking_score_basis_points
+        );
     }
     input.context.available_source_profiles.remove("source-b");
-    assert_eq!(assessment(&input).status, PortRecommendationStatus::NoSuitableCandidate);
+    assert_eq!(
+        assessment(&input).status,
+        PortRecommendationStatus::NoSuitableCandidate
+    );
 }
 
 #[test]
