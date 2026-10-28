@@ -593,6 +593,7 @@ for (const closeFails of [false, true]) {
 void test("native recovery and Unix custody changes retain macOS no-global portability coverage", () => {
   const job = workflowJob("frontend_portability");
   assert.equal(job["runs-on"], "macos-26");
+  assert.equal(job["timeout-minutes"], 25);
   assert.ok(typeof job.if === "string");
   const ordinaryInputs = Array.from(
     job.if.matchAll(/contains\(needs\.classify\.outputs\.files_json, '([^']+)'\)/gu),
