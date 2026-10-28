@@ -114,32 +114,45 @@ impl RemovalOperation {
         service: &crate::PortcoveService,
         operation: &LifecycleOperation,
     ) -> Result<()> {
+        if self.original_paths.is_empty()
+            && operation
+                .removal_installs
+                .as_ref()
+                .is_none_or(Vec::is_empty)
+        {
+            return Ok(());
+        }
         let records = operation.removal_installs.as_ref().ok_or_else(|| {
             PortcoveError::verification("Removal recovery has no retained installation identities. Preserve the runtime, quarantine and journal for review")
         })?;
-        let mut paths = std::collections::BTreeSet::new();
+        let mut paths_seen = std::collections::BTreeSet::new();
         let mut ids = std::collections::BTreeSet::new();
         if records.len() != self.original_paths.len() {
             return Err(PortcoveError::verification(
                 "removal installation identities do not cover every original path",
             ));
         }
+        let original_paths = self
+            .paths(&service.library)?
+            .into_iter()
+            .map(|paths| paths.live)
+            .collect::<std::collections::BTreeSet<_>>();
         for install in records {
-            if install.port_id != self.port_id
-                || !self.original_paths.contains(&install.path)
-                || !paths.insert(install.path.clone())
-                || !ids.insert(install.id.clone())
-            {
-                return Err(PortcoveError::verification(
-                    "removal installation identity is mismatched or duplicated",
-                ));
-            }
             let paths = crate::output_root::removal_paths(
                 &service.library,
                 &self.port_id,
                 &self.id,
                 &install.path,
             )?;
+            if install.port_id != self.port_id
+                || !original_paths.contains(&paths.live)
+                || !paths_seen.insert(paths.live.clone())
+                || !ids.insert(install.id.clone())
+            {
+                return Err(PortcoveError::verification(
+                    "removal installation identity is mismatched or duplicated",
+                ));
+            }
             let actual = match (paths.live.try_exists()?, paths.quarantined.try_exists()?) {
                 (true, false) if self.phase == RemovalPhase::Quarantining => paths.live,
                 (false, true) => paths.quarantined,

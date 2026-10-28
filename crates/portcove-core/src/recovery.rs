@@ -352,40 +352,52 @@ pub(crate) fn recover_removal(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    let mut removal = RemovalOperation::decode(&service.library, operation)?;
+    crate::retained_build::require_no_references(
+        &service.library.connection()?,
+        &operation.port_id,
+    )?;
+    // Preserve more specific recovery-data refusals before classifying legacy intent.
+    for paths in removal.paths(&service.library)? {
+        crate::managed_tfe::require_no_recovery_data(&paths.live)?;
+        crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+    }
     // Old journals can recover identities only while authenticated database rows remain.
     // After deletion, unbound quarantine bytes cannot grant their own cleanup authority.
     if operation.removal_installs.is_none() && !operation.original_paths.is_empty() {
-        let records = service
-            .library
-            .all_installs()?
+        let original = removal
+            .paths(&service.library)?
             .into_iter()
-            .filter(|install| {
-                install.port_id == operation.port_id
-                    && operation.original_paths.contains(&install.path)
-            })
-            .collect::<Vec<_>>();
+            .map(|paths| paths.live)
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut records = Vec::new();
+        for install in service.library.all_installs()? {
+            if install.port_id == operation.port_id
+                && original.contains(
+                    &crate::output_root::removal_paths(
+                        &service.library,
+                        &operation.port_id,
+                        &operation.id,
+                        &install.path,
+                    )?
+                    .live,
+                )
+            {
+                records.push(install);
+            }
+        }
         if records.len() != operation.original_paths.len() {
             return Err(PortcoveError::verification(
                 "Historical removal recovery lacks retained installation identities; preserve quarantine and journal for review",
             ));
         }
         operation.removal_installs = Some(records);
-        // Decode and preflight before persisting the recovered binding.
-        RemovalOperation::decode(&service.library, operation)?
-            .require_retained_outputs(service, operation)?;
+        removal = RemovalOperation::decode(&service.library, operation)?;
+        removal.require_retained_outputs(service, operation)?;
         store.put(operation)?;
     }
-    let mut removal = RemovalOperation::decode(&service.library, operation)?;
     if !operation.original_paths.is_empty() {
         removal.require_retained_outputs(service, operation)?;
-    }
-    crate::retained_build::require_no_references(
-        &service.library.connection()?,
-        &operation.port_id,
-    )?;
-    for paths in removal.paths(&service.library)? {
-        crate::managed_tfe::require_no_recovery_data(&paths.live)?;
-        crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
     }
     if removal.phase == RemovalPhase::Quarantining {
         if operation.original_paths.is_empty() {

@@ -4203,7 +4203,8 @@ impl PortcoveService {
             LifecycleOperation::new(&activity.id, LifecycleOperationKind::Remove, port_id);
         let quarantine = self.library.recovery_dir().join(&activity.id);
         lifecycle.paths.quarantine = Some(quarantine.clone());
-        let result: Result<Vec<PathBuf>> = (|| {
+        let mut intent_persisted = false;
+        let mut result: Result<Vec<PathBuf>> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "remove")?;
             let locked_preview = self.preview_removal(port_id)?;
@@ -4235,6 +4236,7 @@ impl PortcoveService {
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
             removal.require_retained_outputs(self, &lifecycle)?;
             store.put(&mut lifecycle)?;
+            intent_persisted = true;
             for removal in &removals {
                 if let Some(parent) = removal.quarantined.parent() {
                     fs::create_dir_all(parent)?;
@@ -4273,9 +4275,12 @@ impl PortcoveService {
             store.remove(&lifecycle.id)?;
             Ok(paths)
         })();
-        if let Err(error) = &result
-            && !lifecycle.original_paths.is_empty()
+        if let Err(error) = &mut result
+            && intent_persisted
         {
+            if error.failure.mutation_state == crate::MutationState::Unknown {
+                error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+            }
             lifecycle.last_error = Some(error.message.clone());
             let _ = store.put(&mut lifecycle);
         }
@@ -5567,9 +5572,7 @@ impl PortcoveService {
         let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
             return Ok(None);
         };
-        if self.installed_port(&active)?.adapter == AdapterKind::GeneratedCache {
-            self.require_portable_runtime_unchanged(&active)?;
-        }
+        self.require_generated_cache_install_unchanged(&active)?;
         if !active.path.join(LAUNCH_MARKER).is_file() {
             // Preserve the historical unlaunched path for deeper integrations.
             // Only verified retained ready-archive/PS1 contracts collect before launch;
@@ -9272,6 +9275,7 @@ mod tests {
             );
             operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
             operation.original_paths.push(install.clone());
+            operation.removal_installs = Some(library.all_installs().unwrap());
             operation.phase = phase;
             let paths = crate::output_root::removal_paths(
                 &library,

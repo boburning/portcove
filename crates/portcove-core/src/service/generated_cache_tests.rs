@@ -588,3 +588,38 @@ fn removal_recovery_holds_unexpected_live_payload_after_quarantine_phase() {
         assert_eq!(store.all().unwrap().len(), 1);
     }
 }
+
+#[test]
+fn absent_generated_runtime_does_not_block_ordinary_canonical_backup() {
+    let (_temporary, service, install) = fixture(true);
+    write(
+        &service.library.user_dir(ID),
+        "save.lua",
+        b"canonical progress",
+    );
+    fs::remove_dir_all(&install.path).unwrap();
+    let backup = service.create_backup(ID).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/save.lua")).unwrap(),
+        b"canonical progress"
+    );
+    assert!(service.preview_removal(ID).is_err());
+}
+
+#[cfg(windows)]
+#[test]
+fn removal_binds_extended_and_ordinary_windows_paths_to_the_same_owned_tree() {
+    let (_temporary, service, install) = fixture(true);
+    let mut operation = removal_journal(&service, &install, LifecyclePhase::Preparing, true);
+    let raw = install.path.to_str().unwrap();
+    operation.original_paths[0] = if let Some(ordinary) = raw.strip_prefix(r"\\?\") {
+        PathBuf::from(ordinary)
+    } else {
+        PathBuf::from(format!(r"\\?\{raw}"))
+    };
+    let removal = RemovalOperation::decode(&service.library, &operation).unwrap();
+    removal
+        .require_retained_outputs(&service, &operation)
+        .unwrap();
+    assert!(install.path.join("immutable.bin").is_file());
+}

@@ -219,11 +219,25 @@ impl PortcoveService {
     /// Backups must not silently omit unclaimed output in an inactive copy.
     pub(super) fn require_generated_cache_outputs_unchanged(&self, port_id: &str) -> Result<()> {
         for install in self.library.all_installs()? {
-            if install.port_id == port_id
-                && self.installed_port(&install)?.adapter == AdapterKind::GeneratedCache
-            {
-                self.require_portable_runtime_unchanged(&install)?;
+            if install.port_id == port_id {
+                self.require_generated_cache_install_unchanged(&install)?;
             }
+        }
+        Ok(())
+    }
+
+    pub(super) fn require_generated_cache_install_unchanged(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<()> {
+        // An absent runtime has no output to omit. Ordinary canonical backups
+        // remain available for historical records whose payload no longer exists.
+        if matches!(fs::symlink_metadata(&install.path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+        {
+            return Ok(());
+        }
+        if self.installed_port(install)?.adapter == AdapterKind::GeneratedCache {
+            self.require_portable_runtime_unchanged(install)?;
         }
         Ok(())
     }
