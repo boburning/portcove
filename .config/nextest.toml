@@ -96,8 +96,11 @@ success-output = "immediate"
 # final Adopt/CleanupPending phase began at27.674s; relocation passed34.948s.
 # Extend the same finite60s Intel harness allowance to that exact full fixture.
 # Preserve all publication phases, assertions, slots, cleanup and zero retries.
+# Schedule40679645916/a1 cut source_import at30.019s after its final
+# Adopt/CleanupPending phase began at25.561s. Give this exact sibling the same
+# finite60s allowance; retain the original failed receipt and all eight phases.
 platform = 'x86_64-apple-darwin'
-filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))'
+filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|source_import|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 

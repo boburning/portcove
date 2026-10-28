@@ -43,13 +43,42 @@ void test("reviewed portability literals apply only to exact files and exact val
     JSON.stringify(value).replace(/\\u([a-f0-9]{4})/gu, "\\u{$1}");
   const expected: { file: string; value: string }[] = [];
   const allowed: { file: string; value: string }[] = [];
-  const scopes: {
+  interface LiteralScope {
     file: string;
     values: string[];
     inherited_global_values?: string[];
     denied_values?: string[];
     denied_files?: string[];
-  }[] = [...portabilityBaseline.scopes, ...qualificationLiterals.scopes];
+  }
+  // Retain the frozen original inventory when later regression receipts extend
+  // the same owner. Writing separate fragments would overwrite its fixture.
+  const owners = new Map<string, LiteralScope>();
+  for (const scope of [...portabilityBaseline.scopes, ...qualificationLiterals.scopes]) {
+    const prior = owners.get(scope.file);
+    owners.set(scope.file, {
+      file: scope.file,
+      values: [...new Set([...(prior?.values ?? []), ...scope.values])],
+      inherited_global_values: [
+        ...new Set([
+          ...(prior?.inherited_global_values ?? []),
+          ...("inherited_global_values" in scope ? scope.inherited_global_values : []),
+        ]),
+      ],
+      denied_values: [
+        ...new Set([
+          ...(prior?.denied_values ?? []),
+          ...("denied_values" in scope ? scope.denied_values : []),
+        ]),
+      ],
+      denied_files: [
+        ...new Set([
+          ...(prior?.denied_files ?? []),
+          ...("denied_files" in scope ? scope.denied_files : []),
+        ]),
+      ],
+    });
+  }
+  const scopes = [...owners.values()];
   for (const [index, scope] of scopes.entries()) {
     const deniedValue = `/portcove-unreviewed-${index}`;
     const neighbors = [
