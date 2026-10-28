@@ -428,13 +428,14 @@ void test("the RPM prerelease hold excludes only the affected npm CLI version", 
   assert.ok(hold);
   assert.deepEqual(hold.matchManagers, ["npm"]);
   assert.deepEqual(hold.matchPackageNames, ["@tauri-apps/cli"]);
-  assert.equal(hold.allowedVersions, "!/^2\\.12\\.3$/");
+  assert.equal(hold.allowedVersions, "!/^2\\.12\\.(?:3|4)$/");
   assert.match(hold.description, /#2014/);
   assert.equal(hold.enabled, undefined);
   assert.equal(hold.groupName, undefined);
   const excluded = new RegExp(hold.allowedVersions.slice(2, -1), "u");
   assert.equal(excluded.test("2.12.3"), true);
-  for (const version of ["2.12.1", "2.12.2", "2.12.4", "2.12.30", "2.13.0", "3.0.0"]) {
+  assert.equal(excluded.test("2.12.4"), true);
+  for (const version of ["2.12.1", "2.12.2", "2.12.5", "2.12.30", "2.12.40", "2.13.0", "3.0.0"]) {
     assert.equal(excluded.test(version), false, version);
   }
 });
