@@ -1317,3 +1317,152 @@ void test("shared original A/B stage mechanics reject altered worker generations
     }
   }
 });
+
+void test("failed first diagnostic stage retains bounded public cleanup and recovery facts without private stream content", async (t) => {
+  const {
+    collectHostedWindowsDiagnosticPublicSettlement: collect,
+    projectHostedWindowsDiagnosticSettlementRecord: project,
+  } = await import("./release-hosted-native-windows-diagnostic.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "diagnostic-public-settlement-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "payload-signing/capture"), { recursive: true });
+  await mkdir(path.join(root, "recovery"));
+  const secret = "fixture-private-password-never-upload";
+  const files = {
+    "owner-final.json": JSON.stringify({
+      owner_pid: 123,
+      owner_created_filetime: "123456",
+      failure: secret,
+      cleanup_failures: [secret],
+      credential_disposed: true,
+      password: secret,
+    }),
+    "recovery/recovery-result.json": JSON.stringify({
+      account_sid: "S-1-5-21-1-2-3-4",
+      disabled: true,
+      station_restored: true,
+      private: secret,
+    }),
+    "payload-signing/capture/worker-failure.json": JSON.stringify({
+      pid: 456,
+      created_filetime: "654321",
+      exited: true,
+      exit_code: 1,
+      reason: "nonzero",
+      private: secret,
+    }),
+    "payload-signing/capture/worker-failure.stdout.bin": secret,
+    "payload-signing/capture/worker-failure.stderr.bin": "",
+    "payload-signing/capture/installer.json": JSON.stringify({
+      phase: "failed",
+      failure: secret,
+      details: { persistent_data_preserved: true, password: secret },
+    }),
+  };
+  for (const [name, bytes] of Object.entries(files)) await writeFile(path.join(root, name), bytes);
+  const rows = await collect(root, performance.now() + 5000),
+    text = JSON.stringify(rows);
+  assert.ok(!text.includes(secret));
+  const owner = rows.find((row) => row.path === "owner-final.json");
+  assert.ok(owner && "selected" in owner);
+  assert.equal(owner.selected?.failure_present, true);
+  assert.equal(owner.selected?.cleanup_failure_count, 1);
+  assert.equal(owner.selected?.credential_disposed, true);
+  const recovery = rows.find((row) => row.path === "recovery/recovery-result.json");
+  assert.ok(recovery && "selected" in recovery);
+  assert.equal(recovery.selected?.disabled, true);
+  assert.equal(recovery.selected?.station_restored, true);
+  assert.equal(
+    rows.find((row) => row.path === "release-publication/capture/worker-result.json")?.status,
+    "missing",
+  );
+  const stream = rows.find(
+    (row) => row.path === "payload-signing/capture/worker-failure.stdout.bin",
+  );
+  assert.ok(stream && "sha256" in stream);
+  assert.equal(stream.sha256, createHash("sha256").update(secret).digest("hex"));
+  await writeFile(path.join(root, "payload-signing/capture/worker-failure.json"), "malformed");
+  await writeFile(path.join(root, "owner.stdout.bin"), Buffer.alloc(65537));
+  const partial = await collect(root, performance.now() + 5000);
+  assert.equal(
+    partial.find((row) => row.path === "owner.stdout.bin")?.status,
+    "Unknown; bounded identity unavailable",
+  );
+  const malformed = partial.find(
+    (row) => row.path === "payload-signing/capture/worker-failure.json",
+  );
+  assert.ok(malformed && "selected" in malformed);
+  assert.equal(
+    malformed.selected?.projection,
+    "Unknown; malformed, changed or unavailable bounded record",
+  );
+  assert.equal(
+    project("recovery/recovery-result.json", { disabled: true, station_restored: null })
+      .station_restored,
+    "Unknown",
+  );
+  assert.equal(
+    project("payload-signing/capture/worker-failure.json", { reason: secret }).reason,
+    "Unknown",
+  );
+});
+
+void test("actual diagnostic first-stage failure preserves recovery success or Unknown in its public finalizer", async () => {
+  const source = await readFile(
+      new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+      "utf8",
+    ),
+    start = source.indexOf('  let publicOutcome: "succeeded" | "failed"'),
+    end = source.indexOf("\nfunction controlRoot()", start);
+  assert.ok(start > 0 && end > start);
+  const body = source.slice(start, end).trimEnd();
+  assert.ok(body.endsWith("}"));
+  const program = stripTypeScriptTypes("(async () => {\n" + body.slice(0, -1) + "\n})()", {
+    mode: "transform",
+  });
+  for (const recoveryFails of [false, true]) {
+    const nativeFailure = new Error("controlled first-stage failure"),
+      retained: unknown[] = [];
+    let recoveryCalls = 0;
+    const result = runInNewContext(program, {
+      state: {},
+      built: { tools: "unused" },
+      inputs: { source: "a".repeat(40), run_id: "123" },
+      binding: "b".repeat(64),
+      diagnosticRoot: "fixed",
+      path,
+      windowsSourceSystemExecutables: { powershell: "unused" },
+      establishWindowsOwnerAccount: async () => {
+        throw nativeFailure;
+      },
+      retain: async (_path: string, value: unknown) => {
+        retained.push(value);
+      },
+      recover: async () => {
+        recoveryCalls++;
+        if (recoveryFails) throw Error("controlled recovery refusal");
+        return { account_disabled: true, station_restored: true, authority: "none" };
+      },
+      retainDiagnosticPublicSettlement: async (
+        _state: unknown,
+        recovery: unknown,
+        outcome: unknown,
+      ) => {
+        retained.push({ recovery, outcome });
+      },
+      Error,
+    });
+    await assert.rejects(result, (error: unknown) => error === nativeFailure);
+    assert.equal(recoveryCalls, 1);
+    const final = retained.at(-1) as {
+      outcome: string;
+      recovery: { status: string; account_disabled: unknown };
+    };
+    assert.equal(final.outcome, "failed");
+    assert.equal(
+      final.recovery.status,
+      recoveryFails ? "Unknown; original recovery refused or unavailable" : "verified",
+    );
+    assert.equal(final.recovery.account_disabled, recoveryFails ? "Unknown" : true);
+  }
+});

@@ -914,6 +914,174 @@ async function recover(state: State) {
     authority: "none",
   };
 }
+/** Fixed public projection only. Raw failure text/streams can contain private
+ * values and are never uploaded. Hashes preserve their retained byte identities. */
+export function projectHostedWindowsDiagnosticSettlementRecord(name: string, value: unknown) {
+  assert.ok(isRecord(value));
+  const out: Record<string, unknown> = {};
+  const boolean = (key: string) => {
+    if (typeof value[key] === "boolean") out[key] = value[key];
+  };
+  const integer = (key: string) => {
+    if (
+      Number.isSafeInteger(value[key]) &&
+      Number(value[key]) >= -2147483648 &&
+      Number(value[key]) <= 2147483647
+    )
+      out[key] = value[key];
+  };
+  for (const key of ["pid", "owner_pid", "exit_code", "harness_exit_code", "status"]) integer(key);
+  for (const key of ["created_filetime", "owner_created_filetime"])
+    if (typeof value[key] === "string" && /^[1-9][0-9]{0,18}$/u.test(value[key]))
+      out[key] = value[key];
+  for (const key of ["account_sid", "sid"])
+    if (typeof value[key] === "string" && /^S-1-5-21-[0-9-]{1,128}$/u.test(value[key]))
+      out[key] = value[key];
+  if (name === "owner-final.json") {
+    boolean("credential_disposed");
+    out.failure_present = typeof value.failure === "string" ? value.failure.length > 0 : "Unknown";
+    out.cleanup_failure_count =
+      Array.isArray(value.cleanup_failures) && value.cleanup_failures.length <= 128
+        ? value.cleanup_failures.length
+        : "Unknown";
+  } else if (name === "recovery/recovery-result.json" || name.endsWith("-settled.json")) {
+    for (const key of ["disabled", "station_restored", "group_empty", "harness_drained"])
+      boolean(key);
+    out.station_restored ??= "Unknown";
+    if (
+      Array.isArray(value.broker_job_remaining_pids) &&
+      value.broker_job_remaining_pids.length <= 128 &&
+      value.broker_job_remaining_pids.every(
+        (pid) => Number.isSafeInteger(pid) && Number(pid) > 0 && Number(pid) <= 2147483647,
+      )
+    )
+      out.broker_job_remaining_pids = value.broker_job_remaining_pids;
+  } else if (name.endsWith("/worker-failure.json")) {
+    boolean("exited");
+    out.reason = [
+      "pipe-fault",
+      "deadline",
+      "unobserved-eof",
+      "nonzero",
+      "early-zero",
+      "observer-error",
+    ].includes(String(value.reason))
+      ? value.reason
+      : "Unknown";
+  } else if (name.endsWith("/installer.json")) {
+    out.complete = value.phase === "complete";
+    out.failure_present = value.failure !== null;
+    if (isRecord(value.details))
+      for (const key of [
+        "persistent_data_preserved",
+        "managed_files_removed",
+        "registration_removed",
+      ])
+        if (typeof value.details[key] === "boolean") out[key] = value.details[key];
+  }
+  return out;
+}
+export async function collectHostedWindowsDiagnosticPublicSettlement(
+  root: string,
+  deadline: number,
+) {
+  const names = [
+    "owner-final.json",
+    "recovery/recovery-result.json",
+    "owner.stdout.bin",
+    "owner.stderr.bin",
+    ...(["payload-signing", "release-publication"] as const).flatMap((kind) => [
+      kind + "-worker.json",
+      kind + "-settled.json",
+      ...[
+        "worker-ready.json",
+        "worker-result.json",
+        "worker-failure.json",
+        "worker-failure.stdout.bin",
+        "worker-failure.stderr.bin",
+        "harness.stdout.bin",
+        "harness.stderr.bin",
+        "installer.json",
+      ].map((name) => kind + "/capture/" + name),
+    ]),
+  ];
+  const records = [];
+  for (const name of names) {
+    try {
+      const identity = await hashNativeCapturedFile(
+        root,
+        name,
+        name.endsWith("/installer.json") ? 4 * 1024 ** 2 : 65536,
+        deadline,
+      );
+      let selected: Record<string, unknown> | undefined;
+      if (name.endsWith(".json")) {
+        try {
+          const bytes = await readControllerToolFile(
+            path.join(root, name),
+            name.endsWith("/installer.json") ? 4 * 1024 ** 2 : 65536,
+          );
+          assert.equal(hash(bytes), identity.sha256);
+          selected = projectHostedWindowsDiagnosticSettlementRecord(
+            name,
+            JSON.parse(bytes.toString("utf8")) as unknown,
+          );
+        } catch {
+          selected = { projection: "Unknown; malformed, changed or unavailable bounded record" };
+        }
+      }
+      records.push({ ...identity, status: "retained", ...(selected ? { selected } : {}) });
+    } catch (error) {
+      records.push({
+        path: name,
+        status: errorCode(error) === "ENOENT" ? "missing" : "Unknown; bounded identity unavailable",
+      });
+    }
+  }
+  return records;
+}
+async function retainDiagnosticPublicSettlement(
+  state: State,
+  recovery: unknown,
+  outcome: "succeeded" | "failed",
+) {
+  // Metadata-only finalization, not another owner/execution budget. No native
+  // effect, recovery retry or deadline renewal is allowed here.
+  const records = await collectHostedWindowsDiagnosticPublicSettlement(
+    state.root,
+    performance.now() + 5000,
+  );
+  await retain(
+    path.join(diagnosticRoot, "diagnostic-public-settlement.json"),
+    {
+      schema_version: 1,
+      source: state.inputs.source,
+      tree: state.inputs.tree,
+      run_id: state.inputs.run_id,
+      attempt: 1,
+      workflow: state.inputs.workflow,
+      controller: {
+        pid: process.pid,
+        created_filetime: windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid),
+      },
+      original_owner: { pid: state.owner.pid, created_filetime: state.owner.created },
+      account_sid: state.account?.sid ?? null,
+      outcome,
+      original_owner_exited:
+        state.owner.pid > 0 && readProcessIdentity(state.owner.pid) === null ? true : "Unknown",
+      recovery,
+      records,
+      raw_private_streams_uploaded: false,
+      authority: "none",
+      production_acceptance: "not-established",
+      automatic_retry: false,
+      profile_erasure: "not-established; ephemeral runner teardown",
+      scope: "Bounded selected original settlement/recovery facts and raw byte identities only",
+    },
+    65536,
+  );
+}
+
 /** The source-false gate precedes provider, source, tool, account and station work. */
 export async function runHostedWindowsConnectedDiagnostic() {
   held();
@@ -1089,6 +1257,12 @@ export async function runHostedWindowsConnectedDiagnostic() {
     Math.max(1, Math.floor(state.deadline - performance.now())),
   );
   void state.running.finally(() => clearTimeout(timer)).catch(() => {});
+  let publicOutcome: "succeeded" | "failed" = "failed";
+  let recoveryObservation: unknown = {
+    status: "not-requested",
+    account_disabled: "Unknown",
+    station_restored: "Unknown",
+  };
   try {
     await establishWindowsOwnerAccount(state, {
       toolsRoot: built.tools,
@@ -1161,6 +1335,7 @@ export async function runHostedWindowsConnectedDiagnostic() {
     };
     await retain(path.join(diagnosticRoot, "diagnostic-result.json"), result, 65536);
     state.stopped = true;
+    publicOutcome = "succeeded";
     return result;
   } catch (error) {
     await retain(path.join(diagnosticRoot, "diagnostic-failure.json"), {
@@ -1174,8 +1349,14 @@ export async function runHostedWindowsConnectedDiagnostic() {
       automatic_retry: false,
     }).catch(() => {});
     try {
-      await recover(state);
+      recoveryObservation = { status: "verified", ...(await recover(state)) };
     } catch (recovery) {
+      recoveryObservation = {
+        status: "Unknown; original recovery refused or unavailable",
+        account_disabled: "Unknown",
+        station_restored: "Unknown",
+        automatic_retry: false,
+      };
       await retain(path.join(diagnosticRoot, "recovery-unavailable.json"), {
         scope: "Exact original recovery remains Unknown; no competing owner or automatic retry",
         failure: recovery instanceof Error ? recovery.message.slice(0, 1024) : "Recovery refused",
@@ -1183,6 +1364,11 @@ export async function runHostedWindowsConnectedDiagnostic() {
       }).catch(() => {});
     }
     throw error;
+  } finally {
+    // Do not replace the original native/recovery failure if retention fails.
+    await retainDiagnosticPublicSettlement(state, recoveryObservation, publicOutcome).catch(
+      () => {},
+    );
   }
 }
 function controlRoot() {

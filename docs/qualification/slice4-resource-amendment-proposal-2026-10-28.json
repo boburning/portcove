@@ -210,9 +210,9 @@
       "setup_reacquisition": 3,
       "runtime_sequential": 7.5,
       "original_owner_pre_post_capture_upload_recovery": 9.5,
-      "full_payload_signing_wait": 10,
       "outer_settlement_upload": 5,
-      "total": 35
+      "total": 35,
+      "outer_ceiling_allowance_not_owner_extension": 10
     }
   },
   "observations": [
@@ -260,7 +260,19 @@
   "engineering_remaining": [
     "Implement held protected Windows job orchestration with unchanged production admission/receipts",
     "Implement fixed application12/catalog4 bootstrap timeout branches and purpose-aware complete resource inventory",
-    "Apply proposed ceilings/digests only after explicit ratification; preserve100 until then"
+    "Apply proposed ceilings/digests only after explicit ratification; preserve100 until then",
+    "Prove signing readiness fits the original Windows570000ms total owner or separately implement/review/ratify an initial longer lifetime;35minute job ceiling does not fix it"
   ],
-  "stop": "Any enlarged runner/payment/fallback, source or digest mismatch, missing authority, expired original deadline or incomplete cleanup refuses; no automatic retry or budget renewal"
+  "stop": "Any enlarged runner/payment/fallback, source or digest mismatch, missing authority, expired original deadline or incomplete cleanup refuses; no automatic retry or budget renewal",
+  "windows_owner_constraint": {
+    "effective_total_milliseconds": 570000,
+    "cleanup_reserve_milliseconds": 30000,
+    "wait_rule": "Any signing readiness wait is subordinate to the original remaining owner deadline; pre/post capture and cleanup share that same envelope",
+    "full_signing_job_maximum_milliseconds": 600000,
+    "full_signing_wait_fit": "Unknown; a570000ms total owner cannot await600000ms plus native work",
+    "job_ceiling_does_not_extend_owner": true,
+    "safe_outcome_if_signer_is_late": "Refuse and settle/recover the original owner within its original deadline; preserve partial evidence",
+    "initial_lifetime_change": "Separate held engineering and reviewed owner-policy decision if full600000ms readiness must fit; no renewal or increased deadline is implemented",
+    "nonproduction_diagnostic": "Existing570000ms fixture upload/ACK flow unchanged; no production signing wait"
+  }
 }

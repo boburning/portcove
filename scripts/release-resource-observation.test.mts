@@ -113,6 +113,21 @@ void test("measured resource amendment remains concrete, complete and unratified
   };
   assert.equal(proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
   assert.equal(proposal.authority, "none");
+  const constraint = (
+    proposal as unknown as {
+      windows_owner_constraint: {
+        effective_total_milliseconds: number;
+        full_signing_job_maximum_milliseconds: number;
+        job_ceiling_does_not_extend_owner: boolean;
+        full_signing_wait_fit: string;
+      };
+    }
+  ).windows_owner_constraint;
+  assert.equal(constraint.effective_total_milliseconds, 570000);
+  assert.equal(constraint.full_signing_job_maximum_milliseconds, 600000);
+  assert.equal(constraint.job_ceiling_does_not_extend_owner, true);
+  assert.match(constraint.full_signing_wait_fit, /^Unknown/u);
+
   assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(proposal.proposed_policy.application_minutes, 163);
   assert.equal(proposal.proposed_policy.hard_cap_minutes, 163);

@@ -53,7 +53,10 @@ fixed JSON files of at most131,073 bytes each. They use create-only artifacts,
 seven-day retention, no overwrite, and bounded provider/readback metadata. Public
 artifacts contain selected diagnostic facts, hashes and opaque process/account
 identities; they contain no password, private key, credential environment or
-candidate executable. Raw diagnostic cleanup records remain available on failure.
+candidate executable. Raw private records remain local. A bounded public settlement projection retains
+selected account/process/cleanup/recovery observations and fixed raw-file hashes
+on both success and failure; raw private streams and failure text are never
+uploaded. Missing, malformed or unavailable records remain explicit Unknown.
 
 After same-job inputs are verified, a single public read checks the complete
 one-job provider inventory. It anchors the original job start and refuses unless
@@ -78,7 +81,9 @@ WeakMap receipts or appoint a protected candidate.
 
 Normal settlement verifies account disabled, original station restored, group
 empty, output drained, workers gone, original owner exited and credential bridge
-disposed. Recovery is attempted once, only after original supervision settles,
+disposed. Recovery success is retained in that public projection, including the original
+source/run/PID generation, account disable and station readback. Recovery is
+attempted once, only after original supervision settles,
 with exact PID/birth/account SID/description/source/run comparison. Changed
 station ACLs are refused rather than overwritten. Account profile erasure is not
 claimed; the disabled account/profile remains for ephemeral VM teardown. Provider
@@ -125,7 +130,14 @@ bootstrap,25 Linux native and35 Windows native. Linux bootstrap's proposed12 is
 an application-only branch; catalog retains its independent4-minute branch and
 40-minute alternative graph. That retained catalog allocation is not execution-fit
 proof. Windows native35 includes3 setup/reacquisition,7.5 runtime,9.5 original
-owner/capture/upload/recovery,10 full signing wait and5 final upload/settlement.
+owner/capture/upload/recovery,10 additional outer job-ceiling allowance and5
+final upload/settlement. That outer allowance does not extend the original
+570-second owner. Any signing-readiness wait shares that same remaining owner
+window with both captures and recovery. The separate signing job can take600
+seconds, so a full600-second wait cannot fit a570-second total owner. Protected
+fit is Unknown; late signing must refuse and settle the original owner. If full
+signing-job readiness must fit, initial-lifetime engineering and a separately
+reviewed policy decision remain prerequisites; no deadline is enlarged or renewed.
 Linux native25 includes the full10-minute signing wait plus10 native work,
 3 setup/reacquisition and2 settlement. Windows bootstrap20 includes4 setup and
 dependencies,7.5 runtime,4 build,3.5 upload/identity binding and1 settlement.

@@ -438,11 +438,8 @@ jobs:
         with:
           name: hosted-native-diagnostic-settlement-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            work/hosted-windows-connected-diagnostic/diagnostic-result.json
-            work/hosted-windows-connected-diagnostic/diagnostic-failure.json
-            work/hosted-windows-connected-diagnostic/recovery-unavailable.json
+            work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json
             ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json
-            ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-failure.json
           if-no-files-found: warn
           retention-days: 7
           overwrite: false

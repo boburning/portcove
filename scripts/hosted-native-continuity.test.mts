@@ -998,6 +998,19 @@ void test("connected diagnostic workflow stays source-held and writes exactly th
     assert.equal(step.with.overwrite, false);
     assert.equal(step.with["compression-level"], 0);
   }
+  const settlement = steps.find(
+    (row) => row.name === "Retain only bounded diagnostic source and cleanup records",
+  );
+  assert.ok(settlement && isRecord(settlement.with));
+  assert.match(String(settlement.if), /always\(\)/u);
+  assert.equal(
+    settlement.with.path,
+    "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json\n",
+  );
+  assert.ok(
+    !String(settlement.with.path).includes("owner/") &&
+      !String(settlement.with.path).includes("stdout"),
+  );
   const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-actions-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const id of ["diagnostic_pre", "diagnostic_post"]) {
