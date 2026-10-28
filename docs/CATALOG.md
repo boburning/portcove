@@ -384,6 +384,17 @@ files, rebase upstream selections or promise mod/save compatibility. Ordinary
 declared state retains its existing restore/deletion semantics. Runtime rollback
 carries current data, including selected mod versions; it does not rewind saves.
 
+Normal collection, including collection after Play or recovered sessions, checks
+complete-package conflicts before copying other declared data. A differing copy
+of the same package ID/version holds collection, backup or post-Play recovery with
+both paths preserved; local edits need that deliberate review. Preserve the
+reported copies separately and resolve the conflict before retrying. Current
+runtime data remains intact; failed collection is not a completed backup or
+recovery. Normal collection still mirrors deliberate package removals and ordinary
+root-state changes. Only the retained `packages` layout has package semantics;
+arbitrary historical `bundled` or `installed` folders are not reclassified.
+Supporting newer split-root SDK layouts remains a separate compatibility decision.
+
 PS1 installs publish inactive and run player-data preflight before activation.
 Older interrupted install journals use the same order; an already committed
 active version remains authoritative. Explicit backup restoration also preflights

@@ -565,15 +565,7 @@ impl ModRestore {
                 }
             }
         }
-        if snapshot(&self.source, checkpoint)? != self.source_tree
-            || snapshot(&self.destination, checkpoint)? != self.destination_tree
-        {
-            return Err(conflict(
-                &self.source,
-                &self.destination,
-                "mod paths changed after preflight",
-            ));
-        }
+        self.require_unchanged(checkpoint)?;
         for package in &self.additions {
             checkpoint()?;
             let destination = self.destination.join(package);
@@ -609,6 +601,19 @@ impl ModRestore {
                 checkpoint()?;
                 super::remove_managed_entry(&self.destination.join(relative))?;
             }
+        }
+        Ok(())
+    }
+
+    pub(super) fn require_unchanged(&self, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
+        if snapshot(&self.source, checkpoint)? != self.source_tree
+            || snapshot(&self.destination, checkpoint)? != self.destination_tree
+        {
+            return Err(conflict(
+                &self.source,
+                &self.destination,
+                "mod paths changed after preflight",
+            ));
         }
         Ok(())
     }

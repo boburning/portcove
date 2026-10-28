@@ -5875,6 +5875,14 @@ impl PortcoveService {
         {
             return Ok(copied);
         }
+        let mods = if !contract.writes_directly && psx_mod_data::owns_mods(port) {
+            Some(psx_mod_data::ModRestore::prepare(
+                &persistent_root.join("mods"),
+                &user_root.join("mods"),
+            )?)
+        } else {
+            None
+        };
         let mut copied = Vec::new();
         for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
             let source = persistent_root.join(&relative);
@@ -5884,6 +5892,11 @@ impl PortcoveService {
                     copied.push(destination);
                 }
                 continue;
+            }
+            if relative == "mods"
+                && let Some(plan) = &mods
+            {
+                plan.require_unchanged(&|| Ok(()))?;
             }
             if port.runtime_data_policy.is_some() {
                 crate::runtime_data_policy::mirror(
