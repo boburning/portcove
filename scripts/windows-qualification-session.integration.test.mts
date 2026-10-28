@@ -402,7 +402,48 @@ $reports = foreach ($mode in @('settled','exited','persistent','cim_pending','wr
         [pscustomobject]@{ mode = $mode; exited = $null; path = $null; error = $_.Exception.Message; observations = $script:observations; queries = $script:queries; milliseconds = $clock.ElapsedMilliseconds }
     }
 }
-ConvertTo-Json -InputObject @($reports) -Compress
+$waitFunctions = @($ast.FindAll({ param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Wait-JournaledUninstallerChild'
+}, $false))
+if ($waitFunctions.Count -ne 1) { throw 'Expected one production child ownership waiter' }
+$waitSource = $waitFunctions[0].Extent.Text
+$filter = @($waitFunctions[0].FindAll({ param($node)
+    $node -is [Management.Automation.Language.IfStatementAst] -and
+    $node.Extent.Text.Contains('$exact.StartsWith($prefix') -and
+    $node.Extent.Text.Contains('$exact.Equals($cimPath')
+}, $false))
+if ($filter.Count -ne 1) { throw 'Expected one ownership filter' }
+$nativeAccount = $null; $evidence = $null; $ProcessIdentityClockToleranceMilliseconds = 1000
+$parent = [pscustomobject]@{ pid = 600; start_time = [DateTime]::UtcNow.AddMinutes(1).ToString('o') }
+function Get-CimInstance($ClassName, $Filter, $OperationTimeoutSec) {
+    if ($ClassName -ne 'Win32_Process' -or $Filter -ne 'ParentProcessId = 600' -or $OperationTimeoutSec -ne 2) { throw 'Unexpected ownership query' }
+    [pscustomobject]@{ ProcessId = $PID; ParentProcessId = 600; CreationDate = [DateTime]::UtcNow.AddHours(-1); ExecutablePath = $script:ownershipPath }
+}
+function Read-UninstallerChildImage($Process, $Child, $Deadline) {
+    [pscustomobject]@{ exited = $false; path = $script:ownershipPath; child = $Child }
+}
+function Assert-NoReparseAncestry { throw 'Unverified ownership reached filesystem authority' }
+function Get-FileHash { throw 'Unverified ownership reached hashing authority' }
+function Stop-JournaledProcess { throw 'Control must never signal a process' }
+function Complete-JournaledProcess { throw 'Control must never acquire completion authority' }
+$ownership = foreach ($variant in @('original','renamed','removed-filter')) {
+    $executable = $waitSource
+    if ($variant -eq 'renamed') { $executable = $executable.Replace('$parentStarted','$retainedParentStarted') }
+    if ($variant -eq 'removed-filter') { $executable = $executable.Replace($filter[0].Extent.Text,'') }
+    . ([scriptblock]::Create($executable))
+    foreach ($mode in @('unowned','owned-wrong-generation')) {
+        $script:ownershipPath = if ($mode -eq 'unowned') {
+            [IO.Path]::Combine([IO.Path]::GetPathRoot($PSScriptRoot),'foreign-uninstaller.exe')
+        } else { [IO.Path]::Combine($PSScriptRoot,'child.exe') }
+        try {
+            Wait-JournaledUninstallerChild $parent $PSScriptRoot ([DateTime]::UtcNow.AddSeconds(5))
+            [pscustomobject]@{ variant = $variant; mode = $mode; error = $null }
+        } catch {
+            [pscustomobject]@{ variant = $variant; mode = $mode; error = $_.Exception.Message }
+        }
+    }
+}
+ConvertTo-Json -InputObject @{ images = @($reports); ownership = @($ownership) } -Depth 8 -Compress
 `,
       );
       const result = spawnSync(
@@ -411,7 +452,8 @@ ConvertTo-Json -InputObject @($reports) -Compress
         { encoding: "utf8", windowsHide: true, timeout: 15_000 },
       );
       assert.equal(result.status, 0, result.stderr);
-      const reports = imageObservations(JSON.parse(result.stdout));
+      const observations = object(JSON.parse(result.stdout));
+      const reports = imageObservations(observations.images);
       assert.equal(reports.length, 11);
       const byMode = new Map(reports.map((report) => [report.mode, report]));
       const modeReport = (mode: string) => required(byMode.get(mode));
@@ -433,6 +475,35 @@ ConvertTo-Json -InputObject @($reports) -Compress
         assert.match(text(modeReport(mode).error), /process identity (?:changed|is ambiguous)/);
         assert.equal(modeReport(mode).path, null);
       }
+      const ownership = array(observations.ownership).map(object);
+      assert.equal(ownership.length, 6);
+      const assertOwnership = (variant: string) => {
+        const unowned = required(
+          ownership.find((item) => item.variant === variant && item.mode === "unowned"),
+        );
+        const owned = required(
+          ownership.find(
+            (item) => item.variant === variant && item.mode === "owned-wrong-generation",
+          ),
+        );
+        assert.equal(
+          unowned.error,
+          null,
+          "a reused parent PID cannot grant authority over an unowned descendant",
+        );
+        assert.match(
+          text(owned.error),
+          /Owned uninstaller child process identity changed before observation/u,
+        );
+      };
+      assertOwnership("original");
+      assertOwnership("renamed");
+      assert.throws(() => assertOwnership("removed-filter"), { name: "AssertionError" });
+      for (const observation of ownership)
+        assert.doesNotMatch(
+          String(observation.error),
+          /filesystem authority|hashing authority|signal a process|completion authority/u,
+        );
     } finally {
       rmSync(temporary, { recursive: true, force: true });
     }
