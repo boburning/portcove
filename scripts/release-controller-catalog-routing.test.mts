@@ -13,21 +13,15 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { createHash, randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
-import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { parseDocument } from "yaml";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { prepareFixedControllerConfiguration } from "./release-controller-configuration.mts";
-import {
-  fixedControllerConfigurationSource,
-  requireFixedControllerConfigurationSource,
-} from "./release-authority-configuration-contract.mts";
+import { fixedControllerConfigurationSource } from "./release-authority-configuration-contract.mts";
 import { projectFixedControllerJobOutputs } from "./release-controller-job-output.mts";
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import {
@@ -515,16 +509,55 @@ void test("production secret selection never falls back across purposes and job-
   }
 });
 
-void test("actual fixed coordinator entry creates one fresh private work parent for BOTH named purposes before their factory", async () => {
-  const source = await readFile(new URL("./release-controller-job.mts", import.meta.url), "utf8"),
-    start = source.indexOf("export async function runFixedControllerJob("),
-    end = source.indexOf("/** This is a projection", start);
-  assert.ok(start >= 0 && end > start);
-  const body = source
-    .slice(start, end)
-    .replace("export ", "")
-    .replace('await import("./release-catalog-coordinator.mts")', "catalog")
-    .replace('await import("./release-coordinator-driver.mts")', "driverModule");
+void test("actual fixed coordinator entry creates one fresh private work parent for BOTH named purposes before their factory", async (t) => {
+  const originalEnvironment = process.env;
+  t.after(() => {
+    process.env = originalEnvironment;
+  });
+  let bindingForCall: unknown;
+  const authority = await import("./release-authority-configuration.mts");
+  t.mock.module("./release-authority-configuration.mts", {
+    namedExports: {
+      ...authority,
+      requireControllerJobSourceConfiguration: async () => ({
+        binding: bindingForCall,
+        recheck: () => {},
+      }),
+    },
+  });
+  let factoryForCall: (raw: unknown, work: string, deadline: number) => Promise<unknown>;
+  let selectedPurpose = "";
+  const refuse = () => {
+    throw new Error("wrong named purpose factory");
+  };
+  t.mock.module("./release-catalog-coordinator.mts", {
+    namedExports: {
+      runFixedCatalogCoordinatorConfiguration: (...args: [unknown, string, number]) =>
+        selectedPurpose === "catalog-publication" ? factoryForCall(...args) : refuse(),
+    },
+  });
+  t.mock.module("./release-coordinator-driver.mts", {
+    namedExports: {
+      runFixedCoordinatorConfiguration: (...args: [unknown, string, number]) =>
+        selectedPurpose === "application" ? factoryForCall(...args) : refuse(),
+    },
+  });
+  const nodeUrl = await import("node:url");
+  const repositoryUrl = new URL("..", import.meta.url).href;
+  let selectedRoot = "";
+  let rootReads = 0;
+  t.mock.module("node:url", {
+    namedExports: {
+      ...Object.fromEntries(Object.entries(nodeUrl).filter(([name]) => name !== "default")),
+      fileURLToPath: (value: string | URL, options?: { windows?: boolean }) => {
+        if (String(value) === repositoryUrl) {
+          rootReads++;
+          return selectedRoot;
+        }
+        return nodeUrl.fileURLToPath(value, options);
+      },
+    },
+  });
   const parent = await mkdtemp(path.join(os.tmpdir(), "fixed-coordinator-work-"));
   try {
     for (const purpose of ["application", "catalog-publication"]) {
@@ -572,35 +605,25 @@ void test("actual fixed coordinator entry creates one fresh private work parent 
         if (process.platform !== "win32") assert.equal(stat.mode & 0o777, 0o700);
         return { decision: "held", authority: "none" };
       };
-      const refuse = () => {
-        throw new Error("wrong named purpose factory");
+      bindingForCall = binding;
+      factoryForCall = factory;
+      selectedPurpose = purpose;
+      selectedRoot = root;
+      rootReads = 0;
+      process.env = {
+        ...originalEnvironment,
+        RUNNER_TEMP: privateRoot,
+        PORTCOVE_EXECUTION_PURPOSE: purpose,
       };
-      const entry = runInNewContext(stripTypeScriptTypes(body) + "\nrunFixedControllerJob", {
-        path,
-        performance,
-        process: { env: { PORTCOVE_EXECUTION_PURPOSE: purpose } },
-        root,
-        isRecord,
-        mkdir,
-        writeFile,
-        operation: (role: unknown) => {
-          assert.equal(role, "coordinator");
-          return role;
-        },
-        authority: async () => ({ binding, recheck: () => {} }),
-        requireFixedControllerConfigurationSource,
-        temporary: () => privateRoot,
-        configPath: () => filename,
-        readControllerToolFile: (file: string) => readFile(file),
-        inspectControllerExecutionPurpose,
-        catalog: {
-          runFixedCatalogCoordinatorConfiguration:
-            purpose === "catalog-publication" ? factory : refuse,
-        },
-        driverModule: {
-          runFixedCoordinatorConfiguration: purpose === "application" ? factory : refuse,
-        },
-      }) as (role: string, deadline: number) => Promise<unknown>;
+      const moduleUrl = new URL("./release-controller-job.mts", import.meta.url);
+      moduleUrl.searchParams.set("fixture", randomBytes(16).toString("hex"));
+      const imported: unknown = await import(moduleUrl.href);
+      assert.ok(isRecord(imported) && typeof imported.runFixedControllerJob === "function");
+      const entry = imported.runFixedControllerJob as (
+        role: string,
+        deadline: number,
+      ) => Promise<unknown>;
+      assert.equal(rootReads, 1, "actual module resolves its private work root");
       await entry("coordinator", 12345);
       assert.equal(calls, 1);
       await assert.rejects(entry("coordinator", 12345), { code: "EEXIST" });
@@ -625,14 +648,50 @@ void test("actual fixed coordinator entry creates one fresh private work parent 
 void test("actual fixed output source function refuses a late append and retains partial routing bytes", async (t) => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "fixed-output-source-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
-  const source = await readFile(
-    new URL("./release-controller-job-output.mts", import.meta.url),
-    "utf8",
+  const originalEnvironment = process.env;
+  t.after(() => {
+    process.env = originalEnvironment;
+  });
+  let expired = false;
+  let bindingForCall: unknown;
+  const authority = await import("./release-authority-configuration.mts");
+  t.mock.module("./release-authority-configuration.mts", {
+    namedExports: {
+      ...authority,
+      requireControllerJobSourceConfiguration: async () => ({
+        binding: bindingForCall,
+        recheck: () =>
+          assert.equal(expired, false, "controlled original phase/source expired after append"),
+      }),
+    },
+  });
+  const budget = await import("./release-signing-job-budget.mts");
+  t.mock.module("./release-signing-job-budget.mts", {
+    namedExports: {
+      ...budget,
+      currentControllerJobDeadline: () => performance.now() + 10000,
+    },
+  });
+  const filesystem = await import("node:fs/promises");
+  const namedFilesystem: Record<string, unknown> = Object.fromEntries(
+    Object.entries(filesystem).filter(([name]) => name !== "default"),
   );
-  const start = source.indexOf("export async function finishFixedControllerJobOutputs(");
-  const end = source.indexOf("if (process.argv[1]", start);
-  assert.ok(start >= 0 && end > start);
-  const body = stripTypeScriptTypes(source.slice(start, end).replace("export ", ""));
+  let delayAppend = false;
+  t.mock.module("node:fs/promises", {
+    namedExports: {
+      ...namedFilesystem,
+      appendFile: async (file: string, bytes: string) => {
+        await appendFile(file, bytes);
+        expired = delayAppend;
+      },
+    },
+  });
+  const moduleUrl = new URL("./release-controller-job-output.mts", import.meta.url);
+  moduleUrl.searchParams.set("fixture", randomBytes(16).toString("hex"));
+  const imported: unknown = await import(moduleUrl.href);
+  assert.ok(isRecord(imported));
+  const entry = imported.finishFixedControllerJobOutputs;
+  assert.ok(typeof entry === "function");
   for (const delayed of [false, true]) {
     const root = path.join(parent, String(delayed));
     await mkdir(root);
@@ -648,6 +707,10 @@ void test("actual fixed output source function refuses a late append and retains
       run_id: "12345",
       run_attempt: 1,
     };
+    bindingForCall = binding;
+    expired = false;
+    delayAppend = delayed;
+    process.env = { ...originalEnvironment, RUNNER_TEMP: root, GITHUB_OUTPUT: output };
     const configuration = Buffer.from("{}");
     await writeFile(path.join(root, "controller-coordinator.json"), configuration);
     await writeFile(
@@ -662,41 +725,11 @@ void test("actual fixed output source function refuses a late append and retains
       path.join(root, "controller-coordinator-result.json"),
       JSON.stringify({ decision: "held" }),
     );
-    let expired = false;
-    const entry = runInNewContext(body + "\nfinishFixedControllerJobOutputs", {
-      path,
-      performance,
-      Buffer,
-      assertOwnedUnlinkedPath,
-      requireFixedControllerConfigurationSource,
-      projectFixedControllerJobOutputs,
-      withCoordinatorDeadline,
-      randomBytes,
-      process: { env: { RUNNER_TEMP: root, GITHUB_OUTPUT: output } },
-      role: (value: unknown) => {
-        assert.equal(value, "coordinator");
-        return "coordinator";
-      },
-      record: (value: unknown) => {
-        assert.ok(isRecord(value));
-        return value;
-      },
-      requireControllerJobSourceConfiguration: async () => ({
-        binding,
-        recheck: () => {
-          assert.equal(expired, false, "controlled original phase/source expired after append");
-        },
-      }),
-      currentControllerJobDeadline: () => performance.now() + 10000,
-      readControllerToolFile: (file: string) => readFile(file),
-      appendFile: async (file: string, bytes: string) => {
-        await appendFile(file, bytes);
-        expired = delayed;
-      },
-    }) as (role: unknown) => Promise<unknown>;
-    if (delayed) await assert.rejects(entry("coordinator"), /expired after append/);
+    const invoke = (): Promise<unknown> =>
+      Promise.resolve(Reflect.apply(entry, undefined, ["coordinator"]));
+    if (delayed) await assert.rejects(invoke(), /expired after append/);
     else
-      assert.deepEqual(JSON.parse(JSON.stringify(await entry("coordinator"))), {
+      assert.deepEqual(JSON.parse(JSON.stringify(await invoke())), {
         mode: "held",
         stage: "held",
       });
