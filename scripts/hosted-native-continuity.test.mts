@@ -487,3 +487,130 @@ if ($LASTEXITCODE -ne 0) { throw 'Actual successful helper left a stale native e
     }
   },
 );
+
+void test("ordinary Windows tool fixture binds the checked-out head before runtime effects and cannot select standalone", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "pc-tool-runtime-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const original = await readFile(helper, "utf8");
+  assert.equal(original.split("if (-not $IsWindows -or").length, 2);
+  for (const mode of [
+    "pull",
+    "push",
+    "wrong-job",
+    "wrong-ref",
+    "wrong-event",
+    "wrong-head",
+    "dirty",
+    "missing-source",
+    "standalone",
+  ]) {
+    const directory = path.join(root, mode);
+    await mkdir(path.join(directory, "scripts"), { recursive: true });
+    await mkdir(path.join(directory, "apps/desktop/src-tauri/src"), { recursive: true });
+    const source = path.join(directory, "scripts/prepare-hosted-windows-runtime.ps1");
+    // Only this private copy changes host observation; git/registry/process peers
+    // are inert. Actual source, workflow, first effects and receipt logic run.
+    await writeFile(source, original.replace("if (-not $IsWindows -or", "if (-not $true -or"));
+    await copyFile(
+      new URL("../apps/desktop/src-tauri/src/runtime_support.rs", import.meta.url),
+      path.join(directory, "apps/desktop/src-tauri/src/runtime_support.rs"),
+    );
+    const wrapper = path.join(directory, "control.ps1");
+    await writeFile(
+      wrapper,
+      String.raw`param([string]$Source,[string]$Root,[string]$Mode)
+$ErrorActionPreference='Stop'
+$global:LASTEXITCODE=0
+$env:GITHUB_ACTIONS='true';$env:GITHUB_REPOSITORY='boburning/portcove';$env:RUNNER_ENVIRONMENT='github-hosted'
+$env:GITHUB_RUN_ID='12345';$env:GITHUB_RUN_ATTEMPT='1';$env:GITHUB_SHA='b'*40;$env:FIXTURE_SOURCE_SHA='a'*40
+$env:GITHUB_JOB='windows-tools';$env:GITHUB_EVENT_NAME='pull_request'
+$env:GITHUB_WORKFLOW_REF='boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/pull/17/merge'
+if($Mode -eq 'push'){$env:GITHUB_EVENT_NAME='push';$env:GITHUB_SHA='a'*40;$env:GITHUB_WORKFLOW_REF='boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/main'}
+if($Mode -eq 'wrong-job'){$env:GITHUB_JOB='fixture'}
+if($Mode -eq 'wrong-ref'){$env:GITHUB_WORKFLOW_REF='boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/other'}
+if($Mode -eq 'wrong-event'){$env:GITHUB_EVENT_NAME='workflow_dispatch'}
+if($Mode -eq 'missing-source'){$env:FIXTURE_SOURCE_SHA=''}
+function git {
+  $global:LASTEXITCODE=0
+  if($args -contains 'rev-parse'){if($Mode -eq 'wrong-head'){'c'*40}else{'a'*40}}
+  elseif($args -contains 'status'){if($Mode -eq 'dirty'){' M tracked-source'}}
+  else {throw 'Unexpected inert git operation'}
+}
+function Get-ItemProperty {
+  Set-Content -LiteralPath (Join-Path $Root 'registry-observed') -Value 'observed'
+  [pscustomobject]@{name='Microsoft Edge WebView2 Runtime';pv='155.0.4283.62'}
+}
+function Start-Process {throw 'No installer may execute in this existing-runtime fixture'}
+& $Source -UseStandaloneInstaller:($Mode -eq 'standalone')
+`,
+    );
+    const result = spawnSync(
+      "pwsh",
+      ["-NoProfile", "-NonInteractive", "-File", wrapper, source, directory, mode],
+      { encoding: "utf8", timeout: 15000 },
+    );
+    const accepted = mode === "pull" || mode === "push";
+    if (accepted) {
+      assert.equal(result.status, 0, result.stderr);
+      const receipt: unknown = JSON.parse(
+        await readFile(
+          path.join(directory, "work/hosted-continuity-evidence/windows-runtime.json"),
+          "utf8",
+        ),
+      );
+      assert.ok(isRecord(receipt));
+      assert.equal(receipt.source, "a".repeat(40));
+      assert.equal(receipt.stage, "ready-existing");
+      assert.equal(receipt.installed, false);
+    } else {
+      assert.notEqual(result.status, 0, mode);
+      assert.match(result.stderr, /reviewed standard hosted diagnostic|fixture|Fixed tool/);
+      await assert.rejects(readFile(path.join(directory, "registry-observed")), { code: "ENOENT" });
+      await assert.rejects(
+        readFile(path.join(directory, "work/hosted-continuity-evidence/windows-runtime.json")),
+        { code: "ENOENT" },
+      );
+    }
+  }
+});
+
+void test("Windows tool fixture prepares the ordinary supported runtime before its driver build and retains selected JSON", async () => {
+  const raw = await readFile(
+    new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
+    "utf8",
+  );
+  const workflow: unknown = parseDocument(raw).toJS();
+  assert.ok(isRecord(workflow) && isRecord(workflow.on) && isRecord(workflow.jobs));
+  for (const event of ["push", "pull_request"]) {
+    const value = workflow.on[event];
+    assert.ok(isRecord(value) && Array.isArray(value.paths));
+    for (const file of [
+      "scripts/prepare-hosted-windows-runtime.ps1",
+      "apps/desktop/src-tauri/src/runtime_support.rs",
+    ])
+      assert.ok(value.paths.includes(file));
+  }
+  const job = workflow.jobs["windows-tools"];
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
+  assert.equal(job["timeout-minutes"], 15);
+  const steps = job.steps.filter(isRecord);
+  const preparation = steps.findIndex(
+    (step) => step.run === "./scripts/prepare-hosted-windows-runtime.ps1",
+  );
+  const builder = steps.findIndex(
+    (step) => step.run === "node scripts/qualify-controller-tools-windows.mts",
+  );
+  assert.ok(preparation > 0 && builder > preparation);
+  assert.ok(isRecord(steps[preparation]!.env));
+  assert.equal(
+    steps[preparation]!.env.FIXTURE_SOURCE_SHA,
+    "${{ github.event.pull_request.head.sha || github.sha }}",
+  );
+  const upload = steps.find(
+    (step) => step.name === "Retain the original Windows runtime prerequisite",
+  );
+  assert.ok(upload && isRecord(upload.with) && typeof upload.with.path === "string");
+  assert.equal(upload.with.path, "work/hosted-continuity-evidence/windows-runtime.json");
+  assert.equal(upload.with["retention-days"], 7);
+  assert.equal(upload.with.overwrite, false);
+});

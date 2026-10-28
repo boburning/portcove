@@ -682,7 +682,10 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   const windowsSteps = document.getIn(["jobs", "windows-tools", "steps"]);
   assert.ok(windowsSteps);
   assert.match(text, /node scripts\/qualify-controller-tools-windows\.mts/u);
-  assert.match(text, /FIXTURE_SOURCE_SHA: \$\{\{ github.sha \}\}/u);
+  assert.match(
+    text,
+    /FIXTURE_SOURCE_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u,
+  );
   assert.match(text, /qualify-controller-tool-build\.mts/u);
   assert.match(text, /--frozen-lockfile --ignore-scripts --ignore-pnpmfile/u);
   assert.match(text, /retention-days: 7/u);
@@ -1669,4 +1672,389 @@ void test("held Windows producer joins the exact platform artifact to an isolate
       .length,
     2,
   );
+});
+
+async function windowsRuntimeInputFixture(t: test.TestContext) {
+  const { prepareHostedWindowsFixtureRuntime, joinHostedWindowsFixtureRuntime } =
+    await import("./qualify-controller-tools-windows.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "windows-runtime-source-join-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const floor = path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+    filename = path.join(root, "work/hosted-continuity-evidence/windows-runtime.json");
+  await mkdir(path.dirname(floor), { recursive: true });
+  await mkdir(path.dirname(filename), { recursive: true });
+  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/src/runtime_support.rs"), floor);
+  const git = (args: string[]) =>
+    execFileSync(
+      "git",
+      [
+        "-C",
+        root,
+        "-c",
+        "core.hooksPath=",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.autocrlf=false",
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        ...args,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    ).trim();
+  git(["init", "--quiet"]);
+  git(["add", "apps"]);
+  git(["commit", "--quiet", "-m", "fixed runtime floor"]);
+  const expected = { commit: git(["rev-parse", "HEAD"]), tree: git(["rev-parse", "HEAD^{tree}"]) };
+  const environment = {
+    FIXTURE_SOURCE_SHA: expected.commit,
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/pull/123/merge",
+    GITHUB_EVENT_NAME: "pull_request",
+    GITHUB_JOB: "windows-tools",
+    GITHUB_RUN_ID: "123456",
+    GITHUB_RUN_ATTEMPT: "1",
+  };
+  const receipt = (installed = false) => {
+    const names = installed
+      ? [
+          "entry",
+          "initial-runtime-readback",
+          "download-starting",
+          "download-disposed",
+          "signature-hash-verified",
+          "installer-starting",
+          "installer-process-disposed",
+          "post-install-runtime-readback",
+          "terminal-receipt-ready",
+        ]
+      : [
+          "entry",
+          "initial-runtime-readback",
+          "existing-runtime-eligible",
+          "terminal-receipt-ready",
+        ];
+    return {
+      source: expected.commit,
+      workflow: environment.GITHUB_WORKFLOW_REF,
+      run_id: environment.GITHUB_RUN_ID,
+      attempt: environment.GITHUB_RUN_ATTEMPT,
+      minimum: "155.0.4283.62",
+      before: installed ? ["131.0.2903.86"] : ["156.0.4314.50"],
+      after: ["156.0.4314.50"],
+      stage: installed ? "ready-installed" : "ready-existing",
+      installed,
+      automatic_retry: false,
+      scope: "hosted runtime prerequisite only; not native acceptance",
+      ...(installed
+        ? { exit_code: 0, installer_sha256: "a".repeat(64), signer_thumbprint: "A".repeat(40) }
+        : {}),
+      runtime_preparation_observation: {
+        scope:
+          "reviewed diagnostic after workflow gate through terminal readback/disposal; cold setup and final receipt write excluded",
+        elapsed_milliseconds: names.length - 1,
+        phases: names.map((phase, index) => ({ phase, elapsed_milliseconds: index })),
+      },
+    };
+  };
+  const write = async (value: unknown) => {
+    const bytes = Buffer.from(JSON.stringify(value));
+    await writeFile(filename, bytes);
+    return bytes;
+  };
+  return {
+    root,
+    floor,
+    filename,
+    expected,
+    environment,
+    receipt,
+    write,
+    prepare: () => prepareHostedWindowsFixtureRuntime(root, expected, environment),
+    join: joinHostedWindowsFixtureRuntime,
+  };
+}
+
+void test("Windows tool qualification binds successful runtime observations before build and joins the original driver version", async (t) => {
+  const f = await windowsRuntimeInputFixture(t);
+  for (const mode of [
+    "existing",
+    "exact-floor",
+    "installed",
+    "absent-before",
+    "unrecognized-before",
+    "main-push",
+  ]) {
+    if (mode === "main-push") {
+      f.environment.GITHUB_EVENT_NAME = "push";
+      f.environment.GITHUB_WORKFLOW_REF =
+        "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/main";
+    }
+    const raw = f.receipt(["installed", "absent-before", "unrecognized-before"].includes(mode));
+    if (mode === "exact-floor") raw.before = raw.after = [raw.minimum];
+    if (mode === "absent-before") raw.before = [];
+    if (mode === "unrecognized-before") raw.before = ["unknown"];
+    Object.assign(raw, { unrelated: "inert input must not enter the public report" });
+    const bytes = await f.write(raw),
+      runtime = await f.prepare();
+    assert.equal(runtime.version, raw.after[0]);
+    assert.equal(runtime.minimum, raw.minimum);
+    assert.deepEqual(runtime.report.input, {
+      path: "work/hosted-continuity-evidence/windows-runtime.json",
+      bytes: bytes.length,
+      sha256: hash(bytes),
+    });
+    assert.equal(runtime.report.authority, "none");
+    assert.ok(!JSON.stringify(runtime.report).includes("inert input must not enter"));
+    const joined = await f.join(runtime, raw.after[0]!);
+    assert.equal(joined.runtime_version, joined.driver_version);
+    assert.equal(joined.authority, "none");
+    await assert.rejects(
+      f.join(runtime, "155.0.4283.62" === raw.after[0] ? "156.0.4314.50" : "155.0.4283.62"),
+      /driver differs/u,
+    );
+    await runtime.recheck();
+  }
+  const source = await readFile(
+    new URL("./qualify-controller-tools-windows.mts", import.meta.url),
+    "utf8",
+  );
+  assert.ok(
+    source.indexOf("const runtime = await prepareHostedWindowsFixtureRuntime(source, expected)") <
+      source.indexOf('phase = "source-only-Windows-account-primitives"'),
+  );
+  assert.ok(
+    source.indexOf("const runtime = await prepareHostedWindowsFixtureRuntime(source, expected)") <
+      source.indexOf("await buildControllerTools(source, buildParent, expected)"),
+  );
+  assert.match(source, /await joinHostedWindowsFixtureRuntime\(runtime, edgeFacts\.version\)/u);
+});
+
+void test("Windows fixture runtime rejects stale, failed, malformed and incomplete observations without building", async (t) => {
+  const f = await windowsRuntimeInputFixture(t);
+  const controls: [string, (raw: ReturnType<typeof f.receipt>) => void][] = [
+    [
+      "source",
+      (r) => {
+        r.source = "a".repeat(40);
+      },
+    ],
+    [
+      "run",
+      (r) => {
+        r.run_id = "999";
+      },
+    ],
+    [
+      "attempt",
+      (r) => {
+        r.attempt = "2";
+      },
+    ],
+    [
+      "workflow",
+      (r) => {
+        r.workflow =
+          "boburning/portcove/.github/workflows/hosted-runtime-readiness.yml@refs/heads/main";
+      },
+    ],
+    [
+      "floor",
+      (r) => {
+        r.minimum = "154.0.0.0";
+      },
+    ],
+    [
+      "below-floor",
+      (r) => {
+        r.after = ["155.0.4283.61"];
+      },
+    ],
+    [
+      "preview",
+      (r) => {
+        r.after = ["156.0.4314.50-beta"];
+      },
+    ],
+    [
+      "oversized-component",
+      (r) => {
+        r.after = ["4294967296.0.0.0"];
+      },
+    ],
+    [
+      "missing-runtime",
+      (r) => {
+        r.after = [];
+      },
+    ],
+    [
+      "conflicting-runtime",
+      (r) => {
+        r.after.push("155.0.4283.62");
+      },
+    ],
+    [
+      "existing-different-before",
+      (r) => {
+        r.before = ["155.0.4283.62"];
+      },
+    ],
+    [
+      "conflicting-before",
+      (r) => {
+        r.before.push("155.0.4283.62");
+      },
+    ],
+    [
+      "existing-installed",
+      (r) => {
+        r.installed = true;
+      },
+    ],
+    [
+      "stage",
+      (r) => {
+        r.stage = "installer-admitted";
+      },
+    ],
+    [
+      "failure",
+      (r) => {
+        Object.assign(r, { failure: "retained failure" });
+      },
+    ],
+    [
+      "retry",
+      (r) => {
+        r.automatic_retry = true;
+      },
+    ],
+    [
+      "negative-phase",
+      (r) => {
+        r.runtime_preparation_observation.phases[0]!.elapsed_milliseconds = -1;
+      },
+    ],
+    [
+      "phase-order",
+      (r) => {
+        r.runtime_preparation_observation.phases.reverse();
+      },
+    ],
+    [
+      "missing-phase",
+      (r) => {
+        r.runtime_preparation_observation.phases.pop();
+      },
+    ],
+    [
+      "terminal-clock",
+      (r) => {
+        r.runtime_preparation_observation.elapsed_milliseconds++;
+      },
+    ],
+  ];
+  for (const [name, mutate] of controls) {
+    const raw = f.receipt();
+    mutate(raw);
+    await f.write(raw);
+    await assert.rejects(f.prepare(), Error, name);
+  }
+  for (const [name, mutate] of [
+    [
+      "installer-exit",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.exit_code = 1;
+      },
+    ],
+    [
+      "installer-unconfirmed",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.installed = false;
+      },
+    ],
+    [
+      "missing-signature",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.signer_thumbprint = "";
+      },
+    ],
+    [
+      "eligible-before-install",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.before = ["156.0.4314.50"];
+      },
+    ],
+  ] as const) {
+    const raw = f.receipt(true);
+    mutate(raw);
+    await f.write(raw);
+    await assert.rejects(f.prepare(), Error, name);
+  }
+  for (const [key, value] of [
+    ["GITHUB_JOB", "native_windows"],
+    ["GITHUB_EVENT_NAME", "workflow_dispatch"],
+    [
+      "GITHUB_WORKFLOW_REF",
+      "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/feature/534-inert",
+    ],
+  ] as const) {
+    const before = f.environment[key];
+    f.environment[key] = value;
+    await f.write(f.receipt());
+    await assert.rejects(f.prepare());
+    f.environment[key] = before;
+  }
+  f.environment.GITHUB_EVENT_NAME = "push";
+  f.environment.GITHUB_WORKFLOW_REF =
+    "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/feature/534-inert";
+  await f.write(f.receipt());
+  await assert.rejects(f.prepare());
+  f.environment.GITHUB_EVENT_NAME = "pull_request";
+  f.environment.GITHUB_WORKFLOW_REF =
+    "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/pull/123/merge";
+  await writeFile(f.filename, "x".repeat(65537));
+  await assert.rejects(f.prepare(), /regular-file bound/u);
+  const { link, unlink } = await import("node:fs/promises");
+  await f.write(f.receipt());
+  const alias = path.join(f.root, "alias.json");
+  await link(f.filename, alias);
+  await assert.rejects(f.prepare());
+  await unlink(alias);
+  await unlink(f.filename);
+  await assert.rejects(f.prepare(), { code: "ENOENT" });
+});
+
+void test("Windows runtime join permanently refuses changed identity, context and tracked source after preparation", async (t) => {
+  const { rename } = await import("node:fs/promises");
+  for (const mode of ["bytes", "same-byte-replacement", "context", "floor"]) {
+    const f = await windowsRuntimeInputFixture(t),
+      bytes = await f.write(f.receipt()),
+      runtime = await f.prepare();
+    let restore: () => Promise<unknown>;
+    if (mode === "bytes") {
+      await writeFile(f.filename, "{}");
+      restore = () => writeFile(f.filename, bytes);
+    } else if (mode === "same-byte-replacement") {
+      const retained = f.filename + ".retained";
+      await rename(f.filename, retained);
+      await writeFile(f.filename, bytes);
+      restore = () => rename(retained, f.filename);
+    } else if (mode === "context") {
+      f.environment.GITHUB_RUN_ID = "999";
+      restore = async () => {
+        f.environment.GITHUB_RUN_ID = "123456";
+      };
+    } else {
+      const floor = await readFile(f.floor);
+      await writeFile(f.floor, "changed tracked source");
+      restore = () => writeFile(f.floor, floor);
+    }
+    await assert.rejects(f.join(runtime, runtime.version));
+    await restore();
+    await assert.rejects(runtime.recheck(), /stopped/u);
+  }
 });

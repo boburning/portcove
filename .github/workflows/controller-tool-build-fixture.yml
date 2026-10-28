@@ -9,6 +9,8 @@ on:
       - scripts/github-*.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
+      - scripts/prepare-hosted-windows-runtime.ps1
+      - apps/desktop/src-tauri/src/runtime_support.rs
       - scripts/release-windows-webview-driver.mts
       - scripts/release-windows-webview-driver.test.mts
       - scripts/windows-webview-driver-policy.psm1
@@ -45,6 +47,8 @@ on:
       - scripts/release-controller-tool*.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
+      - scripts/prepare-hosted-windows-runtime.ps1
+      - apps/desktop/src-tauri/src/runtime_support.rs
       - scripts/release-windows-webview-driver.mts
       - scripts/release-windows-webview-driver.test.mts
       - scripts/windows-webview-driver-policy.psm1
@@ -125,6 +129,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Prepare the supported runtime before selecting its exact Windows driver
+        if: github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public'
+        shell: pwsh
+        env:
+          FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: ./scripts/prepare-hosted-windows-runtime.ps1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
         with:
           package_json_file: package.json
@@ -151,6 +161,16 @@ jobs:
           path: |
             ${{ runner.temp }}/controller-tools-windows-fixture/*.json
             ${{ runner.temp }}/controller-tools-windows-fixture/pnpm-runtime/*/capture.json
+          retention-days: 7
+          overwrite: false
+          if-no-files-found: warn
+          compression-level: 0
+      - name: Retain the original Windows runtime prerequisite
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: controller-tools-windows-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/hosted-continuity-evidence/windows-runtime.json
           retention-days: 7
           overwrite: false
           if-no-files-found: warn

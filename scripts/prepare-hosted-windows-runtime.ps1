@@ -13,10 +13,27 @@ if ($PSBoundParameters.ContainsKey('InspectVersion')) {
     @{ scope='declared-version-only; no host observation or installation'; minimum=$taskFloor; eligible=(Test-EngineVersion $InspectVersion) } | ConvertTo-Json
     exit 0
 }
+$taskRuntimeSource = $env:GITHUB_SHA
+$taskOrdinaryDiagnostic = $env:GITHUB_EVENT_NAME -ceq 'workflow_dispatch' -and
+    $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/\.github/workflows/hosted-(native-continuity|runtime-readiness)\.yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$'
+$taskToolFixture = $env:GITHUB_JOB -ceq 'windows-tools' -and (
+    ($env:GITHUB_EVENT_NAME -ceq 'push' -and $env:GITHUB_WORKFLOW_REF -ceq 'boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/main') -or
+    ($env:GITHUB_EVENT_NAME -ceq 'pull_request' -and $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/\.github/workflows/controller-tool-build-fixture\.yml@refs/pull/[1-9][0-9]*/merge$'))
 if (-not $IsWindows -or $env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or
-    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_RUN_ID -notmatch '^[1-9][0-9]+$' -or
-    $env:GITHUB_WORKFLOW_REF -cnotmatch '^boburning/portcove/\.github/workflows/hosted-(native-continuity|runtime-readiness)\.yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$') {
+    $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:GITHUB_RUN_ID -notmatch '^[1-9][0-9]+$' -or
+    (-not $taskOrdinaryDiagnostic -and -not $taskToolFixture)) {
     throw 'Only the reviewed standard hosted diagnostic may prepare this runtime'
+}
+if ($taskToolFixture) {
+    if ($UseStandaloneInstaller) { throw 'The tool fixture permits only the ordinary runtime bootstrapper' }
+    if ($env:FIXTURE_SOURCE_SHA -cnotmatch '^[a-f0-9]{40}$') { throw 'Fixed tool fixture source unavailable' }
+    $taskCheckedOutSource = (& git -C $taskRepo rev-parse HEAD | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $taskCheckedOutSource -cne $env:FIXTURE_SOURCE_SHA) { throw 'Tool fixture checkout differs before runtime preparation' }
+    $taskDirtySource = (& git -C $taskRepo -c core.fsmonitor=false status --porcelain=v1 --untracked-files=no | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $taskDirtySource.Length -ne 0) { throw 'Tool fixture checkout is not clean before runtime preparation' }
+    # PR workflows identify their synthetic merge in GITHUB_SHA. The checked-out
+    # source is the explicit head verified above and later by the tool qualifier.
+    $taskRuntimeSource = $taskCheckedOutSource
 }
 if ($UseStandaloneInstaller) {
     # Source preparation only. A workflow input cannot authorize this proposed storage/input scope.
@@ -105,7 +122,7 @@ $taskEvidence = Join-Path $taskRepo 'work/hosted-continuity-evidence'
 New-Item -ItemType Directory -Force -Path $taskEvidence | Out-Null
 $taskReceiptPath = Join-Path $taskEvidence 'windows-runtime.json'
 if (Test-Path -LiteralPath $taskReceiptPath) { throw 'Retain original runtime attempt; no automatic retry' }
-$taskReceipt = [ordered]@{ source=$env:GITHUB_SHA; run_id=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
+$taskReceipt = [ordered]@{ source=$taskRuntimeSource; run_id=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
     workflow=$env:GITHUB_WORKFLOW_REF; scope='hosted runtime prerequisite only; not native acceptance';
     minimum=$taskFloor; before=@(Read-EngineVersions); after=@(); stage='observed'; installed=$false; automatic_retry=$false;
     runtime_preparation_observation=$taskRuntimeObservation }
