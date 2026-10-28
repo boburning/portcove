@@ -518,7 +518,7 @@ export async function acquireBridgedCapacity(
                 { flag: "wx", mode: 0o600 },
               );
             send(input, { action: "release" });
-            await reply(messages, "released", 35_000);
+            await reply(messages, "released", 65_000);
             await owned.release();
             finished = true;
             options.signal?.removeEventListener("abort", abort);
@@ -544,7 +544,7 @@ export async function acquireBridgedCapacity(
           { flag: "wx", mode: 0o600 },
         );
         send(input, { action: "release" });
-        await reply(messages, "released", 35_000);
+        await reply(messages, "released", 65_000);
       } catch {
         /* retain external evidence */
       }
