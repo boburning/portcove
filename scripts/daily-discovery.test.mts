@@ -376,23 +376,82 @@ void test("successful comment identity survives later readback denial and deleti
   assert.equal(created.created_issue, 42);
 });
 void test("doctor rejection rules and order match the independently reviewed pre-change source oracle", () => {
-  const source = readFileSync(new URL("./roadmap.mts", import.meta.url), "utf8").replaceAll(
-    "\r\n",
-    "\n",
+  // Retained source oracle: bb8203480d95671feec0f866bfc5f87353a8a667,
+  // original file SHA256 b111e77b459682965cdf8fcc1f646aa3b71faf414aebda11fdc2c03208ebb246;
+  // reviewed rule slice SHA2567900795d2bccebf5a731f877e43f0827968a1f0ac7fab4da345cfa6ed511c967.
+  // Expected rejection outcomes below are independent of candidate source bytes.
+  const program = String.raw`
+    import assert from 'node:assert/strict';import {mock} from 'node:test';
+    import * as processes from 'node:child_process';
+    const forbidden=()=>{throw Error('External effects are forbidden in the doctor contract');};
+    process.kill=forbidden;globalThis.fetch=forbidden;
+    mock.module('node:child_process',{namedExports:Object.fromEntries(Object.entries(processes)
+      .filter(([name])=>name!=='default').map(([name,value])=>[name,typeof value==='function'?forbidden:value]))});
+    const readinessUrl=${JSON.stringify(new URL("./roadmap-readiness.mts", import.meta.url).href)};
+    const qualificationUrl=${JSON.stringify(new URL("./roadmap-qualification.mts", import.meta.url).href)};
+    const actualReadiness=await import(readinessUrl),actualQualification=await import(qualificationUrl);
+    const catalog={ports:[]},items=[],risk={ack:'owned'},now='2026-10-28T00:00:00Z';
+    let all=false,repositoryIssues,stageCalls=0,readinessCalls=0,coverageCalls=0,lastReadiness;
+    const warnings=['independent warning'],diagnostics=[{scope:'owned'}];
+    const row=name=>({url:'https://example.invalid/issues/'+name,title:name});
+    const readiness=()=>({migrationConflicts:all?[row('migration')]:[],unassignedRequired:all?[row('required')]:[],
+      statusConflicts:all?[row('status')]:[],relevantUnclassified:all?[row('unclassified')]:[],
+      safetyConflicts:all?[row('safety')]:[],dependencyConflicts:all?[{item:row('dependent'),dependency:row('blocking')}]:[],
+      missingProjectDependencies:all?[{item:row('missing'),dependency:row('outside')}]:[],
+      truncatedDependencies:all?[row('truncated')]:[],cycles:all?[[11,12,11]]:[]});
+    mock.module(readinessUrl,{namedExports:{...actualReadiness,analyzeReleaseReadiness:(observed,release,options)=>{
+      assert.equal(observed,items);assert.equal(release,'v1');assert.equal(options.risk706Approval,risk);assert.equal(options.now,now);
+      readinessCalls++;return lastReadiness=readiness();
+    }}});
+    mock.module(qualificationUrl,{namedExports:{...actualQualification,
+      validatePortStageSemantics:(observed,issues)=>{assert.equal(observed,catalog);assert.equal(issues,items);stageCalls++;return {errors:all?['stage guard']:[],warnings,diagnostics};},
+      validatePortIssueCoverage:(observed,issues,repository,inventory)=>{
+        assert.equal(observed,catalog);assert.equal(issues,items);assert.equal(repository,'owner/repo');assert.equal(inventory,repositoryIssues);
+        coverageCalls++;return all?['catalog coverage']:[];
+      },
+    }});
+    const {evaluateRoadmapDoctor,uxAuditOriginIds}=await import(${JSON.stringify(new URL("./roadmap.mts", import.meta.url).href)});
+    const canonical={number:36,url:'https://example.invalid/issues/36',
+      body:'<!-- portcove-ux-audit-origins: '+uxAuditOriginIds.join(' ')+' --> PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04'};
+    const expected=[
+      'https://example.invalid/issues/migration retains an unmigrated active target',
+      'https://example.invalid/issues/required is Required without a target',
+      'https://example.invalid/issues/status has inconsistent repository/Project status',
+      'catalog coverage','stage guard',
+      'Superseded wording audit is referenced as current authority: https://example.invalid/issues/37',
+      'Supported-source plan origin must have exactly one canonical issue owner; found 2',
+      'v1 work is unclassified: https://example.invalid/issues/unclassified',
+      'v1 safety work is not Required: https://example.invalid/issues/safety',
+      'https://example.invalid/issues/dependent has a conflicting blocking dependency https://example.invalid/issues/blocking',
+      'https://example.invalid/issues/missing has a blocking dependency outside the Project: https://example.invalid/issues/outside',
+      'https://example.invalid/issues/truncated has more than 10 blocking dependencies; readiness query is incomplete',
+      'blocking dependency cycle: #11 -> #12 -> #11',
+    ];
+    for(const selected of [[],['drift'],['all'],['all','drift']]){
+      all=selected.includes('all');const drift=selected.includes('drift')?['configuration drift']:[];
+      repositoryIssues=all?[canonical,{number:37,url:'https://example.invalid/issues/37',
+        body:'portcove-wording-audit-origins PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04'}]:[canonical];
+      const execute=()=>evaluateRoadmapDoctor({config:{active_release:'v1',repository:'owner/repo'},catalog,items,repositoryIssues,drift,risk706Approval:risk,now});
+      const errors=[...drift,...(all?expected:[])];
+      if(errors.length)assert.throws(execute,error=>{assert.deepEqual(error.doctorErrors,errors);assert.equal(error.message,'Project drift:\n'+errors.map(value=>'- '+value).join('\n'));return true;});
+      else{const result=execute();assert.equal(result.warnings,warnings);assert.equal(result.diagnostics,diagnostics);assert.equal(result.readiness,lastReadiness);}
+    }
+    assert.equal(stageCalls,4);assert.equal(readinessCalls,4);assert.equal(coverageCalls,4);
+  `;
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(
+    process.execPath,
+    ["--experimental-test-module-mocks", "--input-type=module", "--eval", program],
+    {
+      env: environment,
+      encoding: "utf8",
+      timeout: 10000,
+      maxBuffer: 1024 * 1024,
+    },
   );
-  const start = source.indexOf(
-    "  const roadmapErrors = [",
-    source.indexOf("export function evaluateRoadmapDoctor"),
-  );
-  const end = source.indexOf("  return { warnings: stage.warnings", start);
-  assert.ok(start > 0 && end > start);
-  // bb8203480d95671feec0f866bfc5f87353a8a667 scripts/roadmap.mts:
-  // SHA256 b111e77b459682965cdf8fcc1f646aa3b71faf414aebda11fdc2c03208ebb246.
-  // The oracle was pinned and separately reviewed before extraction (#2100).
-  assert.equal(
-    createHash("sha256").update(source.slice(start, end)).digest("hex"),
-    "7900795d2bccebf5a731f877e43f0827968a1f0ac7fab4da345cfa6ed511c967",
-  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
 });
 void test("fixed profiles, weekly rebuild, reservation replacement, deadlines and provider backoff", () => {
   let now = Date.parse("2026-10-17T00:00:00Z");

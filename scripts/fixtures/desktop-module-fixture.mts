@@ -9,7 +9,14 @@ export function runDesktopModuleFixture(
   entry: URL,
   program: string,
   control?: { exportName: string; variant: "aliased" | "wrong-export" },
+  reply?: { command: string; value: Record<string, unknown> },
 ) {
+  if (reply !== undefined) {
+    assert.ok(typeof reply.command === "string" && reply.command.length > 0);
+    assert.ok(
+      reply.value !== null && typeof reply.value === "object" && !Array.isArray(reply.value),
+    );
+  }
   const environment = { ...process.env };
   delete environment.NODE_TEST_CONTEXT;
   const result = spawnSync(
@@ -25,15 +32,20 @@ export function runDesktopModuleFixture(
         import * as childProcess from 'node:child_process';
         const entry=${JSON.stringify(entry.href)};
         const control=${JSON.stringify(control ?? null)};
+        const inertTransportReply=${JSON.stringify(reply ?? null)};
         const forbidden=()=>{throw Error('Native process execution is forbidden in this fixture');};
         process.kill=forbidden;
         mock.module('node:child_process',{namedExports:Object.fromEntries(
           Object.entries(childProcess).filter(([name])=>name!=='default').map(([name,value])=>
             [name,typeof value==='function'?forbidden:value])
         )});
-        // These scenarios must stop before accepting any native IPC reply.
+        // Actual IPC replies remain forbidden. One explicitly declared inert
+        // producer object may cross by identity for a selected caller contract.
         mock.module(new URL('./transport-values.mts',entry).href,{namedExports:{
-          transportValue:forbidden,transportValues:forbidden,
+          transportValue:(command,value)=>{
+            if(!inertTransportReply||command!==inertTransportReply.command||value!==inertTransportReply.value)return forbidden();
+            return value;
+          },transportValues:forbidden,
         }});
         registerHooks({resolve(specifier,context,next){
           if(specifier==='selenium-webdriver')return {url:'data:text/javascript,'+encodeURIComponent(

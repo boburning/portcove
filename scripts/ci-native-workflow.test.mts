@@ -137,9 +137,50 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.match(windows, /node scripts\/quality-tools.mts --github-output >> \$env:GITHUB_OUTPUT/);
   assert.match(windows, /taiki-e\/install-action@1e29709c0ec63babbe8f266397a465f29a825f91/);
   assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
-  assert.ok(
-    windows.indexOf("Provision existing pinned prebuilt quality tools") <
-      windows.indexOf("./scripts/bootstrap-quality-tools.ps1 -Desktop"),
+  const quality = workflowJob("backup_focus", source);
+  assert.ok(Array.isArray(quality.steps));
+  const qualitySteps = quality.steps.filter(isRecord);
+  const provisioning = qualitySteps.findIndex(
+    (step) =>
+      step.uses === "taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91" &&
+      isRecord(step.with) &&
+      step.with.tool === "${{ steps.native-quality-pins.outputs.required_prebuilt }}",
+  );
+  const bootstrap = qualitySteps.findIndex(
+    (step) =>
+      typeof step.run === "string" &&
+      executableLines(step.run).includes("./scripts/bootstrap-quality-tools.ps1 -Desktop"),
+  );
+  assert.ok(provisioning >= 0, "Pinned quality provisioning must execute");
+  assert.ok(bootstrap > provisioning, "Pinned quality tools must precede Desktop bootstrap");
+  for (const index of [provisioning, bootstrap]) {
+    const step = qualitySteps[index];
+    assert.ok(step);
+    assert.ok(!("if" in step), "Required setup is unconditional within its selected job");
+    assert.ok(!("continue-on-error" in step), "Required setup failures must propagate");
+  }
+  const bootstrapStep = qualitySteps[bootstrap];
+  assert.ok(bootstrapStep && typeof bootstrapStep.run === "string");
+  // Normalize the maintained direct-call recipe, preserving statement order,
+  // exit guards and inputs while allowing layout and diagnostic wording changes.
+  const normalizeBootstrap = (value: string) =>
+    executableLines(value.replace(/`\r?\n/gu, " "))
+      .join(" ")
+      .replace(/throw\s+(?:'(?:[^']|'')*'|"(?:[^"`]|`.)*")/gu, "throw '<failure>'")
+      .replace(/(["'])Stop\1/gu, "'Stop'")
+      .replace(/\s+/gu, " ")
+      .replace(/\s*([{}();])\s*/gu, "$1")
+      .replace(/;(?=pnpm\b|if\b|\.\/scripts|\}|$)/gu, "")
+      .trim();
+  assert.equal(
+    normalizeBootstrap(bootstrapStep.run),
+    normalizeBootstrap(`
+    $ErrorActionPreference = 'Stop'
+    pnpm install --frozen-lockfile
+    if ($LASTEXITCODE -ne 0) { throw '<failure>' }
+    ./scripts/bootstrap-quality-tools.ps1 -Desktop
+    if ($LASTEXITCODE -ne 0) { throw '<failure>' }
+  `),
   );
 
   assert.match(source, /if: always\(\)[\s\S]*native-backup-evidence.mts emit/);
@@ -150,13 +191,73 @@ void test("native design compatibility remains explicit, isolated, and non-publi
   assert.match(nativeDesignCompatibilityWorkflow, /^ {2}workflow_dispatch:$/m);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /^ {2}(pull_request|push|schedule):/m);
   assert.match(nativeDesignCompatibilityWorkflow, /^permissions:\r?\n {2}contents: read$/m);
-  assert.match(
-    nativeDesignCompatibilityWorkflow,
-    /options:\r?\n {10}- ubuntu-22\.04\r?\n {10}- ubuntu-24\.04\r?\n {10}- macos-15\r?\n {10}- macos-15-intel/,
+  const configuration: unknown = parseDocument(nativeDesignCompatibilityWorkflow).toJS();
+  assert.ok(isRecord(configuration) && isRecord(configuration.on));
+  const dispatch = configuration.on.workflow_dispatch;
+  assert.ok(isRecord(dispatch) && isRecord(dispatch.inputs) && isRecord(dispatch.inputs.runner));
+  assert.ok(Array.isArray(dispatch.inputs.runner.options));
+  const options: unknown[] = dispatch.inputs.runner.options;
+  const runners = options.map((option) => {
+    assert.ok(typeof option === "string");
+    return option;
+  });
+  assert.deepEqual(
+    runners.sort((left, right) => left.localeCompare(right)),
+    ["ubuntu-22.04", "ubuntu-24.04", "macos-15", "macos-15-intel", "windows-2022"].sort(
+      (left, right) => left.localeCompare(right),
+    ),
   );
-  assert.match(nativeDesignCompatibilityWorkflow, /--scenario native-design-system-compatibility/);
-  assert.match(nativeDesignCompatibilityWorkflow, /test:desktop \\\r?\n {14}--app/);
-  assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /test:desktop -- \\/);
+  const harness = Object.values(workflowJobs(nativeDesignCompatibilityWorkflow))
+    .flatMap((job) => (isRecord(job) && Array.isArray(job.steps) ? job.steps.filter(isRecord) : []))
+    .filter(
+      (step) =>
+        step.if === "runner.os == 'Linux'" &&
+        typeof step.run === "string" &&
+        /\btest:desktop\b/u.test(step.run),
+    );
+  const commands = harness.flatMap((step) => {
+    assert.equal(typeof step.run, "string");
+    return executableLines(String(step.run).replace(/\\\r?\n/gu, " "));
+  });
+  const desktop = commands.filter((line) =>
+    /^xvfb-run\s+-a\s+dbus-run-session\s+--\s+pnpm\s+--dir\s+apps\/desktop\s+test:desktop\b/u.test(
+      line,
+    ),
+  );
+  assert.equal(desktop.length, 1, "One real Linux native Desktop harness must execute");
+  const normalizeLinux = (value: string) =>
+    executableLines(value.replace(/\\\r?\n/gu, " "))
+      .join(" ")
+      .replace(/\s+/gu, " ")
+      .trim();
+  assert.equal(harness.length, 1);
+  const linux = harness[0];
+  assert.ok(linux && typeof linux.run === "string");
+  assert.ok(!("continue-on-error" in linux));
+  assert.equal(
+    normalizeLinux(linux.run),
+    normalizeLinux(String.raw`
+    pnpm --dir apps/desktop build
+    cargo build --locked -p portcove-desktop --features tauri/custom-protocol
+    xvfb-run -a dbus-run-session -- pnpm --dir apps/desktop test:desktop \
+      --app "$(realpath target/debug/portcove-desktop)" \
+      --driver "$(command -v tauri-driver)" \
+      --native-driver "$(command -v WebKitWebDriver)" \
+      --output "$PWD/work/native-compatibility-evidence/linux" \
+      --scenario native-design-system-compatibility
+  `),
+  );
+  assert.ok(
+    desktop.some((line) => /\btest:desktop\s+--app\b/u.test(line)),
+    "The app argument must reach the existing Desktop harness",
+  );
+  assert.ok(
+    desktop.every((line) => !/\btest:desktop\s+--\s/u.test(line)),
+    "An extra argument separator must not hide harness arguments",
+  );
+  assert.ok(
+    desktop.some((line) => /--scenario\s+native-design-system-compatibility(?:\s|$)/u.test(line)),
+  );
   assert.match(
     nativeDesignCompatibilityWorkflow,
     /--output "\$PWD\/work\/native-compatibility-evidence\/linux"/,
