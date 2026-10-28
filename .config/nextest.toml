@@ -48,9 +48,13 @@ success-output = "immediate"
 # and launch observations. Give these complete lifecycle fixtures finite90s
 # headroom, retaining assertions, cleanup, two workers and zero retries.
 # Runtime-diagnostic phase output separates fixture, lifecycle and flush work.
+# Qualification40618771345/a1 also cut off the lost-output and reviewed-CHD
+# variants at30.008/30.010s, after preparation ended at26.948/25.716s.
+# Their sibling full ISO sequence passed at52.014s. Include only these two
+# variants of the same complete lifecycle in this existing finite90s budget.
 [[profile.default.overrides]]
 platform = 'x86_64-unknown-linux-gnu'
-filter = 'package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))'
+filter = 'package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^preparation_contract::lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay$/) | test(/^preparation_contract::reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
