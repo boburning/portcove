@@ -7,33 +7,24 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
-# CI40735538051/a1 Windows partition1 job122989201944 reached Active,
-# Retired and Superseded completion at18.492/22.354/26.219s, then began
-# Abandoned before its30.047s cutoff. Retain the entire maintenance matrix
-# under the same finite60s safeguard already used on Intel.
+# CI40724635626/a1 Windows partitions1/4 reached the30s outer safeguard in
+# the complete catalog maintenance matrix and indexed retention lifecycle.
+# Keep all246+ definitions, statuses, durable operations and assertions;
+# only these progressing fixture safeguards gain finite60s headroom.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)'
+filter = 'package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
-# The same run's Windows partition3 job122989201991 reached preparation
-# completion at25.819s before its30.040s lifecycle cutoff. Preserve actual
-# install/update/prepare/launch observations with existing Linux/Intel90s
-# outer headroom; child/product deadlines, workers and retries are unchanged.
+# The same run's partition8 cut the real CLI ISO roundtrip off after fresh
+# status at20.627s and the two-subcase late-drift fixture at30.095s. Give
+# only these Windows cases the existing full-lifecycle90s safeguard. The
+# query's inner30s behavioral fence, child deadlines, cleanup, concurrency
+# and zero retries remain unchanged; budgeted success is not a speedup claim.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-cli) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)'
-slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
-success-output = "immediate"
-
-# CI40731813951/a1 Windows partition8 job122974032101 exhausted30.054s
-# in the two-variant channel/instance drift fixture. Each request retains its
-# existing30s QueryFence; allow90s only for the enclosing two-request/setup
-# harness and retain all Conflict assertions, cleanup, workers and zero retries.
-[[profile.default.overrides]]
-platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)'
+filter = '(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/))'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
@@ -127,8 +118,8 @@ success-output = "immediate"
 # Extend the same finite60s Intel harness allowance to that exact full fixture.
 # Preserve all publication phases, assertions, slots, cleanup and zero retries.
 # Schedule40679645916/a1 cut source_import at30.019s after its final
-# Adopt/CleanupPending phase began at25.561s. Give this exact sibling the same
-# finite60s allowance; retain the original failed receipt and all eight phases.
+# Adopt/CleanupPending phase began at25.561s. Retain this exact sibling's
+# finite60s allowance, original failed receipt and all eight phases.
 platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|source_import|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
@@ -697,5 +688,26 @@ slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI40734477018/a1 reached preparation completion at27.579s, then launch
+# before this exact Windows diagnostics fixture hit the30.052s harness cap.
+# Match its existing Linux90s lifecycle allowance. Preserve every phase,
+# flush/child deadlines, assertions, cleanup, concurrency and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# CI40734477018/a1 retained30.127s/30.088s cutoffs in these two complete
+# move-recovery command-pair fixtures, without internal phase output. Give only
+# those Windows identities finite60s diagnostic room; do not infer the cause.
+# Preserve the full command sequence, each intermediate ownership observation,
+# assertions, worker slots, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"

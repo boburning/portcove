@@ -53,6 +53,31 @@ void test("fixture closure follows multiline imports, reexports, literals and cy
   assert.deepEqual(inventory.external, ["node:fs"]);
 });
 
+void test("escaped fixture specifiers decode with string code generation disabled", (context) => {
+  const root = fixture(context);
+  write(
+    root,
+    "entry.mjs",
+    String.raw`import './\x76alue.mjs'; import('./\u006cazy.mjs'); throw new Error('must not execute');`,
+  );
+  write(root, "value.mjs", "throw new Error('must not execute');\n");
+  write(root, "lazy.mjs", "throw new Error('must not execute');\n");
+  const helper = new URL("./fixtures/module-closure.mts", import.meta.url).href;
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--disallow-code-generation-from-strings",
+      "--input-type=module",
+      "--eval",
+      `import { readFixtureModuleClosure } from ${JSON.stringify(helper)}; console.log(JSON.stringify(readFixtureModuleClosure(${JSON.stringify(root)}, ['entry.mjs']).modules.map(module => module.path)));`,
+    ],
+    { encoding: "utf8", timeout: 10000, windowsHide: true },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), ["entry.mjs", "lazy.mjs", "value.mjs"]);
+});
+
 void test("new imports are copied from retained bytes and change identity without rewriting policy expectations", (context) => {
   const root = fixture(context);
   write(root, "entry.mjs", "import { value } from './value.mjs'; console.log(value);\n");
@@ -116,7 +141,7 @@ void test("explicit static bootstrap scope keeps later runtime imports separate"
   write(
     root,
     "entry.mjs",
-    "import './static.mjs'; const later = './not-bootstrap.mjs'; import(later);\n",
+    "import './static.mjs'; const later = './not-bootstrap.mjs'; import(later); import(`./${later}.mjs`);\n",
   );
   write(root, "static.mjs", "export const value = 1;\n");
   assert.deepEqual(
@@ -126,6 +151,18 @@ void test("explicit static bootstrap scope keeps later runtime imports separate"
     ["entry.mjs", "static.mjs"],
   );
   assert.throws(() => readFixtureModuleClosure(root, ["entry.mjs"]), /computed import/u);
+});
+
+void test("literal import stars and substitution-free templates remain exact inputs", (context) => {
+  const root = fixture(context);
+  write(root, "entry.mjs", "import('external*literal'); import(`./plain.mjs`);\n");
+  write(root, "plain.mjs", "throw new Error('closure enumeration must not execute inputs');\n");
+  const inventory = readFixtureModuleClosure(root, ["entry.mjs"]);
+  assert.deepEqual(
+    inventory.modules.map((module) => module.path),
+    ["entry.mjs", "plain.mjs"],
+  );
+  assert.deepEqual(inventory.external, ["external*literal"]);
 });
 
 void test("encoded URL aliases are refused instead of retaining a different file from Node", (context) => {
@@ -231,6 +268,7 @@ void test(
 
 for (const [name, source, error] of [
   ["computed imports", "const name = './value.mjs'; import(name);", /computed import/u],
+  ["template globs", "const name = 'value'; import(`./${name}.mjs`);", /computed import/u],
   ["package aliases", "import '#local';", /package import alias/u],
   ["absolute URLs", "import 'file:///outside.mjs';", /absolute import/u],
   ["data URLs", "import 'data:text/javascript,export default 1';", /absolute import/u],

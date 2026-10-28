@@ -1495,7 +1495,10 @@ jobs:
     # Exercise the no-global route for toolchain, Unix custody and native text-navigation changes.
     if: (needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64')) || (needs.classify.outputs.mode != 'qualification' && (contains(needs.classify.outputs.files_json, 'apps/desktop/scripts/browser-runtime.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.test.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.test.mts') || contains(needs.classify.outputs.files_json, 'pnpm-workspace.yaml') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/display-recovery.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/compact-navigation.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/AdoptionModal.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/Artwork.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))
     runs-on: macos-26
-    timeout-minutes: 15
+    # 40718922826/a1 exhausted 15m after 5m38s of cold setup and while
+    # browser cases were still passing. Keep the complete contributor route,
+    # assertions and cleanup; this finite outer budget is not a latency claim.
+    timeout-minutes: 25
     env:
       VP_GIT_HOOKS: "0"
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics

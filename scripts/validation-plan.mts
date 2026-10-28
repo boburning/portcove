@@ -204,6 +204,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/development-scratch.mts",
   "scripts/fixtures/portcove-scratch-mount.sh",
   "scripts/resource-capacity.mts",
+  "scripts/prepared-file-replacement.mts",
   "scripts/resource-paths.mts",
   "scripts/resource-command.mts",
   "scripts/native-build.mts",

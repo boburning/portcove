@@ -7,6 +7,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { observeWindowsAccountCommand } from "./release-hosted-native-windows-observation.mts";
+import { isRecord } from "./runtime-values.mts";
 
 const script = fileURLToPath(new URL("./release-hosted-native-windows-setup.ps1", import.meta.url));
 const primitive = fileURLToPath(
@@ -394,6 +395,36 @@ Add-Type -TypeDefinition ([IO.File]::ReadAllText('${quote(launcher)}')+[Environm
     assert.equal(result.root_exited, true, JSON.stringify(result));
     assert.equal(result.job_empty, true, JSON.stringify(result));
     assert.equal(result.observer_drained, true, JSON.stringify(result));
+    assert.ok(Array.isArray(result.startup_snapshots));
+    assert.ok(result.startup_snapshots.length >= 1 && result.startup_snapshots.length <= 3);
+    for (const snapshot of result.startup_snapshots) {
+      assert.ok(isRecord(snapshot));
+      assert.equal(snapshot.original_pid, result.pid);
+      assert.equal(snapshot.original_created_filetime, result.created_filetime);
+      assert.equal(snapshot.original_primary_tid, result.primary_tid);
+      assert.ok(snapshot.identity_status === "matched" || snapshot.identity_status === "unknown");
+      if (snapshot.identity_status === "matched") assert.equal(snapshot.image, result.image);
+    }
+    // Public original-child metadata only. A snapshot's Unknown is diagnostic,
+    // never an alternative to the visibility/response and cleanup assertions.
+    t.diagnostic(
+      JSON.stringify({
+        fixture: "inert-observer-original-child-startup",
+        owner_session_id: result.owner_session_id,
+        owner_window_station: result.owner_window_station,
+        owner_window_station_visible: result.owner_window_station_visible,
+        owner_metadata_unknown: result.owner_metadata_unknown,
+        owner_session_unknown_win32: result.owner_session_unknown_win32,
+        owner_window_station_flags_unknown_win32: result.owner_window_station_flags_unknown_win32,
+        image_observed_bytes: result.image_observed_bytes,
+        image_observed_sha256: result.image_observed_sha256,
+        image_hash_scope: result.image_hash_scope,
+        image_observation_unknown: result.image_observation_unknown,
+        requested_desktop: result.requested_desktop,
+        resume_previous_suspend_count: result.resume_previous_suspend_count,
+        startup_snapshots: result.startup_snapshots,
+      }),
+    );
   },
 );
 

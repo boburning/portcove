@@ -1821,6 +1821,7 @@ for (const file of [
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/production-aggregate-steps.test.mts",
+  "scripts/renovate-engine-probe.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",
@@ -1956,6 +1957,7 @@ for (const file of [
   "scripts/quality-tools.mts",
   "scripts/resource-command.mts",
   "scripts/resource-capacity.mts",
+  "scripts/prepared-file-replacement.mts",
   "scripts/runtime-values.mts",
 ]) {
   explicitNodeTests.set(file, [
@@ -2551,6 +2553,16 @@ function classifyOnePath(
   }
 
   if (
+    ["aqua.yaml", "aqua-checksums.json", ".aqua-version", ".config/tool-bootstrap.json"].includes(
+      file,
+    )
+  ) {
+    selection.scopes.add("script-toolchain");
+    selection.pythonLint = true;
+    selection.pythonFiles.add("apps/desktop/assets/brand/models/v2");
+  }
+
+  if (
     file === ".editorconfig" ||
     file === ".oxfmtrc.json" ||
     file === ".oxlintrc.json" ||
@@ -2822,6 +2834,15 @@ export function buildPlan(
         "check",
         ...sorted(selection.pythonFiles),
       ]),
+    );
+  if (selection.scopes.has("script-toolchain"))
+    commands.push(
+      command(
+        "lint-tool-fixtures",
+        "script toolchain positive and negative controls",
+        process.execPath,
+        ["scripts/lint-tools.integration.mts", "ruff", "shellcheck", "actionlint"],
+      ),
     );
   if (selection.rustfmt || broad)
     commands.push(

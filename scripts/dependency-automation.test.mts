@@ -13,6 +13,7 @@ import { parseDocument } from "yaml";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { validateRootPnpmToolchain } from "./pnpm-lock-inventory.mts";
 
 function required<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined);
@@ -24,6 +25,14 @@ function record(value: unknown) {
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+void test("root lock maintenance retains provider-owned pnpm platform integrity", async () => {
+  const result = validateRootPnpmToolchain(
+    await readFile(path.join(root, "pnpm-lock.yaml"), "utf8"),
+    rootPackage.packageManager,
+    await readFile(path.join(root, "pnpm-workspace.yaml"), "utf8"),
+  );
+  assert.ok(result.artifacts > 1);
+});
 const read = (name: string) => readFile(path.join(root, name), "utf8");
 
 void test("Rust Node and pnpm authorities and isolated runtime representations stay coordinated", async () => {
@@ -112,7 +121,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "yaml",
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
-  assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "2.3.2");
+  assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "3.0.4");
   assert.equal(repositoryPackage.devDependencies["@vitest/coverage-v8"], "5.0.5");
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "@vitest/coverage-v8"), false);
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "es-module-lexer"), false);
@@ -428,13 +437,14 @@ void test("the RPM prerelease hold excludes only the affected npm CLI version", 
   assert.ok(hold);
   assert.deepEqual(hold.matchManagers, ["npm"]);
   assert.deepEqual(hold.matchPackageNames, ["@tauri-apps/cli"]);
-  assert.equal(hold.allowedVersions, "!/^2\\.12\\.3$/");
+  assert.equal(hold.allowedVersions, "!/^2\\.12\\.(?:3|4)$/");
   assert.match(hold.description, /#2014/);
   assert.equal(hold.enabled, undefined);
   assert.equal(hold.groupName, undefined);
   const excluded = new RegExp(hold.allowedVersions.slice(2, -1), "u");
   assert.equal(excluded.test("2.12.3"), true);
-  for (const version of ["2.12.1", "2.12.2", "2.12.4", "2.12.30", "2.13.0", "3.0.0"]) {
+  assert.equal(excluded.test("2.12.4"), true);
+  for (const version of ["2.12.1", "2.12.2", "2.12.5", "2.12.30", "2.12.40", "2.13.0", "3.0.0"]) {
     assert.equal(excluded.test(version), false, version);
   }
 });
