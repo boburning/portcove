@@ -86,6 +86,8 @@ async function context(selected: Stage, platform: WorkflowPlatform = "linux-x86_
     scope.identity,
     repository,
     performance.now() + 570000,
+    scope.source,
+    scope.workflow,
   );
   const prefix = windows ? "portcove-native-windows-workflow" : "portcove-native-workflow";
   const intent = path.join(scope.temporary, `${prefix}-start.json`);
