@@ -22,7 +22,11 @@ function Invoke-IsolatedCliSmoke {
         }
     }
     $operationFailure = $null
+    $previousOutputEncoding = [Console]::OutputEncoding
     try {
+        # The CLI emits UTF-8 JSON even when the invoking Windows console uses
+        # an OEM code page. Decode native output before comparing path identity.
+        [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
         $env:PORTCOVE_LIBRARY = $LibraryPath
         $env:PORTCOVE_PREFERENCES = $PreferencePath
         & $Operation @Arguments
@@ -33,6 +37,12 @@ function Invoke-IsolatedCliSmoke {
     }
     finally {
         $restorationFailures = @()
+        try {
+            [Console]::OutputEncoding = $previousOutputEncoding
+        }
+        catch {
+            $restorationFailures += $_
+        }
         foreach ($name in $previousEnvironment.Keys) {
             try {
                 $previous = $previousEnvironment[$name]
