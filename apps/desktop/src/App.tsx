@@ -1160,6 +1160,24 @@ function selectedPort(
   };
 }
 
+function launchKnownPort(
+  portId: string,
+  port: Parameters<typeof gameIdentityLabel>[0] | undefined,
+  perform: OperationState["perform"],
+  generation: BootstrapStatus["generation"],
+) {
+  if (!port) return;
+  void perform("launch", () => desktopApi.launch(portId, "", generation), {
+    context: {
+      action: "Launch",
+      operation: "launch",
+      target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
+      libraryGeneration: generation,
+      exclusionScope: "target",
+    },
+  });
+}
+
 function CurrentView({
   onAddGames,
   collection,
@@ -1233,23 +1251,14 @@ function CurrentView({
         }
         checkAll={updates.checkAll}
         perform={operations.perform}
-        onLaunch={(portId) => {
-          const port = data.catalog?.ports.find((port) => port.id === portId);
-          if (port)
-            void operations.perform(
-              "launch",
-              () => desktopApi.launch(portId, "", bootstrap.generation),
-              {
-                context: {
-                  action: "Launch",
-                  operation: "launch",
-                  target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
-                  libraryGeneration: bootstrap.generation,
-                  exclusionScope: "target",
-                },
-              },
-            );
-        }}
+        onLaunch={(portId) =>
+          launchKnownPort(
+            portId,
+            data.catalog?.ports.find((port) => port.id === portId),
+            operations.perform,
+            bootstrap.generation,
+          )
+        }
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
           ui.setSettingsCategory(settingsCategoryForTarget(target));
@@ -1260,112 +1269,22 @@ function CurrentView({
     );
   if (ui.view === "settings")
     return (
-      <SettingsView
-        category={ui.settingsCategory}
-        onCategoryChange={ui.setSettingsCategory}
-        generation={bootstrap.generation}
-        ports={data.catalog?.ports ?? []}
-        statuses={model.statusMap}
-        doctor={data.doctor}
-        storage={data.storage}
+      <CurrentSettingsView
+        data={data}
+        ui={ui}
+        model={model}
+        operations={operations}
         github={github}
-        busy={operations.busy}
-        sources={data.sources}
-        workspaceRefreshFailed={Boolean(data.refreshFailure)}
+        sourceHealth={sourceHealth}
         appearance={appearance}
-        librarySelection={bootstrap.selection ?? undefined}
-        chooseLibrary={pickLibraryFolder}
+        bootstrap={bootstrap}
         switchLibrary={switchLibrary}
         resetLibrary={resetLibrary}
-        sourceProfiles={data.catalog?.source_profiles ?? []}
-        onSourceAdded={data.refreshAfterMutation}
-        onOpenPort={openPortDetails}
-        onReviewSaves={(portId, origin) => openPortDetails(portId, origin, "saves")}
-        onOpenActivity={() => {
-          ui.setView("updates");
-          ui.setActivitySection("tasks");
-          window.requestAnimationFrame(() =>
-            document.querySelector<HTMLElement>("main h1")?.focus(),
-          );
-        }}
-        setupSource={setupSource}
-        setSetupSource={setSetupSource}
-        onCatalogChanged={data.refreshAfterMutation}
-        onOpenGameUpdates={() => {
-          ui.setView("updates");
-          ui.setActivitySection("updates");
-          window.requestAnimationFrame(() => {
-            const heading = document.querySelector<HTMLElement>("main h1");
-            heading?.scrollIntoView({ block: "start" });
-            heading?.focus({ preventScroll: true });
-          });
-        }}
         hostToolActions={hostToolActions}
         applicationUpdates={applicationUpdates}
-        diagnosticsRefreshing={data.diagnosticRefreshing}
-        diagnosticsStale={data.diagnosticsStale}
-        diagnosticFailure={data.diagnosticFailure?.error}
-        refreshDiagnostics={data.refreshDiagnostics}
-        createSupportBundle={() =>
-          operations.perform("support bundle", desktopApi.createSupportBundle, {
-            refresh: "none",
-            invalidateDiagnostics: false,
-          })
-        }
-        exportMetadata={() =>
-          operations.perform(
-            "export library metadata",
-            async () => {
-              const path = await pickMetadataExportPath();
-              return path ? desktopApi.exportLibraryMetadata(path) : undefined;
-            },
-            { refresh: "none", invalidateDiagnostics: false },
-          )
-        }
-        sourceOutcomes={sourceHealth.outcomes}
-        sourceInspections={{
-          reports: sourceHealth.inspections,
-          reads: sourceHealth.inspectionReads,
-          retry: sourceHealth.inspectSource,
-        }}
-        verifySources={() => {
-          void sourceHealth.verifyAll();
-        }}
-        openSourceEvidence={(evidenceId) => {
-          void operations.perform(
-            "open source evidence",
-            () => desktopApi.openSourceEvidence(evidenceId),
-            { refresh: "none", invalidateDiagnostics: false },
-          );
-        }}
-        replaceSource={(source) => {
-          const profile = data.catalog?.source_profiles?.find(
-            (candidate) => candidate.id === source.profile_id,
-          );
-          void replaceRegisteredSource(
-            profile,
-            source,
-            sourcePickerPurpose(source.profile_id, data.catalog?.ports ?? []),
-            operations.perform,
-            operations.setError,
-            bootstrap.generation,
-          );
-        }}
-        sourceNeeds={model.sourceNeeds}
-        installedCount={model.overview.installed}
-        sourceRequirementsState={
-          data.catalog ? "available" : data.refreshFailure ? "unavailable" : "loading"
-        }
-        addSource={(profile, archive) => {
-          void addRequiredSource(
-            profile,
-            archive,
-            sourcePickerPurpose(profile.id, data.catalog?.ports ?? []),
-            operations.perform,
-            operations.setError,
-            bootstrap.generation,
-          );
-        }}
+        openPortDetails={openPortDetails}
+        setupSource={setupSource}
+        setSetupSource={setSetupSource}
       />
     );
   if (!data.catalog && data.refreshFailure) return null;
@@ -1395,23 +1314,14 @@ function CurrentView({
       setCatalogSort={ui.view === "library" ? ui.setLibrarySort : ui.setCatalogSort}
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
-      onContinue={(portId) => {
-        const port = model.entries.find((port) => port.id === portId);
-        if (port)
-          void operations.perform(
-            "launch",
-            () => desktopApi.launch(portId, "", bootstrap.generation),
-            {
-              context: {
-                action: "Launch",
-                operation: "launch",
-                target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
-                libraryGeneration: bootstrap.generation,
-                exclusionScope: "target",
-              },
-            },
-          );
-      }}
+      onContinue={(portId) =>
+        launchKnownPort(
+          portId,
+          model.entries.find((port) => port.id === portId),
+          operations.perform,
+          bootstrap.generation,
+        )
+      }
       onTask={(activityId) => {
         ui.setReviewedActivityId(activityId);
         ui.setView("updates");
@@ -1435,6 +1345,149 @@ function CurrentView({
       }}
       loading={!data.catalog}
       nativeSourceDrag={nativeSourceDrag}
+    />
+  );
+}
+
+function CurrentSettingsView({
+  data,
+  ui,
+  model,
+  operations,
+  github,
+  sourceHealth,
+  appearance,
+  bootstrap,
+  switchLibrary,
+  resetLibrary,
+  hostToolActions,
+  applicationUpdates,
+  openPortDetails,
+  setupSource,
+  setSetupSource,
+}: Pick<
+  Parameters<typeof CurrentView>[0],
+  | "data"
+  | "ui"
+  | "model"
+  | "operations"
+  | "github"
+  | "sourceHealth"
+  | "appearance"
+  | "bootstrap"
+  | "switchLibrary"
+  | "resetLibrary"
+  | "hostToolActions"
+  | "applicationUpdates"
+  | "openPortDetails"
+  | "setupSource"
+  | "setSetupSource"
+>) {
+  return (
+    <SettingsView
+      category={ui.settingsCategory}
+      onCategoryChange={ui.setSettingsCategory}
+      generation={bootstrap.generation}
+      ports={data.catalog?.ports ?? []}
+      statuses={model.statusMap}
+      doctor={data.doctor}
+      storage={data.storage}
+      github={github}
+      busy={operations.busy}
+      sources={data.sources}
+      workspaceRefreshFailed={Boolean(data.refreshFailure)}
+      appearance={appearance}
+      librarySelection={bootstrap.selection ?? undefined}
+      chooseLibrary={pickLibraryFolder}
+      switchLibrary={switchLibrary}
+      resetLibrary={resetLibrary}
+      sourceProfiles={data.catalog?.source_profiles ?? []}
+      onSourceAdded={data.refreshAfterMutation}
+      onOpenPort={openPortDetails}
+      onReviewSaves={(portId, origin) => openPortDetails(portId, origin, "saves")}
+      onOpenActivity={() => {
+        ui.setView("updates");
+        ui.setActivitySection("tasks");
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+      }}
+      setupSource={setupSource}
+      setSetupSource={setSetupSource}
+      onCatalogChanged={data.refreshAfterMutation}
+      onOpenGameUpdates={() => {
+        ui.setView("updates");
+        ui.setActivitySection("updates");
+        window.requestAnimationFrame(() => {
+          const heading = document.querySelector<HTMLElement>("main h1");
+          heading?.scrollIntoView({ block: "start" });
+          heading?.focus({ preventScroll: true });
+        });
+      }}
+      hostToolActions={hostToolActions}
+      applicationUpdates={applicationUpdates}
+      diagnosticsRefreshing={data.diagnosticRefreshing}
+      diagnosticsStale={data.diagnosticsStale}
+      diagnosticFailure={data.diagnosticFailure?.error}
+      refreshDiagnostics={data.refreshDiagnostics}
+      createSupportBundle={() =>
+        operations.perform("support bundle", desktopApi.createSupportBundle, {
+          refresh: "none",
+          invalidateDiagnostics: false,
+        })
+      }
+      exportMetadata={() =>
+        operations.perform(
+          "export library metadata",
+          async () => {
+            const path = await pickMetadataExportPath();
+            return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+          },
+          { refresh: "none", invalidateDiagnostics: false },
+        )
+      }
+      sourceOutcomes={sourceHealth.outcomes}
+      sourceInspections={{
+        reports: sourceHealth.inspections,
+        reads: sourceHealth.inspectionReads,
+        retry: sourceHealth.inspectSource,
+      }}
+      verifySources={() => {
+        void sourceHealth.verifyAll();
+      }}
+      openSourceEvidence={(evidenceId) => {
+        void operations.perform(
+          "open source evidence",
+          () => desktopApi.openSourceEvidence(evidenceId),
+          { refresh: "none", invalidateDiagnostics: false },
+        );
+      }}
+      replaceSource={(source) => {
+        const profile = data.catalog?.source_profiles?.find(
+          (candidate) => candidate.id === source.profile_id,
+        );
+        void replaceRegisteredSource(
+          profile,
+          source,
+          sourcePickerPurpose(source.profile_id, data.catalog?.ports ?? []),
+          operations.perform,
+          operations.setError,
+          bootstrap.generation,
+        );
+      }}
+      sourceNeeds={model.sourceNeeds}
+      installedCount={model.overview.installed}
+      sourceRequirementsState={
+        data.catalog ? "available" : data.refreshFailure ? "unavailable" : "loading"
+      }
+      addSource={(profile, archive) => {
+        void addRequiredSource(
+          profile,
+          archive,
+          sourcePickerPurpose(profile.id, data.catalog?.ports ?? []),
+          operations.perform,
+          operations.setError,
+          bootstrap.generation,
+        );
+      }}
     />
   );
 }
