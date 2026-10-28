@@ -1207,6 +1207,10 @@ for (const [file, tests] of [
     file,
     ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
   ]),
+  [
+    "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    ["scripts/desktop-scenarios.test.mts"],
+  ],
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
   [
     "scripts/fixtures/disposable-directory.mts",

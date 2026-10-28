@@ -3878,6 +3878,10 @@ void test("native transport producers retain their actual Node consumers across 
       ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
     ]),
     [
+      "apps/desktop/scripts/desktop-qualification-history-test.mts",
+      ["scripts/desktop-scenarios.test.mts"],
+    ],
+    [
       "apps/desktop/scripts/desktop-webview-boundary.mts",
       [
         "scripts/desktop-boundary-wiring.test.mts",

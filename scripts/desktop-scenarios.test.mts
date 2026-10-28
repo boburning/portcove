@@ -485,67 +485,92 @@ import { fileIdentity, writeEvidence } from "./development-evidence.mts";
 import { toolCachePaths } from "./tool-cache.mts";
 import { pathToFileURL } from "node:url";
 import {
+  readHistoryProcess,
   captureHistorySession,
   historyDriverStillOwned,
   waitHistorySessionExit,
   qualificationHistoryScenario,
 } from "../apps/desktop/scripts/desktop-qualification-history-test.mts";
 
-void test("history opens populated details before waiting for requested inspections", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
-    "utf8",
+void test("history opens populated details before waiting for requested inspections", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "pcv-history-caller-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-qualification-history-test.mts",
+    import.meta.url,
   );
-  const start = source.indexOf("      await installFixture();");
-  const end = source.indexOf("      for (const [name, theme, width, height, font]", start);
-  assert.ok(start >= 0 && end > start);
-  const driverImport = '({ By, Key } = await import("selenium-webdriver"));';
-  assert.ok(source.slice(start, end).includes(driverImport));
-  const startup = source.slice(start, end).replace(driverImport, "");
-  const window = { __portcoveHistoryProbe: { snapshots: 0, reports: 0 } };
-  const calls: string[] = [];
-  await runInNewContext(`(async () => { let technicalSummary; ${startup} })()`, {
-    window,
-    By: { xpath: () => ({}) },
-    installFixture: async () => {
-      window.__portcoveHistoryProbe.snapshots++;
-      calls.push("fixture");
-    },
-    openDetails: async () => {
-      assert.equal(window.__portcoveHistoryProbe.snapshots, 1);
-      assert.equal(window.__portcoveHistoryProbe.reports, 0);
-      calls.push("details");
-      window.__portcoveHistoryProbe.reports++;
-    },
-    browser: {
-      executeScript: async (callback: unknown) => sourceFunction(callback)(),
-      wait: async (predicate: () => unknown, timeout: number) => {
-        assert.equal(timeout, 15_000);
-        assert.equal(await predicate(), true, "Reports require an ordinary detail selection");
-        calls.push("settled");
+  const program = `
+    import {runInNewContext} from 'node:vm';import {readFile} from 'node:fs/promises';import path from 'node:path';
+    // Controlled module execution preserves the original platform-neutral case.
+    // Native processes are forbidden by the surrounding fixture, including on Windows.
+    Object.defineProperty(process,'platform',{value:'linux'});
+    const output=${JSON.stringify(output)},events=[],artifacts=[];
+    const sentinel=Error('History startup reached its first presentation branch');
+    const window={__portcoveHistoryProbe:undefined};
+    const document={documentElement:{style:{fontSize:''}}};
+    let fixture,asyncCalls=0,waits=0,sourceReads=0;
+    const browser={
+      manage:()=>({window:()=>({getRect:async()=>({width:800,height:600}),setRect:async()=>{}})}),
+      executeScript:async(callback,...args)=>runInNewContext('('+String(callback)+')(...args)',{window,document,args,getComputedStyle:()=>({fontSize:'16px'})}),
+      executeAsyncScript:async(callback,...args)=>{
+        assert.equal(typeof callback,'function');
+        if(++asyncCalls===1){
+          [fixture]=args;assert.ok(fixture.port_id&&fixture.profile_id);
+          window.__portcoveHistoryProbe={snapshots:1,reports:0};events.push('fixture');return {ok:true};
+        }
+        assert.equal(asyncCalls,2);return {restored:true,snapshots:1,reports:1};
       },
-    },
+      findElement:(locator)=>{
+        if(locator.value==='//nav//button[contains(., "Settings")]')throw sentinel;
+        if(locator.value==='//nav//button[contains(., "Discover")]')return {click:async()=>events.push('discover')};
+        assert.deepEqual(locator,{using:'css selector',value:'.detail-panel'});
+        return {getText:async()=>'165 Hz host'};
+      },
+      wait:async(predicate,budget,message)=>{
+        assert.equal(budget,15000);assert.equal(await predicate(),true);
+        if(++waits===2)assert.equal(message,'Populated production history did not settle; A16 component composition is required');
+        else assert.equal(message,undefined);
+        events.push('settled');
+      },
+    };
+    mock.module(new URL('./desktop-review-controls.mts',entry).href,{namedExports:{selectCatalogPort:async(actual,port)=>{
+      assert.equal(actual,browser);assert.equal(port,fixture.port_id);events.push('details');window.__portcoveHistoryProbe.reports++;
+    }}});
+    const {qualificationHistoryScenario}=await import(entry);
+    await assert.rejects(qualificationHistoryScenario({browser,output,artifacts,
+      invoke:async(command)=>{assert.equal(command,'get_sources');sourceReads++;return {ok:true,value:[]};},
+      scenario:async(name,action)=>{assert.equal(name,'native-qualification-history');await action();},
+      captureScreenshot:async()=>assert.fail('Startup control may not reach screenshot work'),
+    }),error=>error===sentinel);
+    assert.deepEqual(events,['fixture','settled','discover','details','settled','settled']);
+    assert.equal(asyncCalls,2);assert.equal(sourceReads,1);
+    assert.equal(artifacts.length,1);assert.equal(artifacts[0],path.join(output,'qualification-history.json'));
+    const report=JSON.parse(await readFile(artifacts[0],'utf8'));
+    assert.equal(report.failure.message,sentinel.message);assert.equal(report.restoration.restored,true);assert.equal(report.native_source_restoration.count,0);
+  `;
+  runDesktopModuleFixture(entry, program);
+  await rm(path.join(output, "qualification-history.json"));
+  runDesktopModuleFixture(entry, program, {
+    exportName: "qualificationHistoryScenario",
+    variant: "aliased",
   });
-  assert.deepEqual(calls, ["fixture", "settled", "details", "settled"]);
+  await rm(path.join(output, "qualification-history.json"));
+  assert.throws(() =>
+    runDesktopModuleFixture(entry, program, {
+      exportName: "qualificationHistoryScenario",
+      variant: "wrong-export",
+    }),
+  );
 });
 
 void test("history procfs disappearance retains narrow errors and live identities", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("async function historyProcess(");
-  const end = source.indexOf("function sameHistoryIdentity", start);
-  assert.ok(start >= 0 && end > start);
   for (const code of ["ENOENT", "ESRCH", "EACCES", "EIO"]) {
     const error = Object.assign(new Error(code), { code });
-    const action = runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
-      assert,
-      errorCode,
-      readFile: async () => {
+    const action = readHistoryProcess(123, {
+      read: async () => {
         throw error;
       },
-      readlink: async () => {
+      link: async () => {
         assert.fail("Disappeared stat must not read executable");
       },
     });
@@ -553,11 +578,16 @@ void test("history procfs disappearance retains narrow errors and live identitie
     else await assert.rejects(Promise.resolve(action), (actual: unknown) => actual === error);
   }
   const fields = ["S", "10", "123", ...Array<string>(16).fill("0"), "456"];
-  const live = await runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
-    assert,
-    errorCode,
-    readFile: async () => `123 (owned child) ${fields.join(" ")}`,
-    readlink: async () => "/owned/driver",
+  const live = await readHistoryProcess(123, {
+    read: async (file, encoding) => {
+      assert.equal(file, "/proc/123/stat");
+      assert.equal(encoding, "utf8");
+      return `123 (owned child) ${fields.join(" ")}`;
+    },
+    link: async (file) => {
+      assert.equal(file, "/proc/123/exe");
+      return "/owned/driver";
+    },
   });
   assert.deepEqual(
     { ...object(live) },
@@ -570,14 +600,40 @@ void test("history procfs disappearance retains narrow errors and live identitie
       executable: "/owned/driver",
     },
   );
+  for (const startTicks of ["untrusted", "-1", "0.5"]) {
+    const invalid = [...fields];
+    invalid[19] = startTicks;
+    let executableReads = 0;
+    await assert.rejects(
+      readHistoryProcess(123, {
+        read: async () => `123 (owned child) ${invalid.join(" ")}`,
+        link: async () => {
+          executableReads++;
+          return "/owned/driver";
+        },
+      }),
+      { code: "ERR_ASSERTION" },
+    );
+    assert.equal(executableReads, 0, "Malformed stat must fail before reading executable");
+  }
+  for (const code of ["ENOENT", "EACCES", "EPERM"]) {
+    const failure = Object.assign(new Error(code), { code });
+    const actual = await readHistoryProcess(123, {
+      read: async () => `123 (owned child) ${fields.join(" ")}`,
+      link: async () => {
+        throw failure;
+      },
+    });
+    assert.ok(actual);
+    assert.equal(actual.executable, null);
+    assert.equal(actual.start_ticks, "456");
+  }
   const error = Object.assign(new Error("exe disappearance"), { code: "ESRCH" });
   await assert.rejects(
     Promise.resolve(
-      runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
-        assert,
-        errorCode,
-        readFile: async () => `123 (owned child) ${fields.join(" ")}`,
-        readlink: async () => {
+      readHistoryProcess(123, {
+        read: async () => `123 (owned child) ${fields.join(" ")}`,
+        link: async () => {
           throw error;
         },
       }),
