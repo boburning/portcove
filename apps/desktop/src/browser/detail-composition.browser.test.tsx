@@ -100,7 +100,8 @@ for (const theme of ["dark", "light"]) {
       expect(cover.width).toBeLessThanOrEqual(148);
       expect(cover.height).toBe(cover.width * 1.5);
       const play = page.getByRole("button", { name: "Play", exact: true });
-      expect(play.element().getBoundingClientRect().width).toBeLessThan(160);
+      expect(play.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(180);
+      expect(play.element().getBoundingClientRect().width).toBeLessThanOrEqual(220);
       await capture(`managed-${theme}-${width}`);
       for (const label of [
         "Overview",

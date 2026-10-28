@@ -277,6 +277,7 @@ describe("Catalog channel controls", () => {
     await click("beta");
     expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
     await click("all");
+    await openChannelPanel();
     for (const channel of ["stable", "beta", "rolling"])
       expect(channelButton(channel).getAttribute("aria-checked")).toBe("false");
   });
