@@ -4,9 +4,13 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   nativeCompatibilitySourcePaths,
+  nativeSourceDeclarationByteLimit,
   inspectNativeCompatibilitySources,
 } from "./release-native-source-contract.mts";
-import { readActualNativeSourceDeclarations } from "./release-native-candidate.mts";
+import {
+  createNativeSourceApiReader,
+  readActualNativeSourceDeclarations,
+} from "./release-native-candidate.mts";
 
 void test("actual maintained source recipe supplies declarations without runtime or admission authority", async () => {
   const files: Record<string, Buffer> = Object.fromEntries(
@@ -70,6 +74,29 @@ void test("actual maintained source recipe supplies declarations without runtime
     });
   }
   assert.deepEqual(result.catalog_formats, [2]);
+  const catalogLimit = nativeSourceDeclarationByteLimit(catalog);
+  assert.equal(catalogLimit, 4 * 1024 * 1024);
+  const atLimit = Buffer.concat([
+    files[catalog]!,
+    Buffer.alloc(catalogLimit - files[catalog]!.length, 32),
+  ]);
+  assert.deepEqual(
+    inspectNativeCompatibilitySources({ ...files, [catalog]: atLimit }).catalog_formats,
+    [2],
+  );
+  assert.throws(
+    () =>
+      inspectNativeCompatibilitySources({
+        ...files,
+        [catalog]: Buffer.concat([atLimit, Buffer.from(" ")]),
+      }),
+    /oversized/,
+  );
+  assert.equal(nativeSourceDeclarationByteLimit(lib), 1024 * 1024);
+  assert.throws(
+    () => inspectNativeCompatibilitySources({ ...files, [lib]: Buffer.alloc(1024 * 1024 + 1, 32) }),
+    /oversized/,
+  );
   assert.deepEqual(result.library, {
     read: { min: 1, max: result.library.write_schema },
     write_schema: result.library.write_schema,
@@ -170,4 +197,43 @@ void test("actual maintained source recipe supplies declarations without runtime
   delete missing[catalog];
   assert.throws(() => inspectNativeCompatibilitySources(missing));
   await assert.rejects(readActualNativeSourceDeclarations({}), /actual native source selection/);
+});
+
+void test("actual source transport bounds immutable blob JSON separately from metadata", () => {
+  const payload = JSON.stringify({
+    sha: "a".repeat(40),
+    size: 4 * 1024 * 1024,
+    encoding: "base64",
+    content: Buffer.alloc(4 * 1024 * 1024, 32).toString("base64"),
+  });
+  const observed: number[] = [];
+  const api = createNativeSourceApiReader(process.cwd(), (_command, _args, options) => {
+    observed.push(options.maxBuffer!);
+    assert.ok(Buffer.byteLength(payload) < options.maxBuffer!);
+    return { status: 0, stdout: payload, stderr: "" };
+  });
+  const result = api.request("GET", `repos/boburning/portcove/git/blobs/${"a".repeat(40)}`);
+  assert.equal((result.body as { size: number }).size, 4 * 1024 * 1024);
+  const metadata = createNativeSourceApiReader(process.cwd(), (_command, _args, options) => {
+    observed.push(options.maxBuffer!);
+    return { status: 0, stdout: "{}", stderr: "" };
+  });
+  for (const endpoint of [
+    "repos/boburning/portcove/contents/crates/portcove-core/catalog/catalog.json?ref=" +
+      "a".repeat(40),
+    "repos/boburning/portcove/actions/runs/1",
+    "repos/boburning/portcove/git/blobs/not-an-immutable-sha",
+  ])
+    metadata.request("GET", endpoint);
+  assert.deepEqual(
+    observed,
+    [8, 2, 2, 2].map((mib) => mib * 1024 * 1024),
+  );
+  assert.throws(() =>
+    metadata.request("POST", "repos/boburning/portcove/git/blobs/" + "a".repeat(40)),
+  );
+  assert.throws(() =>
+    metadata.request("GET", "repos/other/repository/git/blobs/" + "a".repeat(40)),
+  );
+  assert.equal(observed.length, 4, "refused routes never reach the credentialled transport");
 });

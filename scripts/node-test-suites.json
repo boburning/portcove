@@ -1379,7 +1379,8 @@
             "isolated driver stop refuses stale identity without acting",
             "driver stop never terminates a replacement or path-mismatched captured survivor",
             "ordinary close refuses changed identity or a windowless owned application",
-            "native process discovery refuses ambiguous application descendants"
+            "native process discovery refuses ambiguous application descendants",
+            "marked helper observation retains actual OS exits without inventing or forcing them"
           ]
         }
       ]
@@ -3585,7 +3586,8 @@
             "Linux adopting containment proves receipt-refusal",
             "Linux adopting containment proves root-complete-reaper-loss",
             "Linux adopting containment proves supervisor-loss",
-            "Linux adopting containment proves wrapper-loss"
+            "Linux adopting containment proves wrapper-loss",
+            "Linux child discovery preserves ownership without task children support"
           ]
         }
       ]

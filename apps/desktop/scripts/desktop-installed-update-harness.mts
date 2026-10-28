@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { WebDriver } from "selenium-webdriver";
-import { errorCode, isRecord } from "../../../scripts/runtime-values.mts";
-import { spawn, execFileSync } from "node:child_process";
+import { errorCode, errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import { spawn, execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
@@ -368,6 +368,64 @@ export interface WindowsUpdateProcessObservation {
   status: "captured" | "exited" | "prior-process-exited" | "stopped";
   pid: number;
   path?: string;
+}
+
+export interface WindowsUpdateExitObservation {
+  status: "exit-observed" | "unobserved" | "timeout";
+  pid: number;
+  exit_code: number | null;
+}
+export function readWindowsUpdateExitObservation(value: unknown): WindowsUpdateExitObservation {
+  const raw = object(value);
+  const status = raw.status;
+  let exitCode: number | null = null;
+  assert.ok(status === "exit-observed" || status === "unobserved" || status === "timeout");
+  if (status === "exit-observed") {
+    assert.ok(typeof raw.exit_code === "number" && Number.isInteger(raw.exit_code));
+    assert.ok(raw.exit_code >= -2_147_483_648 && raw.exit_code <= 2_147_483_647);
+    assert.equal(raw.observation, "retained-process-handle");
+    exitCode = raw.exit_code;
+  } else assert.equal(raw.exit_code, null);
+  return { ...raw, status, pid: installedUpdatePid(raw.pid), exit_code: exitCode };
+}
+
+export type WindowsUpdateExitCapture =
+  | { kind: "observation"; observation: WindowsUpdateExitObservation }
+  | { kind: "failed"; error: string; stdout: string; stderr: string };
+
+/** Read-only observer of one already identity-bound helper. It never stops the
+ * helper; cancellation owns only the observer child and drains its result. */
+export function startWindowsUpdateExitObservation(script: string, args: string[]) {
+  let child: ChildProcess | undefined;
+  const result = new Promise<WindowsUpdateExitCapture>((resolve) => {
+    child = execFile(
+      "pwsh",
+      ["-NoProfile", "-NonInteractive", "-File", script, "-Mode", "ObserveExit", ...args],
+      { encoding: "utf8", windowsHide: true, timeout: 95_000, maxBuffer: 64 * 1024 },
+      (error, stdout, stderr) => {
+        if (error) {
+          resolve({ kind: "failed", error: errorMessage(error), stdout, stderr });
+          return;
+        }
+        try {
+          resolve({
+            kind: "observation",
+            observation: readWindowsUpdateExitObservation(JSON.parse(stdout)),
+          });
+        } catch (failure) {
+          resolve({ kind: "failed", error: errorMessage(failure), stdout, stderr });
+        }
+      },
+    );
+  });
+  assert.ok(child);
+  const observer = child;
+  return {
+    result,
+    cancel: () => {
+      if (observer.exitCode === null && observer.signalCode === null) observer.kill();
+    },
+  };
 }
 
 function installedUpdatePid(value: unknown): number {

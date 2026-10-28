@@ -3,12 +3,11 @@
   "listing": {
     "id": "pokemon-emerald-emeraldrecomp",
     "name": "Pokémon Emerald / EmeraldRecomp",
-    "summary": "Explore Pokémon Emerald / EmeraldRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use the upstream EmeraldRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
     "project_url": "https://github.com/mstan/EmeraldRecomp",
     "issue_number": 334,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mstan/EmeraldRecomp",
+    "availability": "packages",
+    "setup_url": "https://github.com/mstan/EmeraldRecomp/blob/1bd517bc8ce8def93b91b4363af12c4ae540dce2/README.md",
     "artwork": {
       "game_id": 1517,
       "cover_id": 92655,
@@ -16,6 +15,63 @@
       "image_sha256": "f044cb533d5abbe24cca261e4785ce37a957bb2507aeb1a6c0dc541005c73d51",
       "game_slug": "pokemon-emerald-version",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Preserve the exact game original and separate BIOS",
+          "instruction": "Use your own unchanged Pokémon Emerald USA GBA original, SHA-1 f3ae088181bf583e55daf962a92bb46f4f1d07b7, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+        },
+        {
+          "title": "Finish upstream setup and select this game player",
+          "instruction": "Open the linked official v0.1.3 release and extract its complete EmeraldRecomp-windows-x64-v0.1.3.zip package into a separate writable folder for this exact game. Keep EmeraldRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working EmeraldRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+        },
+        {
+          "title": "Preserve the actual data and compiler coordinates",
+          "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+        },
+        {
+          "title": "Register the prepared player and use explicit Play",
+          "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+        }
+      ],
+      "warnings": [
+        "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+        "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+      ],
+      "help_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3"
+    },
+    "original_game_title": "Pokémon Emerald"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "mstan/EmeraldRecomp",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Open the linked official v0.1.3 release and extract its complete EmeraldRecomp-windows-x64-v0.1.3.zip package into a separate writable folder for this exact game. Keep EmeraldRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working EmeraldRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
     }
   }
 }
