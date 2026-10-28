@@ -299,7 +299,6 @@ export function CatalogFilters({
               variant="ghost"
               onClick={() => {
                 setFilter("all");
-                close();
               }}
             >
               Clear filters

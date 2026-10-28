@@ -118,7 +118,10 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   expect(document.body.textContent).toContain("2 of 12 library entries");
-  const commands = document.querySelector<HTMLDetailsElement>(".library-query-tools details")!;
+  const commands = page
+    .getByText("Collection commands", { exact: true })
+    .element()
+    .closest("details")!;
   commands.open = true;
   expect(commands.textContent).toContain("12 installed entries");
   expect(commands.textContent).toContain("hidden by filters");

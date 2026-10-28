@@ -20,7 +20,7 @@ retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter
 chips, counts and reset stay with the existing browsing projection. First use
 omits retrieval controls. Add games sits beside the Library heading; scoped
-Collection commands and Covers/Compact rows share the retrieval toolbar. At
+Collection commands accompany collection navigation; Covers/Compact rows share the retrieval toolbar. At
 compact widths the visible Rows label retains its full Compact rows accessible
 name. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit

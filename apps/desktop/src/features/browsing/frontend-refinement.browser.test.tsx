@@ -1,5 +1,6 @@
+import { browserFixture } from "../../../test/browser-fixture";
 import { useState } from "react";
-import { afterEach, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { PortBrowser } from "../../components/PortBrowser";
@@ -10,36 +11,51 @@ import type { Filter } from "../../view-model";
 import { portDefinition } from "../../test-fixtures";
 import "../../styles/index.css";
 
-const entries: CatalogEntry[] = ["Harbor Project", "Harbor Alternative"].map((name, index) => ({
-  ...portDefinition(),
-  id: `harbor-${index}`,
-  name,
-  channels: [index ? "beta" : "stable"],
-  presentation: {
-    original_game_title: "A Very Long Harbor Adventure Across the Northern Sea — Édition complète",
-    installation_method: "portable-package",
-    source_requirements: [],
-    saves_and_settings: "portcove-managed",
-    original_game: {
-      format_version: 1,
-      id: "harbor",
-      evidence_urls: ["https://example.org/game"],
-      source_editions: [
-        {
-          id: "original",
-          title: "Original",
-          system: "nintendo-64",
-          evidence_urls: ["https://example.org/game"],
-        },
-      ],
+const entries: CatalogEntry[] = ["Harbor Project", "Harbor Alternative", "Another Project"].map(
+  (name, index) => ({
+    ...portDefinition(),
+    id: `harbor-${index}`,
+    name,
+    channels: [index ? "beta" : "stable"],
+    presentation: {
+      original_game_title:
+        index < 2
+          ? "A Very Long Harbor Adventure Across the Northern Sea — Édition complète"
+          : "Another Harbor Game",
+      installation_method: "portable-package",
+      source_requirements: [],
+      saves_and_settings: "portcove-managed",
+      original_game: {
+        format_version: 1,
+        id: index < 2 ? "harbor" : "another-game",
+        evidence_urls: ["https://example.org/game"],
+        source_editions: [
+          {
+            id: "original",
+            title: "Original",
+            system: "nintendo-64",
+            evidence_urls: ["https://example.org/game"],
+          },
+        ],
+      },
     },
-  },
-}));
-afterEach(cleanup);
+  }),
+);
+let fixture: ReturnType<typeof browserFixture>;
+beforeEach(() => {
+  fixture = browserFixture({ attributes: ["data-theme"], styles: ["font-size"], viewport: true });
+  fixture.defer(cleanup);
+});
+afterEach(async () => fixture.dispose());
 
-it.each(["covers", "rows"] as const)(
-  "retains exact filtered destinations and Compare all focus in Discover %s",
-  async (layout) => {
+it.each(
+  (["covers", "rows"] as const).flatMap((layout) =>
+    (["dark", "light"] as const).map((theme) => ({ layout, theme })),
+  ),
+)(
+  "retains exact filtered destinations and Compare all focus in Discover $layout/$theme",
+  async ({ layout, theme }) => {
+    document.documentElement.dataset.theme = theme;
     await page.viewport(1440, 900);
     const select = vi.fn();
     await render(
@@ -47,7 +63,7 @@ it.each(["covers", "rows"] as const)(
         view="catalog"
         collectionLayout={layout}
         catalogUniverse={entries}
-        ports={[entries[0]!]}
+        ports={[entries[0]!, entries[2]!]}
         statuses={new Map()}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
@@ -61,8 +77,11 @@ it.each(["covers", "rows"] as const)(
     await expect
       .element(page.getByRole("textbox", { name: "Search Find games", exact: true }))
       .toBeVisible();
-    await page.getByRole("button", { name: "View port", exact: true }).click();
+    await page.getByRole("button", { name: "View port", exact: true }).first().click();
     expect(select).toHaveBeenCalledExactlyOnceWith(entries[0]!.id, "catalog:card:harbor-0:details");
+    await page.screenshot({
+      path: `../../../../outputs/ui-refinement/discover-${layout}-${theme}-1440.png`,
+    });
     const compare = page.getByRole("button", { name: "Compare all 2", exact: true });
     await compare.click();
     const dialog = page.getByRole("dialog");
@@ -75,14 +94,32 @@ it.each(["covers", "rows"] as const)(
       right = cards[1]!.getBoundingClientRect();
     expect(right.left).toBeGreaterThanOrEqual(left.right);
     for (const card of cards) expect(card.textContent).toContain("Portable upstream package");
+    await page.screenshot({
+      path: `../../../../outputs/ui-refinement/comparison-${layout}-${theme}-1440.png`,
+    });
     await page.viewport(740, 900);
+    document.documentElement.style.fontSize = "130%";
     await expect
       .poll(() => cards[1]!.getBoundingClientRect().top)
       .toBeGreaterThan(cards[0]!.getBoundingClientRect().top);
     expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
+    await page.screenshot({
+      path: `../../../../outputs/ui-refinement/comparison-${layout}-${theme}-740-text-130.png`,
+    });
     await userEvent.keyboard("{Escape}");
     await expect.element(dialog).not.toBeInTheDocument();
     await expect.poll(() => document.activeElement).toBe(compare.element());
+    const games = page
+      .getByRole("region", { name: "Discover games" })
+      .element()
+      .querySelectorAll("article");
+    expect(games).toHaveLength(2);
+    expect(
+      Math.abs(games[0]!.getBoundingClientRect().left - games[1]!.getBoundingClientRect().left) < 1,
+    ).toBe(layout === "rows");
+    await page.screenshot({
+      path: `../../../../outputs/ui-refinement/discover-${layout}-${theme}-740-text-130.png`,
+    });
   },
 );
 
@@ -133,6 +170,20 @@ it("labels active facets and restores focus after removing chips or clearing whi
   await expect
     .element(page.getByRole("region", { name: "Filter options" }))
     .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Filters (0)", exact: true }))
+    .toHaveFocus();
+  await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
+  await page
+    .getByRole("group", { name: "Release channels", exact: true })
+    .getByRole("button", { name: /^Stable/ })
+    .click();
+  const panelClear = page.getByRole("button", { name: "Clear filters", exact: true });
+  panelClear.element().focus();
+  await userEvent.keyboard("{Enter}");
+  await expect.element(page.getByRole("region", { name: "Filter options" })).toBeVisible();
+  await expect.element(panelClear).toHaveFocus();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Filters (0)", exact: true }))
     .toHaveFocus();

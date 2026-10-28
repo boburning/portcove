@@ -569,7 +569,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
                 : []),
             ]}
           />
-          <details>
+          <details inert={pending || applying}>
             <summary data-focusable>Advanced update choice</summary>
             <Button
               data-focusable

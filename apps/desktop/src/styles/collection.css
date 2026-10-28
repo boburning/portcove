@@ -71,6 +71,8 @@
   }
 
   .continue-card {
+    gap: var(--space-4);
+    padding: var(--space-4);
     position: relative;
     isolation: isolate;
     overflow: hidden;

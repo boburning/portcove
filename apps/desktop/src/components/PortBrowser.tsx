@@ -386,7 +386,9 @@ function PortBrowserView({
           selected={model.organizationView}
           onSelect={model.setOrganizationView}
           discover={model.view === "catalog"}
-        />
+        >
+          {renderSteamBatch()}
+        </OrganizationControls>
       )}
       {renderFavoritesFailure()}
       {model.unresolvedReadiness && (
@@ -761,7 +763,7 @@ function ContinueCard({
   return (
     <section
       ref={element}
-      className="continue-card mb-4 grid min-w-0 items-center gap-4 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
+      className="continue-card mb-4 grid min-w-0 items-center rounded-pc-lg border border-pc-border bg-pc-surface"
       data-focus-group
       data-successful-launches={status.successful_launches}
       aria-label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
@@ -1321,7 +1323,7 @@ function renderFiltersPortBrowserView(
   return (
     !model.firstUseEmpty && (
       <div
-        className="filter-row flex flex-wrap items-center gap-2"
+        className="filter-row"
         data-focus-group
         role="group"
         aria-label={model.view === "library" ? "Library filters" : "Release channel filters"}
@@ -1453,7 +1455,7 @@ function BrowserCollectionTools({
           ))}
         </div>
       )}
-      {renderSteamBatch()}
+      {!model.organization && renderSteamBatch()}
     </>
   );
   const summary = (
