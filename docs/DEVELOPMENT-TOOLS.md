@@ -2199,6 +2199,17 @@ contains an isolated library, host and application-update state files, WebView2 
 screenshots, bounded driver logs, accessibility results and `evidence.json`.
 Never reuse a failed run directory or point this harness at an existing library.
 
+Default-cover display/cache observations can use repeated `--cover-port-id ID`
+arguments for at most 16 unique accepted mapped ports. Omission retains the full
+mapped-catalog observation. Unknown or unmapped IDs refuse the selection;
+cache observations must include `dkr-r` for the existing missing-cache negative
+control. Selected ports receive detail observations as well as card observations.
+The report records the requested/observed IDs, selection scope and available
+mapped denominator. A focused result is not whole-catalog evidence. This option
+requires `native-default-cover-display` or `native-default-cover-cache-conditions`;
+it does not change image acceptance, cache policy or the frozen cohort's fallback
+credit.
+
 The native harness opens application windows, takes focus and sends keyboard
 input in the current desktop session. Its isolated files do not isolate the
 keyboard or pointer. Run it in a dedicated graphical session or an agreed window

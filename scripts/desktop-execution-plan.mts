@@ -443,6 +443,7 @@ export function parseDesktopHarnessOptions(args = process.argv.slice(2)) {
       output: { type: "string" },
       profile: { type: "string" },
       scenario: { type: "string", multiple: true, default: [] },
+      "cover-port-id": { type: "string", multiple: true, default: [] },
       port: { type: "string", default: "4444" },
       "preparation-cli": { type: "string" },
       "preparation-tool": { type: "string" },
@@ -483,10 +484,18 @@ export function resolveDesktopHarnessSelection(
       : values["adoption-only"]
         ? "native-reviewed-existing-install-copy"
         : null;
-  return resolveDesktopSelection({
+  const selection = resolveDesktopSelection({
     profile: values.profile,
     scenarios: legacyScenario ? [legacyScenario] : values.scenario,
     reloadCycles,
     defaultProfile: values["preparation-cli"] ? "full" : "smoke",
   });
+  if (
+    values["cover-port-id"].length &&
+    !selection.selected_scenarios.some((id) =>
+      ["native-default-cover-display", "native-default-cover-cache-conditions"].includes(id),
+    )
+  )
+    throw new Error("--cover-port-id requires a default-cover observation scenario");
+  return selection;
 }

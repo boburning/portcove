@@ -1,6 +1,7 @@
 import {
   createImageRefusal,
   restoreCacheAfterObservation,
+  selectDefaultCoverIds,
   type WithheldCover,
 } from "./desktop-cover-observations.mts";
 import { revealDetailSection, selectCatalogPort } from "./desktop-review-controls.mts";
@@ -18,6 +19,7 @@ type CoverContext = Pick<
   setTheme: (theme: "light" | "dark") => Promise<unknown>;
   restart: PreparationContext["restartApplication"];
   cacheConditions?: boolean;
+  coverPortIds?: readonly string[];
 };
 interface CoverImage {
   width: number;
@@ -93,6 +95,7 @@ export async function defaultCoverScenario({
   library,
   restart,
   cacheConditions = false,
+  coverPortIds = [],
 }: CoverContext) {
   await scenario(
     cacheConditions ? "native-default-cover-cache-conditions" : "native-default-cover-display",
@@ -124,10 +127,8 @@ export async function defaultCoverScenario({
           "open-nectar-pikmin",
           "diddy-kong-racing-golden-balloon",
         ]);
-        const ids = catalog.ports
-          .filter((port) => port.presentation?.artwork)
-          .map((port) => port.id);
-        assert.ok(ids.length > 0, "The actual catalog must have accepted cover mappings");
+        const ids = selectDefaultCoverIds(catalog.ports, coverPortIds, cacheConditions);
+        if (coverPortIds.length) for (const id of ids) detailIds.add(id);
         const rows: CoverRow[] = [];
         const captureSettled: CaptureSettled = async (name, selector, currentBrowser = browser) => {
           await currentBrowser.wait(
@@ -290,7 +291,13 @@ export async function defaultCoverScenario({
             {
               scope: cacheConditions
                 ? "native app; isolated empty-cache first display and cached restart with backend image traffic rejected; missing-cache negative control. Package/installation provenance requires an independently joined outer receipt; no physical-device claim"
-                : "native app; every mapped catalog cover in both themes, representative details; first/warm same-session CDN display, not cold-request latency or offline. Package/installation provenance requires an independently joined outer receipt",
+                : "native app; mapped covers in both themes with the recorded detail subset; first/warm same-session CDN display, not cold-request latency or offline. Package/installation provenance requires an independently joined outer receipt",
+              selectionScope: coverPortIds.length ? "explicit-mapped-ports" : "all-mapped-ports",
+              requestedPortIds: coverPortIds,
+              observedPortIds: ids,
+              detailObservationPortIds: ids.filter((id) => detailIds.has(id)),
+              availableMappedCount: catalog.ports.filter((port) => port.presentation?.artwork)
+                .length,
               negativeControl,
               refusedOrigins,
               catalogCount: catalog.ports.length,

@@ -3494,6 +3494,7 @@ try {
       library,
       restart: restartApplication,
       cacheConditions,
+      coverPortIds: values["cover-port-id"],
     });
   }
   await scenario("keyboard-layout", async () => {

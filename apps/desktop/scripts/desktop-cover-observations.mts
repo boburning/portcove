@@ -4,6 +4,25 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import type { Socket } from "node:net";
 import path from "node:path";
+
+/** Select observation scope only; Core's accepted catalog still owns mappings. */
+export function selectDefaultCoverIds(
+  ports: readonly { id: string; presentation?: { artwork?: unknown } | null }[],
+  requested: readonly string[] = [],
+  cacheConditions = false,
+) {
+  const mapped = ports.filter((port) => port.presentation?.artwork).map((port) => port.id);
+  if (requested.length > 16 || new Set(requested).size !== requested.length)
+    throw new Error("Choose at most 16 unique --cover-port-id values");
+  for (const id of requested)
+    if (!mapped.includes(id))
+      throw new Error(`Cover observation requires an accepted mapping: ${id}`);
+  const ids = requested.length ? [...requested] : mapped;
+  if (!ids.length) throw new Error("The actual catalog must have accepted cover mappings");
+  if (cacheConditions && !ids.includes("dkr-r"))
+    throw new Error("Cache observations require dkr-r for the maintained missing-cache control");
+  return ids;
+}
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 
 export interface WithheldCover {
