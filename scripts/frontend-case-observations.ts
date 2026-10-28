@@ -5,8 +5,7 @@ import { writeSync } from "node:fs";
 import path from "node:path";
 import type { Reporter, TestCase, TestModule, TestSuite } from "vite-plus/test/node";
 import { isRecord } from "./runtime-values.mts";
-import { declaredUiSkip } from "./ui-test-selection.mts";
-import { browserTraceProbe } from "../apps/desktop/src/browser/failure-probe-contract.ts";
+import { declaredFrontendCaseSkip, frontendCaseSkipAllowed } from "./ui-test-selection.mts";
 
 /** Bounded diagnostics; public runner results and exits retain their authority. */
 export function createFrontendCaseObservations(
@@ -89,9 +88,12 @@ export function createFrontendCaseObservations(
           ? { line: integer(test.location.line), column: integer(test.location.column) }
           : null;
       const errors = result.errors ?? [];
-      const declaration = declaredUiSkip(test.module.moduleId, path.join(root, "apps/desktop"));
+      const declaration = declaredFrontendCaseSkip(
+        test.module.moduleId,
+        path.join(root, "apps/desktop"),
+      );
       const contract = declaration?.cases.includes(test.fullName) ? declaration : null;
-      const expectedSkip = contract !== null && environment[browserTraceProbe.environment] !== "1";
+      const expectedSkip = frontendCaseSkipAllowed(contract, environment);
       if (result.state === "skipped" && !expectedSkip) unexpectedSkips++;
       record("test", {
         definition_id:
@@ -159,7 +161,10 @@ export function createFrontendCaseObservations(
     onTestRunEnd(modules, errors, reason) {
       try {
         for (const module of modules) {
-          const declaration = declaredUiSkip(module.moduleId, path.join(root, "apps/desktop"));
+          const declaration = declaredFrontendCaseSkip(
+            module.moduleId,
+            path.join(root, "apps/desktop"),
+          );
           if (declaration) {
             const names = new Set([...module.children.allTests()].map((test) => test.fullName));
             const missing = declaration.cases.filter((name) => !names.has(name));
