@@ -700,7 +700,7 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
               {
                 start: endOfInventory,
                 end: endOfInventory,
-                text: source.slice(selected.start, selected.end),
+                text: "\n" + source.slice(selected.start, selected.end) + "\n",
               },
             ]),
           ),
