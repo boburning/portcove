@@ -595,6 +595,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
   const consumers = [
     "apps/desktop/scripts/desktop-listener-lifetime.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
+    "scripts/desktop-boundary-wiring.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
     "scripts/node-platform-skips.test.mts",
@@ -692,6 +693,7 @@ void test("fixture module closure edits retain all independent policy and constr
   const helper = "scripts/fixtures/module-closure.mts";
   const consumers = [
     "scripts/daily-discovery.test.mts",
+    "scripts/desktop-boundary-wiring.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
@@ -3867,6 +3869,13 @@ void test("native transport producers retain their actual Node consumers across 
   const { windowsHelperChecksRequired, windowsNativeToolsRequired } =
     await import("./windows-helper-checks.mts");
   const consumers: [string, string[]][] = [
+    [
+      "apps/desktop/scripts/desktop-webview-boundary.mts",
+      [
+        "scripts/desktop-boundary-wiring.test.mts",
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      ],
+    ],
     [
       "apps/desktop/scripts/desktop-boundary-invoke.mts",
       ["apps/desktop/scripts/desktop-webview-boundary.native.test.mts"],

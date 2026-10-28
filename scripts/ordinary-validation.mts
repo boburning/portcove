@@ -315,6 +315,13 @@ for (const [file, tests] of [
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
   [
+    "apps/desktop/scripts/desktop-webview-boundary.mts",
+    [
+      "scripts/desktop-boundary-wiring.test.mts",
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+    ],
+  ],
+  [
     "apps/desktop/scripts/desktop-boundary-invoke.mts",
     [
       "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
@@ -1196,6 +1203,7 @@ for (const [file, tests] of [
   [
     "scripts/fixtures/disposable-directory.mts",
     [
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/node-platform-skips.test.mts",
@@ -1232,6 +1240,7 @@ for (const [file, tests] of [
   [
     "scripts/fixtures/module-closure.mts",
     [
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/daily-discovery.test.mts",

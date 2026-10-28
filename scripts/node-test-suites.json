@@ -4272,6 +4272,13 @@
         ["catalog-full-2", 1000025],
         ["release-check", 16225]
       ]
+    },
+    {
+      "file": "scripts/desktop-boundary-wiring.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000124],
+        ["development-tools", 5400]
+      ]
     }
   ]
 }
