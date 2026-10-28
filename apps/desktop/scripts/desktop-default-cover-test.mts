@@ -86,7 +86,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { WebDriver, By, until } from "selenium-webdriver";
+import { WebDriver, By, Key, until } from "selenium-webdriver";
 
 // Explicit opt-in live CDN exercise; excluded from routine offline qualification.
 export async function defaultCoverScenario({
@@ -387,9 +387,7 @@ async function missingCacheNegativeControl({
     offlineEnvironment,
   );
   await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
-  const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
-  await search.clear();
-  await search.sendKeys(port.name);
+  await searchForCover(browser, port.name);
   const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
   await browser.wait(until.elementLocated(By.css(selector)), 10_000);
   await browser.wait(
@@ -465,12 +463,23 @@ async function inspectCoverPass({
     const port = ports.find((port) => port.id === id);
     assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
     await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
-    const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
-    await search.clear();
-    await search.sendKeys(port.name);
+    await searchForCover(browser, port.name);
     const started = performance.now();
     const selector = `[data-detail-origin="catalog:card:${id}"]`;
-    const card = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
+    const card = await browser
+      .wait(until.elementLocated(By.css(selector)), 10_000)
+      .catch(async (error: unknown) => {
+        const navigation = await executeBrowserScript(browser, () => ({
+          query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+          active: document.activeElement?.id,
+          origins: Array.from(document.querySelectorAll("[data-detail-origin^='catalog:card:']"))
+            .slice(0, 16)
+            .map((element) => element.getAttribute("data-detail-origin")),
+        }));
+        throw new Error(
+          `${pass}/${id}: ${errorMessage(error)}; cover navigation: ${JSON.stringify(navigation)}`,
+        );
+      });
     await executeBrowserScript(browser, (card) => card.scrollIntoView({ block: "center" }), card);
     const cardImage = await image(`${selector} .collection-art`);
     const cardMs = performance.now() - started;
@@ -509,4 +518,28 @@ async function createCoverConditions(library: string, cacheConditions: boolean) 
     refusedOrigins: refusal.origins,
     offlineEnvironment: refusal.environment,
   };
+}
+
+async function searchForCover(browser: WebDriver, name: string) {
+  const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
+  const value = () =>
+    executeBrowserScript(
+      browser,
+      () => document.querySelector<HTMLInputElement>("#port-search")?.value,
+    );
+  const previous = await value();
+  assert.ok(typeof previous === "string");
+  // Real edit events update React's controlled query; no modifier can remain held.
+  await search.sendKeys(Key.END, ...Array.from(previous, () => Key.BACK_SPACE));
+  await browser.wait(
+    async () => (await value()) === "",
+    5_000,
+    "Keyboard editing must clear the controlled cover query",
+  );
+  await search.sendKeys(name);
+  await browser.wait(
+    async () => (await value()) === name,
+    5_000,
+    `Controlled cover query must equal ${name}`,
+  );
 }
