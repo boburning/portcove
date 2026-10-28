@@ -3919,7 +3919,13 @@ void test("native transport producers retain their actual Node consumers across 
       "apps/desktop/scripts/desktop-artwork-correction-test.mts",
     ].map((file): [string, string[]] => [
       file,
-      ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+      [
+        "scripts/desktop-scenarios.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+        ...(file === "apps/desktop/scripts/desktop-preparation-test.mts"
+          ? ["scripts/capture-target.test.mts"]
+          : []),
+      ],
     ]),
     [
       "apps/desktop/scripts/desktop-source-dialog-test.mts",
@@ -3944,6 +3950,7 @@ void test("native transport producers retain their actual Node consumers across 
         "scripts/desktop-real-runtime.test.mts",
         "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
         "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+        "scripts/capture-target.test.mts",
       ],
     ],
   ];
