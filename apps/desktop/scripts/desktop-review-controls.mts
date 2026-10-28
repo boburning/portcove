@@ -59,7 +59,7 @@ export async function openCatalogPortAfterRefresh(
   await selectCatalogPort(browser, port.id);
 }
 
-export async function catalogPortGroup(browser: WebDriver, portId: string): Promise<WebElement> {
+async function catalogPortGroup(browser: WebDriver, portId: string): Promise<WebElement> {
   let selected: WebElement | undefined;
   await browser.wait(
     async () => {
@@ -503,7 +503,4 @@ export async function captureAccessibilityReport(
   assertNoAccessibilityViolations(accessibility);
 }
 
-export {
-  assertReviewFieldPresentation,
-  decodeDiscoverPortIds,
-} from "./desktop-review-presentation.mts";
+export { assertReviewFieldPresentation } from "./desktop-review-presentation.mts";

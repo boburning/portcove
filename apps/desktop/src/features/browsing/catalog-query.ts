@@ -308,6 +308,18 @@ function listingPlatformMatch(
     : undefined;
 }
 
+function listingMembershipMatch(
+  port: CatalogEntry,
+  value: string,
+  context: CatalogQueryContext,
+  status: PortStatus | undefined,
+): Match {
+  if (!context.library) return undefined;
+  if (status && status.port_id !== port.id) return undefined;
+  const member = Boolean(status?.external_runtime || port.pendingSetup);
+  return value === "in-library" ? member : !member;
+}
+
 function listingMatch(
   port: CatalogEntry,
   group: Group,
@@ -326,10 +338,7 @@ function listingMatch(
       return listingPlatformMatch(port, value, context, status);
     }
     case "membership": {
-      if (!context.library) return undefined;
-      if (status && status.port_id !== port.id) return undefined;
-      const member = Boolean(status?.external_runtime || port.pendingSetup);
-      return value === "in-library" ? member : !member;
+      return listingMembershipMatch(port, value, context, status);
     }
     case "attention":
       return port.pendingSetup ? value === "finish-setup" : attentionMatches(port, value, context);

@@ -29,6 +29,34 @@ export type CatalogEntry = Pick<PortDefinition, "id" | "name" | "summary" | "pla
     pendingSetup?: PendingSetupRecord;
   };
 
+function definitionDescriptiveFallback(
+  definition: PortDefinition,
+  listing: PortListing | undefined,
+  id: string,
+) {
+  const presentation = definition.presentation;
+  const originalGame = presentation?.original_game ?? listing?.original_game;
+  // Only descriptive additions may fall back to the accepted listing. The
+  // strict definition remains the separate operational owner, including setup.
+  return {
+    ...(presentation?.original_game == null && listing?.original_game
+      ? { original_game: listing.original_game }
+      : {}),
+    ...(presentation?.media == null && listing?.media
+      ? {
+          media: listing.media.filter(({ subject }) =>
+            subject.kind === "port"
+              ? subject.port_id === id
+              : subject.game_id === originalGame?.id &&
+                originalGame.source_editions.some(
+                  (edition) => edition.id === subject.source_edition_id,
+                ),
+          ),
+        }
+      : {}),
+  };
+}
+
 /** One entry per stable port identity; grouping is a separate display projection. */
 export function catalogEntries(
   catalog: CatalogDocument | undefined,
@@ -56,26 +84,7 @@ export function catalogEntries(
     };
     if (definition) {
       const presentation = definition.presentation;
-      const originalGame = presentation?.original_game ?? listing?.original_game;
-      // Only descriptive additions may fall back to the accepted listing. The
-      // strict definition remains the separate operational owner, including setup.
-      const descriptive = {
-        ...(presentation?.original_game == null && listing?.original_game
-          ? { original_game: listing.original_game }
-          : {}),
-        ...(presentation?.media == null && listing?.media
-          ? {
-              media: listing.media.filter(({ subject }) =>
-                subject.kind === "port"
-                  ? subject.port_id === id
-                  : subject.game_id === originalGame?.id &&
-                    originalGame.source_editions.some(
-                      (edition) => edition.id === subject.source_edition_id,
-                    ),
-              ),
-            }
-          : {}),
-      };
+      const descriptive = definitionDescriptiveFallback(definition, listing, id);
       return {
         ...definition,
         ...shared,

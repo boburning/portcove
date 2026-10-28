@@ -40,6 +40,15 @@ struct AssetAcquisition<'a> {
     curated: bool,
 }
 
+/// Inputs for one asset's acquisition and extraction within the owned operation.
+struct AssetPreparation<'a> {
+    asset: &'a ReleaseAsset,
+    download_path: &'a Path,
+    payload_root: &'a Path,
+    acquisition: Option<AssetAcquisition<'a>>,
+    acquired: Option<&'a Path>,
+}
+
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
     strict_staged_source: bool,
@@ -1108,15 +1117,17 @@ impl Installer {
         fs::create_dir_all(&payload_root)?;
         let artifact = self
             .prepare_asset(
-                &request.release.asset,
-                &lifecycle.operation_root.join("artifact.download"),
-                &payload_root,
+                AssetPreparation {
+                    asset: &request.release.asset,
+                    download_path: &lifecycle.operation_root.join("artifact.download"),
+                    payload_root: &payload_root,
+                    acquisition,
+                    acquired: acquired
+                        .map(|inputs| inputs.path(&request.release.asset))
+                        .transpose()?,
+                },
                 operation,
                 emit,
-                acquisition,
-                acquired
-                    .map(|inputs| inputs.path(&request.release.asset))
-                    .transpose()?,
             )
             .await?;
         if request.qualification.managed_shared_preferences.is_some() {
@@ -1138,15 +1149,17 @@ impl Installer {
             let unpacked = lifecycle.operation_root.join("runtime");
             fs::create_dir_all(&unpacked)?;
             self.prepare_asset(
-                &runtime.asset,
-                &lifecycle.operation_root.join("runtime.download"),
-                &unpacked,
+                AssetPreparation {
+                    asset: &runtime.asset,
+                    download_path: &lifecycle.operation_root.join("runtime.download"),
+                    payload_root: &unpacked,
+                    acquisition: None,
+                    acquired: acquired
+                        .map(|inputs| inputs.path(&runtime.asset))
+                        .transpose()?,
+                },
                 operation,
                 emit,
-                None,
-                acquired
-                    .map(|inputs| inputs.path(&runtime.asset))
-                    .transpose()?,
             )
             .await?;
             let source = unpacked.join(&runtime.archive_root);
@@ -1383,17 +1396,20 @@ impl Installer {
 
     async fn prepare_asset<F>(
         &self,
-        asset: &ReleaseAsset,
-        download_path: &Path,
-        payload_root: &Path,
+        input: AssetPreparation<'_>,
         operation: &OperationCoordinator,
         emit: &mut F,
-        acquisition: Option<AssetAcquisition<'_>>,
-        acquired: Option<&Path>,
     ) -> Result<ArtifactIdentity>
     where
         F: FnMut(OperationEvent),
     {
+        let AssetPreparation {
+            asset,
+            download_path,
+            payload_root,
+            acquisition,
+            acquired,
+        } = input;
         let (artifact, cache_worker) = self
             .acquire_asset_bytes(asset, download_path, operation, emit, acquisition, acquired)
             .await?;
