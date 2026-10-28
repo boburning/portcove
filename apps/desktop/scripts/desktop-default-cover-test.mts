@@ -475,15 +475,21 @@ async function inspectCoverPass({
     const card = await browser
       .wait(until.elementLocated(By.css(selector)), 10_000)
       .catch(async (error: unknown) => {
-        const navigation = await executeBrowserScript(browser, () => ({
-          query: document.querySelector<HTMLInputElement>("#port-search")?.value,
-          active: document.activeElement?.id,
-          origins: Array.from(document.querySelectorAll("[data-detail-origin^='catalog:card:']"))
-            .slice(0, 16)
-            .map((element) => element.getAttribute("data-detail-origin")),
-        }));
+        let navigation: unknown;
+        try {
+          navigation = await executeBrowserScript(browser, () => ({
+            query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+            active: document.activeElement?.id,
+            origins: Array.from(document.querySelectorAll("[data-detail-origin^='catalog:card:']"))
+              .slice(0, 16)
+              .map((element) => element.getAttribute("data-detail-origin")),
+          }));
+        } catch (diagnosticError) {
+          navigation = { collectionFailure: errorMessage(diagnosticError) };
+        }
         throw new Error(
           `${pass}/${id}: ${errorMessage(error)}; cover navigation: ${JSON.stringify(navigation)}`,
+          { cause: error },
         );
       });
     await executeBrowserScript(browser, (card) => card.scrollIntoView({ block: "center" }), card);
