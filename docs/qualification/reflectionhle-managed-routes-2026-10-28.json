@@ -2,7 +2,7 @@
   "format_version": 1,
   "kind": "Dated ReflectionHLE managed-fit candidate evidence, not a live planning authority",
   "owners": [2510, 2926],
-  "status": "CANDIDATE; initial nineteen controls passed with one preserved summary-guard failure. New same-definition lifecycle controls and actual managed Core qualification/final delivery pending.",
+  "status": "CANDIDATE; initial nineteen controls passed. Second CI preserved eight lifecycle budget cutoffs and three other fixture failures; finite harness/shared-socket repair, fresh exact-head qualification and actual managed Core qualification pending.",
   "scope": "Nine existing affected-312 identities. PR3888 merged0a55f1917b8397ce7b190ba68570f9d60796fea9 with247definitions; this candidate replaces exactly9 and preserves the other238/sourcecatalog. No new listing, original source profile or historical1422 credit.",
   "upstream": {
     "repository": "ReflectionHLE/ReflectionHLE",
@@ -3358,5 +3358,134 @@
     "cases": 9,
     "status": "pending execution",
     "scope": "Existing Core/provider/archive helpers; first-party inert N/N+1 packages, unchanged definition reconcile/stage/activate with changed wrapper, current-data rollback, reviewed backup/restore and preserving removal. Save, configuration and original-location-witness bytes are asserted at each phase; no upstream game or original is executed."
+  },
+  "second_required_ci": {
+    "source": "d703da0ca9038310015f0de3c7cfea5468627428",
+    "run": 40753693620,
+    "attempt": 1,
+    "url": "https://github.com/boburning/portcove/actions/runs/40753693620",
+    "windows_producers": 8,
+    "windows_passed": 1,
+    "windows_failed": 7,
+    "failed_cases": [
+      {
+        "job": 123051649980,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::runtime_tests::reflectionhle_progression::reflectionhle_progression_2685"
+        ],
+        "duration_ms": 30068.8683,
+        "failure": "time limit exceeded"
+      },
+      {
+        "job": 123051650044,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "preparation::source::tests::source_only_gamecube_install_seals_the_nested_iso"
+        ],
+        "duration_ms": 1604.9485,
+        "failure": "source fixture: temporary library\nsource fixture: catalog projection\nsource fixture: validate synthetic catalog\nsource fixture: service open\nsource fixture: register originals\nsource fixture: native probe\nsource fixture: ready\nsource install: package fixture\nsource install: qualification\nsource install: execute\nsource install: finished: Some(PortcoveError { code: Verification, message: \"downloaded asset failed SHA-256 verification\", details: {\"actual\": \"057a883dba32f96c5b50c40a6fa4d182ec279955e9bb2909fc3f8bcc5b00a049\", \"asset\": \"owned-fixture.zip\", \"expected\": \"2162a0b8564c45994da3619e7c72caef0e7a9bb2a72c9af930f149c8a5b9b59c\"}, failure: FailureContext { mutation_state: Unknown, phase: None, recovery_actions: [], preparation_cause: None, preparation_target: None, known_cause: None } })\n\nthread 'preparation::source::tests::source_only_gamecube_install_seals_the_nested_iso' (7124) panicked at crates\\portcove-core\\src\\preparation_source_tests.rs:150:10:\ncalled `Result::unwrap()` on an `Err` value: PortcoveError { code: Verification, message: \"downloaded asset failed SHA-256 verification\", details: {\"actual\": \"057a883dba32f96c5b50c40a6fa4d182ec279955e9bb2909fc3f8bcc5b00a049\", \"asset\": \"owned-fixture.zip\", \"expected\": \"2162a0b8564c45994da3619e7c72caef0e7a9bb2a72c9af930f149c8a5b9b59c\"}, failure: FailureContext { mutation_state: Unknown, phase: None, recovery_actions: [], preparation_cause: None, preparation_target: None, known_cause: None } }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+      },
+      {
+        "job": 123051650044,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::runtime_tests::reflectionhle_progression::reflectionhle_progression_2687"
+        ],
+        "duration_ms": 30067.769800000002,
+        "failure": "time limit exceeded"
+      },
+      {
+        "job": 123051650100,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::runtime_tests::reflectionhle_progression::reflectionhle_progression_2689"
+        ],
+        "duration_ms": 30070.2,
+        "failure": "time limit exceeded"
+      },
+      {
+        "job": 123051650130,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::runtime_tests::reflectionhle_progression::reflectionhle_progression_2683"
+        ],
+        "duration_ms": 30091.558800000003,
+        "failure": "time limit exceeded"
+      },
+      {
+        "job": 123051650130,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::runtime_tests::reflectionhle_progression::reflectionhle_progression_2692"
+        ],
+        "duration_ms": 30060.4057,
+        "failure": "time limit exceeded"
+      },
+      {
+        "job": 123051650205,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::runtime_tests::reflectionhle_progression::reflectionhle_progression_2684"
+        ],
+        "duration_ms": 30102.4987,
+        "failure": "time limit exceeded"
+      },
+      {
+        "job": 123051650232,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::runtime_tests::reflectionhle_progression::reflectionhle_progression_2686"
+        ],
+        "duration_ms": 30082.543999999998,
+        "failure": "time limit exceeded"
+      },
+      {
+        "job": 123051650282,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "definition_repository::tests::publisher_policy_tests::curated_cache_restore_withdrawal_during_copy_preserves_cached_bytes"
+        ],
+        "duration_ms": 12366.9529,
+        "failure": "curated cache setup begin: 100ns\ncurated cache catalog ready: 367.7689ms\ncurated cache managed fixture ready: 2.90927s\ncurated cache transition ready: 3.2185496s\ncurated cache resolution ready: 5.1090094s\ncurated cache activity request ready: 6.6811702s\ncurated cache installer start: 6.6812168s; requests=3\ncurated cache installer task entered: 6.6814964s\ncurated cache latch resolved: 11.6937248s; reached=false; requests=6\ncurated cache policy intervention begin: 11.6937699s\ncurated cache first copy: 12.0032569s; written=65536; cache_hit=true\ncurated cache policy intervention complete: 12.2190331s\ncurated cache installer completed: 12.3190547s\n\nthread 'definition_repository::tests::publisher_policy_tests::curated_cache_restore_withdrawal_during_copy_preserves_cached_bytes' (6124) panicked at crates\\portcove-core\\src\\definition_publisher_policy_tests.rs:2146:9:\nactual cache copy missed its 5s latch: deadline has elapsed; installer=Err(PortcoveError { code: Conflict, message: \"acquisition publisher scope changed\", details: {}, failure: FailureContext { mutation_state: Unknown, phase: None, recovery_actions: [], preparation_cause: None, preparation_target: None, known_cause: None } }); worker_finished=false; result_finished=false; final_copy=Some((\"D:\\\\a\\\\_temp\\\\.tmpei0NHX\\\\staging\\\\f13e349c-591c-450c-b515-f2aee7435fea\\\\artifact.download\", 65536))\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+      },
+      {
+        "job": 123051650282,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route"
+        ],
+        "duration_ms": 30110.439199999997,
+        "failure": "time limit exceeded"
+      },
+      {
+        "job": 123051650282,
+        "identity": [
+          "portcove-core",
+          "portcove-core",
+          "service::runtime_tests::reflectionhle_progression::reflectionhle_progression_2688"
+        ],
+        "duration_ms": 30106.3425,
+        "failure": "time limit exceeded"
+      }
+    ],
+    "repairs": {
+      "reflection_lifecycle_and_generated_cache": "Exact Windows60s outer safeguards; phase output, all assertions, worker slots and zero retries retained. Eight Reflection cutoffs reached30.06-30.11s; one reached reviewed restore/removal29.98s. Generated-cache cutoff phase unknown; add per-subcase observations.",
+      "cache_copy_latch": "Consume already-delivered PR3866/main2a99596d Windows ArtifactWithdrawalRestore15s setup headroom; our observed first64KiB5.322s receipt stays alongside its5.259s receipt. No duplicate predicate change. Preserve actual incomplete-copy/refusal/worker drain.",
+      "http_fixture": "Accepted fixture sockets now nonblocking for both request/response; retry only WouldBlock/Interrupted, advance only successful counts, preserve existing absolute exchange/stop budgets and worker joining. Add8MiB patterned delayed/fragmented receiver exact-digest control alongside existing deadline/cancellation/drain tests.",
+      "sha_failure_cause": "NOT_PROVEN. Existing GameCube fixture correctly refused downloaded bytes of unexpected SHA; no captured byte stream proves the unsafe blocking-timeout retry caused that failure. No hash/size/trust weakening.",
+      "winsock_contract": "https://learn.microsoft.com/en-us/windows/win32/winsock/sol-socket-socket-options"
+    },
+    "actual_core": "Exact-source CI artifact12844778937 authenticated and selectively extracted with source/run/attempt/checkout/API digest/inner SHA/bounds. Managed execution not yet observed; metadata inspection only. No product or upstream runtime bytes changed by these fixture repairs."
   }
 }

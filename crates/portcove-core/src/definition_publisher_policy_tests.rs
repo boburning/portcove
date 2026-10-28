@@ -2071,6 +2071,9 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // first real64KiB copy5.259s after installer start, beyond its5s latch.
     // Use the same finite15s setup allowance for this exact restore variant;
     // retain the incomplete-copy barrier, policy refusal, drain and30s outer cap.
+    // CI40753693620/a1 partition2 reached the withdrawal restore copy at
+    // 5.322s after installer start. Reuse the exact Windows15s setup budget;
+    // preserve the incomplete-copy barrier, refusal and worker-drain assertions.
     let slow_retention_setup = ((cfg!(target_os = "windows")
         || cfg!(all(target_os = "macos", target_arch = "x86_64")))
         && matches!(
