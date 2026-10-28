@@ -1692,7 +1692,7 @@
           "reason": "The offline vault and custody reader currently require ordinary-owner Linux filesystem semantics.",
           "intended_route": "scripts/catalog-recovery-vault.test.mts; catalog-full-2",
           "cases": [
-            "authorized custody reader refuses symlinks, hardlinks and oversized files at acquisition"
+            "authorized custody reader enforces offline owner and bounded single-link acquisition"
           ]
         }
       ]

@@ -3,7 +3,7 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, readdir, rm, writeFile, symlink, link } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile, symlink, link, chmod } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { prepareRecoveryTools } from "./prepare-recovery-tools.mts";
@@ -17,6 +17,19 @@ import {
 import { disposableCatalogRecoveryFixture } from "./fixtures/catalog-recovery-fixture.mts";
 const hash = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
 const run = promisify(execFile);
+
+void test("Actions custody refusal occurs before any private file is opened", async () => {
+  const result = await run(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      'import {readCatalogCustodyMaterial} from "./scripts/catalog-recovery-vault.mts"; try { await readCatalogCustodyMaterial("/nonexistent-catalog-custody-fixture"); throw new Error("unexpected acceptance"); } catch(error) { if(error.message!=="offline ordinary-owner recovery outside Actions required") throw error; console.log("refused-before-open"); }',
+    ],
+    { env: { PATH: "/usr/bin:/bin", GITHUB_ACTIONS: "true" }, timeout: 5000, maxBuffer: 4096 },
+  );
+  assert.equal(result.stdout.trim(), "refused-before-open");
+});
 
 void test("catalog recovery refuses unpinned or incomplete public appointments before private reads", () => {
   assert.throws(
@@ -113,13 +126,21 @@ void test("complete catalog plan refuses profile, source, role, App and alias su
 });
 
 void test(
-  "authorized custody reader refuses symlinks, hardlinks and oversized files at acquisition",
+  "authorized custody reader enforces offline owner and bounded single-link acquisition",
   { skip: process.platform !== "linux" },
   async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "catalog-custody-reader-"));
     try {
       const file = path.join(root, "disposable.key");
       await writeFile(file, Buffer.from("disposable"), { mode: 0o600 });
+      if (
+        process.env.GITHUB_ACTIONS !== undefined ||
+        process.env.GITHUB_RUN_ID !== undefined ||
+        process.getuid?.() === 0
+      ) {
+        await assert.rejects(readCatalogCustodyMaterial(file), /offline ordinary-owner/u);
+        return;
+      }
       assert.equal((await readCatalogCustodyMaterial(file)).toString(), "disposable");
       await symlink(file, path.join(root, "alias"));
       await assert.rejects(readCatalogCustodyMaterial(path.join(root, "alias")), /single-link/u);
@@ -272,6 +293,7 @@ void test(
       assert.equal(reads, plan.bindings.length);
       assert.equal(created.authority, "none");
       const cipher = path.join(root, "primary-backup", "catalog.age");
+      await chmod(cipher, 0o644); // Ciphertext transport is separate from private plaintext custody.
       const restore = {
         plan,
         toolParent,

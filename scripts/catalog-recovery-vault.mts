@@ -319,6 +319,7 @@ async function inspect(binding: Binding, material: Buffer, inspector: PrivateIns
   }
 }
 async function privateParent(parent: string) {
+  offlineOwner();
   if (process.platform !== "linux" || !path.isAbsolute(parent))
     throw new Error("offline Linux private parent required");
   const stat = await lstat(parent);
@@ -330,6 +331,14 @@ async function privateParent(parent: string) {
     (await realpath(parent)) !== parent
   )
     throw new Error("owned canonical private recovery parent required");
+}
+function offlineOwner() {
+  if (
+    process.getuid?.() === 0 ||
+    process.env.GITHUB_ACTIONS !== undefined ||
+    process.env.GITHUB_RUN_ID !== undefined
+  )
+    throw new Error("offline ordinary-owner recovery outside Actions required");
 }
 async function durableFile(filename: string, bytes: Buffer | string) {
   const file = await open(filename, "wx", 0o600);
@@ -348,17 +357,16 @@ async function syncDirectory(directory: string) {
     await file.close();
   }
 }
-async function readPrivate(filename: string, bound: number) {
+async function readRecoveryFile(filename: string, bound: number, privateFile: boolean) {
   const before = await lstat(filename);
   if (
     !before.isFile() ||
     before.isSymbolicLink() ||
     before.nlink !== 1 ||
-    before.uid !== process.getuid?.() ||
-    (before.mode & 0o077) !== 0 ||
+    (privateFile && (before.uid !== process.getuid?.() || (before.mode & 0o077) !== 0)) ||
     (await realpath(filename)) !== filename
   )
-    throw new Error("owned single-link private recovery file required");
+    throw new Error("bounded canonical single-link recovery file required");
   const bytes = await readControllerToolFile(filename, bound, before);
   const after = await lstat(filename);
   if (
@@ -374,10 +382,14 @@ async function readPrivate(filename: string, bound: number) {
     throw new Error("recovery file changed during acquisition");
   return bytes;
 }
+async function readPrivate(filename: string, bound: number) {
+  return await readRecoveryFile(filename, bound, true);
+}
 /** Bounded ordinary-owner custody file acquisition for the authorized read
  * callback. Calling this function requires the separate custody grant; neither
  * its path nor a prepared public plan grants access or selects a private file. */
 export async function readCatalogCustodyMaterial(filename: string) {
+  offlineOwner();
   return await readPrivate(filename, keyMaximum);
 }
 /** Pinned age only. No inherited credentials, shell, plugins, proxy, hooks,
@@ -582,7 +594,10 @@ export async function restoreCatalogRecoveryVault(options: {
   name(options.name);
   const directory = path.join(options.parent, options.name);
   await mkdir(directory, { mode: 0o700 });
-  const encrypted = await readPrivate(options.ciphertext, maximum);
+  // Ciphertext-only transport may be on a shared/DrvFS recovery volume. It
+  // still needs bounded held-handle identity and the retained authenticated-copy
+  // digest, but never inherits Linux plaintext custody permission requirements.
+  const encrypted = await readRecoveryFile(options.ciphertext, maximum, false);
   if (hash(encrypted) !== options.expectedCiphertextSha256)
     throw new Error("recovery ciphertext differs from retained copy identity");
   let plaintext: Buffer | undefined;

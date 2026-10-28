@@ -466,7 +466,9 @@ invoked only for the derived complete appointments. Each catalog key must pass
 the existing Tough `inspect-existing-tuf-key` projection through that same pinned
 binary; each App RSA key must match its captured SPKI fingerprint. A parsed
 configuration, prepared local session or available credential never authorizes
-that callback. Actual custody reads remain held until their separate prerequisites
+that callback. Vault preparation and custody acquisition reject Actions runtimes
+and UID 0; reviewer identity and owner custody still require the separate grant.
+Actual custody reads remain held until their separate prerequisites
 are satisfied. No discovery, key generation, Root rotation or provider operation
 exists in this adapter.
 
@@ -495,6 +497,11 @@ appointments, wrong recipients, aliases, missing backups and corrupt ciphertext
 refuse. Losing both primary material and the decryptable backup never regenerates
 Root. Recipient rotation means a new encrypted copy of the same recovered keys;
 TUF and App key rotation remain their existing separate authorities.
+
+Ciphertext-only transport may use a shared recovery volume: its bounded
+single-link/canonical read, retained digest and age authentication remain required,
+while Linux 0700/0600 custody requirements apply only to plaintext working and
+quarantine material. This adapter does not provision or copy to that storage.
 
 For that explicitly selected profile, `top_level_targets_profile:
 "online-unchanged-authority-v1"` permits separately isolated Targets signing only
