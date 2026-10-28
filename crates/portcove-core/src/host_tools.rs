@@ -886,7 +886,19 @@ mod tests {
                 required_output_markers: vec!["verify".into(), "convert".into()],
                 // Outcome cases must allow a contended Windows process to start.
                 // Keep the short deadline for actual timeout/cancellation controls.
-                timeout_millis: if cfg!(windows) && !arguments.contains(&"--sleep") {
+                timeout_millis: if cfg!(windows)
+                    && arguments.first().is_some_and(|argument| {
+                        matches!(
+                            *argument,
+                            "--success"
+                                | "--nonzero"
+                                | "--large"
+                                | "--malformed"
+                                | "--incompatible"
+                                | "--record"
+                        )
+                    })
+                {
                     5_000
                 } else {
                     200
