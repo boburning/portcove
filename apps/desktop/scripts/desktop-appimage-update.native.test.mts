@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import {
   createAppImageProcessObservations,
   readAppImageProcessIdentity,
@@ -280,6 +283,92 @@ void test("actual AppImage observers tolerate refactors and detect removed ident
     } else {
       assert.equal(result.status, 1, result.stderr);
       assert.match(result.stderr, /Missing expected rejection/u);
+    }
+  }
+});
+
+void test("actual AppImage entrypoint consumes its observation and reconciliation helpers", async (t) => {
+  const entry = new URL("./desktop-appimage-update-test.mts", import.meta.url).href;
+  const module = (name: string) => new URL(name, import.meta.url).href;
+  for (const variant of ["original", "aliased", "bypassed-factory", "bypassed-restart"]) {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-appimage-caller-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const program = `
+      import assert from 'node:assert/strict';import {mock} from 'node:test';
+      import {registerHooks} from 'node:module';import path from 'node:path';
+      const entry=${JSON.stringify(entry)},root=${JSON.stringify(root)},variant=${JSON.stringify(variant)};
+      const app=path.join(root,'Portcove.AppImage'),staging=path.join(root,'staging');
+      const stageMarker=path.join(root,'stage.json'),relaunchMarker=path.join(root,'relaunch.json'),helperMarker=path.join(root,'helper.json');
+      const sentinel='controlled reconciliation observation reached';
+      let factoryCalls=0,restartCalls=0,settled=false,kills=0;
+      const observers=()=>({procIdentity:async(pid)=>settled?null:{pid,start_ticks:'123',command:pid===202?'/owned/portcove-desktop':'/owned/driver'},
+        verifiedRelaunchIdentity:async()=>null,verifiedHelperIdentity:async()=>null});
+      globalThis.bypassFactory=observers;
+      globalThis.bypassRestart=async()=>{settled=true;return {marker:{stage:'Tauri setup',process_id:303},apply_phase:'reconciled',stable_sha256:'a'.repeat(64)};};
+      process.kill=()=>{kills++;throw new Error('Native signalling is forbidden by this control');};
+      mock.module(${JSON.stringify(module("./desktop-installed-update-harness.mts"))},{namedExports:{
+        createAppImageProcessObservations:(config)=>{assert.deepEqual(config,{app,stageMarker,relaunchMarker,helperMarker});factoryCalls++;return observers();},
+        waitForHealthyAppImageRestart:async(config)=>{assert.deepEqual(config,{app,candidateSha:'a'.repeat(64),staging,stageMarker,stagedPayload:path.join(staging,'candidate.payload')});restartCalls++;settled=true;throw new Error(sentinel);},
+        hashFile:async()=>({sha256:'b'.repeat(64),bytes:1}),
+        startInstalledUpdateDriver:()=>({driver:{pid:101,exitCode:null},log:'controlled'}),
+        awaitInstalledUpdateDriver:async(driver,identify)=>identify(driver.pid),
+        connectInstalledUpdateDriver:async()=>({takeScreenshot:async()=>'',findElement:()=>({click:async()=>{}}),quit:async()=>{}}),
+        verifyInstalledUpdateStaging:async()=>({}),
+        readJson:async(file)=>{assert.ok(file===helperMarker||file===relaunchMarker);return {schema_version:1,process_id:303,executable:app};},
+        waitFor:async(predicate)=>predicate(),
+        recordInstalledUpdateFailure:async(report,error)=>{report.phase='failed';report.failure=error.message;},
+      }});
+      mock.module(${JSON.stringify(module("./desktop-application-update-journey.mts"))},{namedExports:{driveInstalledUpdateToRestart:async()=>({})}});
+      mock.module(${JSON.stringify(module("./desktop-linux-webkit-inspector.mts"))},{namedExports:{loadedWebKitLibraries:async()=>({process:{start_ticks:'123'}})}});
+      mock.module('node:child_process',{namedExports:{execFileSync:(command,args)=>{
+        if(command==='git'){assert.deepEqual(args,['rev-parse','HEAD']);return 'a'.repeat(40);}
+        assert.equal(command,'ps');assert.deepEqual(args,['-eo','pid=,ppid=']);return '101 1\\n202 101\\n';
+      }}});
+      registerHooks({resolve(specifier,context,next){
+        if(specifier==='selenium-webdriver')return {url:'data:text/javascript,export const By={xpath:value=>value}',shortCircuit:true};
+        if(!specifier.startsWith('node:')&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))throw new Error('Unexpected package import');
+        return next(specifier,context);
+      },load(url,context,next){const loaded=next(url,context);if(url!==entry)return loaded;let source=String(loaded.source);
+        const factory='createAppImageProcessObservations({ app, stageMarker, relaunchMarker, helperMarker })';
+        const restart='await waitForHealthyAppImageRestart({';
+        if(variant==='bypassed-factory'){assert.ok(source.includes(factory));source=source.replace(factory,'globalThis.bypassFactory()');}
+        if(variant==='bypassed-restart'){assert.ok(source.includes(restart));source=source.replace(restart,'await globalThis.bypassRestart({');}
+        if(variant==='aliased'){
+          source=source.replace('  createAppImageProcessObservations,','  createAppImageProcessObservations as $observations,').replace(factory,'$observations({ app, stageMarker, relaunchMarker, helperMarker })');
+          source=source.replace('  waitForHealthyAppImageRestart,','  waitForHealthyAppImageRestart as $restart,').replace(restart,'await $restart({');
+        }
+        return {...loaded,source};
+      }});
+      const options={app,driver:path.join(root,'driver'),'native-driver':path.join(root,'native-driver'),output:path.join(root,'output'),staging,
+        'stage-marker':stageMarker,'relaunch-process-marker':relaunchMarker,'helper-process-marker':helperMarker,'candidate-sha':'a'.repeat(64),'candidate-version':'1.0.0'};
+      process.argv=[process.execPath,new URL(entry).pathname,...Object.entries(options).flatMap(([key,value])=>['--'+key,value])];
+      const timeout=globalThis.setTimeout;globalThis.setTimeout=(callback,delay,...args)=>timeout(callback,0,...args);
+      await assert.rejects(import(entry),new RegExp(sentinel));
+      assert.equal(factoryCalls,1,'Actual observation factory must be consumed');
+      assert.equal(restartCalls,1,'Actual healthy-restart helper must be consumed');
+      assert.equal(kills,0,'The control may not signal a native process');
+      process.exitCode=0;console.log('PASS actual AppImage entrypoint');
+    `;
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const driver = path.join(root, "driver.mjs");
+    await writeFile(driver, program);
+    const result = spawnSync(process.execPath, ["--experimental-test-module-mocks", driver], {
+      env,
+      encoding: "utf8",
+      timeout: 10000,
+      maxBuffer: 1024 * 1024,
+    });
+    assert.ifError(result.error);
+    if (variant === "original" || variant === "aliased") {
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /PASS actual AppImage entrypoint/u);
+    } else {
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(
+        result.stderr,
+        /Actual observation factory must be consumed|Missing expected rejection/u,
+      );
     }
   }
 });
