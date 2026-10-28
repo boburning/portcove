@@ -3,13 +3,42 @@
   "listing": {
     "id": "the-catacomb-apocalypse-catacombgl",
     "name": "The Catacomb Apocalypse (CatacombGL)",
-    "summary": "Upstream route: Native Windows/Linux port with desktop beta archives and explicit retail/shareware setup. Limits: Separate supported game identities; original Catacombs data required except allowed shareware route. Only The Catacomb Abyss has the documented free shareware 1.13 route. Descent, Armageddon and Apocalypse need owned Catacombs Pack data; do not apply shareware to all four targets. Upstream platforms: Native Windows7/8/10/11 and Linux beta archives/source builds, including RaspberryPi build instructions. Exact release CPU architectures unknown in frozen evidence. Original data: Own The Catacomb Apocalypse data from the Catacombs Pack, as required by CatacombGL. Catacomb Abyss v1.13 shareware is a different game and does not provide this target. Portcove setup/gameplay not verified.",
+    "summary": "Use The Catacomb Apocalypse with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "The Catacomb Apocalypse",
     "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ArnoAnsems/CatacombGL",
-    "issue_number": 2646
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
+    "issue_number": 2646,
+    "release_url": "https://github.com/ArnoAnsems/CatacombGL/releases",
+    "recommended_download_channel": "beta",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the correct original game folder",
+          "instruction": "Use your own The Catacomb Apocalypse data from the Catacombs Pack. Abyss shareware does not supply this game. Keep the complete original folder and its companion files. CatacombGL can find a GOG Windows installation; otherwise use its own folder picker. Original data is separate from the player and remains yours."
+        },
+        {
+          "title": "Use the upstream beta player",
+          "instruction": "Choose Preview for the official Windows 64-bit beta ZIP, extract it and keep CatacombGL.exe and SDL2.dll together. Register CatacombGL.exe with that folder as its working directory. Leave arguments empty for the game picker, or use the single documented argument --apocalypse after the original folder is recognized. Registration does not start it; choose Play deliberately. The Linux tar.xz needs upstream/system extraction and a prepared native player; the Windows recommendation does not promise managed tar.xz handling."
+        },
+        {
+          "title": "Preserve this engine’s profile",
+          "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
+        },
+        {
+          "title": "Keep upstream update ownership",
+          "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+        }
+      ],
+      "warnings": [
+        "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version."
+      ],
+      "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["CatacombGL-Windows-64bit-", ".zip"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -3,12 +3,12 @@
   "listing": {
     "id": "commander-keen-6-omnispeak",
     "name": "Commander Keen 6 (Omnispeak)",
-    "summary": "Upstream route: Native reimplementation compatible with original saves; exact episode/version data contract documented. Limits: Use official homepage binaries rather than latest GitHub modding-preview package; separate episode identities. Keen4/5 need v1.4 EGA, Keen6 v1.4 or v1.5 EGA. Documented shareware route applies to Keen4 only; Keen6 has separate unavailable-retail acquisition caveat. Upstream platforms: Official v1.1 Windows x86 and x86-64 binaries, Linux x86/x86-64; later GitHub modding preview is a separate selection. Original data: Own Commander Keen6 v1.4 or v1.5 EGA data, with GAMEMAPS.CK6, EGAGRAPH.CK6, AUDIO.CK6 and corresponding version support data. Other revisions need compatible conversion; no supported new retail acquisition is established. Portcove setup/gameplay not verified.",
+    "summary": "Use Commander Keen 6 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "Commander Keen 6",
     "project_url": "https://github.com/sulix/omnispeak",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/sulix/omnispeak",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
     "artwork": {
       "game_id": 2446,
       "cover_id": 100805,
@@ -17,7 +17,36 @@
       "game_slug": "commander-keen-in-aliens-ate-my-baby-sitter",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2650
+    "issue_number": 2650,
+    "release_url": "https://github.com/sulix/omnispeak/releases",
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Match the episode and EGA revision",
+          "instruction": "Use your own Keen 6 v1.4 or v1.5 EGA GAMEMAPS.CK6, EGAGRAPH.CK6 and AUDIO.CK6 with the matching Omnispeak episode support files. Keen 4 shareware does not supply this episode. CGA, v1.0 and other unsupported revisions are not interchangeable. Keep original files and their version intact."
+        },
+        {
+          "title": "Choose the ordinary upstream game package",
+          "instruction": "Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 6. Copy the contents of data/keen6e14 for v1.4 EGA or data/keen6e15 for v1.5 EGA beside omnispeak.exe, along with your matching GAMEMAPS.CK6, EGAGRAPH.CK6 and AUDIO.CK6; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 6v14 for v1.4 EGA or 6v15 for v1.5 EGA, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately."
+        },
+        {
+          "title": "Keep saves and support files with their chosen profile",
+          "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+        },
+        {
+          "title": "Keep upstream update ownership",
+          "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+        }
+      ],
+      "warnings": [
+        "No supported new retail acquisition of Keen 6 is established. This route requires your already owned supported EGA edition; other editions may fail."
+      ],
+      "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["omnispeak-win64-", ".zip"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
