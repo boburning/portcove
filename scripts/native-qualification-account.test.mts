@@ -1,12 +1,58 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
+import { windowsOwnerEnvironment } from "./release-windows-owner-mechanism.mts";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import path from "node:path";
 import { homedir } from "node:os";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { windowsSourceSystemExecutables } from "./release-native-runtime-custody.mts";
+
+function actualDiagnosticOwnerEnvironment(directory: string): NodeJS.ProcessEnv {
+  const controller = readFileSync(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    "utf8",
+  );
+  const start = controller.indexOf("function environment(root: string)");
+  const end = controller.indexOf("\nasync function retain(", start);
+  assert.ok(start > 0 && end > start);
+  const jobEnvironment = {
+    ...process.env,
+    SystemRoot: process.env.SystemRoot ?? "C:\\Windows",
+    GITHUB_ACTIONS: "true",
+    RUNNER_ENVIRONMENT: "github-hosted",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_JOB: "installed-prerequisite",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: "a".repeat(40),
+    GITHUB_RUN_ID: "123",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028",
+    PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
+    PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
+    PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
+  };
+  // Execute the actual controller projection; richer workflow inputs must not mask A's narrower environment.
+  const result = runInNewContext(
+    stripTypeScriptTypes(controller.slice(start, end) + "\nenvironment(directory)"),
+    {
+      windowsOwnerEnvironment: (root: string) => windowsOwnerEnvironment(root, jobEnvironment),
+      process: { env: jobEnvironment },
+      directory,
+    },
+  ) as NodeJS.ProcessEnv;
+  for (const key of [
+    "PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC",
+    "PORTCOVE_HOSTED_PLATFORM",
+    "PORTCOVE_HOSTED_OBSERVATION_ONLY",
+  ])
+    assert.equal(Object.hasOwn(result, key), false);
+  return result;
+}
 
 void test("actual bridge entry separates held production from fixed diagnostic scope before input reads", () => {
   const source = readFileSync(
@@ -33,7 +79,7 @@ function Invoke-Entry([string]$code,$memory,[string]$expected) {
  }catch{if($expected -ceq 'accept' -or -not $_.Exception.Message.Contains($expected)){throw}}
  if($expected -ceq 'accept' -and -not $accepted){throw 'Expected inert entry did not return'}
 }
-$fixed=@{GITHUB_ACTIONS='true';RUNNER_ENVIRONMENT='github-hosted';GITHUB_REPOSITORY='boburning/portcove';GITHUB_JOB='installed-prerequisite';GITHUB_EVENT_NAME='workflow_dispatch';GITHUB_RUN_ATTEMPT='1';GITHUB_SHA=('a'*40);GITHUB_RUN_ID='123';GITHUB_WORKFLOW_REF='boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028';PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC='true';PORTCOVE_HOSTED_PLATFORM='windows-x86_64';PORTCOVE_HOSTED_OBSERVATION_ONLY='false'}
+$fixed=@{};($env:PORTCOVE_TEST_ACTUAL_A_ENVIRONMENT|ConvertFrom-Json).PSObject.Properties|ForEach-Object{$fixed[$_.Name]=[string]$_.Value}
 foreach($key in $fixed.Keys){[Environment]::SetEnvironmentVariable($key,$fixed[$key])}
 Invoke-Entry $original @{} 'awaits separate candidate execution authority'
 Invoke-Entry $original @{diagnostic=$true} 'awaits separate diagnostic execution authority'
@@ -41,7 +87,7 @@ Invoke-Entry $activated @{} 'awaits separate candidate execution authority'
 Invoke-Entry $activated @{diagnostic=$false} 'Fixed diagnostic memory scope required'
 Invoke-Entry $activated @{diagnostic='true'} 'Fixed diagnostic memory scope required'
 Invoke-Entry $activated @{diagnostic=$true} 'accept'
-foreach($key in $fixed.Keys){
+foreach($key in @($fixed.Keys|Where-Object{$_ -like 'GITHUB_*' -or $_ -ceq 'RUNNER_ENVIRONMENT'})){
  [Environment]::SetEnvironmentVariable($key,'wrong-context')
  Invoke-Entry $activated @{diagnostic=$true} 'Fixed hosted diagnostic bridge context required'
  [Environment]::SetEnvironmentVariable($key,$fixed[$key])
@@ -56,7 +102,13 @@ Write-Output 'held-production-fixed-diagnostic-entry-controls-pass'
     timeout: 30000,
     maxBuffer: 128 * 1024,
     windowsHide: true,
-    env: { ...process.env, PORTCOVE_TEST_BRIDGE_PREFIX: Buffer.from(prefix).toString("base64") },
+    env: {
+      ...process.env,
+      PORTCOVE_TEST_BRIDGE_PREFIX: Buffer.from(prefix).toString("base64"),
+      PORTCOVE_TEST_ACTUAL_A_ENVIRONMENT: JSON.stringify(
+        actualDiagnosticOwnerEnvironment("C:\\inert-owner"),
+      ),
+    },
   });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /held-production-fixed-diagnostic-entry-controls-pass/u);
@@ -596,23 +648,7 @@ try {
         PORTCOVE_TEST_NATIVE_ROOT: outer,
         PORTCOVE_TEST_NATIVE_MUTATE: mutate ? "true" : "",
         PORTCOVE_TEST_NATIVE_DIAGNOSTIC: diagnostic ? "true" : "",
-        ...(diagnostic
-          ? {
-              GITHUB_ACTIONS: "true",
-              RUNNER_ENVIRONMENT: "github-hosted",
-              GITHUB_REPOSITORY: "boburning/portcove",
-              GITHUB_JOB: "installed-prerequisite",
-              GITHUB_EVENT_NAME: "workflow_dispatch",
-              GITHUB_RUN_ATTEMPT: "1",
-              GITHUB_SHA: "a".repeat(40),
-              GITHUB_RUN_ID: "123",
-              GITHUB_WORKFLOW_REF:
-                "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028",
-              PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
-              PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
-              PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
-            }
-          : {}),
+        ...(diagnostic ? actualDiagnosticOwnerEnvironment(outer) : {}),
         PORTCOVE_TEST_NATIVE_HELPER: fileURLToPath(
           new URL("./native-qualification-account.cs.txt", import.meta.url),
         ),

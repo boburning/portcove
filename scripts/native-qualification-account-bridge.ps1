@@ -19,9 +19,7 @@ if ($hostedMode) {
             $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or $env:GITHUB_JOB -cne 'installed-prerequisite' -or
             $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
             $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,15}$' -or
-            $env:GITHUB_WORKFLOW_REF -cne 'boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028' -or
-            $env:PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC -cne 'true' -or $env:PORTCOVE_HOSTED_PLATFORM -cne 'windows-x86_64' -or
-            $env:PORTCOVE_HOSTED_OBSERVATION_ONLY -cne 'false') { throw 'Fixed hosted diagnostic bridge context required' }
+            $env:GITHUB_WORKFLOW_REF -cne 'boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028') { throw 'Fixed hosted diagnostic bridge context required' }
     } elseif (-not $hostedCandidateExecutionAuthorized) { throw 'Hosted memory bridge awaits separate candidate execution authority' }
 }
 
