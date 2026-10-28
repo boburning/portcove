@@ -80,7 +80,7 @@ it.each(
     await page.getByRole("button", { name: "View port", exact: true }).first().click();
     expect(select).toHaveBeenCalledExactlyOnceWith(entries[0]!.id, "catalog:card:harbor-0:details");
     await page.screenshot({
-      path: `../../../../outputs/ui-refinement/discover-${layout}-${theme}-1440.png`,
+      path: `../../../../../outputs/ui-refinement/discover-${layout}-${theme}-1440.png`,
     });
     const compare = page.getByRole("button", { name: "Compare all 2", exact: true });
     await compare.click();
@@ -95,7 +95,7 @@ it.each(
     expect(right.left).toBeGreaterThanOrEqual(left.right);
     for (const card of cards) expect(card.textContent).toContain("Portable upstream package");
     await page.screenshot({
-      path: `../../../../outputs/ui-refinement/comparison-${layout}-${theme}-1440.png`,
+      path: `../../../../../outputs/ui-refinement/comparison-${layout}-${theme}-1440.png`,
     });
     await page.viewport(740, 900);
     document.documentElement.style.fontSize = "130%";
@@ -104,7 +104,7 @@ it.each(
       .toBeGreaterThan(cards[0]!.getBoundingClientRect().top);
     expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
     await page.screenshot({
-      path: `../../../../outputs/ui-refinement/comparison-${layout}-${theme}-740-text-130.png`,
+      path: `../../../../../outputs/ui-refinement/comparison-${layout}-${theme}-740-text-130.png`,
     });
     await userEvent.keyboard("{Escape}");
     await expect.element(dialog).not.toBeInTheDocument();
@@ -118,7 +118,7 @@ it.each(
       Math.abs(games[0]!.getBoundingClientRect().left - games[1]!.getBoundingClientRect().left) < 1,
     ).toBe(layout === "rows");
     await page.screenshot({
-      path: `../../../../outputs/ui-refinement/discover-${layout}-${theme}-740-text-130.png`,
+      path: `../../../../../outputs/ui-refinement/discover-${layout}-${theme}-740-text-130.png`,
     });
   },
 );
