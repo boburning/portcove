@@ -3,12 +3,12 @@
   "listing": {
     "id": "wipeout-phantom-edition",
     "name": "WipeOut Phantom Edition",
-    "summary": "Explore WipeOut Phantom Edition and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use an upstream-prepared WipeOut Phantom Edition player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
     "issue_number": 119,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/blob/1d0141ebc6594902c7de176d034529a763079ed2/README.md",
     "artwork": {
       "game_id": 1083,
       "cover_id": 200827,
@@ -16,6 +16,32 @@
       "image_sha256": "5d3fb7f3e64b5b51edd29df22c7c15d5f8abdc6849443f284a5bbed6453360c3",
       "game_slug": "wipeout",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the matching original",
+          "instruction": "Use data from your own PlayStation USA-region WipeOut disc; the official PC version is incompatible. Upstream supports the matching multi-bin/cue image with nine BIN tracks and one CUE, first data track MODE2/2352 and other tracks AUDIO, or its complete 517-file loose game set. Preserve every original image/track and cue outside the player folder. A generic ISO, another region or another game is a different input."
+        },
+        {
+          "title": "Finish upstream setup and select the real player",
+          "instruction": "Use the official v1.2.256 Windows x64 ZIP and keep its complete wipeout folder. Follow the packaged README: provide matching original image copies in diskimages for upstream extraction, or the matching complete loose set in wipeoutgame with optional correctly named music in music. Finish normal upstream setup successfully before registration. The upstream player performs extraction during startup; this is not Portcove disc preparation or source authentication. Register wipeout.exe from the wipeout folder, not an extraction helper. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+        },
+        {
+          "title": "Preserve the actual runtime and player data",
+          "instruction": "Preserve the whole working wipeout folder, generated game/music data, configuration and progress files, plus the actual existing external profile if this installation uses one. The published source repository provides documentation and images rather than the player implementation, so a complete writer map is not established here. Keep the creating runtime and originals; do not delete source tracks just because upstream no longer needs them after extraction, transplant progress, or assume that replacing an executable preserves compatibility."
+        },
+        {
+          "title": "Register the existing player and use explicit Play",
+          "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+        }
+      ],
+      "warnings": [
+        "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+        "Managed disc preparation and exact writer/retained-data coordinates remain unqualified; missing PS1 family primitives belong to #135. This safe existing prepared-player guide does not substitute a per-title parser or claim complete loose-file authentication."
+      ],
+      "help_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256"
     }
   }
 }

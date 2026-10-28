@@ -3,12 +3,12 @@
   "listing": {
     "id": "zelda3",
     "name": "Zelda3",
-    "summary": "Explore Zelda3 and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use an upstream-prepared Zelda3 player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/snesrev/zelda3",
     "issue_number": 127,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/snesrev/zelda3",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/snesrev/zelda3/blob/43db8cc0f529a2b8004a684526d91582d0d6d5d7/README.md",
     "artwork": {
       "game_id": 237542,
       "cover_id": 287380,
@@ -16,6 +16,32 @@
       "image_sha256": "e9221854a846773e843fd5d6c8d1fd9f2a9e426a20786f8ebe6acbfb01a2713f",
       "game_slug": "zelda3",
       "match_kind": "port"
+    },
+    "release_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the matching original",
+          "instruction": "Use your own unchanged USA The Legend of Zelda: A Link to the Past original. The upstream extraction tools identify the US original by SHA-1 6d4f10a8b10e10dbe624cb23cf03b88bb8252973. Preserve the original outside the player folder; do not substitute a headered, translated, patched or other-region file."
+        },
+        {
+          "title": "Finish upstream setup and select the real player",
+          "instruction": "Use only an already working upstream Windows zelda3.exe with its matching generated zelda3_assets.dat, SDL2.dll, zelda3.ini and companions. If setup is incomplete, follow the linked upstream source-build and asset-extraction instructions with your matching USA original before registration. The selected v0.3 release has a BPS asset, while its tagged source loader requires DAT; these instructions do not claim that placing a ROM beside that package completes setup. Do not mix generated assets between source revisions or select a launcher, extraction batch file or compiler as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+        },
+        {
+          "title": "Preserve the actual runtime and player data",
+          "instruction": "Preserve the entire working player folder and its actual data, including zelda3.ini, saves/sram.dat and its backup, snapshots, replays, shaders and any optional audio. Keep the creating runtime for retained SRAM, snapshots and replays; do not copy them to another runtime or infer compatibility from a matching title or RAM-comparison feature."
+        },
+        {
+          "title": "Register the existing player and use explicit Play",
+          "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+        }
+      ],
+      "warnings": [
+        "This is an upstream setup / existing-player guide, not an operational managed definition or a playable-route acceptance claim.",
+        "Managed asset preparation and retained state compatibility remain separate #136 work. The v0.3 release asset includes a BPS file although the tag main.c asset loader uses DAT inputs; source-to-binary build provenance/complete output ownership is not established. Keep this a non-owning prepared-player route until those facts and exact runtime data coordinates are qualified."
+      ],
+      "help_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3"
     }
   }
 }
