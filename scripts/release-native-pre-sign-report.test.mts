@@ -260,16 +260,18 @@ void test("inert Linux report2 reconstructs initial or real distinct predecessor
   for (const initial of [true, false]) {
     const f = await linuxPostFixture(initial);
     assert.deepEqual(f.base.source.cli_protocol, { min: 82, max: 82 });
-    assert.equal(f.base.source.library.write_schema, 42);
+    assert.equal(f.base.source.library.write_schema, 43);
     const result = reconstructNativeLinuxPostSignReport(f.prepared, f.input, f.base.source);
     // The original API80/library40 fixture at073ac7b9 reproduces its historical
     // hashes exactly. These bind the same reconstruction with current API82/
-    // library42 inputs, including their transitive request/stream digests.
+    // library43 inputs, including their transitive request/stream digests.
+    // Historical API82/library42 initial: b2bc15a2f9eed746a69fb1063f444dec15737f5dce7afa9b64a1d2254db98909;
+    // predecessor: e176bea4fe6dacf2b8d30cc5a1b23090aaaf2dcea03467fa83d8fb735c7e470e.
     assert.equal(
       createHash("sha256").update(JSON.stringify(result)).digest("hex"),
       initial
-        ? "b2bc15a2f9eed746a69fb1063f444dec15737f5dce7afa9b64a1d2254db98909"
-        : "e176bea4fe6dacf2b8d30cc5a1b23090aaaf2dcea03467fa83d8fb735c7e470e",
+        ? "4a67ea353b8ab1a16dd9af2e755dc4d6b149b6ac53fb19abde5a14f3e01f97b9"
+        : "8811d9240f9c6b7901b8bca0ee0f1cae3f2c1db39b290b1faf00611433a6516a",
     );
     assert.equal(result.report.schema_version, 2);
     assert.equal(result.report.runtime.started_at, "2026-10-20T12:00:00.500Z");
@@ -325,13 +327,14 @@ void test("inert Linux report2 reconstructs initial or real distinct predecessor
 void test("inert Linux reconstruction binds actual-shaped source/host/process/namespace proofs without importing capture authority", async () => {
   const { base, prepared, input, start } = await linuxFixture();
   assert.deepEqual(base.source.cli_protocol, { min: 82, max: 82 });
-  assert.equal(base.source.library.write_schema, 42);
+  assert.equal(base.source.library.write_schema, 43);
   const result = reconstructNativeLinuxPreSignReport(prepared, input, base.source);
   assert.equal(
     createHash("sha256").update(JSON.stringify(result)).digest("hex"),
     // Same inert reconstruction as the historical API80/library40 fixture,
-    // now bound to the current API82/library42 request and stream identities.
-    "4d262b29be451f935f446e7ddce75ecde1efb5a43ee8b906be70e15b70cd6eea",
+    // now bound to the current API82/library43 request and stream identities.
+    // Historical API82/library42: 4d262b29be451f935f446e7ddce75ecde1efb5a43ee8b906be70e15b70cd6eea.
+    "68f3bef742c34a7e55ddbb729efed6d298bd79feaa6a7535088ef558fb0bb7ba",
   );
   assert.equal(result.authority, "none");
   assert.equal(result.report.host.loaded_engine.version, "2.52.6");

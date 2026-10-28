@@ -153,8 +153,8 @@ for(const scenario of ['success','delayed-request','platform','owner','stage','p
   if(scenario==='exit-after-request'){await writeFile(path.join(home,'stop'),'stop');await closed;await assert.rejects(api.acknowledgeHostedWindowsWorkflowUpload('pre-sign',request.request_sha256,'1','c'.repeat(64)));assert.equal(existsSync(path.join(pre,'native-job-upload-ack.json')),false);continue}
   if(scenario==='pid-reuse'){spoof=true;await assert.rejects(api.hostedWindowsWorkflowUploadRequest('pre-sign'),/reused/);continue}
   if(scenario==='clock-expired'){const file=path.join(directory,'portcove-native-job-clock.json'),value=JSON.parse(await readFile(file,'utf8'));value.deadline_ns=String(process.hrtime.bigint()-1n);await writeFile(file,JSON.stringify(value));await assert.rejects(api.hostedWindowsWorkflowUploadRequest('pre-sign'));continue}
+  if(scenario==='provider-refusal'){await assert.rejects(async()=>{await api.acknowledgeHostedWindowsWorkflowUpload('pre-sign',request.request_sha256,'1','c'.repeat(64));await api.settleHostedWindowsWorkflowStage('pre-sign')},/refused|unavailable|exited|recovery/);continue}
   await api.acknowledgeHostedWindowsWorkflowUpload('pre-sign',request.request_sha256,'1','c'.repeat(64));
-  if(scenario==='provider-refusal'){await assert.rejects(api.settleHostedWindowsWorkflowStage('pre-sign'));continue}
   await api.settleHostedWindowsWorkflowStage('pre-sign');assert.equal(live,true);
   if(scenario==='session-parent'){await assert.rejects(api.hostedWindowsWorkflowUploadRequest('post-sign'),/original session parent/);continue}
   const post=await api.hostedWindowsWorkflowUploadRequest('post-sign');await api.acknowledgeHostedWindowsWorkflowUpload('post-sign',post.request_sha256,'2','d'.repeat(64));
@@ -165,7 +165,7 @@ for(const scenario of ['success','delayed-request','platform','owner','stage','p
   if(child&&live){await writeFile(path.join(home,'stop'),'stop');await Promise.race([closed,delay(2500).then(()=>{throw Error('inert worker did not close; preserve bounded orphan deadline')})])}
  }
 }
-console.log('19 controlled Windows workflow cases passed; real files/processes, inert admission/custody/birth/provider peers; no native acceptance');
+console.log('20 controlled Windows workflow cases passed; real files/processes, inert admission/custody/birth/provider peers; no native acceptance');
 `;
   const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
     encoding: "utf8",
@@ -173,7 +173,7 @@ console.log('19 controlled Windows workflow cases passed; real files/processes, 
     maxBuffer: 65536,
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /19 controlled Windows workflow cases passed/);
+  assert.match(result.stdout, /20 controlled Windows workflow cases passed/);
 });
 
 void test("original Windows worker bounds caller and terminal clocks and preserves changed-intent and late-publication refusal", (t) => {
