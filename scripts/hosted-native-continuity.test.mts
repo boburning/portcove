@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
 import os from "node:os";
@@ -641,6 +641,14 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
   );
   assert.equal(start.name, "Start bounded runner resource observation before checkout");
   assert.ok(Buffer.byteLength(start.run) < 21000);
+  assert.ok(Buffer.byteLength(start.run.replaceAll("\n", "\r\n")) < 21000);
+  const observer = /\$taskObserverSource = @'\n([\s\S]*?)\n'@/u.exec(start.run)?.[1];
+  assert.ok(observer);
+  assert.ok(
+    Buffer.byteLength(observer) > 0 &&
+      Buffer.byteLength(observer) <= 32768 &&
+      Buffer.byteLength(observer.replaceAll("\n", "\r\n")) <= 32768,
+  );
   assert.ok(isRecord(steps[1]) && String(steps[1].uses).startsWith("actions/checkout@"));
   assert.equal(stop.if, "always()");
   const root = await mkdtemp(path.join(os.tmpdir(), "pc-hosted-resource-")),
@@ -649,9 +657,14 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
   await mkdir(temporary);
   await mkdir(workspace);
   const startPath = path.join(root, "start.ps1"),
-    stopPath = path.join(root, "stop.ps1");
+    stopPath = path.join(root, "stop.ps1"),
+    checkPath = path.join(root, "check.ps1");
   await writeFile(startPath, start.run);
   await writeFile(stopPath, stop.run);
+  await writeFile(
+    checkPath,
+    "$ErrorActionPreference='Stop'\n& (Join-Path $env:RUNNER_TEMP 'portcove-hosted-job-observer.ps1') -Operation Check\nif($LASTEXITCODE -ne 0){throw 'Original observer check refused'}\n",
+  );
   const environment = {
     ...process.env,
     GITHUB_ACTIONS: "true",
@@ -665,6 +678,7 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
     GITHUB_WORKFLOW_REF:
       "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-hosted-job-usage",
     PORTCOVE_HOSTED_PLATFORM: process.platform === "win32" ? "windows-x86_64" : "linux-x86_64",
+    PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
     RUNNER_TEMP: temporary,
     GITHUB_WORKSPACE: workspace,
     PORTCOVE_INERT_PRIVATE_VALUE: "never-collect-this-inert-value",
@@ -706,6 +720,7 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
     evidence,
     startPath,
     stopPath,
+    checkPath,
     environment,
     invoke,
     read,
@@ -724,6 +739,11 @@ void test("hosted resource observation samples before checkout and stops only it
   assert.equal(intent.authority, "none");
   const samplesBefore = await readFile(path.join(fixture.evidence, "samples.jsonl"), "utf8");
   assert.ok(samplesBefore.endsWith("\n") && samplesBefore.length > 0);
+  const checked = fixture.invoke(fixture.checkPath);
+  assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+  const heartbeat: unknown = JSON.parse(checked.stdout);
+  assert.ok(isRecord(heartbeat));
+  assert.equal(heartbeat.pid, ready.pid);
   const stopped = fixture.invoke(fixture.stopPath);
   assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
   const observation = await fixture.read("observation.json");
@@ -789,6 +809,7 @@ void test("interrupted hosted resource observation retains sampled data without 
   );
   const killed = fixture.invoke(terminate);
   assert.equal(killed.status, 0, killed.stderr || killed.stdout);
+  assert.notEqual(fixture.invoke(fixture.checkPath).status, 0);
   const stopped = fixture.invoke(fixture.stopPath);
   assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
   const report = await fixture.read("observation.json");
@@ -856,4 +877,98 @@ void test("hosted resource observation refuses complete coverage for a truncated
     observation.terminal && isRecord(observation.terminal) ? observation.terminal.bytes : null,
     samples.length,
   );
+});
+
+void test("instrumentation-only workflow shares the observer with a three-minute bound and skips every native effect", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context);
+  fixture.environment.PORTCOVE_HOSTED_OBSERVATION_ONLY = "true";
+  fixture.environment.GITHUB_SHA = execFileSync("git", ["rev-parse", "HEAD"], {
+    encoding: "utf8",
+  }).trim();
+  const started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const intent = await fixture.read("intent.json");
+  assert.ok(isRecord(intent) && isRecord(intent.context));
+  assert.equal(intent.maximum_milliseconds, 180000);
+  assert.equal(intent.maximum_samples, 36);
+  assert.equal(intent.maximum_bytes, 8388608);
+  assert.equal(intent.context.mode, "true");
+  const check = fixture.invoke(fixture.checkPath);
+  assert.equal(check.status, 0, check.stderr || check.stdout);
+  const probe = fixture.steps.find(
+    (step) =>
+      isRecord(step) &&
+      step.name === "Qualify the original observer across independent runner steps",
+  );
+  assert.ok(isRecord(probe) && typeof probe.run === "string");
+  const probePath = path.join(fixture.root, "actual-probe.ps1");
+  await writeFile(probePath, probe.run);
+  const before = Date.now(),
+    observed = fixture.invoke(probePath);
+  assert.equal(observed.status, 0, observed.stderr || observed.stdout);
+  assert.ok(
+    Date.now() - before >= 12000,
+    "Canonical probe must complete all original cross-step waits",
+  );
+  const stopped = fixture.invoke(fixture.stopPath);
+  assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
+  const raw: unknown = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS();
+  assert.ok(
+    isRecord(raw) &&
+      isRecord(raw.on) &&
+      isRecord(raw.on.workflow_dispatch) &&
+      isRecord(raw.on.workflow_dispatch.inputs) &&
+      isRecord(raw.on.workflow_dispatch.inputs.resource_observer_only) &&
+      isRecord(raw.jobs) &&
+      isRecord(raw.jobs["installed-prerequisite"]),
+  );
+  const input = raw.on.workflow_dispatch.inputs.resource_observer_only;
+  assert.equal(input.default, false);
+  assert.equal(input.type, "boolean");
+  const job = raw.jobs["installed-prerequisite"];
+  assert.equal(job["timeout-minutes"], "${{ inputs.resource_observer_only && 3 || 90 }}");
+  for (const step of fixture.steps) {
+    assert.ok(isRecord(step));
+    const name = String(step.name ?? step.uses ?? step.run);
+    if (
+      name === "Start bounded runner resource observation before checkout" ||
+      name === "Stop the original resource observer and retain sampled coverage" ||
+      name === "Retain bounded public resource observations separately" ||
+      name.startsWith("actions/checkout@")
+    )
+      continue;
+    if (name === "Qualify the original observer across independent runner steps") {
+      assert.equal(step.if, "inputs.resource_observer_only");
+      assert.ok(String(step.run).includes("-Operation Check"));
+      continue;
+    }
+    assert.ok(String(step.if).includes("!inputs.resource_observer_only"), name);
+  }
+  const start = await readFile(fixture.startPath, "utf8");
+  assert.ok(start.includes("IntPtr.Zero,IntPtr.Zero,false,0x08000000,IntPtr.Zero"));
+  assert.ok(
+    !start.includes("BREAKAWAY") &&
+      !start.includes("RUNNER_TRACKING_ID=") &&
+      !start.includes("New-LocalUser"),
+  );
+});
+
+void test("original observer heartbeat refuses stale samples while preserving the same bounded process", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context),
+    started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const samplesPath = path.join(fixture.evidence, "samples.jsonl"),
+    original = await readFile(samplesPath, "utf8");
+  await writeFile(
+    samplesPath,
+    original.replace(/"observed_at":"[0-9]{4}/gu, '"observed_at":"2000'),
+  );
+  const stale = fixture.invoke(fixture.checkPath);
+  assert.notEqual(stale.status, 0);
+  assert.match(stale.stderr, /heartbeat stale/u);
 });
