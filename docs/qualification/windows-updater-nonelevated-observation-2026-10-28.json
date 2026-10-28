@@ -1,0 +1,4308 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-28T16:30:16.571060+00:00",
+  "owners": [224, 52],
+  "authority": "none; dated local qualification evidence, not release/protected/publication authority",
+  "cohorts": [
+    {
+      "profile": "legacy-adjacent",
+      "versions": ["0.1.0", "0.2.0"],
+      "source": {
+        "product_and_original_harness_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+        "product_base_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+        "observation_identity": {
+          "schema_version": 1,
+          "harness": "scripts/test-windows-installer.ps1",
+          "harness_sha256": "10044112f8f58849b42b99d0d77e6b43cf4021fc52d503e70d0f793752c9d342",
+          "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+          "source_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+          "started_at": "2026-10-28T13:37:34.6101867Z",
+          "host_os": "Microsoft Windows 10.0.26300",
+          "host_architecture": "X64",
+          "powershell": "7.6.9",
+          "authority": "none; local native observation requires independently authenticated handoff"
+        },
+        "feature_scope": {
+          "both_endpoints": ["application-update-qualification"],
+          "qualified_predecessor_additional": ["native-compatibility-qualification"],
+          "default_feature_or_production_package_claim": false
+        },
+        "version_fixture_patch": {
+          "path": "0.1.0-fixture.patch",
+          "bytes": 3201,
+          "sha256": "40e238b7d417359cb592a0b61e475af6b694a96b6e1123b5322243c83ce15f76"
+        },
+        "rehearsal_config": {
+          "path": "rehearsal-config.json",
+          "bytes": 1112,
+          "sha256": "b428f8c66193e409e4acf529658fbdc26452908b3c5a4891c625db10363df704"
+        }
+      },
+      "native_receipts": {
+        "lifecycle": {
+          "path": "windows-installed-update.json",
+          "bytes": 30818,
+          "sha256": "dade2e71c10494eef6745b2634d21535a68e795816972e91918155cf3ae48b06"
+        },
+        "renderer": {
+          "path": "windows-renderer-evidence/renderer-update-evidence.json",
+          "bytes": 8467,
+          "sha256": "28c2f978fc5fcc8465774523f653b0213260527f3b7c95f2f914432f0d8a0c17"
+        },
+        "result": {
+          "path": "rehearsal-result.json",
+          "bytes": 259,
+          "sha256": "fbfcb50913c55ede061c977f9489712f36569b579045fcca191b05fd116428f4"
+        },
+        "summary": {
+          "path": "windows-installed-update-summary.json",
+          "bytes": 500,
+          "sha256": "372d077a4652cd9b0f436e0c2f1e6c0e71923e64454ee1696f0deb019d758b5f"
+        }
+      },
+      "account": {
+        "administrator_token": false,
+        "integrity_sid": "S-1-16-8192",
+        "os_version": "Microsoft Windows NT 10.0.26300.0",
+        "os_architecture": "X64",
+        "full_token_group_set_not_captured_per_application_process": true
+      },
+      "packages": [
+        {
+          "role": "qualified-predecessor",
+          "filename": "Portcove_0.1.0_x64-setup.exe",
+          "bytes": 14447793,
+          "sha256": "f09d6585af81da5860410423e101cafa86073fb920d4fc1930ec09e269b24b32",
+          "signature": {
+            "filename": "Portcove_0.1.0_x64-setup.exe.sig",
+            "bytes": 436,
+            "sha256": "1d03761bc450101a01c8d07800ec40e4516ce3a331ff7a7d64696906932e5bb7",
+            "encoded_signature_text": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUK1U1SkFGalRFWlRnd01ZdDM5R1lCWlZlMlFBcnFYTnk2UUpBNENGV3ZCMDMrNXI3SDAwYlFmVzB3MmNnWnVCeWIvTFlhK05qdGwwbWpsU1hPOHlGdUg2TWxuelVhQ3d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTk0NDMxCWZpbGU6UG9ydGNvdmVfMC4xLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4wCm9SUUplb01YeW1KNXNCS0kwYmJ2bFhnUUV5SGVIZVBKeGZhOVpZYWFlOFRlY1pIdk1PTllucjh1S1V1MTZVMzRXbmJnaHJHVGFCN2ZiSTdFblBJUEFnPT0K"
+          },
+          "public_key_file": {
+            "filename": "disposable.key.pub",
+            "bytes": 152,
+            "sha256": "7e61059f5a97e62b62bc149cbc534af84dbd2caf6076e74cf7efcc8a81a663cd",
+            "encoding": "base64 wrapper around Tauri/Minisign public-key text",
+            "decoded_text_sha256": "68e3a6eb083a88a7705af45a7c4f0d256ba22eb90dd1fbe75f778b4a7b419583",
+            "encoded_public_key_text": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY1QzQzNDE2NDA5MjUzRkUKUldUK1U1SkFGalRFWlJ1VlJ2VjJhVTRxdS9qMU56dEF5c3JKYVc1SXZzb0F3bHo5UERseUJnaE8K"
+          },
+          "offline_verification": {
+            "retained_raw_role_label": "actual-qualified-predecessor",
+            "label_is_not_a_feature_or_production_claim": true,
+            "verifier_sha256": "009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2",
+            "observed_at": "2026-10-28T14:55:10.9722745Z",
+            "exit_code": 0,
+            "result": {
+              "schema_version": 1,
+              "bytes": 14447793,
+              "sha256": "f09d6585af81da5860410423e101cafa86073fb920d4fc1930ec09e269b24b32",
+              "public_key_sha256": "68e3a6eb083a88a7705af45a7c4f0d256ba22eb90dd1fbe75f778b4a7b419583",
+              "signature_verified": true
+            }
+          }
+        },
+        {
+          "role": "qualification-candidate",
+          "filename": "Portcove_0.2.0_x64-setup.exe",
+          "bytes": 13721914,
+          "sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335",
+          "signature": {
+            "filename": "Portcove_0.2.0_x64-setup.exe.sig",
+            "bytes": 436,
+            "sha256": "fd69df082f3f3ca05b4cdf3f46abca5cdd01502d8ca9fe1890093177808cd3e3",
+            "encoded_signature_text": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUK1U1SkFGalRFWlQ3c0JUMWdBbGIyb3RsdFZrdGFZZjNNOU0zc1lPNTJYQjh6SCtRWndRYlphMTB4RWtVTUlxWTAvenkweDQ2L3cwYnc3aVpKWE5acTJzRmsvdUdpYVF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTkzMzkxCWZpbGU6UG9ydGNvdmVfMC4yLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMi4wCkhrYzlaeXJieURyak5zbmZuMVQ1cHF1Nm5ZWHg0V2RxbzZ2ZWw5RzdJd3p0SVEwUmNpb010bTlzenJDVEdyZkJZM0FCUnlCT2MxdUoxK3VKSWQrWkFBPT0K"
+          },
+          "public_key_file": {
+            "filename": "disposable.key.pub",
+            "bytes": 152,
+            "sha256": "7e61059f5a97e62b62bc149cbc534af84dbd2caf6076e74cf7efcc8a81a663cd",
+            "encoding": "base64 wrapper around Tauri/Minisign public-key text",
+            "decoded_text_sha256": "68e3a6eb083a88a7705af45a7c4f0d256ba22eb90dd1fbe75f778b4a7b419583",
+            "encoded_public_key_text": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY1QzQzNDE2NDA5MjUzRkUKUldUK1U1SkFGalRFWlJ1VlJ2VjJhVTRxdS9qMU56dEF5c3JKYVc1SXZzb0F3bHo5UERseUJnaE8K"
+          },
+          "offline_verification": {
+            "retained_raw_role_label": "ordinary-candidate",
+            "label_is_not_a_feature_or_production_claim": true,
+            "verifier_sha256": "009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2",
+            "observed_at": "2026-10-28T14:55:11.0157282Z",
+            "exit_code": 0,
+            "result": {
+              "schema_version": 1,
+              "bytes": 13721914,
+              "sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335",
+              "public_key_sha256": "68e3a6eb083a88a7705af45a7c4f0d256ba22eb90dd1fbe75f778b4a7b419583",
+              "signature_verified": true
+            }
+          }
+        }
+      ],
+      "preliminary_inventory": {
+        "identity": {
+          "path": "0.1.0-windows-x86_64/updater-inventory.json",
+          "bytes": 1241,
+          "sha256": "39aeabcff0e23292b55cbfa4ab87e92e8e37c42a1c6142c5e2f9d5bcb1075a1a"
+        },
+        "scope": "preliminary same-version package; not the actual qualified predecessor consumed by this installed journey"
+      },
+      "feed": {
+        "scope": "disposable local file transport only; not production publication",
+        "metadata_url": "file:///H:/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/windows-installed-update-qualification/repository/metadata/",
+        "targets_url": "file:///H:/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/windows-installed-update-qualification/repository/targets/",
+        "sequential_reused_uri_requires_this_exact_root_and_role_tuple": true,
+        "fixture_qualified_run_one_is_not_actual_github_execution": true,
+        "metadata": [
+          {
+            "path": "windows-installed-update-qualification/trusted-root.json",
+            "bytes": 3072,
+            "sha256": "ef48edda433fbc4a4096cba51ebbeffef286585bb382468ee3cc2c91add7d8b4",
+            "signed": {
+              "_type": "root",
+              "spec_version": "1.0.0",
+              "consistent_snapshot": true,
+              "version": 1,
+              "expires": "2027-08-24T13:18:31.656360900Z",
+              "keys": {
+                "373768f0c76c2052ff1625ea4d657ce247718b33b44ac55e74dd21a0ca04bb53": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "b0e4814cafcff5242fbc8d45c226841394e0fcd2ac993b16267c450e9b0ecbb6"
+                  },
+                  "scheme": "ed25519"
+                },
+                "973b67e0ec0b71613c6f0fae2299042e0a3445471b8f8f5333fc65b3eeffdbe3": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "2452039e42549ef86157e6348d095afaef61d909d816bf750a3aef8f35286064"
+                  },
+                  "scheme": "ed25519"
+                },
+                "ff40c5db9267840b12c0cd08a030259845e69c7327b360fb537953740856c32d": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "ca342ce7efef85d35d06fb75dfd652222b3adc7c3c6e50873fc5c9075c91e034"
+                  },
+                  "scheme": "ed25519"
+                },
+                "55b705081b9c84b84e35162482024e2ff64ada476dbc8056aa1bb58f33f4cc29": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "934a40a5e361c136298899b8055c164c17a908557e03eaf2b74f702cf7f352a8"
+                  },
+                  "scheme": "ed25519"
+                },
+                "8a3cf3ab36abcd907d9df47b02653debf015a84063a1d470b3e29909e023ff79": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "cd538a1e806e016cc1e62b11b581d34f9ca32657cdd782b13bf776ef04f2b180"
+                  },
+                  "scheme": "ed25519"
+                },
+                "3a34b50bbf57cc071d6e6eeb72baa10fe88cbadccc8c368c7d040b0787196439": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "efa3a567cd36b66998857d86900a8911f5ba182b2fb8576faef83df30b188bd2"
+                  },
+                  "scheme": "ed25519"
+                }
+              },
+              "roles": {
+                "root": {
+                  "keyids": [
+                    "973b67e0ec0b71613c6f0fae2299042e0a3445471b8f8f5333fc65b3eeffdbe3",
+                    "373768f0c76c2052ff1625ea4d657ce247718b33b44ac55e74dd21a0ca04bb53",
+                    "3a34b50bbf57cc071d6e6eeb72baa10fe88cbadccc8c368c7d040b0787196439"
+                  ],
+                  "threshold": 2
+                },
+                "snapshot": {
+                  "keyids": ["8a3cf3ab36abcd907d9df47b02653debf015a84063a1d470b3e29909e023ff79"],
+                  "threshold": 1
+                },
+                "targets": {
+                  "keyids": ["55b705081b9c84b84e35162482024e2ff64ada476dbc8056aa1bb58f33f4cc29"],
+                  "threshold": 1
+                },
+                "timestamp": {
+                  "keyids": ["ff40c5db9267840b12c0cd08a030259845e69c7327b360fb537953740856c32d"],
+                  "threshold": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "373768f0c76c2052ff1625ea4d657ce247718b33b44ac55e74dd21a0ca04bb53",
+                "sig": "fec3361bb158245472edaa5c8782d4eb41d50e9fa34464ae37683cf12e2b5037f117cfb22cef82bdf1e61e36650f665c63c90a2cf3a844da70f8beac85d8190c"
+              },
+              {
+                "keyid": "973b67e0ec0b71613c6f0fae2299042e0a3445471b8f8f5333fc65b3eeffdbe3",
+                "sig": "16eac9078a5fc95b5ec913a9566bb3e3f8571b4542c887d9f21fd7ed7bdf8fa2d3a5f49b2e5225941b00587c0d32c0cac16b118dbbc88e4d7f62478120035101"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+            "bytes": 698,
+            "sha256": "539f8a358c5c9cd9d3b531b88c9892ffdd1c4d01d0f889410a5d1b7955960176",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T13:18:31.662806800Z",
+              "targets": {
+                "channels/preview/windows-x86_64/nsis/0.2.0.json": {
+                  "length": 391,
+                  "hashes": {
+                    "sha256": "8d86c125993d91db43e417d38cf78e38ba279aab6392c2f861791fca8ed3608e"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "6a6df2de597f6bbf6ec314864f0aa46d81110859013ff4a809ebb700a8628e62",
+                "sig": "ed5fedd4ca88d2721f5f557fc8b8605d7776433716c9f45a0427d71ca40d3377f855fc68847dc54386cb5a6639199ee6acbdb84bfdcb41d4fbe1e76b3ee9560a"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+            "bytes": 691,
+            "sha256": "703525362ca999104ce6c1fae7685237d84fb8f96eab564e93d6c7712818ec9c",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-12-27T13:18:31.662806800Z",
+              "targets": {
+                "releases/0.2.0/windows-x86_64/nsis.json": {
+                  "length": 1938,
+                  "hashes": {
+                    "sha256": "d16be1282b7664a37cbf7f424b0abb4d407d3712e07c1546103fbfd72dd3a04a"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "ff20ebd08a025908dc4d89735d68ce0cc37f13f3ddad2886f5e84d7710289a3b",
+                "sig": "8b2696d6b7da4625e2b3ce9cd4cb626de0b41049810e6644b9c989b2c52b02b4eb402cea376936920d9c3d294eb509190ae6b03bd1ef9e0fe00f03fcb7d89e0b"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+            "bytes": 3072,
+            "sha256": "ef48edda433fbc4a4096cba51ebbeffef286585bb382468ee3cc2c91add7d8b4",
+            "signed": {
+              "_type": "root",
+              "spec_version": "1.0.0",
+              "consistent_snapshot": true,
+              "version": 1,
+              "expires": "2027-08-24T13:18:31.656360900Z",
+              "keys": {
+                "373768f0c76c2052ff1625ea4d657ce247718b33b44ac55e74dd21a0ca04bb53": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "b0e4814cafcff5242fbc8d45c226841394e0fcd2ac993b16267c450e9b0ecbb6"
+                  },
+                  "scheme": "ed25519"
+                },
+                "973b67e0ec0b71613c6f0fae2299042e0a3445471b8f8f5333fc65b3eeffdbe3": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "2452039e42549ef86157e6348d095afaef61d909d816bf750a3aef8f35286064"
+                  },
+                  "scheme": "ed25519"
+                },
+                "ff40c5db9267840b12c0cd08a030259845e69c7327b360fb537953740856c32d": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "ca342ce7efef85d35d06fb75dfd652222b3adc7c3c6e50873fc5c9075c91e034"
+                  },
+                  "scheme": "ed25519"
+                },
+                "55b705081b9c84b84e35162482024e2ff64ada476dbc8056aa1bb58f33f4cc29": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "934a40a5e361c136298899b8055c164c17a908557e03eaf2b74f702cf7f352a8"
+                  },
+                  "scheme": "ed25519"
+                },
+                "8a3cf3ab36abcd907d9df47b02653debf015a84063a1d470b3e29909e023ff79": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "cd538a1e806e016cc1e62b11b581d34f9ca32657cdd782b13bf776ef04f2b180"
+                  },
+                  "scheme": "ed25519"
+                },
+                "3a34b50bbf57cc071d6e6eeb72baa10fe88cbadccc8c368c7d040b0787196439": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "efa3a567cd36b66998857d86900a8911f5ba182b2fb8576faef83df30b188bd2"
+                  },
+                  "scheme": "ed25519"
+                }
+              },
+              "roles": {
+                "root": {
+                  "keyids": [
+                    "973b67e0ec0b71613c6f0fae2299042e0a3445471b8f8f5333fc65b3eeffdbe3",
+                    "373768f0c76c2052ff1625ea4d657ce247718b33b44ac55e74dd21a0ca04bb53",
+                    "3a34b50bbf57cc071d6e6eeb72baa10fe88cbadccc8c368c7d040b0787196439"
+                  ],
+                  "threshold": 2
+                },
+                "snapshot": {
+                  "keyids": ["8a3cf3ab36abcd907d9df47b02653debf015a84063a1d470b3e29909e023ff79"],
+                  "threshold": 1
+                },
+                "targets": {
+                  "keyids": ["55b705081b9c84b84e35162482024e2ff64ada476dbc8056aa1bb58f33f4cc29"],
+                  "threshold": 1
+                },
+                "timestamp": {
+                  "keyids": ["ff40c5db9267840b12c0cd08a030259845e69c7327b360fb537953740856c32d"],
+                  "threshold": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "373768f0c76c2052ff1625ea4d657ce247718b33b44ac55e74dd21a0ca04bb53",
+                "sig": "fec3361bb158245472edaa5c8782d4eb41d50e9fa34464ae37683cf12e2b5037f117cfb22cef82bdf1e61e36650f665c63c90a2cf3a844da70f8beac85d8190c"
+              },
+              {
+                "keyid": "973b67e0ec0b71613c6f0fae2299042e0a3445471b8f8f5333fc65b3eeffdbe3",
+                "sig": "16eac9078a5fc95b5ec913a9566bb3e3f8571b4542c887d9f21fd7ed7bdf8fa2d3a5f49b2e5225941b00587c0d32c0cac16b118dbbc88e4d7f62478120035101"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+            "bytes": 1205,
+            "sha256": "8534abeef4a6bbc94205402ef8273f18206b73407de1ad8ff860638d0a4fdea3",
+            "signed": {
+              "_type": "snapshot",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T13:18:31.662806800Z",
+              "meta": {
+                "preview.json": {
+                  "length": 698,
+                  "hashes": {
+                    "sha256": "539f8a358c5c9cd9d3b531b88c9892ffdd1c4d01d0f889410a5d1b7955960176"
+                  },
+                  "version": 1
+                },
+                "releases.json": {
+                  "length": 691,
+                  "hashes": {
+                    "sha256": "703525362ca999104ce6c1fae7685237d84fb8f96eab564e93d6c7712818ec9c"
+                  },
+                  "version": 1
+                },
+                "targets.json": {
+                  "length": 2424,
+                  "hashes": {
+                    "sha256": "19e801ce2310f19518b2f8bd82739b78e619340ab80f0aa19933dbf218654908"
+                  },
+                  "version": 1
+                },
+                "stable.json": {
+                  "length": 486,
+                  "hashes": {
+                    "sha256": "04a8d4ebc75cd64cf8df5e3a944de83c0ddb9cd4c633c5a57b1f0548be5f1ddb"
+                  },
+                  "version": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "8a3cf3ab36abcd907d9df47b02653debf015a84063a1d470b3e29909e023ff79",
+                "sig": "f4de1988690291cf6ff06b66f1aa972100acf9b8158b5ab1e4bfe7d7f90a06702ce37a5d927e15c50492b0469d45b13daefa76fa9144b89c39e871e25b82d10e"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+            "bytes": 486,
+            "sha256": "04a8d4ebc75cd64cf8df5e3a944de83c0ddb9cd4c633c5a57b1f0548be5f1ddb",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T13:18:31.662806800Z",
+              "targets": {},
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "ff9e5c695d97f8f41d7b898b457291288bcdc24707fabe6c3403ace057c617bc",
+                "sig": "648d3646a6ffdbdd28b9d5d6bbf6cfafc374dff288345812e2ae0f661acff2fb76c4c1a68179b3da0eb7050fe34234f4047566cfb1d8f79ee5c3e8ec8f756502"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+            "bytes": 2424,
+            "sha256": "19e801ce2310f19518b2f8bd82739b78e619340ab80f0aa19933dbf218654908",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-12-27T13:18:31.662806800Z",
+              "targets": {
+                "keys/payload.json": {
+                  "length": 315,
+                  "hashes": {
+                    "sha256": "abc35df0d24acbf7c8b6cd67e10824d1d23ef11566ce35bce7badd90c764a313"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {
+                  "ff9e5c695d97f8f41d7b898b457291288bcdc24707fabe6c3403ace057c617bc": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "df2ccd5cff6f470824e84b7c6e493c985020af834a32493b4ec9302670745f78"
+                    },
+                    "scheme": "ed25519"
+                  },
+                  "ff20ebd08a025908dc4d89735d68ce0cc37f13f3ddad2886f5e84d7710289a3b": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "93fedcaf4a1256c1cef2f9f8eb7b10ff3af9336aa84fdede727ba0e166308ff8"
+                    },
+                    "scheme": "ed25519"
+                  },
+                  "6a6df2de597f6bbf6ec314864f0aa46d81110859013ff4a809ebb700a8628e62": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "baf40d76d434875ee930d5f31d2115aa637f28b5560687cdb31fd78a158e9051"
+                    },
+                    "scheme": "ed25519"
+                  }
+                },
+                "roles": [
+                  {
+                    "name": "releases",
+                    "keyids": ["ff20ebd08a025908dc4d89735d68ce0cc37f13f3ddad2886f5e84d7710289a3b"],
+                    "threshold": 1,
+                    "paths": ["releases/0.2.0/windows-x86_64/nsis.json"],
+                    "terminating": true
+                  },
+                  {
+                    "name": "preview",
+                    "keyids": ["6a6df2de597f6bbf6ec314864f0aa46d81110859013ff4a809ebb700a8628e62"],
+                    "threshold": 1,
+                    "paths": ["channels/preview/windows-x86_64/nsis/0.2.0.json"],
+                    "terminating": true
+                  },
+                  {
+                    "name": "stable",
+                    "keyids": ["ff9e5c695d97f8f41d7b898b457291288bcdc24707fabe6c3403ace057c617bc"],
+                    "threshold": 1,
+                    "paths": ["channels/stable/*/*/*.json"],
+                    "terminating": true
+                  }
+                ]
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "55b705081b9c84b84e35162482024e2ff64ada476dbc8056aa1bb58f33f4cc29",
+                "sig": "0576bf29c1353ccebd8b7d03e811763a8a8a31e4af38ced1beb650f798503bfa071a03dfe587891bba0391b6c65fad606bc9f4df88f70cb548e42c277bfa240e"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+            "bytes": 622,
+            "sha256": "39cd59b067dd82a030885364be9f4b4c5be517b9f854ad3062dba8aaec84c4c2",
+            "signed": {
+              "_type": "timestamp",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-10-30T13:18:31.662806800Z",
+              "meta": {
+                "snapshot.json": {
+                  "length": 1205,
+                  "hashes": {
+                    "sha256": "8534abeef4a6bbc94205402ef8273f18206b73407de1ad8ff860638d0a4fdea3"
+                  },
+                  "version": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "ff40c5db9267840b12c0cd08a030259845e69c7327b360fb537953740856c32d",
+                "sig": "6c6825fa004b28d46d4203c2c731b70f280019d6d6eb3231c6bb894f14dd80980c601f55a289115431ed6bea8c4f7c5960ffff71700f852ff6f2a948c93d580b"
+              }
+            ]
+          }
+        ],
+        "signed_record_inputs": [
+          {
+            "path": "windows-installed-update-qualification/inputs/descriptor.json",
+            "bytes": 1069,
+            "sha256": "35855afd2ed6750900e27929710664dabef24b385e799ed81ea85e138829b25d",
+            "contents": {
+              "schema_version": 1,
+              "releases": [
+                {
+                  "inventory": "updater-inventory.json",
+                  "signature": "candidate.sig",
+                  "source_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+                  "qualified_run": {
+                    "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+                    "workflow_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+                    "run_id": 1,
+                    "attempt": 1
+                  },
+                  "execution_context": "installed-current-user",
+                  "compatibility": {
+                    "minimum_os_version": "10.0.26300",
+                    "required_capabilities": ["library-lock-v1"],
+                    "cli_protocol": {
+                      "min": 82,
+                      "max": 82
+                    },
+                    "catalog_formats": [2],
+                    "library": {
+                      "read": {
+                        "min": 1,
+                        "max": 43
+                      },
+                      "write_schema": 43,
+                      "lock_protocol": "library-lock-v1"
+                    }
+                  },
+                  "evidence_ids": ["updater-artifact-rehearsal-1-windows-x86_64"]
+                }
+              ]
+            }
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/eligibility.json",
+            "bytes": 166,
+            "sha256": "7b011f2cad5cf1657f0229fdf2e05ff9f76a1bbe55628fc0b0cd7f0c80062863",
+            "contents": {
+              "v0.2.0": {
+                "version": "0.2.0",
+                "preview_eligible": true,
+                "production_eligible": false,
+                "targets": ["windows-x86_64"]
+              }
+            }
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/updater-inventory.json",
+            "bytes": 1241,
+            "sha256": "618fed400503be87d399a9220b08779c91655e5988eb861e9f35cfcc25d57263",
+            "contents": {
+              "schema_version": 1,
+              "repository": "boburning/portcove",
+              "version": "0.2.0",
+              "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+              "platform_label": "windows-x86_64",
+              "application_identifier": "io.github.portcove.portcove",
+              "packages": [
+                {
+                  "id": "desktop-windows-x86_64-nsis",
+                  "filename": "Portcove_0.2.0_x64-setup.exe",
+                  "bytes": 13721914,
+                  "sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335"
+                },
+                {
+                  "id": "cli-windows-x86_64-zip",
+                  "filename": "portcove-cli-0.2.0-windows-x86_64.zip",
+                  "bytes": 12624686,
+                  "sha256": "616818899e30476d049b334e4452f883bc4ab63207770d7cdced53e8c505221c"
+                }
+              ],
+              "updater": {
+                "id": "desktop-windows-x86_64-nsis",
+                "target": "windows-x86_64",
+                "format": "nsis",
+                "filename": "Portcove_0.2.0_x64-setup.exe",
+                "bytes": 13721914,
+                "sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335",
+                "signature": {
+                  "filename": "Portcove_0.2.0_x64-setup.exe.sig",
+                  "bytes": 436,
+                  "sha256": "fd69df082f3f3ca05b4cdf3f46abca5cdd01502d8ca9fe1890093177808cd3e3"
+                },
+                "public_key_sha256": "68e3a6eb083a88a7705af45a7c4f0d256ba22eb90dd1fbe75f778b4a7b419583"
+              }
+            }
+          }
+        ]
+      },
+      "installed": {
+        "initial_executable_sha256": "75666b95a76464fc26c10a1d54a45a884027487509036054c0ef8761e9c23e3d",
+        "candidate_executable_sha256": "6a205f693a92a8553adb22b1aacdf7faa5f9970c409b00d301e60cd5b65b955e",
+        "details": {
+          "signature_status": "NotSigned",
+          "install_mode": "Passive",
+          "update_path": "installed_app_renderer",
+          "registered_version": "0.2.0",
+          "registration_account_sid": null,
+          "registration_path": "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
+          "application_responding": true,
+          "application_exit_code": 0,
+          "uninstall_exit_code": 0,
+          "managed_files_removed": true,
+          "registration_removed": true
+        },
+        "owned_relative_paths": {
+          "run_root_relative": "run-748bd36a159a468ba59131acbcbd62d4",
+          "install_relative": "run-748bd36a159a468ba59131acbcbd62d4/installed",
+          "library_relative": "run-748bd36a159a468ba59131acbcbd62d4/library"
+        },
+        "ui_actions": [
+          "installed-gui-opened",
+          "preview-manual-settings-saved",
+          "signed-candidate-presented",
+          "exact-installed-candidate-status-read-back",
+          "renderer-downloaded-and-verified",
+          "candidate-restarted-and-reconciled"
+        ],
+        "helper_result_marker": {
+          "exit_code": 0,
+          "process_id": 7384,
+          "schema_version": 1
+        },
+        "original_helper_os_exit": null,
+        "original_natural_process_observation": {
+          "candidate": {
+            "capture": {
+              "status": "exited",
+              "pid": 25576
+            },
+            "exit": {
+              "status": "exited",
+              "pid": 25576
+            }
+          },
+          "helper": {
+            "capture": {
+              "status": "exited",
+              "pid": 7384
+            },
+            "exit": {
+              "status": "exited",
+              "pid": 7384
+            }
+          }
+        },
+        "process_runs": [
+          {
+            "id": "4a2b0b3c93d74b6c8bf460eb3218ca25",
+            "role": "predecessor_installer",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "f09d6585af81da5860410423e101cafa86073fb920d4fc1930ec09e269b24b32"
+          },
+          {
+            "id": "16dbdb7139cd4e1587246345d87d2495",
+            "role": "predecessor_smoke",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "75666b95a76464fc26c10a1d54a45a884027487509036054c0ef8761e9c23e3d"
+          },
+          {
+            "id": "8cfe7b7f20f24c89b83dbffa16500d9c",
+            "role": "installed_update_truncated_stage",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "75666b95a76464fc26c10a1d54a45a884027487509036054c0ef8761e9c23e3d"
+          },
+          {
+            "id": "074567585c6442698e225673ae83f99b",
+            "role": "installed_update_tampered_stage",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "75666b95a76464fc26c10a1d54a45a884027487509036054c0ef8761e9c23e3d"
+          },
+          {
+            "id": "68990fd0007c441daeb6688b4d687698",
+            "role": "installed_update_recovery_status",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "75666b95a76464fc26c10a1d54a45a884027487509036054c0ef8761e9c23e3d"
+          },
+          {
+            "id": "92e5320377e5425bb1fc25ffaa178264",
+            "role": "installed_update_recovery_repair",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "75666b95a76464fc26c10a1d54a45a884027487509036054c0ef8761e9c23e3d"
+          },
+          {
+            "id": "76d88fda34af498ab877ffdf96efcba8",
+            "role": "installed_update_recovery_verified",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "75666b95a76464fc26c10a1d54a45a884027487509036054c0ef8761e9c23e3d"
+          },
+          {
+            "id": "1df172b1865a4be6882ec9b930f3f83e",
+            "role": "candidate_smoke",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "6a205f693a92a8553adb22b1aacdf7faa5f9970c409b00d301e60cd5b65b955e"
+          },
+          {
+            "id": "278b964a4bdb418887e95179880af844",
+            "role": "candidate_uninstaller",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "305d1c955a14c39c389299ebf5fe9d5b480e6f8c37fb1fe9fdca28cb16996a5b"
+          },
+          {
+            "id": "db80d3e644a94feda37e094a01cd4d1d",
+            "role": "candidate_uninstaller_child",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "305d1c955a14c39c389299ebf5fe9d5b480e6f8c37fb1fe9fdca28cb16996a5b"
+          }
+        ],
+        "unverified_child_capture_failed": false
+      },
+      "preservation": {
+        "across_upgrade": "synthetic user/installer-qualification/preserve.txt hash plus installed executable/Tauri setup/apply-intent reconciliation; not recursive DB/artwork/preferences equality",
+        "uninstall_manifest_equal": true,
+        "uninstall_manifest": {
+          "library": [
+            {
+              "path": "artwork-cache/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "artwork-cache/492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050.jpg",
+              "type": "file",
+              "bytes": 5603,
+              "sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050"
+            },
+            {
+              "path": "artwork-cache/4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421.jpg",
+              "type": "file",
+              "bytes": 26182,
+              "sha256": "4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421"
+            },
+            {
+              "path": "artwork-cache/683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0.jpg",
+              "type": "file",
+              "bytes": 5038,
+              "sha256": "683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0"
+            },
+            {
+              "path": "artwork-cache/d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365.jpg",
+              "type": "file",
+              "bytes": 7080,
+              "sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365"
+            },
+            {
+              "path": "artwork-cache/f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5.jpg",
+              "type": "file",
+              "bytes": 23126,
+              "sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5"
+            },
+            {
+              "path": "backups/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "downloads/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "locks/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "locks/artwork.lock",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "locks/library.lock",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "locks/migration.lock",
+              "type": "file",
+              "bytes": 47,
+              "sha256": "3f8c3e17a0876baa96cb63305254049bda67dcf5600ae8c82d6ad808c096ffd9"
+            },
+            {
+              "path": "locks/migration.owner.json",
+              "type": "file",
+              "bytes": 55,
+              "sha256": "cfa9b2aea529e9713cdfdf4e8f0d517c459afc494d2122e3f92cc9b75ac9ddf6"
+            },
+            {
+              "path": "logs/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "portcove.sqlite3",
+              "type": "file",
+              "bytes": 348160,
+              "sha256": "07a8e45237272f92f1c8ef8ccd0a128f13fa10873020cd7a54699d814a90b4c2"
+            },
+            {
+              "path": "portcove.sqlite3-shm",
+              "type": "file",
+              "bytes": 32768,
+              "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+            },
+            {
+              "path": "portcove.sqlite3-wal",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "recovery/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "source-inbox/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "staging/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "toolchains/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/installer-qualification/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/installer-qualification/preserve.txt",
+              "type": "file",
+              "bytes": 32,
+              "sha256": "9e221148de46dd4489222d3a650ca8bb71e8fb8f0fd2c88f48279302658e33a8"
+            },
+            {
+              "path": "versions/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            }
+          ],
+          "preferences": {
+            "present": true,
+            "bytes": 91,
+            "sha256": "b860478f3a2db77cbd98a6e42f876aa0d96e810120eb81dbfcfb6bc0a4ad1251"
+          }
+        },
+        "real_installed_games_or_saves": false,
+        "general_existing_preferences_continuity": "not established; exact manifest presence/absence is retained above"
+      },
+      "packaged_consumer": {
+        "identity": {
+          "path": "windows-payload-consumer.json",
+          "bytes": 2892,
+          "sha256": "52d171b0ce556f0acfb328a7dffafd9fadfd1bc7f37d6df30272af09136ace07"
+        },
+        "scope": "packaged consumer fixture cases; not remote public-feed GUI coverage",
+        "cases": {
+          "missing-signature": {
+            "case": "missing-signature",
+            "outcome": "rejected",
+            "error": "authenticated update identity is invalid: Tauri signature",
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "0.2.0",
+            "candidate_sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335",
+            "candidate_bytes": 13721914,
+            "payload_key_id": "68e3a6eb083a88a7705af45a7c4f0d256ba22eb90dd1fbe75f778b4a7b419583",
+            "staged_payload_sha256": null,
+            "staged_payload_bytes": null,
+            "staging_has_candidate": false
+          },
+          "wrong-signature": {
+            "case": "wrong-signature",
+            "outcome": "rejected",
+            "error": "payload verification material is invalid: signature does not use the selected key or streaming format",
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "0.2.0",
+            "candidate_sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335",
+            "candidate_bytes": 13721914,
+            "payload_key_id": "68e3a6eb083a88a7705af45a7c4f0d256ba22eb90dd1fbe75f778b4a7b419583",
+            "staged_payload_sha256": null,
+            "staged_payload_bytes": null,
+            "staging_has_candidate": false
+          },
+          "valid-signature": {
+            "case": "valid-signature",
+            "outcome": "staged",
+            "error": null,
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "0.2.0",
+            "candidate_sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335",
+            "candidate_bytes": 13721914,
+            "payload_key_id": "68e3a6eb083a88a7705af45a7c4f0d256ba22eb90dd1fbe75f778b4a7b419583",
+            "staged_payload_sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335",
+            "staged_payload_bytes": 13721914,
+            "staging_has_candidate": true
+          }
+        },
+        "production_signing": false,
+        "private_signing_inputs_absent": {
+          "payload_private_key": true,
+          "wrong_payload_private_root": true,
+          "wrong_payload_password": true,
+          "signing_private_key_environment": true,
+          "signing_private_key_path_environment": true,
+          "signing_password_environment": true
+        }
+      },
+      "local_retention": {
+        "profile": "legacy-adjacent",
+        "file_count": 376,
+        "expanded_bytes": 244195343,
+        "archive": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-legacy-adjacent.zip",
+          "bytes": 159066911,
+          "sha256": "274fadfefcdc65832fe39f239a5fb2de831c09dc3d3930a64395dcc901c053df"
+        },
+        "manifest": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-legacy-adjacent-manifest.json",
+          "bytes": 89088,
+          "sha256": "d22ff1d453a0ebd78df3d8571a40d265583ce9605b2e86f96af0ee053f300c3a"
+        }
+      },
+      "qualified_predecessor_additional_custody": {
+        "profile": "legacy-adjacent",
+        "consumed_identity_source": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-evidence-adcbeaad-legacy-adjacent/windows-installed-update.json",
+        "report_sha256": "dade2e71c10494eef6745b2634d21535a68e795816972e91918155cf3ae48b06",
+        "files": [
+          {
+            "source_path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-evidence-adcbeaad-legacy-skipped/previous-bundles/nsis/Portcove_0.1.0_x64-setup.exe",
+            "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-qualified-predecessors/legacy-adjacent/Portcove_0.1.0_x64-setup.exe",
+            "bytes": 14447793,
+            "sha256": "f09d6585af81da5860410423e101cafa86073fb920d4fc1930ec09e269b24b32"
+          },
+          {
+            "source_path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-evidence-adcbeaad-legacy-skipped/previous-bundles/nsis/Portcove_0.1.0_x64-setup.exe.sig",
+            "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-qualified-predecessors/legacy-adjacent/Portcove_0.1.0_x64-setup.exe.sig",
+            "bytes": 436,
+            "sha256": "1d03761bc450101a01c8d07800ec40e4516ce3a331ff7a7d64696906932e5bb7"
+          }
+        ]
+      }
+    },
+    {
+      "profile": "legacy-skipped",
+      "versions": ["0.1.0", "0.3.0"],
+      "source": {
+        "product_and_original_harness_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+        "product_base_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+        "observation_identity": {
+          "schema_version": 1,
+          "harness": "scripts/test-windows-installer.ps1",
+          "harness_sha256": "10044112f8f58849b42b99d0d77e6b43cf4021fc52d503e70d0f793752c9d342",
+          "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+          "source_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+          "started_at": "2026-10-28T14:06:49.7167509Z",
+          "host_os": "Microsoft Windows 10.0.26300",
+          "host_architecture": "X64",
+          "powershell": "7.6.9",
+          "authority": "none; local native observation requires independently authenticated handoff"
+        },
+        "feature_scope": {
+          "both_endpoints": ["application-update-qualification"],
+          "qualified_predecessor_additional": ["native-compatibility-qualification"],
+          "default_feature_or_production_package_claim": false
+        },
+        "version_fixture_patch": {
+          "path": "0.1.0-fixture.patch",
+          "bytes": 3201,
+          "sha256": "40e238b7d417359cb592a0b61e475af6b694a96b6e1123b5322243c83ce15f76"
+        },
+        "rehearsal_config": {
+          "path": "rehearsal-config.json",
+          "bytes": 1112,
+          "sha256": "524913031851d6e0a83ac2e653065401135fcd886ebde1e74fffeef6c3508cbd"
+        }
+      },
+      "native_receipts": {
+        "lifecycle": {
+          "path": "windows-installed-update.json",
+          "bytes": 30817,
+          "sha256": "c35d2831773c683c1662d8bee69c4f40a245ca7bff575ef7e73c932942489cf9"
+        },
+        "renderer": {
+          "path": "windows-renderer-evidence/renderer-update-evidence.json",
+          "bytes": 8473,
+          "sha256": "29dca3b37820950aaf5419c531d5a619a38a953b844da7d4036830675e6ecf9c"
+        },
+        "result": {
+          "path": "rehearsal-result.json",
+          "bytes": 258,
+          "sha256": "8ec35158fd497123d28895cf5e31963a66232b6e3a2462b8abfff02679da26ad"
+        },
+        "summary": {
+          "path": "windows-installed-update-summary.json",
+          "bytes": 500,
+          "sha256": "2da66da3cc009773fb90a53c30ed684156c80422f2bf4bbb4dd787853901bfd9"
+        }
+      },
+      "account": {
+        "administrator_token": false,
+        "integrity_sid": "S-1-16-8192",
+        "os_version": "Microsoft Windows NT 10.0.26300.0",
+        "os_architecture": "X64",
+        "full_token_group_set_not_captured_per_application_process": true
+      },
+      "packages": [
+        {
+          "role": "qualified-predecessor",
+          "filename": "Portcove_0.1.0_x64-setup.exe",
+          "bytes": 14439023,
+          "sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b",
+          "signature": {
+            "filename": "Portcove_0.1.0_x64-setup.exe.sig",
+            "bytes": 436,
+            "sha256": "5b0ed50ff9f73f66624c578b8d33d029f5b956b674f2c87d20989277e28d5ad6",
+            "encoded_signature_text": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEp3SHpVcUptZ2YyYUwyRWZiQVl1cXVUYXRORXIvMEhqTXVjOGh2NEp5R1pOdi92N05JTkJoQW5HOVprUzdYMWVhV1hOZjNSR1BaZGZaSHk4UFBkRE9GR0d4dG1lRkFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTk2MjQ3CWZpbGU6UG9ydGNvdmVfMC4xLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4wClhoaVVnRUMzOGpRa1hnS3pyTEdtYXJzdENsNVJKS0g2clFjM1doVStjQlF6Uzc3RkFQZXV4MGwwRUFOQnowaDJyQTlIc1pPSDVjRnkyR08zT3BoZURBPT0K"
+          },
+          "public_key_file": {
+            "filename": "disposable.key.pub",
+            "bytes": 152,
+            "sha256": "9e19eb70c99de2a4354f91fd5ad0480eb9259ae7acb95c702f952a1ef52e9398",
+            "encoding": "base64 wrapper around Tauri/Minisign public-key text",
+            "decoded_text_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+            "encoded_public_key_text": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxNjZBMjUyRjMwMTI3NEIKUldSTEp3SHpVcUptZ2FudVJaNXQ4RU8rMXZZdTFneWl6RW1qYkpwZ0FFckNydXFHeXZLWkw0dm4K"
+          },
+          "offline_verification": {
+            "retained_raw_role_label": "actual-qualified-predecessor",
+            "label_is_not_a_feature_or_production_claim": true,
+            "verifier_sha256": "009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2",
+            "observed_at": "2026-10-28T14:55:11.0477633Z",
+            "exit_code": 0,
+            "result": {
+              "schema_version": 1,
+              "bytes": 14439023,
+              "sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b",
+              "public_key_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+              "signature_verified": true
+            }
+          }
+        },
+        {
+          "role": "qualification-candidate",
+          "filename": "Portcove_0.3.0_x64-setup.exe",
+          "bytes": 13729439,
+          "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+          "signature": {
+            "filename": "Portcove_0.3.0_x64-setup.exe.sig",
+            "bytes": 436,
+            "sha256": "c9fa8417d405e0c10b22fabe9bcb428ba6dbe02026ccb8122a619d3ca7148bf7",
+            "encoded_signature_text": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTEp3SHpVcUptZ1RBZTVuMDZmdlFFR1Mxa05aY0JnQkovYTVPNWs4TE0xQVlyOTR3endmVVUwcDdEcytUN2VPbjZ2ZVFuY1FzU3FUZ21ycHRMMXNnVHJYNU9UZDdJQnc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTk1OTE5CWZpbGU6UG9ydGNvdmVfMC4zLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMy4wCkFVczlsbGdHVTRxZHp6alJvSUtvRjdMWTZVQUViWklZdHpCQTM0azlLWlRILzRjSVQ0bkx6T3hJc2JtVENJcjZob05jOTFFek5NVmtpalVrczNoQ0FnPT0K"
+          },
+          "public_key_file": {
+            "filename": "disposable.key.pub",
+            "bytes": 152,
+            "sha256": "9e19eb70c99de2a4354f91fd5ad0480eb9259ae7acb95c702f952a1ef52e9398",
+            "encoding": "base64 wrapper around Tauri/Minisign public-key text",
+            "decoded_text_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+            "encoded_public_key_text": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxNjZBMjUyRjMwMTI3NEIKUldSTEp3SHpVcUptZ2FudVJaNXQ4RU8rMXZZdTFneWl6RW1qYkpwZ0FFckNydXFHeXZLWkw0dm4K"
+          },
+          "offline_verification": {
+            "retained_raw_role_label": "ordinary-candidate",
+            "label_is_not_a_feature_or_production_claim": true,
+            "verifier_sha256": "009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2",
+            "observed_at": "2026-10-28T14:55:11.0781631Z",
+            "exit_code": 0,
+            "result": {
+              "schema_version": 1,
+              "bytes": 13729439,
+              "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+              "public_key_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+              "signature_verified": true
+            }
+          }
+        }
+      ],
+      "preliminary_inventory": {
+        "identity": {
+          "path": "0.1.0-windows-x86_64/updater-inventory.json",
+          "bytes": 1241,
+          "sha256": "65d54f5c4adc8d3720d30bfcf7214f8c76e0d8f8298f97be500d34122720d4f6"
+        },
+        "scope": "preliminary same-version package; not the actual qualified predecessor consumed by this installed journey"
+      },
+      "feed": {
+        "scope": "disposable local file transport only; not production publication",
+        "metadata_url": "file:///H:/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/windows-installed-update-qualification/repository/metadata/",
+        "targets_url": "file:///H:/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/windows-installed-update-qualification/repository/targets/",
+        "sequential_reused_uri_requires_this_exact_root_and_role_tuple": true,
+        "fixture_qualified_run_one_is_not_actual_github_execution": true,
+        "metadata": [
+          {
+            "path": "windows-installed-update-qualification/trusted-root.json",
+            "bytes": 3069,
+            "sha256": "cae5a8eb19d399c38f040fc2a8014355fc95961f09bcbb72596ca1b3c782881e",
+            "signed": {
+              "_type": "root",
+              "spec_version": "1.0.0",
+              "consistent_snapshot": true,
+              "version": 1,
+              "expires": "2027-08-24T13:58:54.024187Z",
+              "keys": {
+                "2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "2e5fa8729b5c57e93746d9ff20f41ec99d74d89fea316416f9fc516cffe4cfa8"
+                  },
+                  "scheme": "ed25519"
+                },
+                "194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "1c73e0113dfd231e9e574c0596f28052b501270a587302b1345e79e395ff5f45"
+                  },
+                  "scheme": "ed25519"
+                },
+                "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "a8fb01df31eda1555b1bf5eb5290c5d9b8df610a4d2a036c5860d83a0e4f3a83"
+                  },
+                  "scheme": "ed25519"
+                },
+                "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "7d1f14691545695277c3dde14065410b685483670734d2ed0cc5baf6a4c1e02d"
+                  },
+                  "scheme": "ed25519"
+                },
+                "4a1d33bd3a18b4368db8ed716852fb6f07b289edcf20a3ebdf23b5e79d5064be": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "f1b6578784ec389cf2fc97ca31c4cc8f14e2ce9b4b46d186a22fc3c030097696"
+                  },
+                  "scheme": "ed25519"
+                },
+                "c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "00b347e11ccf3200f344ed4c5fa8c016e7f8df7440d17be985178a6fdfb09bd2"
+                  },
+                  "scheme": "ed25519"
+                }
+              },
+              "roles": {
+                "root": {
+                  "keyids": [
+                    "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c",
+                    "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3",
+                    "4a1d33bd3a18b4368db8ed716852fb6f07b289edcf20a3ebdf23b5e79d5064be"
+                  ],
+                  "threshold": 2
+                },
+                "timestamp": {
+                  "keyids": ["2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b"],
+                  "threshold": 1
+                },
+                "snapshot": {
+                  "keyids": ["194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6"],
+                  "threshold": 1
+                },
+                "targets": {
+                  "keyids": ["c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53"],
+                  "threshold": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c",
+                "sig": "f86e7d28fef845592008b739047a2ee3058d9cc43ff4dcb2495ebb0e393875418d4bc85a7d048f8553dcac99621580f669991e5259add5d73683a86deb49440f"
+              },
+              {
+                "keyid": "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3",
+                "sig": "24cd5cf18345a3f88aa8f29389e7269502ed607736e92e66d064e0e33a58c6dbc84ac48b8e5bc77479fc7529bff2f678f802ce2ed27a01109fe5473ab005700a"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+            "bytes": 698,
+            "sha256": "58da1e7cdaae2066ca50e9b9aa39a766eaa664399613738664bda9c3a38274fa",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T13:58:54.029475100Z",
+              "targets": {
+                "channels/preview/windows-x86_64/nsis/0.3.0.json": {
+                  "length": 391,
+                  "hashes": {
+                    "sha256": "dcc1f7d591d68ebc6725b1bdd4ceed1b93cb86d8c4ebe75a24d923571a2f7e14"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "3d4cdea7097c986a760edc1c94ddcdd0905d55fd8694cab771102cbd692e99fb",
+                "sig": "d54811b7dddcf967aa454d63221b786937018014d98db975a3ed47c300f9b32567ef9d2f05207321dc269b1779ae5631a09498293705de28a15c49abb5dd4901"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+            "bytes": 691,
+            "sha256": "956e92c6d444d707bfe91be6361fd4975e1970214980dc4b117fea4898d67d4b",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-12-27T13:58:54.029475100Z",
+              "targets": {
+                "releases/0.3.0/windows-x86_64/nsis.json": {
+                  "length": 1938,
+                  "hashes": {
+                    "sha256": "a73a4beb5fd85aba7c65d9d2929a58d9dc6696ee5b45f3fd5048abeb2b104acb"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "4cd04dfbf903451724d5ec6a52d0c2d0269c9b94a0efe9bcb9a9fd1e73ff5d74",
+                "sig": "600c959da84f885cce904d7c6f08391d5934d43a21ce157d01dd8b39873bdf44a1092164ad378ec6e0ee44d314efb41ceeebbcd4a699d1c899fcd48a0998ae0d"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+            "bytes": 3069,
+            "sha256": "cae5a8eb19d399c38f040fc2a8014355fc95961f09bcbb72596ca1b3c782881e",
+            "signed": {
+              "_type": "root",
+              "spec_version": "1.0.0",
+              "consistent_snapshot": true,
+              "version": 1,
+              "expires": "2027-08-24T13:58:54.024187Z",
+              "keys": {
+                "2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "2e5fa8729b5c57e93746d9ff20f41ec99d74d89fea316416f9fc516cffe4cfa8"
+                  },
+                  "scheme": "ed25519"
+                },
+                "194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "1c73e0113dfd231e9e574c0596f28052b501270a587302b1345e79e395ff5f45"
+                  },
+                  "scheme": "ed25519"
+                },
+                "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "a8fb01df31eda1555b1bf5eb5290c5d9b8df610a4d2a036c5860d83a0e4f3a83"
+                  },
+                  "scheme": "ed25519"
+                },
+                "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "7d1f14691545695277c3dde14065410b685483670734d2ed0cc5baf6a4c1e02d"
+                  },
+                  "scheme": "ed25519"
+                },
+                "4a1d33bd3a18b4368db8ed716852fb6f07b289edcf20a3ebdf23b5e79d5064be": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "f1b6578784ec389cf2fc97ca31c4cc8f14e2ce9b4b46d186a22fc3c030097696"
+                  },
+                  "scheme": "ed25519"
+                },
+                "c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "00b347e11ccf3200f344ed4c5fa8c016e7f8df7440d17be985178a6fdfb09bd2"
+                  },
+                  "scheme": "ed25519"
+                }
+              },
+              "roles": {
+                "root": {
+                  "keyids": [
+                    "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c",
+                    "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3",
+                    "4a1d33bd3a18b4368db8ed716852fb6f07b289edcf20a3ebdf23b5e79d5064be"
+                  ],
+                  "threshold": 2
+                },
+                "timestamp": {
+                  "keyids": ["2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b"],
+                  "threshold": 1
+                },
+                "snapshot": {
+                  "keyids": ["194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6"],
+                  "threshold": 1
+                },
+                "targets": {
+                  "keyids": ["c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53"],
+                  "threshold": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "e53211014aac3847de3f14a6a7a81a86c621438ad57c16001e7fdf67a4bdbe8c",
+                "sig": "f86e7d28fef845592008b739047a2ee3058d9cc43ff4dcb2495ebb0e393875418d4bc85a7d048f8553dcac99621580f669991e5259add5d73683a86deb49440f"
+              },
+              {
+                "keyid": "b01ef658d10ce119fa032de7642febf419dae8dcde321a7b87e2630680fe68a3",
+                "sig": "24cd5cf18345a3f88aa8f29389e7269502ed607736e92e66d064e0e33a58c6dbc84ac48b8e5bc77479fc7529bff2f678f802ce2ed27a01109fe5473ab005700a"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+            "bytes": 1205,
+            "sha256": "8017c1be215858f546abdbd97c9fa7c17159b794e1238011b7c542592a23f35b",
+            "signed": {
+              "_type": "snapshot",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T13:58:54.029475100Z",
+              "meta": {
+                "releases.json": {
+                  "length": 691,
+                  "hashes": {
+                    "sha256": "956e92c6d444d707bfe91be6361fd4975e1970214980dc4b117fea4898d67d4b"
+                  },
+                  "version": 1
+                },
+                "preview.json": {
+                  "length": 698,
+                  "hashes": {
+                    "sha256": "58da1e7cdaae2066ca50e9b9aa39a766eaa664399613738664bda9c3a38274fa"
+                  },
+                  "version": 1
+                },
+                "stable.json": {
+                  "length": 486,
+                  "hashes": {
+                    "sha256": "56d5a2006d1a4ec5e7583ed3215be10280f209da2f480cd6ec14dc39b6166790"
+                  },
+                  "version": 1
+                },
+                "targets.json": {
+                  "length": 2424,
+                  "hashes": {
+                    "sha256": "97673bb27d23ecd9e176beaa81ad657b1f8bc59c1ac913146570e2679a63e461"
+                  },
+                  "version": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "194794377c1bf24d023887ffb7cedf40489feed0a5ef1f6a32f54b50c3322bc6",
+                "sig": "82f28ab45e3ae787324dcfcd28748945f33b7aeac5648b0b60e97f35b011f62bcce4110dad7b4fc08071eec9f99d684ecbf63ebfdd94e99eaef19952ab53e60b"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+            "bytes": 486,
+            "sha256": "56d5a2006d1a4ec5e7583ed3215be10280f209da2f480cd6ec14dc39b6166790",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T13:58:54.029475100Z",
+              "targets": {},
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "1abb96ae97d4809cb0c611afd29638079a84e634350101acb1949591f797b27a",
+                "sig": "cb0292b7b03ba610e662b3ac5f2b9fb055cf29b35288f3e09970a074ecb03f9d590559788e408eb03f0cabbdb1608cdeca390ed408d396af944717e1490dd80e"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+            "bytes": 2424,
+            "sha256": "97673bb27d23ecd9e176beaa81ad657b1f8bc59c1ac913146570e2679a63e461",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-12-27T13:58:54.029475100Z",
+              "targets": {
+                "keys/payload.json": {
+                  "length": 315,
+                  "hashes": {
+                    "sha256": "38aea5f72648c4b639d90c3d2a88c5d8d9060c55a3c8451d36cc2cddb06ecc22"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {
+                  "4cd04dfbf903451724d5ec6a52d0c2d0269c9b94a0efe9bcb9a9fd1e73ff5d74": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "8b118a7e337b6bb91babccb1292cc9d8e89a900df94dfb189f2c21f1b6326ffb"
+                    },
+                    "scheme": "ed25519"
+                  },
+                  "3d4cdea7097c986a760edc1c94ddcdd0905d55fd8694cab771102cbd692e99fb": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "7cd54dfa502431d83e7469b7941d1b184a97ca7c111cf294187e5b8a0d21fc8e"
+                    },
+                    "scheme": "ed25519"
+                  },
+                  "1abb96ae97d4809cb0c611afd29638079a84e634350101acb1949591f797b27a": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "3d398cbec0718f4dfb41a8d259093e14bd98fca03fcaad71c42d783eb7d9058b"
+                    },
+                    "scheme": "ed25519"
+                  }
+                },
+                "roles": [
+                  {
+                    "name": "releases",
+                    "keyids": ["4cd04dfbf903451724d5ec6a52d0c2d0269c9b94a0efe9bcb9a9fd1e73ff5d74"],
+                    "threshold": 1,
+                    "paths": ["releases/0.3.0/windows-x86_64/nsis.json"],
+                    "terminating": true
+                  },
+                  {
+                    "name": "preview",
+                    "keyids": ["3d4cdea7097c986a760edc1c94ddcdd0905d55fd8694cab771102cbd692e99fb"],
+                    "threshold": 1,
+                    "paths": ["channels/preview/windows-x86_64/nsis/0.3.0.json"],
+                    "terminating": true
+                  },
+                  {
+                    "name": "stable",
+                    "keyids": ["1abb96ae97d4809cb0c611afd29638079a84e634350101acb1949591f797b27a"],
+                    "threshold": 1,
+                    "paths": ["channels/stable/*/*/*.json"],
+                    "terminating": true
+                  }
+                ]
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "c69c8135a27520fb164bbdca9625c886aff688f0e8626e10f7bea238e1d19b53",
+                "sig": "3b3307cb0a46d914f61d2a51749ca16c77e69b74134731f361f1de7e7c4ffb9ad9fef4ee798c59f1f2c5961e6f67c1ffe9ddb6251e1a8ab8853743506cfedd06"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+            "bytes": 622,
+            "sha256": "f2618f064a45896236d6cc1d8f2b367d4ab7609c024fe65a530c4f8b587501cc",
+            "signed": {
+              "_type": "timestamp",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-10-30T13:58:54.029475100Z",
+              "meta": {
+                "snapshot.json": {
+                  "length": 1205,
+                  "hashes": {
+                    "sha256": "8017c1be215858f546abdbd97c9fa7c17159b794e1238011b7c542592a23f35b"
+                  },
+                  "version": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "2795eb203ceaf8edef1a26381269435e46ddca6e4b141dcf3bbb7e0740f3599b",
+                "sig": "67b25bfbc15561e8f43a1413d7443f904f174e300660f24181d7b3b2dce8be087d83c11cd8e3dddbd5c98f4aacbe7eaaf95a2150e9298b2904176d7d76d06b0f"
+              }
+            ]
+          }
+        ],
+        "signed_record_inputs": [
+          {
+            "path": "windows-installed-update-qualification/inputs/descriptor.json",
+            "bytes": 1069,
+            "sha256": "35855afd2ed6750900e27929710664dabef24b385e799ed81ea85e138829b25d",
+            "contents": {
+              "schema_version": 1,
+              "releases": [
+                {
+                  "inventory": "updater-inventory.json",
+                  "signature": "candidate.sig",
+                  "source_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+                  "qualified_run": {
+                    "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+                    "workflow_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+                    "run_id": 1,
+                    "attempt": 1
+                  },
+                  "execution_context": "installed-current-user",
+                  "compatibility": {
+                    "minimum_os_version": "10.0.26300",
+                    "required_capabilities": ["library-lock-v1"],
+                    "cli_protocol": {
+                      "min": 82,
+                      "max": 82
+                    },
+                    "catalog_formats": [2],
+                    "library": {
+                      "read": {
+                        "min": 1,
+                        "max": 43
+                      },
+                      "write_schema": 43,
+                      "lock_protocol": "library-lock-v1"
+                    }
+                  },
+                  "evidence_ids": ["updater-artifact-rehearsal-1-windows-x86_64"]
+                }
+              ]
+            }
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/eligibility.json",
+            "bytes": 166,
+            "sha256": "de463d21e0c434bdb721b85648bdefe916c4832bebfa212e620ab4c2657cd45b",
+            "contents": {
+              "v0.3.0": {
+                "version": "0.3.0",
+                "preview_eligible": true,
+                "production_eligible": false,
+                "targets": ["windows-x86_64"]
+              }
+            }
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/updater-inventory.json",
+            "bytes": 1241,
+            "sha256": "eee1e936cc14d49727c0caa50582b3e0c5bfe6d4ace6e04da743c883f0cf3554",
+            "contents": {
+              "schema_version": 1,
+              "repository": "boburning/portcove",
+              "version": "0.3.0",
+              "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+              "platform_label": "windows-x86_64",
+              "application_identifier": "io.github.portcove.portcove",
+              "packages": [
+                {
+                  "id": "desktop-windows-x86_64-nsis",
+                  "filename": "Portcove_0.3.0_x64-setup.exe",
+                  "bytes": 13729439,
+                  "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b"
+                },
+                {
+                  "id": "cli-windows-x86_64-zip",
+                  "filename": "portcove-cli-0.3.0-windows-x86_64.zip",
+                  "bytes": 12625500,
+                  "sha256": "248bb90c175bc4890d76e02a86cdeb30d7b3ed28fb675dd831a094b47967f620"
+                }
+              ],
+              "updater": {
+                "id": "desktop-windows-x86_64-nsis",
+                "target": "windows-x86_64",
+                "format": "nsis",
+                "filename": "Portcove_0.3.0_x64-setup.exe",
+                "bytes": 13729439,
+                "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+                "signature": {
+                  "filename": "Portcove_0.3.0_x64-setup.exe.sig",
+                  "bytes": 436,
+                  "sha256": "c9fa8417d405e0c10b22fabe9bcb428ba6dbe02026ccb8122a619d3ca7148bf7"
+                },
+                "public_key_sha256": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617"
+              }
+            }
+          }
+        ]
+      },
+      "installed": {
+        "initial_executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+        "candidate_executable_sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9",
+        "details": {
+          "signature_status": "NotSigned",
+          "install_mode": "Passive",
+          "update_path": "installed_app_renderer",
+          "registered_version": "0.3.0",
+          "registration_account_sid": null,
+          "registration_path": "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
+          "application_responding": true,
+          "application_exit_code": 0,
+          "uninstall_exit_code": 0,
+          "managed_files_removed": true,
+          "registration_removed": true
+        },
+        "owned_relative_paths": {
+          "run_root_relative": "run-b29d4bcde7fa4b59b416fac0dcdbe5f8",
+          "install_relative": "run-b29d4bcde7fa4b59b416fac0dcdbe5f8/installed",
+          "library_relative": "run-b29d4bcde7fa4b59b416fac0dcdbe5f8/library"
+        },
+        "ui_actions": [
+          "installed-gui-opened",
+          "preview-manual-settings-saved",
+          "signed-candidate-presented",
+          "exact-installed-candidate-status-read-back",
+          "renderer-downloaded-and-verified",
+          "candidate-restarted-and-reconciled"
+        ],
+        "helper_result_marker": {
+          "exit_code": 0,
+          "process_id": 20404,
+          "schema_version": 1
+        },
+        "original_helper_os_exit": null,
+        "original_natural_process_observation": {
+          "candidate": {
+            "capture": {
+              "status": "exited",
+              "pid": 18880
+            },
+            "exit": {
+              "status": "exited",
+              "pid": 18880
+            }
+          },
+          "helper": {
+            "capture": {
+              "status": "exited",
+              "pid": 20404
+            },
+            "exit": {
+              "status": "exited",
+              "pid": 20404
+            }
+          }
+        },
+        "process_runs": [
+          {
+            "id": "9215291b641d4deabb1241c145f04164",
+            "role": "predecessor_installer",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b"
+          },
+          {
+            "id": "caaa2e3876824d5a8c9c994eba5b6680",
+            "role": "predecessor_smoke",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+          },
+          {
+            "id": "019211b4063e40d3a690ecaf1c38572c",
+            "role": "installed_update_truncated_stage",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+          },
+          {
+            "id": "119ab2319ab040ed8282442ebd1fa1b1",
+            "role": "installed_update_tampered_stage",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+          },
+          {
+            "id": "af9bcd9b178e4c72afcf7f732f13013e",
+            "role": "installed_update_recovery_status",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+          },
+          {
+            "id": "b332443b729f4b60ba97a69c111b2269",
+            "role": "installed_update_recovery_repair",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+          },
+          {
+            "id": "59ad27e637e7452ea39bbf421eccc29e",
+            "role": "installed_update_recovery_verified",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a"
+          },
+          {
+            "id": "3413d151115a41b98d3d5094ec5ab8bd",
+            "role": "candidate_smoke",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9"
+          },
+          {
+            "id": "850772118f3f4dbe8b58fb546bcb37e6",
+            "role": "candidate_uninstaller",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "1bc5129ec1fd1fc4c175b30f8de8d6faba60c0dd1c6b850c0425299df96728a9"
+          },
+          {
+            "id": "a73fc1081e824e6d8aefc556927ae1ef",
+            "role": "candidate_uninstaller_child",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "1bc5129ec1fd1fc4c175b30f8de8d6faba60c0dd1c6b850c0425299df96728a9"
+          }
+        ],
+        "unverified_child_capture_failed": false
+      },
+      "preservation": {
+        "across_upgrade": "synthetic user/installer-qualification/preserve.txt hash plus installed executable/Tauri setup/apply-intent reconciliation; not recursive DB/artwork/preferences equality",
+        "uninstall_manifest_equal": true,
+        "uninstall_manifest": {
+          "library": [
+            {
+              "path": "artwork-cache/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "artwork-cache/492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050.jpg",
+              "type": "file",
+              "bytes": 5603,
+              "sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050"
+            },
+            {
+              "path": "artwork-cache/4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421.jpg",
+              "type": "file",
+              "bytes": 26182,
+              "sha256": "4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421"
+            },
+            {
+              "path": "artwork-cache/683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0.jpg",
+              "type": "file",
+              "bytes": 5038,
+              "sha256": "683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0"
+            },
+            {
+              "path": "artwork-cache/d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365.jpg",
+              "type": "file",
+              "bytes": 7080,
+              "sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365"
+            },
+            {
+              "path": "artwork-cache/f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5.jpg",
+              "type": "file",
+              "bytes": 23126,
+              "sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5"
+            },
+            {
+              "path": "backups/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "downloads/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "locks/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "locks/artwork.lock",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "locks/library.lock",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "locks/migration.lock",
+              "type": "file",
+              "bytes": 47,
+              "sha256": "1e12d97e788046b6efc6c0203153eb1cd9dddd7f420600de451ac2fb5e231aeb"
+            },
+            {
+              "path": "locks/migration.owner.json",
+              "type": "file",
+              "bytes": 55,
+              "sha256": "b9efc76a4a14428a76912b0cb9795da014e363fb48c08badc012eb0eefd9d993"
+            },
+            {
+              "path": "logs/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "portcove.sqlite3",
+              "type": "file",
+              "bytes": 348160,
+              "sha256": "e7d09b24ca62d85212e84121032a2be78002eae76df5c6c815b2592313cb5827"
+            },
+            {
+              "path": "portcove.sqlite3-shm",
+              "type": "file",
+              "bytes": 32768,
+              "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+            },
+            {
+              "path": "portcove.sqlite3-wal",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "recovery/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "source-inbox/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "staging/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "toolchains/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/installer-qualification/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/installer-qualification/preserve.txt",
+              "type": "file",
+              "bytes": 32,
+              "sha256": "3bc2406150d23295e3814c4467c072fad61ea381d58593ce4d6c14f35d0e1846"
+            },
+            {
+              "path": "versions/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            }
+          ],
+          "preferences": {
+            "present": true,
+            "bytes": 91,
+            "sha256": "b860478f3a2db77cbd98a6e42f876aa0d96e810120eb81dbfcfb6bc0a4ad1251"
+          }
+        },
+        "real_installed_games_or_saves": false,
+        "general_existing_preferences_continuity": "not established; exact manifest presence/absence is retained above"
+      },
+      "packaged_consumer": {
+        "identity": {
+          "path": "windows-payload-consumer.json",
+          "bytes": 2892,
+          "sha256": "eb37f5fe2b3acc68b8f1a6760057ac4f739f4ff357bd2790c9477f1e298f7660"
+        },
+        "scope": "packaged consumer fixture cases; not remote public-feed GUI coverage",
+        "cases": {
+          "missing-signature": {
+            "case": "missing-signature",
+            "outcome": "rejected",
+            "error": "authenticated update identity is invalid: Tauri signature",
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "0.3.0",
+            "candidate_sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+            "candidate_bytes": 13729439,
+            "payload_key_id": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+            "staged_payload_sha256": null,
+            "staged_payload_bytes": null,
+            "staging_has_candidate": false
+          },
+          "wrong-signature": {
+            "case": "wrong-signature",
+            "outcome": "rejected",
+            "error": "payload verification material is invalid: signature does not use the selected key or streaming format",
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "0.3.0",
+            "candidate_sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+            "candidate_bytes": 13729439,
+            "payload_key_id": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+            "staged_payload_sha256": null,
+            "staged_payload_bytes": null,
+            "staging_has_candidate": false
+          },
+          "valid-signature": {
+            "case": "valid-signature",
+            "outcome": "staged",
+            "error": null,
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "0.3.0",
+            "candidate_sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+            "candidate_bytes": 13729439,
+            "payload_key_id": "e730403268f62e794dad351d942b4458f40f62e8a3ff413d7978ce24e8acf617",
+            "staged_payload_sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b",
+            "staged_payload_bytes": 13729439,
+            "staging_has_candidate": true
+          }
+        },
+        "production_signing": false,
+        "private_signing_inputs_absent": {
+          "payload_private_key": true,
+          "wrong_payload_private_root": true,
+          "wrong_payload_password": true,
+          "signing_private_key_environment": true,
+          "signing_private_key_path_environment": true,
+          "signing_password_environment": true
+        }
+      },
+      "local_retention": {
+        "profile": "legacy-skipped",
+        "file_count": 377,
+        "expanded_bytes": 244943811,
+        "archive": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-legacy-skipped.zip",
+          "bytes": 160913893,
+          "sha256": "03c053a8e6bc5aa1e5b4dd0e861daf80f58842fbd4f3fc9d219662e70b6d2849"
+        },
+        "manifest": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-legacy-skipped-manifest.json",
+          "bytes": 89302,
+          "sha256": "9d474ee261dbbe0348412d010430a36af287782d4c3d630f8831450bf4fc0822"
+        }
+      },
+      "qualified_predecessor_additional_custody": {
+        "profile": "legacy-skipped",
+        "consumed_identity_source": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-evidence-adcbeaad-legacy-skipped/windows-installed-update.json",
+        "report_sha256": "c35d2831773c683c1662d8bee69c4f40a245ca7bff575ef7e73c932942489cf9",
+        "files": [
+          {
+            "source_path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/previous-bundles/nsis/Portcove_0.1.0_x64-setup.exe",
+            "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-qualified-predecessors/legacy-skipped/Portcove_0.1.0_x64-setup.exe",
+            "bytes": 14439023,
+            "sha256": "e81008b61c15ad5c4ebc4a02401e1198393e87f31ce0ca8c8b670fcbc8ac9d0b"
+          },
+          {
+            "source_path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/previous-bundles/nsis/Portcove_0.1.0_x64-setup.exe.sig",
+            "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-qualified-predecessors/legacy-skipped/Portcove_0.1.0_x64-setup.exe.sig",
+            "bytes": 436,
+            "sha256": "5b0ed50ff9f73f66624c578b8d33d029f5b956b674f2c87d20989277e28d5ad6"
+          }
+        ]
+      }
+    },
+    {
+      "profile": "preview-final",
+      "versions": ["1.0.0-rc.2", "1.0.0"],
+      "source": {
+        "product_and_original_harness_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+        "product_base_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+        "observation_identity": {
+          "schema_version": 1,
+          "harness": "scripts/test-windows-installer.ps1",
+          "harness_sha256": "10044112f8f58849b42b99d0d77e6b43cf4021fc52d503e70d0f793752c9d342",
+          "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+          "source_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+          "started_at": "2026-10-28T14:49:17.5599708Z",
+          "host_os": "Microsoft Windows 10.0.26300",
+          "host_architecture": "X64",
+          "powershell": "7.6.9",
+          "authority": "none; local native observation requires independently authenticated handoff"
+        },
+        "feature_scope": {
+          "both_endpoints": ["application-update-qualification"],
+          "qualified_predecessor_additional": ["native-compatibility-qualification"],
+          "default_feature_or_production_package_claim": false
+        },
+        "version_fixture_patch": {
+          "path": "1.0.0-rc.2-fixture.patch",
+          "bytes": 3241,
+          "sha256": "fa2d8a272904f38bad163216433183ab958ab80a5ba5fc9950f4e1047fce8b86"
+        },
+        "rehearsal_config": {
+          "path": "rehearsal-config.json",
+          "bytes": 1112,
+          "sha256": "2fcb09b59be0dc8bd47701b2835427a8471661a33ffd78300586882842ae1437"
+        }
+      },
+      "native_receipts": {
+        "lifecycle": {
+          "path": "windows-installed-update.json",
+          "bytes": 30832,
+          "sha256": "4db2e21ff5be58b2418d621e6a3788b7ea0d8ab4cf05cd85b620d542e29d2b1a"
+        },
+        "renderer": {
+          "path": "windows-renderer-evidence/renderer-update-evidence.json",
+          "bytes": 8471,
+          "sha256": "e33b6c3fe1f394e64f2f7e42e871d55f256fb0d7e9e8799895309426cbaef238"
+        },
+        "result": {
+          "path": "rehearsal-result.json",
+          "bytes": 262,
+          "sha256": "9429d734599de8b8e6fefa950382be38e2ea4153008daf0a4d5e6140bb787731"
+        },
+        "summary": {
+          "path": "windows-installed-update-summary.json",
+          "bytes": 500,
+          "sha256": "c948c02296d16cca54f61c98827bb13d6486a8e211d2ea44160ba8d3d721ef4d"
+        }
+      },
+      "account": {
+        "administrator_token": false,
+        "integrity_sid": "S-1-16-8192",
+        "os_version": "Microsoft Windows NT 10.0.26300.0",
+        "os_architecture": "X64",
+        "full_token_group_set_not_captured_per_application_process": true
+      },
+      "packages": [
+        {
+          "role": "qualified-predecessor",
+          "filename": "Portcove_1.0.0-rc.2_x64-setup.exe",
+          "bytes": 14451936,
+          "sha256": "1abd7a735963d3723ae2ce6f69044f9ba5c10dab9486206a44d97a03cca1c052",
+          "signature": {
+            "filename": "Portcove_1.0.0-rc.2_x64-setup.exe.sig",
+            "bytes": 452,
+            "sha256": "0cdad49380391d30b652f90efdab1688027caec67a1b29cb938f4bf1f6fcb462",
+            "encoded_signature_text": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVmtvY2l2b21DZGRWZ2xhazdWNVlPK0lwZGJzUHdRc2U0N0VZZllWWHRXajFOZU5PSlpIV0drRGdYWTVGN3JjNm50VE5OSHZydjlKbzh6NEdLdnQxV0ZzVVc2dnMzNGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTk4NzQ1CWZpbGU6UG9ydGNvdmVfMS4wLjAtcmMuMl94NjQtc2V0dXAuZXhlCXZlcnNpb246MS4wLjAtcmMuMgplcmhXRlptWTQ5ZkR0RTJpbnFXemJJbFRlOERnaWwzKzZSOEtFWXhkdmFjQitvWnI1N0g1Sjk0NWdLKzAvbVpLWG91c0MxOU5ITlJaKy82MTlYYXZBdz09Cg=="
+          },
+          "public_key_file": {
+            "filename": "disposable.key.pub",
+            "bytes": 152,
+            "sha256": "e2d510d0d30ad538f04a465f71cd9893d394c2c2ecdbc02f7075d3e0a8b8c714",
+            "encoding": "base64 wrapper around Tauri/Minisign public-key text",
+            "decoded_text_sha256": "c3e5919e03daa2ee439dfb7ef358d32d4a7a30347af43fa9d1b9e505307cab06",
+            "encoded_public_key_text": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc1ODI4OUJFMjI4NzkyRDUKUldUVmtvY2l2b21DZFFYclZNNTBYWG9RbUNxaGlWWFJNM3RaVllIdnVWeWIwSlZvaFNsSC9ITk4K"
+          },
+          "offline_verification": {
+            "retained_raw_role_label": "actual-qualified-predecessor",
+            "label_is_not_a_feature_or_production_claim": true,
+            "verifier_sha256": "009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2",
+            "observed_at": "2026-10-28T15:27:20.5717313Z",
+            "exit_code": 0,
+            "result": {
+              "schema_version": 1,
+              "bytes": 14451936,
+              "sha256": "1abd7a735963d3723ae2ce6f69044f9ba5c10dab9486206a44d97a03cca1c052",
+              "public_key_sha256": "c3e5919e03daa2ee439dfb7ef358d32d4a7a30347af43fa9d1b9e505307cab06",
+              "signature_verified": true
+            }
+          }
+        },
+        {
+          "role": "qualification-candidate",
+          "filename": "Portcove_1.0.0_x64-setup.exe",
+          "bytes": 13733386,
+          "sha256": "2613bf2ff0ada348acc039c617ebe0c0015c3c0e9cfa1eef8cf94f6a53469545",
+          "signature": {
+            "filename": "Portcove_1.0.0_x64-setup.exe.sig",
+            "bytes": 436,
+            "sha256": "0c75acc4dc019b0f00d3e08e30ce36dc993bde8723481d24e949100f96f2a0c8",
+            "encoded_signature_text": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVmtvY2l2b21DZGVlQUVaeGlabUtwQ0YrUVJvVTVVMGdrMlBzUG4wT05uL3kwcTZaUFlONWpaUWZhNm8ySVlmYnRpUlZKTW5aaGFZeEtkazVPVVdZeE8zSFRGVmFHWlFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTk4MjEzCWZpbGU6UG9ydGNvdmVfMS4wLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjEuMC4wCkdVOCtGejFLK2d0ZU5yNENKYlJSRGErRFFRblJtOWhHK2NnS294VzBXdVhVYVJxVnYrc0h2ZEFwbTJXdC81aWtmaktwVmJuY3Z4a0NLdmNDbmlzV0RBPT0K"
+          },
+          "public_key_file": {
+            "filename": "disposable.key.pub",
+            "bytes": 152,
+            "sha256": "e2d510d0d30ad538f04a465f71cd9893d394c2c2ecdbc02f7075d3e0a8b8c714",
+            "encoding": "base64 wrapper around Tauri/Minisign public-key text",
+            "decoded_text_sha256": "c3e5919e03daa2ee439dfb7ef358d32d4a7a30347af43fa9d1b9e505307cab06",
+            "encoded_public_key_text": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc1ODI4OUJFMjI4NzkyRDUKUldUVmtvY2l2b21DZFFYclZNNTBYWG9RbUNxaGlWWFJNM3RaVllIdnVWeWIwSlZvaFNsSC9ITk4K"
+          },
+          "offline_verification": {
+            "retained_raw_role_label": "ordinary-candidate",
+            "label_is_not_a_feature_or_production_claim": true,
+            "verifier_sha256": "009bd98d4ed037be16c948c67c94d2f3927349dc9727986592983e3ce692e5c2",
+            "observed_at": "2026-10-28T15:27:20.6149300Z",
+            "exit_code": 0,
+            "result": {
+              "schema_version": 1,
+              "bytes": 13733386,
+              "sha256": "2613bf2ff0ada348acc039c617ebe0c0015c3c0e9cfa1eef8cf94f6a53469545",
+              "public_key_sha256": "c3e5919e03daa2ee439dfb7ef358d32d4a7a30347af43fa9d1b9e505307cab06",
+              "signature_verified": true
+            }
+          }
+        }
+      ],
+      "preliminary_inventory": {
+        "identity": {
+          "path": "1.0.0-rc.2-windows-x86_64/updater-inventory.json",
+          "bytes": 1266,
+          "sha256": "3e2b946ec345360f174de6a94d3c1660cd27b1965ea6b7d77170b431547e1135"
+        },
+        "scope": "preliminary same-version package; not the actual qualified predecessor consumed by this installed journey"
+      },
+      "feed": {
+        "scope": "disposable local file transport only; not production publication",
+        "metadata_url": "file:///H:/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/windows-installed-update-qualification/repository/metadata/",
+        "targets_url": "file:///H:/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal/windows-installed-update-qualification/repository/targets/",
+        "sequential_reused_uri_requires_this_exact_root_and_role_tuple": true,
+        "fixture_qualified_run_one_is_not_actual_github_execution": true,
+        "metadata": [
+          {
+            "path": "windows-installed-update-qualification/trusted-root.json",
+            "bytes": 3072,
+            "sha256": "3767b334177f90f1b1e9cc26eba589e095d7f8647149653a6dc52b09ef2d249a",
+            "signed": {
+              "_type": "root",
+              "spec_version": "1.0.0",
+              "consistent_snapshot": true,
+              "version": 1,
+              "expires": "2027-08-24T14:37:08.573603900Z",
+              "keys": {
+                "ea76dabf8f367a6c1b3e9eab26c149f327ba0049ff8dc36490fcce9184a0aac0": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "22a53f56b47ea2ad57ddb911262d9421583bed3a5717dcc5a715d88bdcdace0c"
+                  },
+                  "scheme": "ed25519"
+                },
+                "6c8a2d279e2f2d608f6d2579b6fcbf5165c9f1f4dfa3b6724f9fbbf9954dccbd": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "6bf8db155222d689c9dec3b9183207d49183ad145c9d8571d3a5aad78cee4faa"
+                  },
+                  "scheme": "ed25519"
+                },
+                "c9d1caacea60532e0a8d2ff1e70d0b968939f0d4b40ea60ba72c223fe9eb5d89": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "2455ef78a0f9380f933985528ac42cf75fdfb983335d7b5f00b25ce95bbd0e2d"
+                  },
+                  "scheme": "ed25519"
+                },
+                "ca21148bd4178ba40264d4b5a359f191a5390ec57bc43f54e8792ffcf6fdfe3d": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "07a578e0df1db1e5732fb46e6ccd02e8f229765ac70ae5ba67e97102aeac2ae4"
+                  },
+                  "scheme": "ed25519"
+                },
+                "5144dd5b201c92b5cdb19708718336e7cdc8e7f129527088970fb97130dd55cc": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "ab058520bf4f985c5d226106371c6f57999e3b030c29b1fc1b020bbcc427e9ee"
+                  },
+                  "scheme": "ed25519"
+                },
+                "8fa27ed30fc949c418584fc5524497e0ec2e04be39c788edd601cc659bff2a3a": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "6c846f57ff08a679fc35019cf9ed4d111823aef9fbcbc9fefd85b4c2aae7f753"
+                  },
+                  "scheme": "ed25519"
+                }
+              },
+              "roles": {
+                "snapshot": {
+                  "keyids": ["c9d1caacea60532e0a8d2ff1e70d0b968939f0d4b40ea60ba72c223fe9eb5d89"],
+                  "threshold": 1
+                },
+                "root": {
+                  "keyids": [
+                    "ea76dabf8f367a6c1b3e9eab26c149f327ba0049ff8dc36490fcce9184a0aac0",
+                    "6c8a2d279e2f2d608f6d2579b6fcbf5165c9f1f4dfa3b6724f9fbbf9954dccbd",
+                    "ca21148bd4178ba40264d4b5a359f191a5390ec57bc43f54e8792ffcf6fdfe3d"
+                  ],
+                  "threshold": 2
+                },
+                "timestamp": {
+                  "keyids": ["8fa27ed30fc949c418584fc5524497e0ec2e04be39c788edd601cc659bff2a3a"],
+                  "threshold": 1
+                },
+                "targets": {
+                  "keyids": ["5144dd5b201c92b5cdb19708718336e7cdc8e7f129527088970fb97130dd55cc"],
+                  "threshold": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "ea76dabf8f367a6c1b3e9eab26c149f327ba0049ff8dc36490fcce9184a0aac0",
+                "sig": "02149a2d192c4623fcdb0cabd875441c28e0a005c209f4078fb80f1cc404f7f254ba6eb81475f7854da270b3566d3507cd123d2950f8440951ba175efb668d08"
+              },
+              {
+                "keyid": "6c8a2d279e2f2d608f6d2579b6fcbf5165c9f1f4dfa3b6724f9fbbf9954dccbd",
+                "sig": "6f58bd7c7251ebd5e2cc7a1e1bf15f4857e3d4430e6f26a6d46d3176dc98237a09f361f90962057911a10efaf1394857ef13891a259a37798a791017f1fe1604"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+            "bytes": 698,
+            "sha256": "89211341ea58cc9757b586ff029c31c79bb6bb021ce51628e1c39bde1c285ae0",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T14:37:08.582100800Z",
+              "targets": {
+                "channels/preview/windows-x86_64/nsis/1.0.0.json": {
+                  "length": 390,
+                  "hashes": {
+                    "sha256": "0bf6fe85f1490a3cc6d0fd4151ef8a5a01665eac17e92118134395d4563876a0"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "2d218f4fb842b3dc8e6c3584c0f622e7d6f42687bdcb0f387b58cb171430e960",
+                "sig": "7fd6aa36c706cf45fb6cf22227142d2669c7ff4dc62b534a4a3b9666ed620011e2400820ddbc5bdbd23e1226dda1ce5d815167d9e19618247ce28f8f2b290304"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+            "bytes": 691,
+            "sha256": "c16e6491a77c9d87780a6c1421c7fce4f747f8d5f5b329ebc066cade4c45b340",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-12-27T14:37:08.582100800Z",
+              "targets": {
+                "releases/1.0.0/windows-x86_64/nsis.json": {
+                  "length": 1938,
+                  "hashes": {
+                    "sha256": "3fd12ee403b8d63f0025984f2c2cb584e8bedb2df53bbceaf97e1feb07f101d9"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "54d2aeaca645cecf5931832f29d3d29e349a5412daa5d93473f143eb6005ce8d",
+                "sig": "c49891e524d07bdb96bf43ecb34b30ea68cd4d03b0b69e1627bf22d71b61f7564daa05bc09ca8357503f5b81ea159cc40bad5757bbd85732ea04b03e32c18003"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+            "bytes": 3072,
+            "sha256": "3767b334177f90f1b1e9cc26eba589e095d7f8647149653a6dc52b09ef2d249a",
+            "signed": {
+              "_type": "root",
+              "spec_version": "1.0.0",
+              "consistent_snapshot": true,
+              "version": 1,
+              "expires": "2027-08-24T14:37:08.573603900Z",
+              "keys": {
+                "ea76dabf8f367a6c1b3e9eab26c149f327ba0049ff8dc36490fcce9184a0aac0": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "22a53f56b47ea2ad57ddb911262d9421583bed3a5717dcc5a715d88bdcdace0c"
+                  },
+                  "scheme": "ed25519"
+                },
+                "6c8a2d279e2f2d608f6d2579b6fcbf5165c9f1f4dfa3b6724f9fbbf9954dccbd": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "6bf8db155222d689c9dec3b9183207d49183ad145c9d8571d3a5aad78cee4faa"
+                  },
+                  "scheme": "ed25519"
+                },
+                "c9d1caacea60532e0a8d2ff1e70d0b968939f0d4b40ea60ba72c223fe9eb5d89": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "2455ef78a0f9380f933985528ac42cf75fdfb983335d7b5f00b25ce95bbd0e2d"
+                  },
+                  "scheme": "ed25519"
+                },
+                "ca21148bd4178ba40264d4b5a359f191a5390ec57bc43f54e8792ffcf6fdfe3d": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "07a578e0df1db1e5732fb46e6ccd02e8f229765ac70ae5ba67e97102aeac2ae4"
+                  },
+                  "scheme": "ed25519"
+                },
+                "5144dd5b201c92b5cdb19708718336e7cdc8e7f129527088970fb97130dd55cc": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "ab058520bf4f985c5d226106371c6f57999e3b030c29b1fc1b020bbcc427e9ee"
+                  },
+                  "scheme": "ed25519"
+                },
+                "8fa27ed30fc949c418584fc5524497e0ec2e04be39c788edd601cc659bff2a3a": {
+                  "keytype": "ed25519",
+                  "keyval": {
+                    "public": "6c846f57ff08a679fc35019cf9ed4d111823aef9fbcbc9fefd85b4c2aae7f753"
+                  },
+                  "scheme": "ed25519"
+                }
+              },
+              "roles": {
+                "snapshot": {
+                  "keyids": ["c9d1caacea60532e0a8d2ff1e70d0b968939f0d4b40ea60ba72c223fe9eb5d89"],
+                  "threshold": 1
+                },
+                "root": {
+                  "keyids": [
+                    "ea76dabf8f367a6c1b3e9eab26c149f327ba0049ff8dc36490fcce9184a0aac0",
+                    "6c8a2d279e2f2d608f6d2579b6fcbf5165c9f1f4dfa3b6724f9fbbf9954dccbd",
+                    "ca21148bd4178ba40264d4b5a359f191a5390ec57bc43f54e8792ffcf6fdfe3d"
+                  ],
+                  "threshold": 2
+                },
+                "timestamp": {
+                  "keyids": ["8fa27ed30fc949c418584fc5524497e0ec2e04be39c788edd601cc659bff2a3a"],
+                  "threshold": 1
+                },
+                "targets": {
+                  "keyids": ["5144dd5b201c92b5cdb19708718336e7cdc8e7f129527088970fb97130dd55cc"],
+                  "threshold": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "ea76dabf8f367a6c1b3e9eab26c149f327ba0049ff8dc36490fcce9184a0aac0",
+                "sig": "02149a2d192c4623fcdb0cabd875441c28e0a005c209f4078fb80f1cc404f7f254ba6eb81475f7854da270b3566d3507cd123d2950f8440951ba175efb668d08"
+              },
+              {
+                "keyid": "6c8a2d279e2f2d608f6d2579b6fcbf5165c9f1f4dfa3b6724f9fbbf9954dccbd",
+                "sig": "6f58bd7c7251ebd5e2cc7a1e1bf15f4857e3d4430e6f26a6d46d3176dc98237a09f361f90962057911a10efaf1394857ef13891a259a37798a791017f1fe1604"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+            "bytes": 1205,
+            "sha256": "2c66d105804ee6d18d9818fd40f0702d4b9b438fd4c7b1444a1d25c0640dbeb8",
+            "signed": {
+              "_type": "snapshot",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T14:37:08.582100800Z",
+              "meta": {
+                "targets.json": {
+                  "length": 2444,
+                  "hashes": {
+                    "sha256": "dab1370561033824b2476bc151c0216cbcacfc8dd6623183eb1f6fef7abe2d84"
+                  },
+                  "version": 1
+                },
+                "preview.json": {
+                  "length": 698,
+                  "hashes": {
+                    "sha256": "89211341ea58cc9757b586ff029c31c79bb6bb021ce51628e1c39bde1c285ae0"
+                  },
+                  "version": 1
+                },
+                "releases.json": {
+                  "length": 691,
+                  "hashes": {
+                    "sha256": "c16e6491a77c9d87780a6c1421c7fce4f747f8d5f5b329ebc066cade4c45b340"
+                  },
+                  "version": 1
+                },
+                "stable.json": {
+                  "length": 697,
+                  "hashes": {
+                    "sha256": "532147fc9bfcca3dcb035b26bfe24272dead1fa21fc5f6659002ed8cfd6b6979"
+                  },
+                  "version": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "c9d1caacea60532e0a8d2ff1e70d0b968939f0d4b40ea60ba72c223fe9eb5d89",
+                "sig": "600ce32b112ef57bbbc033669532f7f6bbb898da59b46525df3847d54f105864375c76821264fba96c50b7184334c58cd585ebcb99a8caa667496a46c19b1503"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+            "bytes": 697,
+            "sha256": "532147fc9bfcca3dcb035b26bfe24272dead1fa21fc5f6659002ed8cfd6b6979",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-11-04T14:37:08.582100800Z",
+              "targets": {
+                "channels/stable/windows-x86_64/nsis/1.0.0.json": {
+                  "length": 389,
+                  "hashes": {
+                    "sha256": "615b223a9a66dadba794730a5fdf38273acce7721745251d5d39f25aebb25aa5"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {},
+                "roles": []
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "eee72400e25c1c8d5217d0a937aaa85c09511812146400f625f7b99ce73583fa",
+                "sig": "9c5acdd63cdf5ea2c65e611a19d2a0a7f80c777ab44a6baa016d93c3acff7e0f2445dc4e4a76a8cc064dc815bba68a4f8efa227459c5557ad4f093e646d45600"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+            "bytes": 2444,
+            "sha256": "dab1370561033824b2476bc151c0216cbcacfc8dd6623183eb1f6fef7abe2d84",
+            "signed": {
+              "_type": "targets",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-12-27T14:37:08.582100800Z",
+              "targets": {
+                "keys/payload.json": {
+                  "length": 315,
+                  "hashes": {
+                    "sha256": "ea9e5b3cb7c9970d6805d5148c1a0fd568ddfcee226e4144fe89ec4f30a9c58b"
+                  }
+                }
+              },
+              "delegations": {
+                "keys": {
+                  "2d218f4fb842b3dc8e6c3584c0f622e7d6f42687bdcb0f387b58cb171430e960": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "00c60c53849a6cdb51be9819212976d9bb61bec350d6eb4c7bd9931924aa3bb0"
+                    },
+                    "scheme": "ed25519"
+                  },
+                  "eee72400e25c1c8d5217d0a937aaa85c09511812146400f625f7b99ce73583fa": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "01c5c961df40c84392a08a66f1054231809ce963b6b23895e1538a5f2b39e99c"
+                    },
+                    "scheme": "ed25519"
+                  },
+                  "54d2aeaca645cecf5931832f29d3d29e349a5412daa5d93473f143eb6005ce8d": {
+                    "keytype": "ed25519",
+                    "keyval": {
+                      "public": "1b5fec4d1d7b44187c9393945e3a8bd3f2d8966f9f72ad02cfe41606482d376f"
+                    },
+                    "scheme": "ed25519"
+                  }
+                },
+                "roles": [
+                  {
+                    "name": "releases",
+                    "keyids": ["54d2aeaca645cecf5931832f29d3d29e349a5412daa5d93473f143eb6005ce8d"],
+                    "threshold": 1,
+                    "paths": ["releases/1.0.0/windows-x86_64/nsis.json"],
+                    "terminating": true
+                  },
+                  {
+                    "name": "preview",
+                    "keyids": ["2d218f4fb842b3dc8e6c3584c0f622e7d6f42687bdcb0f387b58cb171430e960"],
+                    "threshold": 1,
+                    "paths": ["channels/preview/windows-x86_64/nsis/1.0.0.json"],
+                    "terminating": true
+                  },
+                  {
+                    "name": "stable",
+                    "keyids": ["eee72400e25c1c8d5217d0a937aaa85c09511812146400f625f7b99ce73583fa"],
+                    "threshold": 1,
+                    "paths": ["channels/stable/windows-x86_64/nsis/1.0.0.json"],
+                    "terminating": true
+                  }
+                ]
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "5144dd5b201c92b5cdb19708718336e7cdc8e7f129527088970fb97130dd55cc",
+                "sig": "d0c9e46da5e77bb41ff46cfac90f65f3945dc735ba16cae27a8183f2281c16a9e6ae675f1395e72941d3381fa55c73964b8948191f3ddf68e7c614de417b7a03"
+              }
+            ]
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+            "bytes": 622,
+            "sha256": "7d2a7614dd8d09bcf1de66a46ad060e52903d8c08828ff43104a7f14f981315c",
+            "signed": {
+              "_type": "timestamp",
+              "spec_version": "1.0.0",
+              "version": 1,
+              "expires": "2026-10-30T14:37:08.582100800Z",
+              "meta": {
+                "snapshot.json": {
+                  "length": 1205,
+                  "hashes": {
+                    "sha256": "2c66d105804ee6d18d9818fd40f0702d4b9b438fd4c7b1444a1d25c0640dbeb8"
+                  },
+                  "version": 1
+                }
+              }
+            },
+            "signatures": [
+              {
+                "keyid": "8fa27ed30fc949c418584fc5524497e0ec2e04be39c788edd601cc659bff2a3a",
+                "sig": "05276e7ae63ec2312987606f39c041b158fff00e5e2e228dc1c794525e39aa57507cec5d63313c83ce69c149c620e07d65b068d2240ebe95f23a164bc511fd0b"
+              }
+            ]
+          }
+        ],
+        "signed_record_inputs": [
+          {
+            "path": "windows-installed-update-qualification/inputs/descriptor.json",
+            "bytes": 1069,
+            "sha256": "35855afd2ed6750900e27929710664dabef24b385e799ed81ea85e138829b25d",
+            "contents": {
+              "schema_version": 1,
+              "releases": [
+                {
+                  "inventory": "updater-inventory.json",
+                  "signature": "candidate.sig",
+                  "source_tree": "5fd8da9c63180b2c55ca4b67b0458a00d7e08dac",
+                  "qualified_run": {
+                    "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+                    "workflow_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+                    "run_id": 1,
+                    "attempt": 1
+                  },
+                  "execution_context": "installed-current-user",
+                  "compatibility": {
+                    "minimum_os_version": "10.0.26300",
+                    "required_capabilities": ["library-lock-v1"],
+                    "cli_protocol": {
+                      "min": 82,
+                      "max": 82
+                    },
+                    "catalog_formats": [2],
+                    "library": {
+                      "read": {
+                        "min": 1,
+                        "max": 43
+                      },
+                      "write_schema": 43,
+                      "lock_protocol": "library-lock-v1"
+                    }
+                  },
+                  "evidence_ids": ["updater-artifact-rehearsal-1-windows-x86_64"]
+                }
+              ]
+            }
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/eligibility.json",
+            "bytes": 165,
+            "sha256": "1db0f409cd4fae3c6dfad6023dd2c5ab43f96fbbaf4d1dfc22e618546035cf75",
+            "contents": {
+              "v1.0.0": {
+                "version": "1.0.0",
+                "preview_eligible": true,
+                "production_eligible": true,
+                "targets": ["windows-x86_64"]
+              }
+            }
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/updater-inventory.json",
+            "bytes": 1241,
+            "sha256": "5d5a47e8c575c793cc79d6f7a2914704e7b6713cb56f5c02b9ce8cbde22bffb4",
+            "contents": {
+              "schema_version": 1,
+              "repository": "boburning/portcove",
+              "version": "1.0.0",
+              "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+              "platform_label": "windows-x86_64",
+              "application_identifier": "io.github.portcove.portcove",
+              "packages": [
+                {
+                  "id": "desktop-windows-x86_64-nsis",
+                  "filename": "Portcove_1.0.0_x64-setup.exe",
+                  "bytes": 13733386,
+                  "sha256": "2613bf2ff0ada348acc039c617ebe0c0015c3c0e9cfa1eef8cf94f6a53469545"
+                },
+                {
+                  "id": "cli-windows-x86_64-zip",
+                  "filename": "portcove-cli-1.0.0-windows-x86_64.zip",
+                  "bytes": 12626253,
+                  "sha256": "eb6897b8ab541655e60a3c8ae036d84d61fb3df1eb25f858dae247e6db225f85"
+                }
+              ],
+              "updater": {
+                "id": "desktop-windows-x86_64-nsis",
+                "target": "windows-x86_64",
+                "format": "nsis",
+                "filename": "Portcove_1.0.0_x64-setup.exe",
+                "bytes": 13733386,
+                "sha256": "2613bf2ff0ada348acc039c617ebe0c0015c3c0e9cfa1eef8cf94f6a53469545",
+                "signature": {
+                  "filename": "Portcove_1.0.0_x64-setup.exe.sig",
+                  "bytes": 436,
+                  "sha256": "0c75acc4dc019b0f00d3e08e30ce36dc993bde8723481d24e949100f96f2a0c8"
+                },
+                "public_key_sha256": "c3e5919e03daa2ee439dfb7ef358d32d4a7a30347af43fa9d1b9e505307cab06"
+              }
+            }
+          }
+        ]
+      },
+      "installed": {
+        "initial_executable_sha256": "dfaffca351c2bbb3624fc7353a7e7c7b4f2bb34f91ade6e95bf488137fba8082",
+        "candidate_executable_sha256": "b39c0f2eb3179f68ed7c6dce969e8278b60e482ee6614bfbfd157d885dffd5e9",
+        "details": {
+          "signature_status": "NotSigned",
+          "install_mode": "Passive",
+          "update_path": "installed_app_renderer",
+          "registered_version": "1.0.0",
+          "registration_account_sid": null,
+          "registration_path": "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
+          "application_responding": true,
+          "application_exit_code": 0,
+          "uninstall_exit_code": 0,
+          "managed_files_removed": true,
+          "registration_removed": true
+        },
+        "owned_relative_paths": {
+          "run_root_relative": "run-e1923efb116f499493ab51a0bab2ff52",
+          "install_relative": "run-e1923efb116f499493ab51a0bab2ff52/installed",
+          "library_relative": "run-e1923efb116f499493ab51a0bab2ff52/library"
+        },
+        "ui_actions": [
+          "installed-gui-opened",
+          "preview-manual-settings-saved",
+          "signed-candidate-presented",
+          "exact-installed-candidate-status-read-back",
+          "renderer-downloaded-and-verified",
+          "candidate-restarted-and-reconciled"
+        ],
+        "helper_result_marker": {
+          "exit_code": 0,
+          "process_id": 10244,
+          "schema_version": 1
+        },
+        "original_helper_os_exit": null,
+        "original_natural_process_observation": {
+          "candidate": {
+            "capture": {
+              "status": "exited",
+              "pid": 17580
+            },
+            "exit": {
+              "status": "exited",
+              "pid": 17580
+            }
+          },
+          "helper": {
+            "capture": {
+              "status": "exited",
+              "pid": 10244
+            },
+            "exit": {
+              "status": "exited",
+              "pid": 10244
+            }
+          }
+        },
+        "process_runs": [
+          {
+            "id": "109eea7b17594e9bab75b3ef7284c9d5",
+            "role": "predecessor_installer",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "1abd7a735963d3723ae2ce6f69044f9ba5c10dab9486206a44d97a03cca1c052"
+          },
+          {
+            "id": "804b4f6efb04404baf2cb832f6a79ba4",
+            "role": "predecessor_smoke",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "dfaffca351c2bbb3624fc7353a7e7c7b4f2bb34f91ade6e95bf488137fba8082"
+          },
+          {
+            "id": "e73a593e8a054fa2a20f27bc7752f647",
+            "role": "installed_update_truncated_stage",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "dfaffca351c2bbb3624fc7353a7e7c7b4f2bb34f91ade6e95bf488137fba8082"
+          },
+          {
+            "id": "a7b8c988cecb4e22982d830ecbdb33f9",
+            "role": "installed_update_tampered_stage",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "dfaffca351c2bbb3624fc7353a7e7c7b4f2bb34f91ade6e95bf488137fba8082"
+          },
+          {
+            "id": "bda91940d65f4d6290856c9c371d82d8",
+            "role": "installed_update_recovery_status",
+            "status": "exit_observed",
+            "exit_code": 1,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "dfaffca351c2bbb3624fc7353a7e7c7b4f2bb34f91ade6e95bf488137fba8082"
+          },
+          {
+            "id": "06b9e0f14b504973873fd1e7acad0e61",
+            "role": "installed_update_recovery_repair",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "dfaffca351c2bbb3624fc7353a7e7c7b4f2bb34f91ade6e95bf488137fba8082"
+          },
+          {
+            "id": "18b4ad465c1542ffad37eb8195ed04f8",
+            "role": "installed_update_recovery_verified",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "dfaffca351c2bbb3624fc7353a7e7c7b4f2bb34f91ade6e95bf488137fba8082"
+          },
+          {
+            "id": "22b986b34abc4b98b68ca4dd461af2a5",
+            "role": "candidate_smoke",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "b39c0f2eb3179f68ed7c6dce969e8278b60e482ee6614bfbfd157d885dffd5e9"
+          },
+          {
+            "id": "6414464fd29c44c6a1d0283cc3ade19b",
+            "role": "candidate_uninstaller",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "4dc6e4b7e747be321f3b953a34288cc050f40586f340371b42867ed6b2365119"
+          },
+          {
+            "id": "36bd3f2b3c3e451996cbca42c055c325",
+            "role": "candidate_uninstaller_child",
+            "status": "exit_observed",
+            "exit_code": 0,
+            "exit_observation": "Observed through the retained launch handle",
+            "executable_sha256": "4dc6e4b7e747be321f3b953a34288cc050f40586f340371b42867ed6b2365119"
+          }
+        ],
+        "unverified_child_capture_failed": false
+      },
+      "preservation": {
+        "across_upgrade": "synthetic user/installer-qualification/preserve.txt hash plus installed executable/Tauri setup/apply-intent reconciliation; not recursive DB/artwork/preferences equality",
+        "uninstall_manifest_equal": true,
+        "uninstall_manifest": {
+          "library": [
+            {
+              "path": "artwork-cache/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "artwork-cache/492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050.jpg",
+              "type": "file",
+              "bytes": 5603,
+              "sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050"
+            },
+            {
+              "path": "artwork-cache/4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421.jpg",
+              "type": "file",
+              "bytes": 26182,
+              "sha256": "4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421"
+            },
+            {
+              "path": "artwork-cache/683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0.jpg",
+              "type": "file",
+              "bytes": 5038,
+              "sha256": "683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0"
+            },
+            {
+              "path": "artwork-cache/d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365.jpg",
+              "type": "file",
+              "bytes": 7080,
+              "sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365"
+            },
+            {
+              "path": "artwork-cache/f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5.jpg",
+              "type": "file",
+              "bytes": 23126,
+              "sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5"
+            },
+            {
+              "path": "backups/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "downloads/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "locks/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "locks/artwork.lock",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "locks/library.lock",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "locks/migration.lock",
+              "type": "file",
+              "bytes": 47,
+              "sha256": "a15c97faff8ee8ae780eacc6ef997f2a8f4623639afa4ed2f8645f071affefd5"
+            },
+            {
+              "path": "locks/migration.owner.json",
+              "type": "file",
+              "bytes": 55,
+              "sha256": "4cd117a9edbc1e12533ecb512735fdb30407a5f908fcad3817cccfa013cdda5a"
+            },
+            {
+              "path": "logs/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "portcove.sqlite3",
+              "type": "file",
+              "bytes": 348160,
+              "sha256": "6f04962fa84f631f4bd5e93acb0c56567f8d89834f4752184ed0f7f1d4faaeda"
+            },
+            {
+              "path": "portcove.sqlite3-shm",
+              "type": "file",
+              "bytes": 32768,
+              "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+            },
+            {
+              "path": "portcove.sqlite3-wal",
+              "type": "file",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "recovery/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "source-inbox/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "staging/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "toolchains/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/installer-qualification/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            },
+            {
+              "path": "user/installer-qualification/preserve.txt",
+              "type": "file",
+              "bytes": 32,
+              "sha256": "5db671150653bd7784be1bb2eb37de6af731a1e028e71544f471ed5188e0ec1d"
+            },
+            {
+              "path": "versions/",
+              "type": "directory",
+              "bytes": null,
+              "sha256": null
+            }
+          ],
+          "preferences": {
+            "present": true,
+            "bytes": 91,
+            "sha256": "b860478f3a2db77cbd98a6e42f876aa0d96e810120eb81dbfcfb6bc0a4ad1251"
+          }
+        },
+        "real_installed_games_or_saves": false,
+        "general_existing_preferences_continuity": "not established; exact manifest presence/absence is retained above"
+      },
+      "packaged_consumer": {
+        "identity": {
+          "path": "windows-payload-consumer.json",
+          "bytes": 2892,
+          "sha256": "5eb2c818f7159804ff6a8236fe219c73996947953933653f845bd2db74e8ed73"
+        },
+        "scope": "packaged consumer fixture cases; not remote public-feed GUI coverage",
+        "cases": {
+          "missing-signature": {
+            "case": "missing-signature",
+            "outcome": "rejected",
+            "error": "authenticated update identity is invalid: Tauri signature",
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "1.0.0",
+            "candidate_sha256": "2613bf2ff0ada348acc039c617ebe0c0015c3c0e9cfa1eef8cf94f6a53469545",
+            "candidate_bytes": 13733386,
+            "payload_key_id": "c3e5919e03daa2ee439dfb7ef358d32d4a7a30347af43fa9d1b9e505307cab06",
+            "staged_payload_sha256": null,
+            "staged_payload_bytes": null,
+            "staging_has_candidate": false
+          },
+          "wrong-signature": {
+            "case": "wrong-signature",
+            "outcome": "rejected",
+            "error": "payload verification material is invalid: signature does not use the selected key or streaming format",
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "1.0.0",
+            "candidate_sha256": "2613bf2ff0ada348acc039c617ebe0c0015c3c0e9cfa1eef8cf94f6a53469545",
+            "candidate_bytes": 13733386,
+            "payload_key_id": "c3e5919e03daa2ee439dfb7ef358d32d4a7a30347af43fa9d1b9e505307cab06",
+            "staged_payload_sha256": null,
+            "staged_payload_bytes": null,
+            "staging_has_candidate": false
+          },
+          "valid-signature": {
+            "case": "valid-signature",
+            "outcome": "staged",
+            "error": null,
+            "platform_label": "windows-x86_64",
+            "updater_target": "windows-x86_64",
+            "updater_format": "nsis",
+            "candidate_version": "1.0.0",
+            "candidate_sha256": "2613bf2ff0ada348acc039c617ebe0c0015c3c0e9cfa1eef8cf94f6a53469545",
+            "candidate_bytes": 13733386,
+            "payload_key_id": "c3e5919e03daa2ee439dfb7ef358d32d4a7a30347af43fa9d1b9e505307cab06",
+            "staged_payload_sha256": "2613bf2ff0ada348acc039c617ebe0c0015c3c0e9cfa1eef8cf94f6a53469545",
+            "staged_payload_bytes": 13733386,
+            "staging_has_candidate": true
+          }
+        },
+        "production_signing": false,
+        "private_signing_inputs_absent": {
+          "payload_private_key": true,
+          "wrong_payload_private_root": true,
+          "wrong_payload_password": true,
+          "signing_private_key_environment": true,
+          "signing_private_key_path_environment": true,
+          "signing_password_environment": true
+        }
+      },
+      "local_retention": {
+        "profile": "preview-final",
+        "file_count": 386,
+        "expanded_bytes": 246886263,
+        "archive": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-preview-final.zip",
+          "bytes": 160968827,
+          "sha256": "ee47e6ce209c7f667ea07dde761fa8028d04f69f1cc8fe06789d3816f9b9e752"
+        },
+        "manifest": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-adcbeaad-preview-final-manifest.json",
+          "bytes": 91810,
+          "sha256": "fee465519f670f960d0eb80aaf101be53a6f89331a4edd03e5836857bbcbd8ef"
+        }
+      },
+      "qualified_predecessor_additional_custody": {
+        "profile": "preview-final",
+        "consumed_identity_source": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-evidence-adcbeaad-preview-final/windows-installed-update.json",
+        "report_sha256": "4db2e21ff5be58b2418d621e6a3788b7ea0d8ab4cf05cd85b620d542e29d2b1a",
+        "files": [
+          {
+            "source_path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/target/release/bundle/nsis/Portcove_1.0.0-rc.2_x64-setup.exe",
+            "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-qualified-predecessors/preview-final/Portcove_1.0.0-rc.2_x64-setup.exe",
+            "bytes": 14451936,
+            "sha256": "1abd7a735963d3723ae2ce6f69044f9ba5c10dab9486206a44d97a03cca1c052"
+          },
+          {
+            "source_path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/target/release/bundle/nsis/Portcove_1.0.0-rc.2_x64-setup.exe.sig",
+            "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-qualified-predecessors/preview-final/Portcove_1.0.0-rc.2_x64-setup.exe.sig",
+            "bytes": 452,
+            "sha256": "0cdad49380391d30b652f90efdab1688027caec67a1b29cb938f4bf1f6fcb462"
+          }
+        ]
+      }
+    }
+  ],
+  "supplemental_controller_token": {
+    "identity": {
+      "bytes": 479,
+      "sha256": "d31a90131f975c754adb3f1cd484ec297ff0fabe341f7485029b87d6651609b6"
+    },
+    "observed_at": "2026-10-28T14:52:16.9731658Z",
+    "effective_administrator": false,
+    "builtin_administrators_token_group": [
+      {
+        "sid": "S-1-5-32-544",
+        "attributes": "Group used for deny only"
+      }
+    ],
+    "integrity": [
+      {
+        "sid": "S-1-16-8192",
+        "attributes": ""
+      }
+    ],
+    "controller_caller_sid_sha256": "289cd4dc9972cc81f8b2c8f80cf1820b6b5d118b0d277c8ca648b2b8ab613fd4",
+    "scope": "supplementary controller-token observation; per-cohort captures independently record effective admin/integrity; no true standard-account or complete child-token-group claim"
+  },
+  "helper_exit_replays": [
+    {
+      "profile": "preview-final",
+      "lifecycle": {
+        "path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/helper-os-replay-final/windows-helper-os-replay.json",
+        "bytes": 30826,
+        "sha256": "97859de65c9b92852341a2e0f5a2e53a7dd72c11c417ac0f5071a275c6c311df",
+        "phase": "complete",
+        "failure": null
+      },
+      "renderer": {
+        "path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/helper-os-replay-final/windows-renderer-evidence/renderer-update-evidence.json",
+        "bytes": 7802,
+        "sha256": "3f93203d38696c1d995779c192748a5307190f987b830154090c5ab7a4ae8e8d",
+        "phase": "complete",
+        "failure": null
+      },
+      "source_scope": "ADC product/base plus exactly three ff994954 observation-file overlays; four temporarily versioned metadata inputs restored",
+      "base_product_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+      "observer_commit": "ff99495460f25cbcf7a0721145441b164e2d8cfe",
+      "helper_os_exit": {
+        "kind": "observation",
+        "observation": {
+          "status": "exit-observed",
+          "pid": 25800,
+          "exit_code": 0,
+          "path": "\\\\?\\H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\helper-os-replay-final\\installer-test\\run-f2a84f80d11242c99cb947a8b3978fa9\\application-update\\workers\\revision-2\\attempt-6312-1793201842970300000-0\\portcove-update-worker.exe",
+          "started_filetime": "134376754433927590",
+          "observation": "retained-process-handle"
+        }
+      },
+      "helper_result_marker": {
+        "exit_code": 0,
+        "process_id": 25800,
+        "schema_version": 1
+      },
+      "restoration_receipt": {
+        "identity": {
+          "bytes": 652,
+          "sha256": "771747987d09ffee11e2dd04b2fbde4fd0797b71c732c5759db2c3780275fae2"
+        },
+        "files": [
+          {
+            "matches_original": true,
+            "path": "Cargo.toml",
+            "sha256": "d554105b0a400be29e2ca9750de46d0bf9de8aedcfaf4690f90accb14ff12119"
+          },
+          {
+            "matches_original": true,
+            "path": "Cargo.lock",
+            "sha256": "dc4fd806e9d40e8972352b6cc46752ad4f4ed5c0371c408705e4bff8431115e9"
+          },
+          {
+            "matches_original": true,
+            "path": "apps/desktop/package.json",
+            "sha256": "ba1be53dc72151f0fcfe53bb73b88315c8df31158f59c3094e4272d70bb8ab41"
+          },
+          {
+            "matches_original": true,
+            "path": "apps/desktop/src-tauri/tauri.conf.json",
+            "sha256": "d94fbb455bf3908a285d3dac091e2af752dbf68f1d3cb1414a65657a57a60719"
+          }
+        ]
+      },
+      "ui_actions": [
+        "installed-gui-opened",
+        "preview-manual-settings-saved",
+        "signed-candidate-presented",
+        "exact-installed-candidate-status-read-back",
+        "renderer-downloaded-and-verified",
+        "candidate-restarted-and-reconciled"
+      ],
+      "durable_local_retention": {
+        "profile": "final",
+        "file_count": 145,
+        "expanded_bytes": 10491620,
+        "archive": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-helper-os-replay-final.zip",
+          "bytes": 419276,
+          "sha256": "e4891f45488e919e3239b63a830fe4cc5433ced7f35f26ac0013857480a17d2d"
+        },
+        "manifest": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-helper-os-replay-final-manifest.json",
+          "bytes": 37226,
+          "sha256": "852ea8df3210043bfbd9a6339b9bb5f1c5c71f18904e401abcf006d346d86e1b"
+        }
+      }
+    },
+    {
+      "profile": "legacy-adjacent",
+      "lifecycle": {
+        "path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/helper-os-replay-legacy-adjacent/windows-helper-os-replay.json",
+        "bytes": 31016,
+        "sha256": "4c444127bb662f32a8369953b9f968a12102bf40fbbbf2c72fdf69a337e98c21",
+        "phase": "complete",
+        "failure": null
+      },
+      "renderer": {
+        "path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/helper-os-replay-legacy-adjacent/windows-renderer-evidence/renderer-update-evidence.json",
+        "bytes": 7910,
+        "sha256": "8b18845d40977ce328c793435bcc098b45cdd17dbab171b330ab9df41c2ade10",
+        "phase": "complete",
+        "failure": null
+      },
+      "source_scope": "ADC product/base plus exactly three ff994954 observation-file overlays; four temporarily versioned metadata inputs restored",
+      "base_product_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+      "observer_commit": "ff99495460f25cbcf7a0721145441b164e2d8cfe",
+      "helper_os_exit": {
+        "kind": "observation",
+        "observation": {
+          "status": "exit-observed",
+          "pid": 3064,
+          "exit_code": 0,
+          "path": "\\\\?\\H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\helper-os-replay-legacy-adjacent\\installer-test\\run-ac8c60c3501a484291f8412b24013442\\application-update\\workers\\revision-2\\attempt-23012-1793203707610947700-0\\portcove-update-worker.exe",
+          "started_filetime": "134376773080446811",
+          "observation": "retained-process-handle"
+        }
+      },
+      "helper_result_marker": {
+        "exit_code": 0,
+        "process_id": 3064,
+        "schema_version": 1
+      },
+      "restoration_receipt": {
+        "identity": {
+          "bytes": 652,
+          "sha256": "c3929b0c024b3f4e5d6d807f48576c21955b2dc0450968d7b466ec093eb3e2d1"
+        },
+        "files": [
+          {
+            "path": "Cargo.toml",
+            "sha256": "d554105b0a400be29e2ca9750de46d0bf9de8aedcfaf4690f90accb14ff12119",
+            "matches_original": true
+          },
+          {
+            "path": "Cargo.lock",
+            "sha256": "dc4fd806e9d40e8972352b6cc46752ad4f4ed5c0371c408705e4bff8431115e9",
+            "matches_original": true
+          },
+          {
+            "path": "apps/desktop/package.json",
+            "sha256": "ba1be53dc72151f0fcfe53bb73b88315c8df31158f59c3094e4272d70bb8ab41",
+            "matches_original": true
+          },
+          {
+            "path": "apps/desktop/src-tauri/tauri.conf.json",
+            "sha256": "d94fbb455bf3908a285d3dac091e2af752dbf68f1d3cb1414a65657a57a60719",
+            "matches_original": true
+          }
+        ]
+      },
+      "ui_actions": [
+        "installed-gui-opened",
+        "preview-manual-settings-saved",
+        "signed-candidate-presented",
+        "exact-installed-candidate-status-read-back",
+        "renderer-downloaded-and-verified",
+        "candidate-restarted-and-reconciled"
+      ],
+      "durable_local_retention": {
+        "profile": "legacy-adjacent",
+        "file_count": 143,
+        "expanded_bytes": 10481948,
+        "archive": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-helper-os-replay-legacy-adjacent.zip",
+          "bytes": 413755,
+          "sha256": "0a09124675e34b9db2a03f17bacd5cdb3f3d2de5b855819bcaab28e6210c5b54"
+        },
+        "manifest": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-helper-os-replay-legacy-adjacent-manifest.json",
+          "bytes": 36745,
+          "sha256": "59c07a9b033f36e61626860a032ea96a9bd50bdb89f003f57fb44d6f027ab9d1"
+        }
+      },
+      "input_preparation": {
+        "profile": "legacy-adjacent",
+        "candidate_version": "0.2.0",
+        "restored_input_file_count": 376,
+        "restored_input_bytes": 244195343,
+        "critical_file_hashes": [
+          {
+            "path": "0.1.0-bundles/nsis/Portcove_0.1.0_x64-setup.exe",
+            "sha256": "7156186029764ced991c4cc06566cb6bd03f9880da7d5d21f361488a7bd40a74"
+          },
+          {
+            "path": "0.1.0-bundles/nsis/Portcove_0.1.0_x64-setup.exe.sig",
+            "sha256": "61b7dff36cd93325a874f6c21bc95acdf06b4d665b312c47e6fb7f2a01061aeb"
+          },
+          {
+            "path": "0.1.0-fixture.patch",
+            "sha256": "40e238b7d417359cb592a0b61e475af6b694a96b6e1123b5322243c83ce15f76"
+          },
+          {
+            "path": "0.1.0-native.json",
+            "sha256": "5a1e8dd9124f4524564bfe8fa42064fb757284f292ec4c8797618febdeac3319"
+          },
+          {
+            "path": "0.1.0-windows-x86_64/Portcove_0.1.0_x64-setup.exe",
+            "sha256": "7156186029764ced991c4cc06566cb6bd03f9880da7d5d21f361488a7bd40a74"
+          },
+          {
+            "path": "0.1.0-windows-x86_64/Portcove_0.1.0_x64-setup.exe.sig",
+            "sha256": "61b7dff36cd93325a874f6c21bc95acdf06b4d665b312c47e6fb7f2a01061aeb"
+          },
+          {
+            "path": "0.1.0-windows-x86_64/updater-inventory.json",
+            "sha256": "39aeabcff0e23292b55cbfa4ab87e92e8e37c42a1c6142c5e2f9d5bcb1075a1a"
+          },
+          {
+            "path": "0.2.0-bundles/nsis/Portcove_0.2.0_x64-setup.exe",
+            "sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335"
+          },
+          {
+            "path": "0.2.0-bundles/nsis/Portcove_0.2.0_x64-setup.exe.sig",
+            "sha256": "fd69df082f3f3ca05b4cdf3f46abca5cdd01502d8ca9fe1890093177808cd3e3"
+          },
+          {
+            "path": "0.2.0-fixture.patch",
+            "sha256": "15e9859824776457f5fa5a92fabc872c6b188983e5a6c7a31be8833a6b77f185"
+          },
+          {
+            "path": "0.2.0-native.json",
+            "sha256": "cf49bc6f549d53a5615c404cdba824c9c2adbc7182a1a7d6054f8d984cf045f7"
+          },
+          {
+            "path": "0.2.0-windows-x86_64/Portcove_0.2.0_x64-setup.exe",
+            "sha256": "7026ab96b613495ba5cc13b40c223174f9ef7d529fa84e11288bd572ea52b335"
+          },
+          {
+            "path": "0.2.0-windows-x86_64/Portcove_0.2.0_x64-setup.exe.sig",
+            "sha256": "fd69df082f3f3ca05b4cdf3f46abca5cdd01502d8ca9fe1890093177808cd3e3"
+          },
+          {
+            "path": "0.2.0-windows-x86_64/updater-inventory.json",
+            "sha256": "618fed400503be87d399a9220b08779c91655e5988eb861e9f35cfcc25d57263"
+          },
+          {
+            "path": "diagnostics/session-00/.portcove-session.json",
+            "sha256": "82aebf611350b39c668cd43be4c8664bc4730029eab71247f9b1ca22850c1cf5"
+          },
+          {
+            "path": "diagnostics/session-01/.portcove-session.json",
+            "sha256": "a61e632a4e2602fe574ca19e398a8782bc0363e6036514d6350112017d7da8b4"
+          },
+          {
+            "path": "diagnostics/session-02/.portcove-session.json",
+            "sha256": "53842b93bf8b2d4fbe3254662bd891e61054a3a579df69e75e9c4c598dc41eef"
+          },
+          {
+            "path": "diagnostics/session-03/.portcove-session.json",
+            "sha256": "331182f612251f577ce6b22a26661d7a678ea17c195ec0e21f32d998cd8e4070"
+          },
+          {
+            "path": "diagnostics/session-04/.portcove-session.json",
+            "sha256": "1aeeb37712903561bb3a4e6f9419f1474b525349419315f861c1fa17f171c9fd"
+          },
+          {
+            "path": "diagnostics/session-05/.portcove-session.json",
+            "sha256": "6af165ef52102b89e76aefd4f969671ac213679e66ad9a6d22f599760b0fbd08"
+          },
+          {
+            "path": "diagnostics/session-06/.portcove-session.json",
+            "sha256": "10a4b961b9db6f73ebf71c85a419e7faa9381555fb5c44d347ecf3d27158931a"
+          },
+          {
+            "path": "diagnostics/session-07/.portcove-session.json",
+            "sha256": "d845fd434299177044733d12172900d92725e2a468d978a52d3718067a09566e"
+          },
+          {
+            "path": "disposable.key.pub",
+            "sha256": "7e61059f5a97e62b62bc149cbc534af84dbd2caf6076e74cf7efcc8a81a663cd"
+          },
+          {
+            "path": "preferences.json",
+            "sha256": "b860478f3a2db77cbd98a6e42f876aa0d96e810120eb81dbfcfb6bc0a4ad1251"
+          },
+          {
+            "path": "rehearsal-config.json",
+            "sha256": "b428f8c66193e409e4acf529658fbdc26452908b3c5a4891c625db10363df704"
+          },
+          {
+            "path": "rehearsal-result.json",
+            "sha256": "fbfcb50913c55ede061c977f9489712f36569b579045fcca191b05fd116428f4"
+          },
+          {
+            "path": "windows-candidate-desktop.exe",
+            "sha256": "6a205f693a92a8553adb22b1aacdf7faa5f9970c409b00d301e60cd5b65b955e"
+          },
+          {
+            "path": "windows-candidate-installer-extracted/portcove-desktop.exe",
+            "sha256": "6a205f693a92a8553adb22b1aacdf7faa5f9970c409b00d301e60cd5b65b955e"
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/candidate.sig",
+            "sha256": "fd69df082f3f3ca05b4cdf3f46abca5cdd01502d8ca9fe1890093177808cd3e3"
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/descriptor.json",
+            "sha256": "35855afd2ed6750900e27929710664dabef24b385e799ed81ea85e138829b25d"
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/eligibility.json",
+            "sha256": "7b011f2cad5cf1657f0229fdf2e05ff9f76a1bbe55628fc0b0cd7f0c80062863"
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/updater-inventory.json",
+            "sha256": "618fed400503be87d399a9220b08779c91655e5988eb861e9f35cfcc25d57263"
+          },
+          {
+            "path": "windows-installed-update-qualification/payload.json",
+            "sha256": "abc35df0d24acbf7c8b6cd67e10824d1d23ef11566ce35bce7badd90c764a313"
+          },
+          {
+            "path": "windows-installed-update-qualification/records/channels/preview/windows-x86_64/nsis/0.2.0.json",
+            "sha256": "8d86c125993d91db43e417d38cf78e38ba279aab6392c2f861791fca8ed3608e"
+          },
+          {
+            "path": "windows-installed-update-qualification/records/reconstruction-manifest.json",
+            "sha256": "b0040a02c123f86842892c598e2ea889a1d13a45d11b594711492946ec4bcc11"
+          },
+          {
+            "path": "windows-installed-update-qualification/records/releases/0.2.0/windows-x86_64/nsis.json",
+            "sha256": "d16be1282b7664a37cbf7f424b0abb4d407d3712e07c1546103fbfd72dd3a04a"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+            "sha256": "539f8a358c5c9cd9d3b531b88c9892ffdd1c4d01d0f889410a5d1b7955960176"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+            "sha256": "703525362ca999104ce6c1fae7685237d84fb8f96eab564e93d6c7712818ec9c"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+            "sha256": "ef48edda433fbc4a4096cba51ebbeffef286585bb382468ee3cc2c91add7d8b4"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+            "sha256": "8534abeef4a6bbc94205402ef8273f18206b73407de1ad8ff860638d0a4fdea3"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+            "sha256": "04a8d4ebc75cd64cf8df5e3a944de83c0ddb9cd4c633c5a57b1f0548be5f1ddb"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+            "sha256": "19e801ce2310f19518b2f8bd82739b78e619340ab80f0aa19933dbf218654908"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+            "sha256": "39cd59b067dd82a030885364be9f4b4c5be517b9f854ad3062dba8aaec84c4c2"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/repository-manifest.json",
+            "sha256": "eadc5c483eae6f3eb186ba5338de151918e0a524dd01573ff2eedfeff44a9d36"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/targets/8d86c125993d91db43e417d38cf78e38ba279aab6392c2f861791fca8ed3608e.channels/preview/windows-x86_64/nsis/0.2.0.json",
+            "sha256": "8d86c125993d91db43e417d38cf78e38ba279aab6392c2f861791fca8ed3608e"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/targets/abc35df0d24acbf7c8b6cd67e10824d1d23ef11566ce35bce7badd90c764a313.keys/payload.json",
+            "sha256": "abc35df0d24acbf7c8b6cd67e10824d1d23ef11566ce35bce7badd90c764a313"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/targets/d16be1282b7664a37cbf7f424b0abb4d407d3712e07c1546103fbfd72dd3a04a.releases/0.2.0/windows-x86_64/nsis.json",
+            "sha256": "d16be1282b7664a37cbf7f424b0abb4d407d3712e07c1546103fbfd72dd3a04a"
+          },
+          {
+            "path": "windows-installed-update-qualification/trusted-root.json",
+            "sha256": "ef48edda433fbc4a4096cba51ebbeffef286585bb382468ee3cc2c91add7d8b4"
+          },
+          {
+            "path": "windows-installed-update-summary.json",
+            "sha256": "372d077a4652cd9b0f436e0c2f1e6c0e71923e64454ee1696f0deb019d758b5f"
+          },
+          {
+            "path": "windows-installed-update.json",
+            "sha256": "dade2e71c10494eef6745b2634d21535a68e795816972e91918155cf3ae48b06"
+          },
+          {
+            "path": "windows-payload-consumer.json",
+            "sha256": "52d171b0ce556f0acfb328a7dffafd9fadfd1bc7f37d6df30272af09136ace07"
+          },
+          {
+            "path": "windows-renderer-evidence/embedded-processes-0.json",
+            "sha256": "67cc62bf90647c3e88e2f14d16a69d97232515cf77d7dc33b87f24bc856f8297"
+          },
+          {
+            "path": "windows-renderer-evidence/embedded-processes-1.json",
+            "sha256": "112f7084fd78306f2d2a4ba7090a5b70ab11d1f2db6f2b84852056b7cdb0993e"
+          },
+          {
+            "path": "windows-renderer-evidence/embedded-processes-2.json",
+            "sha256": "836d471b024465a2e006d9881c59d720d291a78c452669e6798ed919ce58ba37"
+          },
+          {
+            "path": "windows-renderer-evidence/embedded-status-probes.json",
+            "sha256": "ea5604904bfa02a01eb9045ef97196887343ec6531eb98a359689d3850a490c5"
+          },
+          {
+            "path": "windows-renderer-evidence/renderer-update-evidence.json",
+            "sha256": "28c2f978fc5fcc8465774523f653b0213260527f3b7c95f2f914432f0d8a0c17"
+          },
+          {
+            "path": "windows-x86_64-payload-consumer/wrong-signature/Portcove_0.2.0_x64-setup.exe.sig",
+            "sha256": "492896c65c81b8d893f44462bc120740d65ba486b18c83fcc307c8a102ef2c70"
+          }
+        ],
+        "freshness_observed_at": "2026-10-28T16:00:35.823886+00:00",
+        "served_role_expiries": [
+          {
+            "path": "windows-installed-update-qualification/trusted-root.json",
+            "expires": "2027-08-24T13:18:31.656360900Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+            "expires": "2026-11-04T13:18:31.662806800Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+            "expires": "2026-12-27T13:18:31.662806800Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+            "expires": "2027-08-24T13:18:31.656360900Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+            "expires": "2026-11-04T13:18:31.662806800Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+            "expires": "2026-11-04T13:18:31.662806800Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+            "expires": "2026-12-27T13:18:31.662806800Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+            "expires": "2026-10-30T13:18:31.662806800Z"
+          }
+        ],
+        "fixture_patch_original_sha256": "40e238b7d417359cb592a0b61e475af6b694a96b6e1123b5322243c83ce15f76",
+        "fixture_patch_lf_sha256": "ee5dfd8e757413d542ffd41049eebf704a36e0bb909fd7de840840d57e963eea",
+        "public_root_for_preparation": "immutable original cohort root bytes at distinct filename; no signature changes",
+        "prior_live_inputs_preserved": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal-before-legacy-adjacent"
+      }
+    },
+    {
+      "profile": "legacy-skipped",
+      "lifecycle": {
+        "path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/helper-os-replay-legacy-skipped/windows-helper-os-replay.json",
+        "bytes": 30998,
+        "sha256": "3a3bd894b3c0a1b634bcc3961351561a7adb60f0b13b017f8d29deb842f67625",
+        "phase": "complete",
+        "failure": null
+      },
+      "renderer": {
+        "path": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/helper-os-replay-legacy-skipped/windows-renderer-evidence/renderer-update-evidence.json",
+        "bytes": 8103,
+        "sha256": "8c90b0e45ce7861f19e04e1432e1077de11747afecd3989f0b8255fa2e7becc7",
+        "phase": "complete",
+        "failure": null
+      },
+      "source_scope": "ADC product/base plus exactly three ff994954 observation-file overlays; four temporarily versioned metadata inputs restored",
+      "base_product_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+      "observer_commit": "ff99495460f25cbcf7a0721145441b164e2d8cfe",
+      "helper_os_exit": {
+        "kind": "observation",
+        "observation": {
+          "status": "exit-observed",
+          "pid": 8444,
+          "exit_code": 0,
+          "path": "\\\\?\\H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\helper-os-replay-legacy-skipped\\installer-test\\run-8c797991050d4cb28475054b0249eaa5\\application-update\\workers\\revision-2\\attempt-27280-1793204651266455800-0\\portcove-update-worker.exe",
+          "started_filetime": "134376782517011560",
+          "observation": "retained-process-handle"
+        }
+      },
+      "helper_result_marker": {
+        "exit_code": 0,
+        "process_id": 8444,
+        "schema_version": 1
+      },
+      "restoration_receipt": {
+        "identity": {
+          "bytes": 652,
+          "sha256": "9949921c8ea57f382758f4b59b3865928b8b6025a402601c5dd09e5139ac10d3"
+        },
+        "files": [
+          {
+            "matches_original": true,
+            "sha256": "d554105b0a400be29e2ca9750de46d0bf9de8aedcfaf4690f90accb14ff12119",
+            "path": "Cargo.toml"
+          },
+          {
+            "matches_original": true,
+            "sha256": "dc4fd806e9d40e8972352b6cc46752ad4f4ed5c0371c408705e4bff8431115e9",
+            "path": "Cargo.lock"
+          },
+          {
+            "matches_original": true,
+            "sha256": "ba1be53dc72151f0fcfe53bb73b88315c8df31158f59c3094e4272d70bb8ab41",
+            "path": "apps/desktop/package.json"
+          },
+          {
+            "matches_original": true,
+            "sha256": "d94fbb455bf3908a285d3dac091e2af752dbf68f1d3cb1414a65657a57a60719",
+            "path": "apps/desktop/src-tauri/tauri.conf.json"
+          }
+        ]
+      },
+      "ui_actions": [
+        "installed-gui-opened",
+        "preview-manual-settings-saved",
+        "signed-candidate-presented",
+        "exact-installed-candidate-status-read-back",
+        "renderer-downloaded-and-verified",
+        "candidate-restarted-and-reconciled"
+      ],
+      "durable_local_retention": {
+        "profile": "legacy-skipped",
+        "file_count": 164,
+        "expanded_bytes": 9340293,
+        "archive": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-helper-os-replay-legacy-skipped.zip",
+          "bytes": 328140,
+          "sha256": "80a69a8e8ca8a5bb7afa7efafed9a1031eaca48c66bbf8b82ae3226b106124d6"
+        },
+        "manifest": {
+          "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-helper-os-replay-legacy-skipped-manifest.json",
+          "bytes": 42197,
+          "sha256": "b0b09d62b18f07b845a7d349b3c5998ff6c8b6023f72d83d0a6b0322a150fc33"
+        }
+      },
+      "input_preparation": {
+        "profile": "legacy-skipped",
+        "candidate_version": "0.3.0",
+        "restored_input_file_count": 377,
+        "restored_input_bytes": 244943811,
+        "critical_file_hashes": [
+          {
+            "path": "0.1.0-bundles/nsis/Portcove_0.1.0_x64-setup.exe",
+            "sha256": "0b43f776542497a87be4b2f727930a66849681a494af5ccac387ae746c00b503"
+          },
+          {
+            "path": "0.1.0-bundles/nsis/Portcove_0.1.0_x64-setup.exe.sig",
+            "sha256": "3a82693d66803e304cf5cf0b87e7a0552ee700702b641560aef495f89d2efdab"
+          },
+          {
+            "path": "0.1.0-fixture.patch",
+            "sha256": "40e238b7d417359cb592a0b61e475af6b694a96b6e1123b5322243c83ce15f76"
+          },
+          {
+            "path": "0.1.0-native.json",
+            "sha256": "5a1e8dd9124f4524564bfe8fa42064fb757284f292ec4c8797618febdeac3319"
+          },
+          {
+            "path": "0.1.0-windows-x86_64/Portcove_0.1.0_x64-setup.exe",
+            "sha256": "0b43f776542497a87be4b2f727930a66849681a494af5ccac387ae746c00b503"
+          },
+          {
+            "path": "0.1.0-windows-x86_64/Portcove_0.1.0_x64-setup.exe.sig",
+            "sha256": "3a82693d66803e304cf5cf0b87e7a0552ee700702b641560aef495f89d2efdab"
+          },
+          {
+            "path": "0.1.0-windows-x86_64/updater-inventory.json",
+            "sha256": "65d54f5c4adc8d3720d30bfcf7214f8c76e0d8f8298f97be500d34122720d4f6"
+          },
+          {
+            "path": "0.3.0-bundles/nsis/Portcove_0.3.0_x64-setup.exe",
+            "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b"
+          },
+          {
+            "path": "0.3.0-bundles/nsis/Portcove_0.3.0_x64-setup.exe.sig",
+            "sha256": "c9fa8417d405e0c10b22fabe9bcb428ba6dbe02026ccb8122a619d3ca7148bf7"
+          },
+          {
+            "path": "0.3.0-fixture.patch",
+            "sha256": "48fcdae1642954bbd3b8a0a42a0f89f25b6ba10ef5c4cdc5c50cf6721c8f33bb"
+          },
+          {
+            "path": "0.3.0-native.json",
+            "sha256": "32ff374bd9744bb854f7574def0bc3e5a9f212e02641f36a8cbc6901c9b5dd0b"
+          },
+          {
+            "path": "0.3.0-windows-x86_64/Portcove_0.3.0_x64-setup.exe",
+            "sha256": "64ad75e94d01145916f6db1fefd6f4a9e286207189a633fc2b152cc7dde6557b"
+          },
+          {
+            "path": "0.3.0-windows-x86_64/Portcove_0.3.0_x64-setup.exe.sig",
+            "sha256": "c9fa8417d405e0c10b22fabe9bcb428ba6dbe02026ccb8122a619d3ca7148bf7"
+          },
+          {
+            "path": "0.3.0-windows-x86_64/updater-inventory.json",
+            "sha256": "eee1e936cc14d49727c0caa50582b3e0c5bfe6d4ace6e04da743c883f0cf3554"
+          },
+          {
+            "path": "diagnostics/session-00/.portcove-session.json",
+            "sha256": "45b30f8f235023606b63c78e9245d1127ca658e1d64f39b2fc4d3b041c353724"
+          },
+          {
+            "path": "diagnostics/session-01/.portcove-session.json",
+            "sha256": "bed870e4211b9117e6b4b10c5841ab152ebb665a1c6e515ab3b8201a236c1dbc"
+          },
+          {
+            "path": "diagnostics/session-02/.portcove-session.json",
+            "sha256": "7d27463b6db2d677cc18b9f27a024ccb31f1221c4393097ec8b779a4f4e20ce3"
+          },
+          {
+            "path": "diagnostics/session-03/.portcove-session.json",
+            "sha256": "8d8dd6cf3228df06fd17379c5df537905f02ae54b0de350f58267e802081b82f"
+          },
+          {
+            "path": "diagnostics/session-04/.portcove-session.json",
+            "sha256": "13e8fdc245e39de4a006031aa4064f2dd83743e25822db18b73b921934a0ea4b"
+          },
+          {
+            "path": "diagnostics/session-05/.portcove-session.json",
+            "sha256": "2707c29b61bb6c4803c352d8314928d076a84a4e6f7f62e41d2183f3b097647d"
+          },
+          {
+            "path": "diagnostics/session-06/.portcove-session.json",
+            "sha256": "a0a43401e907c0a61d648325c5e1152f8292ef385531a079b0890b32ca7a66fa"
+          },
+          {
+            "path": "diagnostics/session-07/.portcove-session.json",
+            "sha256": "82dd34fe1bca2204ad87c50f8f01321de375f0e70e59aa01d9750480ad676782"
+          },
+          {
+            "path": "disposable.key.pub",
+            "sha256": "9e19eb70c99de2a4354f91fd5ad0480eb9259ae7acb95c702f952a1ef52e9398"
+          },
+          {
+            "path": "preferences.json",
+            "sha256": "b860478f3a2db77cbd98a6e42f876aa0d96e810120eb81dbfcfb6bc0a4ad1251"
+          },
+          {
+            "path": "previous-bundles/nsis/Portcove_0.1.0_x64-setup.exe",
+            "sha256": "f09d6585af81da5860410423e101cafa86073fb920d4fc1930ec09e269b24b32"
+          },
+          {
+            "path": "previous-bundles/nsis/Portcove_0.1.0_x64-setup.exe.sig",
+            "sha256": "1d03761bc450101a01c8d07800ec40e4516ce3a331ff7a7d64696906932e5bb7"
+          },
+          {
+            "path": "rehearsal-config.json",
+            "sha256": "524913031851d6e0a83ac2e653065401135fcd886ebde1e74fffeef6c3508cbd"
+          },
+          {
+            "path": "rehearsal-result.json",
+            "sha256": "8ec35158fd497123d28895cf5e31963a66232b6e3a2462b8abfff02679da26ad"
+          },
+          {
+            "path": "windows-candidate-desktop.exe",
+            "sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9"
+          },
+          {
+            "path": "windows-candidate-installer-extracted/portcove-desktop.exe",
+            "sha256": "f618c96e088c76fa1658327c9e4176c857625482422e7aab82c62e334fe2bcf9"
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/candidate.sig",
+            "sha256": "c9fa8417d405e0c10b22fabe9bcb428ba6dbe02026ccb8122a619d3ca7148bf7"
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/descriptor.json",
+            "sha256": "35855afd2ed6750900e27929710664dabef24b385e799ed81ea85e138829b25d"
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/eligibility.json",
+            "sha256": "de463d21e0c434bdb721b85648bdefe916c4832bebfa212e620ab4c2657cd45b"
+          },
+          {
+            "path": "windows-installed-update-qualification/inputs/updater-inventory.json",
+            "sha256": "eee1e936cc14d49727c0caa50582b3e0c5bfe6d4ace6e04da743c883f0cf3554"
+          },
+          {
+            "path": "windows-installed-update-qualification/payload.json",
+            "sha256": "38aea5f72648c4b639d90c3d2a88c5d8d9060c55a3c8451d36cc2cddb06ecc22"
+          },
+          {
+            "path": "windows-installed-update-qualification/records/channels/preview/windows-x86_64/nsis/0.3.0.json",
+            "sha256": "dcc1f7d591d68ebc6725b1bdd4ceed1b93cb86d8c4ebe75a24d923571a2f7e14"
+          },
+          {
+            "path": "windows-installed-update-qualification/records/reconstruction-manifest.json",
+            "sha256": "dac407ba0e55eb9708bbdf7850c40e09b32eecf2924f22a5f93f21133f25dab2"
+          },
+          {
+            "path": "windows-installed-update-qualification/records/releases/0.3.0/windows-x86_64/nsis.json",
+            "sha256": "a73a4beb5fd85aba7c65d9d2929a58d9dc6696ee5b45f3fd5048abeb2b104acb"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+            "sha256": "58da1e7cdaae2066ca50e9b9aa39a766eaa664399613738664bda9c3a38274fa"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+            "sha256": "956e92c6d444d707bfe91be6361fd4975e1970214980dc4b117fea4898d67d4b"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+            "sha256": "cae5a8eb19d399c38f040fc2a8014355fc95961f09bcbb72596ca1b3c782881e"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+            "sha256": "8017c1be215858f546abdbd97c9fa7c17159b794e1238011b7c542592a23f35b"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+            "sha256": "56d5a2006d1a4ec5e7583ed3215be10280f209da2f480cd6ec14dc39b6166790"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+            "sha256": "97673bb27d23ecd9e176beaa81ad657b1f8bc59c1ac913146570e2679a63e461"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+            "sha256": "f2618f064a45896236d6cc1d8f2b367d4ab7609c024fe65a530c4f8b587501cc"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/repository-manifest.json",
+            "sha256": "22e484d6b84b370c470e6dcba5706942dc67bf431f0379e7d9628a32c5b89729"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/targets/38aea5f72648c4b639d90c3d2a88c5d8d9060c55a3c8451d36cc2cddb06ecc22.keys/payload.json",
+            "sha256": "38aea5f72648c4b639d90c3d2a88c5d8d9060c55a3c8451d36cc2cddb06ecc22"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/targets/a73a4beb5fd85aba7c65d9d2929a58d9dc6696ee5b45f3fd5048abeb2b104acb.releases/0.3.0/windows-x86_64/nsis.json",
+            "sha256": "a73a4beb5fd85aba7c65d9d2929a58d9dc6696ee5b45f3fd5048abeb2b104acb"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/targets/dcc1f7d591d68ebc6725b1bdd4ceed1b93cb86d8c4ebe75a24d923571a2f7e14.channels/preview/windows-x86_64/nsis/0.3.0.json",
+            "sha256": "dcc1f7d591d68ebc6725b1bdd4ceed1b93cb86d8c4ebe75a24d923571a2f7e14"
+          },
+          {
+            "path": "windows-installed-update-qualification/trusted-root.json",
+            "sha256": "cae5a8eb19d399c38f040fc2a8014355fc95961f09bcbb72596ca1b3c782881e"
+          },
+          {
+            "path": "windows-installed-update-summary.json",
+            "sha256": "2da66da3cc009773fb90a53c30ed684156c80422f2bf4bbb4dd787853901bfd9"
+          },
+          {
+            "path": "windows-installed-update.json",
+            "sha256": "c35d2831773c683c1662d8bee69c4f40a245ca7bff575ef7e73c932942489cf9"
+          },
+          {
+            "path": "windows-payload-consumer.json",
+            "sha256": "eb37f5fe2b3acc68b8f1a6760057ac4f739f4ff357bd2790c9477f1e298f7660"
+          },
+          {
+            "path": "windows-renderer-evidence/embedded-processes-0.json",
+            "sha256": "4a017c3cf1eb9eac3b83a35300fb3ae77c76173deffbf4ff6168f2952b3f0362"
+          },
+          {
+            "path": "windows-renderer-evidence/embedded-processes-1.json",
+            "sha256": "94a45d3ba4ebab637ee07e2e12ff5f75dcad7d00c2942658f3aca503c16576dd"
+          },
+          {
+            "path": "windows-renderer-evidence/embedded-processes-2.json",
+            "sha256": "97c73ba53edad6c58dcd77d73cb714b57881fef4d66dd127760a87db59e96739"
+          },
+          {
+            "path": "windows-renderer-evidence/embedded-status-probes.json",
+            "sha256": "88757147018cb9e20c295025093f729f5779dc71832f4a4f97a87eed8028204f"
+          },
+          {
+            "path": "windows-renderer-evidence/renderer-update-evidence.json",
+            "sha256": "29dca3b37820950aaf5419c531d5a619a38a953b844da7d4036830675e6ecf9c"
+          },
+          {
+            "path": "windows-x86_64-payload-consumer/wrong-signature/Portcove_0.3.0_x64-setup.exe.sig",
+            "sha256": "15dfe8d9254345475e29fa4f18614a8b75c501bdd0cfedc027635c1cc42b05d6"
+          }
+        ],
+        "freshness_observed_at": "2026-10-28T16:22:37.431527+00:00",
+        "served_role_expiries": [
+          {
+            "path": "windows-installed-update-qualification/trusted-root.json",
+            "expires": "2027-08-24T13:58:54.024187Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+            "expires": "2026-11-04T13:58:54.029475100Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+            "expires": "2026-12-27T13:58:54.029475100Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+            "expires": "2027-08-24T13:58:54.024187Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+            "expires": "2026-11-04T13:58:54.029475100Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+            "expires": "2026-11-04T13:58:54.029475100Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+            "expires": "2026-12-27T13:58:54.029475100Z"
+          },
+          {
+            "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+            "expires": "2026-10-30T13:58:54.029475100Z"
+          }
+        ],
+        "fixture_patch_original_sha256": "40e238b7d417359cb592a0b61e475af6b694a96b6e1123b5322243c83ce15f76",
+        "fixture_patch_lf_sha256": "ee5dfd8e757413d542ffd41049eebf704a36e0bb909fd7de840840d57e963eea",
+        "public_root_for_preparation": "immutable original cohort root bytes at distinct filename; no signature changes",
+        "prior_live_inputs_preserved": "/mnt/h/Portcove-Worktrees/224-nonadmin-beta-20261028/work/updater-rehearsal-before-legacy-skipped"
+      }
+    }
+  ],
+  "failure_retention": [
+    {
+      "attempt": "original75 CLI smoke",
+      "raw_log_filename": "windows-native-run.log",
+      "identity": {
+        "bytes": 22606,
+        "sha256": "a38139c6ce71b77c82a996e8fc291ddf99d0b7989e72563e7753c11be02a9ba1"
+      },
+      "scope": "before NSIS; OEM437 decoding rejected exact Unicode path; same archive passed repaired UTF8 smoke"
+    },
+    {
+      "attempt": "ADC output reservation",
+      "raw_log_filename": "windows-native-adcbeaad.log",
+      "identity": {
+        "bytes": 6223,
+        "sha256": "e990994c2726981d28781270719f7e11505d4a8b80d12e630a51215cd33e57bb"
+      },
+      "scope": "before NSIS; missing outer frontend reservation refused; corrected invocation retains guard"
+    },
+    {
+      "attempt": "auxiliary embedded snapshot",
+      "raw_log_filename": "windows-auxiliary-helper-observer.log",
+      "identity": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scope": "collector failed missing standalone snapshot; embedded snapshot was inline; no OS exit inferred"
+    },
+    {
+      "attempt": "auxiliary timestamp diagnosis",
+      "raw_log_filename": "windows-aux2-timestamp-diagnosis.json",
+      "identity": {
+        "bytes": 272,
+        "sha256": "d2141019c111bc1e21e90d7e67ae0fa04ea020baef91dc2067bd7e23f67c5a27"
+      },
+      "scope": "PowerShell automatic DateTime then reparsing lost timezone; actual ISO retained; no clock change"
+    },
+    {
+      "attempt": "replay raw patch",
+      "raw_log_filename": "windows-helper-os-replay.log",
+      "identity": {
+        "bytes": 1153,
+        "sha256": "d3ff6be4ee97f039f9e527d7c1131fc26ceb64236452d5cf33013899ae3ca1e5"
+      },
+      "scope": "exact context refused CRLF transport before fixture/native effects; original preserved"
+    },
+    {
+      "attempt": "replay reused archive parent",
+      "raw_log_filename": "windows-helper-os-replay-2.log",
+      "identity": {
+        "bytes": 1005,
+        "sha256": "60c86b31d2e7e2bd90182f780c4558856b3fda0ec92ed804b22b23aa3a87fae6"
+      },
+      "scope": "actual helper OS0 but lifecycle failed outer archive destination guard; not successful overall"
+    },
+    {
+      "attempt": "initial owner probe",
+      "raw_log_filename": "windows-installed-file-owner-observer-final.log",
+      "identity": {
+        "bytes": 830,
+        "sha256": "8276190434d02ef654d3586b311a40fa8a5a85d692d3246a4e461e88b51bd972"
+      },
+      "scope": "sharing violation while NSIS extracted file; no ownership observation"
+    },
+    {
+      "attempt": "auxiliary strict refusals",
+      "scope": "failed measurement rows retained; collection completion does not imply helper OS0",
+      "receipts": [
+        {
+          "attempt": "-1",
+          "identity": {
+            "bytes": 781,
+            "sha256": "8657fe0bf69b84eae7badf845acad7dd8669afcfc6aea34008b252373d3d90c5"
+          },
+          "receipt": {
+            "schema_version": 1,
+            "package_source": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+            "observer_source": "ff99495460f25cbcf7a0721145441b164e2d8cfe",
+            "observer_sha256": "330353bcd17337f318633bdc1203865516b4d0875ffdeebfde679aa7c8449f22",
+            "wrapper_sha256": "6df6a86b0ee496872a980aea131eaefeea9d4db9f94dd899055d707730908cb7",
+            "run_name": "run-b29d4bcde7fa4b59b416fac0dcdbe5f8",
+            "started_at": "2026-10-28T14:07:21.9716156Z",
+            "status": "failed",
+            "failure": "Cannot find path 'H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\updater-rehearsal\\installer-test\\run-b29d4bcde7fa4b59b416fac0dcdbe5f8\\renderer-qualification\\evidence\\native-processes-before-restart.json' because it does not exist.",
+            "finished_at": "2026-10-28T14:07:22.0129143Z"
+          }
+        },
+        {
+          "attempt": "-2",
+          "identity": {
+            "bytes": 586,
+            "sha256": "7c72a885eefb9a4ab2b1c284cbaaeeb6c45731c35daa89611ecb726e1a53f971"
+          },
+          "receipt": {
+            "schema_version": 1,
+            "package_source": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+            "observer_source": "ff99495460f25cbcf7a0721145441b164e2d8cfe",
+            "observer_sha256": "330353bcd17337f318633bdc1203865516b4d0875ffdeebfde679aa7c8449f22",
+            "wrapper_sha256": "e19c5a107d26222d597483d307353fab42e932502ac2108d23b90dc097a2b587",
+            "run_name": "run-e1923efb116f499493ab51a0bab2ff52",
+            "started_at": "2026-10-28T14:49:53.2829865Z",
+            "status": "failed",
+            "failure": "Restart snapshot is outside this observation window.",
+            "finished_at": "2026-10-28T14:49:53.3493857Z"
+          }
+        },
+        {
+          "attempt": "-3",
+          "identity": {
+            "bytes": 580,
+            "sha256": "864bb863f5969e08c7f6a69fcab1ac08a1c9219b881e9ecdd9a88f8d85ed0e8f"
+          },
+          "receipt": {
+            "schema_version": 1,
+            "package_source": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+            "observer_source": "ff99495460f25cbcf7a0721145441b164e2d8cfe",
+            "observer_sha256": "330353bcd17337f318633bdc1203865516b4d0875ffdeebfde679aa7c8449f22",
+            "wrapper_sha256": "54f39a19083b5abb304dc137008f97425763c39f0687a431d88c5dae8999d420",
+            "run_name": "run-8c1af965ada541d094ec9e5f12d8bc36",
+            "started_at": "2026-10-28T15:29:26.6423108Z",
+            "status": "failed",
+            "failure": "Helper is outside the current run worker tree.",
+            "finished_at": "2026-10-28T15:29:26.6943710Z"
+          }
+        }
+      ]
+    }
+  ],
+  "remaining_acceptance": [
+    "historical updater-less released-package bootstrap in a safely isolated real profile",
+    "ordinary default-feature updater-enabled package/feed/source candidate join",
+    "actual reboot and remaining minimum-host/transport/waiting/busy cases at required native scope",
+    "real installed libraries, games, saves and general preferences/credentials continuity",
+    "production signer/feed/public Root/eligible unchanged-client authority owned by534"
+  ],
+  "security": "706/49 remains scoped, non-remediating and expires November14,2026 or earlier before relevant second-beta publication; reconfirm actual candidate and policy at release; no renewal inferred",
+  "independent_owners_not_added_as_beta_blockers": [46, 226, 535],
+  "observer_source_composition": {
+    "base_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+    "observer_file_commit": "ff99495460f25cbcf7a0721145441b164e2d8cfe",
+    "files": [
+      {
+        "path": "apps/desktop/scripts/native-marked-update-process.ps1",
+        "adc_sha256": "ecad95d588b5caf3ffbc306594054faa40bc28c3ebe6a62aeccacfc9f240fc2b",
+        "ff_sha256": "330353bcd17337f318633bdc1203865516b4d0875ffdeebfde679aa7c8449f22"
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-installed-update-harness.mts",
+        "adc_sha256": "9ae23af3963c9ed7971db7dbe2a7e6dcd37a05eaf9db4237143256bd9e255e1e",
+        "ff_sha256": "6559ca2b2bf79b5bedea5ccb66c00fd35bc5e3475c090f32c982c286ede7b5d3"
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-windows-update-test.mts",
+        "adc_sha256": "601047aac0547dfa0153f8346169355d7262dd61160150ead8fe48331b9d1fd4",
+        "ff_sha256": "4da37804ccc52db0fbde3ba2c524aec3120fbaecf2f39f69228dae23e57c9b95"
+      }
+    ],
+    "overlay_patch_sha256": "823dec7d4908f55b3d5cea12165ae1998a76b41ee0356ba48e8f4519969a24da",
+    "initial_restored_root_freshness": [
+      {
+        "path": "windows-installed-update-qualification/trusted-root.json",
+        "sha256": "3767b334177f90f1b1e9cc26eba589e095d7f8647149653a6dc52b09ef2d249a",
+        "expires": "2027-08-24T14:37:08.573603900Z"
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.preview.json",
+        "sha256": "89211341ea58cc9757b586ff029c31c79bb6bb021ce51628e1c39bde1c285ae0",
+        "expires": "2026-11-04T14:37:08.582100800Z"
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.releases.json",
+        "sha256": "c16e6491a77c9d87780a6c1421c7fce4f747f8d5f5b329ebc066cade4c45b340",
+        "expires": "2026-12-27T14:37:08.582100800Z"
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.root.json",
+        "sha256": "3767b334177f90f1b1e9cc26eba589e095d7f8647149653a6dc52b09ef2d249a",
+        "expires": "2027-08-24T14:37:08.573603900Z"
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.snapshot.json",
+        "sha256": "2c66d105804ee6d18d9818fd40f0702d4b9b438fd4c7b1444a1d25c0640dbeb8",
+        "expires": "2026-11-04T14:37:08.582100800Z"
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.stable.json",
+        "sha256": "532147fc9bfcca3dcb035b26bfe24272dead1fa21fc5f6659002ed8cfd6b6979",
+        "expires": "2026-11-04T14:37:08.582100800Z"
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/1.targets.json",
+        "sha256": "dab1370561033824b2476bc151c0216cbcacfc8dd6623183eb1f6fef7abe2d84",
+        "expires": "2026-12-27T14:37:08.582100800Z"
+      },
+      {
+        "path": "windows-installed-update-qualification/repository/metadata/timestamp.json",
+        "sha256": "7d2a7614dd8d09bcf1de66a46ad060e52903d8c08828ff43104a7f14f981315c",
+        "expires": "2026-10-30T14:37:08.582100800Z"
+      }
+    ],
+    "patch_transport": {
+      "original_sha256": "fa2d8a272904f38bad163216433183ab958ab80a5ba5fc9950f4e1047fce8b86",
+      "normalized_sha256": "2971067b0546205b76d89e27de9abe3c600959be7a59900e86f32bf5111266e1",
+      "transformation": "CRLF to LF in git patch transport only; original retained; no whitespace-ignore option",
+      "first_attempt": "native git exact-context check refused original CRLF transport before any fixture/native effects"
+    },
+    "scope": "Git-head ADC alone omits these three exact observation-source overlays; no product Rust/UI changes"
+  },
+  "retention_fix_execution": {
+    "identity": {
+      "bytes": 870,
+      "sha256": "04ee0f04e78378a2a73e067cc89733d78ad22e406499841fe41f55232912e894"
+    },
+    "observation": {
+      "observed_at": "2026-10-28T16:29:01.6131596Z",
+      "retained_predecessor": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\qualified-bundle-retention-observation\\qualified-1.0.0-rc.2-bundles\\nsis\\Portcove_1.0.0-rc.2_x64-setup.exe",
+      "new_signing": false,
+      "before": {
+        "signature": "0cdad49380391d30b652f90efdab1688027caec67a1b29cb938f4bf1f6fcb462",
+        "installer": "1abd7a735963d3723ae2ce6f69044f9ba5c10dab9486206a44d97a03cca1c052"
+      },
+      "source_sha256": "34dbc05c1614a58ed71c51bc1f701dc66ac83c53c6b2dbe4c5d99bc180da71df",
+      "original_bundle_absent": true,
+      "after": {
+        "signature": "0cdad49380391d30b652f90efdab1688027caec67a1b29cb938f4bf1f6fcb462",
+        "installer": "1abd7a735963d3723ae2ce6f69044f9ba5c10dab9486206a44d97a03cca1c052"
+      },
+      "step_sha256": "b25f0f54c350f71ddf2cd97d2252f705fc7e58c044c3901be6a0272a46f9f363"
+    },
+    "scope": "new Windows retention call executed on actual final qualified NSIS/signature, byte equality and original output absence checked; no product rebuilding or re-signing"
+  },
+  "installed_file_owner_snapshots": [
+    {
+      "profile": "legacy-adjacent",
+      "raw_local_receipt": {
+        "bytes": 752,
+        "sha256": "bc81e951bcd45711b20609113ece69b1e669cfd65c52bd289798a038a35524e2"
+      },
+      "scope": "only retained matching-file snapshots; no complete DACL/child-token or unobserved candidate ownership claim",
+      "entries": [
+        {
+          "kind": "original",
+          "classification": "snapshot matching retained original/candidate executable bytes",
+          "bytes": 55557632,
+          "probe_source_sha256": "fd6b98e962ecf7c1489fd4e1716e4d8ccf610f9fb4ea57fef1d66a1347739395",
+          "sha256": "75666b95a76464fc26c10a1d54a45a884027487509036054c0ef8761e9c23e3d",
+          "owner_matches_probe_caller": true,
+          "observed_at": "2026-10-28T16:07:57.0725004Z",
+          "path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\helper-os-replay-legacy-adjacent\\installer-test\\run-ac8c60c3501a484291f8412b24013442\\installed\\portcove-desktop.exe",
+          "attributes": "Archive",
+          "owner_sid_sha256": "289cd4dc9972cc81f8b2c8f80cf1820b6b5d118b0d277c8ca648b2b8ab613fd4",
+          "probe_caller_sid_sha256": "289cd4dc9972cc81f8b2c8f80cf1820b6b5d118b0d277c8ca648b2b8ab613fd4"
+        }
+      ]
+    },
+    {
+      "profile": "legacy-skipped",
+      "raw_local_receipt": {
+        "bytes": 751,
+        "sha256": "b874ed4409062fa4583a3d3fd795c41677143e150db5836596db90de5e765b64"
+      },
+      "scope": "only retained matching-file snapshots; no complete DACL/child-token or unobserved candidate ownership claim",
+      "entries": [
+        {
+          "observed_at": "2026-10-28T16:23:39.3995403Z",
+          "attributes": "Archive",
+          "classification": "snapshot matching retained original/candidate executable bytes",
+          "sha256": "fdff1e1e7cffc8266f88abc57323033556e30ba2f2a1949e6a7d5e1b17e5e12a",
+          "kind": "original",
+          "owner_matches_probe_caller": true,
+          "bytes": 55557632,
+          "path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\work\\helper-os-replay-legacy-skipped\\installer-test\\run-8c797991050d4cb28475054b0249eaa5\\installed\\portcove-desktop.exe",
+          "probe_source_sha256": "da6bd96130c00a7b3b89a0b6f11061f416128d610e8f144b6afc35d115d759d2",
+          "owner_sid_sha256": "289cd4dc9972cc81f8b2c8f80cf1820b6b5d118b0d277c8ca648b2b8ab613fd4",
+          "probe_caller_sid_sha256": "289cd4dc9972cc81f8b2c8f80cf1820b6b5d118b0d277c8ca648b2b8ab613fd4"
+        }
+      ]
+    }
+  ],
+  "additional_local_support": {
+    "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/windows-observation-support/manifest.json",
+    "bytes": 21233,
+    "sha256": "26bc4387b330a5955b492060f21e42df4b3acddd23a9f6ebfe5d6ab6661b9068",
+    "scope": "raw orchestration, provenance, failures and actual retained bundle observation; personal SIDs remain local"
+  },
+  "final_owned_process_readback": {
+    "total_physical_kib": 33478160,
+    "free_physical_kib": 11823064,
+    "owned_tree": [],
+    "observed_at": "2026-10-28T16:32:56.8852380Z"
+  }
+}
