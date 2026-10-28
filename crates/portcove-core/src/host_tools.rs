@@ -884,7 +884,13 @@ mod tests {
                 accepted_exit_codes: vec![0],
                 expected_output: "testtool".into(),
                 required_output_markers: vec!["verify".into(), "convert".into()],
-                timeout_millis: 200,
+                // Outcome cases must allow a contended Windows process to start.
+                // Keep the short deadline for actual timeout/cancellation controls.
+                timeout_millis: if cfg!(windows) && !arguments.contains(&"--sleep") {
+                    5_000
+                } else {
+                    200
+                },
                 max_output_bytes: 512,
             },
         }
