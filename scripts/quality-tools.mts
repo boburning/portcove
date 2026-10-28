@@ -1,6 +1,6 @@
 import { isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -260,6 +260,7 @@ Example:
   );
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+const invoked = process.argv[1] ? await realpath(process.argv[1]).catch(() => null) : null;
+if (invoked === scriptPath) {
   await main(process.argv.slice(2));
 }
