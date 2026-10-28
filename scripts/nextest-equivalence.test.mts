@@ -265,7 +265,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
   });
   const curatedInstalledWithdrawalFilter =
-    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)";
+    "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
     "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",

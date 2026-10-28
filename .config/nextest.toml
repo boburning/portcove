@@ -11,9 +11,12 @@ final-status-level = "slow"
 # withdrawal and fresh-acquisition refusal at 28.68s, before cache refusal ended.
 # Preserve the full signed transition, assertions, two workers and zero retries;
 # give only this exact harness 60s. Product and nested socket deadlines stay fixed.
+# Qualification40624111874/a1 job122606953707 also cut the revoked variant
+# of this same fixture off at30.056s, after critical verification completed
+# at22.320s and acquisition refusal began29.373s. Include that exact case.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)'
+filter = 'package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
