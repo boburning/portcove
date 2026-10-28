@@ -233,6 +233,30 @@
       "runtime_helper_milliseconds": 53028,
       "native_two_build_seconds": 4004,
       "limit": "Ordinary two-build installed rehearsal; does not size protected prebuilt graph"
+    },
+    {
+      "run": "40712543303/1",
+      "source": "2afd0db89bbd85a1b6224ecb8b6113ab7eacaa1f",
+      "tree": "9f2c28a7bec493d68781587c9317e018c5f1dc21",
+      "windows_job_id": 122901389756,
+      "windows_component_seconds": 542,
+      "linux_component_seconds": 238,
+      "aggregate_component_seconds": 780,
+      "windows_qualifier_step_seconds": 421,
+      "windows_builder_milliseconds": 250842,
+      "windows_runtime_step_seconds": 52,
+      "windows_runtime_helper_milliseconds": 50680,
+      "windows_artifact": {
+        "id": 12826683979,
+        "bytes": 29858,
+        "sha256": "17423a225543454997c4bd29ed16239d17d074b098dffc3dba542cd9f2726ef4"
+      },
+      "runtime_artifact": {
+        "id": 12827157507,
+        "bytes": 2017,
+        "sha256": "b8210321c03a0649422ad90c4a5f50dbb51bcf8303c210ed1e79e306b0c17902"
+      },
+      "limit": "Actual runtime/driver/source byte fence and full tool inventory component; no private account/native candidate or production activation; Linux actual checkout may be synthetic merge"
     }
   ],
   "invariants": {
@@ -274,5 +298,14 @@
     "safe_outcome_if_signer_is_late": "Refuse and settle/recover the original owner within its original deadline; preserve partial evidence",
     "initial_lifetime_change": "Separate held engineering and reviewed owner-policy decision if full600000ms readiness must fit; no renewal or increased deadline is implemented",
     "nonproduction_diagnostic": "Existing570000ms fixture upload/ACK flow unchanged; no production signing wait"
+  },
+  "linux_owner_constraint": {
+    "effective_total_milliseconds": 570000,
+    "full_signing_job_maximum_milliseconds": 600000,
+    "wait_rule": "Post-sign readiness and both native stages share the original570000ms job clock; no later stage renews it",
+    "full_signing_wait_fit": "Unknown; a570000ms total original clock cannot await600000ms plus native work",
+    "job_ceiling_does_not_extend_owner": true,
+    "safe_outcome_if_signer_is_late": "Refuse and preserve original settlement/recovery within the original clock",
+    "initial_lifetime_change": "Separate held source/budget engineering and review if full600000ms readiness must fit; not implemented by25minute ceiling"
   }
 }

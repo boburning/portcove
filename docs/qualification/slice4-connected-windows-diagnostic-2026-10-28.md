@@ -138,8 +138,11 @@ seconds, so a full600-second wait cannot fit a570-second total owner. Protected
 fit is Unknown; late signing must refuse and settle the original owner. If full
 signing-job readiness must fit, initial-lifetime engineering and a separately
 reviewed policy decision remain prerequisites; no deadline is enlarged or renewed.
-Linux native25 includes the full10-minute signing wait plus10 native work,
-3 setup/reacquisition and2 settlement. Windows bootstrap20 includes4 setup and
+Linux native25 reserves10 native work,10 signing-readiness allowance,
+3 setup/reacquisition and2 settlement. Its existing original clock also caps
+the entire native flow at570 seconds, so a full600-second signing wait cannot
+fit there either. The25-minute outer ceiling does not extend that clock;
+readiness is subordinate to its remaining time and protected fit remains Unknown. Windows bootstrap20 includes4 setup and
 dependencies,7.5 runtime,4 build,3.5 upload/identity binding and1 settlement.
 These are proposed ceilings derived from known component costs and explicit
 unmeasured allocations, not claims that a protected cold graph has run.
@@ -152,3 +155,23 @@ from the production YAML. Implementing that held job, purpose-specific Linux
 bootstrap timeout accounting, final source/digest amendment, and actual protected
 qualification remain engineering and policy prerequisites. Production signer,
 key custody, authenticated grants and publication authority remain separate.
+
+## Subsequent component qualification
+
+Automatic component run `40712543303/1` qualified source
+`2afd0db89bbd85a1b6224ecb8b6113ab7eacaa1f`, tree
+`9f2c28a7bec493d68781587c9317e018c5f1dc21`. Windows job
+`122901389756` succeeded in542 seconds, Linux in238 seconds; aggregate780.
+The Windows builder entry through complete inventory took250,842ms, excluding
+cold setup. Its actual runtime receipt changed131.0.2903.86 to156.0.4314.50
+in50,680ms; the runtime provider step took52 seconds. The actual signed
+Microsoft driver matched156.0.4314.50 and SHA-256
+`dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3`.
+The54-file tool inventory totals284,501,316 bytes. The complete attempt inventory,
+full logs, bounded ZIP preflight/CRC/member hashes, original runtime byte hash,
+source/driver/custody joins and before/after provider metadata passed collection.
+Exact public artifact identities are retained in the resource proposal observation.
+This source-specific component proves the new prerequisite/builder path; account
+execution was not requested, native/production acceptance remains unestablished,
+and later source heads must retain their own qualification. The75-minute
+ordinary measurement remains the separate original0013 source observation.

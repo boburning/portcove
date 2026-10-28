@@ -264,7 +264,7 @@ jobs:
           persist-credentials: false
       - name: Refuse held S2 before runtime, driver, dependency or build work
         id: diagnostic_preflight
-        if: inputs.connected_private_diagnostic
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         shell: pwsh
         run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Preflight
       - if: ${{ !inputs.resource_observer_only }}
@@ -350,13 +350,13 @@ jobs:
           }
       - name: Start the separately held original connected diagnostic controller
         id: diagnostic_start
-        if: inputs.connected_private_diagnostic
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         timeout-minutes: 6
         shell: pwsh
         run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Start
       - name: Read original diagnostic initial-stage upload request
         id: diagnostic_pre
-        if: inputs.connected_private_diagnostic
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         timeout-minutes: 10
         shell: pwsh
         run: |
@@ -367,7 +367,7 @@ jobs:
           [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ($taskOutput -join "`n") + "`n")
       - name: Upload only four original diagnostic initial-stage public records
         id: diagnostic_pre_upload
-        if: inputs.connected_private_diagnostic
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ steps.diagnostic_pre.outputs.name }}
@@ -377,7 +377,7 @@ jobs:
           overwrite: false
           compression-level: 0
       - name: Acknowledge the original diagnostic initial-stage provider upload
-        if: inputs.connected_private_diagnostic
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         shell: pwsh
         env:
           DIAGNOSTIC_REQUEST: ${{ steps.diagnostic_pre.outputs.request_sha256 }}
@@ -388,7 +388,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage acknowledgement refused' }
       - name: Read original diagnostic compatible-transition upload request
         id: diagnostic_post
-        if: inputs.connected_private_diagnostic
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         timeout-minutes: 10
         shell: pwsh
         run: |
@@ -399,7 +399,7 @@ jobs:
           [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ($taskOutput -join "`n") + "`n")
       - name: Upload only four original diagnostic compatible-transition public records
         id: diagnostic_post_upload
-        if: inputs.connected_private_diagnostic
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ steps.diagnostic_post.outputs.name }}
@@ -409,7 +409,7 @@ jobs:
           overwrite: false
           compression-level: 0
       - name: Acknowledge the original diagnostic compatible-transition provider upload
-        if: inputs.connected_private_diagnostic
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         shell: pwsh
         env:
           DIAGNOSTIC_REQUEST: ${{ steps.diagnostic_post.outputs.request_sha256 }}
@@ -419,21 +419,21 @@ jobs:
           & node scripts/release-hosted-native-windows-diagnostic.mts ack release-publication $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition acknowledgement refused' }
       - name: Request original diagnostic recovery after a failed Actions transition
-        if: ${{ always() && inputs.connected_private_diagnostic && failure() && steps.diagnostic_start.outcome == 'success' }}
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && failure() && steps.diagnostic_start.outcome == 'success' }}
         timeout-minutes: 1
         shell: pwsh
         run: |
           & node scripts/release-hosted-native-windows-diagnostic.mts abort
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic abort request unavailable; retain its original bounded recovery evidence' }
       - name: Read the original diagnostic terminal result without resuming another owner
-        if: ${{ always() && inputs.connected_private_diagnostic && steps.diagnostic_start.outcome == 'success' }}
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_start.outcome == 'success' }}
         timeout-minutes: 10
         shell: pwsh
         run: |
           & node scripts/release-hosted-native-windows-diagnostic.mts settle
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic did not settle successfully; preserve partial evidence' }
       - name: Retain only bounded diagnostic source and cleanup records
-        if: ${{ always() && inputs.connected_private_diagnostic && steps.diagnostic_preflight.outcome == 'success' }}
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_preflight.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: hosted-native-diagnostic-settlement-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
