@@ -323,3 +323,6 @@ Keep retained verification evidence outside these allocations. Existing custom
 target cleanup refusals remain. Scratch selection grants no automatic deletion,
 migration of old targets or eviction of failed evidence; preserve originals until
 the actual replacement consumer and interrupted-recovery checks pass.
+
+The [dated host I/O coordination record](qualification/host-io-coordination-2026-10-28.md)
+separates machine observations, portability defaults and remaining coverage gaps.

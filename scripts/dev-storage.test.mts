@@ -102,11 +102,11 @@ void test("machine scratch refuses unknown profiles, foreign markers and missing
     format: 1 as const,
     root,
     identity: randomUUID(),
-    distribution: "PortcoveScratch",
+    distribution: "FixtureLinux",
     backingDirectory: root,
     filesystemUuid: randomUUID(),
-    windowsNode: "/mnt/c/node.exe",
-    backingVhd: "H:\\Portcove-Scratch\\linux\\ext4.vhdx",
+    windowsNode: "/mnt/z/node.exe",
+    backingVhd: "Z:\\fixture\\scratch\\ext4.vhdx",
   };
   writeFileSync(file, JSON.stringify(profile));
   assert.deepEqual(readScratchProfile(file), profile);
@@ -121,7 +121,7 @@ void test("machine scratch refuses unknown profiles, foreign markers and missing
 });
 
 void test("machine scratch backing checks reject a moved distro even when its UUID is unchanged", () => {
-  const directory = "H:\\Portcove-Scratch\\linux",
+  const directory = "Z:\\fixture\\scratch",
     vhd = directory + "\\ext4.vhdx";
   assert.deepEqual(validateScratchBacking(directory, vhd, { basePath: directory, vhdPath: vhd }), {
     basePath: directory,
@@ -643,6 +643,12 @@ void test("Rust support cache on a separate parent volume retains the 20 GiB adm
       syncBuiltinESMExports();
       assert.throws(
         () => preflight({ target_directory: target, rust_support_cache: target + '.portcove-rust-support' }, 20, { blockSystemDrive: false }),
+        /needs at least 20\\.0 GiB free;.*19\\.00 GiB/,
+      );
+      assert.deepEqual(probes, [target, path.dirname(target)]);
+      probes.length = 0;
+      assert.throws(
+        () => preflight({ temporary_directory: target, scratch_backing_volume: path.dirname(target) }, 20, { blockSystemDrive: false }),
         /needs at least 20\\.0 GiB free;.*19\\.00 GiB/,
       );
       assert.deepEqual(probes, [target, path.dirname(target)]);

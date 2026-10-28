@@ -3263,7 +3263,22 @@
       "memberships": [
         ["windows-helpers-2", 100],
         ["windows-storage-4", 3100],
+        ["catalog-full-2", 750],
         ["development-tools", 200]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual Linux process identity and Unix supervisor cleanup semantics",
+          "reason": "Linux custody probes execute on the maintained complete Linux catalog-full-2 route; other platforms retain their native ownership contracts.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2 on Linux",
+          "cases": [
+            "host bridge Linux probe refuses changed custody, live children and missing cleanup",
+            "host bridge actual client closes its helper on register ACK loss and release-probe failure"
+          ]
+        }
       ]
     },
     {
