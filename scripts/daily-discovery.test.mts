@@ -26,6 +26,7 @@ import { GitHubApiError, GitHubApiClient } from "./github-api.mts";
 import { renderPortIssueBody } from "./roadmap-issue.mts";
 import { renameSync, readdirSync } from "node:fs";
 import * as discoverySession from "./daily-discovery-session.mts";
+import { discoveryBootstrapModules, fetchDiscoveryMetadata } from "./daily-discovery.mts";
 const envelope = {
   url: "https://api.github.com/repos/o/r",
   method: "GET",
@@ -95,10 +96,6 @@ void test("bootstrap identity covers the complete statically loaded module closu
   // The filtered Windows reader-sharing route runs before package installation.
   const { readFixtureModuleClosure } = await import("./fixtures/module-closure.mts");
   const entry = new URL("./daily-discovery.mts", import.meta.url);
-  const source = readFileSync(entry, "utf8");
-  const declaration = source.match(/const bootstrap = \[([\s\S]*?)\];/u);
-  assert.ok(declaration, "bootstrap identity list is present");
-  const bound = [...declaration[1]!.matchAll(/"([^"]+)"/gu)].map((match) => match[1]!);
   // The maintained production bootstrap list remains the independent expectation.
   // Later imports belong to the separately captured runner/execution inputs.
   const loaded = readFixtureModuleClosure(
@@ -108,7 +105,7 @@ void test("bootstrap identity covers the complete statically loaded module closu
       includeDynamicImports: false,
     },
   ).modules.map((module) => module.path);
-  assert.deepEqual([...new Set(bound)].sort(), loaded.sort());
+  assert.deepEqual([...new Set(discoveryBootstrapModules)].sort(), loaded.sort());
 });
 void test("metadata fetch skips inherited graph writing and automatic maintenance", (t) => {
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -148,14 +145,8 @@ void test("metadata fetch skips inherited graph writing and automatic maintenanc
   git(checkout, ["remote", "add", "origin", upstream]);
   git(checkout, ["config", "fetch.writeCommitGraph", "true"]);
   git(checkout, ["config", "maintenance.auto", "true"]);
-  // Execute the literal production call so a removed flag exercises real Git again.
-  const source = readFileSync(new URL("./daily-discovery.mts", import.meta.url), "utf8");
-  const call = source.match(/^      git\((\[[^\]]*"fetch"[^\]]*\])\);/mu);
-  assert.ok(call, "production fetch remains a literal argument array");
-  const args: unknown = JSON.parse(call[1]!.replace(/,\s*\]/u, "]"));
-  assert.ok(Array.isArray(args) && args.every((arg: unknown) => typeof arg === "string"));
   const trace = path.join(state, "fetch-trace.jsonl");
-  git(checkout, args, { GIT_TRACE2_EVENT: trace });
+  fetchDiscoveryMetadata((args) => git(checkout, args, { GIT_TRACE2_EVENT: trace }));
   assert.equal(git(checkout, ["rev-parse", "origin/main"]), git(upstream, ["rev-parse", "HEAD"]));
   const events = readFileSync(trace, "utf8");
   assert.doesNotMatch(events, /"label":"write-commit-graph"/u);
@@ -183,6 +174,97 @@ void test("noninteractive run refuses before Git, credentials, inventory or lock
   assert.equal(existsSync(path.join(state, "investigation.lock")), false);
   assert.equal(existsSync(path.join(state, "active-run.json")), false);
   assert.match(readFileSync(path.join(state, "latest-startup.json"), "utf8"), /tty:true/);
+});
+void test("actual discovery startup consumes its bootstrap identities and bounded fetch", (t) => {
+  const entry = new URL("./daily-discovery.mts", import.meta.url).href;
+  const dependency = (name: string) => new URL(name, import.meta.url).href;
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  mkdirSync(work, { recursive: true });
+  const state = mkdtempSync(path.join(work, "discovery-wiring-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  for (const variant of [
+    "original",
+    "renamed-reordered",
+    "changed-bootstrap",
+    "bypassed-fetch",
+    "omitted-input",
+    "removed-graph-guard",
+    "removed-maintenance-guard",
+  ]) {
+    const program = `
+      import assert from 'node:assert/strict';import {mock} from 'node:test';
+      import {registerHooks} from 'node:module';import path from 'node:path';
+      const entry=${JSON.stringify(entry)},state=${JSON.stringify(state)},variant=${JSON.stringify(variant)};
+      const expected=${JSON.stringify([...discoveryBootstrapModules])};
+      let fetched=false,checkedOut=false,sessions=0;const reads=new Map();
+      Object.defineProperty(process.stdin,'isTTY',{value:true,configurable:true});
+      mock.module('node:child_process',{namedExports:{execFileSync:(command,args)=>{
+        assert.equal(command,'git');
+        if(args[0]==='status'||args[0]==='branch')return '';
+        if(args[0]==='fetch'){
+          assert.deepEqual(args,['fetch','--no-write-commit-graph','--no-auto-maintenance','--no-tags','--no-recurse-submodules','origin','main']);
+          assert.equal(reads.size,expected.length);for(const name of expected)assert.equal(reads.get(name),1);fetched=true;return '';
+        }
+        if(args[0]==='rev-parse')return args[1]==='--git-common-dir'?'/owned/common':args[1]==='--git-dir'?'/owned/common/worktrees/metadata':'a'.repeat(40);
+        if(args[0]==='cat-file')return '';
+        if(args[0]==='checkout'){assert.ok(fetched,'bounded fetch must precede checkout');checkedOut=true;return '';}
+        throw Error('Unexpected Git call');
+      }}});
+      mock.module('node:fs/promises',{namedExports:{mkdir:async()=>{},writeFile:async(file)=>{assert.ok(file.startsWith(state+path.sep));},readFile:async(file)=>{
+        const name=path.basename(file);assert.ok(expected.includes(name),'Unexpected bootstrap read');
+        const count=(reads.get(name)||0)+1;reads.set(name,count);
+        return Buffer.from(name+(variant==='changed-bootstrap'&&checkedOut&&name==='runtime-values.mts'?'changed':''));
+      }}});
+      mock.module(${JSON.stringify(dependency("./observe-configured-upstream.mts"))},{namedExports:{withCheckpointLock:async(file,body)=>{assert.equal(file,path.join(state,'investigation'));await body();}}});
+      mock.module(${JSON.stringify(dependency("./release-path-safety.mts"))},{namedExports:{assertOwnedUnlinkedPath:async(parent,value)=>{assert.equal(value,state);return state;}}});
+      mock.module(${JSON.stringify(dependency("./discovery-budget.mts"))},{namedExports:{selectDiscoveryProfile:()=>{throw Error('Unexpected profile selection');},discoveryProfiles:{}}});
+      mock.module(${JSON.stringify(dependency("./discovery-cache.mts"))},{namedExports:{readDiscoveryCache:()=>{throw Error('Unexpected cache read');}}});
+      mock.module(${JSON.stringify(dependency("./daily-discovery-session.mts"))},{namedExports:{runDiscoverySession:async(observed,root,head)=>{
+        assert.equal(observed,state);assert.equal(head,'a'.repeat(40));assert.ok(fetched&&checkedOut);
+        for(const name of expected)assert.equal(reads.get(name),2);sessions++;
+      }}});
+      registerHooks({load(url,context,next){const loaded=next(url,context);if(url!==entry)return loaded;
+        let source=String(loaded.source);
+        if(variant==='renamed-reordered'){
+          const start=source.indexOf('export function fetchDiscoveryMetadata('),end=source.indexOf('async function optional(',start);
+          assert.ok(start>=0&&end>start);const declaration=source.slice(start,end);source=source.slice(0,start)+source.slice(end)+'\\n'+declaration;
+          source=source.replaceAll('discoveryBootstrapModules','$loadedModules').replaceAll('fetchDiscoveryMetadata','$fetchMetadata');
+        }
+        if(variant==='bypassed-fetch'){assert.ok(source.includes('fetchDiscoveryMetadata(git);'));source=source.replace('fetchDiscoveryMetadata(git);','');}
+        if(variant==='omitted-input'){assert.ok(source.includes('"runtime-values.mts",'));source=source.replace('"runtime-values.mts",','');}
+        if(variant==='removed-graph-guard'){assert.ok(source.includes('"--no-write-commit-graph",'));source=source.replace('"--no-write-commit-graph",','');}
+        if(variant==='removed-maintenance-guard'){assert.ok(source.includes('"--no-auto-maintenance",'));source=source.replace('"--no-auto-maintenance",','');}
+        return {...loaded,source};
+      }});
+      const {dailyDiscoveryMain}=await import(entry);
+      if(variant==='changed-bootstrap'){await assert.rejects(dailyDiscoveryMain(['run','--state-dir',state]),/Loaded bootstrap updated/);assert.equal(sessions,0);}
+      else{await dailyDiscoveryMain(['run','--state-dir',state]);assert.equal(sessions,1);}
+      console.log('PASS actual discovery startup');
+    `;
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const driver = path.join(state, "driver.mjs");
+    writeFileSync(driver, program);
+    const result = spawnSync(process.execPath, ["--experimental-test-module-mocks", driver], {
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+      maxBuffer: 1024 * 1024,
+    });
+    assert.ifError(result.error);
+    if (
+      variant === "bypassed-fetch" ||
+      variant === "omitted-input" ||
+      variant === "removed-graph-guard" ||
+      variant === "removed-maintenance-guard"
+    ) {
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /bounded fetch must precede checkout|AssertionError/u);
+    } else {
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /PASS actual discovery startup/u);
+    }
+  }
 });
 void test("provider quota protects delivery independently of the local request allowance", () => {
   const budget = new DiscoveryBudget("ordinary");
