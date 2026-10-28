@@ -3,12 +3,12 @@
   "listing": {
     "id": "medal-of-honor-allied-assault-openmohaa",
     "name": "Medal of Honor: Allied Assault (OpenMoHAA)",
-    "summary": "Upstream route: Cross-platform engine supports single-player and multiplayer; desktop release archives. Limits: Upstream pre1.0 engine supports SP/MP; preserve base/expansion data and feature limits. Upstream platforms: Continuous/release Windows/Linux/macOS packages and native source builds; selected package CPU architectures unknown in frozen research. Original data: Own Medal of Honor: Allied Assault base data. Expansion assets are separate. Preserve the edition-specific upstream layout. Portcove setup/gameplay not verified.",
+    "summary": "Prepare Medal of Honor: Allied Assault through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Medal of Honor: Allied Assault",
     "project_url": "https://github.com/openmoh/openmohaa",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/openmoh/openmohaa",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
     "artwork": {
       "game_id": 326,
       "cover_id": 357183,
@@ -17,7 +17,34 @@
       "game_slug": "medal-of-honor-allied-assault",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2592
+    "issue_number": 2592,
+    "release_url": "https://github.com/openmoh/openmohaa/releases/tag/v0.82.1",
+    "download_asset_hints": {
+      "windows-x86-64": ["openmohaa-", "-windows-x64.zip"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original game",
+          "instruction": "Use your complete original Medal of Honor: Allied Assault base data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching main resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products."
+        },
+        {
+          "title": "Prepare upstream and select the player",
+          "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
+        },
+        {
+          "title": "Preserve the actual player data",
+          "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

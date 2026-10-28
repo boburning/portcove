@@ -3,13 +3,40 @@
   "listing": {
     "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
     "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
-    "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Own installed Jedi Academy game data (Steam/GOG/retail or the documented Mac App Store layout); extract OpenJK into its GameData directory. This target covers Academy SP and MP. Exact accepted patch/revision remains Unknown in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "Prepare Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
     "project_url": "https://github.com/JACoders/OpenJK",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/JACoders/OpenJK",
-    "issue_number": 2612
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
+    "issue_number": 2612,
+    "release_url": "https://github.com/JACoders/OpenJK/releases/tag/latest",
+    "download_asset_hints": {
+      "windows-x86-64": ["OpenJK-windows-x86_64.zip"]
+    },
+    "recommended_download_channel": "beta",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original game",
+          "instruction": "Use your own complete Jedi Academy PC GameData/base resources. Jedi Outcast and OpenJKDF2 are different games. Keep the original installation unchanged and prepare a separate complete working GameData copy; the reviewed README does not pin a retail patch/revision."
+        },
+        {
+          "title": "Prepare upstream and select the player",
+          "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources."
+        },
+        {
+          "title": "Preserve the actual player data",
+          "instruction": "Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
