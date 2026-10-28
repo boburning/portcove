@@ -92,7 +92,7 @@ not installed. Readiness never establishes ownership.
 The contained 2:3 cover frame is independent of title length: 128 by 192 CSS pixels
 ordinarily, 148 by 222 in wide detail containers and 96 by 144 in compact
 containers. Narrow layouts omit the cover and retain the complete identity and
-actions. The illustrated hero uses a directional semantic surface gradient behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
+actions. The illustrated hero uses a directional opacity mask behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
 cache/provenance, overrides and quiet fallback remain with Artwork; both artwork
 slots are accessible through Change artwork in Manage. No cover crop or provider
 mapping is inferred.

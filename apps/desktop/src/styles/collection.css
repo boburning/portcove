@@ -80,6 +80,7 @@
   .continue-art {
     position: absolute;
     z-index: -2;
+    opacity: 0.12;
     inset: 0;
     border: 0;
     border-radius: inherit;
@@ -89,17 +90,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-  .continue-art::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to right,
-      var(--color-bg-elevated),
-      color-mix(in srgb, var(--color-bg-elevated) 94%, transparent) 45%,
-      color-mix(in srgb, var(--color-bg-elevated) 72%, transparent)
-    );
   }
   .port-comparison-grid {
     display: grid;
@@ -118,6 +108,32 @@
     font-size: var(--text-xs);
     color: var(--color-text-muted);
   }
+  .discover-grid {
+    align-items: stretch;
+  }
+  .discover-game {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: subgrid;
+    grid-row: span 4;
+    justify-self: start;
+    width: min(100%, var(--collection-art-limit));
+    gap: var(--space-2);
+  }
+  .discover-game > * {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+  .discover-game-identity {
+    align-content: start;
+  }
+  .discover-game-personal-actions {
+    min-block-size: var(--control-height-sm);
+  }
+  .discover-game .collection-title {
+    margin-block-start: var(--space-3);
+  }
+
   .discover-rows {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
@@ -187,32 +203,6 @@
       display: none;
     }
   }
-  .discover-grid {
-    align-items: stretch;
-  }
-  .discover-game {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: subgrid;
-    grid-row: span 4;
-    justify-self: start;
-    width: min(100%, var(--collection-art-limit));
-    gap: var(--space-2);
-  }
-  .discover-game > * {
-    min-inline-size: 0;
-    max-inline-size: 100%;
-  }
-  .discover-game-identity {
-    align-content: start;
-  }
-  .discover-game-personal-actions {
-    min-block-size: var(--control-height-sm);
-  }
-  .discover-game .collection-title {
-    margin-block-start: var(--space-3);
-  }
-
   @container library-query (max-width: 40em) {
     .continue-card {
       grid-template-columns: minmax(0, 1fr);

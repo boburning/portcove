@@ -38,6 +38,9 @@
     inset: 0 0 0 auto;
     width: 100%;
     opacity: 0.9;
+    mask-image: url("../assets/header-artwork-mask.svg");
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
   }
   .detail-header-artwork img {
     width: 100%;
@@ -61,18 +64,6 @@
     height: auto;
     margin-inline: auto;
     object-fit: contain;
-  }
-  .detail-header-artwork::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to right,
-      var(--color-bg-elevated) 0%,
-      color-mix(in srgb, var(--color-bg-elevated) 96%, transparent) 30%,
-      color-mix(in srgb, var(--color-bg-elevated) 78%, transparent) 65%,
-      color-mix(in srgb, var(--color-bg-elevated) 35%, transparent) 100%
-    );
   }
   :root[data-theme="light"] .detail-header-artwork {
     opacity: 0.38;
