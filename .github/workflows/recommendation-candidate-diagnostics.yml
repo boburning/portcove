@@ -6,71 +6,117 @@ on:
     paths:
       - .github/workflows/recommendation-candidate-diagnostics.yml
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
-  feedback-tools:
-    name: Prepare isolated public dependency feedback tools
+  transfer:
+    name: Verify and transfer exact candidate Git objects
+    if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/feature/game-port-recommendations' && github.event_name == 'push'
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    env:
-      VP_GIT_HOOKS: "0"
+    timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76
-        with:
-          version-file: pnpm-workspace.yaml
-          node-version-file: .node-version
-          run-install: "args: [--frozen-lockfile, --ignore-scripts]"
-      - uses: ./.github/actions/setup-rust
-        with:
-          test-fixtures: "false"
-      - name: Collect public Rust dependencies and pinned formatter
+          fetch-depth: 2
+      - name: Validate content-addressed source and create Git objects only
+        env:
+          TRANSFER_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          cargo fetch --locked
-          mkdir -p "$RUNNER_TEMP/feedback/rust" "$RUNNER_TEMP/feedback/cargo" "$RUNNER_TEMP/feedback/node"
-          toolchain="$(rustc --print sysroot)"
-          cp -a "$toolchain/." "$RUNNER_TEMP/feedback/rust/"
-          cp -a "$CARGO_HOME/registry" "$RUNNER_TEMP/feedback/cargo/registry"
-          if [ -d "$CARGO_HOME/git" ]; then
-            cp -a "$CARGO_HOME/git" "$RUNNER_TEMP/feedback/cargo/git"
-            find "$RUNNER_TEMP/feedback/cargo/git" -type f -name config -exec sh -c 'for path do git config --file "$path" --remove-section http 2>/dev/null || true; done' sh {} +
-          fi
-          cp "$(node -p 'process.execPath')" "$RUNNER_TEMP/feedback/node/node"
-          rustc --version --verbose > "$RUNNER_TEMP/feedback/rust-version.txt"
-          git rev-parse HEAD > "$RUNNER_TEMP/feedback/revision.txt"
-          tar -C "$RUNNER_TEMP/feedback" -czf "$RUNNER_TEMP/recommendation-feedback-tools.tar.gz" rust cargo node rust-version.txt revision.txt
-      - name: Capture only installed public JavaScript package bytes
-        shell: bash
-        run: |
-          tar -czf "$RUNNER_TEMP/recommendation-feedback-packages.tar.gz" node_modules apps/desktop/node_modules
-          tar -C "$RUNNER_TEMP" -cf "$RUNNER_TEMP/feedback-bundle.tar" recommendation-feedback-tools.tar.gz recommendation-feedback-packages.tar.gz
-          split --numeric-suffixes --bytes=350M "$RUNNER_TEMP/feedback-bundle.tar" "$RUNNER_TEMP/feedback-part-"
-          sha256sum "$RUNNER_TEMP/feedback-bundle.tar" "$RUNNER_TEMP"/feedback-part-* > "$RUNNER_TEMP/feedback-sha256.txt"
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, re, subprocess, urllib.request
+          BASE = '7c32dff3e1d475166dda5db9b7100c534be2d358'
+          BASE_TREE = '76b9a6b7ffc28277b125c975070d5459b823d579'
+          EXPECTED_TREE = 'f998ed6da3ae1aa04aae378f45dbbc0c59e703f2'
+          WORKFLOW = '.github/workflows/recommendation-candidate-diagnostics.yml'
+          PARTS = [f'.github/recommendation-transfer/part{i}.b64' for i in range(4)]
+          PART_HASHES = ['4518d8645ef698ddd5716f941cd9263a5c3a4937ccece1b52441db40c49a683f', 'c9c1801310a03fe6bb6c3b87db31f999a720f95e8f15928e24bdcb12fe84b2be', '722062d8b921902a9b3e9ab2128bf2f1f29e631efdebcd273febbaefdb24e6b1', '73bf872b0578c85b4b834eaf42d1dc2f9398583ee6860db2f294b61a5ec16aee']
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+          def git(*args):
+              return subprocess.check_output(['git', *args], timeout=20)
+          def blob_sha(data):
+              return hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+          require(os.environ['GITHUB_REPOSITORY'] == 'boburning/portcove', 'Repository mismatch')
+          require(git('rev-parse', 'HEAD').decode().strip() == os.environ['GITHUB_SHA'], 'Checkout mismatch')
+          require(git('rev-parse', 'HEAD^').decode().strip() == BASE, 'Parent mismatch')
+          require(git('rev-parse', BASE + '^{tree}').decode().strip() == BASE_TREE, 'Base tree mismatch')
+          changed = set(git('diff', '--name-only', BASE, 'HEAD').decode().splitlines())
+          require(changed == set(PARTS + [WORKFLOW]), 'Unexpected transfer inputs')
+          chunks = []
+          for path, digest in zip(PARTS, PART_HASHES):
+              data = pathlib.Path(path).read_bytes()
+              require(len(data) <= 15000 and hashlib.sha256(data).hexdigest() == digest, 'Transfer chunk mismatch')
+              chunks.append(data)
+          encoded = b''.join(chunks)
+          require(len(encoded) == 57056, 'Encoded size mismatch')
+          compressed = base64.b64decode(encoded, validate=True)
+          require(len(compressed) == 42792 and hashlib.sha256(compressed).hexdigest() == '4bc7f03e72c5a28a10c31b08e874e9516aa6fcf337ee1c387aee2768edfb040f', 'Compressed identity mismatch')
+          decoder = lzma.LZMADecompressor(memlimit=64 * 1024 * 1024)
+          raw = decoder.decompress(compressed, max_length=1024 * 1024)
+          require(decoder.eof and not decoder.unused_data, 'Incomplete or oversized payload')
+          require(len(raw) == 264165 and hashlib.sha256(raw).hexdigest() == 'f5310292d14919ad220b768548fcc2ff41fc74a0956467528370a9b11e5f9e74', 'Payload identity mismatch')
+          payload = json.loads(raw)
+          require(payload['format'] == 1 and payload['base'] == BASE and payload['tree'] == EXPECTED_TREE, 'Payload binding mismatch')
+          require(len(payload['files']) == 47, 'File count mismatch')
+          entries, names, contents = [], set(), []
+          for item in payload['files']:
+              path = item['path']
+              require(isinstance(path, str) and '\\' not in path and not path.startswith('/') and all(part not in ('', '.', '..', '.git') for part in path.split('/')), 'Unsafe file path')
+              require(path not in names and not path.startswith('.github/recommendation-transfer/'), 'Duplicate or transport file')
+              names.add(path)
+              old_sha, new_sha = item['old'], item['new']
+              require(old_sha is None or re.fullmatch('[0-9a-f]{40}', old_sha), 'Invalid old identity')
+              require(new_sha is None or re.fullmatch('[0-9a-f]{40}', new_sha), 'Invalid new identity')
+              old_entry = git('ls-tree', BASE, '--', path).decode().strip()
+              if old_sha is None:
+                  require(not old_entry, 'New path already exists')
+                  old = b''
+              else:
+                  require(old_entry.split('\t')[0] == '100644 blob ' + old_sha, 'Old file identity mismatch')
+                  old = git('cat-file', 'blob', old_sha)
+              if new_sha is None:
+                  require(path == WORKFLOW and old_sha == 'e9c2bcc1eeb254af9013742f1167a1772fd01d02', 'Unexpected deletion')
+              else:
+                  require(not path.startswith('.github/'), 'Unexpected workflow change')
+                  pieces = []
+                  for operation in item['ops']:
+                      if isinstance(operation, str):
+                          pieces.append(operation.encode('utf-8'))
+                      else:
+                          require(isinstance(operation, list) and len(operation) == 2 and all(type(value) is int for value in operation), 'Invalid copy operation')
+                          start, end = operation
+                          require(0 <= start <= end <= len(old), 'Invalid copy range')
+                          pieces.append(old[start:end])
+                  content = b''.join(pieces)
+                  require(len(content) <= 4 * 1024 * 1024 and blob_sha(content) == new_sha, 'New file identity mismatch')
+                  contents.append((new_sha, content.decode('utf-8')))
+              entries.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': new_sha})
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  raise RuntimeError('Unexpected API redirect')
+          opener = urllib.request.build_opener(NoRedirect)
+          def post(endpoint, body):
+              require(endpoint in ('git/blobs', 'git/trees'), 'Unsupported object operation')
+              request = urllib.request.Request('https://api.github.com/repos/boburning/portcove/' + endpoint, data=json.dumps(body).encode(), method='POST', headers={'Authorization': 'Bearer ' + os.environ['TRANSFER_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28'})
+              with opener.open(request, timeout=30) as response:
+                  return json.load(response)
+          for expected, content in contents:
+              result = post('git/blobs', {'content': content, 'encoding': 'utf-8'})
+              require(result['sha'] == expected, 'Published blob identity mismatch')
+          result = post('git/trees', {'base_tree': BASE_TREE, 'tree': entries})
+          require(result['sha'] == EXPECTED_TREE, 'Published tree identity mismatch')
+          receipt = {'format_version': 1, 'base': BASE, 'transfer_head': os.environ['GITHUB_SHA'], 'tree': result['sha'], 'files': len(entries), 'payload_sha256': hashlib.sha256(raw).hexdigest(), 'scope': 'Git objects only; no branch update, commit, approval, merge, or release publication'}
+          pathlib.Path(os.environ['RUNNER_TEMP'], 'recommendation-transfer-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          print(json.dumps(receipt))
+          PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: recommendation-feedback-part-00-${{ github.sha }}
-          path: |
-            ${{ runner.temp }}/feedback-part-00
-            ${{ runner.temp }}/feedback-sha256.txt
+          name: recommendation-transfer-${{ github.sha }}
+          path: ${{ runner.temp }}/recommendation-transfer-receipt.json
           retention-days: 1
-          compression-level: 0
           if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: recommendation-feedback-part-01-${{ github.sha }}
-          path: ${{ runner.temp }}/feedback-part-01
-          retention-days: 1
-          compression-level: 0
-          if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: recommendation-feedback-part-02-${{ github.sha }}
-          path: ${{ runner.temp }}/feedback-part-02
-          retention-days: 1
-          compression-level: 0
-          if-no-files-found: ignore
