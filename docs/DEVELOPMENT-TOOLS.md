@@ -2209,6 +2209,10 @@ mapped denominator. A focused result is not whole-catalog evidence. This option
 requires `native-default-cover-display` or `native-default-cover-cache-conditions`;
 it does not change image acceptance, cache policy or the frozen cohort's fallback
 credit.
+Linux cache restarts reuse the existing driver birth-identity and descendant-exit
+observations. Cache fixture changes and replacement startup wait for the complete
+captured process set to exit, so a surviving server cannot supply a session with
+the previous environment. Unknown exit refuses the restart and preserves failure.
 
 The native harness opens application windows, takes focus and sends keyboard
 input in the current desktop session. Its isolated files do not isolate the

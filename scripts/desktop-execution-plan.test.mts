@@ -637,6 +637,13 @@ void test("execution planning preserves the independently reviewed pre-change or
         )
           expectedSession.cleanupName = "steam-batch";
       }
+      // #1155 cache restarts reuse the existing Linux birth-identity/exit owner.
+      // Keep the historical oracle; only this intentional custody delta changes.
+      if (
+        row.platform === "linux" &&
+        selection.selected_scenarios.includes("native-default-cover-cache-conditions")
+      )
+        expectedSession.historySession = true;
       assert.deepEqual(plan.session, expectedSession);
     }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
@@ -1351,6 +1358,7 @@ void test("publication repeat callback requires the complete owned native quiesc
       const restart = callable(
         runInNewContext(`${source.slice(start, end)}; restartApplication`, {
           linuxSelectedSession: false,
+          process: { platform: "win32" },
           savedLibraryRecoverySession: false,
           cleanupName: "host-publication",
           hostPublicationSession: !acquisition,

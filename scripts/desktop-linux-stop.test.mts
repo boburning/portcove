@@ -15,6 +15,88 @@ const between = (start: string, end: string) => {
   assert.ok(first >= 0 && last > first);
   return source.slice(first, last);
 };
+
+void test("Linux cover restart joins exact captured processes before fixture mutation or replacement", async () => {
+  const restart = between("async function restartApplication(", "// Interrupt only this harness");
+  for (const failure of [false, true]) {
+    const calls: string[] = [];
+    const inventory = { driver: { start_ticks: "7" }, processes: [{ pid: 23, start_ticks: "7" }] };
+    const context = {
+      process: { platform: "linux" },
+      linuxSelectedSession: false,
+      historySession: true,
+      driver: { pid: 23 },
+      driverPath: "/owned/driver",
+      application: "/owned/app",
+      historyInventory: inventory,
+      browser: {
+        quit: async () => {
+          calls.push("quit");
+        },
+      },
+      captureHistorySession: async () => {
+        calls.push("capture");
+        return inventory;
+      },
+      stopDriver: async () => {
+        calls.push("stop");
+      },
+      waitHistorySessionExit: async () => {
+        calls.push("join");
+        if (failure) throw new Error("exit unknown");
+        return { all_exited: true };
+      },
+      writeFile: async () => {
+        calls.push("receipt");
+      },
+      artifacts: [],
+      output: "/owned",
+      startDriver: async (environment: unknown) => {
+        assert.deepEqual(environment, { HTTPS_PROXY: "owned-refusal" });
+        calls.push("start");
+      },
+      connect: async () => {
+        calls.push("connect");
+      },
+      driverBrowser: () => "fresh-browser",
+      assert,
+      required: <T,>(value: T) => {
+        assert.ok(value);
+        return value;
+      },
+      path,
+    };
+    runInNewContext(`${restart}\nglobalThis.restart=restartApplication;`, context);
+    const fn: unknown = Reflect.get(context, "restart");
+    assert.ok(typeof fn === "function");
+    const invoke = () =>
+      Promise.resolve(
+        Reflect.apply(fn, undefined, [
+          "offline",
+          async () => {
+            calls.push("mutate");
+          },
+          { HTTPS_PROXY: "owned-refusal" },
+        ]),
+      );
+    if (failure) {
+      await assert.rejects(invoke(), /exit unknown/);
+      assert.deepEqual(calls, ["capture", "quit", "stop", "join"]);
+    } else {
+      assert.equal(await invoke(), "fresh-browser");
+      assert.deepEqual(calls, [
+        "capture",
+        "quit",
+        "stop",
+        "join",
+        "receipt",
+        "mutate",
+        "start",
+        "connect",
+      ]);
+    }
+  }
+});
 const stop = between("async function stopDriver()", "function stopBackupFocusDriver()");
 const start = between("async function startDriver(", "async function captureSelectedDriverLaunch(");
 

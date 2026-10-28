@@ -54,7 +54,10 @@ export function planDesktopExecution(
   const librarySwitchRecoverySession = selection.selected_scenarios.includes(
     "native-library-switch-recovery",
   );
-  const historySession = selection.selected_scenarios.includes("native-qualification-history");
+  const historySession =
+    selection.selected_scenarios.includes("native-qualification-history") ||
+    (platform === "linux" &&
+      selection.selected_scenarios.includes("native-default-cover-cache-conditions"));
   const backupFocusSession = selection.selected_scenarios.includes("native-backup-delete-focus");
   const hostInterruptionSession = selection.selected_scenarios.includes(
     "native-host-interrupted-preparation",

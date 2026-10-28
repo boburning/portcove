@@ -1623,6 +1623,33 @@ async function restartApplication(
     await connect();
     return driverBrowser();
   }
+  if (process.platform === "linux" && historySession) {
+    const captured = await captureHistorySession(
+      required(required(driver).pid),
+      driverPath,
+      application,
+    );
+    assert.equal(captured.driver.start_ticks, required(historyInventory).driver.start_ticks);
+    const identities = new Map(
+      [...required(historyInventory).processes, ...captured.processes].map((entry) => [
+        `${entry.pid}:${entry.start_ticks}`,
+        entry,
+      ]),
+    );
+    historyInventory = { ...captured, processes: [...identities.values()] };
+    await required(browser).quit();
+    browser = undefined;
+    await stopDriver();
+    const cleanup = await waitHistorySessionExit(historyInventory);
+    driver = undefined;
+    const evidence = path.join(output, `${name}-restart.json`);
+    await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(evidence);
+    if (prepareWhileStopped) await prepareWhileStopped();
+    await startDriver(childEnvironment);
+    await connect();
+    return driverBrowser();
+  }
   const acquisitionRestart = Boolean(executionPlan.fixtures.acquisitionJourney);
   if (
     savedLibraryRecoverySession ||
