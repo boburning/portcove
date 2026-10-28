@@ -1558,6 +1558,27 @@ function LibraryEntryState({
         onSelect={onSelect}
         updateAvailable={updateAvailable}
       />
+      <LibraryUpdateFacts status={status} updateAvailable={updateAvailable} />
+      {port.upstream_status === "retired" && (
+        <p className="m-0 mt-1 text-pc-warning-foreground">Retired upstream</p>
+      )}
+      {input && (
+        <div id={setupDescriptionId} className="sr-only">
+          {input.reasons.map((reason) => (
+            <p key={reason}>{reason}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LibraryUpdateFacts({
+  status,
+  updateAvailable,
+}: Pick<Parameters<typeof LibraryEntryState>[0], "status" | "updateAvailable">) {
+  return (
+    <>
       {(status?.acquisition ||
         (status?.staged && updateAvailable) ||
         (status?.active && status.channel !== status.active.channel)) && (
@@ -1576,17 +1597,7 @@ function LibraryEntryState({
           {status?.acquisition && <p>{gameUpdateAcquisitionLabel(status.acquisition.phase)}</p>}
         </details>
       )}
-      {port.upstream_status === "retired" && (
-        <p className="m-0 mt-1 text-pc-warning-foreground">Retired upstream</p>
-      )}
-      {input && (
-        <div id={setupDescriptionId} className="sr-only">
-          {input.reasons.map((reason) => (
-            <p key={reason}>{reason}</p>
-          ))}
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
