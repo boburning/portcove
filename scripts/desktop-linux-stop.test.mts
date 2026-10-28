@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
+import { planDesktopExecution } from "./desktop-execution-plan.mts";
+import { resolveDesktopSelection } from "./desktop-scenarios.mts";
 
 const source = await readFile(
   new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
@@ -17,6 +19,22 @@ const between = (start: string, end: string) => {
 };
 
 void test("Linux cover restart joins exact captured processes before fixture mutation or replacement", async () => {
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      platform: "linux",
+      scenarios: ["native-default-cover-cache-conditions"],
+    }),
+    { platform: "linux" },
+  );
+  assert.equal(plan.session.historySession, true);
+  assert.equal(
+    plan.receiptInputs.filter(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    ).length,
+    1,
+  );
   const restart = between("async function restartApplication(", "// Interrupt only this harness");
   for (const failure of [false, true]) {
     const calls: string[] = [];

@@ -568,7 +568,10 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
-          added === nativeHelperRegistryPath,
+          added === nativeHelperRegistryPath ||
+          (added === "apps/desktop/scripts/desktop-qualification-history-test.mts" &&
+            row.platform === "linux" &&
+            selection.selected_scenarios.includes("native-default-cover-cache-conditions")),
         added,
       );
     assert.equal(new Set(actualInputs).size, actualInputs.length);
