@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import {
   mkdtempSync,
+  realpathSync,
   mkdirSync,
   writeFileSync,
   rmSync,
@@ -56,7 +57,7 @@ void test("shuffled diagnostics reject ambiguous or unbounded seeds before runne
 });
 
 void test("literal UI paths reject omissions, ambiguous filters and outside files before execution", () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "ui-selection-"));
+  const root = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "ui-selection-")));
   try {
     mkdirSync(path.join(root, "src"));
     const file = path.join(root, "src", "日本語.test.tsx");
@@ -212,7 +213,7 @@ void test("exact wrapper rejects a mixed valid/missing request before invoking i
 });
 
 function coverageFixture(t: TestContext) {
-  const root = disposableDirectory(t, path.join(os.tmpdir(), "coverage-control-"));
+  const root = realpathSync.native(disposableDirectory(t, path.join(os.tmpdir(), "coverage-control-")));
   const files = {
     ".node-version": process.version.slice(1) + "\n",
     ".gitignore": "work/\n",
