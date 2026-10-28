@@ -1,3 +1,4 @@
+import { replacePreparedFile } from "./prepared-file-replacement.mts";
 import type { TestContext } from "node:test";
 import type { ResourceCapacityOptions } from "./resource-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -18,16 +19,7 @@ interface WorkerEvent {
 }
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
-import {
-  mkdtemp,
-  mkdir,
-  writeFile,
-  readFile,
-  rm,
-  readdir,
-  copyFile,
-  rename,
-} from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, readdir, copyFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -596,6 +588,7 @@ void test("host identity ignores worktree and writable tool-cache overrides", as
     for (const file of [
       "runtime-values.mts",
       "resource-capacity.mts",
+      "prepared-file-replacement.mts",
       "resource-paths.mts",
       "heavy-rust-test-lock.mts",
       "process-lock.mts",
@@ -888,27 +881,67 @@ void test("external recovery is proof-bound and resumes partial release without 
 });
 
 void test("pending handover queues new payloads without acquiring retirement guards", async (t) => {
-  const root = await fixture(t);
-  await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "pending" }));
-  await assert.rejects(
-    acquireResourceCapacity("browser", {}, isolated(root, { waitMs: 0, report: () => {} })),
-    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
-  );
-  assert.equal((await observeCapacity({ root })).running.length, 0);
-  assert.deepEqual(await readdir(path.join(root, "queue")), []);
-  const pending = acquireResourceCapacity(
-    "rust",
-    {},
-    isolated(root, { pollMs: 25, report: () => {} }),
-  );
-  while (!(await readdir(path.join(root, "queue"))).length)
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  const nextConfig = path.join(root, "config-next.json");
-  await writeFile(nextConfig, JSON.stringify({ legacyMode: "coordinated" }), { flag: "wx" });
-  await rename(nextConfig, path.join(root, "config.json"));
-  const lease = await pending;
-  assert.equal(lease.inherited, false);
-  await lease.release();
+  for (const failedReplacement of [false, true]) {
+    const root = await fixture(t);
+    await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "pending" }));
+    await assert.rejects(
+      acquireResourceCapacity("browser", {}, isolated(root, { waitMs: 0, report: () => {} })),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.equal((await observeCapacity({ root })).running.length, 0);
+    assert.deepEqual(await readdir(path.join(root, "queue")), []);
+    const controller = new AbortController();
+    const pending = acquireResourceCapacity(
+      "rust",
+      {},
+      isolated(root, { signal: controller.signal, pollMs: 25, report: () => {} }),
+    );
+    // Attach immediately: replacement failure must still drain the original worker
+    // before the fixture root is removed, without an unhandled rejection.
+    const settled = pending.then(
+      (lease) => ({ lease, error: undefined }),
+      (error: unknown) => ({ lease: undefined, error }),
+    );
+    try {
+      while (!(await readdir(path.join(root, "queue"))).length)
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      const nextConfig = path.join(root, "config-next.json");
+      await writeFile(nextConfig, JSON.stringify({ legacyMode: "coordinated" }), { flag: "wx" });
+      if (failedReplacement) {
+        await assert.rejects(
+          replacePreparedFile(nextConfig + ".absent", path.join(root, "config.json")),
+          {
+            code: "ENOENT",
+          },
+        );
+        assert.equal((await resourceConfiguration(root)).legacyMode, "pending");
+        assert.equal(
+          await readFile(nextConfig, "utf8"),
+          JSON.stringify({ legacyMode: "coordinated" }),
+        );
+      } else {
+        await replacePreparedFile(nextConfig, path.join(root, "config.json"));
+        const lease = await pending;
+        assert.equal(lease.inherited, false);
+      }
+    } finally {
+      controller.abort();
+      const outcome = await settled;
+      await outcome.lease?.release();
+      if (failedReplacement) {
+        assert.equal(outcome.lease, undefined);
+        assert.ok(
+          outcome.error === controller.signal.reason ||
+            (outcome.error instanceof Error &&
+              outcome.error.name === "AbortError" &&
+              outcome.error.cause === controller.signal.reason),
+          "the original worker must settle with its cancellation reason",
+        );
+      }
+    }
+    assert.deepEqual(await readdir(path.join(root, "queue")), []);
+    assert.equal((await observeCapacity({ root })).running.length, 0);
+  }
 });
 
 void test("unavailable process identity waits conservatively and never becomes capacity", async (t) => {

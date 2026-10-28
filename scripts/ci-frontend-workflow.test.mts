@@ -18,6 +18,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { AUDIT_STAGES } from "./audit.mts";
+import { commandTokens } from "./node-test-suites.mts";
 
 import {
   requiredFixture,
@@ -25,6 +26,7 @@ import {
   workflowJob,
   workflowJobSource,
   workflowStep,
+  executableLines,
   rustQuality,
   frontend,
   dependencyReview,
@@ -130,17 +132,132 @@ void test("shared browser uploader preserves the original three caller contracts
   }
 });
 
-void test("Fallow execution provisions its pinned process-custody compiler before analysis", () => {
-  const job = workflowJob("frontend_full");
-  assert.ok(Array.isArray(job.steps));
+function literalStepCommands(step: Record<string, unknown>) {
+  if (typeof step.run !== "string") return [];
+  // Inspect the complete body: unsupported shell control must not hide an
+  // unreachable literal command that could impersonate the required gate.
+  try {
+    return executableLines(step.run).map(commandTokens);
+  } catch {
+    return [];
+  }
+}
+
+function assertFullFrontendFallowPolicy(job: unknown) {
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
   const steps: unknown[] = job.steps;
-  const compiler = steps.findIndex(
-    (step) => isRecord(step) && step.uses === "./.github/actions/setup-rust",
+  assert.ok(steps.every(isRecord));
+  const owners = steps.filter(isRecord);
+  const analyzers = owners.flatMap((step) =>
+    literalStepCommands(step)
+      .filter(
+        (args) => args.length === 2 && args[0] === "node" && args[1] === "scripts/run-fallow.mts",
+      )
+      .map(() => step),
   );
-  const analyzer = steps.findIndex(
-    (step) => isRecord(step) && step.run === "node scripts/run-fallow.mts",
+  assert.equal(analyzers.length, 1, "one executable full Fallow gate must remain");
+  const analyzer = requiredFixture(analyzers[0]);
+  assert.deepEqual(
+    literalStepCommands(analyzer),
+    [["node", "scripts/run-fallow.mts"]],
+    "the Fallow gate body must contain only its executable invocation",
   );
-  assert.ok(compiler >= 0 && analyzer > compiler);
+  assert.equal(analyzer.if, undefined, "the full Fallow gate must run unconditionally");
+  assert.ok(!analyzer["continue-on-error"], "the Fallow gate must propagate failure");
+  const compiler = owners.findIndex((step) => step.uses === "./.github/actions/setup-rust");
+  const analysis = owners.indexOf(analyzer);
+  const browser = owners.findIndex((step) =>
+    literalStepCommands(step).some(
+      (args) => args.length === 2 && args[0] === "pnpm" && args[1] === "browser:bootstrap",
+    ),
+  );
+  assert.ok(compiler >= 0 && compiler < analysis, "compiler custody must precede Fallow");
+  assert.ok(browser > analysis, "Fallow must precede browser composition");
+  const uploaders = owners.filter(
+    (step) => isRecord(step.with) && step.with.path === "work/fallow-reports/",
+  );
+  assert.equal(uploaders.length, 1, "original Fallow report artifact input must remain");
+  const uploader = requiredFixture(uploaders[0]);
+  assert.ok(
+    typeof uploader.uses === "string" &&
+      /^actions\/upload-artifact@[a-f0-9]{40}$/u.test(uploader.uses),
+  );
+  assert.ok(isRecord(uploader.with));
+  assert.equal(uploader.if, "always()", "Fallow reports must survive a failed gate");
+  assert.match(String(uploader.with.name), /^fallow-full-/u);
+  assert.equal(uploader.with["retention-days"], 7);
+}
+
+void test("Fallow execution provisions its pinned process-custody compiler before analysis", () => {
+  assertFullFrontendFallowPolicy(workflowJob("frontend_full"));
+});
+
+void test("frontend Fallow policy accepts labels, command quoting and YAML layout but rejects removed gates and evidence", (t) => {
+  const original = workflowJob("frontend_full");
+  const harmless = structuredClone(original);
+  assert.ok(Array.isArray(harmless.steps));
+  for (const step of harmless.steps) {
+    assert.ok(isRecord(step));
+    if (typeof step.name === "string") step.name = "Renamed harmless step label";
+    if (step.run === "node scripts/run-fallow.mts")
+      step.run = "# harmless comment\n 'node'   \"scripts/run-fallow.mts\"  ";
+  }
+  const flow = parseDocument(
+    JSON.stringify({ jobs: { frontend_full: harmless } }),
+  ).toJS() as unknown;
+  assert.ok(isRecord(flow) && isRecord(flow.jobs));
+  const jobs = flow.jobs;
+  assert.doesNotThrow(() => assertFullFrontendFallowPolicy(jobs.frontend_full));
+  assertFullFrontendFallowPolicy(original);
+  for (const [mutation, oracle] of [
+    ["removed-gate", "one executable full Fallow gate must remain"],
+    ["unreachable-gate", "one executable full Fallow gate must remain"],
+    ["duplicate-invocation", "one executable full Fallow gate must remain"],
+    ["early-exit", "the Fallow gate body must contain only its executable invocation"],
+    ["failure-suppression", "the Fallow gate must propagate failure"],
+    ["conditional-gate", "the full Fallow gate must run unconditionally"],
+    ["missing-compiler", "compiler custody must precede Fallow"],
+    ["browser-before-gate", "Fallow must precede browser composition"],
+    ["missing-artifact", "original Fallow report artifact input must remain"],
+    ["success-only-artifact", "Fallow reports must survive a failed gate"],
+  ] as const) {
+    const changed = structuredClone(original);
+    assert.ok(Array.isArray(changed.steps));
+    const steps: unknown[] = changed.steps;
+    const gate = steps.find((step) => isRecord(step) && step.run === "node scripts/run-fallow.mts");
+    const artifact = steps.find(
+      (step) => isRecord(step) && isRecord(step.with) && step.with.path === "work/fallow-reports/",
+    );
+    assert.ok(isRecord(gate) && isRecord(artifact) && isRecord(artifact.with));
+    if (mutation === "removed-gate") changed.steps = steps.filter((step) => step !== gate);
+    if (mutation === "unreachable-gate")
+      gate.run = "if false; then\nnode scripts/run-fallow.mts\nfi";
+    if (mutation === "duplicate-invocation")
+      gate.run = "node scripts/run-fallow.mts\nnode scripts/run-fallow.mts";
+    if (mutation === "early-exit") gate.run = "exit 0\nnode scripts/run-fallow.mts";
+    if (mutation === "failure-suppression") gate["continue-on-error"] = true;
+    if (mutation === "conditional-gate") gate.if = "success() && false";
+    if (mutation === "missing-compiler")
+      changed.steps = steps.filter(
+        (step) => !isRecord(step) || step.uses !== "./.github/actions/setup-rust",
+      );
+    if (mutation === "browser-before-gate") {
+      const browser = steps.find((step) => isRecord(step) && step.run === "pnpm browser:bootstrap");
+      assert.ok(isRecord(browser));
+      changed.steps = [browser, ...steps.filter((step) => step !== browser)];
+    }
+    if (mutation === "missing-artifact") delete artifact.with.path;
+    if (mutation === "success-only-artifact") artifact.if = "success()";
+    assert.throws(
+      () => assertFullFrontendFallowPolicy(changed),
+      (error: unknown) => {
+        assert.ok(error instanceof assert.AssertionError);
+        assert.ok(error.message.includes(oracle), `${mutation}: ${error.message}`);
+        return true;
+      },
+    );
+    t.diagnostic(JSON.stringify({ mutation, oracle }));
+  }
 });
 
 void test("screenshot-only diagnostic is manual, preserves failure guards and verifies all attempt packets", async () => {
@@ -244,19 +361,7 @@ void test("maintained first-party sources default to checked TypeScript", () => 
 });
 
 void test("selected full Fallow runs once before browser work and retains successful evidence", async () => {
-  const full = workflowJobSource(workflow, "frontend_full");
-  assert.equal(full.match(/run: node scripts\/run-fallow\.mts/g)?.length, 1);
-  assert.ok(full.indexOf("run-fallow.mts") < full.indexOf("pnpm browser:bootstrap"));
-  const owner = workflowJob("frontend_full");
-  assert.ok(Array.isArray(owner.steps));
-  const uploader: unknown = owner.steps.find(
-    (step: unknown) => isRecord(step) && step.name === "Retain original Fallow reports",
-  );
-  assert.ok(isRecord(uploader) && isRecord(uploader.with));
-  assert.equal(uploader.if, "always()");
-  assert.equal(uploader.with.path, "work/fallow-reports/");
-  assert.match(String(uploader.with.name), /^fallow-full-/u);
-  assert.equal(uploader.with["retention-days"], 7);
+  assertFullFrontendFallowPolicy(workflowJob("frontend_full"));
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const check = requiredFixture(requiredFixture(recipes.split("\nui-check:")[1]).split(/\n\S/)[0]);
   assert.equal(check.match(/run-fallow\.mts/g)?.length, 1);

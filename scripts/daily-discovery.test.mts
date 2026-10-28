@@ -1,3 +1,4 @@
+import { replacePreparedFile } from "./prepared-file-replacement.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
@@ -37,7 +38,7 @@ const envelope = {
 };
 void test(
   "Windows reader sharing permits bounded atomic state replacement and preserves persistent failure",
-  { skip: process.platform !== "win32", timeout: 10000 },
+  { skip: process.platform !== "win32", timeout: 20000 },
   async (t) => {
     const root = fileURLToPath(new URL("../", import.meta.url));
     mkdirSync(path.join(root, "work"), { recursive: true });
@@ -49,45 +50,57 @@ void test(
       script,
       'param([string]$Target,[int]$Hold)\n$stream=[IO.File]::Open($Target,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)\ntry { [Console]::Out.WriteLine("held"); Start-Sleep -Milliseconds $Hold } finally {$stream.Dispose()}',
     );
-    for (const milliseconds of [300, 1800]) {
-      writeFileSync(target, "old");
-      const child = spawn("pwsh", ["-NoProfile", "-File", script, target, String(milliseconds)], {
-        windowsHide: true,
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      const exited = once(child, "exit");
-      try {
-        const signal: unknown[] = await once(child.stdout, "data");
-        const ready = signal[0];
-        assert.ok(Buffer.isBuffer(ready));
-        assert.match(ready.toString("utf8"), /held/);
-        const probe = path.join(state, "probe.next");
-        writeFileSync(probe, "probe");
-        assert.throws(() => renameSync(probe, target), { code: "EPERM" });
-        const started = performance.now();
-        if (milliseconds === 300) {
-          // Exercise the production writer; old implementation fails at this same boundary.
-          discoverySession.atomic(target, { requests: 134 });
-          assert.deepEqual(JSON.parse(readFileSync(target, "utf8")), { requests: 134 });
-        } else {
-          assert.throws(() => discoverySession.atomic(target, { requests: 135 }), {
-            code: "EPERM",
-          });
-          assert.equal(readFileSync(target, "utf8"), "old");
-          const pending = readdirSync(state).find(
-            (name) => name.startsWith("budget.json.") && name.endsWith(".next"),
+    for (const asynchronous of [false, true]) {
+      for (const milliseconds of [300, 1800]) {
+        writeFileSync(target, "old");
+        const child = spawn("pwsh", ["-NoProfile", "-File", script, target, String(milliseconds)], {
+          windowsHide: true,
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+        const exited = once(child, "exit");
+        try {
+          const signal: unknown[] = await once(child.stdout, "data");
+          const ready = signal[0];
+          assert.ok(Buffer.isBuffer(ready));
+          assert.match(ready.toString("utf8"), /held/);
+          const probe = path.join(state, "probe.next");
+          writeFileSync(probe, "probe");
+          assert.throws(() => renameSync(probe, target), { code: "EPERM" });
+          const started = performance.now();
+          if (milliseconds === 300) {
+            // Exercise the production writer; old implementation fails at this same boundary.
+            if (asynchronous) {
+              writeFileSync(probe, JSON.stringify({ requests: 134 }));
+              await replacePreparedFile(probe, target);
+            } else discoverySession.atomic(target, { requests: 134 });
+            assert.deepEqual(JSON.parse(readFileSync(target, "utf8")), { requests: 134 });
+          } else {
+            if (asynchronous) {
+              writeFileSync(probe, JSON.stringify({ requests: 135 }));
+              await assert.rejects(replacePreparedFile(probe, target), { code: "EPERM" });
+              assert.deepEqual(JSON.parse(readFileSync(probe, "utf8")), { requests: 135 });
+            } else
+              assert.throws(() => discoverySession.atomic(target, { requests: 135 }), {
+                code: "EPERM",
+              });
+            assert.equal(readFileSync(target, "utf8"), "old");
+            const pending = asynchronous
+              ? "probe.next"
+              : readdirSync(state).find(
+                  (name) => name.startsWith("budget.json.") && name.endsWith(".next"),
+                );
+            assert.ok(pending);
+            assert.deepEqual(JSON.parse(readFileSync(path.join(state, pending), "utf8")), {
+              requests: 135,
+            });
+          }
+          assert.ok(
+            performance.now() - started < 1600,
+            "state replacement must retain its finite wait",
           );
-          assert.ok(pending);
-          assert.deepEqual(JSON.parse(readFileSync(path.join(state, pending), "utf8")), {
-            requests: 135,
-          });
+        } finally {
+          assert.deepEqual(await exited, [0, null]);
         }
-        assert.ok(
-          performance.now() - started < 1600,
-          "state replacement must retain its finite wait",
-        );
-      } finally {
-        assert.deepEqual(await exited, [0, null]);
       }
     }
   },
