@@ -1,5 +1,3 @@
-import { stripTypeScriptTypes } from "node:module";
-import { runInNewContext } from "node:vm";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -8,6 +6,7 @@ import { connect } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 
 import { createImageRefusal, restoreCacheAfterObservation } from "./desktop-cover-observations.mts";
 
@@ -105,27 +104,37 @@ void test("default cover restoration preserves primary failures and still closes
   await assert.rejects(readFile(retained), { code: "ENOENT" });
 });
 
-void test("default cover observation remains inert when its scenario is not selected", async () => {
-  const source = stripTypeScriptTypes(
-    await readFile(new URL("./desktop-default-cover-test.mts", import.meta.url), "utf8"),
-    { mode: "strip" },
-  );
-  const start = source.indexOf("export async function defaultCoverScenario(");
-  const end = source.indexOf("async function assertEmptyCache(", start);
-  assert.ok(start >= 0 && end > start);
-  const scenario = source.slice(start, end).replace("export ", "");
-  assert.match(scenario, /\bawait\s+restoreCacheAfterObservation\s*\(/u);
-  let visited = 0;
-  const result: unknown = runInNewContext(`${scenario} defaultCoverScenario(context)`, {
-    context: {
-      browser: undefined,
-      scenario: async () => {
-        visited += 1;
-      },
-    },
-  });
-  await result;
-  assert.equal(visited, 1);
+void test("default cover observation remains inert when its scenario is not selected", () => {
+  const entry = new URL("./desktop-default-cover-test.mts", import.meta.url);
+  for (const variant of ["original", "aliased", "wrong-export", "decoy-restoration"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        entry,
+        `
+    const variant=${JSON.stringify(variant)};
+    if(variant==='decoy-restoration')registerHooks({load(url,context,next){
+      const loaded=next(url,context);if(url!==entry)return loaded;
+      const source=String(loaded.source);
+      const changed=source.replace(/await(\\s+)restoreCacheAfterObservation(\\s*\\()/gu,'await$1globalThis.withheldRestoration$2');
+      assert.notEqual(changed,source);
+      return {...loaded,source:changed+'\\nasync function decoy(){await restoreCacheAfterObservation();}\\n'};
+    }});
+    const {defaultCoverScenario}=await import(entry);
+    let visited=0;
+    await defaultCoverScenario({browser:undefined,scenario:async()=>{visited++;}});
+    assert.equal(visited,1);
+    // Genuine cleanup policy stays scoped to the actual scenario.
+    assert.match(defaultCoverScenario.toString(),/\\bawait\\s+restoreCacheAfterObservation\\s*\\(/u);
+  `,
+        variant === "aliased" || variant === "wrong-export"
+          ? { exportName: "defaultCoverScenario", variant }
+          : undefined,
+      );
+    if (variant === "wrong-export") assert.throws(execute, /0 !== 1/u);
+    else if (variant === "decoy-restoration")
+      assert.throws(execute, /did not match.*regular expression/u);
+    else execute();
+  }
 });
 
 void test("default cover refusal proxy rejects owned CONNECT traffic without retaining request secrets", async (t) => {

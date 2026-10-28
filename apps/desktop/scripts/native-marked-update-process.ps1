@@ -1,10 +1,11 @@
 param(
-    [Parameter(Mandatory)][ValidateSet('Capture', 'Wait', 'Stop')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('Capture', 'Wait', 'Stop', 'ObserveExit')][string]$Mode,
     [Parameter(Mandatory)][string]$IdentityPath,
     [string]$MarkerPath,
     [string]$ExpectedPath,
     [string]$EarliestStart,
-    [switch]$Helper
+    [switch]$Helper,
+    [ValidateRange(100, 90000)][int]$ObservationTimeoutMilliseconds = 90000
 )
 $ErrorActionPreference = 'Stop'
 function Get-ComparableProcessPath([string]$Path) {
@@ -15,7 +16,10 @@ function Get-ComparableProcessPath([string]$Path) {
     }
     return $full
 }
-if ($Mode -eq 'Capture') {
+if ($Mode -in @('Capture', 'ObserveExit')) {
+    $observingExit = $Mode -eq 'ObserveExit'
+    if ($observingExit) { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) }
+    $observationClock = [Diagnostics.Stopwatch]::StartNew()
     $marker = Get-Content -LiteralPath $MarkerPath -Raw | ConvertFrom-Json
     if ($marker.schema_version -ne 1 -or [int]$marker.process_id -le 0 -or
         -not [string]::Equals((Get-ComparableProcessPath $marker.executable), (Get-ComparableProcessPath $ExpectedPath), [StringComparison]::OrdinalIgnoreCase)) {
@@ -23,6 +27,10 @@ if ($Mode -eq 'Capture') {
     }
     $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$marker.process_id)"
     if (-not $entry) {
+        if ($observingExit) {
+            [pscustomobject]@{ status = 'unobserved'; pid = [int]$marker.process_id; exit_code = $null; reason = 'exited-before-attachment' } | ConvertTo-Json -Compress
+            exit
+        }
         [pscustomobject]@{ status = 'exited'; pid = [int]$marker.process_id } | ConvertTo-Json -Compress
         exit
     }
@@ -36,10 +44,17 @@ if ($Mode -eq 'Capture') {
     }
     $process = try { [Diagnostics.Process]::GetProcessById([int]$marker.process_id) } catch [ArgumentException] { $null }
     if (-not $process) {
+        if ($observingExit) {
+            [pscustomobject]@{ status = 'unobserved'; pid = [int]$marker.process_id; exit_code = $null; reason = 'exited-before-attachment' } | ConvertTo-Json -Compress
+            exit
+        }
         [pscustomobject]@{ status = 'exited'; pid = [int]$marker.process_id } | ConvertTo-Json -Compress
         exit
     }
     try {
+        # Force the OS handle before identity capture and retain it in this same
+        # observer through exit. Capture/Wait's separate processes cannot do this.
+        if ($observingExit) { $null = $process.Handle }
         if ([Math]::Abs(($process.StartTime.ToUniversalTime() - $started).TotalMilliseconds) -gt 1 -or
             -not [string]::Equals((Get-ComparableProcessPath $process.MainModule.FileName), (Get-ComparableProcessPath $ExpectedPath), [StringComparison]::OrdinalIgnoreCase)) {
             throw 'Marked updater process changed during identity capture.'
@@ -54,9 +69,24 @@ if ($Mode -eq 'Capture') {
             $bytes = [Text.Encoding]::UTF8.GetBytes(($identity | ConvertTo-Json -Compress))
             $stream.Write($bytes, 0, $bytes.Length)
         } finally { $stream.Dispose() }
+        if ($observingExit) {
+            $remaining = $ObservationTimeoutMilliseconds - $observationClock.ElapsedMilliseconds
+            if ($remaining -le 0 -or -not $process.WaitForExit([int]$remaining)) {
+                [pscustomobject]@{ status = 'timeout'; pid = $identity.pid; exit_code = $null; path = $identity.path } | ConvertTo-Json -Compress
+                exit
+            }
+            $exitCode = $process.ExitCode
+            if ($null -eq $exitCode) { throw 'Retained process handle did not supply an OS exit code.' }
+            [pscustomobject]@{ status = 'exit-observed'; pid = $identity.pid; exit_code = [int]$exitCode; path = $identity.path; started_filetime = $identity.started_filetime; observation = 'retained-process-handle' } | ConvertTo-Json -Compress
+            exit
+        }
         [pscustomobject]@{ status = 'captured'; pid = $identity.pid; path = $identity.path } | ConvertTo-Json -Compress
     } catch [InvalidOperationException] {
         if (-not $process.HasExited) { throw }
+        if ($observingExit) {
+            [pscustomobject]@{ status = 'unobserved'; pid = [int]$marker.process_id; exit_code = $null; reason = 'exited-during-identity-capture' } | ConvertTo-Json -Compress
+            exit
+        }
         [pscustomobject]@{ status = 'exited'; pid = [int]$marker.process_id } | ConvertTo-Json -Compress
     } finally { $process.Dispose() }
     exit

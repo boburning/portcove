@@ -89,23 +89,40 @@ async function restore(filter: CatalogQuery | "beta" | "all") {
   await act(async () => root.render(<Fixture initial={initial} />));
 }
 
+async function openChannelPanel() {
+  const trigger = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
+    /^Filters \(\d+\)$/.test(button.textContent?.trim() ?? ""),
+  );
+  expect(trigger).toBeDefined();
+  if (trigger!.getAttribute("aria-expanded") !== "true") await act(async () => trigger!.click());
+}
+
 async function click(name: string) {
+  await openChannelPanel();
   await act(async () => channelButton(name).click());
 }
 
 function channelButton(name: string) {
-  const label = name === "beta" ? "preview" : name === "all" ? "all ports" : name;
+  const label = name === "beta" ? "preview" : name === "all" ? "clear filters" : name;
   const button = [
-    ...host.querySelectorAll<HTMLButtonElement>('[aria-label="Release channel filters"] button'),
-  ].find((item) => item.textContent?.trim().toLowerCase() === label);
+    ...host.querySelectorAll<HTMLButtonElement>('[aria-label="Filter options"] button'),
+  ].find(
+    (item) =>
+      item.textContent
+        ?.trim()
+        .toLowerCase()
+        .replace(/ \(.*\)$/u, "") === label,
+  );
   expect(button).toBeDefined();
   return button!;
 }
 
 function visibleIds() {
-  return [...host.querySelectorAll('[data-detail-origin^="catalog:card:"]')].map((item) =>
-    item.getAttribute("data-detail-origin")!.slice("catalog:card:".length),
-  );
+  return [
+    ...host.querySelectorAll(
+      '[data-detail-origin^="catalog:card:"]:not([data-detail-origin$=":details"])',
+    ),
+  ].map((item) => item.getAttribute("data-detail-origin")!.slice("catalog:card:".length));
 }
 
 beforeEach(async () => {
@@ -230,9 +247,9 @@ describe("Catalog channel controls", () => {
     expect(connection?.textContent).toContain("Connection status unavailable");
   });
   it("keeps Stable and Preview selected with compatible beta query values", async () => {
-    await act(async () => channelButton("stable").click());
+    await click("stable");
     expect(visibleIds()).toEqual(["stable", "both"]);
-    await act(async () => channelButton("beta").click());
+    await click("beta");
     expect(visibleIds()).toEqual(["stable", "beta", "both"]);
     expect(channelButton("stable").getAttribute("aria-pressed")).toBe("true");
     expect(channelButton("beta").getAttribute("aria-pressed")).toBe("true");
@@ -246,7 +263,10 @@ describe("Catalog channel controls", () => {
     expect(visibleIds()).toEqual(["beta", "both"]);
     await click("beta");
     expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
-    expect(channelButton("all").getAttribute("aria-pressed")).toBe("true");
+    expect(
+      shell.filter === "all" ||
+        (typeof shell.filter !== "string" && !shell.filter.channels?.length),
+    ).toBe(true);
     await click("rolling");
     await click("stable");
     await click("beta");
@@ -263,7 +283,7 @@ describe("Catalog channel controls", () => {
     expect(visibleIds()).toEqual(["stable", "beta", "both"]);
   });
 
-  it("preserves other constraints for channel toggles and clears declared filters with All ports", async () => {
+  it("preserves other constraints for channel toggles and clears declared filters in the shared panel", async () => {
     await restore({ version: 1, channels: ["stable"], platforms: ["linux-x86-64"] });
     await click("beta");
     expect(visibleIds()).toEqual([]);
@@ -272,16 +292,19 @@ describe("Catalog channel controls", () => {
       channels: ["stable", "beta"],
       platforms: ["linux-x86-64"],
     });
-    expect(channelButton("all").getAttribute("aria-pressed")).toBe("false");
+    expect(shell.filter).not.toBe("all");
     await click("stable");
     await click("beta");
     expect(visibleIds()).toEqual([]);
     expect(shell.filter).toEqual({ version: 1, channels: [], platforms: ["linux-x86-64"] });
-    expect(channelButton("all").getAttribute("aria-pressed")).toBe("false");
+    expect(shell.filter).not.toBe("all");
     await click("all");
     expect(shell.filter).toBe("all");
     expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
-    expect(channelButton("all").getAttribute("aria-pressed")).toBe("true");
+    expect(
+      shell.filter === "all" ||
+        (typeof shell.filter !== "string" && !shell.filter.channels?.length),
+    ).toBe(true);
   });
 
   it.each([
@@ -291,6 +314,7 @@ describe("Catalog channel controls", () => {
   ])("holds unsupported restored queries until explicit reset: %j", async (filter) => {
     await restore(filter);
     expect(visibleIds()).toEqual([]);
+    await openChannelPanel();
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("not supported");
     expect(channelButton("beta").disabled).toBe(true);
     await click("beta");
@@ -306,6 +330,7 @@ describe("Catalog channel controls", () => {
       shell.setCatalogSort("name");
       shell.setSelectedId("stable");
     });
+    await openChannelPanel();
     channelButton("beta").focus();
     await click("beta");
     expect(document.activeElement).toBe(channelButton("beta"));

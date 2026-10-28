@@ -19,9 +19,11 @@ use tough::schema::{Root, Signed, Targets};
 
 mod bundle;
 mod io;
+mod key_inventory;
 mod policy;
 mod repository;
 mod signing;
+pub use key_inventory::{CatalogKeyInventory, inspect_catalog_key_inventory};
 pub use repository::{assemble_definition_repository, verify_definition_repository};
 pub use signing::{sign_definition_role, sign_offline_definition_targets};
 

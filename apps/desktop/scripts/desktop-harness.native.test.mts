@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, writeFile, rm } from "node:fs/promises";
+import os from "node:os";
+import { observeDesktopHarnessInputs } from "../../../scripts/native-helper-dependencies.mts";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import path from "node:path";
@@ -96,35 +98,39 @@ void test("connected inspector stays owned when post-connect media verification 
   }
 });
 
-void test("runner phase metadata is checked at initial read before native execution", () => {
-  const start = source.indexOf("const phases = runnerMetadata.phases;");
-  const end = source.indexOf("let acceptancePreflight", start);
-  assert.ok(start > source.indexOf('if (values["run-metadata"])') && end > start);
-  assert.ok(end < source.indexOf("await startDriver();"));
-  assert.equal(source.split("const phases = runnerMetadata.phases;").length, 2);
-  for (const phases of [undefined, [], [{ phase: "build", opaque_metadata: 42 }]]) {
-    const actual: unknown = runInNewContext(
-      `${helpers} ${source.slice(start, end)} metadataPhases;`,
-      {
-        assert,
-        isRecord,
-        runnerMetadata: { phases },
+void test("runner phase metadata is checked at initial read before native execution", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-runner-phases-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const metadata = path.join(directory, "metadata.json");
+  const custody = { inputs: [] };
+  const inspect = async (phases: unknown) => {
+    await writeFile(metadata, JSON.stringify({ source_state: { declared: true }, phases }));
+    return observeDesktopHarnessInputs({
+      custody,
+      runMetadata: metadata,
+      capture: {
+        root: directory,
+        values: { app: process.execPath },
+        plan: { receiptInputs: [], selection: { selected_scenarios: [] } },
+        output: directory,
+        revision: "a".repeat(40),
+        validate: async () => assert.fail("Existing custody must not trigger capture"),
       },
-      { timeout: 1000 },
-    );
-    assert.equal(JSON.stringify(actual), JSON.stringify(phases ?? []));
+    });
+  };
+  for (const phases of [undefined, [], [{ phase: "build", opaque_metadata: 42 }]]) {
+    const actual = await inspect(phases);
+    assert.deepEqual(actual.metadataPhases, phases ?? []);
+    assert.deepEqual(custody.inputs, [], "Phase observations must not enlarge custody");
+    assert.equal(actual.inputs.length, 1);
+    assert.equal(actual.inputs[0]?.path, metadata);
+    if (Array.isArray(actual.runnerMetadata.phases)) {
+      assert.notEqual(actual.metadataPhases, actual.runnerMetadata.phases);
+      assert.equal(actual.metadataPhases[0], actual.runnerMetadata.phases[0]);
+    }
   }
-  for (const phases of [null, false, "build", {}, [null], [false], ["build"]]) {
-    assert.throws(() =>
-      runInNewContext(
-        `${helpers} ${source.slice(start, end)} metadataPhases;`,
-        {
-          assert,
-          isRecord,
-          runnerMetadata: { phases },
-        },
-        { timeout: 1000 },
-      ),
-    );
+  for (const phases of [null, false, "build", {}, [null], [false], ["build"], [[]]]) {
+    await assert.rejects(() => inspect(phases), { code: "ERR_ASSERTION" });
+    assert.deepEqual(custody.inputs, []);
   }
 });

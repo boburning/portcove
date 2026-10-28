@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  readWindowsUpdateProcessMarker as processMarker,
+  readWindowsUpdateProcessObservation as markedObservation,
+  readWindowsUpdateExitObservation,
+} from "./desktop-installed-update-harness.mts";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import path from "node:path";
@@ -24,9 +29,47 @@ const valid = {
   metadata: { retained: true },
 };
 
+void test("Windows helper OS exit evidence refuses missing codes and starts before relaunch waits", () => {
+  for (const code of [0, 7, -1]) {
+    assert.equal(
+      readWindowsUpdateExitObservation({
+        status: "exit-observed",
+        pid: 42,
+        exit_code: code,
+        observation: "retained-process-handle",
+      }).exit_code,
+      code,
+    );
+  }
+  for (const status of ["unobserved", "timeout"]) {
+    assert.equal(
+      readWindowsUpdateExitObservation({ status, pid: 42, exit_code: null }).exit_code,
+      null,
+    );
+    assert.throws(() => readWindowsUpdateExitObservation({ status, pid: 42, exit_code: 0 }));
+  }
+  for (const value of [
+    { status: "exit-observed", pid: 42, exit_code: null, observation: "retained-process-handle" },
+    { status: "exit-observed", pid: 42, exit_code: 0 },
+    { status: "exit-observed", pid: 42, exit_code: "0", observation: "retained-process-handle" },
+    { status: "exit-observed", pid: 0, exit_code: 0, observation: "retained-process-handle" },
+    {
+      status: "exit-observed",
+      pid: 42,
+      exit_code: 2 ** 32,
+      observation: "retained-process-handle",
+    },
+  ])
+    assert.throws(() => readWindowsUpdateExitObservation(value));
+  const start = source.indexOf("helperExitObserver = startWindowsUpdateExitObservation");
+  assert.ok(start > source.indexOf("report.helper_process_marker = helper"));
+  assert.ok(start < source.indexOf("const relaunch = processMarker"));
+  const cancel = source.indexOf("helperExitObserver.cancel()");
+  assert.ok(cancel > 0 && cancel < source.indexOf("if (restartStarted)", cancel));
+});
+
 void test("Windows updater marker readers reject malformed identity fields and retain opaque metadata", () => {
-  const read = (input: unknown): unknown =>
-    runInNewContext(`${readers} processMarker(input)`, { assert, path, input });
+  const read = (input: unknown): unknown => processMarker(input);
   assert.equal(JSON.stringify(read(valid)), JSON.stringify(valid));
   for (const input of [
     null,
@@ -39,8 +82,7 @@ void test("Windows updater marker readers reject malformed identity fields and r
     { ...valid, executable: 42 },
   ])
     assert.throws(() => read(input));
-  const observe = (input: unknown): unknown =>
-    runInNewContext(`${readers} markedObservation(input)`, { assert, path, input });
+  const observe = (input: unknown): unknown => markedObservation(input);
   for (const status of ["captured", "exited", "prior-process-exited", "stopped"])
     assert.equal(JSON.stringify(observe({ status, pid: 42 })), JSON.stringify({ status, pid: 42 }));
   for (const input of [
@@ -71,6 +113,8 @@ void test("Windows updater cleanup keeps marker/path validation before identity-
       `${readers} ${cleanup} cleanupMarkedProcess("marker.json", label)`,
       {
         assert,
+        processMarker,
+        markedObservation,
         path,
         staging,
         app,
@@ -110,6 +154,8 @@ void test("Windows updater cleanup keeps marker/path validation before identity-
       `${readers} ${cleanup} cleanupMarkedProcess("marker.json", "helper")`,
       {
         assert,
+        processMarker,
+        markedObservation,
         path,
         staging,
         app,

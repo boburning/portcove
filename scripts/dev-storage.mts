@@ -23,6 +23,14 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
+  readScratchProfile,
+  scratchAllocation,
+  scratchCargoTarget,
+  verifyScratchProfile,
+  prepareScratchProfile,
+} from "./development-scratch.mts";
+import { localNodeResourceProfile, parseNodeTestSuites } from "./node-test-suites.mts";
+import {
   checkoutToolEnvironment,
   readToolPins,
   pinnedAquaCommand,
@@ -77,6 +85,7 @@ export interface StoragePaths {
   frontend_dependencies?: string;
   desktop_dependencies?: string;
   frontend_output?: string;
+  scratch_backing_volume?: string;
 }
 export interface StorageVolume {
   root: string;
@@ -174,7 +183,13 @@ export function readStoragePolicy({
 
 export function getPaths(
   scope = "all",
-  { metadataProvider = cargoMetadata }: { metadataProvider?: () => CargoStorageMetadata } = {},
+  {
+    metadataProvider = cargoMetadata,
+    prepareScratch = false,
+  }: {
+    metadataProvider?: () => CargoStorageMetadata;
+    prepareScratch?: boolean;
+  } = {},
 ) {
   if (!["all", "tooling", "frontend", "rust"].includes(scope))
     throw new Error(`Unknown storage task scope: ${scope}. Use all, tooling, frontend or rust.`);
@@ -183,6 +198,20 @@ export function getPaths(
     temporary_directory: resolveConfiguredPath(process.env.PORTCOVE_TEMP_DIR, "work/temp"),
     output_root: resolveConfiguredPath(process.env.PORTCOVE_OUTPUT_DIR, "outputs"),
   };
+  const configuredScratch = readScratchProfile();
+  const normalizeWorkspace = (file: string) =>
+    process.platform === "win32" ? path.resolve(file).toLowerCase() : path.resolve(file);
+  const scratch =
+    configuredScratch &&
+    (!configuredScratch.workspaces ||
+      configuredScratch.workspaces.some(
+        (workspace) => normalizeWorkspace(workspace) === normalizeWorkspace(projectRoot),
+      ))
+      ? configuredScratch
+      : undefined;
+  const allocation = scratch ? scratchAllocation(scratch, projectRoot) : undefined;
+  if (allocation && !process.env.PORTCOVE_TEMP_DIR)
+    paths.temporary_directory = allocation.temporary;
   if (["all", "rust"].includes(scope)) {
     const metadata = metadataProvider();
     const metadataRoot = path.resolve(metadata.workspace_root);
@@ -191,6 +220,13 @@ export function getPaths(
         `Cargo workspace ${metadataRoot} does not match script workspace ${projectRoot}. Run this checkout's storage tool with its own Cargo workspace.`,
       );
     paths.target_directory = path.resolve(metadata.target_directory);
+    if (allocation)
+      paths.target_directory = scratchCargoTarget(
+        paths.target_directory,
+        projectRoot,
+        allocation.target,
+        process.env,
+      );
     paths.rust_support_cache = `${paths.target_directory}.portcove-rust-support`;
   }
   if (["all", "frontend"].includes(scope))
@@ -204,6 +240,21 @@ export function getPaths(
   // Desktop build.rs can generate Tauri schemas during a Rust-only build.
   if (["all", "rust"].includes(scope))
     paths.tauri_generated = path.join(projectRoot, "apps/desktop/src-tauri/gen");
+  if (
+    scratch &&
+    Object.values(paths).some((file: unknown) => {
+      if (typeof file !== "string") return false;
+      const relative = path.relative(scratch.root, file);
+      return (
+        !relative ||
+        (!relative.startsWith(".." + path.sep) && relative !== ".." && !path.isAbsolute(relative))
+      );
+    })
+  ) {
+    if (prepareScratch) prepareScratchProfile(scratch);
+    else verifyScratchProfile(scratch);
+    if (scratch.backingDirectory) paths.scratch_backing_volume = scratch.backingDirectory;
+  }
   return paths;
 }
 
@@ -412,7 +463,7 @@ function ensureChildDirectories(paths: Partial<StoragePaths>) {
 export function prepareStorageScope(scope: string) {
   const requiredFreeGiB = minimumFreeGiB();
   console.log(`Storage task: ${scope}`);
-  const { paths, volumes } = preflight(getPaths(scope), requiredFreeGiB);
+  const { paths, volumes } = preflight(getPaths(scope, { prepareScratch: true }), requiredFreeGiB);
   printPaths(paths, volumes, requiredFreeGiB, false);
   ensureChildDirectories(paths);
   return childEnvironment(paths);
@@ -438,6 +489,38 @@ export function spawnCommand(
   args: readonly string[],
   options: SpawnSyncOptions = {},
 ): SpawnSyncReturns<string | Buffer> {
+  const environment = options.env ?? process.env;
+  if (
+    environment.GITHUB_ACTIONS !== "true" &&
+    environment.PORTCOVE_CONTAINER_GUEST !== "1" &&
+    ["node", "node.exe", path.basename(process.execPath).toLowerCase()].includes(
+      path.basename(command).toLowerCase(),
+    ) &&
+    args[0] === "--test" &&
+    nodeSuiteAdmissionEnabled()
+  ) {
+    const childRoot =
+      options.cwd instanceof URL ? fileURLToPath(options.cwd) : (options.cwd ?? projectRoot);
+    const files = args
+      .filter((arg) => /\.test\.[cm]?[jt]s$/u.test(arg))
+      .map((file) =>
+        path.relative(projectRoot, path.resolve(childRoot, file)).replaceAll("\\", "/"),
+      );
+    const registry = parseNodeTestSuites(
+      readFileSync(path.join(projectRoot, "scripts/node-test-suites.json"), "utf8"),
+    );
+    if (localNodeResourceProfile(files, registry)) {
+      args = [
+        path.join(projectRoot, "scripts/resource-command.mts"),
+        "analysis",
+        "--node-tests",
+        "--",
+        command,
+        ...args,
+      ];
+      command = process.execPath;
+    }
+  }
   let result = spawnSync(command, args, options);
   const launchError = result.error;
   if (
@@ -483,6 +566,25 @@ export function spawnCommand(
   }
   if (result.error) throw result.error;
   return result;
+}
+
+/** Local I/O tuning is opt-in; an unconfigured contributor keeps Node's old route. */
+export function nodeSuiteAdmissionEnabled(
+  configPath = path.join(os.homedir(), ".portcove", "resources", "config.json"),
+) {
+  let config: unknown;
+  try {
+    config = JSON.parse(readFileSync(configPath, "utf8"));
+  } catch (error) {
+    if (errorCode(error) === "ENOENT") return false;
+    throw error;
+  }
+  if (
+    !isRecord(config) ||
+    (config.nodeSuites !== undefined && typeof config.nodeSuites !== "boolean")
+  )
+    throw new Error("Invalid Node-suite resource opt-in: " + configPath);
+  return config.nodeSuites === true;
 }
 
 export function canonicalCheckoutCommand(command: string, args: string[]): [string, string[]] {
@@ -695,7 +797,7 @@ function main() {
   const selectedScope = scope ?? (plannerCommand ? "tooling" : "all");
   if (!asJson && !["clean", "prune-incremental"].includes(action))
     console.log(`Storage task: ${selectedScope}`);
-  const configuredPaths = getPaths(selectedScope);
+  const configuredPaths = getPaths(selectedScope, { prepareScratch: action === "run" });
   if (action === "clean") {
     return cleanCargoTarget(configuredPaths);
   }

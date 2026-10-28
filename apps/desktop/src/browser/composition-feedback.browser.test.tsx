@@ -46,21 +46,25 @@ it.each([320, 576, 1024])(
         onOpenSettings={vi.fn()}
       />,
     );
+    await page.getByRole("tab", { name: "History", exact: true }).click();
     const time = document.querySelector<HTMLElement>(".activity-time")!;
     expect(time.textContent?.length).toBeGreaterThan(0);
     expect(getComputedStyle(time).display).not.toBe("none");
     expect(time.getBoundingClientRect().width).toBeGreaterThan(0);
     expect(time.getBoundingClientRect().right).toBeLessThanOrEqual(width);
-    const tab = page.getByRole("tab", { name: "Tasks & history" });
+    const tab = page.getByRole("tab", { name: "Tasks", exact: true });
     await tab.click();
     await userEvent.keyboard("{ArrowRight}{Enter}");
     await expect
-      .element(page.getByRole("tab", { name: "Updates", exact: true }))
+      .element(page.getByRole("tab", { name: "Game updates", exact: true }))
       .toHaveAttribute("aria-selected", "true");
     expect(time.isConnected).toBe(true);
     await userEvent.keyboard("{ArrowLeft}{Enter}");
     await expect.element(tab).toHaveAttribute("aria-selected", "true");
     expect(time.isConnected).toBe(true);
+    await page.getByRole("tab", { name: "History", exact: true }).click();
+    await expect.element(time).toBeVisible();
+    expect(document.querySelector(".activity-time")).toBe(time);
   },
 );
 

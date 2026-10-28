@@ -108,7 +108,7 @@ impl WorkBudget {
     }
 }
 
-pub(super) struct WorkPermit<'a>(&'a WorkBudget);
+pub(crate) struct WorkPermit<'a>(&'a WorkBudget);
 
 impl Drop for WorkPermit<'_> {
     fn drop(&mut self) {

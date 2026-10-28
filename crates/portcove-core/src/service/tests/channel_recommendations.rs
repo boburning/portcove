@@ -69,7 +69,9 @@ fn fixture(root: &Path, recommendation: Option<ReleaseChannel>) -> PortcoveServi
         .unwrap()
         .channels = vec![ReleaseChannel::Stable, ReleaseChannel::Beta];
     let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
-    let mut listings = catalog.listing_document().clone();
+    // Keep the accepted authored directory and its format fence. Rebuilding a
+    // strict-only catalog above changes offered channels, not descriptive facts.
+    let mut listings = service.catalog.listing_document().clone();
     listings
         .listings
         .iter_mut()
@@ -312,6 +314,7 @@ fn retained_and_staged_rows_without_settings_keep_legacy_channel() {
             .status_rows_with_recommendations(
                 &service.catalog,
                 &[(NATIVE_ID.into(), ReleaseChannel::Stable)],
+                false,
             )
             .unwrap();
         assert_eq!(statuses[0].channel, ReleaseChannel::Stable);

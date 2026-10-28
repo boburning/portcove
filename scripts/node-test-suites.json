@@ -38,21 +38,24 @@
         "--test-reporter=./scripts/required-node-test-reporter.mts",
         "--test-skip-pattern",
         "pnpm uses|direct just recipes"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-2": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-3": {
       "arguments": [
         "--test",
         "--test-timeout=60000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-4": {
       "arguments": [
@@ -60,7 +63,8 @@
         "--test-concurrency=1",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "rust-quality-full": {
       "arguments": [
@@ -148,7 +152,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "process-policy": {
       "arguments": [
@@ -177,7 +182,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "repository-tools-2": {
       "arguments": [
@@ -185,7 +191,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "release-check": {
       "arguments": [
@@ -193,14 +200,16 @@
         "--experimental-test-module-mocks",
         "--test-timeout=60000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "roadmap-check": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "mutex-owned-payload": {
       "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
@@ -210,21 +219,24 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "posix-tooling-contracts": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "macos-platform-contracts": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     }
   },
   "tests": [
@@ -1367,7 +1379,8 @@
             "isolated driver stop refuses stale identity without acting",
             "driver stop never terminates a replacement or path-mismatched captured survivor",
             "ordinary close refuses changed identity or a windowless owned application",
-            "native process discovery refuses ambiguous application descendants"
+            "native process discovery refuses ambiguous application descendants",
+            "marked helper observation retains actual OS exits without inventing or forcing them"
           ]
         }
       ]
@@ -1645,6 +1658,67 @@
       "memberships": [
         ["catalog-full-2", 3200],
         ["release-check", 1000]
+      ]
+    },
+    {
+      "file": "scripts/catalog-recovery-vault.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11940],
+        ["release-check", 14140]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Independently pinned local release-tools binary and qualified public age tool cache; disposable fixture only",
+          "reason": "The opt-in actual age/Tough recovery observation remains distinct from ordinary public-plan fixtures and production custody acceptance.",
+          "intended_route": "scripts/catalog-recovery-vault.test.mts; bounded local disposable recovery qualification",
+          "cases": [
+            "actual age and Tough recover the complete disposable appointed catalog set with refusal controls"
+          ],
+          "required_environment": [
+            "PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL",
+            "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
+          ]
+        },
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Linux ordinary UID and private filesystem ownership",
+          "reason": "The offline vault and custody reader currently require ordinary-owner Linux filesystem semantics.",
+          "intended_route": "scripts/catalog-recovery-vault.test.mts; catalog-full-2",
+          "cases": [
+            "authorized custody reader enforces offline owner and bounded single-link acquisition"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "scripts/recovery-tools.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11950],
+        ["release-check", 14150]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Linux ordinary UID and private filesystem ownership",
+          "reason": "The implemented recovery bootstrap is Linux x64 only; other platforms do not gain tool or custody acceptance from these fixtures.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "warm recovery cache rechecks bounded fixture archives, binaries and proof rather than trusting receipt hashes"
+          ]
+        }
       ]
     },
     {
@@ -3179,7 +3253,17 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
           "cases": [
-            "mock publisher restores private lookup after startup reorder and refuses functions",
+            "mock publisher restores private lookup after startup reorder and refuses functions"
+          ]
+        },
+        {
+          "platform": ["linux"],
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "The Ubuntu-only production publisher uses GNU date -d for authorization timestamps.",
+          "reason": "Execute the actual Ubuntu publisher fixture on Linux; BSD date on macOS does not implement its required GNU flags.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; local release-check",
+          "cases": [
             "publisher retries and recovers an interrupted draft without touching a published release"
           ]
         }
@@ -3241,7 +3325,22 @@
       "memberships": [
         ["windows-helpers-2", 100],
         ["windows-storage-4", 3100],
+        ["catalog-full-2", 750],
         ["development-tools", 200]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual Linux process identity and Unix supervisor cleanup semantics",
+          "reason": "Linux custody probes execute on the maintained complete Linux catalog-full-2 route; other platforms retain their native ownership contracts.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2 on Linux",
+          "cases": [
+            "host bridge Linux probe refuses changed custody, live children and missing cleanup",
+            "host bridge actual client closes its helper on register ACK loss and release-probe failure"
+          ]
+        }
       ]
     },
     {
@@ -3487,7 +3586,8 @@
             "Linux adopting containment proves receipt-refusal",
             "Linux adopting containment proves root-complete-reaper-loss",
             "Linux adopting containment proves supervisor-loss",
-            "Linux adopting containment proves wrapper-loss"
+            "Linux adopting containment proves wrapper-loss",
+            "Linux child discovery preserves ownership without task children support"
           ]
         }
       ]
@@ -4045,6 +4145,10 @@
       "memberships": [["native-tools", 2300]]
     },
     {
+      "file": "apps/desktop/scripts/desktop-review-controls.native.test.mts",
+      "memberships": [["native-tools", 2350]]
+    },
+    {
       "file": "apps/desktop/scripts/desktop-scenario-state.native.test.mts",
       "memberships": [["native-tools", 2400]]
     },
@@ -4223,6 +4327,20 @@
       "memberships": [
         ["catalog-full-2", 1000024],
         ["release-check", 16224]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-workflow.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000025],
+        ["release-check", 16225]
+      ]
+    },
+    {
+      "file": "scripts/desktop-boundary-wiring.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000124],
+        ["development-tools", 5400]
       ]
     }
   ]

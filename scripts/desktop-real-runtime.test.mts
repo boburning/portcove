@@ -8,6 +8,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { parseRealRuntimeInput, runtimeMutable } from "./desktop-real-runtime-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
+import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 
 void test("real runtime restarts retain distinct exclusive driver launch receipts", async (t) => {
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-runtime-launch-"));
@@ -101,44 +102,71 @@ void test("real runtime restarts retain distinct exclusive driver launch receipt
 });
 
 void test("real runtime review waits for the actual visible enabled action after preview", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-real-runtime-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("  async function review(kind:");
-  const end = source.indexOf("  for (const item of fixture.packages)", start);
-  assert.ok(start >= 0 && end > start);
-  let controls: object[] = [];
-  const dialog = {
-    isDisplayed: async () => true,
-    findElements: async () => controls,
-  };
-  let poll: (() => Promise<unknown>) | undefined;
-  const review = runInNewContext(`${stripTypeScriptTypes(source.slice(start, end))}; review`, {
-    assert,
-    By: { css: (value: string) => value, xpath: (value: string) => value },
-    browser: {
-      findElements: async () => [dialog],
-      wait: async (predicate: () => Promise<unknown>, timeout: number) => {
-        assert.equal(timeout, 15_000);
-        poll = predicate;
-        return predicate();
-      },
-    },
-  }) as (kind: string, action: string) => Promise<unknown>;
-  assert.equal(await review("register", "Use this installation"), false);
-  assert.ok(poll);
-  controls = [{ isDisplayed: async () => false, isEnabled: async () => true }];
-  assert.equal(await poll(), false);
-  controls = [{ isDisplayed: async () => true, isEnabled: async () => false }];
-  assert.equal(await poll(), false);
-  const control = { isDisplayed: async () => true, isEnabled: async () => true };
-  controls = [control];
-  const ready = (await poll()) as { dialog: unknown; control: unknown };
-  assert.equal(ready.dialog, dialog);
-  assert.equal(ready.control, control);
-  controls = [control, control];
-  await assert.rejects(poll, /must be unique/);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        new URL("../apps/desktop/scripts/desktop-real-runtime-test.mts", import.meta.url),
+        `
+{
+      const {Key}=await import('selenium-webdriver');
+      Object.assign(Key,{CONTROL:'Control',BACK_SPACE:'Backspace',chord:(...keys)=>keys.join('+')});
+      const reports=[];
+      const fileSystem=await import('node:fs/promises');
+      mock.module('node:fs/promises',{namedExports:{...Object.fromEntries(Object.entries(fileSystem).filter(([name])=>name!=='default')),
+        writeFile:async(file,bytes,options)=>{assert.deepEqual(options,{flag:'wx'});reports.push({file,bytes});}}});
+      const evidenceUrl=new URL('../../../scripts/development-evidence.mts',entry).href;
+      const evidence=await import(evidenceUrl);
+      mock.module(evidenceUrl,{namedExports:{...evidence,fileIdentity:async(file)=>{assert.equal(file,'/owned/app');return {path:file,bytes:1,sha256:'a'.repeat(64)};}}});
+      let navigations=0;
+      mock.module(new URL('./desktop-review-controls.mts',entry).href,{namedExports:{selectCatalogPort:async(_browser,id)=>{assert.equal(id,'owned-port');navigations++;}}});
+      const {waitForRealRuntimeReview,realRuntimeScenario}=await import(entry);
+      let controls=[],matches=[],poll,visible=true;
+      const dialog={isDisplayed:async()=>visible,findElements:async(selector)=>{assert.equal(selector.value,'.//button[normalize-space(.)="Use this installation"]');return controls;}};
+      const browser={findElements:async(selector)=>{assert.equal(selector.value,'[role="dialog"][aria-describedby="external-register-description"]');return matches;},
+        wait:async(predicate,timeout)=>{assert.equal(timeout,15000);poll=predicate;return predicate();}};
+      assert.equal(await waitForRealRuntimeReview(browser,'register','Use this installation'),false);
+      assert.equal(typeof poll,'function');
+      matches=[dialog];assert.equal(await poll(),false);
+      visible=false;assert.equal(await poll(),false);visible=true;
+      controls=[{isDisplayed:async()=>false,isEnabled:async()=>true}];assert.equal(await poll(),false);
+      controls=[{isDisplayed:async()=>true,isEnabled:async()=>false}];assert.equal(await poll(),false);
+      const control={isDisplayed:async()=>true,isEnabled:async()=>true};controls=[control];
+      const ready=await poll();assert.equal(ready.dialog,dialog);assert.equal(ready.control,control);
+      controls=[control,control];await assert.rejects(poll,/must be unique/);
+      matches=[dialog,dialog];await assert.rejects(poll);
+      // The real entrypoint must reach this same unavailable action and retain
+      // its exact refusal before registration, IPC or native process execution.
+      const originalFailure={code:'owned review remains disabled'};
+      controls=[{isDisplayed:async()=>true,isEnabled:async()=>false}];matches=[dialog];
+      const instruction='fixture.zip v1 game.exe It does not copy, update, back up, or delete these files.';
+      const element={click:async()=>{},sendKeys:async()=>{},getText:async()=>instruction};
+      const actualBrowser={...browser,findElement:()=>element,takeScreenshot:async()=>'',
+        wait:async(condition,timeout)=>{
+          assert.equal(timeout,15000);
+          if(typeof condition!=='function')return element;
+          assert.equal(await condition(),false);throw originalFailure;
+        }};
+      const forbiddenEffect=()=>{throw Error('Unexpected native or mutation effect');};
+      const artifacts=[];
+      await assert.rejects(realRuntimeScenario({browser:actualBrowser,application:'/owned/app',
+        cli:'/owned/cli',library:'/owned/library',output:'/owned/output',artifacts,
+        fixture:{packages:[{port:{id:'owned-port',name:'Owned game'},spec:{archive_name:'fixture.zip',version:'v1',executable:'game.exe'},directory:'/owned/runtime'}]},
+        invoke:forbiddenEffect,confirmNative:forbiddenEffect,restartApplication:forbiddenEffect,
+        selectPicker:async(name,directory)=>{assert.equal(name,'owned-port-dismiss');assert.equal(directory,'/owned/runtime');return {selected:true,supplied_directory:true};},
+      }),error=>error===originalFailure);
+      assert.equal(navigations,1);assert.equal(reports.length,2);
+      const path=(await import('node:path')).default;
+      assert.deepEqual(reports.map(report=>report.file),[path.join('/owned/output','owned-port-manual-return.png'),path.join('/owned/output','real-runtime-desktop.json')]);
+      assert.deepEqual(artifacts,reports.map(report=>report.file));
+      const report=JSON.parse(reports.at(-1).bytes);assert.equal(report.routes.length,1);
+      assert.equal(report.routes[0].registered,undefined);
+      }
+      `,
+        variant === "original" ? undefined : { exportName: "waitForRealRuntimeReview", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
 });
 
 function input() {

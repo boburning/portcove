@@ -86,7 +86,7 @@ export async function backupReviewScenario({
     const other = transportValue("backup", command(["backup", "create", port.id]));
     await writeFile(save, "current data before review");
     await open(port);
-    await revealDetailSection(browser, "Saved data");
+    await revealDetailSection(browser, "Saves");
     const clickVisible = (element: Parameters<typeof clickReviewControl>[1]) =>
       clickReviewControl(browser, element);
     const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
@@ -328,7 +328,7 @@ export async function backupReviewScenario({
     assert.equal(degraded.problems.length, 1);
     assert.ok(degraded.problems[0]);
     await open(port);
-    await revealDetailSection(browser, "Saved data");
+    await revealDetailSection(browser, "Saves");
     const degradedNotice = await degradedInventory(degraded.problems.length);
     assert.ok(degradedNotice);
     assert.ok((await degradedNotice.getText()).includes("What to do next"));
@@ -350,7 +350,7 @@ export async function backupReviewScenario({
     assert.equal(unavailable.backups.length, 0);
     assert.equal(unavailable.problems.length, 2);
     await open(port);
-    await revealDetailSection(browser, "Saved data");
+    await revealDetailSection(browser, "Saves");
     const emptyNotice = await degradedInventory(unavailable.problems.length);
     assert.ok(emptyNotice);
     assert.ok(unavailable.problems[0]);
@@ -730,7 +730,7 @@ export async function backupReviewScenario({
       );
     };
     await open(port, false);
-    await revealDetailSection(browser, "Saved data");
+    await revealDetailSection(browser, "Saves");
     await deleteReviewed(first, "backup-focus-remaining");
     await browser.wait(
       async () => {

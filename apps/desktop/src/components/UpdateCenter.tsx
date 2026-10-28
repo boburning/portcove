@@ -1,7 +1,9 @@
+import { ArtworkImage } from "./Artwork";
 import { FailureDetails } from "./FailureDetails";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { RecoveryReview } from "./RecoveryReview";
 import { GameUpdateControl } from "./GameUpdates";
+import { gameUpdateAcquisitionLabel } from "../features/port-updates/acquisition-presentation";
 import type { Perform } from "../features/operations/use-operation-state";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import { focusAndReveal } from "../focus";
@@ -79,13 +81,6 @@ const activityTones: Record<string, { indicator: string; status: string }> = {
   },
 };
 type UpdateTone = "available" | "current" | "failed" | "muted" | "staged";
-const updateMarkTones: Record<UpdateTone, string> = {
-  available: "bg-pc-warning-subtle text-pc-warning-foreground",
-  current: "bg-pc-success-subtle text-pc-success-foreground",
-  failed: "bg-pc-danger-surface text-[var(--color-text-on-dark)]",
-  muted: "bg-[var(--color-bg-subtle-hover)] text-[var(--color-text-secondary)]",
-  staged: "bg-pc-interactive text-pc-action-foreground",
-};
 const updateStateTones: Record<UpdateTone, string> = {
   available: "bg-pc-warning-subtle text-pc-warning-foreground",
   current: "bg-pc-success-subtle text-pc-success-foreground",
@@ -94,8 +89,7 @@ const updateStateTones: Record<UpdateTone, string> = {
   staged: "bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground",
 };
 const updateRowClass =
-  "update-row grid w-full grid-cols-[42px_minmax(180px,1fr)_minmax(214px,284px)_90px] cursor-pointer items-center gap-3.5 rounded-pc-lg border border-pc-border bg-pc-surface p-3 text-start text-pc-foreground shadow-[var(--shadow-control)] transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-normal) ease-(--ease-standard) hover:border-pc-interactive hover:bg-pc-secondary active:translate-y-px active:bg-pc-surface-muted active:shadow-[var(--shadow-pressed)] max-[65rem]:grid-cols-[2.625rem_minmax(11rem,1fr)_minmax(8rem,1fr)_5.625rem]";
-const updateMarkClass = "grid size-[42px] place-items-center rounded-pc-md text-xs font-black";
+  "update-row w-full min-w-0 cursor-pointer text-start text-pc-foreground transition-colors hover:bg-pc-secondary active:bg-pc-surface-muted";
 const updateStateClass =
   "min-w-0 justify-self-end rounded-pc-md px-2 py-1 text-xs leading-snug font-medium [overflow-wrap:anywhere]";
 const libraryActivitySettingsTargets: Partial<
@@ -140,8 +134,8 @@ function useUpdateCenter({
 }: {
   operationEvents?: ReadonlyMap<string, OperationEvent> | undefined;
   generation: number;
-  section?: "tasks" | "updates";
-  onSectionChange?: (section: "tasks" | "updates") => void;
+  section?: "tasks" | "updates" | "history";
+  onSectionChange?: (section: "tasks" | "updates" | "history") => void;
   repair?: DoctorReport["repair"] | undefined;
   diagnosticsRefreshing: boolean;
   diagnosticsStale: boolean;
@@ -166,7 +160,7 @@ function useUpdateCenter({
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
   const operationOwner = useOperationPresentation();
-  const [localSection, setLocalSection] = useState<"tasks" | "updates">("tasks");
+  const [localSection, setLocalSection] = useState<"tasks" | "updates" | "history">("tasks");
   const selectedSection = section ?? localSection;
   const earlierBatch =
     batchRead !== undefined && ["pending", "failed", "cancelled"].includes(batchRead.status);
@@ -191,6 +185,12 @@ function useUpdateCenter({
     return () => window.clearInterval(interval);
   }, []);
   const installed = ports.filter((port) => statuses.get(port.id)?.active);
+  const managedUpdateIds = new Set(installed.map((port) => port.id));
+  // Core projects retained acquisition statuses independently of catalog or
+  // active-runtime membership. Do not require a synthetic operational definition.
+  const retainedArchives = [...statuses.values()].filter(
+    (status) => status.acquisition && !managedUpdateIds.has(status.port_id),
+  );
   const external = ports.filter((port) => {
     const status = statuses.get(port.id);
     return !status?.active && status?.external_runtime;
@@ -234,7 +234,7 @@ function useUpdateCenter({
         icon={Download}
         accent={available > 0}
       />
-      <UpdateStat label="Saved for later" value={staged} icon={ShieldCheck} accent={staged > 0} />
+      <UpdateStat label="Prepared updates" value={staged} icon={ShieldCheck} accent={staged > 0} />
       <UpdateStat
         label={earlierBatch ? "Failed at last check" : "Failed"}
         value={earlierBatch && !batchRead?.hasResults ? "Unknown" : failed}
@@ -279,6 +279,7 @@ function useUpdateCenter({
     setReviewingUpdate,
     updateReviewOwner,
     installed,
+    retainedArchives,
     external,
     byPort,
     savedByPort,
@@ -296,33 +297,34 @@ export function UpdateCenter(props: Parameters<typeof useUpdateCenter>[0]) {
 function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
   return (
     <Tabs.Root
-      render={<section className="update-center" />}
+      render={<section className="update-center" data-activity-section={model.selectedSection} />}
       value={model.selectedSection}
       onValueChange={(value: unknown) => {
-        if (value !== "tasks" && value !== "updates") return;
+        if (value !== "tasks" && value !== "updates" && value !== "history") return;
         model.setLocalSection(value);
         model.onSectionChange?.(value);
       }}
     >
-      <Tabs.List aria-label="Activity sections" className="mb-4 flex flex-wrap gap-2">
+      <Tabs.List aria-label="Activity sections" className="activity-tabs">
         {(
           [
-            ["tasks", "Tasks & history"],
-            ["updates", "Updates"],
+            ["tasks", "Tasks"],
+            ["updates", "Game updates"],
+            ["history", "History"],
           ] as const
         ).map(([value, label]) => (
           <Tabs.Tab
             key={value}
             value={value}
             data-focusable
-            render={<Button variant={model.selectedSection === value ? "selected" : "outline"} />}
+            render={<Button variant="ghost" className="activity-tab" />}
           >
             {label}
           </Tabs.Tab>
         ))}
       </Tabs.List>
       <Tabs.Panel value="updates" keepMounted aria-label="Game updates">
-        <h2 className="mb-3 text-xl">Updates</h2>
+        <h2 className="mb-5 text-lg">Game updates</h2>
         <div
           className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
           data-focus-group
@@ -360,7 +362,12 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
               ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
           </p>
         )}
-        {model.installed.length === 0 ? (
+        {model.installed.length === 0 && model.retainedArchives.length > 0 ? (
+          <p className="mb-5 text-sm text-pc-muted-foreground">
+            No managed installations can be updated here. Retained archives can still be reviewed
+            and discarded below.
+          </p>
+        ) : model.installed.length === 0 ? (
           <EmptyState
             icon={RefreshCw}
             eyebrow="UPDATE CENTER"
@@ -387,7 +394,10 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
               const state = updateState(status, outcome, savedCheck, model.earlierBatch);
               const failure = failurePresentation(outcome?.error);
               const canReviewUpdate = Boolean(
-                (status.staged || model.effectiveCheck(port.id)?.update_available) && model.perform,
+                (status.staged ||
+                  status.acquisition ||
+                  model.effectiveCheck(port.id)?.update_available) &&
+                model.perform,
               );
               const canLaunch = Boolean(
                 model.onLaunch &&
@@ -422,6 +432,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
                         compact
                         gameName={gameIdentityLabel(port)}
                         currentVersion={status.active?.version}
+                        status={status}
                         reviewScope={{
                           active: model.reviewingUpdate === port.id,
                           claim: () => {
@@ -458,9 +469,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
                     className={cn(updateRowClass, "border-0 bg-transparent p-0 shadow-none")}
                     onClick={() => model.onSelect(port.id, `updates:installed:${port.id}`)}
                   >
-                    <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
-                      {gameTitle(port).slice(0, 2).toUpperCase()}
-                    </div>
+                    <ArtworkImage port={port} quietFallback className="update-artwork" />
                     <div className="update-title min-w-0">
                       <strong className="block text-sm">{gameTitle(port)}</strong>
                       <small className="block text-xs text-pc-muted-foreground">
@@ -516,6 +525,47 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
             })}
           </div>
         )}
+        {model.retainedArchives.length > 0 && (
+          <section className="mt-7" aria-label="Retained update archives">
+            <h3 className="mb-3 text-base">Retained update archives</h3>
+            <p className="mb-4 text-sm text-pc-muted-foreground">
+              Archives remain recorded separately from installations. These records offer archive
+              cleanup; preparing or installing an update requires an available managed installation
+              and a fresh review.
+            </p>
+            <div className="grid gap-4" data-focus-group>
+              {model.retainedArchives.map((status) => {
+                const entry = model.activityPorts.find((port) => port.id === status.port_id);
+                const displayName = entry ? gameIdentityLabel(entry) : undefined;
+                return (
+                  <article
+                    key={status.port_id}
+                    data-retained-update-archive-port-id={status.port_id}
+                    className="min-w-0 rounded-pc-lg border border-pc-border bg-pc-surface p-5"
+                  >
+                    <h4 className="text-base">{displayName ?? status.port_id}</h4>
+                    {displayName && (
+                      <p className="mt-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
+                        {status.port_id}
+                      </p>
+                    )}
+                    <GameUpdateControl
+                      portId={status.port_id}
+                      gameName={displayName}
+                      generation={model.generation}
+                      policy={status.update_policy}
+                      busy={Boolean(model.busy)}
+                      perform={model.perform}
+                      status={status}
+                      archiveOnly
+                      compact
+                    />
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
         {model.external.length > 0 && (
           <section className="external-update-section mt-6" aria-label="Externally updated games">
             <h3 className="mb-2 text-base">Externally updated games</h3>
@@ -534,9 +584,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
                     key={port.id}
                     onClick={() => model.onSelect(port.id, `updates:external:${port.id}`)}
                   >
-                    <div className={`${updateMarkClass} ${updateMarkTones.muted}`}>
-                      {gameTitle(port).slice(0, 2).toUpperCase()}
-                    </div>
+                    <ArtworkImage port={port} quietFallback className="update-artwork" />
                     <div className="update-title min-w-0">
                       <strong className="block text-sm">{gameTitle(port)}</strong>
                       <small className="block text-xs text-pc-muted-foreground">
@@ -566,29 +614,41 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
           </section>
         )}
       </Tabs.Panel>
-      <Tabs.Panel value="tasks" keepMounted aria-label="Tasks and history">
-        <h2 className="mb-3 text-xl">Tasks &amp; history</h2>
-        <RecoveryReview
-          generation={model.generation}
-          repair={model.repair}
-          ports={model.ports}
-          refreshing={model.diagnosticsRefreshing}
-          stale={model.diagnosticsStale}
-          failure={model.diagnosticFailure}
-          refresh={model.refreshDiagnostics}
-          cleanupChanged={model.cleanupChanged}
-          onSelect={model.onSelect}
-          onOpenStorage={() => model.onOpenSettings("library-storage")}
-          availableActivityIds={new Set(model.activities.map((activity) => activity.id))}
-          onReviewActivity={(id) => {
-            model.onReviewActivity?.(id);
-            model.setReviewedActivity((previous) => ({
-              id,
-              request: (previous?.request ?? 0) + 1,
-            }));
-          }}
-        />
+      <Tabs.Panel
+        value={model.selectedSection === "history" ? "history" : "tasks"}
+        keepMounted
+        aria-label="Tasks and history"
+      >
+        <h2 className="mb-5 text-lg">
+          {model.selectedSection === "history" ? "History" : "Tasks"}
+        </h2>
+        <div
+          hidden={model.selectedSection === "history"}
+          inert={model.selectedSection === "history" ? true : undefined}
+        >
+          <RecoveryReview
+            generation={model.generation}
+            repair={model.repair}
+            ports={model.ports}
+            refreshing={model.diagnosticsRefreshing}
+            stale={model.diagnosticsStale}
+            failure={model.diagnosticFailure}
+            refresh={model.refreshDiagnostics}
+            cleanupChanged={model.cleanupChanged}
+            onSelect={model.onSelect}
+            onOpenStorage={() => model.onOpenSettings("library-storage")}
+            availableActivityIds={new Set(model.activities.map((activity) => activity.id))}
+            onReviewActivity={(id) => {
+              model.onReviewActivity?.(id);
+              model.setReviewedActivity((previous) => ({
+                id,
+                request: (previous?.request ?? 0) + 1,
+              }));
+            }}
+          />
+        </div>
         <ActivityHistory
+          mode={model.selectedSection === "history" ? "history" : "tasks"}
           operationEvents={model.operationEvents}
           ports={model.activityPorts}
           sourceProfiles={model.sourceProfiles}
@@ -689,6 +749,7 @@ function releaseLabel(check?: UpdateCheck | null, outcome?: UpdateCheckOutcome) 
 }
 
 function ActivityHistory({
+  mode,
   operationEvents,
   ports,
   sourceProfiles,
@@ -700,6 +761,7 @@ function ActivityHistory({
   nowSeconds,
   reviewedActivityId,
 }: {
+  mode: "tasks" | "history";
   operationEvents?: ReadonlyMap<string, OperationEvent> | undefined;
   generation: number;
   nowSeconds: number;
@@ -711,7 +773,9 @@ function ActivityHistory({
   onSelect: (portId: string, originKey?: string) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
+  const [focusedActivityId, setFocusedActivityId] = useState<string>();
   const names = new Map(ports.map((port) => [port.id, gameIdentityLabel(port)]));
+  const portsById = new Map(ports.map((port) => [port.id, port]));
   const sourceNames = new Map(sourceProfiles.map((profile) => [profile.id, profile.label]));
   const protectedActivityIds = activityFeed
     ? [
@@ -723,12 +787,26 @@ function ActivityHistory({
   const visibleActivities = activityHistoryPreview(activities, nowSeconds, [
     ...protectedActivityIds,
     ...(reviewedActivityId ? [reviewedActivityId] : []),
+    ...(focusedActivityId ? [focusedActivityId] : []),
   ]);
   const protectedIds = new Set(protectedActivityIds);
   const attentionIds = new Set([
     ...(activityFeed?.attention_required_activity_ids ?? []),
     ...(activityFeed?.recovery_required_activity_ids ?? []),
   ]);
+  const inTasks = (activity: ActivityRecord) =>
+    protectedIds.has(activity.id) ||
+    ["running", "unfinished", "failed", "unknown"].includes(
+      activityPresentationState(activity, nowSeconds),
+    ) ||
+    Boolean(activity.failure) ||
+    activity.id === reviewedActivityId ||
+    activity.id === focusedActivityId;
+  const visibleInMode = (activity: ActivityRecord) =>
+    mode === "tasks"
+      ? inTasks(activity)
+      : !["running", "unfinished"].includes(activityPresentationState(activity, nowSeconds));
+  const shownActivities = visibleActivities.filter(visibleInMode);
   const groups = [
     {
       label: "Needs attention",
@@ -753,16 +831,17 @@ function ActivityHistory({
       !protectedIds.has(activity.id),
   ).length;
   return (
-    <section className="activity-history mt-7 border-t border-pc-border pt-6">
+    <section className="activity-history" data-record-view={mode}>
       <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
-          <h2 className="mb-0 text-lg">Task records</h2>
+          <h3 className="sr-only">Task records</h3>
         </div>
         <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
             <>
-              Showing {visibleFinishedCount} recent finished tasks, plus tasks in progress and items
-              needing attention.
+              {mode === "history"
+                ? `Showing ${visibleFinishedCount} recent finished tasks, plus retained review records.`
+                : "Showing current tasks and records needing attention."}
               {!activityFeed.active_and_actionable_complete &&
                 " Current work and attention coverage is incomplete."}
               {!activityFeed.terminal_history_complete &&
@@ -773,48 +852,66 @@ function ActivityHistory({
           )}
         </small>
       </div>
-      {activities.length === 0 ? (
+      {shownActivities.length === 0 && (
         <div className="activity-empty flex items-center gap-3 p-4 text-start text-xs text-pc-muted-foreground">
           <span className="text-pc-interactive-foreground">
             <Icon glyph={History} />
           </span>
           <div>
-            <strong className="block text-pc-secondary-foreground">No task records yet</strong>
+            <strong className="block text-pc-secondary-foreground">
+              {mode === "history"
+                ? "No finished tasks in these records"
+                : "No current tasks in these records"}
+            </strong>
             <span className="mt-1 block">
-              Installs, updates, verification, restored versions, copied installations, and failures
-              will appear here.
+              {mode === "history"
+                ? "Recorded installs, updates, checks and failures appear here when they finish."
+                : "Installs, updates, checks and items needing attention appear here. Finished records are in History."}
             </span>
           </div>
         </div>
-      ) : (
-        <div className="activity-list grid gap-1.5">
-          {groups
-            .filter((group) => group.records.length > 0)
-            // Keep rows under one parent: settlement changes their group, not
-            // their DOM identity, focus or open diagnostic disclosures.
-            .flatMap((group) => [
-              <h3
-                key={`group:${group.label}`}
-                className="mt-3 mb-1 text-sm text-pc-muted-foreground"
-              >
-                {group.label}
-              </h3>,
-              ...group.records.map((activity) => (
-                <ActivityRow
-                  operation={operationEvents?.get(activity.id)}
-                  activity={activity}
-                  names={names}
-                  sourceNames={sourceNames}
-                  onSelect={onSelect}
-                  onOpenSettings={onOpenSettings}
-                  key={`activity:${activity.id}`}
-                  generation={generation}
-                  nowSeconds={nowSeconds}
-                />
-              )),
-            ])}
-        </div>
       )}
+      <div className="activity-list grid gap-1.5">
+        {groups
+          .filter((group) => group.records.length > 0)
+          // Keep rows under one parent: settlement changes their group, not
+          // their DOM identity, focus or open diagnostic disclosures.
+          .flatMap((group) => [
+            <h3
+              key={`group:${group.label}`}
+              className="mt-3 mb-1 text-sm text-pc-muted-foreground"
+              hidden={!group.records.some(visibleInMode)}
+            >
+              {mode === "history" && group.label === "Recent" ? "Finished tasks" : group.label}
+            </h3>,
+            ...group.records.map((activity) => (
+              <ActivityRow
+                operation={operationEvents?.get(activity.id)}
+                activity={activity}
+                port={
+                  activity.target_kind === "port" && activity.target_id
+                    ? portsById.get(activity.target_id)
+                    : undefined
+                }
+                hidden={!visibleInMode(activity)}
+                onFocus={() => setFocusedActivityId(activity.id)}
+                onBlur={(stillInRow) => {
+                  if (!stillInRow)
+                    setFocusedActivityId((current) =>
+                      current === activity.id ? undefined : current,
+                    );
+                }}
+                names={names}
+                sourceNames={sourceNames}
+                onSelect={onSelect}
+                onOpenSettings={onOpenSettings}
+                key={`activity:${activity.id}`}
+                generation={generation}
+                nowSeconds={nowSeconds}
+              />
+            )),
+          ])}
+      </div>
     </section>
   );
 }
@@ -822,6 +919,10 @@ function ActivityHistory({
 function ActivityRow({
   operation,
   activity,
+  port,
+  hidden,
+  onFocus,
+  onBlur,
   names,
   sourceNames,
   onSelect,
@@ -829,6 +930,10 @@ function ActivityRow({
   generation,
   nowSeconds,
 }: {
+  port?: CatalogEntry | undefined;
+  hidden: boolean;
+  onFocus: () => void;
+  onBlur: (stillInRow: boolean) => void;
   operation?: OperationEvent | undefined;
   generation: number;
   nowSeconds: number;
@@ -843,18 +948,26 @@ function ActivityRow({
   const tone = activityTones[presentation.state];
   return (
     <div
-      className={`activity-row ${presentation.state} ${controlFocus} grid min-h-14 grid-cols-[1.5rem_minmax(0,1fr)_max-content_max-content] items-center gap-3 rounded-pc-md border border-pc-border bg-pc-surface px-3 py-2.5 max-[65rem]:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem]`}
+      className={`activity-row ${presentation.state} ${controlFocus}`}
+      hidden={hidden}
+      inert={hidden ? true : undefined}
+      onFocusCapture={onFocus}
+      onBlurCapture={(event) => onBlur(event.currentTarget.contains(event.relatedTarget))}
       title={activity.failure?.presentation.summary}
       data-focus-group
       data-activity-id={activity.id}
       tabIndex={-1}
     >
-      <span
-        className={`grid size-6 place-items-center rounded-pc-sm ${tone?.indicator ?? "bg-pc-secondary text-pc-muted-foreground"}`}
-        aria-hidden="true"
-      >
-        <Icon glyph={presentation.icon} size="sm" />
-      </span>
+      {port ? (
+        <ArtworkImage port={port} quietFallback className="activity-artwork" />
+      ) : (
+        <span
+          className={`activity-indicator grid size-6 place-items-center rounded-pc-sm ${tone?.indicator ?? "bg-pc-secondary text-pc-muted-foreground"}`}
+          aria-hidden="true"
+        >
+          <Icon glyph={presentation.icon} size="sm" />
+        </span>
+      )}
       <div className="activity-main min-w-0">
         <ActivityTargetLink
           activity={activity}
@@ -895,8 +1008,44 @@ function ActivityRow({
         </p>
       )}
       {activity.cancellation && (
-        <OperationCancellation operationId={activity.id} state={activity.cancellation} />
+        <div className={activityDetailsClass}>
+          <OperationCancellation operationId={activity.id} state={activity.cancellation} />
+        </div>
       )}
+      <ActivityFailure activity={activity} target={target} onSelect={onSelect} />
+      {activity.operation === "prepare" && (
+        <ActivityDiagnostic
+          key={`${generation}:${activity.id}`}
+          activityId={activity.id}
+          generation={generation}
+        />
+      )}
+      <details className={activityDetailsClass}>
+        <summary data-focusable className="cursor-pointer py-1">
+          Task details
+        </summary>
+        <dl className="mt-2 grid gap-1">
+          <dt className="text-pc-muted-foreground">Operation ID</dt>
+          <dd className="m-0 [overflow-wrap:anywhere] select-text">
+            <code>{activity.id}</code>
+          </dd>
+        </dl>
+      </details>
+    </div>
+  );
+}
+
+function ActivityFailure({
+  activity,
+  target,
+  onSelect,
+}: {
+  activity: ActivityRecord;
+  target: ReturnType<typeof activityTarget>;
+  onSelect: (portId: string, originKey?: string) => void;
+}) {
+  return (
+    <>
       {activity.failure ? (
         <div className={activityDetailsClass}>
           <p>{activity.failure.presentation.summary}</p>
@@ -922,14 +1071,7 @@ function ActivityRow({
           <p className={activityDetailsClass}>More details may be available in a support bundle.</p>
         )
       )}
-      {activity.operation === "prepare" && (
-        <ActivityDiagnostic
-          key={`${generation}:${activity.id}`}
-          activityId={activity.id}
-          generation={generation}
-        />
-      )}
-    </div>
+    </>
   );
 }
 
@@ -1128,7 +1270,7 @@ function UpdateStat({
 function policyLabel(policy: PortStatus["update_policy"]) {
   const labels = {
     automatic: "Install when I run updates",
-    stage: "Download for later",
+    stage: "Keep update for later",
     notify: "Notify me",
   };
   return Object.hasOwn(labels, policy) ? labels[policy] : "Update policy unavailable";
@@ -1142,6 +1284,11 @@ function updateState(
 ): { label: string; tone: UpdateTone } {
   if (!outcome) {
     if (status.staged) return { label: "Update saved for later", tone: "staged" };
+    if (status.acquisition)
+      return {
+        label: gameUpdateAcquisitionLabel(status.acquisition.phase),
+        tone: status.acquisition.phase === "attention_required" ? "failed" : "muted",
+      };
     if (savedCheck?.update_available)
       return { label: "Update available at last check", tone: "available" };
     if (savedCheck) return { label: "No update found at last check", tone: "current" };
@@ -1150,6 +1297,11 @@ function updateState(
   if (!outcome.ok)
     return { label: earlier ? "Earlier check failed" : "Check failed", tone: "failed" };
   if (status.staged) return { label: "Update saved for later", tone: "staged" };
+  if (status.acquisition)
+    return {
+      label: gameUpdateAcquisitionLabel(status.acquisition.phase),
+      tone: status.acquisition.phase === "attention_required" ? "failed" : "muted",
+    };
   if (!outcome.result)
     return {
       label: earlier ? "Earlier check result unavailable" : "Check result unavailable",

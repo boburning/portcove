@@ -9,7 +9,7 @@ import type { WebDriver } from "selenium-webdriver";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
-import { clickVisible, reviewControls } from "./desktop-review-controls.mts";
+import { clickVisible, reviewControls, selectCatalogPort } from "./desktop-review-controls.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
@@ -35,10 +35,49 @@ interface Context {
   ) => Promise<WebDriver>;
 }
 
-function samePath(left: string, right: string) {
-  const ordinary = (value: string) => path.resolve(value.replace(/^\\\\\?\\/u, "")).toLowerCase();
+function samePath(left: string, right: string, paths: typeof path.win32 = path) {
+  const ordinary = (value: string) => paths.resolve(value.replace(/^\\\\\?\\/u, "")).toLowerCase();
   return ordinary(left) === ordinary(right);
 }
+interface PublicationPathObservation {
+  read?: (file: string) => Promise<string>;
+  paths?: typeof path.win32;
+}
+
+export async function recordRedirectedPublicationWrite(
+  result: Record<string, unknown>,
+  destination: string,
+  backup: string,
+  { read = realpath, paths = path }: PublicationPathObservation = {},
+) {
+  const destinationReal = await read(destination);
+  const redirectedReal = await read(backup);
+  // Preserve physical observations even when containment refuses the write.
+  result.redirected_write_realpaths = { destination: destinationReal, backup: redirectedReal };
+  const relative = paths.relative(
+    paths.toNamespacedPath(destinationReal),
+    paths.toNamespacedPath(redirectedReal),
+  );
+  assert.ok(relative && !relative.startsWith("..") && !paths.isAbsolute(relative));
+}
+
+export async function assertPublicationImportReadback(
+  destination: string,
+  exported: string,
+  importRoot: string,
+  imported: string,
+  { read = realpath, paths = path }: PublicationPathObservation = {},
+) {
+  const exportedRelative = paths.relative(
+    paths.toNamespacedPath(await read(destination)),
+    paths.toNamespacedPath(await read(exported)),
+  );
+  assert.ok(
+    exportedRelative && !exportedRelative.startsWith("..") && !paths.isAbsolute(exportedRelative),
+  );
+  assert.ok(samePath(imported, paths.join(importRoot, exportedRelative), paths));
+}
+
 function journal(library: string, kind: string, portId: string) {
   const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
   try {
@@ -90,15 +129,11 @@ export async function hostPublicationScenario(context: Context) {
     await writeFile(file, Buffer.from(await browser.takeScreenshot(), "base64"), { flag: "wx" });
     artifacts.push(file);
   };
-  async function open(name: string) {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+  async function open(port: { id: string; name: string }) {
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, name);
-    const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${name}.")]`,
-    );
-    await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, port.name);
+    await selectCatalogPort(browser, port.id);
   }
   async function arm(checkpoint: string, checkpointRoot = library) {
     const nonce = randomUUID();
@@ -176,7 +211,7 @@ export async function hostPublicationScenario(context: Context) {
       const original = await fileIdentity(save);
       assert.equal(transportValue("status", command(["status", port.id])).active, null);
       const probe = await arm(checkpoint);
-      await open(port.name);
+      await open(port);
       await browser.findElement(button("Review installation")).click();
       const install = By.xpath('//button[starts-with(normalize-space(.),"Install ·")]');
       const action = await browser.wait(until.elementLocated(install), 15_000);
@@ -237,7 +272,7 @@ export async function hostPublicationScenario(context: Context) {
     const currentSave = await fileIdentity(save);
     const backupsBefore = transportValue("backup_inventory", command(["backup", "list", port.id]));
     const probe = await arm("restore_prepared");
-    await open(port.name);
+    await open(port);
     const row = await browser.wait(
       until.elementLocated(By.css(`[data-backup-id="${selected.id}"]`)),
       15_000,
@@ -462,17 +497,7 @@ export async function hostPublicationScenario(context: Context) {
       command(["backup", "create", port.id], library),
     );
     move.result.redirected_write = redirectedWrite;
-    const destinationReal = await realpath(destination);
-    const redirectedReal = await realpath(redirectedWrite.path);
-    move.result.redirected_write_realpaths = {
-      destination: destinationReal,
-      backup: redirectedReal,
-    };
-    const relative = path.relative(
-      path.toNamespacedPath(destinationReal),
-      path.toNamespacedPath(redirectedReal),
-    );
-    assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
+    await recordRedirectedPublicationWrite(move.result, destination, redirectedWrite.path);
     await assertIdentity(newer);
     await assertIdentity(original);
     assert.deepEqual(await readAuthority(library), sourceAuthority);
@@ -619,14 +644,12 @@ export async function hostPublicationScenario(context: Context) {
     assert.ok(importedInstallation);
     assert.equal(importedInstallation.id, exportedInstallation.id);
     assert.deepEqual(importedInstallation.artifact, exportedInstallation.artifact);
-    const exportedRelative = path.relative(
-      path.toNamespacedPath(await realpath(destination)),
-      path.toNamespacedPath(await realpath(exportedInstallation.path)),
+    await assertPublicationImportReadback(
+      destination,
+      exportedInstallation.path,
+      importRoot,
+      importedInstallation.path,
     );
-    assert.ok(
-      exportedRelative && !exportedRelative.startsWith("..") && !path.isAbsolute(exportedRelative),
-    );
-    assert.ok(samePath(importedInstallation.path, path.join(importRoot, exportedRelative)));
     await writeFile(importedSave, "New save after published import host restart.");
     const newImportedSave = await fileIdentity(importedSave);
     // Published import is committed; archive bookkeeping only with the owned host stopped.

@@ -74,6 +74,31 @@ upstream profile may still be read on the next explicit Play. A saved Core data
 store or richer preparation/account contract requires its own compatible
 transition rather than guessing at migration or rewriting retained definitions.
 
+When complete game and engine-only packages cannot be distinguished by stable
+literal hints, an exact `direct-manifest` archive can use this same adapter.
+The existing Direct contract requires one Stable version/URL/size/SHA-256 per
+declared platform; it does not discover newer upstream versions. The native
+route still rejects installers, raw executables, custom build/setup commands,
+mutable runtimes and downstream source preparation. A pin does not inherit
+another artifact's qualification. A later reviewed catalog pin remains a new
+artifact/compatibility decision, and runtime rollback does not rewind external
+profiles or certify their older-version compatibility.
+
+Native template version 3 represents exact archive pins. Version 4 additionally
+consumes `windows_runtime_path_policy: relative-file-max-path` for Windows-only
+native archives. Core checks every authenticated immutable package member and
+the selected executable/working directory at their final coordinates before
+publication and before launch or retained-data synchronization. Recovery,
+adoption, relocation and library import repeat the applicable destination check.
+The conservative envelope counts Windows UTF-16 units, the terminating NUL and
+the runtime's `.\` relative spelling within MAX_PATH; it imposes no ASCII-only
+rule. A shorter executable alone does not establish fitting data-file paths.
+Choose a shorter output folder when held. This is a supported coordinate
+envelope, not a general Windows long-path fix or a claim about the exact upstream
+failure threshold. External profiles and arbitrary future save filenames are
+outside the immutable-package check. New and retained independent entries using
+this policy require Native4; Direct-only Native3 retains its meaning.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route
@@ -162,7 +187,7 @@ to another project does not settle a separately authored component's permission.
 Retain a named acquisition condition at its exact operation scope. When fresh
 self-service acquisition is held, the authored listing can set
 `download_block_reason` to a bounded practical explanation and reconsideration
-condition. The generator emits listing format 2; Core refuses download options,
+condition. This restriction requires listing format 2 or later; Core refuses download options,
 preview and mutation before contacting the provider. This restriction grants no
 permission to acquire, register or execute an existing copy and does not rewrite
 its retained contract. Keep useful existing permitted-copy instructions and
@@ -1701,6 +1726,43 @@ facts remain in `integration`; the listing projection derives them. A listing
 without an integration carries no managed operation or qualification claim.
 Shared source identities, contracts, validators, evidence and qualification stay
 in `catalog-shared.json`, preserving their existing order and scope.
+
+Optional listing `original_game` is a version-1 descriptive identity: an explicitly
+reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
+`source_editions`. Each edition has its own stable `id`, descriptive `title`,
+optional original `system` slug and evidence URLs. For example `nintendo-64` and
+`xbox-360` identify source systems, independently of the port's Windows/Linux/macOS
+targets. Multiple required or accepted editions remain explicit. An absent game
+identity never groups entries by title similarity; absent editions/system mean
+**Not specified**, never PC. Shared game IDs group presentation only and never
+replace port, installed, pending-setup, source-contract or path identities.
+
+The same optional object projects into operational `presentation.original_game`.
+Descriptive directories containing it use listing format 3; current readers retain
+formats 1 and 2. Earlier accepted records without metadata stay valid. Authoring
+checks bound identifiers, text, edition counts and HTTPS provenance; Core validates
+the projected fields without granting installation, execution or media rights.
+Game and edition IDs are maintained explicitly, not inferred from project names,
+artwork mappings or a frozen prototype registry. Unknown editions remain unknown
+until their own upstream evidence has been reviewed.
+
+Optional authored `media` carries at most one `header` and eight `screenshot`
+assets through the same listing and operational presentation projection. Every
+asset declares its exact port or authored original-game plus source-edition ID,
+caption, digest, dimensions, image/source URLs, attribution, a supported license
+identifier and `rights_url` evidence. Reviewers inspect the source and rights
+evidence; metadata admission validates shape and bounds, not a legal grant. A
+parent project license alone is not distribution consent. No third-party files
+are copied merely to fill a gallery.
+
+Directories containing media require format 3. Legacy strict presentation with
+no `media` field may use reviewed directory media for the same exact identity;
+an explicit empty array clears it. An existing local artwork override takes
+precedence for the header, including its unavailable state; screenshots remain
+authored read-only media. Image retrieval accepts only pinned raw GitHub commit
+URLs, the IGDB image CDN and Wikimedia Commons, with no redirects, URL queries or
+credentials. Cached `.image` originals share the existing disposable 64 MiB
+artwork cache and bounded decoding work; local overrides remain separate.
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
 `catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.

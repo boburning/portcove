@@ -679,7 +679,10 @@ void test("platform identity probes fail closed on their bounded timeout", () =>
     () =>
       readProcessIdentity(908, {
         platform: "win32",
-        spawnSync: () => ({ error, status: null, stdout: "", stderr: "" }),
+        spawnSync: (_command, _args, options) => {
+          assert.equal(options.timeout, 15_000);
+          return { error, status: null, stdout: "", stderr: "" };
+        },
       }),
     { code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE", message: /identity probe timed out/u },
   );

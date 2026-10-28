@@ -23,6 +23,7 @@ export interface NodePlatformSkipContract {
 export interface NodeTestSuite {
   arguments: string[];
   files: string[];
+  localResourceProfile?: "analysis";
 }
 export interface NodeTestSuites {
   format_version: 1;
@@ -30,6 +31,18 @@ export interface NodeTestSuites {
   qualificationOwners?: Record<string, Record<string, string>>;
   platformSkips?: Record<string, NodePlatformSkipContract[]>;
   desktopDependencies?: string[];
+}
+
+export function localNodeResourceProfile(files: readonly string[], registry: NodeTestSuites) {
+  const selected = new Set(files);
+  const registered = new Set(Object.values(registry.suites).flatMap((suite) => suite.files));
+  if (!files.length || files.some((file) => !registered.has(file))) return "analysis" as const;
+  return Object.values(registry.suites).some(
+    (suite) =>
+      suite.localResourceProfile === "analysis" && suite.files.some((file) => selected.has(file)),
+  )
+    ? ("analysis" as const)
+    : undefined;
 }
 function validPlatformCases(cases: unknown): cases is string[] {
   return (
@@ -199,17 +212,27 @@ function expandNodeTestOwnership(
     !value.tests.length
   )
     throw new Error("Invalid Node test ownership registry");
-  const suites: Record<string, { arguments: unknown; files: string[] }> = {};
+  const suites: Record<
+    string,
+    { arguments: unknown; files: string[]; localResourceProfile?: "analysis" }
+  > = {};
   const positions = new Map<string, Map<number, string>>();
   for (const [id, entry] of Object.entries(value.suites)) {
     if (
       !/^[a-z][a-z0-9-]*$/u.test(id) ||
       !isRecord(entry) ||
-      Object.keys(entry).length !== 1 ||
+      Object.keys(entry).some((key) => !["arguments", "localResourceProfile"].includes(key)) ||
+      (entry.localResourceProfile !== undefined && entry.localResourceProfile !== "analysis") ||
       !Object.hasOwn(entry, "arguments")
     )
       throw new Error("Invalid Node ownership suite: " + id);
-    suites[id] = { arguments: entry.arguments, files: [] };
+    suites[id] = {
+      arguments: entry.arguments,
+      files: [],
+      ...(entry.localResourceProfile === "analysis"
+        ? { localResourceProfile: "analysis" as const }
+        : {}),
+    };
     positions.set(id, new Map());
   }
   const seenFiles = new Set<string>();
@@ -297,6 +320,7 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
     if (!/^[a-z][a-z0-9-]*$/u.test(id) || !isRecord(entry))
       throw new Error(`Invalid Node suite: ${id}`);
     if (
+      (entry.localResourceProfile !== undefined && entry.localResourceProfile !== "analysis") ||
       !Array.isArray(entry.arguments) ||
       !entry.arguments.every((arg: unknown) => typeof arg === "string") ||
       entry.arguments[0] !== "--test" ||
@@ -322,7 +346,13 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
       if (/^--test-(?:name|skip)-pattern$/u.test(arg) && args[++i]?.length) continue;
       throw new Error(`Unsupported Node suite flag in ${id}: ${arg}`);
     }
-    suites[id] = { arguments: args, files };
+    suites[id] = {
+      arguments: args,
+      files,
+      ...(entry.localResourceProfile === "analysis"
+        ? { localResourceProfile: "analysis" as const }
+        : {}),
+    };
   }
   if (!Object.keys(suites).length) throw new Error("Node suite registry must be nonempty");
   return {

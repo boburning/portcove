@@ -1,4 +1,4 @@
-//! Initial setup utility: generate exactly one Ed25519 key, never a key set.
+//! Single-key initial creation and read-only recovery identity inspection.
 use super::*;
 use aws_lc_rs::{rand::SystemRandom, signature::Ed25519KeyPair};
 use std::{fs::OpenOptions, io::Write};
@@ -19,6 +19,58 @@ pub struct KeyReport {
     private_file: &'static str,
     public_file: &'static str,
     authority: &'static str,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InspectionConfig {
+    schema_version: u32,
+    private_key: String,
+    expected_public_key: offline::PublicKeyInput,
+}
+
+#[derive(Serialize)]
+pub struct KeyInspectionReport {
+    schema_version: u32,
+    operation: &'static str,
+    public_key_id: String,
+    authority: &'static str,
+}
+
+/// Read-only recovery inspection against an independently appointed public key.
+/// Does not generate keys, sign, write files, or establish custody/role authority.
+pub async fn inspect_existing_key(path: &Path) -> Result<KeyInspectionReport, TufRepositoryError> {
+    let config: InspectionConfig = serde_json::from_slice(&offline::read_input(
+        path,
+        MAX_CONFIG_BYTES,
+        "key inspection config",
+    )?)?;
+    if config.schema_version != 1 {
+        return offline::invalid("key inspection schema differs");
+    }
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
+    // Validate the pinned public input before opening any private material.
+    let expected = offline::public_key(base, &config.expected_public_key)?;
+    let private = offline::read_input(
+        &resolve(base, &config.private_key, "existing private key")?,
+        MAX_CONFIG_BYTES,
+        "existing private key",
+    )?;
+    let source = key(Arc::from(private));
+    let projected = source
+        .as_sign()
+        .await
+        .map_err(|_| TufRepositoryError::Invalid("existing private key cannot be parsed".into()))?
+        .tuf_key();
+    if projected != expected {
+        return offline::invalid("existing private key differs from appointed public key");
+    }
+    Ok(KeyInspectionReport {
+        schema_version: 1,
+        operation: "inspect-existing-tuf-key",
+        public_key_id: hex::encode(expected.key_id()?.as_ref()),
+        authority: "none",
+    })
 }
 
 /// Creates a fresh directory with one private PKCS8 and one public TUF JSON file.

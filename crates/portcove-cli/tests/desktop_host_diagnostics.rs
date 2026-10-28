@@ -264,11 +264,13 @@ fn desktop_host_fixture_child() {
             .map(|name| name.to_string_lossy().into_owned())
     );
     summary["logging_enabled"] = json!(guard.is_some());
+    summary["bootstrap_timed_out"] = json!(host.bootstrap_timed_out());
     let health = guard
         .as_mut()
         .map(|guard| guard.shutdown(Duration::from_secs(2)))
         .unwrap_or_else(|| host.health());
     summary["flush_complete"] = json!(health.flush_state == FlushState::Complete);
+    summary["health"] = json!(format!("{health:?}"));
     summary["records_written"] = json!(health.written);
     publish_json(&root.join("desktop-result.json"), &summary);
     std::process::exit(if success { 0 } else { 1 });
@@ -464,7 +466,7 @@ fn desktop_early_failures_keep_typed_phases_and_fixed_private_safe_stderr() {
         let summary = fixture.summary();
         assert_eq!(summary["ok"], false);
         assert_eq!(summary["error_code"], json!(code));
-        assert_eq!(summary["flush_complete"], true);
+        assert_eq!(summary["flush_complete"], true, "{scenario}: {summary}");
         let records = fixture.records(pid);
         assert!(!records.is_empty());
         assert!(records.iter().all(|record| record["surface"] == "desktop"));

@@ -186,9 +186,11 @@ pub enum SavesAndSettingsBehavior {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PortPresentation {
     /// Descriptive display metadata only. This never replaces the port, source,
-    /// release or library identity, and does not group different implementations.
+    /// release or library identity. Explicit original_game metadata owns display grouping.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_game: Option<OriginalGameIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant_label: Option<String>,
     pub installation_method: InstallationMethod,
@@ -200,6 +202,31 @@ pub struct PortPresentation {
     pub manual_setup: Option<ManualSetupGuide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+    /// Absent legacy metadata may use the directory; an explicit empty list clears it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media: Option<Vec<crate::CatalogMediaAsset>>,
+}
+
+/// Reviewed descriptive identity only; port, installation and source authority remain separate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OriginalGameIdentity {
+    pub format_version: u32,
+    pub id: String,
+    pub evidence_urls: Vec<String>,
+    /// Empty means editions are not specified; never assume a PC edition.
+    pub source_editions: Vec<SourceEdition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SourceEdition {
+    pub id: String,
+    pub title: String,
+    /// Original source system, distinct from the port's target operating systems.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system: Option<String>,
+    pub evidence_urls: Vec<String>,
 }
 
 /// Authored instructions only; these steps grant no operation or file authority.
@@ -580,6 +607,8 @@ pub struct PersistentFilePattern {
 #[serde(rename_all = "kebab-case")]
 pub enum WindowsRuntimePathPolicy {
     PrintableAsciiMaxPath,
+    /// Legacy relative file access; no restriction on the character repertoire.
+    RelativeFileMaxPath,
 }
 
 /// Closed initialization recipes, never catalog-supplied scripts or file contents.
@@ -719,6 +748,8 @@ pub struct PortListing {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game_title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_game: Option<OriginalGameIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant_label: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub issue_number: Option<u64>,
@@ -746,6 +777,8 @@ pub struct PortListing {
     pub manual_setup: Option<ManualSetupGuide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub media: Vec<crate::CatalogMediaAsset>,
 }
 
 /// A dated discovery fact, not a managed support or artifact admission decision.
@@ -760,7 +793,7 @@ pub enum ListingAvailability {
 }
 
 /// Independently versioned directory projection. Format 2 can restrict fresh
-/// self-service downloads; neither format grants managed operations.
+/// downloads; format 3 adds descriptive game/edition identity. No format grants operations.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogListingDocument {
@@ -918,6 +951,9 @@ pub struct ExternalRuntimeRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortStatus {
+    /// Owned archive acquisition, separate from a staged or active runtime.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acquisition: Option<GameUpdateAcquisition>,
     pub port_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_data_root: Option<PathBuf>,
@@ -1522,9 +1558,33 @@ pub struct GameInstallPlan {
     pub plan_sha256: String,
 }
 
+/// Durable acquisition state. No phase grants permission to prepare or activate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GameUpdateAcquisitionPhase {
+    Acquiring,
+    Verifying,
+    Acquired,
+    AttentionRequired,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct GameUpdateAcquisition {
+    pub id: String,
+    pub port_id: String,
+    pub platform: Platform,
+    pub release: ResolvedRelease,
+    pub phase: GameUpdateAcquisitionPhase,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 /// A reviewed game update, independent of the saved automatic-update policy.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameUpdatePlan {
+    /// Exact retained archive selected by this review; never authorization.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acquisition: Option<GameUpdateAcquisition>,
     pub plan: InstallPlan,
     /// Read-only decision for this exact reviewed candidate, not authorization.
     pub assessment: crate::PortActionAssessment,
@@ -1660,7 +1720,7 @@ pub struct ReleaseAsset {
     pub sha256: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ResolvedRelease {
     pub version: String,
     pub channel: ReleaseChannel,

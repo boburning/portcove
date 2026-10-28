@@ -243,12 +243,14 @@ async function expectReadinessOption(name: string, selected?: boolean) {
 }
 async function openAdvancedFilters(name: string) {
   await userEvent.click(button(name));
-  if (!document.querySelector<HTMLDetailsElement>("[role=dialog] details")?.open)
+  if (!document.querySelector<HTMLDetailsElement>(".catalog-filter-panel details")?.open)
     await userEvent.click(page.getByText("Advanced filters", { exact: true }));
 }
 async function closeFilters() {
   await userEvent.keyboard("{Escape}");
-  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("region", { name: "Filter options", exact: true }))
+    .not.toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
     .toHaveFocus();
@@ -263,7 +265,9 @@ it.each(["dark", "light"])(
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(button("Linux (1)"));
     await closeFilters();
-    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("region", { name: "Filter options", exact: true }))
+      .not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
     await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
     await expectReadinessOption("Needs attention (1)", false);
@@ -275,7 +279,7 @@ it.each(["dark", "light"])(
     await closeFilters();
     await chooseReadiness("Ready (1)");
     await expect.element(button("Remove Preview filter")).toBeInTheDocument();
-    await userEvent.click(button("View details for Linux game Port: Linux game"));
+    await userEvent.click(button("View details for Linux game Linux game"));
     await userEvent.click(button("Back to library"));
     await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
     await userEvent.click(button("Switch section"));
@@ -337,7 +341,7 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
   await expectReadinessOption("Ready (0)");
   await openAdvancedFilters("Filters (1)");
   await expect.element(button("Linux (0)")).toHaveAttribute("aria-pressed", "true");
-  await userEvent.click(button("Reset library filters"));
+  await userEvent.click(button("Clear filters"));
   await closeFilters();
   expect(invoke).not.toHaveBeenCalled();
 });
@@ -372,7 +376,7 @@ it("holds unknown migrated readiness and query separately until correction", asy
   });
   await openAdvancedFilters("Filters (0)");
   await expect.element(button("Linux (unavailable)")).toBeDisabled();
-  await userEvent.click(button("Reset library filters"));
+  await userEvent.click(button("Clear filters"));
   await expect.element(button("Linux (2)")).toBeEnabled();
   await closeFilters();
   expect(invoke).not.toHaveBeenCalled();
@@ -426,7 +430,7 @@ it("retains specific attention with independent Library readiness, zero counts a
   await expect.element(button("Missing game files (0)")).toHaveAttribute("aria-pressed", "true");
   await closeFilters();
   await chooseReadiness("Needs attention (1)");
-  await userEvent.click(button("View details for Both game Port: Both game"));
+  await userEvent.click(button("View details for Both game Both game"));
   await userEvent.click(button("Back to library"));
   await expect.element(button("Remove Missing game files filter")).toBeInTheDocument();
   await userEvent.click(button("Toggle snapshot"));
@@ -451,7 +455,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await closeFilters();
   await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
   await expectReadinessOption("Needs attention (0)");
-  await userEvent.click(button("View details for Windows game Port: Windows game"));
+  await userEvent.click(button("View details for Windows game Windows game"));
   await userEvent.click(button("Back to library"));
   await openAdvancedFilters("Filters (1)");
   await userEvent.click(button("Available at last check (1)"));

@@ -17,7 +17,7 @@ function canonical(value: unknown): unknown {
   return value;
 }
 const bytes = (value: unknown) => Buffer.from(JSON.stringify(canonical(value)));
-function key() {
+export function disposableTufKey() {
   const pair = generateKeyPairSync("ed25519");
   const publicKey = pair.publicKey
     .export({ format: "der", type: "spki" })
@@ -26,8 +26,8 @@ function key() {
   const publicValue = { keytype: "ed25519", scheme: "ed25519", keyval: { public: publicKey } };
   return { id: hash(bytes(publicValue)), public: publicValue, private: pair.privateKey };
 }
-type TestKey = ReturnType<typeof key>;
-function envelope(signed: object, keys: readonly TestKey[]) {
+type TestKey = ReturnType<typeof disposableTufKey>;
+export function disposableTufEnvelope(signed: object, keys: readonly TestKey[]) {
   return bytes({
     signed,
     signatures: keys.map((entry) => ({
@@ -38,6 +38,8 @@ function envelope(signed: object, keys: readonly TestKey[]) {
 }
 export async function disposableTufWorkerFixture(root: string, suppliedPayloadPublic?: Buffer) {
   await mkdir(root, { mode: 0o700 });
+  const key = disposableTufKey,
+    envelope = disposableTufEnvelope;
   const roots = [key(), key(), key()],
     names = ["targets", "snapshot", "timestamp", "releases", "preview", "stable"] as const;
   const online = Object.fromEntries(names.map((name) => [name, key()])) as Record<

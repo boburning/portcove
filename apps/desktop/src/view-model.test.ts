@@ -391,7 +391,7 @@ describe("catalog view model", () => {
     expect(portReadiness(blocked)).toBe("source");
   });
 
-  it("selects Continue from successful launch history only", () => {
+  it("selects Continue from launchable installations with successful launch history", () => {
     const beta: PortStatus = {
       ...status,
       port_id: "beta",
@@ -399,6 +399,27 @@ describe("catalog view model", () => {
     };
     const alpha: PortStatus = { ...status, last_launched_at: 10 };
     expect(mostRecentPort(ports, indexStatuses([alpha, beta]))?.port.id).toBe("beta");
+    expect(
+      mostRecentPort(
+        ports,
+        indexStatuses([
+          alpha,
+          {
+            ...beta,
+            readiness: { launchable: false, blockers: ["missing_source"], pending_setup: false },
+          },
+        ]),
+      )?.port.id,
+    ).toBe("alpha");
+    expect(
+      mostRecentPort(
+        ports,
+        indexStatuses([
+          { ...alpha, readiness: null },
+          { ...beta, readiness: null },
+        ]),
+      ),
+    ).toBeUndefined();
     expect(
       mostRecentPort(ports, indexStatuses([{ ...status, last_launched_at: null }])),
     ).toBeUndefined();

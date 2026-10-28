@@ -3,12 +3,11 @@
   "listing": {
     "id": "serious-sam-the-second-encounter-serioussamclassic",
     "name": "Serious Sam: The Second Encounter (SeriousSamClassic)",
-    "summary": "Upstream route: Desktop source port with many Windows/Linux/macOS packages and original-data setup. Limits: Established native First/Second Encounter source-port route; two game identities share engine. Upstream platforms: Windows/Linux/macOS packages/builds. README CI lists x86/x86-64/ARMv7/AArch64 and other targets across OSs; no per-package CPU mapping established in frozen audit. Original data: Separate First and Second Encounter games; all original content directories needed. Portcove setup/gameplay not verified.",
+    "summary": "Prepare Serious Sam: The Second Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Serious Sam: The Second Encounter",
     "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/tx00100xt/SeriousSamClassic",
+    "availability": "packages",
+    "setup_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
     "artwork": {
       "game_id": 858,
       "cover_id": 111569,
@@ -17,7 +16,34 @@
       "game_slug": "serious-sam-the-second-encounter",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2606
+    "issue_number": 2606,
+    "release_url": "https://github.com/tx00100xt/SeriousSamClassic/releases/tag/1.10.7",
+    "download_asset_hints": {
+      "windows-x86-64": ["SeriousSamClassic-", "-directx9-win64-bin.7z"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original game",
+          "instruction": "Use your own classic Serious Sam The Second Encounter data, including matching *.gro files and original companion data. HD and Revolution editions are different products. Preserve the original installation and use a complete private working copy; the other encounter is a separate data scope."
+        },
+        {
+          "title": "Prepare upstream and select the player",
+          "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
+        },
+        {
+          "title": "Preserve the actual player data",
+          "instruction": "Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -30,5 +56,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "https://github.com/tx00100xt/SeriousSamClassic",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+    }
   }
 }

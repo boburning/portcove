@@ -69,14 +69,22 @@ it("renders distinct game-led cards with full project and variant identity", () 
   expect(html).toContain("Amber Recompiled");
   const cards = [
     ...html.matchAll(
-      /<button[^>]*data-detail-origin="catalog:card:[^"]+"[^>]*>[\s\S]*?<\/button>/gu,
+      /<button[^>]*data-detail-origin="catalog:card:(?:project-one|project-two)"[^>]*>[\s\S]*?<\/button>/gu,
     ),
   ];
   expect(cards).toHaveLength(2);
   expect(cards[0]![0]).toContain("Cobalt Project");
   expect(cards[0]![0]).toContain("US edition");
   expect(cards[1]![0]).toContain("Amber Recompiled");
-  for (const [card] of cards) expect(card).not.toContain("aria-label=");
+  expect(cards[0]![0]).toContain('aria-label="A Familiar Adventure Cobalt Project · US edition.');
+  expect(cards[1]![0]).toContain('aria-label="A Familiar Adventure Amber Recompiled.');
+  for (const [card] of cards) {
+    expect(card).toMatch(/<h2[^>]*>A Familiar Adventure<\/h2>/u);
+    expect(card).toMatch(/<p[^>]*class="collection-project [^"]*"/u);
+    expect(card).not.toContain(" disabled=");
+  }
+  expect(html).toContain('data-discover-port-ids="[&quot;project-one&quot;]"');
+  expect(html).toContain('data-discover-port-ids="[&quot;project-two&quot;]"');
   expect(cards[0]![0]).toContain('data-detail-origin="catalog:card:project-one"');
   expect(cards[1]![0]).toContain('data-detail-origin="catalog:card:project-two"');
 });

@@ -31,6 +31,12 @@ pub(super) fn window(at: Timestamp, expires: Timestamp, seconds: u64) -> Result<
     Ok(())
 }
 pub(super) fn root(root: &Signed<Root>, at: Timestamp, profile: InitialRootProfile) -> Result<()> {
+    root_key_inventory(root, profile)?;
+    window(at, root.signed.expires, 365 * 86400)
+}
+/// Historical public identity only; callers granting current signing authority
+/// must additionally retain the existing freshness window above.
+pub(super) fn root_key_inventory(root: &Signed<Root>, profile: InitialRootProfile) -> Result<()> {
     if root.signed.spec_version != "1.0.0"
         || !root.signed.consistent_snapshot
         || !root.signed._extra.is_empty()
@@ -39,7 +45,6 @@ pub(super) fn root(root: &Signed<Root>, at: Timestamp, profile: InitialRootProfi
     {
         return invalid("catalog Root requires exact consistent-snapshot role inventory");
     }
-    window(at, root.signed.expires, 365 * 86400)?;
     let mut ids = BTreeSet::new();
     let mut materials = BTreeSet::new();
     for role in [
@@ -93,6 +98,10 @@ pub(super) fn root(root: &Signed<Root>, at: Timestamp, profile: InitialRootProfi
     Ok(())
 }
 pub(super) fn top(root: &Root, top: &Signed<Targets>, at: Timestamp) -> Result<()> {
+    top_key_inventory(root, top)?;
+    window(at, top.signed.expires, 90 * 86400)
+}
+pub(super) fn top_key_inventory(root: &Root, top: &Signed<Targets>) -> Result<()> {
     root.verify_role(top)?;
     if top.signatures.len() != 1
         || top.signatures[0].keyid != root.roles[&RoleType::Targets].keyids[0]
@@ -102,7 +111,6 @@ pub(super) fn top(root: &Root, top: &Signed<Targets>, at: Timestamp) -> Result<(
     {
         return invalid("catalog offline Targets must only delegate with its appointed key");
     }
-    window(at, top.signed.expires, 90 * 86400)?;
     delegations(root, &top.signed)
 }
 pub(super) fn delegations(root: &Root, top: &Targets) -> Result<()> {

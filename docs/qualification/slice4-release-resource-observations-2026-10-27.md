@@ -130,6 +130,55 @@ The existing diagnostic helper now records cumulative monotonic phases after its
 
 ## Fit, margins and proposed calibration
 
+### October 28 — held standalone source preparation
+
+The existing runtime-readiness diagnostic now has a false-default
+`use_standalone_installer` input. Selecting it still refuses before evidence,
+network or installation because the helper's separately reviewed execution gate
+is literal `false`. No workflow input, downloaded record or digest can open it.
+The ordinary bootstrapper path keeps its existing gate and behavior.
+
+The prepared alternate consumes the exact official x64 source observed above:
+214,884,560 bytes / SHA-256
+`1c401b327fbc7bb9731b4e350a2194f083cbc3ede46508d52e1cae6610a39bea`.
+It follows at most one HTTPS redirect from the fixed Microsoft link to the
+declared Microsoft delivery host, refuses further redirects/encoding, streams
+under a 256-MiB ceiling and one 120-second download deadline, and requires exact
+size/hash plus valid Microsoft Authenticode before the existing installer path.
+It repeats that identity/signature check immediately before launch. The original
+five-minute installer limit, post-install shipping-floor readback, retained
+failure, single attempt and no-retry behavior remain. Every attempted download
+retains its proposed identity and bounds before acquisition; interrupted owned
+partials remain evidence. The installer stays outside the controller-tool bundle
+and is excluded from the diagnostic artifact's JSON-only upload. The 128-MiB
+per-tool and 320-MiB expanded-tool limits remain unchanged.
+
+The source descriptor keeps `runtime_version: null`. Microsoft's
+[Evergreen distribution documentation](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution)
+distinguishes the full offline installer from Fixed Version deployment. Its
+[pinned WinUI maintenance guidance](https://github.com/microsoft/microsoft-ui-xaml/blob/b9fa30e549de859f15fb84f153cc6136b981d10a/controls/dev/WebView2/WebView2-update.md)
+also distinguishes the enclosed runtime version from the outer Edge Update
+wrapper. No wrapper-version substitution, Fixed Version switch, runtime approval
+or redistribution right is inferred here.
+
+Thirteen inert full-helper scenarios exercise held selection, bounded successful
+copy, foreign/second redirect, declared/actual length, encoding, cancellation,
+interruption, changed bytes, missing signature and pre-launch substitution.
+Only private fixture copies alter host/source pins and open the gate, with inert
+HTTP/signature/process peers; actual file/stream/hash and success/failure receipts
+remain exercised. A separate control executes the maintained workflow step with
+inert helper peers to check boolean mapping and reject interpretation as code.
+These are controlled framework checks, not a real installer, runtime, hosted
+timing or production observation.
+
+Resume real standalone qualification only after the exact source/storage and
+bounded diagnostic execution scope is independently reviewed and authorized.
+Then retain actual signature, installer result, runtime version, matching driver,
+loaded-engine and measured timing/custody identities. This preparation neither
+activates the protected Windows job nor supplies complete-opportunity, grant,
+signing/publication or unchanged-client acceptance. Production and resource
+ratification remain held; no new diagnostic dispatch occurred.
+
 A 99-minute sum does not establish that either native job fits ten minutes. The Windows preparation caps 90+180+90=360 seconds plus the existing210-second capture/recovery reserve already total570 seconds before cold setup. Waiting for a separately bounded payload signer may add up to its own 570-second role window after pre-sign readiness. Those maxima cannot all fit one 570-second native execution window. Issuer expiry can shorten it further. Do not remove custody checks, mandatory qualification or cleanup to force that arithmetic.
 
 The recommended model is a named per-job plan with explicit purpose membership, measured equivalent cold/hot workloads, bounded upstream wait dependencies and mandatory cleanup reserves. Derive each purpose envelope from that plan rather than selecting 100 or another unrelated scalar. Keep candidate compilation and report-repair accounting separately visible. An added platform must produce a drift finding and a new exact digest/ratification; it must not silently increase active authority. Per-job margins should use observed maxima and meaningful variance samples, plus deterministic mandatory waits and recovery, not a claimed percentile from one run.
@@ -149,3 +198,58 @@ Admission checks the exact ratified resource/workflow/source tuple, provider/acc
 This observation component changes no workflow timeout, resource-policy object/digest, signing boundary, protected scope or account setting. It adds no paid runner/service, spending permission, fallback, cache enlargement or retention increase. Existing concurrency, archive/storage, retention, request and recovery bounds remain. Availability/headroom stay Unknown and reservation stays None.
 
 The resource work remains open until connected native/signing/publication/recovery observations support final margins, the proposed canonical budget is independently reviewed and any changed exact digests/scopes receive required ratification. Continue Windows implementation while gathering measurements; do not dispatch held production work merely to fill this table.
+
+### October 28 — actual prerequisite qualification at current source
+
+The existing ordinary diagnostic routes were exercised once at source
+`388ac0a3394ab5e3cca80d24233be2b837883653`, tree
+`1888874d47f91f460b07f44fde1b1f9ac3968672`, without opening standalone or protected
+execution. Complete attempt-specific job inventories and exact public artifact
+bytes were retained. These observations measure diagnostic jobs, not the complete
+protected controller or provider billing/headroom.
+
+[Windows 40650089592/1](https://github.com/boburning/portcove/actions/runs/40650089592),
+job `122687893386`, took 151 seconds. Actual registry readback changed from
+131.0.2903.86 to 156.0.4314.50; the ordinary Microsoft bootstrapper exited zero.
+Its SHA-256 was `13f6d9cdc8c3e7186e4b180db7f48e199ee97d631480e8391fb3106f338fb21a`,
+Microsoft signer thumbprint `4028CAD637509D4744B17EC5B42AED8D7A31E6AF`.
+The runtime step took 52 seconds; the monotonic receipt measured 50,865 ms,
+including 50,167 ms from installer start through process disposal. Combined cold
+and warm driver setup took 62 seconds; individual phase durations were not
+recorded. Actual EdgeDriver 156.0.4314.50 matched WebView2, SHA-256
+`dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3`;
+Tauri driver 2.0.6 SHA-256
+`c986283281576c6649c1c9e1e0786e3fa0cb5422372541ef3bd37d569106c443`.
+The maintained helper verified unchanged cold/warm driver identities and hashes.
+Artifact `12799068760`, 1,431 bytes, SHA-256
+`42b603186a0fcc212bcefad9581a7f736b0926f3da4878327ff0473ce7ecaf30`,
+contains two fully inspected JSON files; expiry is November 4. This establishes
+ordinary runtime/driver prerequisites, not standalone execution, candidate
+startup, loaded-engine observations or native acceptance.
+
+[Linux 40649685268/1](https://github.com/boburning/portcove/actions/runs/40649685268),
+job `122686601304`, took 30 seconds; preparation and the inert primitive probe
+took 21 seconds. Actual WebKitGTK and WebKitWebDriver were both
+2.52.6-0ubuntu0.24.04.1, amd64. Ten package versions, five executable identities,
+exact source/helper/profile joins and 37 passing inert Python controls were
+retained. The original cgroup device/inode 31/7442 was removed and original unit
+invocation `6852573aff95459c9d8780abf5457418` settled. Launcher exit 255 is
+intentional teardown, not candidate exit zero. The 100 opaque AppArmor
+attachments remain unresolved at their recorded scope; positive cgroup cleanup
+does not erase that uncertainty. Artifact `12799236909`, 76,230 bytes, SHA-256
+`1d38656808d6ed5b9d95ea8385af9a466fe56f99ef471d0d10ec08c2f9ffdbfb`,
+contains 19 fully inspected files; expiry is November 4. These are actual runtime
+inputs, source custody and inert isolation primitives, not loaded candidate or
+protected acceptance. The initial old-source dispatch preflight refused before
+POST when main advanced; no retry or dispatch occurred for that old source.
+
+The Windows tool fixture now prepares the supported ordinary runtime before
+building its exact driver-bearing source bundle. Its pre-mutation guard binds the
+fixed workflow/job and clean actual checked-out head, preserving the PR head
+separately from GitHub's synthetic merge identity. The tool qualifier must join
+that runtime receipt to the actual driver version, source, run and attempt.
+Standalone remains refused on this fixture route. The fifteen-minute fixture job,
+ordinary 60-second download/five-minute installer bounds, tool bounds and all
+production gates are preserved. Actual connected tool-fixture fit is separately
+required. The historical 100 aggregate-job-minute ceiling remains repository
+policy; these measurements neither raise it nor turn it into a billing limit.

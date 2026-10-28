@@ -6,6 +6,7 @@ import {
 } from "./native-helper-dependencies.mts";
 
 const nativeToolInputs = new Set([
+  "scripts/fixtures/desktop-module-fixture.mts",
   "apps/desktop/scripts/desktop-artwork-observations.mts",
   "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
   "scripts/rust-test-impact.mts",

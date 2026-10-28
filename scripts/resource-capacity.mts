@@ -1,5 +1,9 @@
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
-import type { ResourceConfiguration } from "./resource-paths.mts";
+import type {
+  ResourceConfiguration,
+  WindowsHostBridge,
+  ResourceRecoveryReference,
+} from "./resource-paths.mts";
 import type {
   HeavyRustLock,
   HeavyRustLockOptions,
@@ -9,7 +13,7 @@ import type {
   ChildRegistration,
 } from "./heavy-rust-test-lock.mts";
 
-type ResourceProfile = "rust" | "browser" | "analysis" | "container";
+type ResourceProfile = "rust" | "browser" | "analysis" | "container" | "maintenance";
 interface ReservationSlot {
   name: string;
   token: string;
@@ -36,6 +40,8 @@ export interface ResourceMetadata extends HeavyRustMetadata {
   cwd?: string;
 }
 export interface ResourceCapacityOptions {
+  recoveryReceipt?: ResourceRecoveryReference;
+  hostRecoveryReceipt?: ResourceRecoveryReference;
   root?: string;
   environment?: NodeJS.ProcessEnv;
   exclusive?: readonly string[];
@@ -54,12 +60,17 @@ function causeCode(value: unknown) {
 function diagnosticText(value: unknown) {
   return String(value);
 }
-import { resourceDomainRoot, resourceConfiguration } from "./resource-paths.mts";
+import {
+  resourceDomainRoot,
+  resourceConfiguration,
+  verifyResourceRecoveryReference,
+} from "./resource-paths.mts";
 import { resolvePhysicalPath } from "./dev-storage.mts";
 import { fallowSource } from "./fallow-source.mts";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, readdir, mkdir, writeFile, rm, rename } from "node:fs/promises";
 import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import {
@@ -88,7 +99,13 @@ function retainIdentity() {
 }
 
 const inheritedName = "PORTCOVE_RESOURCE_RESERVATION";
-const resourceProfiles = Object.freeze({ rust: 1, browser: 1, analysis: 1, container: 2 });
+const resourceProfiles = Object.freeze({
+  rust: 1,
+  browser: 1,
+  analysis: 1,
+  container: 2,
+  maintenance: 8,
+});
 
 export { resourceDomainRoot } from "./resource-paths.mts";
 
@@ -309,6 +326,38 @@ export async function acquireResourceCapacity(
   metadata: ResourceMetadata = {},
   options: ResourceCapacityOptions = {},
 ): Promise<ResourceLease> {
+  const environment = options.environment ?? process.env;
+  if (
+    process.platform === "linux" &&
+    environment.GITHUB_ACTIONS !== "true" &&
+    environment.PORTCOVE_CONTAINER_GUEST !== "1"
+  ) {
+    const config = await resourceConfiguration(options.root ?? resourceDomainRoot());
+    if (config.hostBridge) {
+      const { acquireBridgedCapacity, verifyBridgedCapacity } =
+        await import("./resource-host-bridge.mts");
+      if (environment[inheritedName]) {
+        await verifyBridgedCapacity(config.hostBridge, environment);
+        return acquireLocalResourceCapacity(profile, metadata, options);
+      }
+      return acquireBridgedCapacity(
+        config.hostBridge,
+        profile,
+        metadata,
+        { ...options, waitMs: options.waitMs ?? config.waitMs },
+        (remaining) =>
+          acquireLocalResourceCapacity(profile, metadata, { ...options, waitMs: remaining }),
+      );
+    }
+  }
+  return acquireLocalResourceCapacity(profile, metadata, options);
+}
+
+async function acquireLocalResourceCapacity(
+  profile: string,
+  metadata: ResourceMetadata = {},
+  options: ResourceCapacityOptions = {},
+): Promise<ResourceLease> {
   if (!Object.hasOwn(resourceProfiles, profile))
     throw new Error(`Unknown resource profile: ${profile}`);
   const environment = options.environment ?? process.env;
@@ -322,7 +371,18 @@ export async function acquireResourceCapacity(
     };
   const root = options.root ?? resourceDomainRoot();
   const config = await resourceConfiguration(root);
-  const units = Math.min(config.slots, resourceProfiles[profile as ResourceProfile]);
+  let capacity = config.slots;
+  if (options.recoveryReceipt)
+    capacity = Math.max(
+      capacity,
+      await verifyResourceRecoveryReference(root, options.recoveryReceipt),
+    );
+  const units = Math.min(capacity, resourceProfiles[profile as ResourceProfile]);
+  if (options.recoveryReceipt) {
+    if (profile !== "maintenance")
+      throw new Error("Recovery admission requires the all-slot maintenance profile");
+    await verifyResourceRecoveryReference(root, options.recoveryReceipt);
+  }
   const exclusive = [...new Set(options.exclusive ?? [])].sort();
   if (exclusive.some((name) => !/^exclusive-[a-f0-9]{64}$/u.test(name)))
     throw new Error("Invalid output reservation identity");
@@ -381,9 +441,23 @@ export async function acquireResourceCapacity(
     releaseIdentity();
     throw error;
   });
+  if (options.recoveryReceipt) {
+    try {
+      await writeFile(
+        path.join(root, "queue", name) + ".recovery-" + queued.owner.token,
+        JSON.stringify(options.recoveryReceipt),
+        { flag: "wx", mode: 0o600 },
+      );
+    } catch (error) {
+      await queued.release();
+      releaseIdentity();
+      throw error;
+    }
+  }
   const started = performance.now();
   const waitMs = options.waitMs ?? config.waitMs;
   if (!Number.isInteger(waitMs) || waitMs < 0 || waitMs > 3_600_000) {
+    await rm(path.join(root, "queue", name) + ".recovery-" + queued.owner.token, { force: true });
     await queued.release();
     releaseIdentity();
     throw new Error("Resource waitMs must be 0..3600000");
@@ -396,17 +470,48 @@ export async function acquireResourceCapacity(
     for (;;) {
       options.signal?.throwIfAborted();
       try {
+        const currentConfig = await resourceConfiguration(root);
+        const inventory = await readdir(root);
+        const pendingRecovery =
+          options.recoveryReceipt &&
+          (currentConfig.legacyMode !== "coordinated" ||
+            inventory.some(
+              (file) => /^slot-\d+$/u.test(file) && Number(file.slice(5)) >= currentConfig.slots,
+            ));
         const waiting = await queueOwners(root, true, inspectProcessIdentity, {
-          firstOnly: true,
+          firstOnly: !pendingRecovery,
           deadline: waitMs === 0 ? started + 5_000 : deadline,
         });
         const legacy = await (options.legacyBlocker ?? legacyBlocker)(config, environment);
-        const outsideConfiguredCapacity = (await readdir(root)).some(
-          (file) => /^slot-\d+$/u.test(file) && Number(file.slice(5)) >= config.slots,
+        const outsideConfiguredCapacity = inventory.some(
+          (file) => /^slot-\d+$/u.test(file) && Number(file.slice(5)) >= capacity,
         );
-        if (waiting[0]?.name === name && !legacy && !outsideConfiguredCapacity) {
-          const currentConfig = await resourceConfiguration(root);
-          if (currentConfig.legacyMode !== "coordinated") {
+        let eligible = waiting[0]?.name;
+        if (pendingRecovery) {
+          eligible = undefined;
+          for (const owner of waiting) {
+            const raw = await missingAllowed(() =>
+              readFile(path.join(root, "queue", owner.name) + ".recovery-" + owner.token, "utf8"),
+            );
+            if (raw === null) continue;
+            if (raw.length > 8192) throw new Error("Recovery queue reference exceeds bound");
+            const reference: unknown = JSON.parse(raw);
+            if (
+              !isRecord(reference) ||
+              typeof reference.file !== "string" ||
+              typeof reference.sha256 !== "string"
+            )
+              throw new Error("Invalid recovery queue reference");
+            await verifyResourceRecoveryReference(root, {
+              file: reference.file,
+              sha256: reference.sha256,
+            });
+            eligible = owner.name;
+            break;
+          }
+        }
+        if (eligible === name && !legacy && !outsideConfiguredCapacity) {
+          if (currentConfig.legacyMode !== "coordinated" && !options.recoveryReceipt) {
             if (performance.now() >= deadline)
               throw Object.assign(
                 new Error(
@@ -435,7 +540,9 @@ export async function acquireResourceCapacity(
               new Error("Resource configuration changed while queued; retry the intended command"),
               { code: "PORTCOVE_RESOURCE_CONFIGURATION_CHANGED" },
             );
-          for (let slot = 0; slot < config.slots && acquired.length < units; slot++) {
+          if (options.recoveryReceipt)
+            await verifyResourceRecoveryReference(root, options.recoveryReceipt);
+          for (let slot = 0; slot < capacity && acquired.length < units; slot++) {
             try {
               acquired.push(
                 await acquireHeavyRustTestLock(
@@ -580,12 +687,55 @@ export async function acquireResourceCapacity(
         })()),
     };
   } finally {
+    await rm(path.join(root, "queue", name) + ".recovery-" + queued.owner.token, { force: true });
     await queued.release();
     if (!admitted) {
       for (const lock of acquired) await lock.release();
       releaseIdentity();
     }
   }
+}
+
+/** Maintenance uses the same all-slot leases on both sides, including rollback
+ * after Linux has already opted into host forwarding. No payload bypass flag. */
+export async function runResourceHostTransition(
+  bridge: WindowsHostBridge,
+  args: string[],
+  recovery?: { local: ResourceRecoveryReference; host: ResourceRecoveryReference },
+) {
+  const { acquireBridgedCapacity } = await import("./resource-host-bridge.mts");
+  const { runRustTests } = await import("./run-rust-tests.mts");
+  const workspace = fileURLToPath(new URL("../", import.meta.url));
+  const before = fallowSource(workspace, undefined, { includeAll: true });
+  return runRustTests(["--guard-command", process.execPath, ...args], {
+    executionTimeoutMilliseconds: 120_000,
+    acquireLock: async (metadata, options) => {
+      const lease = await acquireBridgedCapacity(
+        bridge,
+        "maintenance",
+        metadata,
+        {
+          ...options,
+          waitMs: 900_000,
+          ...(recovery ? { hostRecoveryReceipt: recovery.host } : {}),
+        },
+        (remaining) =>
+          acquireLocalResourceCapacity("maintenance", metadata, {
+            ...options,
+            waitMs: remaining,
+            ...(recovery ? { recoveryReceipt: recovery.local } : {}),
+          }),
+      );
+      if (
+        JSON.stringify(before) !==
+        JSON.stringify(fallowSource(workspace, undefined, { includeAll: true }))
+      ) {
+        await lease.release();
+        throw new Error("Transition source changed while waiting; no configuration changed");
+      }
+      return lease;
+    },
+  });
 }
 
 // A durable decision precedes any removal. Retrying after a crash may observe

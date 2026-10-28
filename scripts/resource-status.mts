@@ -2,7 +2,7 @@ import type { HeavyProcessRecord } from "./heavy-rust-test-lock.mts";
 function diagnosticText(value: unknown): string {
   return String(value);
 }
-import { errorMessage, errorCode } from "./runtime-values.mts";
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { observeCapacity } from "./resource-capacity.mts";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
@@ -15,6 +15,8 @@ import {
 import { nativeSessionLockPath } from "./native-session-lock.mts";
 import { readProcessLockOwner, isProcessAlive } from "./process-lock.mts";
 import { renderBoundedSummary } from "./report-summary.mts";
+import { resourceConfiguration } from "./resource-paths.mts";
+import { sampleHostObservations } from "./resource-observations.mts";
 
 function inspectRecord(
   role: "wrapper" | "child",
@@ -104,12 +106,20 @@ async function observe<T extends { created_at: string; workspace?: unknown; comm
 }
 
 interface ResourceStatusOptions {
+  sampleSeconds?: number;
   paths?: { heavy: string; native: string };
   capacityRoot?: string;
   inspectIdentity?: typeof readProcessIdentity;
   isProcessAlive?: (pid: number) => boolean;
 }
 export async function collectResourceStatus(options: ResourceStatusOptions = {}) {
+  if (
+    options.sampleSeconds !== undefined &&
+    (!Number.isInteger(options.sampleSeconds) ||
+      options.sampleSeconds < 0 ||
+      options.sampleSeconds > 60)
+  )
+    throw new Error("Sample duration must be an integer from 0 to 60 seconds");
   const paths = options.paths ?? {
     heavy: heavyRustTestLockPath(),
     native: nativeSessionLockPath(),
@@ -179,9 +189,34 @@ export async function collectResourceStatus(options: ResourceStatusOptions = {})
       };
     }
   }
+  let windowsHost: unknown;
+  if (!options.paths) {
+    try {
+      const config = await resourceConfiguration(options.capacityRoot);
+      if (config.hostBridge) {
+        const { observeBridgedCapacity } = await import("./resource-host-bridge.mts");
+        windowsHost = {
+          observation: "recorded",
+          ...((await observeBridgedCapacity(config.hostBridge)) as object),
+        };
+      }
+    } catch (error) {
+      windowsHost = {
+        observation: "unavailable",
+        verification: "unknown",
+        reason: errorMessage(error).slice(0, 512),
+      };
+    }
+  }
+  const host =
+    !options.paths || options.sampleSeconds !== undefined
+      ? await sampleHostObservations(options.sampleSeconds)
+      : undefined;
   return {
     format_version: 1,
     resources: [heavy, native, ...(capacity ? [capacity] : [])],
+    ...(host ? { host } : {}),
+    ...(windowsHost ? { windows_host: windowsHost } : {}),
     limits:
       "Read-only recorded-process observations; unregistered runners are unobserved. This is not admission or permission to reclaim a resource.",
   };
@@ -189,18 +224,52 @@ export async function collectResourceStatus(options: ResourceStatusOptions = {})
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
-  if (args.length && (args.length !== 1 || args[0] !== "--json"))
-    throw new Error("usage: resource-status.mts [--json]");
-  const report = await collectResourceStatus();
+  let sampleSeconds = 0,
+    asJson = false;
+  for (let index = 0; index < args.length; index++) {
+    if (args[index] === "--json" && !asJson) asJson = true;
+    else if (args[index] === "--sample-seconds" && /^\d+$/u.test(args[index + 1] ?? ""))
+      sampleSeconds = Number(args[++index]);
+    else throw new Error("usage: resource-status.mts [--json] [--sample-seconds 0..60]");
+  }
+  const report = await collectResourceStatus({ sampleSeconds });
+  const host = report.host?.samples.at(-1);
+  const hostLines = host
+    ? [
+        "Host I/O: " +
+          host.observation +
+          "; " +
+          report.host!.samples.length +
+          " sample(s) across " +
+          report.host!.elapsed_ms +
+          "ms",
+        ...("io_pressure" in host ? ["I/O pressure: " + JSON.stringify(host.io_pressure)] : []),
+        ...("reason" in host ? ["Host observation: " + host.reason] : []),
+      ]
+    : [];
+  if (isRecord(report.windows_host)) {
+    const capacity = report.windows_host.capacity;
+    hostLines.push(
+      "Windows host: " +
+        diagnosticText(report.windows_host.observation) +
+        (isRecord(capacity) && Array.isArray(capacity.running) && Array.isArray(capacity.queued)
+          ? "; " +
+            capacity.running.length +
+            " recorded running, " +
+            capacity.queued.length +
+            " queued"
+          : "; capacity unknown"),
+    );
+  }
   console.log(
-    args[0] === "--json"
+    asJson
       ? JSON.stringify(report, null, 2)
-      : renderBoundedSummary(
-          report.limits,
-          report.resources.map(
+      : renderBoundedSummary(report.limits, [
+          ...report.resources.map(
             (entry) =>
               `${entry.resource}: ${entry.observation}; ${entry.verification}; workspace ${diagnosticText(entry.workspace ?? "unknown")}; command ${entry.command ?? "unknown"}; ${entry.reason ?? entry.limits ?? ""}`,
           ),
-        ).text,
+          ...hostLines,
+        ]).text,
   );
 }

@@ -3,13 +3,41 @@
   "listing": {
     "id": "doom-3-classic-dude-doom-3-unified-development-engine",
     "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
-    "summary": "Upstream route: Published Linux x86_64 tar.gz and Windows x64 ZIP; optional baked-AO ZIP. Limits: Maintained Doom 3 fork with v0.9.6 path-tracing release; renderer hardware requirements differ. Classic edition only. Upstream platforms: Windows x86-64 ZIP and Linux x86-64 tar.gz; native GL/Vulkan renderer requirements differ by mode. Original data: Own original classic Doom3 base/*.pk4 files. Use the engine-required patched classic version. Doom3 BFG Edition files are unsupported. Portcove setup/gameplay not verified.",
+    "summary": "Prepare Doom 3 (classic) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Doom 3 (classic)",
     "project_url": "https://github.com/Inkub0/dude",
     "issue_number": 2565,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Inkub0/dude"
+    "availability": "packages",
+    "setup_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md",
+    "release_url": "https://github.com/Inkub0/dude/releases/tag/v0.9.6",
+    "download_asset_hints": {
+      "windows-x86-64": ["dude-", "-win64.zip"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original game",
+          "instruction": "Use original classic Doom 3 base PK4 data. BFG Edition is a different product. Keep the complete matching original-data installation unchanged and use a private working copy or the explicit upstream data-root option."
+        },
+        {
+          "title": "Prepare upstream and select the player",
+          "instruction": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Renderer and hardware requirements differ by mode; this fork does not inherit dhewm3 qualification."
+        },
+        {
+          "title": "Preserve the actual player data",
+          "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. This is an upstream copy, not a move, Core adoption or proof of save compatibility; decide whether to continue with that behavior before Play."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+        }
+      ],
+      "warnings": [
+        "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
+      ],
+      "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -22,5 +50,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "https://github.com/Inkub0/dude",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Renderer and hardware requirements differ by mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. This is an upstream copy, not a move, Core adoption or proof of save compatibility; decide whether to continue with that behavior before Play. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+    }
   }
 }

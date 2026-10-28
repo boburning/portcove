@@ -18,6 +18,12 @@ const MAX_BYTES: u64 = 64 * 1024;
 const INVALID_DOCUMENT_DETAIL: &str = "invalid_host_preference_document";
 const FAVORITES_KEY: &str = "favorites_by_library";
 
+mod organization;
+pub use organization::{
+    CollectionPreference, InstallationContext, LibraryOrganization, OrganizationChange,
+    SetupConfirmation, UpdateNoticeChoice, UpdateNoticeRelease,
+};
+
 fn invalid_document(error: PortcoveError) -> PortcoveError {
     error.detail(INVALID_DOCUMENT_DETAIL, "true")
 }

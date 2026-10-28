@@ -26,6 +26,7 @@ import { GitHubApiError, GitHubApiClient } from "./github-api.mts";
 import { renderPortIssueBody } from "./roadmap-issue.mts";
 import { renameSync, readdirSync } from "node:fs";
 import * as discoverySession from "./daily-discovery-session.mts";
+import { discoveryBootstrapModules, fetchDiscoveryMetadata } from "./daily-discovery.mts";
 const envelope = {
   url: "https://api.github.com/repos/o/r",
   method: "GET",
@@ -95,10 +96,6 @@ void test("bootstrap identity covers the complete statically loaded module closu
   // The filtered Windows reader-sharing route runs before package installation.
   const { readFixtureModuleClosure } = await import("./fixtures/module-closure.mts");
   const entry = new URL("./daily-discovery.mts", import.meta.url);
-  const source = readFileSync(entry, "utf8");
-  const declaration = source.match(/const bootstrap = \[([\s\S]*?)\];/u);
-  assert.ok(declaration, "bootstrap identity list is present");
-  const bound = [...declaration[1]!.matchAll(/"([^"]+)"/gu)].map((match) => match[1]!);
   // The maintained production bootstrap list remains the independent expectation.
   // Later imports belong to the separately captured runner/execution inputs.
   const loaded = readFixtureModuleClosure(
@@ -108,7 +105,7 @@ void test("bootstrap identity covers the complete statically loaded module closu
       includeDynamicImports: false,
     },
   ).modules.map((module) => module.path);
-  assert.deepEqual([...new Set(bound)].sort(), loaded.sort());
+  assert.deepEqual([...new Set(discoveryBootstrapModules)].sort(), loaded.sort());
 });
 void test("metadata fetch skips inherited graph writing and automatic maintenance", (t) => {
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -148,14 +145,8 @@ void test("metadata fetch skips inherited graph writing and automatic maintenanc
   git(checkout, ["remote", "add", "origin", upstream]);
   git(checkout, ["config", "fetch.writeCommitGraph", "true"]);
   git(checkout, ["config", "maintenance.auto", "true"]);
-  // Execute the literal production call so a removed flag exercises real Git again.
-  const source = readFileSync(new URL("./daily-discovery.mts", import.meta.url), "utf8");
-  const call = source.match(/^      git\((\[[^\]]*"fetch"[^\]]*\])\);/mu);
-  assert.ok(call, "production fetch remains a literal argument array");
-  const args: unknown = JSON.parse(call[1]!.replace(/,\s*\]/u, "]"));
-  assert.ok(Array.isArray(args) && args.every((arg: unknown) => typeof arg === "string"));
   const trace = path.join(state, "fetch-trace.jsonl");
-  git(checkout, args, { GIT_TRACE2_EVENT: trace });
+  fetchDiscoveryMetadata((args) => git(checkout, args, { GIT_TRACE2_EVENT: trace }));
   assert.equal(git(checkout, ["rev-parse", "origin/main"]), git(upstream, ["rev-parse", "HEAD"]));
   const events = readFileSync(trace, "utf8");
   assert.doesNotMatch(events, /"label":"write-commit-graph"/u);
@@ -183,6 +174,97 @@ void test("noninteractive run refuses before Git, credentials, inventory or lock
   assert.equal(existsSync(path.join(state, "investigation.lock")), false);
   assert.equal(existsSync(path.join(state, "active-run.json")), false);
   assert.match(readFileSync(path.join(state, "latest-startup.json"), "utf8"), /tty:true/);
+});
+void test("actual discovery startup consumes its bootstrap identities and bounded fetch", (t) => {
+  const entry = new URL("./daily-discovery.mts", import.meta.url).href;
+  const dependency = (name: string) => new URL(name, import.meta.url).href;
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  mkdirSync(work, { recursive: true });
+  const state = mkdtempSync(path.join(work, "discovery-wiring-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  for (const variant of [
+    "original",
+    "renamed-reordered",
+    "changed-bootstrap",
+    "bypassed-fetch",
+    "omitted-input",
+    "removed-graph-guard",
+    "removed-maintenance-guard",
+  ]) {
+    const program = `
+      import assert from 'node:assert/strict';import {mock} from 'node:test';
+      import {registerHooks} from 'node:module';import path from 'node:path';
+      const entry=${JSON.stringify(entry)},state=${JSON.stringify(state)},variant=${JSON.stringify(variant)};
+      const expected=${JSON.stringify([...discoveryBootstrapModules])};
+      let fetched=false,checkedOut=false,sessions=0;const reads=new Map();
+      Object.defineProperty(process.stdin,'isTTY',{value:true,configurable:true});
+      mock.module('node:child_process',{namedExports:{execFileSync:(command,args)=>{
+        assert.equal(command,'git');
+        if(args[0]==='status'||args[0]==='branch')return '';
+        if(args[0]==='fetch'){
+          assert.deepEqual(args,['fetch','--no-write-commit-graph','--no-auto-maintenance','--no-tags','--no-recurse-submodules','origin','main']);
+          assert.equal(reads.size,expected.length);for(const name of expected)assert.equal(reads.get(name),1);fetched=true;return '';
+        }
+        if(args[0]==='rev-parse')return args[1]==='--git-common-dir'?'/owned/common':args[1]==='--git-dir'?'/owned/common/worktrees/metadata':'a'.repeat(40);
+        if(args[0]==='cat-file')return '';
+        if(args[0]==='checkout'){assert.ok(fetched,'bounded fetch must precede checkout');checkedOut=true;return '';}
+        throw Error('Unexpected Git call');
+      }}});
+      mock.module('node:fs/promises',{namedExports:{mkdir:async()=>{},writeFile:async(file)=>{assert.ok(file.startsWith(state+path.sep));},readFile:async(file)=>{
+        const name=path.basename(file);assert.ok(expected.includes(name),'Unexpected bootstrap read');
+        const count=(reads.get(name)||0)+1;reads.set(name,count);
+        return Buffer.from(name+(variant==='changed-bootstrap'&&checkedOut&&name==='runtime-values.mts'?'changed':''));
+      }}});
+      mock.module(${JSON.stringify(dependency("./observe-configured-upstream.mts"))},{namedExports:{withCheckpointLock:async(file,body)=>{assert.equal(file,path.join(state,'investigation'));await body();}}});
+      mock.module(${JSON.stringify(dependency("./release-path-safety.mts"))},{namedExports:{assertOwnedUnlinkedPath:async(parent,value)=>{assert.equal(value,state);return state;}}});
+      mock.module(${JSON.stringify(dependency("./discovery-budget.mts"))},{namedExports:{selectDiscoveryProfile:()=>{throw Error('Unexpected profile selection');},discoveryProfiles:{}}});
+      mock.module(${JSON.stringify(dependency("./discovery-cache.mts"))},{namedExports:{readDiscoveryCache:()=>{throw Error('Unexpected cache read');}}});
+      mock.module(${JSON.stringify(dependency("./daily-discovery-session.mts"))},{namedExports:{runDiscoverySession:async(observed,root,head)=>{
+        assert.equal(observed,state);assert.equal(head,'a'.repeat(40));assert.ok(fetched&&checkedOut);
+        for(const name of expected)assert.equal(reads.get(name),2);sessions++;
+      }}});
+      registerHooks({load(url,context,next){const loaded=next(url,context);if(url!==entry)return loaded;
+        let source=String(loaded.source);
+        if(variant==='renamed-reordered'){
+          const start=source.indexOf('export function fetchDiscoveryMetadata('),end=source.indexOf('async function optional(',start);
+          assert.ok(start>=0&&end>start);const declaration=source.slice(start,end);source=source.slice(0,start)+source.slice(end)+'\\n'+declaration;
+          source=source.replaceAll('discoveryBootstrapModules','$loadedModules').replaceAll('fetchDiscoveryMetadata','$fetchMetadata');
+        }
+        if(variant==='bypassed-fetch'){assert.ok(source.includes('fetchDiscoveryMetadata(git);'));source=source.replace('fetchDiscoveryMetadata(git);','');}
+        if(variant==='omitted-input'){assert.ok(source.includes('"runtime-values.mts",'));source=source.replace('"runtime-values.mts",','');}
+        if(variant==='removed-graph-guard'){assert.ok(source.includes('"--no-write-commit-graph",'));source=source.replace('"--no-write-commit-graph",','');}
+        if(variant==='removed-maintenance-guard'){assert.ok(source.includes('"--no-auto-maintenance",'));source=source.replace('"--no-auto-maintenance",','');}
+        return {...loaded,source};
+      }});
+      const {dailyDiscoveryMain}=await import(entry);
+      if(variant==='changed-bootstrap'){await assert.rejects(dailyDiscoveryMain(['run','--state-dir',state]),/Loaded bootstrap updated/);assert.equal(sessions,0);}
+      else{await dailyDiscoveryMain(['run','--state-dir',state]);assert.equal(sessions,1);}
+      console.log('PASS actual discovery startup');
+    `;
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const driver = path.join(state, "driver.mjs");
+    writeFileSync(driver, program);
+    const result = spawnSync(process.execPath, ["--experimental-test-module-mocks", driver], {
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+      maxBuffer: 1024 * 1024,
+    });
+    assert.ifError(result.error);
+    if (
+      variant === "bypassed-fetch" ||
+      variant === "omitted-input" ||
+      variant === "removed-graph-guard" ||
+      variant === "removed-maintenance-guard"
+    ) {
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /bounded fetch must precede checkout|AssertionError/u);
+    } else {
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /PASS actual discovery startup/u);
+    }
+  }
 });
 void test("provider quota protects delivery independently of the local request allowance", () => {
   const budget = new DiscoveryBudget("ordinary");
@@ -294,23 +376,82 @@ void test("successful comment identity survives later readback denial and deleti
   assert.equal(created.created_issue, 42);
 });
 void test("doctor rejection rules and order match the independently reviewed pre-change source oracle", () => {
-  const source = readFileSync(new URL("./roadmap.mts", import.meta.url), "utf8").replaceAll(
-    "\r\n",
-    "\n",
+  // Retained source oracle: bb8203480d95671feec0f866bfc5f87353a8a667,
+  // original file SHA256 b111e77b459682965cdf8fcc1f646aa3b71faf414aebda11fdc2c03208ebb246;
+  // reviewed rule slice SHA2567900795d2bccebf5a731f877e43f0827968a1f0ac7fab4da345cfa6ed511c967.
+  // Expected rejection outcomes below are independent of candidate source bytes.
+  const program = String.raw`
+    import assert from 'node:assert/strict';import {mock} from 'node:test';
+    import * as processes from 'node:child_process';
+    const forbidden=()=>{throw Error('External effects are forbidden in the doctor contract');};
+    process.kill=forbidden;globalThis.fetch=forbidden;
+    mock.module('node:child_process',{namedExports:Object.fromEntries(Object.entries(processes)
+      .filter(([name])=>name!=='default').map(([name,value])=>[name,typeof value==='function'?forbidden:value]))});
+    const readinessUrl=${JSON.stringify(new URL("./roadmap-readiness.mts", import.meta.url).href)};
+    const qualificationUrl=${JSON.stringify(new URL("./roadmap-qualification.mts", import.meta.url).href)};
+    const actualReadiness=await import(readinessUrl),actualQualification=await import(qualificationUrl);
+    const catalog={ports:[]},items=[],risk={ack:'owned'},now='2026-10-28T00:00:00Z';
+    let all=false,repositoryIssues,stageCalls=0,readinessCalls=0,coverageCalls=0,lastReadiness;
+    const warnings=['independent warning'],diagnostics=[{scope:'owned'}];
+    const row=name=>({url:'https://example.invalid/issues/'+name,title:name});
+    const readiness=()=>({migrationConflicts:all?[row('migration')]:[],unassignedRequired:all?[row('required')]:[],
+      statusConflicts:all?[row('status')]:[],relevantUnclassified:all?[row('unclassified')]:[],
+      safetyConflicts:all?[row('safety')]:[],dependencyConflicts:all?[{item:row('dependent'),dependency:row('blocking')}]:[],
+      missingProjectDependencies:all?[{item:row('missing'),dependency:row('outside')}]:[],
+      truncatedDependencies:all?[row('truncated')]:[],cycles:all?[[11,12,11]]:[]});
+    mock.module(readinessUrl,{namedExports:{...actualReadiness,analyzeReleaseReadiness:(observed,release,options)=>{
+      assert.equal(observed,items);assert.equal(release,'v1');assert.equal(options.risk706Approval,risk);assert.equal(options.now,now);
+      readinessCalls++;return lastReadiness=readiness();
+    }}});
+    mock.module(qualificationUrl,{namedExports:{...actualQualification,
+      validatePortStageSemantics:(observed,issues)=>{assert.equal(observed,catalog);assert.equal(issues,items);stageCalls++;return {errors:all?['stage guard']:[],warnings,diagnostics};},
+      validatePortIssueCoverage:(observed,issues,repository,inventory)=>{
+        assert.equal(observed,catalog);assert.equal(issues,items);assert.equal(repository,'owner/repo');assert.equal(inventory,repositoryIssues);
+        coverageCalls++;return all?['catalog coverage']:[];
+      },
+    }});
+    const {evaluateRoadmapDoctor,uxAuditOriginIds}=await import(${JSON.stringify(new URL("./roadmap.mts", import.meta.url).href)});
+    const canonical={number:36,url:'https://example.invalid/issues/36',
+      body:'<!-- portcove-ux-audit-origins: '+uxAuditOriginIds.join(' ')+' --> PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04'};
+    const expected=[
+      'https://example.invalid/issues/migration retains an unmigrated active target',
+      'https://example.invalid/issues/required is Required without a target',
+      'https://example.invalid/issues/status has inconsistent repository/Project status',
+      'catalog coverage','stage guard',
+      'Superseded wording audit is referenced as current authority: https://example.invalid/issues/37',
+      'Supported-source plan origin must have exactly one canonical issue owner; found 2',
+      'v1 work is unclassified: https://example.invalid/issues/unclassified',
+      'v1 safety work is not Required: https://example.invalid/issues/safety',
+      'https://example.invalid/issues/dependent has a conflicting blocking dependency https://example.invalid/issues/blocking',
+      'https://example.invalid/issues/missing has a blocking dependency outside the Project: https://example.invalid/issues/outside',
+      'https://example.invalid/issues/truncated has more than 10 blocking dependencies; readiness query is incomplete',
+      'blocking dependency cycle: #11 -> #12 -> #11',
+    ];
+    for(const selected of [[],['drift'],['all'],['all','drift']]){
+      all=selected.includes('all');const drift=selected.includes('drift')?['configuration drift']:[];
+      repositoryIssues=all?[canonical,{number:37,url:'https://example.invalid/issues/37',
+        body:'portcove-wording-audit-origins PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04'}]:[canonical];
+      const execute=()=>evaluateRoadmapDoctor({config:{active_release:'v1',repository:'owner/repo'},catalog,items,repositoryIssues,drift,risk706Approval:risk,now});
+      const errors=[...drift,...(all?expected:[])];
+      if(errors.length)assert.throws(execute,error=>{assert.deepEqual(error.doctorErrors,errors);assert.equal(error.message,'Project drift:\n'+errors.map(value=>'- '+value).join('\n'));return true;});
+      else{const result=execute();assert.equal(result.warnings,warnings);assert.equal(result.diagnostics,diagnostics);assert.equal(result.readiness,lastReadiness);}
+    }
+    assert.equal(stageCalls,4);assert.equal(readinessCalls,4);assert.equal(coverageCalls,4);
+  `;
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(
+    process.execPath,
+    ["--experimental-test-module-mocks", "--input-type=module", "--eval", program],
+    {
+      env: environment,
+      encoding: "utf8",
+      timeout: 10000,
+      maxBuffer: 1024 * 1024,
+    },
   );
-  const start = source.indexOf(
-    "  const roadmapErrors = [",
-    source.indexOf("export function evaluateRoadmapDoctor"),
-  );
-  const end = source.indexOf("  return { warnings: stage.warnings", start);
-  assert.ok(start > 0 && end > start);
-  // bb8203480d95671feec0f866bfc5f87353a8a667 scripts/roadmap.mts:
-  // SHA256 b111e77b459682965cdf8fcc1f646aa3b71faf414aebda11fdc2c03208ebb246.
-  // The oracle was pinned and separately reviewed before extraction (#2100).
-  assert.equal(
-    createHash("sha256").update(source.slice(start, end)).digest("hex"),
-    "7900795d2bccebf5a731f877e43f0827968a1f0ac7fab4da345cfa6ed511c967",
-  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
 });
 void test("fixed profiles, weekly rebuild, reservation replacement, deadlines and provider backoff", () => {
   let now = Date.parse("2026-10-17T00:00:00Z");

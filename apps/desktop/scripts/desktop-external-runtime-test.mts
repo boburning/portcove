@@ -143,14 +143,11 @@ export async function externalRuntimePickerObservation({
   Key,
   until,
 }: PickerContext) {
-  await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+  const { selectCatalogPort } = await import("./desktop-review-controls.mts");
+  await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, fixture.port.name);
-  const card = By.xpath(
-    `//button[contains(@class,"port-card") and starts-with(@aria-label,"${fixture.port.name}.")]`,
-  );
-  await browser.wait(until.elementLocated(card), 15_000);
-  await browser.findElement(card).click();
+  await selectCatalogPort(browser, fixture.port.id);
   const choose = By.xpath('//button[normalize-space(.)="Choose game folder"]');
   await browser.wait(until.elementLocated(choose), 15_000);
   await browser.findElement(choose).click();
@@ -250,6 +247,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
   try {
     report.picker_cancel = await pickerObservation;
     assert.equal(object(report.picker_cancel).cancelled, true);
+    const { selectCatalogPort } = await import("./desktop-review-controls.mts");
     report.before = await status();
     assert.ok(!report.before.external_runtime);
     const { transportValue } = await import("./transport-values.mts");
@@ -275,11 +273,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     // Reachable ordinary context transition after dismissal; no forced navigation
     // through a native modal or claim about delayed A-B-A picker responses.
     await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')).click();
-    const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${fixture.port.name}.")]`,
-    );
-    await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await selectCatalogPort(browser, fixture.port.id);
     assert.equal((await browser.findElements(dialogFor("register"))).length, 0);
     report.steps.push("ordinary-workspace-return-has-no-old-review");
     review = await selectFolder("external-runtime-native-cancel-picker");

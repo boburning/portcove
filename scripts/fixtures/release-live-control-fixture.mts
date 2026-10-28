@@ -12,6 +12,39 @@ import { capacityFixture } from "./release-capacity-fixture.mts";
 import { controllerOidcSubject } from "../assembler-job-identity.mts";
 import { nativeAuthorityConfigurationFixture } from "./native-authority-configuration-fixture.mts";
 import { inspectReleaseAuthorityConfiguration } from "../release-authority-configuration.mts";
+import { catalogProtectionEnvironments } from "../release-input-protections.mts";
+
+export function catalogEnvironmentFixture(controllerRef = expected.controller_ref) {
+  return catalogProtectionEnvironments.map((name, index) => ({
+    name,
+    environment: {
+      id: 1000 + index,
+      name,
+      can_admins_bypass: false,
+      deployment_branch_policy: { protected_branches: false, custom_branch_policies: true },
+      protection_rules: [{ id: 2000 + index, type: "branch_policy" }],
+    },
+    policies: [{ id: 3000 + index, name: controllerRef.slice("refs/tags/".length), type: "tag" }],
+  }));
+}
+
+export function catalogProtectionFixture(commit: string, observedAt = new Date().toISOString()) {
+  const baseline = protectionFixture(commit, observedAt);
+  const inventory = {
+    ...baseline.inventory,
+    branches: baseline.inventory.branches.filter((row) => row.branch === "portcove-release-pause"),
+    rulesets: baseline.inventory.rulesets.filter(
+      (rule) => rule.conditions.ref_name.include[0] === "refs/heads/portcove-release-pause",
+    ),
+    environments: catalogEnvironmentFixture(),
+  };
+  return {
+    ...baseline,
+    coverage: "current-repository-catalog-maintenance-only",
+    inventory,
+    inventory_sha256: capacityDigest(inventory),
+  };
+}
 
 export function capacityDocumentFixture() {
   return {

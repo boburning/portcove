@@ -3,12 +3,11 @@
   "listing": {
     "id": "perimeter-emperor-s-testament-perimeter-community-engine",
     "name": "Perimeter: Emperor's Testament (Perimeter community engine)",
-    "summary": "Research listing. Upstream route: Open-source engine supports both games and original data; current source development. Limits: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Upstream platforms: Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research. Original data: Supply purchased Perimeter: Emperor's Testament game resources (models, textures, sounds, texts and configuration files) from the appropriate physical/digital release. Point the engine at that game content; do not assume the other Perimeter title supplies this target. Exact retail edition/patch/localization and any shared-base requirement remain Unknown in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "Prepare Perimeter: Emperor's Testament through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Perimeter: Emperor's Testament",
     "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
-    "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+    "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/README.md",
     "artwork": {
       "game_id": 10692,
       "cover_id": 95179,
@@ -17,7 +16,32 @@
       "game_slug": "perimeter-emperors-testament",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2890
+    "issue_number": 2890,
+    "release_url": "https://github.com/KD-lab-Open-Source/Perimeter/releases/tag/3.0.10",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original game",
+          "instruction": "Use your own complete Perimeter: Emperor’s Testament resources (models, textures, sounds, text, Resource and Scripts). The other title does not automatically supply this game. Exact retail patch/localization and shared-base requirements remain unpinned; preserve the complete matching original installation."
+        },
+        {
+          "title": "Prepare upstream and select the player",
+          "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
+        },
+        {
+          "title": "Preserve the actual player data",
+          "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+        }
+      ],
+      "warnings": [
+        "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit."
+      ],
+      "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -30,5 +54,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "https://github.com/KD-lab-Open-Source/Perimeter",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns. Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+    }
   }
 }

@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 41;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 43;
 
 struct Migration {
     version: i64,
@@ -270,7 +270,48 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_41,
         verify: verify_migration_41,
     },
+    Migration {
+        version: 42,
+        name: "owned immutable game update acquisition",
+        apply: migration_42,
+        verify: verify_migration_42,
+    },
+    Migration {
+        version: 43,
+        name: "retained removal installation identities",
+        apply: migration_43,
+        verify: verify_migration_43,
+    },
 ];
+
+fn migration_43(transaction: &Transaction<'_>) -> Result<()> {
+    transaction
+        .execute_batch("ALTER TABLE lifecycle_operations ADD COLUMN removal_installs_json TEXT;")?;
+    verify_migration_43(transaction)
+}
+
+fn verify_migration_43(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "lifecycle_operations",
+        &["removal_installs_json"],
+    )
+}
+
+fn migration_42(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE lifecycle_operations ADD COLUMN update_acquisition_json TEXT;",
+    )?;
+    verify_migration_42(transaction)
+}
+
+fn verify_migration_42(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "lifecycle_operations",
+        &["update_acquisition_json"],
+    )
+}
 
 fn migration_41(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch("ALTER TABLE lifecycle_operations ADD COLUMN external_registration_sha256 TEXT CHECK(external_registration_sha256 IS NULL OR (length(external_registration_sha256)=64 AND external_registration_sha256 NOT GLOB '*[^0-9a-f]*'));")?;
@@ -939,7 +980,8 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
                     "lifecycle_operations",
                     "ghostship_recovery_json"
                     | "backup_deletion_json"
-                    | "external_registration_sha256",
+                    | "external_registration_sha256"
+                    | "removal_installs_json",
                 ) => {
                     format!("{quoted_column} IS NOT NULL")
                 }
@@ -2747,6 +2789,8 @@ mod tests {
         schema_38: 38,
         schema_39: 39,
         schema_40: 40,
+        schema_41: 41,
+        schema_42: 42,
     }
 
     #[test]

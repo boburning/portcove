@@ -1,0 +1,560 @@
+{
+  "format_version": 1,
+  "kind": "dated seven-route and three-dependency evidence, not a live registry",
+  "owners": [2510, 2926],
+  "pickup_main": "f5e4c3465838b60fbf6d619534bbbfea0072a5c1",
+  "source_commit": "1eba2cf5821e770ba21ef409682f834a38ff5c01",
+  "source_tag": "v0.3.97",
+  "cohort": {
+    "existing_listings_assessed": 10,
+    "upstream_player_guides": 7,
+    "unchanged_upstream_dependencies": 3,
+    "new_operational_definitions": 0,
+    "native_executions": 0
+  },
+  "repository": {
+    "id": "R_kgDOTcDg3Q",
+    "databaseId": 1304486109,
+    "releases": {
+      "totalCount": 273,
+      "nodes": [
+        {
+          "id": "RE_kwDOTcDg3c4ZTYEY",
+          "tagName": "v0.3.97"
+        }
+      ]
+    }
+  },
+  "release_pages": 3,
+  "release_count": 273,
+  "source_files": [
+    {
+      "path": "tagged/README.md",
+      "sha256": "59861846208c8b488af83d718ff39f456f14e7bd1349e4009f67a418a10643a1"
+    },
+    {
+      "path": "tagged/conf.lua",
+      "sha256": "420ef77abf419bc08b795929a73fe0cf632edf50a02f38b1736c4843c8b5bb9d"
+    },
+    {
+      "path": "tagged/docs/guides/portable-mode.md",
+      "sha256": "1d5d3792949879a2d1933b1d124f8bb9729f96c6519d3e49e41cc8daec9f0d29"
+    },
+    {
+      "path": "all-source/src/core/SaveData.lua",
+      "sha256": "564f2d568cd13807030cf3f705f345cb301f45554f91e2b80ef0bc03f28c46b0"
+    },
+    {
+      "path": "all-source/src/core/LaunchOptions.lua",
+      "sha256": "9697ec271a63dec5241e92ae556456a5f5e975cc09737a4010f59d89d29cde97"
+    },
+    {
+      "path": "all-source/src/import/RomImporter.lua",
+      "sha256": "589f52439eadfc79ae2e2c47e07a338c31d982e70d7d4c92d05804e3f1ba5c83"
+    },
+    {
+      "path": "all-source/src/import/RomSources.lua",
+      "sha256": "359846e2804a19489e012f88698fc8c38f785695ea6178b9fa9ee19495715885"
+    },
+    {
+      "path": "all-source/src/import/CacheFs.lua",
+      "sha256": "55d255d90bce8d568c450e26968a0838ded094ae5d7400357a841b708029c398"
+    },
+    {
+      "path": "all-source/src/update/Boot.lua",
+      "sha256": "15edf13d21d9bce0de888a750bbd72d707bc74622fd86c540603e74864ae8830"
+    },
+    {
+      "path": "all-source/src/update/Check.lua",
+      "sha256": "d9d0cc93c937f0c7a06b93b568a9224d0599d296c95f4e1d170c3cc698cced1a"
+    },
+    {
+      "path": "all-source/src/core/Prelaunch.lua",
+      "sha256": "9b3652925428ae4f52f77ee1548667ccaa6f0648416f51a790dbdcfd498e1c36"
+    }
+  ],
+  "package": {
+    "tag": "v0.3.97",
+    "commit": "1eba2cf5821e770ba21ef409682f834a38ff5c01",
+    "asset": "gen1recomp-0.3.97-windows.zip",
+    "asset_id": 678789547,
+    "size": 39650119,
+    "sha256": "e05472b4fd5fd1a2fb56343990f1ec57fc88f0d424baafbda8f50dc5e1cbea01",
+    "publisher_digest_match": true,
+    "player": "gen1recomp-win64/gen1recomp.exe",
+    "machine": "AMD64",
+    "embedded_guard_modules": [
+      {
+        "path": "src/update/Boot.lua",
+        "sha256": "15edf13d21d9bce0de888a750bbd72d707bc74622fd86c540603e74864ae8830",
+        "matches_tagged_source": true
+      },
+      {
+        "path": "src/update/Check.lua",
+        "sha256": "d9d0cc93c937f0c7a06b93b568a9224d0599d296c95f4e1d170c3cc698cced1a",
+        "matches_tagged_source": true
+      },
+      {
+        "path": "src/core/Prelaunch.lua",
+        "sha256": "9b3652925428ae4f52f77ee1548667ccaa6f0648416f51a790dbdcfd498e1c36",
+        "matches_tagged_source": true
+      }
+    ],
+    "scope": "bounded read-only native/embedded-ZIP inspection; no player/helper/original execution",
+    "additional_embedded_modules_match_tagged_source": [
+      "src/core/SaveData.lua",
+      "src/core/LaunchOptions.lua",
+      "src/import/RomImporter.lua",
+      "src/import/RomSources.lua",
+      "src/import/CacheFs.lua",
+      "src/update/Boot.lua",
+      "src/update/Check.lua",
+      "src/core/Prelaunch.lua"
+    ]
+  },
+  "ports": [
+    {
+      "id": "pokemon-blue-gen1recomp",
+      "canonical_issue": 2866,
+      "game_id": "blue",
+      "original_data": "Use your own canonical US English blue original: revision -, 1 MiB, SHA-1 d7037c83e1ae5b39bde3c30787637ba1d4c48ce2. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "-",
+          "size": "1 MiB",
+          "sha1": "d7037c83e1ae5b39bde3c30787637ba1d4c48ce2"
+        }
+      ],
+      "before_sha256": "aa8fb1f7b3618e1d033f72f76a60a1dacfd836291da268a0817584fe5182b4e9",
+      "route": "upstream-ROM-import-and-nonowning-existing-player",
+      "arguments": ["--game=blue"],
+      "selected_player": "gen1recomp-win64/gen1recomp.exe",
+      "maintenance": "upstream-owned update payload and native shell",
+      "managed_fit": "nonowning contract selected; original completion, generated-cache ownership, writer audit, save compatibility and update owner must be qualified separately before any Core-managed offer",
+      "native_execution": "not-run",
+      "maturity_limit": "This separate original/game has no inherited Red Windows, gameplay or save acceptance.",
+      "authored_sha256": "66603fa026e8890e02dd7a5e1f4f49fa0fa075c56815af484d41b68026439b30"
+    },
+    {
+      "id": "pokemon-emerald-gen1recomp",
+      "canonical_issue": 2875,
+      "game_id": "emerald",
+      "original_data": "Use your own canonical US English emerald original: revision 1.0, 16 MiB, SHA-1 f3ae088181bf583e55daf962a92bb46f4f1d07b7. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "1.0",
+          "size": "16 MiB",
+          "sha1": "f3ae088181bf583e55daf962a92bb46f4f1d07b7"
+        }
+      ],
+      "before_sha256": "09cba76b45cd6177dc612cd2974338350c3fe80bafdd3ef3216e8193b109a350",
+      "route": "upstream-ROM-import-and-nonowning-existing-player",
+      "arguments": ["--game=emerald"],
+      "selected_player": "gen1recomp-win64/gen1recomp.exe",
+      "maintenance": "upstream-owned update payload and native shell",
+      "managed_fit": "nonowning contract selected; original completion, generated-cache ownership, writer audit, save compatibility and update owner must be qualified separately before any Core-managed offer",
+      "native_execution": "not-run",
+      "maturity_limit": "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+      "authored_sha256": "8d3a9734d53d4825b8e4e08bac45ede9349f2dff18bf27af3be1827054953e12"
+    },
+    {
+      "id": "pokemon-firered-gen1recomp",
+      "canonical_issue": 2871,
+      "game_id": "firered",
+      "original_data": "Use your own canonical US English firered original: revision 1.0, 16 MiB, SHA-1 41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc; revision 1.1, 16 MiB, SHA-1 dd5945db9b930750cb39d00c84da8571feebf417. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "1.0",
+          "size": "16 MiB",
+          "sha1": "41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc"
+        },
+        {
+          "revision": "1.1",
+          "size": "16 MiB",
+          "sha1": "dd5945db9b930750cb39d00c84da8571feebf417"
+        }
+      ],
+      "before_sha256": "0fc9932eb0d92c5e77e91ba0d8df3aa08a878e1ff59ed75c91cb5034f1e1412d",
+      "route": "upstream-ROM-import-and-nonowning-existing-player",
+      "arguments": ["--game=firered"],
+      "selected_player": "gen1recomp-win64/gen1recomp.exe",
+      "maintenance": "upstream-owned update payload and native shell",
+      "managed_fit": "nonowning contract selected; original completion, generated-cache ownership, writer audit, save compatibility and update owner must be qualified separately before any Core-managed offer",
+      "native_execution": "not-run",
+      "maturity_limit": "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+      "authored_sha256": "4bf46ecbd15b80da0f648cc741fd1339073f1cb713bb6ea61bd9ff1ebadef169"
+    },
+    {
+      "id": "pokemon-leafgreen-gen1recomp",
+      "canonical_issue": 2872,
+      "game_id": "leafgreen",
+      "original_data": "Use your own canonical US English leafgreen original: revision 1.0, 16 MiB, SHA-1 574fa542ffebb14be69902d1d36f1ec0a4afd71e; revision 1.1, 16 MiB, SHA-1 7862c67bdecbe21d1d69ce082ce34327e1c6ed5e. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "1.0",
+          "size": "16 MiB",
+          "sha1": "574fa542ffebb14be69902d1d36f1ec0a4afd71e"
+        },
+        {
+          "revision": "1.1",
+          "size": "16 MiB",
+          "sha1": "7862c67bdecbe21d1d69ce082ce34327e1c6ed5e"
+        }
+      ],
+      "before_sha256": "6406c2ab3eaa48aa431e4611fafd84b1711b69338bfc86d0f75763b6f8778f5d",
+      "route": "upstream-ROM-import-and-nonowning-existing-player",
+      "arguments": ["--game=leafgreen"],
+      "selected_player": "gen1recomp-win64/gen1recomp.exe",
+      "maintenance": "upstream-owned update payload and native shell",
+      "managed_fit": "nonowning contract selected; original completion, generated-cache ownership, writer audit, save compatibility and update owner must be qualified separately before any Core-managed offer",
+      "native_execution": "not-run",
+      "maturity_limit": "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+      "authored_sha256": "5f82120d841b0419aafd10756cf9c78bf73b123b479b33425134e7296f0ef098"
+    },
+    {
+      "id": "pokemon-ruby-gen1recomp",
+      "canonical_issue": 2873,
+      "game_id": "ruby",
+      "original_data": "Use your own canonical US English ruby original: revision 1.0, 16 MiB, SHA-1 f28b6ffc97847e94a6c21a63cacf633ee5c8df1e; revision 1.1, 16 MiB, SHA-1 610b96a9c9a7d03d2bafb655e7560ccff1a6d894; revision 1.2, 16 MiB, SHA-1 5b64eacf892920518db4ec664e62a086dd5f5bc8. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "1.0",
+          "size": "16 MiB",
+          "sha1": "f28b6ffc97847e94a6c21a63cacf633ee5c8df1e"
+        },
+        {
+          "revision": "1.1",
+          "size": "16 MiB",
+          "sha1": "610b96a9c9a7d03d2bafb655e7560ccff1a6d894"
+        },
+        {
+          "revision": "1.2",
+          "size": "16 MiB",
+          "sha1": "5b64eacf892920518db4ec664e62a086dd5f5bc8"
+        }
+      ],
+      "before_sha256": "11071e269bd01afa64b66cca9ba8f2bf22671728a4a7babd926007ef83fb3dd6",
+      "route": "upstream-ROM-import-and-nonowning-existing-player",
+      "arguments": ["--game=ruby"],
+      "selected_player": "gen1recomp-win64/gen1recomp.exe",
+      "maintenance": "upstream-owned update payload and native shell",
+      "managed_fit": "nonowning contract selected; original completion, generated-cache ownership, writer audit, save compatibility and update owner must be qualified separately before any Core-managed offer",
+      "native_execution": "not-run",
+      "maturity_limit": "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+      "authored_sha256": "4a4e9c7c153cbd8a89862c6c6afa3d33e91cd5774bc1c50c8b0badeaa9bc8ff3"
+    },
+    {
+      "id": "pokemon-sapphire-gen1recomp",
+      "canonical_issue": 2874,
+      "game_id": "sapphire",
+      "original_data": "Use your own canonical US English sapphire original: revision 1.0, 16 MiB, SHA-1 3ccbbd45f8553c36463f13b938e833f652b793e4; revision 1.1, 16 MiB, SHA-1 4722efb8cd45772ca32555b98fd3b9719f8e60a9; revision 1.2, 16 MiB, SHA-1 89b45fb172e6b55d51fc0e61989775187f6fe63c. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "1.0",
+          "size": "16 MiB",
+          "sha1": "3ccbbd45f8553c36463f13b938e833f652b793e4"
+        },
+        {
+          "revision": "1.1",
+          "size": "16 MiB",
+          "sha1": "4722efb8cd45772ca32555b98fd3b9719f8e60a9"
+        },
+        {
+          "revision": "1.2",
+          "size": "16 MiB",
+          "sha1": "89b45fb172e6b55d51fc0e61989775187f6fe63c"
+        }
+      ],
+      "before_sha256": "133a79208d55e182fc682891b82aab396fa2d0ccdb96e3033e12a11dea6a7ed7",
+      "route": "upstream-ROM-import-and-nonowning-existing-player",
+      "arguments": ["--game=sapphire"],
+      "selected_player": "gen1recomp-win64/gen1recomp.exe",
+      "maintenance": "upstream-owned update payload and native shell",
+      "managed_fit": "nonowning contract selected; original completion, generated-cache ownership, writer audit, save compatibility and update owner must be qualified separately before any Core-managed offer",
+      "native_execution": "not-run",
+      "maturity_limit": "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+      "authored_sha256": "4725c39ee6f8d72d245952f1b4c00fdac584f7fb6db38e1a4b7af8c7970e70af"
+    },
+    {
+      "id": "pokemon-yellow-gen1recomp",
+      "canonical_issue": 2867,
+      "game_id": "yellow",
+      "original_data": "Use your own canonical US English yellow original: revision -, 1 MiB, SHA-1 cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "-",
+          "size": "1 MiB",
+          "sha1": "cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1"
+        }
+      ],
+      "before_sha256": "90a4c996085faee3e0c43de5f52e5676f7ba88aab00d93e783dd70ccad4ef991",
+      "route": "upstream-ROM-import-and-nonowning-existing-player",
+      "arguments": ["--game=yellow"],
+      "selected_player": "gen1recomp-win64/gen1recomp.exe",
+      "maintenance": "upstream-owned update payload and native shell",
+      "managed_fit": "nonowning contract selected; original completion, generated-cache ownership, writer audit, save compatibility and update owner must be qualified separately before any Core-managed offer",
+      "native_execution": "not-run",
+      "maturity_limit": "This separate original/game has no inherited Red Windows, gameplay or save acceptance.",
+      "authored_sha256": "fdb848e552d8a2e0963d1573b610475d510c9e4700a46a99aa0e7a6076c68e77"
+    }
+  ],
+  "held": [
+    {
+      "id": "pokemon-crystal-gen1recomp",
+      "canonical_issue": 2870,
+      "game_id": "crystal",
+      "original_data": "Use your own canonical US English crystal original: revision 1.0, 2 MiB, SHA-1 f4cd194bdee0d04ca4eac29e09b8e4e9d818c133; revision 1.1, 2 MiB, SHA-1 f2f52230b536214ef7c9924f483392993e226cfb. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "1.0",
+          "size": "2 MiB",
+          "sha1": "f4cd194bdee0d04ca4eac29e09b8e4e9d818c133"
+        },
+        {
+          "revision": "1.1",
+          "size": "2 MiB",
+          "sha1": "f2f52230b536214ef7c9924f483392993e226cfb"
+        }
+      ],
+      "before_sha256": "63b61f9b70e6a91e7aa3f1bced0b5441b55cf9100950d2668898d3bedb196512",
+      "disposition": "precise upstream dependency; unchanged researched listing, no offered player guide",
+      "dependency": "Gen1Recomp tagged README explicitly says Generation II support is under construction; accepting or importing a ROM does not establish its completed route.",
+      "next_action": "Reassess this exact implementation when upstream demonstrates the game-specific implemented route; then verify matching package/input, importer completion, launch and profile behavior. Do not inherit Red acceptance or substitute the separate UNDERdecoded/Gen2Recomped implementation.",
+      "resume_trigger": "upstream game-specific implementation/maturity evidence with exact source/package identity"
+    },
+    {
+      "id": "pokemon-gold-gen1recomp",
+      "canonical_issue": 2868,
+      "game_id": "gold",
+      "original_data": "Use your own canonical US English gold original: revision -, 2 MiB, SHA-1 d8b8a3600a465308c9953dfa04f0081c05bdcb94. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "-",
+          "size": "2 MiB",
+          "sha1": "d8b8a3600a465308c9953dfa04f0081c05bdcb94"
+        }
+      ],
+      "before_sha256": "e7c58cdc27d61e2eb8fa3cdfad788e5cf8ec0dc10a7d2d8b0f9b685646ed57de",
+      "disposition": "precise upstream dependency; unchanged researched listing, no offered player guide",
+      "dependency": "Gen1Recomp tagged README explicitly says Generation II support is under construction; accepting or importing a ROM does not establish its completed route.",
+      "next_action": "Reassess this exact implementation when upstream demonstrates the game-specific implemented route; then verify matching package/input, importer completion, launch and profile behavior. Do not inherit Red acceptance or substitute the separate UNDERdecoded/Gen2Recomped implementation.",
+      "resume_trigger": "upstream game-specific implementation/maturity evidence with exact source/package identity"
+    },
+    {
+      "id": "pokemon-silver-gen1recomp",
+      "canonical_issue": 2869,
+      "game_id": "silver",
+      "original_data": "Use your own canonical US English silver original: revision -, 2 MiB, SHA-1 49b163f7e57702bc939d642a18f591de55d92dae. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache.",
+      "original_revisions": [
+        {
+          "revision": "-",
+          "size": "2 MiB",
+          "sha1": "49b163f7e57702bc939d642a18f591de55d92dae"
+        }
+      ],
+      "before_sha256": "0492d04b3ae66ba6d6de23a5b9ca35189f6bb499a106c9b7a9d4fc3194c98cee",
+      "disposition": "precise upstream dependency; unchanged researched listing, no offered player guide",
+      "dependency": "Gen1Recomp tagged README explicitly says Generation II support is under construction; accepting or importing a ROM does not establish its completed route.",
+      "next_action": "Reassess this exact implementation when upstream demonstrates the game-specific implemented route; then verify matching package/input, importer completion, launch and profile behavior. Do not inherit Red acceptance or substitute the separate UNDERdecoded/Gen2Recomped implementation.",
+      "resume_trigger": "upstream game-specific implementation/maturity evidence with exact source/package identity"
+    }
+  ],
+  "historical_red": "#98 historical Core-managed Red qualification and its source/retained definitions are separate; this cohort changes none. A separate narrow update-owner safety repair has its own delivery. No title or save acceptance is inherited.",
+  "acceptance": "Authored instructions and upstream/import/package facts do not establish accepted useful route totals, native execution or actually supported operation totals; canonical issues retain remaining acceptance.",
+  "package_recommendations": [
+    {
+      "id": "pokemon-blue-gen1recomp",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.3.97",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "gen1recomp-0.3.97-windows.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "pokemon-emerald-gen1recomp",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.3.97",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "gen1recomp-0.3.97-windows.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "pokemon-firered-gen1recomp",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.3.97",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "gen1recomp-0.3.97-windows.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "pokemon-leafgreen-gen1recomp",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.3.97",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "gen1recomp-0.3.97-windows.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "pokemon-ruby-gen1recomp",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.3.97",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "gen1recomp-0.3.97-windows.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "pokemon-sapphire-gen1recomp",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.3.97",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "gen1recomp-0.3.97-windows.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "pokemon-yellow-gen1recomp",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.3.97",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "gen1recomp-0.3.97-windows.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    }
+  ],
+  "retained_qualification_failure": {
+    "source": "cadca3890566dba20343b8d73f67cd158dcf5d6a",
+    "run": 40620795809,
+    "attempt": 1,
+    "checkout": "f42414b73398d2261afecb26809f29d375796167",
+    "failed_producer_job": 122594934866,
+    "failed_aggregate_job": 122596226822,
+    "test": "portcove-cli::desktop_host_diagnostics::desktop_early_failures_keep_typed_phases_and_fixed_private_safe_stderr",
+    "observation": "flush_complete was false; scenario and complete health were not printed. All other required leaves passed; no cancellation.",
+    "cause": "not established; no catalog/source/engine causal claim",
+    "diagnostic_change": "Owned fixture summary now retains bootstrap_timed_out and complete health; flush assertion includes scenario and summary. Existing typed phases, private-safe stderr, nonempty records, flush-complete assertion and production deadlines are unchanged. Fresh required exact-head qualification is mandatory; a later pass is not a causal repair."
+  }
+}

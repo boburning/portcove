@@ -31,6 +31,7 @@ function Fixture() {
       <PortBrowser
         view="catalog"
         ports={filterPorts(ports, statuses, "catalog", filter, "")}
+        catalogFilterCandidates={ports}
         statuses={statuses}
         overview={summarizeLibrary(ports, statuses)}
         filter={filter}
@@ -71,13 +72,23 @@ it.each(["light", "dark"])(
         </DirectionProvider>,
       ),
     );
-    const preview = page.getByRole("button", { name: "Preview", exact: true });
-    const stableOnly = page.getByRole("button", { name: /^Stable-only port\s/ });
+    const preview = page.getByRole("button", { name: "Preview (1)", exact: true });
+    const stableOnly = page
+      .getByRole("article")
+      .filter({ has: page.getByRole("heading", { name: "Stable-only port", exact: true }) });
     await expect.element(stableOnly).toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "Filters (0)", exact: true }));
     await userEvent.click(preview);
     await expect.element(preview).toHaveAttribute("aria-pressed", "true");
     expect(query).toEqual({ version: 1, channels: ["beta"] });
-    await expect.element(page.getByRole("button", { name: /^Upstream Beta 12\s/ })).toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
+    await expect
+      .element(
+        page
+          .getByRole("article")
+          .filter({ has: page.getByRole("heading", { name: "Upstream Beta 12", exact: true }) }),
+      )
+      .toBeVisible();
     await expect.element(stableOnly).not.toBeInTheDocument();
     expect(change).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();

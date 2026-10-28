@@ -3,12 +3,11 @@
   "listing": {
     "id": "super-mario-64-sm64-co-op-dx",
     "name": "Super Mario 64 / SM64 Co-op DX",
-    "summary": "Explore Super Mario 64 / SM64 Co-op DX and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use an upstream-prepared Super Mario 64 / SM64 Co-op DX player with matching originals; runtime maintenance and player data stay upstream-owned.",
     "project_url": "https://github.com/coop-deluxe/sm64coopdx",
     "issue_number": 322,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/coop-deluxe/sm64coopdx",
+    "availability": "packages",
+    "setup_url": "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md",
     "artwork": {
       "game_id": 1074,
       "cover_id": 329251,
@@ -16,6 +15,71 @@
       "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
       "game_slug": "super-mario-64",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-64",
+      "evidence_urls": [
+        "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md"
+      ],
+      "source_editions": []
+    },
+    "release_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the matching original",
+          "instruction": "Use your own unchanged US Super Mario 64 big-endian .z64 original. The selected v1.5.1 runtime accepts MD5 20b854b239203baf6c961b850a4a51a2; its other regional table entries are disabled. Upstream scans the player/user folders or accepts a deliberate ROM drop, and may copy the accepted original to its user profile as baserom.us.z64. Preserve the original independently; byte-swapped, modified and other-region files are different inputs. An already existing cached baserom.us.z64 is not overwritten by a newly selected ROM; preserve and check the actual upstream copy rather than assuming selection replaced it."
+        },
+        {
+          "title": "Finish upstream setup and select the real player",
+          "instruction": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+        },
+        {
+          "title": "Preserve the actual runtime and player data",
+          "instruction": "Before explicit Play, preserve the actual existing user profile and creating runtime. On Windows the upstream default checks %APPDATA%/sm64coopdx and can instead reuse a populated %APPDATA%/sm64ex-coop folder; an existing --savepath override changes that selection. Preserve both relevant roots and the actual selected path, copied ROM, saves, configuration, mods and caches. A new executable folder does not isolate these profiles. Do not change the path, adopt populated legacy data, add mods or migrate profiles through this guide. Upstream can start its own updater and successor process; close all game/updater windows and confirm they stopped before copying or replacing files."
+        },
+        {
+          "title": "Register the existing player and use explicit Play",
+          "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+        }
+      ],
+      "warnings": [
+        "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+        "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested."
+      ],
+      "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1"
+    },
+    "original_game_title": "Super Mario 64"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "coop-deluxe/sm64coopdx",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
     }
   }
 }

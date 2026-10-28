@@ -1,0 +1,218 @@
+{
+  "windows": {
+    "label": "Windows",
+    "color": "#0078D4"
+  },
+  "linux": {
+    "label": "Linux",
+    "color": "#E5A000"
+  },
+  "macos": {
+    "label": "macOS",
+    "color": "#8E8E93"
+  },
+  "nes": {
+    "label": "NES",
+    "color": "#C83F46"
+  },
+  "super-nintendo": {
+    "label": "Super Nintendo",
+    "color": "#7865AB"
+  },
+  "nintendo-64": {
+    "label": "Nintendo 64",
+    "color": "#28A75D"
+  },
+  "gamecube": {
+    "label": "GameCube",
+    "color": "#6258AD"
+  },
+  "wii": {
+    "label": "Wii",
+    "color": "#82CDE5"
+  },
+  "wii-u": {
+    "label": "Wii U",
+    "color": "#009ACD"
+  },
+  "nintendo-switch": {
+    "label": "Nintendo Switch",
+    "color": "#E60012"
+  },
+  "nintendo-switch-2": {
+    "label": "Nintendo Switch 2",
+    "color": "#30343C"
+  },
+  "game-boy": {
+    "label": "Game Boy",
+    "color": "#8B9E54"
+  },
+  "game-boy-color": {
+    "label": "Game Boy Color",
+    "color": "#9858AD"
+  },
+  "game-boy-advance": {
+    "label": "Game Boy Advance",
+    "color": "#4B79C8"
+  },
+  "nintendo-ds": {
+    "label": "Nintendo DS",
+    "color": "#A5ADB9"
+  },
+  "nintendo-3ds": {
+    "label": "Nintendo 3DS",
+    "color": "#00A6B6"
+  },
+  "virtual-boy": {
+    "label": "Virtual Boy",
+    "color": "#BB1834"
+  },
+  "master-system": {
+    "label": "Master System",
+    "color": "#D02E3A"
+  },
+  "mega-drive-genesis": {
+    "label": "Mega Drive / Genesis",
+    "color": "#383A40"
+  },
+  "sega-cd": {
+    "label": "Sega CD",
+    "color": "#884A8C"
+  },
+  "sega-32x": {
+    "label": "Sega 32X",
+    "color": "#D69A32"
+  },
+  "sega-saturn": {
+    "label": "Sega Saturn",
+    "color": "#5D6EB5"
+  },
+  "dreamcast": {
+    "label": "Dreamcast",
+    "color": "#F47721"
+  },
+  "game-gear": {
+    "label": "Game Gear",
+    "color": "#198FB5"
+  },
+  "genesis-nomad": {
+    "label": "Genesis Nomad",
+    "color": "#666B74"
+  },
+  "playstation": {
+    "label": "PlayStation",
+    "color": "#A3A3A8"
+  },
+  "playstation-2": {
+    "label": "PlayStation 2",
+    "color": "#3449BC"
+  },
+  "playstation-3": {
+    "label": "PlayStation 3",
+    "color": "#292932"
+  },
+  "playstation-4": {
+    "label": "PlayStation 4",
+    "color": "#0754A1"
+  },
+  "playstation-5": {
+    "label": "PlayStation 5",
+    "color": "#82BEE7"
+  },
+  "playstation-portable": {
+    "label": "PlayStation Portable",
+    "color": "#50505A"
+  },
+  "playstation-vita": {
+    "label": "PlayStation Vita",
+    "color": "#1BA6D7"
+  },
+  "xbox": {
+    "label": "Xbox",
+    "color": "#107C10"
+  },
+  "xbox-360": {
+    "label": "Xbox 360",
+    "color": "#94BF2C"
+  },
+  "xbox-one": {
+    "label": "Xbox One",
+    "color": "#344B44"
+  },
+  "xbox-series-x-s": {
+    "label": "Xbox Series X / S",
+    "color": "#0DC66B"
+  },
+  "atari-7800": {
+    "label": "Atari 7800",
+    "color": "#CF5338"
+  },
+  "atari-lynx": {
+    "label": "Atari Lynx",
+    "color": "#658A93"
+  },
+  "atari-jaguar": {
+    "label": "Atari Jaguar",
+    "color": "#AD2940"
+  },
+  "turbografx-16-pc-engine": {
+    "label": "TurboGrafx-16 / PC Engine",
+    "color": "#DF7A2A"
+  },
+  "turbografx-cd": {
+    "label": "TurboGrafx-CD",
+    "color": "#A63D5B"
+  },
+  "turboexpress": {
+    "label": "TurboExpress",
+    "color": "#98765A"
+  },
+  "neo-geo-aes-mvs": {
+    "label": "Neo Geo AES / MVS",
+    "color": "#D5A93D"
+  },
+  "neo-geo-cd": {
+    "label": "Neo Geo CD",
+    "color": "#A4B2BC"
+  },
+  "neo-geo-pocket": {
+    "label": "Neo Geo Pocket",
+    "color": "#7B8795"
+  },
+  "neo-geo-pocket-color": {
+    "label": "Neo Geo Pocket Color",
+    "color": "#1C9F8E"
+  },
+  "wonderswan": {
+    "label": "WonderSwan",
+    "color": "#4E75BB"
+  },
+  "wonderswan-color": {
+    "label": "WonderSwan Color",
+    "color": "#EB893D"
+  },
+  "3do": {
+    "label": "3DO",
+    "color": "#A69E91"
+  },
+  "philips-cd-i": {
+    "label": "Philips CD-i",
+    "color": "#587F78"
+  },
+  "playdate": {
+    "label": "Playdate",
+    "color": "#F2CF00"
+  },
+  "steam-deck": {
+    "label": "Steam Deck",
+    "color": "#24394F"
+  },
+  "asus-rog-ally-xbox-ally": {
+    "label": "ASUS ROG Ally / Xbox Ally",
+    "color": "#DD3A63"
+  },
+  "lenovo-legion-go": {
+    "label": "Lenovo Legion Go",
+    "color": "#52709E"
+  }
+}

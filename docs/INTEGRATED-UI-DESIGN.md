@@ -4,7 +4,7 @@ This contract supersedes the earlier staged UI delivery proposal. The owner requ
 
 ## Product decisions
 
-- Keep four destinations: Library, Find games, Activity and Settings. Add games is a contextual task. Keep Commands and its shortcut discoverable with quiet secondary treatment; place installation copy with Add games and About/help with Settings rather than competing permanent sidebar actions. Preserve shortcuts, navigation regions and valid return focus.
+- Keep four destinations: Library, Discover, Activity and Settings. Add games is a contextual task. Keep Commands and its shortcut discoverable with quiet secondary treatment; place installation copy with Add games and About/help with Settings rather than competing permanent sidebar actions. Preserve shortcuts, navigation regions and valid return focus.
 - Identity and the current next action lead. Separate games, stable port IDs and variants. Keep red Play, quiet green checked readiness, blue selection and gold keyboard focus. Keep graphite/warm-light tokens, bundled Geist, Lucide controls and the approved crab assets.
 - Keep whole-image 2:3 collection frames, metadata outside artwork, compact wrapping rows and bounded detail/task artwork. Do not infer ownership, readiness, image crops or eligibility from appearance. Unclassified artwork retains its complete source image.
 - Use the existing workspace scroll owner and native sizing preference. Constrain reading/forms within the available workspace; never constrain its scrollbar to a stale width. Reflow navigation and task actions with no lost functionality at enlargement.
@@ -59,12 +59,13 @@ Primary guidance used for concrete decisions: [WCAG reflow](https://www.w3.org/W
 
 ### Layout and task state refinements
 
-The compact Library readiness choice uses the query-area container, so it appears
-when that area's effective reading width is at most 46em. The wide choices and
-compact choice never compete in the keyboard order. Narrow navigation uses a
-compact current-destination header and a named Base UI Dialog sheet. The full
-desktop sidebar and icon rail remain at desktop widths; resize closes the sheet
-and restores focus to the visible destination.
+Library keeps one named Readiness choice at every width. Above 20rem through 32rem
+of query-area width, only its decorative prefix is omitted; its accessible label
+remains. Below 42rem, navigation uses a compact current-destination header and a
+named Base UI Dialog sheet. The existing Commands trigger shares that header
+without a duplicate or second toolbar row. The full desktop sidebar and icon rail
+remain at desktop widths; resize closes the sheet and restores focus to the
+visible destination.
 Narrow collection art is capped at 160 CSS pixels; scrolling remains intentional.
 Activity rows keep one keyed parent across attention/running/recent grouping so
 settlement preserves focus and open diagnostics.
@@ -75,6 +76,12 @@ validation result; operation failures remain separate notices. Required theme
 selection uses controlled radios, and shared checkboxes retain full label hit areas.
 Add games uses an editable Combobox keyed by port ID; search text and the selected
 port remain distinct drafts, including a selected port outside filtered results.
+
+Settings uses open rows separated by rules. Wide layouts place an 11.875rem category
+column beside a reading column bounded at 47.5rem; below 65rem the categories form
+one horizontally scrollable strip. All seven panels stay mounted to preserve
+drafts and operations. Category focus reveals the selected heading and its outline
+below any sticky category strip, scrolling the existing workspace only as far as needed.
 
 Every production dialog selects its initial field, review heading or safe action
 through Base UI initialFocus. The old autofocus markers have no remaining role.
@@ -99,9 +106,11 @@ language instead of inventing another download.
 
 Library uses one named Readiness picker at every width. Favorites remains an
 independent toggle; Filters retains declared dimensions, active chips and reset.
-A second command row groups Add games and scoped Collection commands, with the
-labeled cover/row choice opposite. Inactive Favorites and view choices use quiet
-controls; selected controls retain the independent selected cue. Core projections,
+Add games sits beside the Library heading. Scoped Collection commands and the
+cover/row choice share the retrieval toolbar. Compact layouts display Rows while
+retaining the full Compact rows accessible name. Inactive Favorites and view
+choices use quiet controls; selection preserves ordinary font weight and width,
+with blue fill and an underline distinct from the gold focus outline. Core projections,
 counts, filtering, Steam selection scope and browsing-return owners are unchanged.
 
 Ready text and its check use the semantic success foreground in covers, rows and
@@ -110,7 +119,9 @@ own roles. Whole-image cover limits are 220px ordinarily, 180px when the viewpor
 is at most 800px high, and 160px at most 680px high. Existing effective-width and
 enlargement rules still apply; essential text does not shrink to fit the artwork.
 
-Detail keeps identity and the dominant action first. Matching selected/installed
+Detail keeps identity and the dominant action first. Hero identity copy uses a
+content-sized opaque elevated surface; artwork remains visible outside the copy
+and absent artwork does not change its legibility. Matching selected/installed
 channels share a Release channel fact; differing channels remain explicit separate
 facts. Check for updates is secondary to the game action. The optional future
 install-folder editor is disclosed without unmounting its draft/review owner.
@@ -131,3 +142,40 @@ small labeled demo desk. `embed=1` hides that desk for a comparison whose parent
 must label the simulation; reset and journey changes preserve embedded mode.
 Static previews remain inert. Browser fixtures do not establish native, packaged,
 real-game, screen-reader or physical-controller acceptance.
+
+## v58 presentation and identity
+
+Discover uses explicit reviewed original-game IDs; absent or ambiguous metadata
+keeps projects separate. Counts distinguish known game groups from ungrouped
+projects and matching ports. Source-edition systems and target operating systems
+are independent facets, joined with every offered Stable/Beta/Rolling channel on
+the same eligible port/context. Preview remains the Beta display label.
+Contained 2:3 frames stay independent of text height; neighboring cards share
+identity, metadata, observation and action bands. Facet choices wrap at natural
+widths without stretching to match adjacent groups.
+
+One Filters panel preserves advanced production predicates, active removable
+chips and search-preserving Clear. Library keeps exact installation identities,
+one compact recent-play strip, existing favorites and host-persisted collections,
+hiding and Saved choices. Hiding affects Library; Discover retains the complete
+accepted catalog/listing/pending union. Organization writes preserve unknown
+records, use canonical library identity and compare revisions within the existing
+atomic 64 KiB host preference boundary.
+
+Details retain mounted Game files, Saves, Versions & updates and Manage owners
+alongside Overview. Manage exposes existing artwork, Steam, CLI, output,
+verification, removal and reviewed managed-route controls. First-launch setup
+statements bind the exact managed/external installation and do not grant Core
+launch permission. Notice choices affect Library/sidebar update notices; manual
+update review and staged activation remain available.
+
+The recent strip uses actual successful launch history and Core launch eligibility.
+Dedicated immutable update acquisition owns a bounded archive journal and can
+coexist with an eligible launch. Generic update/preparation, Apply and other file
+work retain their exclusive Core locks. Downloaded archive, prepared staged
+runtime and active installation remain separate; later preparation or Apply needs
+a fresh review. React compatibility tags identify the permanent acquisition API,
+never an inferred progress phase. The reviewed external-to-managed transition
+creates and activates through its existing atomic owner; no pretend prepared-copy
+or return transition is displayed. Native, browser and real-file acceptance remain
+distinct, and live integration completion/evidence belongs to #3725.

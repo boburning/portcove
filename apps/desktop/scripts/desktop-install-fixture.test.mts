@@ -181,6 +181,84 @@ test("completion fixture pins the owned executable, valid synthetic source and i
   }
 });
 
+test("acquisition fixture keeps owned executable bytes across upgrades and gates a later real HTTP request", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-acquisition-contract-"));
+  const tool = path.join(output, "probe.bin");
+  const executable = Buffer.from("Owned package contract bytes; never executed by this test");
+  await writeFile(tool, executable);
+  const fixture = await createInstallFixture({
+    root,
+    output,
+    acquisitionJourney: true,
+    preparationTool: tool,
+  });
+  const controller = new AbortController();
+  let transfer: Promise<{ bytes: ArrayBuffer } | { error: unknown }> | undefined;
+  try {
+    assert.equal(fixture.completionJourney, false);
+    assert.equal(fixture.sourceJourney, null);
+    assert.deepEqual(fixture.refreshPort.launch_arguments, [
+      "--game",
+      "--owned-wait",
+      path.join(output, "acquisition-game-release.signal"),
+      "--owned-wait-seconds",
+      "180",
+    ]);
+    const oldHash = createHash("sha256").update(fixture.artifact).digest("hex");
+    // Installation owns the first request; the acquisition gate must bind its own URL.
+    const initial = await fetch(fixture.url, { signal: AbortSignal.timeout(5_000) });
+    await initial.body?.cancel();
+    const release = await fixture.publishRelease(fixture.refreshPort.id, {
+      version: "2.0.0-owned",
+      publishedAt: "2026-10-20T00:00:00Z",
+      seed: 0x43b9a607,
+    });
+    assert.notEqual(release.sha256, oldHash);
+    const tar = gunzipSync(fixture.artifact);
+    const size = Number.parseInt(tar.subarray(124, 136).toString().replace(/\0.*$/s, "").trim(), 8);
+    assert.deepEqual(
+      tar.subarray(512, 512 + size),
+      executable,
+      "Upgrade changes padding, never the first-party executable",
+    );
+    const gate = fixture.holdArtifact(release.url);
+    assert.throws(() => fixture.holdArtifact(release.url), /already has/);
+    assert.throws(() => fixture.holdArtifact("https://example.invalid/foreign"), /Only an owned/);
+    const response = await fetch(release.url, {
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
+    });
+    transfer = response.arrayBuffer().then(
+      (bytes) => ({ bytes }),
+      (error: unknown) => ({ error }),
+    );
+    await waitRealTime(100);
+    const request = fixture.requests.find(
+      (item) => item.request_path === new URL(release.url).pathname,
+    );
+    assert.ok(
+      request &&
+        request.index > 1 &&
+        request.bytes_sent > 0 &&
+        request.bytes_sent < release.size &&
+        !request.completed,
+    );
+    gate.release();
+    const result = await transfer;
+    assert.ok("bytes" in result);
+    assert.equal(
+      createHash("sha256").update(Buffer.from(result.bytes)).digest("hex"),
+      release.sha256,
+    );
+    assert.equal(request.completed, true);
+    assert.equal(gate.expired, false);
+  } finally {
+    controller.abort();
+    await fixture.close();
+    await transfer;
+    await rm(output, { recursive: true, force: true });
+  }
+}, 20_000);
+
 test("completion fixture refuses missing tool inputs and mixed discovery selection before serving", async () => {
   await assert.rejects(
     createInstallFixture({ root, output: root, completionJourney: true }),
@@ -621,6 +699,7 @@ test("unselected install scenarios do not require an initialized fixture", async
     "install-progress-cancellation",
     "install-commit-refresh-recovery",
     "native-staged-update-composition",
+    "native-update-acquisition-lifecycle",
   ]);
 });
 

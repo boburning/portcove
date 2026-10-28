@@ -208,9 +208,53 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   ];
   const observedCoreFilter = `package(portcove-core) & (${observedImportCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
   const observedCliFilter = `package(portcove-cli) & (${observedCapabilityCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
+  const immutableArchiveOverrides = (
+    [
+      [
+        18,
+        [
+          "service::game_update_acquisition::tests::acquired_archive_cannot_bypass_changed_original_source_bytes",
+          "service::game_update_acquisition::tests::acquired_archive_survives_restart_and_requires_fresh_exclusive_apply_review",
+        ],
+      ],
+      [
+        18,
+        [
+          "service::game_update_acquisition::tests::live_and_completed_acquisitions_block_library_move_with_exact_discard_resume",
+          "service::game_update_acquisition::tests::orphan_archive_remains_visible_after_install_and_catalog_removal_until_exact_discard",
+          "service::game_update_acquisition::tests::removing_managed_runtime_during_transfer_preserves_archive_and_never_resurrects_it",
+          "service::game_update_acquisition::tests::cancellation_retains_bounded_attention_and_exact_discard_allows_retry",
+          "service::game_update_review::tests::activity_apply_refuses_other_handle_file_work_before_consuming_review_or_mutating",
+          "service::game_update_review::tests::an_unverified_retained_plan_cannot_authorize_execution",
+          "service::game_update_review::tests::cancellation_and_invalid_retained_bytes_preserve_the_active_version",
+          "service::game_update_review::tests::reviewed_stage_and_activation_are_explicit_and_ignore_saved_automatic_policy",
+        ],
+      ],
+      [
+        36,
+        [
+          "service::game_update_acquisition::tests::immutable_acquisition_can_start_after_verified_game_is_already_running",
+          "service::game_update_acquisition::tests::launch_during_stalled_acquisition_and_finish_while_game_runs",
+          "service::game_update_acquisition::tests::interrupted_marker_publication_has_bounded_exact_owner_discard_route",
+        ],
+      ],
+    ] as const
+  ).map(([periods, cases]) => ({
+    filter: `package(portcove-core) & (${cases.map((name) => `test(/^${name}$/)`).join(" | ")})`,
+    periods,
+  }));
+  // The retained v58 observations calibrate only these exact cases. No retries,
+  // concurrency, platform, priority or broad discovery exception is admitted.
+  for (const { filter, periods } of immutableArchiveOverrides) {
+    assert.deepEqual(overrideFor(filter), {
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
+  }
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
   const linuxLifecycleFilter =
-    "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
+    "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^preparation_contract::lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay$/) | test(/^preparation_contract::reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
   const intelPreparationFilter =
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/))";
   const intelCuratedRepinFilter =
@@ -221,7 +265,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
   });
   const curatedInstalledWithdrawalFilter =
-    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)";
+    "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
     "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
@@ -262,13 +306,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
     JSON.stringify([value.platform ?? null, value.filter]);
   const intelRecoveryFilter =
-    "package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))";
+    "package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))";
   assert.deepEqual(
     outputOverrides.map(outputIdentity).sort(),
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
       { filter: sourcePreparationFilter },
+      ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
       { platform: "x86_64-apple-darwin", filter: intelRecoveryFilter },

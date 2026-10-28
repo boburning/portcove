@@ -64,6 +64,9 @@
         }
       ],
       "saves_and_settings": "portcove-managed"
+    },
+    "launch_environment": {
+      "POKEPORT_PORTMASTER_MANAGED": "1"
     }
   }
 }
