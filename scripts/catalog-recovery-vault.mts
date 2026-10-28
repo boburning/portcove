@@ -162,7 +162,7 @@ export function inspectCatalogRecoveryPlan(options: {
 /** Like the existing renewal adapter, snapshot an independently ratified local
  * executable and its pinned public inputs. This local preparation is not a
  * protected-controller receipt and never grants private custody or signing. */
-export async function prepareCatalogRecoveryPlan(options: {
+export async function prepareCatalogRecoveryPlan(request: {
   configuration: Buffer;
   expectedConfigurationSha256: string;
   appPublicCaptures: unknown;
@@ -174,6 +174,13 @@ export async function prepareCatalogRecoveryPlan(options: {
   offlineTargets: string;
   parent: string;
 }) {
+  if (!Buffer.isBuffer(request.configuration) || request.configuration.length > 32768)
+    throw new Error("bounded catalog configuration bytes required");
+  const options = {
+    ...request,
+    configuration: Buffer.from(request.configuration),
+    appPublicCaptures: structuredClone(request.appPublicCaptures),
+  };
   digest(options.verifierSha256);
   if (!/^[a-f0-9]{40}$/u.test(options.sourceCommit) || !/^[a-f0-9]{40}$/u.test(options.sourceTree))
     throw new Error("independently ratified recovery inspector source required");
@@ -290,7 +297,8 @@ function plan(value: Plan) {
 }
 export type CatalogRecoveryOwner = {
   /** Actual caller must already hold the separate custody/read authorization.
-   * The callback is invoked only with the complete derived public appointment. */
+   * The callback is invoked only with the complete derived public appointment,
+   * must be bounded, and transfers a fresh buffer that this adapter clears. */
   read: (binding: Binding) => Promise<Buffer>;
 };
 async function inspect(binding: Binding, material: Buffer, inspector: PrivateInspector) {
@@ -365,6 +373,12 @@ async function readPrivate(filename: string, bound: number) {
   )
     throw new Error("recovery file changed during acquisition");
   return bytes;
+}
+/** Bounded ordinary-owner custody file acquisition for the authorized read
+ * callback. Calling this function requires the separate custody grant; neither
+ * its path nor a prepared public plan grants access or selects a private file. */
+export async function readCatalogCustodyMaterial(filename: string) {
+  return await readPrivate(filename, keyMaximum);
 }
 /** Pinned age only. No inherited credentials, shell, plugins, proxy, hooks,
  * terminal/passphrase prompt or private material in command arguments. The
@@ -495,6 +509,7 @@ export async function createCatalogRecoveryVault(options: {
     for (const binding of options.plan.bindings) {
       options.signal?.throwIfAborted();
       const value = await options.owner.read(binding);
+      if (!Buffer.isBuffer(value)) throw new Error("bounded recovery private material required");
       material.push(value);
       options.signal?.throwIfAborted();
       await inspect(binding, value, inspectors.get(options.plan)!.inspectTuf);

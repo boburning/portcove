@@ -3,7 +3,7 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, readdir, rm, writeFile, symlink } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile, symlink, link } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { prepareRecoveryTools } from "./prepare-recovery-tools.mts";
@@ -12,6 +12,7 @@ import {
   inspectCatalogRecoveryPlan,
   createCatalogRecoveryVault,
   restoreCatalogRecoveryVault,
+  readCatalogCustodyMaterial,
 } from "./catalog-recovery-vault.mts";
 import { disposableCatalogRecoveryFixture } from "./fixtures/catalog-recovery-fixture.mts";
 const hash = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
@@ -42,6 +43,24 @@ void test("complete catalog plan refuses profile, source, role, App and alias su
       appPublicCaptures: fixture.captures,
     };
     const plan = inspectCatalogRecoveryPlan(options);
+    let privateRead = false;
+    await assert.rejects(
+      createCatalogRecoveryVault({
+        plan,
+        parent: root,
+        toolParent: root,
+        name: "forged-plan",
+        recipient: "",
+        owner: {
+          read: async () => {
+            privateRead = true;
+            return Buffer.from("never");
+          },
+        },
+      }),
+      /locally inspected/u,
+    );
+    assert.equal(privateRead, false);
     assert.deepEqual(
       new Set(plan.bindings.map((entry) => entry.role)),
       new Set(fixture.material.keys()),
@@ -92,6 +111,28 @@ void test("complete catalog plan refuses profile, source, role, App and alias su
     await rm(root, { recursive: true, force: true });
   }
 });
+
+void test(
+  "authorized custody reader refuses symlinks, hardlinks and oversized files at acquisition",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "catalog-custody-reader-"));
+    try {
+      const file = path.join(root, "disposable.key");
+      await writeFile(file, Buffer.from("disposable"), { mode: 0o600 });
+      assert.equal((await readCatalogCustodyMaterial(file)).toString(), "disposable");
+      await symlink(file, path.join(root, "alias"));
+      await assert.rejects(readCatalogCustodyMaterial(path.join(root, "alias")), /single-link/u);
+      await link(file, path.join(root, "hardlink"));
+      await assert.rejects(readCatalogCustodyMaterial(file), /single-link/u);
+      const large = path.join(root, "large");
+      await writeFile(large, Buffer.alloc(32769), { mode: 0o600 });
+      await assert.rejects(readCatalogCustodyMaterial(large));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 void test(
   "actual age and Tough recover the complete disposable appointed catalog set with refusal controls",

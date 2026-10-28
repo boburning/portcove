@@ -1683,6 +1683,17 @@
             "PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL",
             "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
           ]
+        },
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Linux ordinary UID and private filesystem ownership",
+          "reason": "The offline vault and custody reader currently require ordinary-owner Linux filesystem semantics.",
+          "intended_route": "scripts/catalog-recovery-vault.test.mts; catalog-full-2",
+          "cases": [
+            "authorized custody reader refuses symlinks, hardlinks and oversized files at acquisition"
+          ]
         }
       ]
     },
