@@ -1304,25 +1304,31 @@
       "memberships": [
         ["catalog-full-2", 11300],
         ["release-check", 9400],
-        ["windows-storage-3", 1000007]
+        ["windows-helpers-3", 600]
       ],
-      "platform_skips": {
-        "platform": "win32",
-        "owner": "windows-storage-3",
-        "prerequisite": "Windows current-token process/job/pipe APIs and PowerShell7 compilation; no separate account logon",
-        "reason": "These bounded current-token controls require Windows APIs; the complete Windows owner runs them without account, GUI or protected acceptance.",
-        "cases": [
-          "hosted candidate launcher and memory bridge refuse before effects under separate source holds",
-          "closed credential purpose keeps primary default and separately names public proof without reading credentials",
-          "bridge state retains actual root image and startup identity for partial or complete capture",
-          "fixed Windows account helper compiles and validates inert requests without credentials or logon",
-          "owner-side native pipe reader bounds actual bytes and rejects invalid UTF-8 without logon",
-          "shared native job settles one inert root separately and both roots at attempt teardown",
-          "owned-copy hosted memory bridge settles an empty job without credential lookup or taking owner resources",
-          "owned-copy hosted memory bridge cannot renew its original clock through context mutation",
-          "owned broker monitor retains early and acknowledged worker failures without waiting for bridge or account effects"
-        ]
-      }
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers-3",
+          "category": "platform",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-3",
+          "prerequisite": "Windows current-token process/job/pipe APIs and PowerShell7 compilation; no separate account logon",
+          "reason": "These bounded current-token controls require Windows APIs; the complete Windows owner runs them without account, GUI or protected acceptance.",
+          "cases": [
+            "hosted candidate launcher and memory bridge refuse before effects under separate source holds",
+            "closed credential purpose keeps primary default and separately names public proof without reading credentials",
+            "bridge state retains actual root image and startup identity for partial or complete capture",
+            "fixed Windows account helper compiles and validates inert requests without credentials or logon",
+            "owner-side native pipe reader bounds actual bytes and rejects invalid UTF-8 without logon",
+            "shared native job settles one inert root separately and both roots at attempt teardown",
+            "owned-copy hosted memory bridge settles an empty job without credential lookup or taking owner resources",
+            "owned-copy hosted memory bridge cannot renew its original clock through context mutation",
+            "owned-copy diagnostic memory bridge settles its original empty group while production remains held",
+            "owned-copy diagnostic memory bridge cannot renew its original owner deadline",
+            "owned broker monitor retains early and acknowledged worker failures without waiting for bridge or account effects"
+          ]
+        }
+      ]
     },
     {
       "file": "scripts/native-qualification-linux-supervisor.test.mts",

@@ -604,7 +604,7 @@ jobs:
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: |
           # node-suite: windows-helpers-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts
       - name: Lint PowerShell scripts and exercise the causal fixture
         shell: pwsh
         run: |
@@ -895,7 +895,7 @@ jobs:
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: |
           # node-suite: windows-helpers-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts
       - name: Provision pinned package manager for repository contracts
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -905,7 +905,7 @@ jobs:
       - name: Test Windows CI setup contract
         run: |
           # node-suite: windows-storage-3
-          node --test --test-timeout=60000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/ci-workflow.test.mts scripts/ci-frontend-workflow.test.mts scripts/ci-release-workflow.test.mts scripts/ci-native-workflow.test.mts scripts/native-backup-evidence.test.mts scripts/ci-rust-workflow.test.mts scripts/rust-toolchain-reader.test.mts scripts/windows-rust-tests.test.mts scripts/rust-coverage.test.mts scripts/qualification-nextest.test.mts scripts/check-catalog-repositories.test.mts scripts/check-retcomm-upstreams.test.mts scripts/deep-audit-summary.test.mts scripts/node-test-inventory.test.mts scripts/ci-job-timeout-probe.test.mts scripts/rust-validation-setup.test.mts scripts/ci-workflow-fixture.test.mts scripts/qualification-coverage.test.mts scripts/select-ci-plan.test.mts scripts/release-owned-windows-proof-store.test.mts scripts/native-qualification-account.test.mts scripts/fixture-module-closure.test.mts scripts/container-browser.test.mts scripts/desktop-native-account-session.test.mts scripts/hosted-native-continuity.test.mts scripts/native-qualification-account-adapter.test.mts scripts/quality-tools.test.mts scripts/release-local-worker-tasks.test.mts scripts/release-native-scheduler.test.mts scripts/release-native-windows-driver.test.mts scripts/release-native-wsl-boundary.test.mts scripts/release-role-key-channel.test.mts scripts/updater-artifact-inventory.test.mts scripts/workflow-provenance.test.mts
+          node --test --test-timeout=60000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/ci-workflow.test.mts scripts/ci-frontend-workflow.test.mts scripts/ci-release-workflow.test.mts scripts/ci-native-workflow.test.mts scripts/native-backup-evidence.test.mts scripts/ci-rust-workflow.test.mts scripts/rust-toolchain-reader.test.mts scripts/windows-rust-tests.test.mts scripts/rust-coverage.test.mts scripts/qualification-nextest.test.mts scripts/check-catalog-repositories.test.mts scripts/check-retcomm-upstreams.test.mts scripts/deep-audit-summary.test.mts scripts/node-test-inventory.test.mts scripts/ci-job-timeout-probe.test.mts scripts/rust-validation-setup.test.mts scripts/ci-workflow-fixture.test.mts scripts/qualification-coverage.test.mts scripts/select-ci-plan.test.mts scripts/release-owned-windows-proof-store.test.mts scripts/fixture-module-closure.test.mts scripts/container-browser.test.mts scripts/desktop-native-account-session.test.mts scripts/hosted-native-continuity.test.mts scripts/native-qualification-account-adapter.test.mts scripts/quality-tools.test.mts scripts/release-local-worker-tasks.test.mts scripts/release-native-scheduler.test.mts scripts/release-native-windows-driver.test.mts scripts/release-native-wsl-boundary.test.mts scripts/release-role-key-channel.test.mts scripts/updater-artifact-inventory.test.mts scripts/workflow-provenance.test.mts
       - name: Test Windows qualification session integration
         shell: pwsh
         run: ./scripts/run-windows-qualification.ps1
