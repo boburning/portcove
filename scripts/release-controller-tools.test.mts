@@ -457,6 +457,24 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(context.status, 2, context.stderr);
   assert.match(context.stderr, /fixed payload\/context controller refused/);
   assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const contextHelp = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-signing-controller.bundle.mjs"), "--help"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    },
+  );
+  assert.equal(contextHelp.status, 2, contextHelp.stderr);
+  assert.match(contextHelp.stderr, /fixed payload\/context controller refused/u);
+  assert.equal(
+    contextHelp.stdout,
+    "",
+    "An imported metadata CLI must not execute inside another bundle entry",
+  );
+
   const budget = spawnSync(
     process.execPath,
     [
@@ -579,6 +597,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-controller-job",
     "release-hosted-native-runner",
     "release-hosted-native-worker",
+    "release-hosted-native-windows-source",
     "release-native-keyless-assembly",
   ]);
 });
@@ -663,7 +682,10 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   const windowsSteps = document.getIn(["jobs", "windows-tools", "steps"]);
   assert.ok(windowsSteps);
   assert.match(text, /node scripts\/qualify-controller-tools-windows\.mts/u);
-  assert.match(text, /FIXTURE_SOURCE_SHA: \$\{\{ github.sha \}\}/u);
+  assert.match(
+    text,
+    /FIXTURE_SOURCE_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u,
+  );
   assert.match(text, /qualify-controller-tool-build\.mts/u);
   assert.match(text, /--frozen-lockfile --ignore-scripts --ignore-pnpmfile/u);
   assert.match(text, /retention-days: 7/u);
@@ -1191,6 +1213,15 @@ void test("Windows receiver binds its signed platform, producer, label, issuer a
   const root = await mkdtemp(path.join(os.tmpdir(), "windows-tool-receiver-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const f = fixture({}, "windows-x86_64");
+  for (const file of [
+    "bin/msedgedriver.exe",
+    "webview-driver.json",
+    "webview-driver-license.txt",
+    "webview-driver-eula.txt",
+    "webview-driver-notices.html",
+    "scripts/windows-webview-driver-policy.psm1",
+  ])
+    assert.ok(f.bytes.has(file), `fixed Windows admission must contain ${file}`);
   const result = await receiveControllerTools(root, f.expected, f.bundle, f.options);
   assert.equal(result.evidence_scope, "injected-provider");
   await assert.rejects(verifiedControllerToolPaths(result), /actual same-process/u);
@@ -1382,6 +1413,20 @@ void test("fixed source asset preflight bounds real inventory and refuses before
   );
   assert.ok(isRecord(failure));
   assert.equal(failure.phase, "source-assets");
+  assert.ok(Array.isArray(failure.timings) && failure.timings.length >= 3);
+  let elapsed = -1;
+  for (const entry of failure.timings) {
+    assert.ok(
+      isRecord(entry) &&
+        typeof entry.phase === "string" &&
+        Number.isSafeInteger(entry.elapsed_milliseconds),
+    );
+    assert.ok(Number(entry.elapsed_milliseconds) >= elapsed);
+    elapsed = Number(entry.elapsed_milliseconds);
+  }
+  const lastTiming: unknown = failure.timings.at(-1);
+  assert.ok(isRecord(lastTiming));
+  assert.equal(lastTiming.phase, "failed");
   assert.equal(failure.failure, "tool file exceeds regular-file bound");
   assert.deepEqual(failure.source, expected);
   assert.equal(failure.automatic_retry, false);
@@ -1627,4 +1672,483 @@ void test("held Windows producer joins the exact platform artifact to an isolate
       .length,
     2,
   );
+});
+
+async function windowsRuntimeInputFixture(t: test.TestContext) {
+  const { prepareHostedWindowsFixtureRuntime, joinHostedWindowsFixtureRuntime } =
+    await import("./qualify-controller-tools-windows.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "windows-runtime-source-join-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const floor = path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+    filename = path.join(root, "work/hosted-continuity-evidence/windows-runtime.json");
+  await mkdir(path.dirname(floor), { recursive: true });
+  await mkdir(path.dirname(filename), { recursive: true });
+  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/src/runtime_support.rs"), floor);
+  const git = (args: string[]) =>
+    execFileSync(
+      "git",
+      [
+        "-C",
+        root,
+        "-c",
+        "core.hooksPath=",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.autocrlf=false",
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        ...args,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    ).trim();
+  git(["init", "--quiet"]);
+  git(["add", "apps"]);
+  git(["commit", "--quiet", "-m", "fixed runtime floor"]);
+  const expected = { commit: git(["rev-parse", "HEAD"]), tree: git(["rev-parse", "HEAD^{tree}"]) };
+  const environment = {
+    FIXTURE_SOURCE_SHA: expected.commit,
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/pull/123/merge",
+    GITHUB_EVENT_NAME: "pull_request",
+    GITHUB_JOB: "windows-tools",
+    GITHUB_RUN_ID: "123456",
+    GITHUB_RUN_ATTEMPT: "1",
+  };
+  const receipt = (installed = false) => {
+    const names = installed
+      ? [
+          "entry",
+          "initial-runtime-readback",
+          "download-starting",
+          "download-disposed",
+          "signature-hash-verified",
+          "installer-starting",
+          "installer-process-disposed",
+          "post-install-runtime-readback",
+          "terminal-receipt-ready",
+        ]
+      : [
+          "entry",
+          "initial-runtime-readback",
+          "existing-runtime-eligible",
+          "terminal-receipt-ready",
+        ];
+    return {
+      source: expected.commit,
+      workflow: environment.GITHUB_WORKFLOW_REF,
+      run_id: environment.GITHUB_RUN_ID,
+      attempt: environment.GITHUB_RUN_ATTEMPT,
+      minimum: "155.0.4283.62",
+      before: installed ? ["131.0.2903.86"] : ["156.0.4314.50"],
+      after: ["156.0.4314.50"],
+      stage: installed ? "ready-installed" : "ready-existing",
+      installed,
+      automatic_retry: false,
+      scope: "hosted runtime prerequisite only; not native acceptance",
+      ...(installed
+        ? { exit_code: 0, installer_sha256: "a".repeat(64), signer_thumbprint: "A".repeat(40) }
+        : {}),
+      runtime_preparation_observation: {
+        scope:
+          "reviewed diagnostic after workflow gate through terminal readback/disposal; cold setup and final receipt write excluded",
+        elapsed_milliseconds: names.length - 1,
+        phases: names.map((phase, index) => ({ phase, elapsed_milliseconds: index })),
+      },
+    };
+  };
+  const write = async (value: unknown) => {
+    const bytes = Buffer.from(JSON.stringify(value));
+    await writeFile(filename, bytes);
+    return bytes;
+  };
+  return {
+    root,
+    floor,
+    filename,
+    expected,
+    environment,
+    receipt,
+    write,
+    prepare: () => prepareHostedWindowsFixtureRuntime(root, expected, environment),
+    join: joinHostedWindowsFixtureRuntime,
+  };
+}
+
+void test("Windows tool qualification binds successful runtime observations before build and joins the original driver version", async (t) => {
+  const f = await windowsRuntimeInputFixture(t);
+  for (const mode of [
+    "existing",
+    "exact-floor",
+    "installed",
+    "absent-before",
+    "unrecognized-before",
+    "main-push",
+  ]) {
+    if (mode === "main-push") {
+      f.environment.GITHUB_EVENT_NAME = "push";
+      f.environment.GITHUB_WORKFLOW_REF =
+        "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/main";
+    }
+    const raw = f.receipt(["installed", "absent-before", "unrecognized-before"].includes(mode));
+    if (mode === "exact-floor") raw.before = raw.after = [raw.minimum];
+    if (mode === "absent-before") raw.before = [];
+    if (mode === "unrecognized-before") raw.before = ["unknown"];
+    Object.assign(raw, { unrelated: "inert input must not enter the public report" });
+    const bytes = await f.write(raw),
+      runtime = await f.prepare();
+    assert.equal(runtime.version, raw.after[0]);
+    assert.equal(runtime.minimum, raw.minimum);
+    assert.deepEqual(runtime.report.input, {
+      path: "work/hosted-continuity-evidence/windows-runtime.json",
+      bytes: bytes.length,
+      sha256: hash(bytes),
+    });
+    assert.equal(runtime.report.authority, "none");
+    assert.ok(!JSON.stringify(runtime.report).includes("inert input must not enter"));
+    const joined = await f.join(runtime, raw.after[0]!);
+    assert.equal(joined.runtime_version, joined.driver_version);
+    assert.equal(joined.authority, "none");
+    await assert.rejects(
+      f.join(runtime, "155.0.4283.62" === raw.after[0] ? "156.0.4314.50" : "155.0.4283.62"),
+      /driver differs/u,
+    );
+    await runtime.recheck();
+  }
+  const source = await readFile(
+    new URL("./qualify-controller-tools-windows.mts", import.meta.url),
+    "utf8",
+  );
+  assert.ok(
+    source.indexOf("const runtime = await prepareHostedWindowsFixtureRuntime(source, expected)") <
+      source.indexOf('phase = "source-only-Windows-account-primitives"'),
+  );
+  assert.ok(
+    source.indexOf("const runtime = await prepareHostedWindowsFixtureRuntime(source, expected)") <
+      source.indexOf("await buildControllerTools(source, buildParent, expected)"),
+  );
+  assert.match(source, /await joinHostedWindowsFixtureRuntime\(runtime, edgeFacts\.version\)/u);
+});
+
+void test("Windows fixture runtime rejects stale, failed, malformed and incomplete observations without building", async (t) => {
+  const f = await windowsRuntimeInputFixture(t);
+  const controls: [string, (raw: ReturnType<typeof f.receipt>) => void][] = [
+    [
+      "source",
+      (r) => {
+        r.source = "a".repeat(40);
+      },
+    ],
+    [
+      "run",
+      (r) => {
+        r.run_id = "999";
+      },
+    ],
+    [
+      "attempt",
+      (r) => {
+        r.attempt = "2";
+      },
+    ],
+    [
+      "workflow",
+      (r) => {
+        r.workflow =
+          "boburning/portcove/.github/workflows/hosted-runtime-readiness.yml@refs/heads/main";
+      },
+    ],
+    [
+      "floor",
+      (r) => {
+        r.minimum = "154.0.0.0";
+      },
+    ],
+    [
+      "below-floor",
+      (r) => {
+        r.after = ["155.0.4283.61"];
+      },
+    ],
+    [
+      "preview",
+      (r) => {
+        r.after = ["156.0.4314.50-beta"];
+      },
+    ],
+    [
+      "oversized-component",
+      (r) => {
+        r.after = ["4294967296.0.0.0"];
+      },
+    ],
+    [
+      "missing-runtime",
+      (r) => {
+        r.after = [];
+      },
+    ],
+    [
+      "conflicting-runtime",
+      (r) => {
+        r.after.push("155.0.4283.62");
+      },
+    ],
+    [
+      "existing-different-before",
+      (r) => {
+        r.before = ["155.0.4283.62"];
+      },
+    ],
+    [
+      "conflicting-before",
+      (r) => {
+        r.before.push("155.0.4283.62");
+      },
+    ],
+    [
+      "existing-installed",
+      (r) => {
+        r.installed = true;
+      },
+    ],
+    [
+      "stage",
+      (r) => {
+        r.stage = "installer-admitted";
+      },
+    ],
+    [
+      "failure",
+      (r) => {
+        Object.assign(r, { failure: "retained failure" });
+      },
+    ],
+    [
+      "retry",
+      (r) => {
+        r.automatic_retry = true;
+      },
+    ],
+    [
+      "negative-phase",
+      (r) => {
+        r.runtime_preparation_observation.phases[0]!.elapsed_milliseconds = -1;
+      },
+    ],
+    [
+      "phase-order",
+      (r) => {
+        r.runtime_preparation_observation.phases.reverse();
+      },
+    ],
+    [
+      "missing-phase",
+      (r) => {
+        r.runtime_preparation_observation.phases.pop();
+      },
+    ],
+    [
+      "terminal-clock",
+      (r) => {
+        r.runtime_preparation_observation.elapsed_milliseconds++;
+      },
+    ],
+  ];
+  for (const [name, mutate] of controls) {
+    const raw = f.receipt();
+    mutate(raw);
+    await f.write(raw);
+    await assert.rejects(f.prepare(), Error, name);
+  }
+  for (const [name, mutate] of [
+    [
+      "installer-exit",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.exit_code = 1;
+      },
+    ],
+    [
+      "installer-unconfirmed",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.installed = false;
+      },
+    ],
+    [
+      "missing-signature",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.signer_thumbprint = "";
+      },
+    ],
+    [
+      "eligible-before-install",
+      (r: ReturnType<typeof f.receipt>) => {
+        r.before = ["156.0.4314.50"];
+      },
+    ],
+  ] as const) {
+    const raw = f.receipt(true);
+    mutate(raw);
+    await f.write(raw);
+    await assert.rejects(f.prepare(), Error, name);
+  }
+  for (const [key, value] of [
+    ["GITHUB_JOB", "native_windows"],
+    ["GITHUB_EVENT_NAME", "workflow_dispatch"],
+    [
+      "GITHUB_WORKFLOW_REF",
+      "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/feature/534-inert",
+    ],
+  ] as const) {
+    const before = f.environment[key];
+    f.environment[key] = value;
+    await f.write(f.receipt());
+    await assert.rejects(f.prepare());
+    f.environment[key] = before;
+  }
+  f.environment.GITHUB_EVENT_NAME = "push";
+  f.environment.GITHUB_WORKFLOW_REF =
+    "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/feature/534-inert";
+  await f.write(f.receipt());
+  await assert.rejects(f.prepare());
+  f.environment.GITHUB_EVENT_NAME = "pull_request";
+  f.environment.GITHUB_WORKFLOW_REF =
+    "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/pull/123/merge";
+  await writeFile(f.filename, "x".repeat(65537));
+  await assert.rejects(f.prepare(), /regular-file bound/u);
+  const { link, unlink } = await import("node:fs/promises");
+  await f.write(f.receipt());
+  const alias = path.join(f.root, "alias.json");
+  await link(f.filename, alias);
+  await assert.rejects(f.prepare());
+  await unlink(alias);
+  await unlink(f.filename);
+  await assert.rejects(f.prepare(), { code: "ENOENT" });
+});
+
+void test("Windows runtime join permanently refuses changed identity, context and tracked source after preparation", async (t) => {
+  const { rename } = await import("node:fs/promises");
+  for (const mode of ["bytes", "same-byte-replacement", "context", "floor"]) {
+    const f = await windowsRuntimeInputFixture(t),
+      bytes = await f.write(f.receipt()),
+      runtime = await f.prepare();
+    let restore: () => Promise<unknown>;
+    if (mode === "bytes") {
+      await writeFile(f.filename, "{}");
+      restore = () => writeFile(f.filename, bytes);
+    } else if (mode === "same-byte-replacement") {
+      const retained = f.filename + ".retained";
+      await rename(f.filename, retained);
+      await writeFile(f.filename, bytes);
+      restore = () => rename(retained, f.filename);
+    } else if (mode === "context") {
+      f.environment.GITHUB_RUN_ID = "999";
+      restore = async () => {
+        f.environment.GITHUB_RUN_ID = "123456";
+      };
+    } else {
+      const floor = await readFile(f.floor);
+      await writeFile(f.floor, "changed tracked source");
+      restore = () => writeFile(f.floor, floor);
+    }
+    await assert.rejects(f.join(runtime, runtime.version));
+    await restore();
+    await assert.rejects(runtime.recheck(), /stopped/u);
+  }
+});
+
+void test("shared supported-runtime byte fence preserves original identities and refuses drift before trusted Windows tool production", async (t) => {
+  const { captureSupportedHostedWindowsRuntimeInput } =
+      await import("./hosted-windows-runtime-input.mts"),
+    { readSupportedRuntimeMechanism, prepareAdmittedWindowsBootstrapRuntime } =
+      await import("./release-windows-bootstrap-runtime.mts"),
+    f = await windowsRuntimeInputFixture(t);
+  const bytes = await f.write(f.receipt(true));
+  let sourceLive = true;
+  const runtime = await captureSupportedHostedWindowsRuntimeInput(
+    f.root,
+    {
+      source: f.expected.commit,
+      workflow: f.environment.GITHUB_WORKFLOW_REF,
+      run_id: f.environment.GITHUB_RUN_ID,
+      attempt: f.environment.GITHUB_RUN_ATTEMPT,
+    },
+    () => assert.ok(sourceLive, "Original source revoked"),
+  );
+  assert.equal(runtime.facts.observed, "156.0.4314.50");
+  assert.equal(runtime.report.input.sha256, hash(bytes));
+  await runtime.recheck();
+  await f.write({ ...f.receipt(true), after: ["157.0.0.0"] });
+  await assert.rejects(runtime.recheck(), /changed/u);
+  await f.write(f.receipt(true));
+  await assert.rejects(runtime.recheck(), /stopped/u);
+  const restored = await captureSupportedHostedWindowsRuntimeInput(
+    f.root,
+    {
+      source: f.expected.commit,
+      workflow: f.environment.GITHUB_WORKFLOW_REF,
+      run_id: f.environment.GITHUB_RUN_ID,
+      attempt: f.environment.GITHUB_RUN_ATTEMPT,
+    },
+    () => assert.ok(sourceLive, "Original source revoked"),
+  );
+  sourceLive = false;
+  await assert.rejects(restored.recheck(), /revoked/u);
+  const helper = await readFile(new URL("./prepare-hosted-windows-runtime.ps1", import.meta.url)),
+    parts = readSupportedRuntimeMechanism(helper);
+  assert.match(parts.prelude, /function Test-EngineVersion/u);
+  assert.match(parts.effects, /Start-Process -FilePath \$taskInstaller/u);
+  assert.ok(!parts.effects.includes("$taskOrdinaryDiagnostic"));
+  for (const bad of [
+    Buffer.alloc(131073),
+    Buffer.from(helper.toString().replace("# portcove-supported-runtime-prelude-end", "")),
+    Buffer.concat([helper, Buffer.from("\n# portcove-supported-runtime-effects-begin")]),
+  ])
+    assert.throws(() => readSupportedRuntimeMechanism(bad));
+  await assert.rejects(
+    prepareAdmittedWindowsBootstrapRuntime(),
+    /Protected Windows runtime preparation remains held/u,
+  );
+  const profile = controllerToolPlatformProfile("windows-x86_64");
+  assert.ok(profile.paths.includes("windows-runtime-prerequisite.json"));
+  assert.ok(new Set<string>(profile.assets).has("scripts/native-qualification-account-client.ps1"));
+});
+
+void test("protected Windows runtime sequential budget preserves original provider window", async () => {
+  const {
+    remainingProtectedWindowsRuntimeWindow: remaining,
+    protectedWindowsRuntimeHelperMilliseconds: helper,
+    protectedWindowsRuntimeFinalizerReserveMilliseconds: reserve,
+  } = await import("./release-windows-bootstrap-runtime.mts");
+  assert.equal(helper, 450000);
+  assert.equal(reserve, 30000);
+  const original = {
+    startedAt: 1700000000000,
+    providerDate: 1700000010000,
+    localDate: 1700000010000,
+    minutes: 10,
+    requestMilliseconds: 1000,
+  };
+  assert.equal(remaining(original), 589000);
+  assert.equal(
+    remaining({
+      ...original,
+      providerDate: original.providerDate + 10000,
+      localDate: original.localDate + 10000,
+    }),
+    579000,
+  );
+  for (const changed of [
+    { minutes: 4 },
+    { minutes: 8 },
+    { providerDate: original.startedAt + 121000, localDate: original.startedAt + 121000 },
+    { requestMilliseconds: -1 },
+    { requestMilliseconds: 15001 },
+    { localDate: original.providerDate + 30001 },
+    { startedAt: original.providerDate + 1 },
+    { minutes: Infinity },
+  ])
+    assert.throws(() => remaining({ ...original, ...changed }));
 });

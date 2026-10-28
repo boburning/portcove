@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, mkdtempSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -697,7 +697,7 @@ void test("a successful HTTP image exceeding its remaining byte budget retains a
   assert.deepEqual(result.catalog, fixture.accepted);
   assert.equal(
     requiredFixture(requiredFixture(result.records[0]).exceptions[0]).reason,
-    "image-unavailable-or-invalid",
+    "batch-provider-budget-exhausted",
   );
   assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
   assert.equal(fixture.decodes(), 0);
@@ -729,4 +729,360 @@ void test("artwork preparation widens replaced artwork while retaining authoring
   assert.equal(port.custom, "retained");
   assert.equal(port.presentation?.summary, "retained");
   assert.equal(requiredFixture(input.ports[0])?.presentation.artwork, null);
+});
+
+function scalableArtworkFixture(count: number) {
+  const catalog: ArtworkCatalog = {
+    ports: Array.from({ length: count }, (_, index) => ({
+      id: `scale-${index}`,
+      name: `Scale ${index}`,
+      project_url: `https://example.org/scale-${index}`,
+      source_profile: `retained-${index}`,
+    })),
+  };
+  const requests: string[] = [];
+  let batches = 0;
+  let used = 0;
+  let failure: string | null = null;
+  const inspector = {
+    beginBatch() {
+      batches++;
+      used = 0;
+    },
+    inspectGame(identity: Parameters<NonNullable<ArtworkPreparationOptions["inspectGame"]>>[0]) {
+      requests.push(identity.names[0]!);
+      if (identity.names[0] === failure) throw new Error("Temporary provider failure");
+      const index = Number(identity.names[0]!.split(" ")[1]);
+      return [
+        {
+          id: index + 1,
+          name: identity.names[0],
+          slug: `scale-${index}`,
+          websites: [{ url: identity.project_url }],
+          cover: { id: index + 1, image_id: `scale${index}` },
+        },
+      ];
+    },
+    inspectImage() {
+      used++;
+      return {
+        sha256: "d".repeat(64),
+        bytes: 100,
+        width: 264,
+        height: 374,
+        format: "jpeg",
+        validator: "portcove-core",
+      };
+    },
+  };
+  return {
+    catalog,
+    requests,
+    inspector,
+    batches: () => batches,
+    used: () => used,
+    fail: (name: string | null) => {
+      failure = name;
+    },
+  };
+}
+
+void test("logical artwork maintenance crosses 400 IDs, checkpoints interruption, and invalidates only changed input", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-workset-"));
+  const fixture = scalableArtworkFixture(501);
+  const before = structuredClone(fixture.catalog);
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    identities: {},
+    validatorIdentity: null,
+    selectedPortIds: fixture.catalog.ports.map((port) => port.id),
+  };
+  const signal = new AbortController();
+  let completed = 0;
+  try {
+    await assert.rejects(
+      prepareArtworkWorkset(fixture.catalog, {
+        ...options,
+        signal: signal.signal,
+        onProgress() {
+          if (++completed === 107) signal.abort();
+        },
+      }),
+      { name: "AbortError" },
+    );
+    assert.equal(fixture.requests.length, 107);
+    const resumed = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(resumed.continuation.complete, true);
+    assert.equal(resumed.continuation.completed_cache_hits, 107);
+    assert.equal(fixture.requests.length, 501);
+    assert.ok(resumed.continuation.batches >= 1);
+    assert.equal(new Set(fixture.requests).size, 501);
+    assert.deepEqual(fixture.catalog, before);
+    const cached = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(cached.continuation.completed_cache_hits, 501);
+    assert.equal(fixture.requests.length, 501);
+    fixture.catalog.ports[450]!.source_profile = "changed";
+    const changed = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(changed.continuation.completed_cache_hits, 500);
+    assert.equal(fixture.requests.length, 502);
+    assert.equal(fixture.requests.at(-1), "Scale 450");
+    const progress = join(scratch, "artwork-progress-scale-0.json");
+    const state = JSON.parse(readFileSync(progress, "utf8")) as Record<string, unknown>;
+    state.port_id = "different";
+    writeFileSync(progress, JSON.stringify(state));
+    await assert.rejects(
+      prepareArtworkWorkset(fixture.catalog, options),
+      /identity, facts or clocks differ/,
+    );
+    assert.equal(fixture.requests.length, 502);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("partial provider failure retries the unchanged full logical workset without repeating completed IDs", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-recovery-"));
+  const fixture = scalableArtworkFixture(403);
+  fixture.fail("Scale 2");
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    identities: {},
+    validatorIdentity: null,
+    selectedPortIds: fixture.catalog.ports.map((port) => port.id),
+  };
+  try {
+    const partial = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(partial.continuation.pending_port_ids, ["scale-2"]);
+    assert.equal(partial.continuation.batches, 2);
+    fixture.fail(null);
+    const recovered = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(recovered.continuation.complete, true);
+    assert.equal(recovered.continuation.completed_cache_hits, 402);
+    assert.equal(fixture.requests.length, 404);
+    assert.equal(fixture.requests.at(-1), "Scale 2");
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("an unavailable provider batch cannot starve trailing accepted artwork", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const { ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-fairness-"));
+  const fixture = scalableArtworkFixture(401);
+  fixture.catalog.ports[400]!.presentation = {
+    artwork: {
+      game_id: 401,
+      cover_id: 401,
+      image_id: "accepted",
+      image_sha256: "a".repeat(64),
+      game_slug: "scale-400",
+      match_kind: "port",
+    },
+  };
+  let requests = 0;
+  try {
+    const result = await prepareArtworkWorkset(fixture.catalog, {
+      root: scratch,
+      identities: {},
+      validatorIdentity: null,
+      selectedPortIds: fixture.catalog.ports.map((port) => port.id),
+      inspector: {
+        inspectGame() {
+          requests++;
+          throw new ArtworkBatchExhausted("Provider unavailable");
+        },
+        inspectImage() {
+          return assert.fail("Unavailable identity cannot download");
+        },
+      },
+    });
+    assert.equal(requests, 400);
+    assert.equal(result.continuation.pending_port_ids.length, 400);
+    assert.equal(
+      result.records.find((record) => record.port_id === "scale-400")!.reason,
+      "accepted-mapping-reused",
+    );
+    assert.ok(
+      readFileSync(join(scratch, "artwork-progress-scale-400.json"), "utf8").includes(
+        '"complete":true',
+      ),
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("automatic due maintenance uses actual retained observation clocks and leaves unknown clocks due", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-due-"));
+  const fixture = scalableArtworkFixture(2);
+  let time = Date.parse("2026-10-01T00:00:00Z");
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    identities: {},
+    validatorIdentity: null,
+    maintenance: true,
+    now: () => time,
+  };
+  try {
+    const first = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(first.continuation.complete, true);
+    const current = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(current.workset.selected_port_ids, []);
+    assert.equal(current.records.length, 2);
+    assert.ok(current.catalog.ports.every((port) => port.presentation?.artwork));
+    assert.equal(current.workset.carried_port_ids.length, 2);
+    assert.equal(fixture.requests.length, 2);
+    time += 29 * 24 * 60 * 60 * 1000;
+    const overdue = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(overdue.workset.selected_port_ids.length, 2);
+    assert.equal(fixture.requests.length, 4);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("provider backoff survives continuation and applies to newly added identities", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const { ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-backoff-resume-"));
+  const fixture = scalableArtworkFixture(1);
+  const now = Date.now();
+  const reset = new Date(now + 3600000).toISOString();
+  const options = {
+    root: scratch,
+    identities: {},
+    validatorIdentity: null,
+    selectedPortIds: ["scale-0"],
+  };
+  try {
+    const partial = await prepareArtworkWorkset(fixture.catalog, {
+      ...options,
+      inspector: {
+        inspectGame() {
+          throw new ArtworkBatchExhausted();
+        },
+        batchStatus: () => ({
+          deadline: now + 900000,
+          retry_at: reset,
+          metadata_retry_at: reset,
+          image_retry_at: null,
+        }),
+      },
+    });
+    assert.equal(partial.continuation.complete, false);
+    fixture.catalog.ports.push({ id: "new", name: "New", project_url: "https://example.org/new" });
+    let restored = 0;
+    let admitted = 0;
+    const resumed = await prepareArtworkWorkset(fixture.catalog, {
+      ...options,
+      selectedPortIds: ["scale-0", "new"],
+      inspector: {
+        restoreProviderBackoff(metadata) {
+          restored = metadata;
+        },
+        inspectGame() {
+          admitted++;
+          assert.equal(restored, Date.parse(reset));
+          throw new ArtworkBatchExhausted();
+        },
+      },
+    });
+    assert.equal(restored, Date.parse(reset));
+    assert.equal(
+      admitted,
+      1,
+      "previous ID remains durably deferred; new ID sees the restored provider clock",
+    );
+    assert.equal(resumed.continuation.complete, false);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("memoized image reuse cannot refresh the original observation clock", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-memo-clock-"));
+  const fixture = scalableArtworkFixture(2);
+  const started = Date.parse("2026-10-01T00:00:00Z");
+  let now = started;
+  let downloads = 0;
+  try {
+    await prepareArtworkWorkset(fixture.catalog, {
+      root: scratch,
+      identities: {},
+      validatorIdentity: null,
+      selectedPortIds: ["scale-0", "scale-1"],
+      now: () => now,
+      onProgress() {
+        now += 86400000;
+      },
+      inspector: {
+        inspectGame(identity) {
+          const index = Number(identity.names[0]!.split(" ")[1]);
+          return [
+            {
+              id: index + 1,
+              name: identity.names[0],
+              slug: `scale-${index}`,
+              websites: [{ url: identity.project_url }],
+              cover: { id: index + 1, image_id: "shared" },
+            },
+          ];
+        },
+        inspectImage() {
+          downloads++;
+          return fixture.inspector.inspectImage();
+        },
+      },
+    });
+    const state = JSON.parse(
+      readFileSync(join(scratch, "artwork-progress-scale-1.json"), "utf8"),
+    ) as Record<string, unknown>;
+    assert.equal(downloads, 1);
+    assert.equal(state.last_live_observation_at, new Date(started).toISOString());
+    assert.equal(state.observed_at, new Date(started + 86400000).toISOString());
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("interrupted automatic maintenance assembles completed undelivered proposals on resume", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-due-interrupt-"));
+  const fixture = scalableArtworkFixture(3);
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    identities: {},
+    validatorIdentity: null,
+    maintenance: true,
+  };
+  try {
+    await assert.rejects(
+      prepareArtworkWorkset(fixture.catalog, {
+        ...options,
+        onProgress() {
+          throw new Error("fixture interruption");
+        },
+      }),
+      /fixture interruption/,
+    );
+    assert.equal(fixture.requests.length, 1);
+    const resumed = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(fixture.requests.length, 3);
+    assert.equal(resumed.continuation.complete, true);
+    assert.equal(resumed.records.length, 3);
+    assert.deepEqual(resumed.workset.carried_port_ids, ["scale-0"]);
+    assert.ok(resumed.catalog.ports.every((port) => port.presentation?.artwork));
+    assert.ok(fixture.catalog.ports.every((port) => !port.presentation?.artwork));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });

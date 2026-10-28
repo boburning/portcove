@@ -16,7 +16,12 @@ import type { desktopApi } from "../../api";
 import { collectionArtwork } from "./collection-artwork";
 import { retainedSetup } from "./activity-fixtures";
 import { comparisonEntries } from "./comparison-scene";
-import type { ActivityFeed, ActivityRecord } from "../../types";
+import type {
+  LibraryOrganization,
+  OrganizationChange,
+  ActivityFeed,
+  ActivityRecord,
+} from "../../types";
 import type { OperationResult } from "../../transport-types.generated";
 
 export const recoveryKey = "portcove.interactive.fixture-recovery";
@@ -27,6 +32,14 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   let disposed = false;
   let prepared = false;
   const favorites = new Set<string>();
+  let organization: LibraryOrganization = {
+    revision: 0,
+    collections: {},
+    hidden_port_ids: [],
+    saved_game_ids: [],
+    update_notices: {},
+    setup_confirmations: [],
+  };
   const examples =
     journey === "activity"
       ? [
@@ -101,6 +114,73 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     "plugin:webview|set_webview_zoom": (args) => {
       requireArgs("plugin:webview|set_webview_zoom", args, { label: "main", value: 1 });
       return null;
+    },
+    get_library_organization: (args) => {
+      requireArgs("get_library_organization", args, { generation });
+      return structuredClone(organization);
+    },
+    change_library_organization: (args) => {
+      if (args?.generation !== generation || args.expectedRevision !== organization.revision)
+        return unsupported("change_library_organization (stale fixture choices)");
+      const change = args.change as OrganizationChange;
+      const next = structuredClone(organization);
+      const membership = (values: string[], id: string, included: boolean) =>
+        included ? [...new Set([...values, id])] : values.filter((value) => value !== id);
+      switch (change.kind) {
+        case "set_hidden":
+          next.hidden_port_ids = membership(next.hidden_port_ids, change.port_id, change.hidden);
+          break;
+        case "set_saved":
+          next.saved_game_ids = membership(next.saved_game_ids, change.game_id, change.saved);
+          break;
+        case "set_saved_group":
+          next.saved_game_ids = membership(next.saved_game_ids, change.game_id, change.saved);
+          if (!change.saved)
+            next.saved_game_ids = next.saved_game_ids.filter(
+              (id) => !change.legacy_port_ids.some((port) => id === `port-${port}`),
+            );
+          break;
+        case "upsert_collection":
+          next.collections[change.collection_id] = {
+            name: change.name,
+            port_ids: next.collections[change.collection_id]?.port_ids ?? [],
+          };
+          break;
+        case "remove_collection":
+          delete next.collections[change.collection_id];
+          break;
+        case "set_collection_port": {
+          const collection = next.collections[change.collection_id];
+          if (!collection)
+            return unsupported("change_library_organization (missing fixture collection)");
+          collection.port_ids = membership(collection.port_ids, change.port_id, change.included);
+          break;
+        }
+        case "set_update_notice":
+          next.update_notices[change.port_id] = {
+            ...change.choice,
+            skipped_release: change.choice.skipped_release ?? null,
+          };
+          break;
+        case "set_setup_confirmation": {
+          const confirmation = change.confirmation;
+          next.setup_confirmations = next.setup_confirmations.filter(
+            (item) =>
+              !(
+                item.port_id === confirmation.port_id &&
+                item.context.kind === confirmation.context.kind &&
+                item.context.installation_id === confirmation.context.installation_id
+              ),
+          );
+          if (change.confirmed) next.setup_confirmations.push(confirmation);
+          break;
+        }
+        default:
+          return unsupported("change_library_organization (unknown fixture choice)");
+      }
+      next.revision += 1;
+      organization = next;
+      return structuredClone(next);
     },
     get_favorite_ports: (args) => {
       requireArgs("get_favorite_ports", args, { generation });

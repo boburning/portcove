@@ -6,6 +6,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
+import { acquireWindowsWebviewDriver } from "./release-windows-webview-driver.mts";
+import { captureSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
 import { acquireNativePnpm, nativePnpmVersion } from "./release-pnpm-runtime.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
@@ -58,7 +60,10 @@ export async function bundleControllerEntries(
   ];
   for (const definition of entries) {
     const entry = path.join(sourceRoot, definition.source);
-    const commandOnly = definition.source === "scripts/release-hosted-native-worker.mts";
+    const commandOnly = [
+      "scripts/release-hosted-native-worker.mts",
+      "scripts/release-hosted-native-windows-source.mts",
+    ].includes(definition.source);
     await pack.build({
       config: false,
       cwd: sourceRoot,
@@ -74,7 +79,7 @@ export async function bundleControllerEntries(
       env: {},
       envPrefix: [],
       deps: { alwaysBundle: [/.*/] },
-      // The worker is a subprocess CLI, never an imported bundle API. Do not
+      // These workers are subprocess CLIs, never imported bundle APIs. Do not
       // preserve an unused entry export facade across its dynamic dependencies.
       inputOptions: commandOnly ? { preserveEntrySignatures: false } : {},
       outputOptions: { entryFileNames: definition.output, codeSplitting: false },
@@ -219,6 +224,7 @@ export async function buildControllerTools(
   outputParent: string,
   expected: { commit: string; tree: string },
 ) {
+  const started = performance.now();
   expected = structuredClone(expected);
   if (process.versions.node !== controllerNodeVersion)
     throw new Error("fixed Node runtime differs");
@@ -253,6 +259,11 @@ export async function buildControllerTools(
     return result.stdout.trim();
   };
   let phase = "source-before";
+  const timings = [{ phase, elapsed_milliseconds: Math.floor(performance.now() - started) }];
+  const mark = (next: string) => {
+    phase = next;
+    timings.push({ phase, elapsed_milliseconds: Math.floor(performance.now() - started) });
+  };
   try {
     const guard = () => {
       if (
@@ -263,15 +274,33 @@ export async function buildControllerTools(
         throw new Error("bootstrap checkout differs from independently fixed source");
     };
     guard();
+    const runtimeContext = {
+      source: expected.commit,
+      workflow: process.env.GITHUB_WORKFLOW_REF,
+      run_id: process.env.GITHUB_RUN_ID,
+      attempt: process.env.GITHUB_RUN_ATTEMPT,
+    };
+    const runtime =
+      platform === "windows-x86_64"
+        ? await captureSupportedHostedWindowsRuntimeInput(sourceRoot, runtimeContext, () => {
+            guard();
+            if (
+              process.env.GITHUB_WORKFLOW_REF !== runtimeContext.workflow ||
+              process.env.GITHUB_RUN_ID !== runtimeContext.run_id ||
+              process.env.GITHUB_RUN_ATTEMPT !== runtimeContext.attempt
+            )
+              throw new Error("Original runtime bootstrap context changed");
+          })
+        : null;
     const tools = path.join(directory, "tools");
-    phase = "source-assets";
+    mark("source-assets");
     for (const name of profile.assets)
       await readControllerToolFile(
         path.join(sourceRoot, name),
         controllerToolSourceAssetMaximumBytes,
       );
     await mkdir(tools, { mode: 0o700 });
-    phase = "fixed-native-package-manager";
+    mark("fixed-native-package-manager");
     const packageMetadata: unknown = JSON.parse(
       (await readControllerToolFile(path.join(sourceRoot, "package.json"), 65536)).toString("utf8"),
     );
@@ -291,9 +320,22 @@ export async function buildControllerTools(
         flag: "wx",
         mode: name.startsWith("bin/") ? 0o700 : 0o600,
       });
-    phase = "fixed-node-bundles";
+    if (platform === "windows-x86_64") {
+      mark("fixed-microsoft-webview-driver");
+      const driver = await acquireWindowsWebviewDriver(sourceRoot, tools, env);
+      if (!runtime || driver.version !== runtime.facts.observed)
+        throw new Error("Supported runtime and acquired Microsoft driver version differ");
+      await runtime.recheck();
+      await writeFile(
+        path.join(tools, "windows-runtime-prerequisite.json"),
+        JSON.stringify(runtime.report),
+        { flag: "wx", mode: 0o600 },
+      );
+      guard();
+    }
+    mark("fixed-node-bundles");
     await bundleControllerEntries(sourceRoot, tools, platform);
-    phase = "fixed-rust-build";
+    mark("fixed-rust-build");
     const status = await runResourceCommand(
       "rust",
       "cargo",
@@ -310,7 +352,7 @@ export async function buildControllerTools(
       { cwd: sourceRoot, environment: env },
     );
     if (status !== 0) throw new Error(`fixed controller tool build refused; retain ${directory}`);
-    phase = "fixed-native-webdriver-build";
+    mark("fixed-native-webdriver-build");
     const bootstrap: unknown = JSON.parse(
       (
         await readControllerToolFile(path.join(sourceRoot, ".config/tool-bootstrap.json"), 65536)
@@ -350,7 +392,7 @@ export async function buildControllerTools(
     if (driverStatus !== 0)
       throw new Error(`fixed native driver build refused; retain ${directory}`);
     guard();
-    phase = "tool-inventory";
+    mark("tool-inventory");
     const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
     const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
     const cli = createRequire(cliPackage);
@@ -399,9 +441,9 @@ export async function buildControllerTools(
         { flag: "wx", mode: 0o600 },
       );
     }
-    phase = "fixed-native-support-product";
+    mark("fixed-native-support-product");
     await materializeControllerNativeSupport(sourceRoot, tools, env, platform);
-    phase = "fixed-compiler-source-closure";
+    mark("fixed-compiler-source-closure");
     await materializeControllerCompilerSource(sourceRoot, tools, expected);
     guard();
     const files = [];
@@ -426,7 +468,16 @@ export async function buildControllerTools(
       flag: "wx",
       mode: 0o600,
     });
-    return { directory, tools, manifest, authority: "none" };
+    mark("complete");
+    await runtime?.recheck();
+    return {
+      directory,
+      tools,
+      manifest,
+      timings,
+      elapsed_milliseconds: Math.floor(performance.now() - started),
+      authority: "none",
+    };
   } catch (error) {
     const failure = (error instanceof Error ? error.message : "unknown bootstrap refusal").slice(
       0,
@@ -437,7 +488,12 @@ export async function buildControllerTools(
       JSON.stringify({
         directory,
         phase,
+        timings: [
+          ...timings,
+          { phase: "failed", elapsed_milliseconds: Math.floor(performance.now() - started) },
+        ],
         failure,
+        diagnostic: isRecord(error) && isRecord(error.diagnostic) ? error.diagnostic : null,
         source: expected,
         authority: "none",
         automatic_retry: false,

@@ -140,9 +140,9 @@ it.for([
           </ArtworkProvider>
         </main>,
       );
-      for (const frame of document.querySelectorAll<HTMLElement>(".card-art")) {
+      for (const frame of document.querySelectorAll<HTMLElement>(".collection-art")) {
         frame.scrollIntoView();
-        const imageExpected = frame !== document.querySelectorAll(".card-art")[4];
+        const imageExpected = frame !== document.querySelectorAll(".collection-art")[4];
         await expect
           .poll(() =>
             imageExpected
@@ -154,7 +154,7 @@ it.for([
       }
       window.scrollTo(0, 0);
       await document.fonts.ready;
-      const { frames, fallback } = assertPortraitLayout(view, theme, width, height);
+      const { frames, fallback } = await assertPortraitLayout(view, theme, width, height);
       await page.screenshot({
         path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-${frames[0]!.width}x${frames[0]!.height}-top.png`,
       });
@@ -175,7 +175,9 @@ it.for([
         context,
       );
       await captureTargetScreenshot(
-        document.querySelector(view === "library" ? ".collection-identity" : ".card-content")!,
+        document.querySelector(
+          view === "library" ? ".collection-identity" : ".discover-game-identity",
+        )!,
         `../../../../outputs/uiux-game-titles/ready-details-${view}-${theme}-${width}.png`,
         "ready-details",
         context,
@@ -213,31 +215,36 @@ it.for(["library", "catalog"] as const)(
         />
       </main>,
     );
-    const frames = [...document.querySelectorAll<HTMLElement>(".card-art")];
+    const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
     expect(frames).toHaveLength(100);
+    await userEvent.keyboard("{Tab}");
     for (const frame of frames) {
       const rect = frame.getBoundingClientRect();
       expect(rect.height / rect.width).toBeCloseTo(1.5, 2);
-      expect(frame.nextElementSibling!.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-        rect.bottom - 0.5,
-      );
-      for (const text of frame.nextElementSibling!.querySelectorAll<HTMLElement>(
-        "h2 span, p[title] > span",
+      const identity = frame.closest<HTMLElement>(".collection-identity, .discover-game-identity")!;
+      const title = identity.querySelector<HTMLElement>(".collection-title")!;
+      expect(title.getBoundingClientRect().top).toBeGreaterThanOrEqual(rect.bottom - 0.5);
+      identity.focus();
+      for (const text of identity.querySelectorAll<HTMLElement>(
+        ".collection-title, .collection-project",
       )) {
         expect(text.scrollHeight).toBeLessThanOrEqual(text.clientHeight + 1);
       }
+      identity.blur();
     }
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
-    (view === "library"
-      ? frames[99]!.parentElement!.querySelector<HTMLElement>(".collection-title")!
-      : frames[99]!.nextElementSibling!.querySelector<HTMLElement>("h2")!
-    ).scrollIntoView();
+    frames[99]!
+      .closest(".collection-identity, .discover-game-identity")!
+      .querySelector<HTMLElement>(".collection-title")!
+      .scrollIntoView();
     expect(window.scrollY).toBeGreaterThan(640);
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/expanded-${view}-960.png`,
     });
-    const metadata =
-      view === "library" ? frames[99]!.parentElement! : frames[99]!.nextElementSibling!;
+    const metadata = frames[99]!.closest<HTMLElement>(
+      ".collection-identity, .discover-game-identity",
+    )!;
+    metadata.focus();
     const complete = () =>
       captureTargetScreenshot(
         metadata,
@@ -255,9 +262,7 @@ it.for(["library", "catalog"] as const)(
         ? "Capture target exceeds viewport; capture identified title/actions instead"
         : null,
     );
-    const title = metadata.querySelector<HTMLElement>(
-      view === "library" ? ".collection-title" : "h2",
-    )!;
+    const title = metadata.querySelector<HTMLElement>(".collection-title")!;
     const fullTitle = many[99]!.presentation.original_game_title;
     expect(title.textContent).toBe(fullTitle);
     await expect.element(title).toHaveAccessibleName(fullTitle);
@@ -280,7 +285,8 @@ it.for(["library", "catalog"] as const)(
     await captureTargetScreenshot(
       view === "library"
         ? metadata.closest("article")!.querySelector(".collection-actions")!
-        : metadata.lastElementChild!,
+        : metadata.closest("article")!.querySelector('[data-detail-origin$=":details"]')!
+            .parentElement!,
       `../../../../outputs/uiux-game-titles/expanded-${view}-960-actions.png`,
       "expanded-actions",
       context,
@@ -342,8 +348,8 @@ it.each([
     await render(<NavigableCards view={view} onSelect={onSelect} />);
     await document.fonts.ready;
     const controls = [...document.querySelectorAll<HTMLElement>(".port-grid button")];
-    // Library Favorites is reached through More actions, not a fourth card control.
-    expect(controls).toHaveLength(view === "library" ? 12 : 8);
+    // Both views expose three independent controls per exact port; Library Favorites is in More actions.
+    expect(controls).toHaveLength(12);
     window.scrollTo(0, 0);
     await frame();
     const initialControlBottom = Math.max(
@@ -436,13 +442,13 @@ it.each([
   },
 );
 
-function assertPortraitLayout(
+async function assertPortraitLayout(
   view: "library" | "catalog",
   theme: string,
   width: number,
   height: number,
 ) {
-  const frames = [...document.querySelectorAll<HTMLElement>(".card-art")].map((element) => {
+  const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")].map((element) => {
     const rect = element.getBoundingClientRect();
     return {
       width: rect.width,
@@ -463,10 +469,15 @@ function assertPortraitLayout(
   const variantText = projectRows.map((row) => row.textContent).join(" | ");
   expect(variantText).toContain("Fictional edition");
   expect(variantText).toContain("Fictional prototype with a long edition label");
+  await userEvent.keyboard("{Tab}");
   for (const variant of variants) {
+    const identity = variant.closest<HTMLElement>(".collection-identity, .discover-game-identity")!;
+    identity.focus();
     expect(variant.scrollWidth).toBeLessThanOrEqual(variant.clientWidth + 1);
     expect(variant.scrollHeight).toBeLessThanOrEqual(variant.clientHeight + 1);
+    identity.blur();
   }
+  window.scrollTo(0, 0);
   const alignmentErrors: number[] = [];
   if (view === "library" && width >= 1280) {
     const alignedRows = new Map<number, number>();
@@ -496,7 +507,7 @@ function assertPortraitLayout(
         }))
       : [];
   expect(identitySpacing.filter(({ gap, maximumGap }) => gap < 0 || gap > maximumGap)).toEqual([]);
-  const fallback = document.querySelectorAll<HTMLElement>(".card-art")[4]!;
+  const fallback = document.querySelectorAll<HTMLElement>(".collection-art")[4]!;
   expect(fallback.querySelector("img")).toBeNull();
   const palette = getComputedStyle(fallback).getPropertyValue("--art-color");
   const control = document.createElement("div");
@@ -509,11 +520,11 @@ function assertPortraitLayout(
   for (const favorite of document.querySelectorAll<HTMLElement>('[aria-label^="Favorite "]')) {
     const card = favorite.closest("article") ?? favorite.parentElement!;
     expect(favorite.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-      card.querySelector(".card-art")!.getBoundingClientRect().bottom,
+      card.querySelector(".collection-art")!.getBoundingClientRect().bottom,
     );
     expect(favorite.closest("button button")).toBeNull();
     for (const action of card.querySelectorAll<HTMLElement>(
-      ".collection-actions button, .card-content button",
+      ".collection-actions button, .discover-game > div button",
     )) {
       if (action === favorite) continue;
       const a = favorite.getBoundingClientRect();

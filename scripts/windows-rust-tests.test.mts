@@ -1,8 +1,22 @@
+import qualificationOracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
+import { isRecord } from "./runtime-values.mts";
+import { assertNoDuplicateRustSetup } from "./ci-workflow-fixture.mts";
+import { workflowJob } from "./ci-workflow-fixture.mts";
+import { workflowStep } from "./ci-workflow-fixture.mts";
+import { rustTests } from "./ci-workflow-fixture.mts";
+import { rustWorkspaceTests } from "./ci-workflow-fixture.mts";
+import { rustClippy } from "./ci-workflow-fixture.mts";
+import { windowsStorage } from "./ci-workflow-fixture.mts";
+import { rust } from "./ci-workflow-fixture.mts";
+import { rustQuality } from "./ci-workflow-fixture.mts";
+import { workflow } from "./ci-workflow-fixture.mts";
+import { workflowJobs } from "./qualification-coverage.mts";
 import assert from "node:assert/strict";
 
 import { readFile, mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
@@ -15,6 +29,8 @@ import {
   windowsPartitionConfig,
   readWindowsQualificationCorePacket,
   qualificationBinaryListDigest,
+  writeWindowsRustSkipRoutes,
+  windowsRustSkipResultsDirectory,
 } from "./windows-rust-tests.mts";
 import oracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
 import {
@@ -24,6 +40,106 @@ import {
   reusedQualificationArguments,
   nextestListArguments,
 } from "./windows-qualification-rust.mts";
+
+void test("both Windows consumer jobs always retain their actual skip packet directory", () => {
+  const relative = path
+    .relative(fileURLToPath(new URL("../", import.meta.url)), windowsRustSkipResultsDirectory)
+    .replaceAll("\\", "/");
+  let consumers = 0;
+  for (const job of Object.values(workflowJobs(workflow))) {
+    const steps: unknown[] = Array.isArray(job.steps) ? job.steps : [];
+    if (
+      !steps.some(
+        (step) =>
+          isRecord(step) &&
+          typeof step.run === "string" &&
+          step.run.includes("windows-rust-tests.mts run"),
+      )
+    )
+      continue;
+    consumers++;
+    assert.ok(
+      steps.some((step) => {
+        if (
+          !isRecord(step) ||
+          step.if !== "always()" ||
+          typeof step.uses !== "string" ||
+          !step.uses.startsWith("actions/upload-artifact@") ||
+          !isRecord(step.with) ||
+          typeof step.with.path !== "string"
+        )
+          return false;
+        return step.with.path.split(/\r?\n/u).some((line) => {
+          const prefix = line.trim().replace(/\/$/u, "");
+          return prefix.length > 0 && (relative === prefix || relative.startsWith(prefix + "/"));
+        });
+      }),
+      "Windows skip packet would be lost from the worker artifacts",
+    );
+  }
+  assert.equal(consumers, 2);
+});
+
+void test("Windows skip packets bind compiled inventory and retain missing-parent refusals", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "portcove-windows-skip-routes-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const identity = qualificationPacketFixture().identity;
+  const inventory = {
+    "test-count": 2,
+    "rust-suites": {
+      core: {
+        "package-name": "portcove-core",
+        "binary-id": "core",
+        status: "listed",
+        testcases: {
+          parent: { ignored: false, "filter-match": { status: "matches" } },
+          child: { ignored: true, "filter-match": { status: "matches" } },
+        },
+      },
+    },
+  };
+  const route = {
+    package: "portcove-core",
+    source: "crates/portcove-core/src/tests.rs",
+    test: "child",
+    platforms: ["win32"],
+    category: "supervised-parent" as const,
+    parents: ["parent"],
+    reason: "Owned by the supervised parent",
+  };
+  const routes = [route, { ...route, package: "portcove-cli" }];
+  assert.deepEqual(
+    writeWindowsRustSkipRoutes(directory, inventory, identity, { coreOnly: true, routes }),
+    [],
+  );
+  const bytes = await readFile(path.join(directory, "skip-routes.json"));
+  const report = JSON.parse(bytes.toString()) as {
+    identity: unknown;
+    contracts: { intended_parents: string[] }[];
+    complete_inventory_sha256: string;
+  };
+  assert.deepEqual(report.identity, identity);
+  const complete = await readFile(path.join(directory, "skip-routes.inventory.json"));
+  assert.deepEqual(JSON.parse(complete.toString()), inventory);
+  assert.equal(
+    report.complete_inventory_sha256,
+    createHash("sha256").update(complete).digest("hex"),
+  );
+  assert.equal(report.contracts[0]?.intended_parents.length, 1);
+  assert.equal(
+    (await readFile(path.join(directory, "skip-routes.sha256"), "utf8")).trim(),
+    createHash("sha256").update(bytes).digest("hex"),
+  );
+  const missing = structuredClone(inventory);
+  delete (missing["rust-suites"].core.testcases as Record<string, unknown>).parent;
+  missing["test-count"] = 1;
+  const refused = path.join(directory, "refused");
+  await mkdir(refused);
+  assert.match(
+    writeWindowsRustSkipRoutes(refused, missing, identity, { coreOnly: true, routes }).join(";"),
+    /parent route/,
+  );
+});
 
 void test("qualification Core retains the frozen pre-change executable argv for every worker and phase", () => {
   assert.equal(oracle.baseline, "34954b7358c4d8c73e4ec5b5dd2cbe7fdf6376dc");
@@ -464,4 +580,212 @@ void test("Windows Rust partition filters preserve original timeout and resource
       ]),
     /existing default filter/u,
   );
+});
+
+void test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
+  assert.equal(
+    workflowStep("rust_workspace_tests", "Build and test the public Playnite reference consumer")
+      .run,
+    qualificationOracle.workspace_other.public_cli_source,
+  );
+  const workspace = workflowJob("rust_workspace_tests");
+  assert.ok(Array.isArray(workspace.steps));
+  assert.ok(
+    workspace.steps.some(
+      (step: unknown) =>
+        isRecord(step) && step.run === "node scripts/qualification-nextest.mts workspace-other",
+    ),
+  );
+  assert.match(rustTests, /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
+  assert.match(rustTests, /runs-on: windows-latest/);
+  const shardJob = workflowJob("rust_tests");
+  assert.ok(isRecord(shardJob.strategy) && isRecord(shardJob.strategy.matrix));
+  const shards = shardJob.strategy.matrix.shard;
+  assert.ok(Array.isArray(shards));
+  assert.deepEqual(
+    shards
+      .map((value: unknown) => {
+        assert.equal(typeof value, "string");
+        return String(value);
+      })
+      .toSorted(),
+    [
+      "core-service-1",
+      "core-service-2",
+      "core-recovery",
+      "core-other-1",
+      "core-other-2",
+    ].toSorted(),
+  );
+  assert.ok(Array.isArray(shardJob.needs));
+  assert.deepEqual(
+    shardJob.needs
+      .map((value: unknown) => {
+        assert.equal(typeof value, "string");
+        return String(value);
+      })
+      .toSorted(),
+    ["classify", "qualification_core_archive"],
+  );
+  assert.match(rustTests, /windows-rust-tests\.mts run-qualification \$\{\{ matrix\.shard \}\}/u);
+  assert.match(
+    rustTests,
+    /PORTCOVE_WINDOWS_MANIFEST_SHA256: \$\{\{ needs\.qualification_core_archive\.outputs\.manifest_sha256 \}\}/u,
+  );
+  assert.doesNotMatch(rustTests, /workspace-other|pnpm|cargo check|cargo fmt|cargo clippy/);
+
+  assert.match(rustWorkspaceTests, /^ {4}name: rust-test \(workspace-other\)$/m);
+  assert.match(rustWorkspaceTests, /runs-on: windows-latest/);
+  assert.match(rustWorkspaceTests, /node scripts\/qualification-nextest\.mts workspace-other/);
+  assert.doesNotMatch(rustWorkspaceTests, /matrix|cargo fmt|cargo clippy/);
+
+  assert.match(rustClippy, /^ {4}name: rust-clippy$/m);
+  assert.match(rustClippy, /runs-on: windows-latest/);
+  assert.match(rustClippy, /cargo fmt --all -- --check/);
+  assert.match(rustClippy, /cargo clippy --workspace --all-targets -- -D warnings/);
+  assert.doesNotMatch(rustClippy, /cargo test|matrix/);
+
+  assert.match(rustQuality, /runs-on: ubuntu-latest/);
+  assert.match(rustQuality, /cargo clippy --workspace --all-targets -- -D warnings/);
+
+  assert.match(windowsStorage, /^ {4}name: windows-storage$/m);
+  assert.match(windowsStorage, /runs-on: windows-latest/);
+  assert.match(windowsStorage, /scripts\/dev-storage\.test\.mts/);
+  assert.match(windowsStorage, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
+  assert.match(windowsStorage, /scripts\/windows-qualification-session\.test\.mts/);
+  assert.match(windowsStorage, /\.\/scripts\/run-windows-qualification\.ps1/);
+  assert.match(
+    windowsStorage,
+    /--test-timeout=30000 --test-reporter=\.\/scripts\/required-node-test-reporter\.mts/,
+  );
+  assert.match(
+    windowsStorage,
+    /Install-PSResource -RequiredResourceFile \.config\/powershell-resources\.psd1 -Scope CurrentUser -TrustRepository/,
+  );
+  assert.match(windowsStorage, /run-powershell-lint\.mts/);
+  assert.match(windowsStorage, /lint-tools\.integration\.mts psscriptanalyzer/);
+  assertNoDuplicateRustSetup(workflowJob("windows_storage"));
+  assert.doesNotMatch(windowsStorage, /continue-on-error/);
+
+  assert.match(rust, /^ {4}if: always\(\)$/m);
+  const rustGate = workflowJob("rust");
+  assert.ok(Array.isArray(rustGate.needs));
+  const dependencies: unknown[] = rustGate.needs;
+  for (const dependency of [
+    "classify",
+    "prose_checks",
+    "qualification_core_archive",
+    "rust_tests",
+    "rust_workspace_tests",
+    "rust_clippy",
+    "windows_storage",
+    "native_rust",
+    "intel_build",
+    "intel_tests",
+    "rust_docs",
+  ])
+    assert.ok(dependencies.includes(dependency), `Rust aggregate must require ${dependency}`);
+  for (const dependency of [
+    "qualification_core_archive",
+    "rust_tests",
+    "rust_workspace_tests",
+    "rust_clippy",
+    "windows_storage",
+    "native_rust",
+    "intel_build",
+    "intel_tests",
+    "rust_docs",
+  ])
+    assert.ok(rust.includes(`"${dependency}":"` + "${{ needs." + dependency + '.result }}"'));
+  assert.doesNotMatch(rust, /continue-on-error/);
+});
+
+void test("ordinary Windows Rust compiles once and joins every execution and live transport producer", () => {
+  const build = workflowJob("fast_rust");
+  const execution = workflowJob("fast_rust_tests");
+  const transport = workflowJob("fast_rust_transport");
+  for (const producer of [build, execution, transport]) {
+    assert.equal(producer["runs-on"], "windows-latest");
+    assert.equal(
+      producer.if,
+      "needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
+    );
+    assert.equal(producer["continue-on-error"], undefined);
+  }
+  assert.deepEqual(execution.needs, ["classify", "fast_rust"]);
+  assert.equal(transport.needs, "classify");
+  assert.ok(isRecord(build.outputs));
+  assert.equal(build.outputs.manifest_sha256, "${{ steps.archive.outputs.manifest_sha256 }}");
+  assert.ok(isRecord(execution.strategy) && isRecord(execution.strategy.matrix));
+  assert.equal(execution.strategy["fail-fast"], false);
+  assert.equal(
+    execution.strategy.matrix.include,
+    "${{ fromJSON(needs.fast_rust.outputs.matrix) }}",
+  );
+  assert.ok(isRecord(execution.env));
+  assert.equal(
+    execution.env.PORTCOVE_WINDOWS_MANIFEST_SHA256,
+    "${{ needs.fast_rust.outputs.manifest_sha256 }}",
+  );
+  assert.equal(
+    workflowStep("fast_rust", "Compile workspace targets and archive balanced test partitions").run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts build",
+  );
+  assert.match(
+    workflowStep("fast_rust_tests", "Execute the verified Windows test partition").run,
+    /run-rust-tests\.mts --guard-command node scripts\/windows-rust-tests\.mts run/u,
+  );
+  assert.equal(
+    workflowStep(
+      "fast_rust_transport",
+      "Compare live CLI and headless and native Desktop serialization",
+    ).run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts",
+  );
+  const aggregate = workflowJob("rust");
+  assert.ok(Array.isArray(aggregate.needs));
+  const gate: Record<string, unknown> = workflowStep("rust", "Require every Rust lane");
+  assert.ok(isRecord(gate.env) && typeof gate.env.PORTCOVE_FAST_RESULTS === "string");
+  const results: unknown = JSON.parse(gate.env.PORTCOVE_FAST_RESULTS);
+  assert.ok(isRecord(results));
+  assert.deepEqual(Object.keys(results).sort(), [
+    "fast_rust",
+    "fast_rust_tests",
+    "fast_rust_transport",
+  ]);
+  for (const id of Object.keys(results)) {
+    assert.ok(aggregate.needs.includes(id));
+    assert.equal(results[id], `\${{ needs.${id}.result }}`);
+  }
+  assert.ok(Array.isArray(build.steps) && Array.isArray(execution.steps));
+  const buildSteps: unknown[] = build.steps;
+  const executionSteps: unknown[] = execution.steps;
+  const uploaded = buildSteps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/upload-artifact@") &&
+      isRecord(step.with) &&
+      String(step.with.name).startsWith("windows-rust-tests-"),
+  );
+  const downloaded = executionSteps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/download-artifact@"),
+  );
+  assert.ok(
+    isRecord(uploaded) &&
+      isRecord(uploaded.with) &&
+      isRecord(downloaded) &&
+      isRecord(downloaded.with),
+  );
+  assert.equal(
+    uploaded.with.name,
+    "windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}",
+  );
+  assert.equal(downloaded.with.name, uploaded.with.name);
+  assert.match(String(uploaded.with.path), /tests\.tar\.zst/u);
+  assert.match(String(uploaded.with.path), /manifest\.json/u);
+  assert.equal(uploaded.with["if-no-files-found"], "error");
 });

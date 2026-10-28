@@ -26,6 +26,9 @@ mod definition_capability_contract;
 #[path = "machine_contract/human_presentation.rs"]
 mod human_presentation;
 
+#[path = "machine_contract/update_inventory.rs"]
+mod update_inventory;
+
 #[cfg(all(windows, feature = "qualification-fixtures"))]
 #[path = "machine_contract/source_discovery.rs"]
 mod source_discovery_contract;
@@ -715,6 +718,58 @@ fn upstream_observation_is_offline_and_does_not_open_a_library() {
     let missing_identity = portcove(&library, &arguments[..5]);
     assert_eq!(missing_identity.status.code(), Some(2));
     assert_eq!(json_stdout(&missing_identity)["error"]["code"], "usage");
+    assert!(!library.exists());
+}
+
+#[test]
+fn provider_upstream_observation_uses_explicit_mode_without_opening_library() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let observation = temporary.path().join("provider-observation.json");
+    std::fs::write(
+        &observation,
+        include_str!("fixtures/provider-direct-observation.json"),
+    )
+    .unwrap();
+    let arguments = [
+        "--json",
+        "catalog",
+        "inspect-observation",
+        "openpete",
+        observation.to_str().unwrap(),
+        "--provider-facts",
+    ];
+    let output = portcove(&library, &arguments);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response = json_stdout(&output);
+    assert_eq!(response["data"]["format"], 2);
+    assert_eq!(
+        response["data"]["provider_identity"]["provider"],
+        "direct-manifest"
+    );
+    assert_eq!(
+        response["data"]["evidence"]["artifact_bytes_verified"],
+        false
+    );
+    assert!(!library.exists());
+    let conflicting = portcove(
+        &library,
+        &[
+            "--json",
+            "catalog",
+            "inspect-observation",
+            "openpete",
+            observation.to_str().unwrap(),
+            "--provider-facts",
+            "--repository-id",
+            "1",
+        ],
+    );
+    assert_eq!(conflicting.status.code(), Some(2));
     assert!(!library.exists());
 }
 

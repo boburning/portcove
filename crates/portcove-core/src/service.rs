@@ -54,6 +54,8 @@ pub use setup_discovery::{SetupLaunchTarget, SetupLaunchTargets};
 mod external_relink;
 mod installation_route_change;
 pub use installation_route_change::{ManagedRouteChangePreview, ManagedRouteChangeResult};
+#[cfg(test)]
+mod generated_cache_tests;
 mod ghostship_compatibility;
 #[cfg(test)]
 mod ghostship_persistence_tests;
@@ -98,6 +100,8 @@ std::thread_local! {
 
 #[path = "game_install_review.rs"]
 mod game_install_review;
+#[path = "game_update_acquisition.rs"]
+pub(crate) mod game_update_acquisition;
 #[path = "game_update_review.rs"]
 mod game_update_review;
 
@@ -260,6 +264,7 @@ pub struct InstallOverrides<'a> {
 struct ReleaseIntent {
     activate: bool,
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
+    acquired: Option<game_update_acquisition::AcquiredInputs>,
 }
 
 fn enum_value(value: impl Serialize) -> Result<String> {
@@ -573,6 +578,10 @@ impl PortcoveService {
     fn recover_lifecycle_operations(&self) -> Result<()> {
         let store = OperationStore::new(self.library.clone());
         for candidate in store.all()? {
+            if candidate.kind == LifecycleOperationKind::AcquireUpdate {
+                self.recover_game_update_acquisition(&store, &candidate)?;
+                continue;
+            }
             #[cfg(test)]
             self.faults
                 .check(LifecycleFaultPoint::RecoveryInventoried)?;
@@ -709,6 +718,9 @@ impl PortcoveService {
         operation: &mut LifecycleOperation,
     ) -> Result<Option<String>> {
         match operation.kind {
+            LifecycleOperationKind::AcquireUpdate => Err(PortcoveError::state(
+                "acquisition requires its activity-owner recovery route",
+            )),
             LifecycleOperationKind::Prepare => {
                 crate::preparation::recover(self, store, operation).map(|()| None)
             }
@@ -879,13 +891,27 @@ impl PortcoveService {
     // Execution retains the original status checks, then verifies its rollback
     // target once under the operation lock instead of discarding that assessment.
     fn status_without_rollback_assessment(&self, port_id: &str) -> Result<PortStatus> {
-        let status_catalog = self.catalog_for_installed_fallback(port_id)?;
+        let status_catalog = match self.catalog_for_installed_fallback(port_id) {
+            Ok(catalog) => catalog,
+            Err(error) if error.code == crate::ErrorCode::NotFound => {
+                let status = self.library.status(port_id, ReleaseChannel::Stable)?;
+                if status.acquisition.is_some() {
+                    return Ok(Self::acquisition_metadata_status(status));
+                }
+                return Err(error);
+            }
+            Err(error) => return Err(error),
+        };
         let catalog = status_catalog.as_ref();
         let port = catalog.port(port_id).ok();
-        let (mut statuses, metrics) = self.library.statuses_with_metrics(&[(
-            port_id.to_owned(),
-            port.map_or(ReleaseChannel::Stable, default_channel),
-        )])?;
+        let (mut statuses, metrics) = self.status_rows_with_recommendations(
+            catalog,
+            &[(
+                port_id.to_owned(),
+                port.map_or(ReleaseChannel::Stable, default_channel),
+            )],
+            false,
+        )?;
         let status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
@@ -956,7 +982,8 @@ impl PortcoveService {
             .iter()
             .map(|port| (port.id.clone(), default_channel(port)))
             .collect::<Vec<_>>();
-        let (statuses, metrics) = self.library.statuses_with_metrics(&ports)?;
+        let (statuses, metrics) =
+            self.status_rows_with_recommendations(&self.catalog, &ports, true)?;
         tracing::debug!(
             port_count = statuses.len(),
             sqlite_query_count = metrics.sqlite_query_count + 1,
@@ -967,6 +994,95 @@ impl PortcoveService {
             "loaded status read model"
         );
         self.hydrate_statuses(&self.catalog, statuses, sources)
+    }
+
+    fn apply_fresh_native_channel_recommendations(
+        catalog: &Catalog,
+        connection: &rusqlite::Connection,
+        statuses: &mut [PortStatus],
+    ) -> Result<usize> {
+        let recommendations = statuses
+            .iter()
+            .filter_map(|status| {
+                let port = catalog.port(&status.port_id).ok()?;
+                if port.adapter != AdapterKind::NativePortable {
+                    return None;
+                }
+                let channel = catalog
+                    .listing(&port.id)
+                    .ok()?
+                    .recommended_download_channel?;
+                (port.channels.contains(&channel) && channel != default_channel(port))
+                    .then_some((port.id.clone(), channel))
+            })
+            .collect::<HashMap<_, _>>();
+        let ids = recommendations.keys().cloned().collect::<Vec<_>>();
+        let (occupied, queries) = Library::port_state_footprints(connection, &ids)?;
+        for status in statuses {
+            if !occupied.contains(&status.port_id)
+                && let Some(channel) = recommendations.get(&status.port_id)
+            {
+                status.channel = *channel;
+            }
+        }
+        Ok(queries)
+    }
+
+    fn status_rows_with_recommendations(
+        &self,
+        catalog: &Catalog,
+        ports: &[(String, ReleaseChannel)],
+        include_acquisition_owners: bool,
+    ) -> Result<(Vec<PortStatus>, crate::library::StatusReadMetrics)> {
+        let mut connection = self.library.connection()?;
+        let transaction = connection.transaction()?;
+        let (mut statuses, mut metrics) = if include_acquisition_owners {
+            self.library
+                .statuses_from_with_acquisitions_and_barrier(&transaction, ports, || {})?
+        } else {
+            self.library
+                .statuses_from_with_metrics(&transaction, ports)?
+        };
+        metrics.sqlite_query_count +=
+            Self::apply_fresh_native_channel_recommendations(catalog, &transaction, &mut statuses)?;
+        transaction.commit()?;
+        Ok((statuses, metrics))
+    }
+
+    fn settings_channel(&self, port_id: &str) -> Result<ReleaseChannel> {
+        let port = self.catalog.port(port_id)?;
+        let (mut statuses, _) = self.status_rows_with_recommendations(
+            &self.catalog,
+            &[(port_id.into(), default_channel(port))],
+            false,
+        )?;
+        statuses
+            .pop()
+            .map(|status| status.channel)
+            .ok_or_else(|| PortcoveError::state("status read model returned no row"))
+    }
+
+    /// An archive is display metadata, never a replacement operational definition.
+    fn acquisition_metadata_status(mut status: PortStatus) -> PortStatus {
+        status.readiness = None;
+        status.definition_operations.clear();
+        status.port_actions = [
+            PortAction::Install,
+            PortAction::Launch,
+            PortAction::Update,
+            PortAction::RegisterExternal,
+            PortAction::RemoveManaged,
+            PortAction::Rollback,
+        ]
+        .into_iter()
+        .map(|action| PortActionAssessment {
+            action,
+            availability: PortActionAvailability::Held,
+            reason: PortActionReason::DefinitionIneligible,
+            definition: None,
+        })
+        .collect();
+        status
     }
 
     fn hydrate_statuses(
@@ -981,11 +1097,16 @@ impl PortcoveService {
             .cloned()
             .map(|source| (source.profile_id.clone(), source))
             .collect::<HashMap<_, _>>();
-        catalog
-            .ports()
-            .iter()
-            .zip(statuses)
-            .map(|(port, status)| {
+        statuses
+            .into_iter()
+            .map(|status| {
+                let port = match catalog.port(&status.port_id) {
+                    Ok(port) => port,
+                    Err(_) if status.acquisition.is_some() => {
+                        return Ok(Self::acquisition_metadata_status(status));
+                    }
+                    Err(error) => return Err(error),
+                };
                 if status
                     .external_runtime
                     .as_ref()
@@ -1055,7 +1176,6 @@ impl PortcoveService {
                 .iter()
                 .map(|port| (port.id.clone(), default_channel(port)))
                 .collect::<Vec<_>>();
-            let strict_count = ports.len();
             let strict_ids = ports
                 .iter()
                 .map(|(id, _)| id.clone())
@@ -1068,14 +1188,17 @@ impl PortcoveService {
                     .map(|listing| (listing.id.clone(), ReleaseChannel::Stable)),
             );
             let sources = Library::sources_from(&transaction)?;
-            let (statuses, metrics) = self.library.statuses_from_with_metrics_and_barrier(
-                &transaction,
-                &ports,
-                || {
+            let (mut statuses, mut metrics) = self
+                .library
+                .statuses_from_with_acquisitions_and_barrier(&transaction, &ports, || {
                     if let Some(after_status_settings) = after_status_settings.take() {
                         after_status_settings();
                     }
-                },
+                })?;
+            metrics.sqlite_query_count += Self::apply_fresh_native_channel_recommendations(
+                &catalog,
+                &transaction,
+                &mut statuses,
             )?;
             let activities = Library::activity_feed_from(&transaction, activity_limit)?;
             let pending_setups = Self::pending_setups_from(&transaction)?;
@@ -1090,14 +1213,31 @@ impl PortcoveService {
                 consistency_attempt = attempt + 1,
                 "loaded transactional workspace read model"
             );
-            let listing_raw = statuses.clone();
+            let listing_raw = statuses
+                .iter()
+                .filter(|status| catalog.listing(&status.port_id).is_ok())
+                .cloned()
+                .collect();
             let statuses = self.hydrate_statuses(
                 &catalog,
-                statuses.into_iter().take(strict_count).collect(),
+                statuses
+                    .into_iter()
+                    .filter(|status| {
+                        strict_ids.contains(&status.port_id) || status.acquisition.is_some()
+                    })
+                    .collect(),
                 &sources,
             )?;
             let listing_statuses = self.listing_statuses_from(&catalog, &statuses, listing_raw)?;
-            let browsing = self.browsing_contexts_for_workspace(&catalog, &statuses, &sources)?;
+            // Archive-only orphan rows belong to Activity, not accepted browsing membership.
+            // Retain the browsing owner's exact current-definition identity invariant.
+            let browsing_statuses = statuses
+                .iter()
+                .filter(|status| strict_ids.contains(&status.port_id))
+                .cloned()
+                .collect::<Vec<_>>();
+            let browsing =
+                self.browsing_contexts_for_workspace(&catalog, &browsing_statuses, &sources)?;
             before_consistency_check(attempt);
             if data_version(&connection)? != observed_at_snapshot {
                 continue;
@@ -1449,7 +1589,7 @@ impl PortcoveService {
         output_directory: Option<&Path>,
         authorization_token: &str,
     ) -> Result<PortOutputLocation> {
-        let port = self.catalog.port(port_id)?;
+        self.catalog.port(port_id)?;
         let _guard = self
             .library
             .try_lock_port(port_id, "set-output-directory")?;
@@ -1464,8 +1604,11 @@ impl PortcoveService {
                 Ok(preview.preview_sha256)
             },
         )?;
-        self.library
-            .set_output_directory(port_id, output_directory, default_channel(port))?;
+        self.library.set_output_directory(
+            port_id,
+            output_directory,
+            self.settings_channel(port_id)?,
+        )?;
         self.output_location(port_id, None)
     }
 
@@ -1496,20 +1639,20 @@ impl PortcoveService {
         port_id: &str,
         output_directory: &Path,
     ) -> Result<PortOutputLocation> {
-        let port = self.catalog.port(port_id)?;
+        self.catalog.port(port_id)?;
         self.library.set_output_directory(
             port_id,
             Some(output_directory),
-            default_channel(port),
+            self.settings_channel(port_id)?,
         )?;
         self.output_location(port_id, None)
     }
 
     #[cfg(test)]
     pub(crate) fn reset_output_directory(&self, port_id: &str) -> Result<PortOutputLocation> {
-        let port = self.catalog.port(port_id)?;
+        self.catalog.port(port_id)?;
         self.library
-            .set_output_directory(port_id, None, default_channel(port))?;
+            .set_output_directory(port_id, None, self.settings_channel(port_id)?)?;
         self.output_location(port_id, None)
     }
 
@@ -2610,10 +2753,10 @@ impl PortcoveService {
     }
 
     pub fn set_update_policy(&self, port_id: &str, policy: UpdatePolicy) -> Result<PortStatus> {
-        let port = self.catalog.port(port_id)?;
+        self.catalog.port(port_id)?;
         let _operation = self.library.try_lock_port(port_id, "set-policy")?;
         self.library
-            .set_update_policy(port_id, policy, default_channel(port))?;
+            .set_update_policy(port_id, policy, self.settings_channel(port_id)?)?;
         self.status(port_id)
     }
 
@@ -2678,6 +2821,7 @@ impl PortcoveService {
                     port.name
                 )));
             }
+            self.library.ensure_settings(port_id, selected_channel)?;
             let platform = Platform::current()?;
             let release = operation
                 .interruptible(self.resolve_release(port, selected_channel, platform))
@@ -2870,6 +3014,7 @@ impl PortcoveService {
             ReleaseIntent {
                 activate,
                 shared_preferences: None,
+                acquired: None,
             },
             reporter,
         )
@@ -2891,6 +3036,7 @@ impl PortcoveService {
         let ReleaseIntent {
             activate,
             shared_preferences,
+            acquired,
         } = intent;
         let output_location = self.output_location(&port.id, overrides.output_directory)?;
         crate::runtime_path_policy::check_output_root(
@@ -3022,15 +3168,7 @@ impl PortcoveService {
             let qualification = self.installed_mutability_qualification(&existing)?;
             Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
             reporter.operation.begin_publication()?;
-            self.collect_active_user_data_if_launched(&port.id)?;
-            if let Some(active) = &status.active {
-                self.require_portable_target_transition(active, &existing)?;
-            }
-            self.restore_user_data_to(port, &existing.path)?;
-            if let Some(active) = &status.active {
-                self.require_portable_target_transition(active, &existing)?;
-            }
-            Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
+            self.prepare_retained_install_data(&existing)?;
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
             return Ok(existing);
@@ -3062,7 +3200,7 @@ impl PortcoveService {
         let staged_activation = port.adapter == AdapterKind::NativePortable
             || crate::persistence::requires_restore_receipt(port);
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
-            .install(
+            .install_acquired(
                 InstallRequest {
                     port_id: port.id.clone(),
                     release,
@@ -3073,6 +3211,7 @@ impl PortcoveService {
                     managed,
                     qualification,
                 },
+                acquired.as_ref(),
                 reporter.operation,
                 &mut *reporter.emit,
             )
@@ -3440,10 +3579,10 @@ impl PortcoveService {
             let (port, qualification) = self
                 .rollback_target(port_id, &previous, status.active.as_ref(), true)
                 .map_err(|failure| failure.error)?;
+            self.collect_active_user_data_if_launched(port_id)?;
             if let Some(active) = &status.active {
                 self.require_portable_rollback_transition(active, &previous)?;
             }
-            self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(&port, &previous.path)?;
             Installer::new(self.library.clone())?.verify_critical(&previous, &qualification)?;
             self.library.rollback(port_id)
@@ -3488,6 +3627,9 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
+        crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
+        self.require_portable_runtime_unchanged(previous)
+            .map_err(invalid)?;
         if let Some(active) = active {
             self.require_portable_rollback_transition(active, previous)
                 .map_err(|error| RollbackTargetFailure {
@@ -3607,15 +3749,7 @@ impl PortcoveService {
         let mut activation = crate::recovery::ActivationOperation::decode(self, &lifecycle)?;
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
-            self.collect_active_user_data_if_launched(port_id)?;
-            if let Some(active) = &status.active {
-                self.require_portable_target_transition(active, &staged)?;
-            }
-            self.restore_user_data_to(&port, &staged.path)?;
-            if let Some(active) = &status.active {
-                self.require_portable_target_transition(active, &staged)?;
-            }
-            Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
+            self.prepare_retained_install_data(&staged)?;
             let commit = activation.prepare_commit(self, &mut lifecycle)?;
             let activated = self.library.activate_staged(port_id)?;
             commit.persist(&store)?;
@@ -3900,6 +4034,7 @@ impl PortcoveService {
                 path: payload_root.clone(),
                 ..install.clone()
             };
+            crate::install::check_retained_runtime_paths(&staged_install, &install.path)?;
             if !installer.verify(&staged_install)?.valid {
                 return Err(PortcoveError::verification(
                     "adopted payload failed its post-copy manifest verification",
@@ -4070,7 +4205,8 @@ impl PortcoveService {
             LifecycleOperation::new(&activity.id, LifecycleOperationKind::Remove, port_id);
         let quarantine = self.library.recovery_dir().join(&activity.id);
         lifecycle.paths.quarantine = Some(quarantine.clone());
-        let result: Result<Vec<PathBuf>> = (|| {
+        let mut intent_persisted = false;
+        let mut result: Result<Vec<PathBuf>> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "remove")?;
             let locked_preview = self.preview_removal(port_id)?;
@@ -4092,8 +4228,17 @@ impl PortcoveService {
                 .iter()
                 .map(|removal| removal.live.clone())
                 .collect();
+            lifecycle.removal_installs = Some(
+                self.library
+                    .all_installs()?
+                    .into_iter()
+                    .filter(|install| install.port_id == port_id)
+                    .collect(),
+            );
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
+            removal.require_retained_outputs(self, &lifecycle)?;
             store.put(&mut lifecycle)?;
+            intent_persisted = true;
             for removal in &removals {
                 if let Some(parent) = removal.quarantined.parent() {
                     fs::create_dir_all(parent)?;
@@ -4105,6 +4250,7 @@ impl PortcoveService {
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
+            removal.require_retained_outputs(self, &lifecycle)?;
             self.library.remove_port(port_id)?;
             removal.advance(RemovalPhase::Committed, &mut lifecycle, &store)?;
             self.faults
@@ -4114,6 +4260,7 @@ impl PortcoveService {
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
+            removal.require_retained_outputs(self, &lifecycle)?;
             for cleanup_root in removal
                 .paths(&self.library)?
                 .iter()
@@ -4130,9 +4277,12 @@ impl PortcoveService {
             store.remove(&lifecycle.id)?;
             Ok(paths)
         })();
-        if let Err(error) = &result
-            && !lifecycle.original_paths.is_empty()
+        if let Err(error) = &mut result
+            && intent_persisted
         {
+            if error.failure.mutation_state == crate::MutationState::Unknown {
+                error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+            }
             lifecycle.last_error = Some(error.message.clone());
             let _ = store.put(&mut lifecycle);
         }
@@ -5424,6 +5574,7 @@ impl PortcoveService {
         let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
             return Ok(None);
         };
+        self.require_generated_cache_install_unchanged(&active)?;
         if !active.path.join(LAUNCH_MARKER).is_file() {
             // Preserve the historical unlaunched path for deeper integrations.
             // Only verified retained ready-archive/PS1 contracts collect before launch;
@@ -5489,6 +5640,10 @@ impl PortcoveService {
         platform: Platform,
     ) -> Result<PortDefinition> {
         let retained = self.installed_port(install)?;
+        // New declarations cannot enroll populated generated output from an older runtime.
+        if retained.adapter == AdapterKind::GeneratedCache {
+            return Ok(retained);
+        }
         let Ok(current) = self.catalog.port(&install.port_id) else {
             return Ok(retained);
         };
@@ -5544,6 +5699,9 @@ impl PortcoveService {
     ) -> Result<PersistenceContract> {
         let retained_catalog = Installer::new(self.library.clone())?.retained_catalog(install)?;
         let retained = self.installed_port(install)?;
+        if retained.adapter == AdapterKind::GeneratedCache {
+            self.require_portable_runtime_unchanged(install)?;
+        }
         let port = self.installed_mutability_port(install)?;
         if crate::persistence::requires_restore_receipt(&retained)
             && (retained_catalog.is_none()
@@ -5617,6 +5775,11 @@ impl PortcoveService {
             if registered == root {
                 return self.persistence_contract_for_install(&install);
             }
+        }
+        if fallback.adapter == AdapterKind::GeneratedCache {
+            return Err(PortcoveError::verification(
+                "Generated-cache synchronization requires an identified retained installation; preserve its runtime and data for review",
+            ));
         }
         // An unpublished payload has no library record yet. Its caller owns
         // the qualification captured for that installation operation.
@@ -5819,6 +5982,14 @@ impl PortcoveService {
         {
             return Ok(copied);
         }
+        let mods = if !contract.writes_directly && psx_mod_data::owns_mods(port) {
+            Some(psx_mod_data::ModRestore::prepare(
+                &persistent_root.join("mods"),
+                &user_root.join("mods"),
+            )?)
+        } else {
+            None
+        };
         let mut copied = Vec::new();
         for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
             let source = persistent_root.join(&relative);
@@ -5828,6 +5999,11 @@ impl PortcoveService {
                     copied.push(destination);
                 }
                 continue;
+            }
+            if relative == "mods"
+                && let Some(plan) = &mods
+            {
+                plan.require_unchanged(&|| Ok(()))?;
             }
             if port.runtime_data_policy.is_some() {
                 crate::runtime_data_policy::mirror(
@@ -5857,6 +6033,21 @@ impl PortcoveService {
     ) -> Result<()> {
         self.library.require_no_ghostship_recovery(&port.id)?;
         let contract = self.persistence_contract(port, install_root)?;
+        self.restore_user_data_with_contract(&contract, install_root)
+    }
+
+    fn restore_retained_user_data_to(&self, install: &InstallRecord) -> Result<()> {
+        self.library
+            .require_no_ghostship_recovery(&install.port_id)?;
+        let contract = self.persistence_contract_for_install(install)?;
+        self.restore_user_data_with_contract(&contract, &install.path)
+    }
+
+    fn restore_user_data_with_contract(
+        &self,
+        contract: &PersistenceContract,
+        install_root: &Path,
+    ) -> Result<()> {
         let port = &contract.port;
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
@@ -6309,6 +6500,7 @@ fn remove_managed_entry(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     mod backups;
+    mod channel_recommendations;
     #[cfg(windows)]
     mod dynamic_policy;
 
@@ -9085,6 +9277,7 @@ mod tests {
             );
             operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
             operation.original_paths.push(install.clone());
+            operation.removal_installs = Some(library.all_installs().unwrap());
             operation.phase = phase;
             let paths = crate::output_root::removal_paths(
                 &library,

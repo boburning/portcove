@@ -1,24 +1,16 @@
+import {
+  parseBoundaryReply,
+  invokeBoundary,
+  armBoundaryOwner,
+} from "./desktop-boundary-invoke.mts";
+import type { WebDriver } from "selenium-webdriver";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
-import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
-void test("erased boundary reply parser checks every declared optional scalar", async () => {
-  const source = stripTypeScriptTypes(
-    await readFile(new URL("./desktop-webview-boundary.mts", import.meta.url), "utf8"),
-    { mode: "strip" },
-  );
-  const start = source.indexOf("function reply(");
-  const end = source.indexOf("function failureText(", start);
-  assert.ok(start >= 0 && end > start);
-  const parse = (value: unknown): unknown =>
-    runInNewContext(
-      `${source.slice(start, end)} reply(value);`,
-      { assert, value },
-      { timeout: 1000 },
-    );
+void test("erased boundary reply parser checks every declared optional scalar", () => {
+  const parse = parseBoundaryReply;
   for (const value of [
     { unavailable: true, ok: 42 },
     { unavailable: true, error: {} },
@@ -38,17 +30,6 @@ void test("erased boundary reply parser checks every declared optional scalar", 
 });
 
 void test("erased boundary owner hook preserves real fetch arguments and releases queued replies", async () => {
-  const source = stripTypeScriptTypes(
-    await readFile(new URL("./desktop-webview-boundary.mts", import.meta.url), "utf8"),
-    { mode: "strip" },
-  );
-  const call = source.indexOf(
-    "return executeBrowserScript(browser,",
-    source.indexOf("const armOwner"),
-  );
-  const start = source.indexOf("() => {", call);
-  const end = source.indexOf("\n    });", start) + "\n    }".length;
-  assert.ok(call >= 0 && start > call && end > start);
   for (const kind of ["string", "URL", "Request"] as const) {
     const url = "https://ipc.localhost/queue";
     const input = kind === "string" ? url : kind === "URL" ? new URL(url) : new Request(url);
@@ -67,14 +48,25 @@ void test("erased boundary owner hook preserves real fetch arguments and release
         },
       },
     };
-    assert.equal(
-      runInNewContext(
-        `(${source.slice(start, end)})()`,
-        { window: host, Headers, URL },
-        { timeout: 1000 },
-      ),
-      7,
-    );
+    const switched: string[] = [];
+    const browser = {
+      switchTo: () => ({
+        window: async (label: string) => {
+          switched.push(label);
+        },
+      }),
+      executeScript: async (script: unknown, ...values: unknown[]) => {
+        assert.ok(typeof script === "function");
+        assert.deepEqual(switched, ["boundary-secondary"]);
+        const result: unknown = runInNewContext(
+          `(${script.toString()})(...values)`,
+          { window: host, Headers, URL, values },
+          { timeout: 1000 },
+        );
+        return result;
+      },
+    } as unknown as WebDriver;
+    assert.equal(await armBoundaryOwner(browser), 7);
     const options = { headers: { "Tauri-Channel-Id": "12" } };
     const queued = host.fetch(input, options);
     assert.equal(calls.length, 0);
@@ -101,3 +93,57 @@ void test("erased boundary owner hook preserves real fetch arguments and release
     assert.equal(Reflect.get(host, "__boundaryDelivery"), "PORTCOVE_SYNTHETIC_QUEUE:owned");
   }
 });
+
+void test(
+  "actual boundary invocation serializes native arguments and parses the returned reply",
+  { timeout: 10_000 },
+  async () => {
+    for (const outcome of ["success", "failure", "unavailable"] as const) {
+      const calls: unknown[][] = [];
+      const payload = { retained: true };
+      const args = { selected: "owned" };
+      const options = { marker: "unchanged" };
+      const native =
+        outcome === "unavailable"
+          ? undefined
+          : {
+              invoke(...values: unknown[]) {
+                calls.push(values);
+                return outcome === "success"
+                  ? Promise.resolve(payload)
+                  : Promise.reject("owned refusal");
+              },
+            };
+      const browser = {
+        executeAsyncScript(callback: unknown, ...values: unknown[]) {
+          assert.ok(typeof callback === "function");
+          // Execute the actual serialized browser callback; host orchestration is imported.
+          return new Promise((done) => {
+            runInNewContext(
+              `(${callback.toString()})(...values, done)`,
+              { window: { __TAURI_INTERNALS__: native }, values, done },
+              { timeout: 1000 },
+            );
+          });
+        },
+      } as unknown as WebDriver;
+      const result = await invokeBoundary(browser, "owned-command", args, options);
+      if (outcome === "unavailable") {
+        assert.deepEqual(result, { unavailable: true });
+        assert.deepEqual(calls, []);
+      } else {
+        assert.deepEqual(calls, [["owned-command", args, options]]);
+        assert.deepEqual(
+          result,
+          outcome === "success"
+            ? { ok: true, value: payload }
+            : { ok: false, error: "owned refusal" },
+        );
+      }
+    }
+    const malformed = {
+      executeAsyncScript: () => Promise.resolve({ ok: 17 }),
+    } as unknown as WebDriver;
+    await assert.rejects(invokeBoundary(malformed, "owned-command"));
+  },
+);

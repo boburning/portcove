@@ -35,6 +35,23 @@ $ErrorActionPreference = "Stop"
 if (-not $IsLinux) { throw "The AppImage update harness requires Linux" }
 if ($StartupTimeoutSeconds -lt 5 -or $StartupTimeoutSeconds -gt 120) { throw "StartupTimeoutSeconds must be between 5 and 120" }
 
+function Get-RootlessQualificationIdentity {
+    $userId = (& /usr/bin/id -u | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $userId -notmatch '^(0|[1-9]\d*)$') {
+        throw "Could not determine the qualification user ID"
+    }
+    if ($userId -eq '0') { throw "Root cannot qualify ordinary rootless AppImage updates" }
+    $groupId = (& /usr/bin/id -g | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $groupId -notmatch '^(0|[1-9]\d*)$') {
+        throw "Could not determine the qualification group ID"
+    }
+    return [ordered]@{ uid = $userId; gid = $groupId }
+}
+
+# Check the actual application caller before resolving inputs or creating state.
+# Privileged tmpfs setup below remains separate from application execution.
+$qualificationIdentity = Get-RootlessQualificationIdentity
+
 function Resolve-ExistingFile([string]$Path, [string]$Label) {
     $resolved = (Resolve-Path -LiteralPath $Path).Path
     $item = Get-Item -LiteralPath $resolved -Force
@@ -114,7 +131,7 @@ $stableItem = Get-Item -LiteralPath $stable -Force
 if (-not [IO.Path]::IsPathFullyQualified($stable) -or ($stableItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
     throw "The rootless stable AppImage must be a direct absolute file"
 }
-$currentUserId = (& /usr/bin/id -u | Out-String).Trim()
+$currentUserId = $qualificationIdentity.uid
 $stableUserId = (& /usr/bin/stat -c '%u' -- $stable | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $stableUserId -ne $currentUserId) {
     throw "The rootless stable AppImage must be owned by the current user"
@@ -176,6 +193,9 @@ $evidence = [ordered]@{
         install_scope = "current-user-direct-file"
         stable_path = $stable
         current_user_owned = $true
+        caller_uid = $qualificationIdentity.uid
+        caller_gid = $qualificationIdentity.gid
+        stable_owner_uid = $stableUserId
         desktop_entry = $desktopEntry
         desktop_entry_sha256 = $desktopEntryHash
         preserved_user_paths = $preservedDataPaths

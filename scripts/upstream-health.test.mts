@@ -5,6 +5,7 @@ import fade from "./fixtures/upstream-health-fade-to-black.json" with { type: "j
 import {
   collectRepositoryHealth,
   estimateHealthRequests,
+  createHealthRequestEstimator,
   readHealthLineage,
   validateHealthAccountingPolicy,
   type HealthFetch,
@@ -345,4 +346,38 @@ void test("monitoring policy versions and exception limits remain strict", () =>
       })),
     }),
   );
+});
+
+void test("prepared request estimates preserve global shared identities and isolate later input changes", () => {
+  const input = {
+    ports: [
+      {
+        id: "first",
+        project_url: "https://github.com/owner/shared",
+        release: { provider: "user-prepared" },
+      },
+      {
+        id: "second",
+        project_url: "https://github.com/owner/shared",
+        release: { provider: "user-prepared" },
+      },
+      {
+        id: "third",
+        project_url: "https://github.com/owner/third",
+        release: { provider: "user-prepared" },
+      },
+    ],
+  };
+  const estimator = createHealthRequestEstimator(input);
+  for (const ids of [[], ["first"], ["second"], ["third", "first"], ["first", "second", "third"]])
+    assert.deepEqual(estimator(ids), estimateHealthRequests(input, ids));
+  const original = estimator(["first", "second"]);
+  input.ports[1]!.project_url = "https://github.com/owner/changed";
+  assert.deepEqual(estimator(["first", "second"]), original);
+  assert.notDeepEqual(
+    estimator(["first", "second"]),
+    estimateHealthRequests(input, ["first", "second"]),
+  );
+  assert.throws(() => estimator(["missing"]), /existing port IDs/);
+  assert.throws(() => estimator(["first", "first"]), /unique existing/);
 });

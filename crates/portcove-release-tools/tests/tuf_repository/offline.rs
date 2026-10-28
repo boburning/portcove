@@ -6,6 +6,75 @@ use portcove_release_tools::initial_root_profile::InitialRootProfile;
 use std::process::{Command, Output};
 use tough::schema::{Role, Signed};
 
+#[tokio::test]
+async fn existing_key_inspection_checks_restored_identity_without_signing_or_creation() {
+    let fixture = Ceremony::with_profile(InitialRootProfile::SingleOwnerOneOfOneV1).await;
+    let original = fs::read(fixture.root().join("custodian-0/private.pk8")).unwrap();
+    let restored = fixture.root().join("restored.pk8");
+    fs::write(&restored, &original).unwrap();
+    let config = json!({"schema_version":1,"private_key":"restored.pk8",
+        "expected_public_key":fixture.public[0]});
+    let report = fixture.success(
+        "inspect-existing-tuf-key",
+        &fixture.config("inspect.json", &config),
+    );
+    assert_eq!(report["operation"], "inspect-existing-tuf-key");
+    assert_eq!(report["authority"], "none");
+    let expected: tough::schema::key::Key =
+        serde_json::from_slice(&fs::read(fixture.root().join("custodian-0/public.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        report["public_key_id"],
+        hex::encode(expected.key_id().unwrap().as_ref())
+    );
+    assert_eq!(report.as_object().unwrap().len(), 4);
+    assert_eq!(fs::read(&restored).unwrap(), original);
+
+    for (name, change) in [
+        (
+            "wrong-key",
+            json!({"private_key":"custodian-1/private.pk8"}),
+        ),
+        (
+            "wrong-public",
+            json!({"expected_public_key":fixture.public[1]}),
+        ),
+        ("missing-key", json!({"private_key":"missing.pk8"})),
+        ("unbounded-schema", json!({"schema_version":2})),
+        ("write-request", json!({"output":"must-not-exist"})),
+    ] {
+        let mut altered = config.clone();
+        for (key, value) in change.as_object().unwrap() {
+            altered[key] = value.clone();
+        }
+        fixture.refuse("inspect-existing-tuf-key", altered, &format!("{name}.json"));
+    }
+    let mut bad_digest = config.clone();
+    bad_digest["expected_public_key"]["sha256"] = json!("0".repeat(64));
+    fixture.refuse(
+        "inspect-existing-tuf-key",
+        bad_digest,
+        "changed-public-bytes.json",
+    );
+    fs::write(&restored, b"malformed PRIVATE fixture sentinel").unwrap();
+    let result = fixture.cli(
+        "inspect-existing-tuf-key",
+        &fixture.config("invalid.json", &config),
+    );
+    assert!(!result.status.success());
+    assert!(result.stdout.is_empty());
+    assert!(!String::from_utf8_lossy(&result.stderr).contains("PRIVATE fixture sentinel"));
+    fs::remove_file(&restored).unwrap();
+    fixture.refuse("inspect-existing-tuf-key", config.clone(), "lost-key.json");
+    assert!(
+        !restored.exists(),
+        "inspection must never regenerate a missing key"
+    );
+
+    fs::hard_link(fixture.root().join("custodian-0/private.pk8"), &restored).unwrap();
+    fixture.refuse("inspect-existing-tuf-key", config, "linked-private.json");
+}
+
 struct Ceremony {
     directory: tempfile::TempDir,
     keys: Vec<TestKey>,
@@ -100,7 +169,7 @@ impl Ceremony {
         let result = self.cli(command, &config);
         assert!(
             !result.status.success(),
-            "unexpected success: {}",
+            "unexpected success for {command} using {name}: {}",
             String::from_utf8_lossy(&result.stdout)
         );
         if let Some(output) = output {

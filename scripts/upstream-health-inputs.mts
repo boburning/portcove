@@ -217,37 +217,48 @@ export function healthCatalogInputs(value: unknown): HealthCatalogInputs {
 // Freshness includes retained qualification and authoring lineage because the
 // collector reports both. Reviewed endpoint and artifact rules still use their
 // narrower role/platform hashes instead of this complete observation snapshot.
-export function healthCatalogPortHash(
+export function healthCatalogPortHashes(
   catalog: unknown,
-  portId: string,
   lineageRecords: unknown[] = [],
-): string {
+): Map<string, string> {
   const inputs = healthCatalogInputs(catalog);
-  const port = inputs.ports.find((entry) => entry.port.id === portId);
-  if (!port) throw new Error("Unknown upstream health port ID");
   if (!Array.isArray(lineageRecords) || lineageRecords.length > inputs.ports.length)
     throw new Error("Invalid upstream health lineage inventory");
-  const ids = new Set(inputs.ports.map((entry) => entry.port.id));
-  const seen = new Set<string>();
-  let lineage: HealthLineageInputs | null = null;
+  const ports = new Map(inputs.ports.map((entry) => [entry.port.id, entry]));
+  const lineage = new Map<string, HealthLineageInputs>();
   for (const record of lineageRecords) {
     if (
       !isRecord(record) ||
       !isRecord(record.listing) ||
       typeof record.listing.id !== "string" ||
-      !ids.has(record.listing.id) ||
-      seen.has(record.listing.id)
+      !ports.has(record.listing.id) ||
+      lineage.has(record.listing.id)
     )
       throw new Error("Invalid or duplicate upstream health lineage port");
-    seen.add(record.listing.id);
-    if (record.listing.id === portId) lineage = healthLineageInputs(record);
+    const validated = healthLineageInputs(record);
+    if (validated.listing.project_url !== ports.get(record.listing.id)?.port.project_url)
+      throw new Error("Upstream health lineage differs from the catalog project identity");
+    lineage.set(record.listing.id, validated);
   }
-  if (lineage && lineage.listing.project_url !== port.port.project_url)
-    throw new Error("Upstream health lineage differs from the catalog project identity");
-  return observationHash({
-    format_version: HEALTH_INPUTS_VERSION,
-    schema_version: inputs.schema_version,
-    ...port,
-    lineage,
-  });
+  return new Map(
+    inputs.ports.map((port) => [
+      port.port.id,
+      observationHash({
+        format_version: HEALTH_INPUTS_VERSION,
+        schema_version: inputs.schema_version,
+        ...port,
+        lineage: lineage.get(port.port.id) ?? null,
+      }),
+    ]),
+  );
+}
+
+export function healthCatalogPortHash(
+  catalog: unknown,
+  portId: string,
+  lineageRecords: unknown[] = [],
+): string {
+  const hash = healthCatalogPortHashes(catalog, lineageRecords).get(portId);
+  if (!hash) throw new Error("Unknown upstream health port ID");
+  return hash;
 }

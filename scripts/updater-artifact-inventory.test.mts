@@ -181,6 +181,68 @@ function runPowerShellScript(
   );
 }
 
+void test("AppImage qualification refuses root and unknown identities before creating state", async (t) => {
+  const harness = fileURLToPath(new URL("./test-linux-appimage-update.ps1", import.meta.url));
+  const source = await readFile(harness, "utf8");
+  assert.ok(
+    source.indexOf("$qualificationIdentity = Get-RootlessQualificationIdentity") <
+      source.indexOf("$predecessor = Resolve-ExistingFile"),
+  );
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-rootless-identity-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const script = path.join(root, "identity.ps1");
+  await writeFile(
+    script,
+    `
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile('${harness.replaceAll("'", "''")}', [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'AppImage harness parse failed' }
+$functions = @($ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-RootlessQualificationIdentity'}, $true))
+if ($functions.Count -ne 1) { throw 'Missing rootless identity preflight' }
+Invoke-Expression $functions[0].Extent.Text
+function Invoke-IdFixture {
+ $Kind = $args[0]
+ $global:LASTEXITCODE = if ($Kind -eq '-u') { $case.user_exit } else { $case.group_exit }
+ if ($Kind -eq '-u') { $case.uid } else { $case.gid }
+}
+Set-Alias -Name /usr/bin/id -Value Invoke-IdFixture
+$cases = @(
+ @{ uid='0'; gid='0'; user_exit=0; group_exit=0; error='Root cannot qualify' },
+ @{ uid=''; gid='1000'; user_exit=0; group_exit=0; error='user ID' },
+ @{ uid='invalid'; gid='1000'; user_exit=0; group_exit=0; error='user ID' },
+ @{ uid='1000'; gid='1000'; user_exit=1; group_exit=0; error='user ID' },
+ @{ uid='1000'; gid=''; user_exit=0; group_exit=0; error='group ID' },
+ @{ uid='1000'; gid='1000'; user_exit=0; group_exit=1; error='group ID' },
+ @{ uid='1000'; gid='1000'; user_exit=0; group_exit=0; error=$null }
+)
+foreach ($case in $cases) {
+ $refused = $false
+ try {
+  $identity = Get-RootlessQualificationIdentity
+  if ($case.error) { throw 'Unexpected identity acceptance' }
+  if ($identity.uid -ne $case.uid -or $identity.gid -ne $case.gid) { throw 'Identity changed' }
+ } catch {
+  if (-not $case.error -or $_.Exception.Message -notlike "*$($case.error)*") { throw }
+  $refused = $true
+ }
+ if ($case.error -and -not $refused) { throw 'Missing refusal' }
+}
+@{ cases = $cases.Count; root_refused = $true; ordinary_identity_retained = $true } | ConvertTo-Json -Compress
+`,
+  );
+  const result = spawnSync("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    timeout: 30_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    cases: 7,
+    root_refused: true,
+    ordinary_identity_retained: true,
+  });
+});
+
 async function fixture(t: TestContext, label = "windows-x86_64") {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-updater-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -520,7 +582,7 @@ void test("manual rehearsal retains the complete matrix without production crede
   assert.match(rehearsal, /wrong_signature_verified_with_distinct_key = \$true/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$wrongPrivateRoot -Recurse -Force/);
   const outerFinally = rehearsal.match(
-    /} finally \{\r?\n(?<body>(?:    [^\r\n]*\r?\n)+)}\r?\n\[ordered]@\{ source_commit = \$revision; platform = \$PlatformLabel; status = "passed"/,
+    /} finally \{\r?\n(?<body>(?:    [^\r\n]*\r?\n)+)}\r?\nif\(\$captureFixtureDerivation\)\{/,
   );
   assert.ok(outerFinally?.groups?.body);
   assert.match(

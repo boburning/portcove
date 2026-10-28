@@ -1,11 +1,75 @@
 import { portStatus, confirmedSourceAssessment } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
-import type { PortStatus } from "../types";
+import type { GameUpdateAcquisition, PortStatus } from "../types";
 import { PortBrowser } from "./PortBrowser";
 import { port, installRecord, runtimeIdentity } from "./rendered-test-fixtures";
 
 describe("desktop components", () => {
+  it.each(["library", "catalog"] as const)(
+    "keeps downloaded archives, prepared runtimes and active Play distinct in %s",
+    (view) => {
+      const active = installRecord();
+      const acquisition: GameUpdateAcquisition = {
+        id: "owned-archive",
+        port_id: port.id,
+        platform: "windows-x86-64",
+        phase: "acquired",
+        created_at: 1,
+        updated_at: 2,
+        release: {
+          version: "2",
+          channel: "stable",
+          published_at: null,
+          asset: {
+            name: "update.zip",
+            sha256: "a".repeat(64),
+            size: 1,
+            url: "https://example.com/update.zip",
+          },
+        },
+      };
+      const base: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active,
+        readiness: {
+          launchable: true,
+          pending_setup: false,
+          blockers: [],
+          source: "current",
+          source_assessment: confirmedSourceAssessment(),
+        },
+      };
+      const render = (status: PortStatus) =>
+        renderToStaticMarkup(
+          <PortBrowser
+            view={view}
+            ports={[port]}
+            statuses={new Map([[port.id, status]])}
+            overview={{ installed: 1, ready: 1, needsSetup: 0, staged: status.staged ? 1 : 0 }}
+            filter="all"
+            setFilter={vi.fn()}
+            onSelect={vi.fn()}
+            onContinue={vi.fn()}
+            loading={false}
+          />,
+        );
+      expect(render(base)).not.toContain("Archive downloaded");
+      expect(render(base)).not.toContain("Update prepared");
+      const downloaded = render({ ...base, acquisition });
+      expect(downloaded).toContain("Archive downloaded");
+      expect(downloaded).not.toContain("Update prepared");
+      expect(downloaded).toContain("Ready to play");
+      const prepared = render({
+        ...base,
+        staged: installRecord({ id: "prepared", staged: true, version: "2" }),
+      });
+      expect(prepared).toContain(view === "library" ? "Update prepared" : "Update prepared");
+      expect(prepared).not.toContain("Archive downloaded");
+    },
+  );
+
   it.each(
     (["library", "catalog"] as const).flatMap((view) =>
       [
@@ -147,9 +211,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(
-      view === "library" ? "Review downloaded update" : "Update downloaded</span>",
-    );
+    expect(html).toContain(view === "library" ? "Update prepared" : "Update prepared</span>");
     const expectedAvailable =
       difference !== "same target" &&
       difference !== "unspecified asset size" &&
@@ -159,7 +221,7 @@ describe("desktop components", () => {
       html.includes(
         view === "library"
           ? "Another update available at last check"
-          : "Update available at last check</span>",
+          : ">Update available at last check<",
       ),
     ).toBe(expectedAvailable);
   });
@@ -319,11 +381,11 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(`aria-label="View details for ${port.name} Port: ${port.name}"`);
+    expect(html).toContain(`aria-label="View details for ${port.name} ${port.name}"`);
     expect(html).not.toContain(">Details</button>");
     expect(html).toContain(`aria-label="More actions for ${port.name}"`);
     expect(html).toContain('data-slot="button"');
-    expect(html).toContain('data-variant="outline"');
+    expect(html).toContain('data-variant="link"');
     expect(html).toContain('data-variant="primary"');
     expect(html).not.toContain("Release channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
@@ -331,7 +393,7 @@ describe("desktop components", () => {
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
     expect(html).toContain("Ready to play");
     expect(html).not.toContain("updates downloaded");
-    expect(html).toContain("Review update seen at last check");
+    expect(html).toContain("Update available at last check");
     expect(html).not.toContain("need attention");
     expect(html).not.toContain("Launch ready");
     expect(html).not.toContain("Play options");
@@ -342,7 +404,7 @@ describe("desktop components", () => {
     )?.[0];
     expect(card).toBeDefined();
     expect(card).toMatch(
-      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update (available at last check|prepared)/u,
     );
     expect(card).not.toContain(port.summary);
     expect(card).not.toContain(">Windows</span>");
@@ -379,9 +441,9 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Review downloaded update");
+    expect(html).toContain("Update prepared");
     expect(html).toMatch(
-      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update (available at last check|prepared)/u,
     );
     expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
@@ -398,7 +460,7 @@ describe("desktop components", () => {
         source_assessment: confirmedSourceAssessment(),
       },
       label: "Ready to play",
-      action: "View details",
+      action: "View installation",
     },
     {
       readiness: {
@@ -409,11 +471,11 @@ describe("desktop components", () => {
         source_assessment: confirmedSourceAssessment(),
       },
       label: "Runtime required",
-      action: "Finish setup",
+      action: "View installation",
     },
-    { readiness: null, label: "Readiness unavailable", action: "Review game" },
+    { readiness: null, label: "Readiness unavailable", action: "View installation" },
   ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
-    "keeps downloaded update attention beside $label and its action inside the Catalog card",
+    "prioritizes a prepared update while retaining $label eligibility and exact installation review in Discover",
     ({ readiness, label, action }) => {
       const install = installRecord();
       const status: PortStatus = {
@@ -436,59 +498,62 @@ describe("desktop components", () => {
         />,
       );
       const card = html.match(
-        /<button[^>]*data-detail-origin="catalog:card:[^"]+"[^>]*>[\s\S]*?<\/button>/u,
+        /<article[^>]*data-discover-port-ids=[^>]*>[\s\S]*?<\/article>/u,
       )?.[0];
       expect(card).toBeDefined();
-      expect(card).not.toContain("aria-label=");
       expect(card).toContain("Sample Port");
-      expect(card).toContain(`${label}</span>`);
-      expect(card).toContain("Update downloaded</span>");
+      expect(card?.includes(`${label}</span>`)).toBe(label !== "Ready to play");
+      expect(card).toContain("Update prepared</span>");
       expect(card).toContain(`${action}<`);
-      expect(html).toContain("Update downloaded</span>");
+      expect(card).toContain(`data-detail-origin="catalog:card:${port.id}:details"`);
+      expect(html).toContain("Update prepared</span>");
     },
   );
 
-  it("offers Continue only from a recorded successful launch", () => {
-    const install = installRecord();
-    const recentStatus: PortStatus = {
-      ...portStatus(),
-      port_id: port.id,
-      channel: "stable",
-      update_policy: "notify",
-      active: install,
-      last_launched_at: 100,
-      successful_launches: 1,
-      readiness: {
-        launchable: true,
-        blockers: [],
-        pending_setup: false,
-        source: "current",
-        source_assessment: confirmedSourceAssessment(),
-      },
-    };
-    const html = renderToStaticMarkup(
-      <PortBrowser
-        view="library"
-        ports={[port]}
-        statuses={new Map([[port.id, recentStatus]])}
-        overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
-        recent={{ port, status: recentStatus }}
-        filter="all"
-        setFilter={() => undefined}
-        onSelect={() => undefined}
-        onContinue={() => undefined}
-        loading={false}
-      />,
-    );
-    expect(html).toContain("Last played");
-    expect(html).toContain("Play again");
-    expect(html).not.toContain(`Version ${install.version}`);
-    expect(html).not.toContain("Last played ·");
-    expect(html).toContain('data-successful-launches="1"');
-    expect(html).toContain(`data-detail-origin="library:continue-details:${port.id}"`);
-    expect(html).toContain(`data-detail-origin="library:card:${port.id}"`);
-    expect(html).not.toContain("Last successful session");
-  });
+  it.each([0, 1])(
+    "labels a playable spotlight from its recorded successful launch count %s",
+    (launches) => {
+      const install = installRecord();
+      const recentStatus: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        channel: "stable",
+        update_policy: "notify",
+        active: install,
+        last_launched_at: 100,
+        successful_launches: launches,
+        readiness: {
+          launchable: true,
+          blockers: [],
+          pending_setup: false,
+          source: "current",
+          source_assessment: confirmedSourceAssessment(),
+        },
+      };
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view="library"
+          ports={[port]}
+          statuses={new Map([[port.id, recentStatus]])}
+          overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
+          recent={{ port, status: recentStatus }}
+          filter="all"
+          setFilter={() => undefined}
+          onSelect={() => undefined}
+          onContinue={() => undefined}
+          loading={false}
+        />,
+      );
+      expect(html).toContain(launches ? "Continue playing" : `aria-label="Play ${port.name}"`);
+      expect(html).toContain(launches ? "Play again" : ">Play</button>");
+      expect(html).not.toContain(`Version ${install.version}`);
+      expect(html).not.toContain("Last played ·");
+      expect(html).toContain(`data-successful-launches="${launches}"`);
+      expect(html).toContain(`data-detail-origin="library:continue-details:${port.id}"`);
+      expect(html).toContain(`data-detail-origin="library:card:${port.id}"`);
+      expect(html).not.toContain("Last successful session");
+    },
+  );
 
   it("routes Continue to setup when previously launched source bytes changed", () => {
     const install = installRecord();

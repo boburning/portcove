@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, lstatSync, readFileSync, writeFileSync, rmdirSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  lstatSync,
+  readFileSync,
+  writeFileSync,
+  rmdirSync,
+  existsSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -25,6 +33,7 @@ import type {
   ArtworkPreparationOptions,
   ImageValidator,
 } from "./inspect-igdb-artwork.mts";
+import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import {
@@ -65,10 +74,36 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
   const platforms = Array.isArray(record.integration.platforms)
     ? record.integration.platforms.filter((value): value is string => typeof value === "string")
     : [];
+  const selection = packageHintFeedback(hints, platforms, facts, (name) =>
+    /\.(?:zip|tar\.gz|tgz)$/iu.test(name),
+  );
+  const direct = isRecord(release) && release.provider === "direct-manifest";
+  if (direct) {
+    selection.maintenance = {
+      ...selection.maintenance,
+      observed_release_tag: null,
+      observed_provider_prerelease: null,
+      potential_version_restrictions: [],
+      scope:
+        "Exact declared pins; changing pinned version, URL, size or hash requires a reviewed declaration change and separate artifact/compatibility evidence. These observations establish no trust, qualification or publication.",
+      next: "This exact Direct pin does not discover newer upstream releases. Verify its version, URL, size and independently expected SHA-256; a later pin is a separate artifact/compatibility decision. Independent Direct-native entries require capability version 3; a declared packaged-file Windows path policy additionally requires Native version 4. Declared pins and unrelated release observations establish no authentication or executable acceptance.",
+    };
+    selection.platforms = selection.platforms.map((platform) => ({
+      ...platform,
+      hint_matches: [],
+      next: "Review the exact declared archive pin, native headers, working directory, process lifetime and data ownership. GitHub hint uniqueness does not apply to this Direct selection.",
+    }));
+  }
   return {
-    ...packageHintFeedback(hints, platforms, facts, (name) =>
-      /\.(?:zip|tar\.gz|tgz)$/iu.test(name),
-    ),
+    ...selection,
+    pinned_releases: direct
+      ? platforms.map((platform) => ({
+          platform,
+          declaration: isRecord(release.direct) ? (release.direct[platform] ?? null) : null,
+          scope:
+            "Declared pin only; Core validation, independent authentication and native/lifecycle evidence remain required.",
+        }))
+      : [],
     persistence: Array.isArray(record.integration.persistent_paths)
       ? record.integration.persistent_paths
       : [],
@@ -82,6 +117,8 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
         ? "Keep this underlying game title separate from its implementation and helper names."
         : "Supply listing.original_game_title from the canonical game identity; do not make players distinguish the player from compiler or converter helpers.",
     },
+    launch_lifetime_review:
+      "Verify that the selected process stays alive through edition dispatch and settings restarts, or uses a supported tracked handoff. A launcher that starts a successor and exits needs a non-owning route until its full lifetime is supported; do not bypass useful upstream setup to fit management.",
     data_review:
       "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route. Generated executable caches need compatible producer identity or supported invalidation, not just a declared directory or ABI label.",
     scope:
@@ -154,6 +191,10 @@ function packageHintFeedback(
     assets_complete: facts.assets_complete,
     maintenance: {
       observed_release_tag: tag,
+      observed_provider_prerelease:
+        isRecord(facts.release?.body) && typeof facts.release.body.prerelease === "boolean"
+          ? facts.release.body.prerelease
+          : null,
       potential_version_restrictions: platforms.flatMap((platform) => {
         const values = hints[platform];
         const restricted = Array.isArray(values)
@@ -165,7 +206,7 @@ function packageHintFeedback(
           : [];
         return restricted.length ? [{ platform, hints: restricted }] : [];
       }),
-      next: "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly.",
+      next: "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
       scope:
         "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval.",
     },
@@ -289,14 +330,22 @@ type ArtworkOptions = Pick<
   "catalogRoot" | "outputDirectory" | "identities" | "validatorCli" | "credentialsFile" | "artwork"
 >;
 
-function artworkInspector(options: ArtworkOptions, root: string) {
+function artworkInspector(options: ArtworkOptions & { signal?: AbortSignal }, root: string) {
   let imageValidator: ImageValidator | undefined;
   const validateImage: ImageValidator = (bytes) => {
     if (!options.validatorCli) throw new Error("Core image validation requires a compatible CLI.");
     imageValidator ??= createCoreImageValidator(options.validatorCli, join(root, "images"));
     return imageValidator(bytes);
   };
-  return options.artwork ?? createIgdbInspector(options.credentialsFile, validateImage);
+  return (
+    options.artwork ??
+    createIgdbInspector(
+      options.credentialsFile,
+      validateImage,
+      undefined,
+      options.signal ? { signal: options.signal } : {},
+    )
+  );
 }
 
 function preparationCosts(started: bigint) {
@@ -462,7 +511,15 @@ export async function preparePort(options: PrepareOptions) {
     if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
-    return { id, previous, base: explicit ?? previous };
+    const base = explicit ?? previous;
+    if (
+      previous?.listing.download_block_reason !== undefined &&
+      base?.listing.download_block_reason !== previous.listing.download_block_reason
+    )
+      throw new Error(
+        "Preparation cannot remove or change an authored download restriction; resolve its canonical condition in a reviewed source edit.",
+      );
+    return { id, previous, base };
   };
   openCheckpoint(root);
   try {
@@ -583,9 +640,13 @@ export async function preparePort(options: PrepareOptions) {
         .filter((fact) => fact.status === "unavailable")
         .map(({ endpoint, reason, retry_after }) => ({ endpoint, reason, retry_after })),
       next:
-        options.route === "download" && !facts.assets_complete
-          ? "Select an exact release or resolve the incomplete asset observation before package selection."
-          : "Review the proposed record files, copy accepted records into catalog/ports, regenerate, and complete the applicable review and delivery checks.",
+        record.integration?.adapter === "native-portable" &&
+        isRecord(record.integration.release) &&
+        record.integration.release.provider === "direct-manifest"
+          ? "Review the exact declared archive pin and independent artifact/native evidence; no hosted-release hint selection or newer-version discovery is offered. Complete Core validation, capability version 3 negotiation (version 4 when the packaged-file Windows path policy is declared) and ordinary delivery checks."
+          : options.route === "download" && !facts.assets_complete
+            ? "Select an exact release or resolve the incomplete asset observation before package selection."
+            : "Review the proposed record files, copy accepted records into catalog/ports, regenerate, and complete the applicable review and delivery checks.",
       scope:
         "Prepared local records only; listing visibility, executable acceptance and published user delivery are separate outcomes. No download, engine execution, issue mutation, signing or publication.",
     };
@@ -598,24 +659,29 @@ export async function preparePort(options: PrepareOptions) {
 /** Cover-only work on existing authored identities; no upstream metadata collection. */
 export async function prepareArtworkBatch(
   options: ArtworkOptions & {
-    selectedPortIds: readonly string[];
+    selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
+    maintenance?: boolean;
+    now?: () => number;
+    signal?: AbortSignal;
+    onProgress?: (id: string) => void | Promise<void>;
   },
 ) {
   const started = process.hrtime.bigint();
   const root = resolve(options.outputDirectory);
   const authored = readCatalogSource(options.catalogRoot);
   const known = new Set(authored.records.map((record) => record.listing.id));
-  const selected = new Set(options.selectedPortIds);
+  const selected = new Set(options.selectedPortIds ?? []);
   const refreshPortIds = options.refreshPortIds ?? [];
   if (
-    !selected.size ||
-    selected.size > 400 ||
-    selected.size !== options.selectedPortIds.length ||
+    (!options.maintenance && !selected.size) ||
+    (options.maintenance === true && options.selectedPortIds !== undefined) ||
+    selected.size !== (options.selectedPortIds?.length ?? 0) ||
     [...selected].some((id) => !known.has(id))
   )
-    throw new Error("Artwork batch requires 1 to 400 unique known stable IDs.");
+    throw new Error("Artwork batch requires unique known stable IDs or automatic due maintenance.");
   if (
+    (options.maintenance === true && refreshPortIds.length > 0) ||
     new Set(refreshPortIds).size !== refreshPortIds.length ||
     refreshPortIds.some((id) => !selected.has(id))
   )
@@ -634,23 +700,43 @@ export async function prepareArtworkBatch(
   });
   openCheckpoint(root);
   try {
-    let artworkResult = cachedValue(root, "artwork-batch", artworkKey);
-    const artworkReused = artworkResult !== undefined;
+    // Accepted whole-batch receipts remain readable until this checkpoint has per-ID progress.
+    let artworkResult =
+      !options.maintenance && !existsSync(join(root, "artwork-gone.json"))
+        ? cachedValue(root, "artwork-batch", artworkKey)
+        : undefined;
+    let artworkReused = artworkResult !== undefined;
+    if (
+      isRecord(artworkResult) &&
+      Array.isArray(artworkResult.records) &&
+      artworkResult.records.some(
+        (record: unknown) =>
+          isRecord(record) &&
+          record.reason === "accepted-mapping-retained-after-unavailable-refresh",
+      )
+    ) {
+      artworkResult = undefined;
+      artworkReused = false;
+    }
     if (artworkResult === undefined) {
       const inspector = artworkInspector(options, root);
-      const result = await prepareCatalogArtwork(acceptedArtwork, {
-        acceptedCatalog: acceptedArtwork,
-        selectedPortIds: [...selected],
-        refreshPortIds,
+      const result = await prepareArtworkWorkset(acceptedArtwork, {
+        root,
+        inspector,
         identities,
-        ...inspector,
+        validatorIdentity,
+        ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
+        refreshPortIds,
+        ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.now ? { now: options.now } : {}),
+        ...(options.signal ? { signal: options.signal } : {}),
+        ...(options.onProgress ? { onProgress: options.onProgress } : {}),
       });
       artworkResult = {
         ...result,
         ...("providerMetrics" in inspector ? { provider_metrics: inspector.providerMetrics } : {}),
       };
-      if (result.metrics.fallback === 0)
-        retainValue(root, "artwork-batch", artworkKey, artworkResult);
+      artworkReused = result.reused;
     }
     const prepared = preparedRecordOutputs(
       options,
@@ -669,16 +755,30 @@ export async function prepareArtworkBatch(
         throw new Error("Malformed artwork batch record identity.");
       if (record.mapping === null) pendingPortIds.push(record.port_id);
     }
+    if (
+      isRecord(artworkResult.continuation) &&
+      Array.isArray(artworkResult.continuation.pending_port_ids)
+    ) {
+      for (const id of artworkResult.continuation.pending_port_ids) {
+        if (typeof id !== "string" || !known.has(id))
+          throw new Error("Malformed artwork continuation scope");
+        if (!pendingPortIds.includes(id)) pendingPortIds.push(id);
+      }
+    }
     const report = {
       format_version: 1,
       route: "artwork-only",
-      selected_port_ids: [...selected],
-      refresh_port_ids: refreshPortIds,
+      selected_port_ids:
+        isRecord(artworkResult.workset) && Array.isArray(artworkResult.workset.selected_port_ids)
+          ? artworkResult.workset.selected_port_ids
+          : [...selected],
+      refresh_port_ids: options.maintenance ? "automatic-due-identities" : refreshPortIds,
+      continuation: artworkResult.continuation ?? null,
       pending_port_ids: pendingPortIds,
       ...prepared,
       preparation_costs: preparationCosts(started),
       upstream_collection: "not-requested",
-      next: "Review and copy the proposed per-ID records, regenerate, then retry only pending IDs. Use a new checkpoint for a fresh scheduled refresh of unchanged mappings.",
+      next: "Review and deliver the prepared records through the existing catalog route. Reinvoke the same logical workset after interruption or provider recovery; completed identities remain checkpointed. Use --artwork-ids @due at the existing maintenance checkpoint for automatic due selection.",
       scope:
         "Bounded cover proposals against the full authored catalog. Accepted sources, local artwork choices and delivery authority are unchanged; no upstream release investigation, download or execution.",
     };
@@ -753,7 +853,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const result = artworkIds
     ? await prepareArtworkBatch({
         ...common,
-        selectedPortIds: artworkIds.split(","),
+        ...(artworkIds === "@due"
+          ? { maintenance: true }
+          : { selectedPortIds: artworkIds.split(",") }),
         ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
       })
     : await preparePort({

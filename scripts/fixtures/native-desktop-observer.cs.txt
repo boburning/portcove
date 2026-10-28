@@ -33,7 +33,8 @@ namespace Portcove.NativeQualification {
                 if (input == new System.IntPtr(-1)) throw Native.Error("Observer null stdin");
                 string system = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Windows);
                 string exe = System.IO.Path.Combine(system, "System32\\WindowsPowerShell\\v1.0\\powershell.exe");
-                string script = "Add-Type -AssemblyName System.Windows.Forms;$f=[Windows.Forms.Form]::new();$t=[Windows.Forms.Timer]::new();try{$f.Text='Portcove observer regression';$t.Interval=20000;$t.Add_Tick({$f.Close()});$t.Start();$f.Show();[Windows.Forms.Application]::Run($f)}finally{$t.Dispose();$f.Dispose()}";
+                // Avoid PowerShell cmdlet/module discovery on the new private desktop.
+                string script = "[Console]::Error.WriteLine('inert-observer:entered');[void][Reflection.Assembly]::Load('System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089');[Console]::Error.WriteLine('inert-observer:forms-loaded');$f=[Windows.Forms.Form]::new();$t=[Windows.Forms.Timer]::new();try{$f.Text='Portcove observer regression';$t.Interval=20000;$t.Add_Tick({$f.Close()});$t.Start();[Console]::Error.WriteLine('inert-observer:before-show');$f.Show();[Console]::Error.WriteLine('inert-observer:shown');[Windows.Forms.Application]::Run($f)}finally{[Console]::Error.WriteLine('inert-observer:closing');$t.Dispose();$f.Dispose()}";
                 string command = AccountLauncher.Quote(exe)+" -NoLogo -NoProfile -NonInteractive -EncodedCommand "+System.Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
                 block = System.Runtime.InteropServices.Marshal.StringToHGlobalUni("SystemRoot="+system+"\0WINDIR="+system+"\0PATH="+System.IO.Path.Combine(system,"System32")+"\0TEMP="+root+"\0TMP="+root+"\0\0");
                 var startup = new Native.StartupInfo { cb=(uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.StartupInfo)), desktop="WinSta0\\"+name, flags=0x100, input=input, output=outputWrite, error=errorWrite };
@@ -44,9 +45,9 @@ namespace Portcove.NativeQualification {
                 result["pid"]=child.Pid; result["created_filetime"]=child.CreatedFileTime.ToString(); result["image"]=child.Path;
                 if (Native.ResumeThread(info.thread) != 1) throw new System.InvalidOperationException("Unexpected observer regression suspend count");
                 Native.CloseHandle(outputWrite); outputWrite=System.IntPtr.Zero; Native.CloseHandle(errorWrite); errorWrite=System.IntPtr.Zero;
-                bool observed=false; var clock=System.Diagnostics.Stopwatch.StartNew();
-                while (!child.HasExited && clock.ElapsedMilliseconds < 60000) { child.RequireAliveGeneration(); child.RefuseFaultedCapture(); if (child.HostedResponding) { observed=true; break; } System.Threading.Thread.Sleep(100); }
-                result["observation_elapsed_ms"]=clock.ElapsedMilliseconds; result["owned_visible_responsive"]=observed; result["window_inspection"]=child.LastWindowInspection; result["response_inspection"]=child.LastResponseInspection;
+                bool observed=false; int polls=0; var clock=System.Diagnostics.Stopwatch.StartNew();
+                while (!child.HasExited && clock.ElapsedMilliseconds < 60000) { polls++; child.RequireAliveGeneration(); child.RefuseFaultedCapture(); if (child.HostedResponding) { observed=true; break; } System.Threading.Thread.Sleep(100); }
+                result["observation_polls"]=polls; result["observation_elapsed_ms"]=clock.ElapsedMilliseconds; result["owned_visible_responsive"]=observed; result["window_inspection"]=child.LastWindowInspection; result["response_inspection"]=child.LastResponseInspection;
             } catch (System.Exception error) { result["failure"]=error.ToString(); }
             finally {
                 if (child != null) {

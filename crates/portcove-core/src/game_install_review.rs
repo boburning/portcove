@@ -129,6 +129,7 @@ impl PortcoveService {
                 },
                 reviewed.plan.release,
                 ReleaseIntent {
+                    acquired: None,
                     activate: true,
                     shared_preferences: reviewed
                         .plan

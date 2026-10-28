@@ -1225,6 +1225,53 @@
         ],
         "type": "string"
       },
+      "GameUpdateAcquisition": {
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/$defs/GameUpdateAcquisitionPhase"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release": {
+            "$ref": "#/$defs/ResolvedRelease"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "platform",
+          "release",
+          "phase",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "GameUpdateAcquisitionPhase": {
+        "description": "Durable acquisition state. No phase grants permission to prepare or activate.",
+        "enum": [
+          "acquiring",
+          "verifying",
+          "acquired",
+          "attention_required"
+        ],
+        "type": "string"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -1501,6 +1548,17 @@
       },
       "PortStatus": {
         "properties": {
+          "acquisition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GameUpdateAcquisition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Owned archive acquisition, separate from a staged or active runtime."
+          },
           "active": {
             "anyOf": [
               {
@@ -3413,6 +3471,115 @@
         ],
         "type": "string"
       },
+      "CatalogMediaAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "rights_url": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/CatalogMediaRole"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/$defs/CatalogMediaSubject"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "subject",
+          "caption",
+          "url",
+          "sha256",
+          "width",
+          "height",
+          "attribution",
+          "source_url",
+          "license",
+          "rights_url"
+        ],
+        "type": "object"
+      },
+      "CatalogMediaRole": {
+        "enum": [
+          "header",
+          "screenshot"
+        ],
+        "type": "string"
+      },
+      "CatalogMediaSubject": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "port",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "original",
+                "type": "string"
+              },
+              "source_edition_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "game_id",
+              "source_edition_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "CompoundSourceFormat": {
         "enum": [
           "stfs-live"
@@ -3801,6 +3968,40 @@
           "versioned-packages-v1"
         ],
         "type": "string"
+      },
+      "OriginalGameIdentity": {
+        "additionalProperties": false,
+        "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "source_editions": {
+            "description": "Empty means editions are not specified; never assume a PC edition.",
+            "items": {
+              "$ref": "#/$defs/SourceEdition"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "id",
+          "evidence_urls",
+          "source_editions"
+        ],
+        "type": "object"
       },
       "PersistentFilePattern": {
         "properties": {
@@ -4243,8 +4444,28 @@
               }
             ]
           },
+          "media": {
+            "description": "Absent legacy metadata may use the directory; an explicit empty list clears it.",
+            "items": {
+              "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "original_game": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OriginalGameIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "original_game_title": {
-            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity. Explicit original_game metadata owns display grouping.",
             "type": [
               "string",
               "null"
@@ -4769,6 +4990,36 @@
           "track_counts",
           "volume_ids",
           "identities"
+        ],
+        "type": "object"
+      },
+      "SourceEdition": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "system": {
+            "description": "Original source system, distinct from the port's target operating systems.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "evidence_urls"
         ],
         "type": "object"
       },
@@ -5658,10 +5909,19 @@
       },
       "WindowsRuntimePathPolicy": {
         "description": "A declared upstream limitation, checked by Core rather than left to the game.",
-        "enum": [
-          "printable-ascii-max-path"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "printable-ascii-max-path"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "relative-file-max-path",
+            "description": "Legacy relative file access; no restriction on the character repertoire.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6075,6 +6335,115 @@
   },
   "catalog_listings": {
     "$defs": {
+      "CatalogMediaAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "rights_url": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/CatalogMediaRole"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/$defs/CatalogMediaSubject"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "subject",
+          "caption",
+          "url",
+          "sha256",
+          "width",
+          "height",
+          "attribution",
+          "source_url",
+          "license",
+          "rights_url"
+        ],
+        "type": "object"
+      },
+      "CatalogMediaRole": {
+        "enum": [
+          "header",
+          "screenshot"
+        ],
+        "type": "string"
+      },
+      "CatalogMediaSubject": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "port",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "original",
+                "type": "string"
+              },
+              "source_edition_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "game_id",
+              "source_edition_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -6174,6 +6543,40 @@
         ],
         "type": "object"
       },
+      "OriginalGameIdentity": {
+        "additionalProperties": false,
+        "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "source_editions": {
+            "description": "Empty means editions are not specified; never assume a PC edition.",
+            "items": {
+              "$ref": "#/$defs/SourceEdition"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "id",
+          "evidence_urls",
+          "source_editions"
+        ],
+        "type": "object"
+      },
       "Platform": {
         "enum": [
           "windows-x86-64",
@@ -6260,8 +6663,24 @@
               }
             ]
           },
+          "media": {
+            "items": {
+              "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": "array"
+          },
           "name": {
             "type": "string"
+          },
+          "original_game": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OriginalGameIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "original_game_title": {
             "type": [
@@ -6330,11 +6749,41 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "SourceEdition": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "system": {
+            "description": "Original source system, distinct from the port's target operating systems.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "evidence_urls"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
-    "description": "Independently versioned directory projection. Format 2 can restrict fresh\nself-service downloads; neither format grants managed operations.",
+    "description": "Independently versioned directory projection. Format 2 can restrict fresh\ndownloads; format 3 adds descriptive game/edition identity. No format grants operations.",
     "properties": {
       "format_version": {
         "format": "uint32",
@@ -11213,6 +11662,125 @@
     "title": "GameInstallPlan",
     "type": "object"
   },
+  "game_update_acquisition": {
+    "$defs": {
+      "GameUpdateAcquisitionPhase": {
+        "description": "Durable acquisition state. No phase grants permission to prepare or activate.",
+        "enum": [
+          "acquiring",
+          "verifying",
+          "acquired",
+          "attention_required"
+        ],
+        "type": "string"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ReleaseAsset": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "ResolvedRelease": {
+        "properties": {
+          "asset": {
+            "$ref": "#/$defs/ReleaseAsset"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "published_at",
+          "asset"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "created_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "id": {
+        "type": "string"
+      },
+      "phase": {
+        "$ref": "#/$defs/GameUpdateAcquisitionPhase"
+      },
+      "platform": {
+        "$ref": "#/$defs/Platform"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "release": {
+        "$ref": "#/$defs/ResolvedRelease"
+      },
+      "updated_at": {
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "id",
+      "port_id",
+      "platform",
+      "release",
+      "phase",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "GameUpdateAcquisition",
+    "type": "object"
+  },
   "game_update_plan": {
     "$defs": {
       "AcceptedSharedPreferencesBinding": {
@@ -11301,6 +11869,53 @@
           "mandatory_check_failed",
           "source_identity_mismatch",
           "required_source_missing"
+        ],
+        "type": "string"
+      },
+      "GameUpdateAcquisition": {
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/$defs/GameUpdateAcquisitionPhase"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release": {
+            "$ref": "#/$defs/ResolvedRelease"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "platform",
+          "release",
+          "phase",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "GameUpdateAcquisitionPhase": {
+        "description": "Durable acquisition state. No phase grants permission to prepare or activate.",
+        "enum": [
+          "acquiring",
+          "verifying",
+          "acquired",
+          "attention_required"
         ],
         "type": "string"
       },
@@ -11746,6 +12361,17 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "A reviewed game update, independent of the saved automatic-update policy.",
     "properties": {
+      "acquisition": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/GameUpdateAcquisition"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Exact retained archive selected by this review; never authorization."
+      },
       "activate": {
         "type": "boolean"
       },
@@ -16995,6 +17621,53 @@
         ],
         "type": "object"
       },
+      "GameUpdateAcquisition": {
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/$defs/GameUpdateAcquisitionPhase"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release": {
+            "$ref": "#/$defs/ResolvedRelease"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "platform",
+          "release",
+          "phase",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "GameUpdateAcquisitionPhase": {
+        "description": "Durable acquisition state. No phase grants permission to prepare or activate.",
+        "enum": [
+          "acquiring",
+          "verifying",
+          "acquired",
+          "attention_required"
+        ],
+        "type": "string"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -17313,6 +17986,17 @@
       },
       "PortStatus": {
         "properties": {
+          "acquisition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GameUpdateAcquisition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Owned archive acquisition, separate from a staged or active runtime."
+          },
           "active": {
             "anyOf": [
               {
@@ -20259,6 +20943,115 @@
         ],
         "type": "object"
       },
+      "CatalogMediaAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "rights_url": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/CatalogMediaRole"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/$defs/CatalogMediaSubject"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "subject",
+          "caption",
+          "url",
+          "sha256",
+          "width",
+          "height",
+          "attribution",
+          "source_url",
+          "license",
+          "rights_url"
+        ],
+        "type": "object"
+      },
+      "CatalogMediaRole": {
+        "enum": [
+          "header",
+          "screenshot"
+        ],
+        "type": "string"
+      },
+      "CatalogMediaSubject": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "port",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "original",
+                "type": "string"
+              },
+              "source_edition_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "game_id",
+              "source_edition_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -20355,6 +21148,40 @@
         "required": [
           "title",
           "instruction"
+        ],
+        "type": "object"
+      },
+      "OriginalGameIdentity": {
+        "additionalProperties": false,
+        "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "source_editions": {
+            "description": "Empty means editions are not specified; never assume a PC edition.",
+            "items": {
+              "$ref": "#/$defs/SourceEdition"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "id",
+          "evidence_urls",
+          "source_editions"
         ],
         "type": "object"
       },
@@ -20499,8 +21326,24 @@
               }
             ]
           },
+          "media": {
+            "items": {
+              "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": "array"
+          },
           "name": {
             "type": "string"
+          },
+          "original_game": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OriginalGameIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "original_game_title": {
             "type": [
@@ -20569,6 +21412,36 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "SourceEdition": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "system": {
+            "description": "Original source system, distinct from the port's target operating systems.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "evidence_urls"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -20635,6 +21508,115 @@
           "cvlod-n64-source-cb8548d145a1-ui-lifetime-v1"
         ],
         "type": "string"
+      },
+      "CatalogMediaAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "rights_url": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/CatalogMediaRole"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/$defs/CatalogMediaSubject"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "subject",
+          "caption",
+          "url",
+          "sha256",
+          "width",
+          "height",
+          "attribution",
+          "source_url",
+          "license",
+          "rights_url"
+        ],
+        "type": "object"
+      },
+      "CatalogMediaRole": {
+        "enum": [
+          "header",
+          "screenshot"
+        ],
+        "type": "string"
+      },
+      "CatalogMediaSubject": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "port",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "original",
+                "type": "string"
+              },
+              "source_edition_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "game_id",
+              "source_edition_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "CuratedAcquisitionRecord": {
         "additionalProperties": false,
@@ -20903,6 +21885,40 @@
         ],
         "type": "string"
       },
+      "OriginalGameIdentity": {
+        "additionalProperties": false,
+        "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "source_editions": {
+            "description": "Empty means editions are not specified; never assume a PC edition.",
+            "items": {
+              "$ref": "#/$defs/SourceEdition"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "id",
+          "evidence_urls",
+          "source_editions"
+        ],
+        "type": "object"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -20959,8 +21975,28 @@
               }
             ]
           },
+          "media": {
+            "description": "Absent legacy metadata may use the directory; an explicit empty list clears it.",
+            "items": {
+              "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "original_game": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OriginalGameIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "original_game_title": {
-            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity. Explicit original_game metadata owns display grouping.",
             "type": [
               "string",
               "null"
@@ -21255,6 +22291,36 @@
         ],
         "type": "string"
       },
+      "SourceEdition": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "system": {
+            "description": "Original source system, distinct from the port's target operating systems.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "evidence_urls"
+        ],
+        "type": "object"
+      },
       "SourceRequirementPresentation": {
         "properties": {
           "label": {
@@ -21395,10 +22461,19 @@
       },
       "WindowsRuntimePathPolicy": {
         "description": "A declared upstream limitation, checked by Core rather than left to the game.",
-        "enum": [
-          "printable-ascii-max-path"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "printable-ascii-max-path"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "relative-file-max-path",
+            "description": "Legacy relative file access; no restriction on the character repertoire.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -27117,6 +28192,115 @@
         ],
         "type": "string"
       },
+      "CatalogMediaAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "rights_url": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/CatalogMediaRole"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/$defs/CatalogMediaSubject"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "subject",
+          "caption",
+          "url",
+          "sha256",
+          "width",
+          "height",
+          "attribution",
+          "source_url",
+          "license",
+          "rights_url"
+        ],
+        "type": "object"
+      },
+      "CatalogMediaRole": {
+        "enum": [
+          "header",
+          "screenshot"
+        ],
+        "type": "string"
+      },
+      "CatalogMediaSubject": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "port",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "original",
+                "type": "string"
+              },
+              "source_edition_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "game_id",
+              "source_edition_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "CompoundSourceFormat": {
         "enum": [
           "stfs-live"
@@ -27505,6 +28689,40 @@
           "versioned-packages-v1"
         ],
         "type": "string"
+      },
+      "OriginalGameIdentity": {
+        "additionalProperties": false,
+        "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "source_editions": {
+            "description": "Empty means editions are not specified; never assume a PC edition.",
+            "items": {
+              "$ref": "#/$defs/SourceEdition"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "id",
+          "evidence_urls",
+          "source_editions"
+        ],
+        "type": "object"
       },
       "PersistentFilePattern": {
         "properties": {
@@ -27947,8 +29165,28 @@
               }
             ]
           },
+          "media": {
+            "description": "Absent legacy metadata may use the directory; an explicit empty list clears it.",
+            "items": {
+              "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "original_game": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OriginalGameIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "original_game_title": {
-            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity. Explicit original_game metadata owns display grouping.",
             "type": [
               "string",
               "null"
@@ -28473,6 +29711,36 @@
           "track_counts",
           "volume_ids",
           "identities"
+        ],
+        "type": "object"
+      },
+      "SourceEdition": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "system": {
+            "description": "Original source system, distinct from the port's target operating systems.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "evidence_urls"
         ],
         "type": "object"
       },
@@ -29362,10 +30630,19 @@
       },
       "WindowsRuntimePathPolicy": {
         "description": "A declared upstream limitation, checked by Core rather than left to the game.",
-        "enum": [
-          "printable-ascii-max-path"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "printable-ascii-max-path"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "relative-file-max-path",
+            "description": "Legacy relative file access; no restriction on the character repertoire.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -41611,6 +42888,53 @@
         ],
         "type": "object"
       },
+      "GameUpdateAcquisition": {
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/$defs/GameUpdateAcquisitionPhase"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release": {
+            "$ref": "#/$defs/ResolvedRelease"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "platform",
+          "release",
+          "phase",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "GameUpdateAcquisitionPhase": {
+        "description": "Durable acquisition state. No phase grants permission to prepare or activate.",
+        "enum": [
+          "acquiring",
+          "verifying",
+          "acquired",
+          "attention_required"
+        ],
+        "type": "string"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -42555,6 +43879,17 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "acquisition": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/GameUpdateAcquisition"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Owned archive acquisition, separate from a staged or active runtime."
+      },
       "active": {
         "anyOf": [
           {

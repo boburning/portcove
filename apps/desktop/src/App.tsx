@@ -9,6 +9,8 @@ import { InterfaceSizeProvider } from "./InterfaceSize";
 import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
 import { ApplicationUpdateSettings } from "./features/application-update/ApplicationUpdates";
 import { ActionRow, Notice } from "./components/ui/patterns";
+import { updateNoticeHidden } from "./features/organization/organization";
+import { useOrganization } from "./features/organization/use-organization";
 import { useFavorites } from "./features/favorites/use-favorites";
 import {
   useApplicationUpdateChoice,
@@ -65,6 +67,7 @@ import {
   SettingsView,
   Sidebar,
   StatusLayer,
+  WorkspaceToolbar,
   type HostToolActions,
 } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
@@ -119,7 +122,7 @@ import {
   summarizeLibrary,
   type DetailDestination,
 } from "./view-model";
-import { gameIdentityLabel } from "./port-identity";
+import { gameIdentityLabel, gameTitle } from "./port-identity";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
 import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
@@ -389,6 +392,7 @@ function useWorkspace(props: WorkspaceProps) {
     data,
     collection,
     favorites,
+    organization,
     setupSource,
     setSetupSource,
     operations,
@@ -619,7 +623,9 @@ function useWorkspace(props: WorkspaceProps) {
         setQuery={ui.setQuery}
         portCount={model.entries.length}
         libraryCount={data.catalog ? model.overview.installed : undefined}
-        onOpenCommands={() => commandSurface.setOpen(true)}
+        onAddGames={
+          ui.view === "library" && model.overview.installed > 0 ? openAddGames : undefined
+        }
       />
     ));
   const renderPreferenceFailure = () =>
@@ -649,6 +655,11 @@ function useWorkspace(props: WorkspaceProps) {
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
         libraryRoot={bootstrap.library_root ?? undefined}
+        organization={organization}
+        openSupport={() => {
+          ui.setSettingsCategory("advanced");
+          setPrimaryView("settings");
+        }}
         key={model.entry.id}
         opening={detailOpening}
         entry={model.entry}
@@ -688,6 +699,11 @@ function useWorkspace(props: WorkspaceProps) {
               </details>
             )
           }
+          organization={organization}
+          openSupport={() => {
+            ui.setSettingsCategory("advanced");
+            setPrimaryView("settings");
+          }}
           openActivity={() => setPrimaryView("updates")}
           opening={detailOpening}
           model={model}
@@ -715,6 +731,7 @@ function useWorkspace(props: WorkspaceProps) {
       <CurrentView
         onAddGames={openAddGames}
         collection={collection}
+        organization={organization}
         favorites={favorites}
         data={data}
         ui={{ ...ui, setView: setPrimaryView }}
@@ -777,6 +794,7 @@ function useWorkspace(props: WorkspaceProps) {
   return {
     bootstrap,
     data,
+    organization,
     setupSource,
     setSetupSource,
     operations,
@@ -827,14 +845,24 @@ function WorkspaceView({ workspace, ...model }: ReturnType<typeof useWorkspace>)
             controller={model.controller}
             installedCount={model.model.overview.installed}
             updateCount={
-              model.data.statuses.filter(
-                (status) => currentUpdateSnapshot(status)?.check.update_available,
-              ).length
+              model.data.statuses.filter((status) => {
+                const check = currentUpdateSnapshot(status)?.check;
+                const release = check?.release;
+                return (
+                  check?.update_available &&
+                  !updateNoticeHidden(
+                    model.organization.snapshot?.update_notices[status.port_id],
+                    release?.asset.sha256
+                      ? { version: release.version, artifact_sha256: release.asset.sha256 }
+                      : undefined,
+                  )
+                );
+              }).length
             }
             activities={model.data.activities}
           />
           <main
-            className="min-h-0 w-full min-w-0 overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
+            className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10"
             ref={workspace}
             data-focus-region="workspace"
             data-workspace-continuity-scope={JSON.stringify([
@@ -845,6 +873,11 @@ function WorkspaceView({ workspace, ...model }: ReturnType<typeof useWorkspace>)
             ])}
             tabIndex={-1}
           >
+            <WorkspaceToolbar
+              view={model.ui.view}
+              detailTitle={model.model.entry ? gameTitle(model.model.entry) : undefined}
+              onOpenCommands={() => model.commandSurface.setOpen(true)}
+            />
             <div
               className={
                 !model.model.entry &&
@@ -993,12 +1026,13 @@ function useAppModel(
       catalog && libraryRoot
         ? {
             library: { id: libraryRoot, statuses: statusMap },
+            catalogUniverse: entries,
             gameFiles: gameFileQuery?.context,
             browsing: browsing ?? undefined,
             devicePlatform: browsing?.host_platform,
           }
         : {},
-    [catalog, libraryRoot, statusMap, gameFileQuery?.context, browsing],
+    [catalog, libraryRoot, statusMap, gameFileQuery?.context, browsing, entries],
   );
   const visible = useMemo(
     () =>
@@ -1018,7 +1052,7 @@ function useAppModel(
         ui.view,
         ui.filter,
         ui.query,
-        ui.catalogSort,
+        ui.view === "library" ? ui.librarySort : ui.catalogSort,
         queryContext,
       ),
     [
@@ -1029,15 +1063,13 @@ function useAppModel(
       ui.libraryReadiness,
       ui.query,
       ui.catalogSort,
+      ui.librarySort,
       queryContext,
     ],
   );
   const catalogFilterCandidates = useMemo(
-    () =>
-      ui.view === "catalog" && data.catalog
-        ? filterPorts(entries, statusMap, "catalog", "all", ui.query)
-        : undefined,
-    [data.catalog, entries, statusMap, ui.view, ui.query],
+    () => (ui.view === "catalog" && data.catalog ? entries : undefined),
+    [data.catalog, entries, ui.view],
   );
   const libraryFilterCandidates = useMemo(
     () =>
@@ -1132,6 +1164,7 @@ function CurrentView({
   onAddGames,
   collection,
   favorites,
+  organization,
   data,
   ui,
   model,
@@ -1153,6 +1186,7 @@ function CurrentView({
   onAddGames: () => void;
   collection: ReturnType<typeof useCollectionLayout>;
   favorites: ReturnType<typeof useFavorites>;
+  organization: ReturnType<typeof useOrganization>;
   data: DataState;
   ui: UiState;
   model: ReturnType<typeof useAppModel>;
@@ -1208,6 +1242,7 @@ function CurrentView({
               {
                 context: {
                   action: "Launch",
+                  operation: "launch",
                   target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
                   libraryGeneration: bootstrap.generation,
                   exclusionScope: "target",
@@ -1340,6 +1375,8 @@ function CurrentView({
       setCollectionLayout={collection.set}
       collectionLayoutFailure={collection.failure}
       favorites={favorites}
+      organization={organization}
+      catalogUniverse={model.entries}
       view={ui.view}
       ports={model.visible}
       catalogFilterCandidates={model.catalogFilterCandidates}
@@ -1354,8 +1391,8 @@ function CurrentView({
       filter={ui.filter}
       query={ui.query}
       setQuery={ui.setQuery}
-      catalogSort={ui.catalogSort}
-      setCatalogSort={ui.setCatalogSort}
+      catalogSort={ui.view === "library" ? ui.librarySort : ui.catalogSort}
+      setCatalogSort={ui.view === "library" ? ui.setLibrarySort : ui.setCatalogSort}
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
@@ -1367,12 +1404,19 @@ function CurrentView({
             {
               context: {
                 action: "Launch",
+                operation: "launch",
                 target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
                 libraryGeneration: bootstrap.generation,
                 exclusionScope: "target",
               },
             },
           );
+      }}
+      onTask={(activityId) => {
+        ui.setReviewedActivityId(activityId);
+        ui.setView("updates");
+        ui.setActivitySection("tasks");
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
       }}
       onBrowseCatalog={onAddGames}
       onConnectGameFiles={() => {
@@ -1400,6 +1444,8 @@ function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useA
 }
 
 function SelectedPortPanel({
+  organization,
+  openSupport,
   extraFiles,
   openActivity,
   opening,
@@ -1417,6 +1463,8 @@ function SelectedPortPanel({
   openLibraryStorage,
   close,
 }: {
+  organization: ReturnType<typeof useOrganization>;
+  openSupport: () => void;
   extraFiles?: ReactNode;
   openActivity: () => void;
   opening?: DetailOpening | undefined;
@@ -1465,6 +1513,8 @@ function SelectedPortPanel({
     : undefined;
   return (
     <DetailPanel
+      organization={organization}
+      openSupport={openSupport}
       extraFiles={extraFiles}
       openActivity={openActivity}
       opening={opening}
@@ -1488,6 +1538,7 @@ function SelectedPortPanel({
         )
       }
       port={model.port}
+      displayPort={model.entry}
       status={model.status}
       installPlan={installPlanning.plan}
       backups={backups.backups}
@@ -1718,8 +1769,8 @@ function useWorkspaceLibrary({
   returnToSelection,
 }: WorkspaceProps) {
   const data = usePortcoveData(bootstrap.generation);
-  const collection = useCollectionLayout(bootstrap.library_root);
   const favorites = useFavorites(bootstrap.generation);
+  const organization = useOrganization(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
     libraryGeneration: bootstrap.generation,
@@ -1765,6 +1816,10 @@ function useWorkspaceLibrary({
         ]).size
       : undefined,
   });
+  const collection = useCollectionLayout(
+    bootstrap.library_root,
+    ui.view === "catalog" ? "catalog" : "library",
+  );
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
     if (
@@ -1779,6 +1834,7 @@ function useWorkspaceLibrary({
     data,
     collection,
     favorites,
+    organization,
     setupSource,
     setSetupSource,
     operations,

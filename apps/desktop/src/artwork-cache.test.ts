@@ -3,9 +3,26 @@ import { desktopApi } from "./api";
 import type { DesktopArtworkThumbnail } from "./api";
 import { ArtworkCache } from "./artwork-cache";
 import { artworkState } from "./test-fixtures";
-import type { ArtworkState } from "./types";
+import type { ArtworkState, CatalogMediaAsset } from "./types";
 
 afterEach(() => vi.restoreAllMocks());
+
+function catalogImage(id = "scene", sha256 = "a".repeat(64)): CatalogMediaAsset {
+  return {
+    id,
+    role: "screenshot",
+    subject: { kind: "port", port_id: "sample" },
+    caption: "Synthetic owned image",
+    url: `https://raw.githubusercontent.com/owner/project/${"b".repeat(40)}/scene.png`,
+    sha256,
+    width: 1,
+    height: 1,
+    attribution: "Portcove test fixture",
+    source_url: "https://github.com/owner/project",
+    license: "CC0-1.0",
+    rights_url: "https://github.com/owner/project/blob/main/LICENSE",
+  };
+}
 
 function mappedArtwork(port: string, revision = 0): ArtworkState {
   return {
@@ -30,6 +47,59 @@ function mappedThumbnail(revision = 0): DesktopArtworkThumbnail {
 }
 
 describe("disposable artwork display cache", () => {
+  it("binds catalog previews to admitted image identity and shares the two-request visibility queue", async () => {
+    const pending: ((thumbnail: DesktopArtworkThumbnail) => void)[] = [];
+    const read = vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+    const cache = new ArtworkCache(7);
+    const first = catalogImage("first"),
+      second = catalogImage("second"),
+      third = catalogImage("third");
+    let thirdVisible = true;
+    cache.loadMedia("sample", first, () => true);
+    cache.loadMedia("sample", second, () => true);
+    cache.loadMedia("sample", third, () => thirdVisible);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(read).toHaveBeenCalledWith("sample", first.id, first.sha256, 7);
+    thirdVisible = false;
+    pending[0]!({ asset_sha256: first.sha256, choice_revision: 0, png_base64: "iVBORw==" });
+    pending[1]!({ asset_sha256: "foreign", choice_revision: 0, png_base64: "iVBORw==" });
+    await vi.waitFor(() => expect(cache.readMedia("sample", first).image).toBeDefined());
+    await vi.waitFor(() =>
+      expect(cache.readMedia("sample", second).error).toContain("preview changed"),
+    );
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(cache.readMedia("sample", third).media).toBeUndefined();
+    expect(cache.read("sample", "cover").state).toBeUndefined();
+  });
+
+  it("retains only the existing bounded cache window for unseen catalog media", async () => {
+    vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(
+      async (_port, _id, sha256) => ({
+        asset_sha256: sha256,
+        choice_revision: 0,
+        png_base64: "iVBORw==",
+      }),
+    );
+    const cache = new ArtworkCache(1);
+    const visible = catalogImage("visible");
+    const leave = cache.subscribeMedia("sample", visible, () => {});
+    cache.loadMedia("sample", visible, () => true);
+    await vi.waitFor(() => expect(cache.readMedia("sample", visible).loading).toBe(false));
+    for (let index = 0; index < 40; index++) {
+      const image = catalogImage(`image-${index}`);
+      cache.loadMedia("sample", image, () => true);
+      await vi.waitFor(() => expect(cache.readMedia("sample", image).loading).toBe(false));
+    }
+    expect(cache.readMedia("sample", catalogImage("image-0")).media).toBeUndefined();
+    expect(cache.readMedia("sample", visible).image).toBeDefined();
+    leave();
+    expect(cache.readMedia("sample", visible).media).toBeUndefined();
+  });
   it("retains a slot's usable display after metadata refresh fails, then accepts current replacement", async () => {
     const selected = artworkState("sample", "cover", 1, true);
     const read = vi.spyOn(desktopApi, "artwork").mockResolvedValue(selected);

@@ -26,8 +26,10 @@ Restored membership selections remain visible/removable while context is absent.
 Library keeps its existing view narrowing: Not in my library can legitimately
 have zero matches there without switching sections or relaxing the query.
 
-App supplies cached candidates after search and the current view's membership,
-before editable groups. Library additionally narrows results using the existing
+App supplies the complete accepted catalog/listing/pending union for Discover facet
+counts and comparisons; text search narrows matching results after query evaluation.
+This keeps Single/Multiple tied to total distinct port identities. Library supplies
+its existing membership-scoped candidates before editable groups. Library additionally narrows results using the existing
 `filterPorts` All/Ready/Needs attention semantics, independent of the declared
 query. Ready includes staged installations; Needs attention retains unknown,
 repair, source, BIOS, runtime and blocked readiness. Readiness remains an
@@ -67,7 +69,7 @@ Reset Library filters resets only the declared query. All resets only readiness.
 Clear search and filters clears search, query, readiness and session Favorites.
 Catalog resets retain their prior behavior. Section/root isolation, details/back,
 restart, existing sort and in-session scroll/selection context are retained.
-The shared dialog/button controls provide keyboard dismissal and trigger focus
+The shared button and inline panel controls provide keyboard dismissal and trigger focus
 return; removing a focused chip returns focus to Filters. Repeated selections use
 functional updates. Closing a panel keeps its already-applied selections.
 
@@ -167,3 +169,9 @@ remounted workspace starts empty. Independent selected-route history ends when
 its detail owner unmounts. Neither history is persisted or cached. Navigation,
 filtering, presentation, expiry and ordinary rerenders start no inspection. The
 two existing check controls remain the only inspection actions.
+
+Original-game/source-edition metadata is descriptive and authorable through the
+catalog. Unknown identities never merge by equal titles. Reviewed systems are
+independent of target OS, and originalSystems/portOptions extend the same query
+evaluator. Results label known game groups separately from ungrouped projects.
+Identity chip colors are optional metadata decoration, never readiness feedback.

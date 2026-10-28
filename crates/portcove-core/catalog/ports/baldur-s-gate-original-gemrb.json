@@ -3,13 +3,37 @@
   "listing": {
     "id": "baldur-s-gate-original-gemrb",
     "name": "Baldur's Gate (original) (GemRB)",
-    "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Baldur's Gate (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
+    "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Baldur's Gate (original)",
     "project_url": "https://github.com/gemrb/gemrb",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/gemrb/gemrb",
-    "issue_number": 2628
+    "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+    "issue_number": 2628,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use this original game and edition",
+          "instruction": "Use a complete installed original Baldur’s Gate working copy, including its original resources and any deliberately installed expansion. Enhanced Edition files and the bundled trivial demo are different inputs. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+        },
+        {
+          "title": "Prepare upstream and select the real player",
+          "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg1. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+        },
+        {
+          "title": "Keep the actual original and player data",
+          "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+        }
+      ],
+      "warnings": [
+        "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
+      ],
+      "help_url": "https://gemrb.org/Install.html"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

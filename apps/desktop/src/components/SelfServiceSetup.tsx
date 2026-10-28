@@ -55,6 +55,7 @@ export function SelfServiceSetup({
     void perform("launch", () => desktopApi.launch(entry.id, "", generation), {
       context: {
         action: "Launch",
+        operation: "launch",
         target: { kind: "port", id: entry.id, label: gameIdentityLabel(entry) },
         libraryGeneration: generation,
         exclusionScope: "target",
@@ -67,6 +68,8 @@ export function SelfServiceSetup({
       variant="primary"
       size="lg"
       disabled={!launch.allowed || busy}
+      focusableWhenDisabled={launch.allowed && busy}
+      aria-busy={launch.allowed && busy}
       onClick={play}
     >
       <Icon glyph={Gamepad2} /> Play
@@ -76,7 +79,7 @@ export function SelfServiceSetup({
     <section
       id="detail-self-service-setup"
       tabIndex={-1}
-      className="grid gap-4"
+      className="self-service-setup grid gap-4"
       aria-label="Set up and launch"
     >
       {pending && (

@@ -1,9 +1,13 @@
-import { revealDetailSection } from "./desktop-review-controls.mts";
+import {
+  createImageRefusal,
+  restoreCacheAfterObservation,
+  type WithheldCover,
+} from "./desktop-cover-observations.mts";
+import { revealDetailSection, selectCatalogPort } from "./desktop-review-controls.mts";
 import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
 import type { IRectangle } from "selenium-webdriver";
 import type { PortDefinition, CatalogDocument } from "../src/transport-types.generated.d.ts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
-import type { Socket } from "node:net";
 import { transportValue } from "./transport-values.mts";
 type CoverContext = Pick<
   PreparationContext,
@@ -15,10 +19,6 @@ type CoverContext = Pick<
   restart: PreparationContext["restartApplication"];
   cacheConditions?: boolean;
 };
-interface WithheldCover {
-  original: string;
-  retained: string;
-}
 interface CoverImage {
   width: number;
   height: number;
@@ -78,7 +78,6 @@ import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { createServer } from "node:http";
 import path from "node:path";
 import { WebDriver, By, Key, until } from "selenium-webdriver";
 
@@ -178,10 +177,10 @@ export async function defaultCoverScenario({
           } catch (error) {
             let diagnostics;
             try {
-              if (selector.includes(".card-art")) {
-                await browser.findElement(By.css(selector.replace(" .card-art", ""))).click();
+              if (selector.includes(".collection-art")) {
+                await browser.findElement(By.css(selector.replace(" .collection-art", ""))).click();
               }
-              await revealDetailSection(browser, "Files");
+              await revealDetailSection(browser, "Manage");
               const controls = await browser.wait(
                 until.elementLocated(By.css(".artwork-controls > summary")),
                 5_000,
@@ -320,102 +319,6 @@ export async function defaultCoverScenario({
   );
 }
 
-async function createImageRefusal() {
-  const origins: string[] = [];
-  const sockets = new Set<Socket>();
-  // Test-only local refusal: never forwards traffic or records headers, paths or credentials.
-  const server = createServer((request, response) => {
-    origins.push("http-request");
-    response.writeHead(503).end();
-  });
-  server.on("connection", (socket) => {
-    sockets.add(socket);
-    socket.on("error", () => {});
-    socket.once("close", () => sockets.delete(socket));
-    socket.setTimeout(2000, () => socket.destroy());
-  });
-  server.on("connect", (request, socket) => {
-    origins.push(request.url === "images.igdb.com:443" ? "images.igdb.com" : "other-origin");
-    socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
-  });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
-  });
-  const address = server.address();
-  assert.ok(address && typeof address === "object");
-  const proxy = `http://127.0.0.1:${address.port}`;
-  return {
-    origins,
-    environment: {
-      HTTP_PROXY: proxy,
-      HTTPS_PROXY: proxy,
-      ALL_PROXY: proxy,
-      http_proxy: proxy,
-      https_proxy: proxy,
-      all_proxy: proxy,
-      NO_PROXY: "localhost,127.0.0.1,::1",
-      no_proxy: "localhost,127.0.0.1,::1",
-    },
-    async close() {
-      for (const socket of sockets) socket.destroy();
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
-    },
-  };
-}
-
-async function restoreCacheAfterObservation({
-  withheld,
-  restart,
-  primaryFailure,
-  output,
-  artifacts,
-  refusal,
-}: {
-  withheld: WithheldCover | undefined;
-  restart: CoverContext["restart"];
-  primaryFailure: { error: unknown } | undefined;
-  output: string;
-  artifacts: string[];
-  refusal: Awaited<ReturnType<typeof createImageRefusal>> | null;
-}) {
-  let cleanupFailure: { error: unknown } | undefined;
-  try {
-    if (withheld) {
-      await restart("default-cover-cache-restored", async () => {
-        const bytes = await readFile(withheld.retained);
-        assert.equal(
-          createHash("sha256").update(bytes).digest("hex"),
-          path.basename(withheld.original, ".jpg"),
-        );
-        await rename(withheld.retained, withheld.original);
-      });
-    }
-  } catch (error) {
-    cleanupFailure = { error };
-  }
-  try {
-    await refusal?.close();
-  } catch (error) {
-    cleanupFailure ??= { error };
-  }
-  if (!cleanupFailure) return;
-  if (!primaryFailure) throw cleanupFailure.error;
-  const diagnostic = path.join(output, "default-cover-cache-cleanup-failure.json");
-  await writeFile(
-    diagnostic,
-    JSON.stringify({
-      primary: errorMessage(primaryFailure.error),
-      cleanup: errorMessage(cleanupFailure.error),
-    }),
-  )
-    .then(() => artifacts.push(diagnostic))
-    .catch((error: unknown) =>
-      console.error("Failed to retain cache cleanup diagnostic:", errorMessage(error)),
-    );
-}
-
 async function assertEmptyCache(cache: string) {
   const initial = await readdir(cache).catch((error) => {
     if (errorCode(error) === "ENOENT") return [];
@@ -469,7 +372,7 @@ async function missingCacheNegativeControl({
     },
     offlineEnvironment,
   );
-  await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+  await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
   const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
   await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
   const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
@@ -484,7 +387,7 @@ async function missingCacheNegativeControl({
       executeBrowserScript(
         browser,
         (selector) => {
-          const frame = document.querySelector<HTMLElement>(`${selector} .card-art`);
+          const frame = document.querySelector<HTMLElement>(`${selector} .collection-art`);
           return (
             frame?.dataset.artworkSource === "generated_fallback" &&
             !frame.querySelector("img") &&
@@ -536,19 +439,19 @@ async function inspectCoverPass({
   for (const id of ids) {
     const port = ports.find((port) => port.id === id);
     assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
     await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
     const started = performance.now();
     const selector = `[data-detail-origin="catalog:card:${id}"]`;
     const card = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
     await executeBrowserScript(browser, (card) => card.scrollIntoView({ block: "center" }), card);
-    const cardImage = await image(`${selector} .card-art`);
+    const cardImage = await image(`${selector} .collection-art`);
     const cardMs = performance.now() - started;
     await captureSettled(`default-cover-${id}-${pass}-catalog`, selector);
     let detailImage = null;
     if (detailIds.has(id)) {
-      await card.click();
+      await selectCatalogPort(browser, id);
       await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
       detailImage = await image(".detail-cover");
       await captureSettled(`default-cover-${id}-${pass}-details`, "[data-detail-workspace]");

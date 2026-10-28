@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { isRecord } from "./runtime-values.mts";
 
 interface DesktopScenario {
+  operation_routes?: readonly { operation: string; runtime_kind?: string }[];
   id: string;
   description: string;
   runnable: boolean;
@@ -98,6 +99,11 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "native-external-runtime-review",
     "Private prepared runtime picker, review, registration and non-owning removal preserve player files.",
     {
+      operation_routes: [
+        { operation: "register_external" },
+        { operation: "remove_external", runtime_kind: "external" },
+        { operation: "launch", runtime_kind: "external" },
+      ],
       prerequisites: ["desktop", "native-dialog", "external-runtime-fixture"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-external-runtime-test.mts",
@@ -268,6 +274,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "install-progress-cancellation",
     "A reviewed install can be cancelled during a real streamed download and retried safely.",
     {
+      operation_routes: [{ operation: "install" }],
       prerequisites: ["desktop", "install-fixture"],
       source: "desktop-install-test.mts",
     },
@@ -281,6 +288,18 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-update-acquisition-lifecycle",
+    "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, and retained cancellation is discarded after reviewed uninstall.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      dependencies: ["install-commit-refresh-recovery"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-install-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-staged-update-composition",
     "A real staged update keeps the installed version playable and activation beside Play at compact and wide sizes.",
     {
@@ -291,6 +310,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario("native-preparation-review-and-play", "Reviewed preparation completes before Play.", {
+    operation_routes: [{ operation: "launch", runtime_kind: "managed" }],
     prerequisites: ["desktop", "owned-fixture"],
     source: "desktop-preparation-test.mts",
   }),
@@ -323,6 +343,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario("native-game-update-review", "Game update review is non-mutating and restores focus.", {
+    operation_routes: [{ operation: "update", runtime_kind: "managed" }],
     prerequisites: ["desktop", "owned-fixture"],
     source: "desktop-preparation-test.mts",
   }),
@@ -458,6 +479,10 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "native-reviewed-backup-restore-and-delete",
     "Backup actions require reviewed consent.",
     {
+      operation_routes: [
+        { operation: "backup_create", runtime_kind: "managed" },
+        { operation: "backup_restore", runtime_kind: "managed" },
+      ],
       prerequisites: ["desktop", "owned-fixture", "native-dialog"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-backup-review-test.mts",
@@ -503,6 +528,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "native-reviewed-installed-game-removal",
     "Installed-game removal preserves owned data.",
     {
+      operation_routes: [{ operation: "remove_managed", runtime_kind: "managed" }],
       prerequisites: ["desktop", "owned-fixture", "native-dialog"],
       dependencies: [
         "native-preparation-review-and-play",
@@ -706,6 +732,11 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "linux")
   )
     throw new Error("native-linux-interrupted-preparation requires one standalone Linux scenario");
+  if (
+    uniqueRequested.includes("native-update-acquisition-lifecycle") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-update-acquisition-lifecycle requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-preliminary-selected-setup")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-preliminary-selected-setup requires one exact standalone scenario");
@@ -847,6 +878,8 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Three immutable upgrades, two owned live launches, reviews and positive exit joins.
+  if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle")) return 720_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,

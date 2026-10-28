@@ -166,10 +166,47 @@ export async function runInstalledNativeWorker(configuration: string, configurat
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [configuration, sha, ...rest] = process.argv.slice(2);
-  if (!configuration || !sha || rest.length || !/^[a-f0-9]{64}$/u.test(sha))
-    throw new Error("fixed native worker requires installed descriptor path and SHA only");
-  const result = await runInstalledNativeWorker(configuration, sha);
-  console.log(JSON.stringify(result, null, 2));
-  process.exitCode = 1;
+  if (
+    [
+      "--hosted-windows-abi",
+      "--hosted-windows-stage",
+      "--hosted-windows-diagnostic-abi",
+      "--hosted-windows-diagnostic-stage",
+    ].includes(process.argv[2] ?? "")
+  ) {
+    const {
+      readHostedWindowsWorkerAbi,
+      runHostedWindowsWorkerStage,
+      readHostedWindowsDiagnosticWorkerAbi,
+      runHostedWindowsDiagnosticWorkerStage,
+    } = await import("./release-hosted-native-windows-worker.mts");
+    const diagnostic = process.argv[2]?.startsWith("--hosted-windows-diagnostic-");
+    if (process.argv[2]?.endsWith("-abi")) {
+      if (process.argv.length !== 3) throw new Error("fixed hosted ABI probe takes no input");
+      console.log(
+        JSON.stringify(
+          diagnostic ? readHostedWindowsDiagnosticWorkerAbi() : readHostedWindowsWorkerAbi(),
+        ),
+      );
+    } else {
+      const [file, sha, ...rest] = process.argv.slice(3);
+      if (!file || !sha || rest.length || !/^[a-f0-9]{64}$/u.test(sha))
+        throw new Error("fixed hosted stage requires bounded input path and SHA only");
+      console.log(
+        JSON.stringify(
+          await (diagnostic ? runHostedWindowsDiagnosticWorkerStage : runHostedWindowsWorkerStage)(
+            file,
+            sha,
+          ),
+        ),
+      );
+    }
+  } else {
+    const [configuration, sha, ...rest] = process.argv.slice(2);
+    if (!configuration || !sha || rest.length || !/^[a-f0-9]{64}$/u.test(sha))
+      throw new Error("fixed native worker requires installed descriptor path and SHA only");
+    const result = await runInstalledNativeWorker(configuration, sha);
+    console.log(JSON.stringify(result, null, 2));
+    process.exitCode = 1;
+  }
 }

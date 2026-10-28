@@ -9,6 +9,14 @@ export const nativeCompatibilitySourcePaths = Object.freeze([
   "apps/desktop/src-tauri/src/application_update_windows.rs",
 ] as const);
 
+export function nativeSourceDeclarationByteLimit(
+  pathname: (typeof nativeCompatibilitySourcePaths)[number],
+) {
+  // Match the existing catalog signing/health input envelope. Rust source
+  // declarations retain their narrower limit as the catalog grows.
+  return pathname === nativeCompatibilitySourcePaths[2] ? 4 * 1024 * 1024 : 1024 * 1024;
+}
+
 export function inspectNativeCompatibilitySources(raw: unknown) {
   if (
     !isRecord(raw) ||
@@ -17,7 +25,11 @@ export function inspectNativeCompatibilitySources(raw: unknown) {
     throw new Error("native source declaration inventory differs");
   const files = nativeCompatibilitySourcePaths.map((path) => {
     const bytes = raw[path];
-    if (!(bytes instanceof Uint8Array) || bytes.byteLength < 1 || bytes.byteLength > 1024 * 1024)
+    if (
+      !(bytes instanceof Uint8Array) ||
+      bytes.byteLength < 1 ||
+      bytes.byteLength > nativeSourceDeclarationByteLimit(path)
+    )
       throw new Error("native source declaration bytes are missing or oversized");
     return {
       path,

@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { WebDriver, WebElement } from "selenium-webdriver";
+import { captureKeyboardTarget } from "../apps/desktop/scripts/desktop-capture-target.mts";
+import { observeVisibleTarget } from "../apps/desktop/scripts/browser-readiness.mts";
 import {
   prepareCaptureTarget,
   requireCompleteCaptureTarget,
   requireUnchangedCaptureTarget,
+  type CaptureTargetObservation,
 } from "../apps/desktop/test/capture-target.ts";
+import { isRecord } from "./runtime-values.mts";
 
 const target = "identified-actions";
 const visible = () => ({
@@ -104,21 +109,167 @@ void test("moving or hung target probes terminate within their finite preflight"
   );
 });
 
+void test("Library native capture centers fractional clipping before strict settled capture and refuses unscrollable clipping", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const { observeVisibleTarget } = await import("../apps/desktop/scripts/browser-readiness.mts");
+  function assertObservation(value: unknown): asserts value is CaptureTargetObservation & {
+    clipping: { edge: number; limit: number }[];
+  } {
+    assert.ok(isRecord(value));
+    assert.equal(typeof value.target, "string");
+    assert.equal(typeof value.target_count, "number");
+    assert.equal(typeof value.visible, "boolean");
+    assert.ok(value.rect === null || isRecord(value.rect));
+    if (value.rect)
+      for (const field of ["x", "y", "width", "height"])
+        assert.equal(typeof value.rect[field], "number");
+    assert.ok(isRecord(value.viewport));
+    for (const field of ["width", "height"]) assert.equal(typeof value.viewport[field], "number");
+    assert.ok(Array.isArray(value.clipping));
+    const clipping: unknown[] = value.clipping;
+    for (const edge of clipping) {
+      assert.ok(isRecord(edge));
+      assert.equal(typeof edge.edge, "number");
+      assert.equal(typeof edge.limit, "number");
+    }
+  }
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-preparation-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf(
+    'const exactTarget = await more.getAttribute("data-detail-origin");',
+  );
+  const endText = "artifacts.push(capture.image.path, capture.receipt);";
+  const end = source.indexOf(endText, start);
+  assert.ok(start >= 0 && end > start);
+  const executable = stripTypeScriptTypes(source.slice(start, end + endText.length));
+  for (const scrollable of [true, false]) {
+    let y = 348.1171875;
+    let captures = 0;
+    const identity = "library:card-more:opengoal-jak1";
+    const selector = `button[data-detail-origin=${JSON.stringify(identity)}]`;
+    const main = {
+      tagName: "MAIN",
+      className: "workspace-main",
+      parentElement: null,
+      clientWidth: 683,
+      clientHeight: 384,
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        right: 683,
+        bottom: 384,
+        width: 683,
+        height: 384,
+      }),
+    };
+    const more = {
+      parentElement: main,
+      closest: () => null,
+      getAttribute: (name: string) => {
+        assert.equal(name, "data-detail-origin");
+        return identity;
+      },
+      getBoundingClientRect: () => ({
+        x: 220,
+        y,
+        left: 220,
+        top: y,
+        right: 256,
+        bottom: y + 36,
+        width: 36,
+        height: 36,
+      }),
+      scrollIntoView: (options: unknown) => {
+        assert.equal(
+          JSON.stringify(options),
+          JSON.stringify({ block: "center", inline: "nearest", behavior: "instant" }),
+        );
+        if (scrollable) y = 174;
+      },
+    };
+    const document = {
+      activeElement: more,
+      readyState: "complete",
+      documentElement: {},
+      body: {},
+      fonts: { status: "loaded" },
+      images: [],
+      querySelectorAll: (query: string) => (query === selector ? [more] : []),
+    };
+    const execute = async (_browser: unknown, fn: unknown, ...args: unknown[]) => {
+      assert.ok(typeof fn === "function");
+      const result: unknown = runInNewContext(`(${fn.toString()})(...args)`, {
+        args,
+        document,
+        innerWidth: 683,
+        innerHeight: 384,
+        devicePixelRatio: 2,
+        localStorage: { getItem: () => "200" },
+        getComputedStyle: (element: unknown) => ({
+          display: "block",
+          visibility: "visible",
+          opacity: "1",
+          overflowX: element === main ? "auto" : "visible",
+          overflowY: element === main ? "auto" : "visible",
+        }),
+      });
+      return result;
+    };
+    const clipped = await execute(null, observeVisibleTarget, selector, "visual");
+    assertObservation(clipped);
+    assert.equal(clipped.visible, false);
+    const clippedEdge = clipped.clipping[0];
+    assert.ok(clippedEdge);
+    assert.equal(clippedEdge.edge, 384.1171875);
+    assert.equal(clippedEdge.limit, 384);
+    assert.throws(() => requireCompleteCaptureTarget(clipped, selector));
+    const capture: unknown = runInNewContext(`(async () => { ${executable} })()`, {
+      assert,
+      more,
+      browser: {},
+      output: "owned-output",
+      theme: "dark",
+      layout: "Covers",
+      artifacts: [],
+      observeVisibleTarget,
+      prepareCaptureTarget,
+      requireUnchangedCaptureTarget,
+      executeBrowserScript: execute,
+      captureSettledVisual: async (options: {
+        observeTarget: () => Promise<ReturnType<typeof observeVisibleTarget>>;
+        readiness: () => Promise<{ ready: boolean }>;
+      }) => {
+        captures++;
+        assert.equal((await options.readiness()).ready, true);
+        const before = await options.observeTarget();
+        requireCompleteCaptureTarget(before, selector);
+        assert.equal(JSON.stringify(await options.observeTarget()), JSON.stringify(before));
+        assert.equal(document.activeElement, more);
+        return {
+          image: { path: "owned-output/capture.png" },
+          receipt: "owned-output/capture.json",
+        };
+      },
+    });
+    if (scrollable) {
+      await capture;
+      assert.equal(captures, 1);
+    } else {
+      await assert.rejects(Promise.resolve(capture), /one identified visible target/);
+      assert.equal(captures, 0);
+    }
+  }
+});
+
 void test("native preflight retains the exact refused observation without another probe or overwriting evidence", async (t) => {
   const { readFile, writeFile, mkdtemp, lstat, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const path = await import("node:path");
-  const { stripTypeScriptTypes } = await import("node:module");
-  const { runInNewContext } = await import("node:vm");
-  const { errorMessage, isRecord } = await import("./runtime-values.mts");
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("async function captureKeyboardTarget(");
-  const end = source.indexOf("\nasync function ", start + 1);
-  assert.ok(start >= 0 && end > start);
-  const executable = stripTypeScriptTypes(source.slice(start, end));
+  const { isRecord } = await import("./runtime-values.mts");
   const output = await mkdtemp(path.join(tmpdir(), "portcove-native-capture-"));
   t.after(async () => {
     assert.equal(path.dirname(output), tmpdir());
@@ -141,7 +292,6 @@ void test("native preflight retains the exact refused observation without anothe
       },
       scrollIntoView() {},
     };
-    const observer = () => {};
     const observation = {
       target: `[data-capture-target="native-${name}"]`,
       target_count: 1,
@@ -150,39 +300,29 @@ void test("native preflight retains the exact refused observation without anothe
       viewport: { width: 640, height: 640 },
       ...(mode === "oversized-metadata" ? { diagnostic: "x".repeat(16384) } : {}),
     };
-    const extracted: unknown = runInNewContext(`${executable}; captureKeyboardTarget`, {
-      driverBrowser: () => ({}),
-      assert,
-      output,
-      path,
-      writeFile,
-      lstat,
-      errorMessage,
-      TextEncoder,
-      artifacts: [],
-      observeVisibleTarget: observer,
-      prepareCaptureTarget,
-      requireUnchangedCaptureTarget,
-      executeBrowserScript: async (
-        _session: unknown,
-        fn: (...args: unknown[]) => unknown,
+    const browser: Pick<WebDriver, "executeScript" | "takeScreenshot"> = {
+      async executeScript<Result>(
+        script: Parameters<WebDriver["executeScript"]>[0],
         ...args: unknown[]
-      ) => {
-        if (fn === observer) {
+      ): Promise<Result> {
+        if (script === observeVisibleTarget) {
           probes++;
-          return observation;
+          return observation as Result;
         }
-        return fn(...args);
+        assert.equal(typeof script, "function");
+        assert.ok(typeof script === "function");
+        const callback = script as (...args: unknown[]) => unknown;
+        const value: unknown = await callback(...args);
+        return value as Result;
       },
-      captureSettledVisual: async () => {
+      async takeScreenshot() {
         captures++;
         throw new Error("Unexpected screenshot");
       },
-    });
-    assert.ok(typeof extracted === "function");
-    const capture = extracted as (name: string, element: unknown) => Promise<void>;
+    };
+    const artifacts: string[] = [];
     await assert.rejects(
-      capture(name, element),
+      captureKeyboardTarget({ browser, output, artifacts }, name, element as unknown as WebElement),
       /exceeds viewport; capture identified title\/actions instead/,
     );
     assert.equal(probes, 1);
@@ -201,4 +341,84 @@ void test("native preflight retains the exact refused observation without anothe
     } else if (mode === "existing") assert.equal(await readFile(file, "utf8"), "original evidence");
     else await assert.rejects(lstat(file), { code: "ENOENT" });
   }
+});
+
+void test("the real native entrypoint delegates capture context and arguments to the imported helper", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  // Policy wiring, not a behavioral surrogate: the real native journey still
+  // checks refused capture; imported-helper tests exercise the decisions here.
+  function delegation(input: string) {
+    const code = stripTypeScriptTypes(input, { mode: "strip" });
+    const imported =
+      /import\s*\{\s*captureKeyboardTarget(?:\s+as\s+(\w+))?\s*\}\s*from\s*["']\.\/desktop-capture-target\.mts["']/u.exec(
+        code,
+      );
+    assert.ok(imported, "Native entrypoint must import the capture helper");
+    const alias = imported[1] ?? "captureKeyboardTarget";
+    const wrapper = new RegExp(
+      String.raw`async\s+function\s+captureKeyboardTarget\s*\(\s*(?<name>\w+)\s*,\s*(?<element>\w+)\s*,\s*(?<scenario>\w+)\s*=\s*["']keyboard-layout["']\s*,?\s*\)\s*\{\s*return[ \t]+(?:await\s+)?${alias}\s*\(\s*\{(?<context>[^{}]*)\}\s*,\s*\k<name>\s*,\s*\k<element>\s*,\s*\k<scenario>\s*,?\s*\)\s*;?\s*\}`,
+      "u",
+    ).exec(code);
+    assert.ok(wrapper?.groups, "Native capture wrapper must forward all three arguments");
+    const properties = wrapper.groups
+      .context!.split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    assert.equal(properties.length, 3);
+    assert(properties.some((value) => /^browser\s*:\s*driverBrowser\s*\(\s*\)$/u.test(value)));
+    assert(properties.some((value) => /^output(?:\s*:\s*output)?$/u.test(value)));
+    assert(properties.some((value) => /^artifacts(?:\s*:\s*artifacts)?$/u.test(value)));
+    return wrapper[0];
+  }
+  const erased = stripTypeScriptTypes(source, { mode: "strip" });
+  const wrapper = delegation(erased);
+  assert.throws(
+    () => delegation(erased.replace(wrapper, "async function removedCapture() {}")),
+    /must forward/,
+  );
+  assert.throws(
+    () =>
+      delegation(
+        erased.replace(
+          /captureNativeKeyboardTarget\s*\(\s*\{/u,
+          "captureNativeKeyboardTarget({}, {",
+        ),
+      ),
+    /must forward/,
+  );
+  for (const [from, to] of [
+    [/\boutput\b/u, "output: anotherDirectory"],
+    [/\bartifacts\b/u, "artifacts: anotherArray"],
+    [/driverBrowser\(\)/u, "unrelatedBrowser()"],
+  ] as const)
+    assert.throws(() => delegation(erased.replace(wrapper, wrapper.replace(from, to))));
+  assert.throws(
+    () =>
+      delegation(
+        erased.replace(
+          wrapper,
+          wrapper.replace("function captureKeyboardTarget", "function decoyCapture"),
+        ),
+      ),
+    /must forward/,
+  );
+  delegation(
+    erased.replace(
+      wrapper,
+      wrapper
+        .replace(/\boutput\b/u, "output: output")
+        .replace(/\bartifacts\b/u, "artifacts: artifacts"),
+    ),
+  );
+  delegation(
+    source
+      .replaceAll("captureNativeKeyboardTarget", "renamedCaptureHelper")
+      .replaceAll("scenarioId", "renamedScenario")
+      .replace(/renamedCaptureHelper\s*\(/u, "renamedCaptureHelper(\n"),
+  );
 });

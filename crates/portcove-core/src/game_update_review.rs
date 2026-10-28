@@ -11,7 +11,7 @@ impl PortcoveService {
         self.plan_game_update_locked(port_id, activate).await
     }
 
-    async fn plan_game_update_locked(
+    pub(super) async fn plan_game_update_locked(
         &self,
         port_id: &str,
         activate: bool,
@@ -23,13 +23,23 @@ impl PortcoveService {
             ));
         }
         let plan = self.plan_install(port_id, Some(status.channel)).await?;
-        let plan_sha256 = self.game_release_review_digest(
+        let mut plan_sha256 = self.game_release_review_digest(
             "Portcove game update review v1",
             &plan,
             &status,
             activate,
         )?;
+        // Even a nonmatching archive owns a retained slot; replacing/discarding it invalidates review.
+        if let Some(acquisition) = &status.acquisition {
+            plan_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove acquired update review v1",
+                plan_sha256,
+                acquisition,
+            ))?);
+        }
+        let acquisition = self.acquisition_for_review(&status, &plan)?;
         Ok(GameUpdatePlan {
+            acquisition,
             assessment: game_update_plan_assessment(&plan),
             plan,
             activate,
@@ -153,6 +163,7 @@ impl PortcoveService {
                 port_id,
                 &reviewed.plan_sha256,
             )?;
+            let acquired = self.acquired_inputs(&reviewed, &operation)?;
             let status = self.status(port_id)?;
             operation.observe_release(&reviewed.plan.release.version, None);
             self.record_update_check(port_id, &status, &reviewed.plan.release)?;
@@ -171,6 +182,7 @@ impl PortcoveService {
                 reviewed.plan.release,
                 ReleaseIntent {
                     activate,
+                    acquired,
                     shared_preferences: reviewed
                         .plan
                         .shared_preferences
@@ -506,6 +518,135 @@ mod tests {
                 .apply_game_update(PORT, true, &grant.token, |_| {})
                 .await
                 .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_apply_refuses_other_handle_file_work_before_consuming_review_or_mutating() {
+        use crate::test_fixture::{async_phase, phase};
+        // Keep the large Apply futures out of this diagnostic wrapper's inline
+        // state; Windows debug frames otherwise exhaust the normal test stack.
+        let (_temporary, service) = phase("activity Apply: seed two retained runtimes", fixture);
+        let before = phase("activity Apply: baseline status", || service.status(PORT)).unwrap();
+        let tree = phase("activity Apply: baseline version tree", || {
+            crate::library_transfer::reviewed_tree(&service.library.versions_dir())
+        })
+        .unwrap();
+        let review = async_phase(
+            "activity Apply: first review",
+            service.plan_game_update(PORT, true),
+        )
+        .await
+        .unwrap();
+        let grant = async_phase(
+            "activity Apply: first authorization",
+            service.authorize_game_update(PORT, true, &review.plan_sha256),
+        )
+        .await
+        .unwrap();
+        let other = phase("activity Apply: open other client", || {
+            Library::open(service.library.root())
+        })
+        .unwrap();
+        let file_work = phase("activity Apply: other client owns file work", || {
+            other.try_lock_port(PORT, "verify")
+        })
+        .unwrap();
+        assert_eq!(
+            async_phase(
+                "activity Apply: busy refusal",
+                Box::pin(service.apply_game_update(PORT, true, &grant.token, |_| {}))
+            )
+            .await
+            .unwrap_err()
+            .code,
+            ErrorCode::Conflict
+        );
+        let after = phase(
+            "activity Apply: status while file work remains owned",
+            || service.status(PORT),
+        )
+        .unwrap();
+        assert_eq!(
+            after.active.as_ref().unwrap().id,
+            before.active.as_ref().unwrap().id
+        );
+        assert_eq!(
+            after.staged.as_ref().unwrap().id,
+            before.staged.as_ref().unwrap().id
+        );
+        assert_eq!(
+            phase("activity Apply: unchanged tree while busy", || {
+                crate::library_transfer::reviewed_tree(&service.library.versions_dir())
+            })
+            .unwrap(),
+            tree
+        );
+        phase(
+            "activity Apply: release other client's file-work guard",
+            || drop(file_work),
+        );
+
+        let reopened = phase("activity Apply: reopen independent client", || {
+            service_with_release(Library::open(service.library.root()).unwrap(), "v2")
+        });
+        assert!(
+            async_phase(
+                "activity Apply: old client grant refused after reopen",
+                Box::pin(reopened.apply_game_update(PORT, true, &grant.token, |_| {}))
+            )
+            .await
+            .is_err()
+        );
+        assert_eq!(
+            phase(
+                "activity Apply: unchanged tree after old grant refusal",
+                || crate::library_transfer::reviewed_tree(&service.library.versions_dir())
+            )
+            .unwrap(),
+            tree
+        );
+        // Consuming only in this test proves the lock refusal left the original grant untouched.
+        phase(
+            "activity Apply: prove original grant was not consumed",
+            || {
+                service.library.consume_authorization(
+                    &grant.token,
+                    "game-update",
+                    PORT,
+                    &review.plan_sha256,
+                )
+            },
+        )
+        .unwrap();
+        let fresh = async_phase(
+            "activity Apply: fresh independent review",
+            reopened.plan_game_update(PORT, true),
+        )
+        .await
+        .unwrap();
+        let fresh_grant = async_phase(
+            "activity Apply: fresh independent authorization",
+            reopened.authorize_game_update(PORT, true, &fresh.plan_sha256),
+        )
+        .await
+        .unwrap();
+        assert_ne!(fresh_grant.token, grant.token);
+        let activated = async_phase(
+            "activity Apply: fresh grant activates verified staged runtime",
+            Box::pin(reopened.apply_game_update(PORT, true, &fresh_grant.token, |_| {})),
+        )
+        .await
+        .unwrap();
+        assert_eq!(activated.version, "v2");
+        assert_eq!(
+            phase("activity Apply: final previous-version proof", || reopened
+                .status(PORT))
+            .unwrap()
+            .previous
+            .unwrap()
+            .version,
+            "v1"
         );
     }
 

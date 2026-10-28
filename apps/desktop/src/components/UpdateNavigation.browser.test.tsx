@@ -8,6 +8,68 @@ import { portDefinition, portStatus } from "../test-fixtures";
 import type { ActivityRecord, OperationEvent } from "../types";
 
 describe("update destination links", () => {
+  it("retains a focused settling record and its open disclosure across Tasks and History", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const activity: ActivityRecord = {
+      id: "retained-task",
+      operation: "backup",
+      target_kind: "port",
+      target_id: "sample",
+      status: "running",
+      started_at: Date.now() / 1000,
+      finished_at: null,
+      message: null,
+      failure: null,
+      cancellation: null,
+    };
+    const show = (record: ActivityRecord) =>
+      act(async () =>
+        root.render(
+          <UpdateCenter
+            generation={1}
+            ports={[]}
+            statuses={new Map()}
+            activities={[record]}
+            outcomes={[]}
+            diagnosticsRefreshing={false}
+            diagnosticsStale={false}
+            refreshDiagnostics={vi.fn()}
+            checkAll={vi.fn()}
+            onSelect={vi.fn()}
+            onOpenSettings={vi.fn()}
+          />,
+        ),
+      );
+    try {
+      await show(activity);
+      const row = host.querySelector<HTMLElement>('[data-activity-id="retained-task"]')!;
+      const disclosure = row.querySelector<HTMLDetailsElement>("details")!;
+      await page.getByText("Task details", { exact: true }).click();
+      expect(disclosure.open).toBe(true);
+      await show({ ...activity, status: "succeeded", finished_at: Date.now() / 1000 });
+      expect(row.hidden).toBe(false);
+      expect(document.activeElement).toBe(disclosure.querySelector("summary"));
+      expect(disclosure.open).toBe(true);
+      await page.getByRole("tab", { name: "History", exact: true }).click();
+      await expect.poll(() => row.hidden).toBe(false);
+      expect(host.querySelector('[data-activity-id="retained-task"]')).toBe(row);
+      expect(disclosure.open).toBe(true);
+      await page.getByRole("tab", { name: "Tasks", exact: true }).click();
+      await expect.poll(() => row.hidden).toBe(true);
+      expect(disclosure.open).toBe(true);
+      await page.getByRole("tab", { name: "History", exact: true }).click();
+      await expect.poll(() => row.hidden).toBe(false);
+      expect(disclosure.open).toBe(true);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("attributes live progress by exact durable identity and keeps durable completion authoritative", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const host = document.createElement("div");
@@ -79,6 +141,11 @@ describe("update destination links", () => {
       await render([{ ...record, status: "succeeded", finished_at: Date.now() / 1000 }]);
       expect(host.querySelector('[role="progressbar"]')).toBeNull();
       expect(host.querySelector(".activity-status")?.textContent).toBe("Completed");
+      expect(host.querySelector('[data-activity-id="owned-A"]')).toBe(a);
+      expect(a.hasAttribute("hidden")).toBe(true);
+      await page.getByRole("tab", { name: "History", exact: true }).click();
+      await expect.poll(() => a.hasAttribute("hidden")).toBe(false);
+      expect(host.querySelector('[data-activity-id="owned-A"]')).toBe(a);
     } finally {
       await act(async () => root.unmount());
       host.remove();
@@ -135,12 +202,17 @@ describe("update destination links", () => {
       const updates = host.querySelector<HTMLElement>('[aria-label="Game updates"]')!;
       expect(tasks.hidden).toBe(false);
       expect(updates.hidden).toBe(true);
+      expect(
+        [...host.querySelectorAll('[aria-label="Activity sections"] [role="tab"]')].map(
+          (tab) => tab.textContent,
+        ),
+      ).toEqual(["Tasks", "Game updates", "History"]);
       const section = [
         ...host.querySelectorAll<HTMLButtonElement>(
           '[role="tablist"][aria-label="Activity sections"] [role="tab"]',
         ),
-      ].find((button) => button.textContent === "Updates")!;
-      await page.getByRole("tab", { name: "Updates", exact: true }).click();
+      ].find((button) => button.textContent === "Game updates")!;
+      await page.getByRole("tab", { name: "Game updates", exact: true }).click();
       await expect.poll(() => section.getAttribute("aria-selected")).toBe("true");
       // Base UI settles the outgoing panel's hidden state after its animation
       // frame; keep both panels mounted while waiting for that transition.

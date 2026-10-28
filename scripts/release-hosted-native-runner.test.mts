@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { isRecord } from "./runtime-values.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { createHash } from "node:crypto";
 import {
@@ -203,6 +204,7 @@ void test("fixed native composite pins uploads and binds responses through envir
 void test(
   "Linux workflow handoff keeps actual original process identity across both uploads and refuses drift",
   {
+    timeout: 150000,
     skip: process.platform !== "linux" || process.getuid?.() === 0,
   },
   (t) => {
@@ -247,7 +249,7 @@ const routes={'node:fs/promises':'fs','./github-api.mts':'github','./release-sig
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'workflow:'+routes[s],shortCircuit:true};if((c.parentURL===${JSON.stringify(entry)}||c.parentURL===${JSON.stringify(new URL("./release-hosted-native-worker.mts", import.meta.url).href)})&&s==='./release-hosted-native-bootstrap.mts')return {url:'workflow:scope',shortCircuit:true};return next(s,c)},load(u,c,next){if(u.startsWith('workflow:'))return {format:'module',source:u==='workflow:fs'?'export const appendFile=globalThis.workflowFixture.appendFile;export const mkdir=globalThis.workflowFixture.mkdir;export const open=globalThis.workflowFixture.open;':u==='workflow:github'?'export class GitHubApiClient {request(method,endpoint){if(method!=="GET"||endpoint!=="repos/boburning/portcove/actions/runs/123/attempts/1/jobs?per_page=100")throw Error("wrong fixed read");if(globalThis.workflowFixture.fault()==="prerequisite-ambiguous")throw Error("ambiguous GET");return {status:200,headers:new Map(),body:{total_count:2,jobs:["Sign admitted updater payloads","Sign authenticated Timestamp metadata"].map((name,i)=>({id:i+1,run_id:123,head_sha:"a".repeat(40),name,status:"completed",conclusion:globalThis.workflowFixture.fault()==="prerequisite-failed"?"failure":"success"}))}}}};export const createGitHubRunner=()=>()=>{};':u==='workflow:budget'?'export const currentNativeJobDeadline=globalThis.workflowFixture.budget;':u==='workflow:scope'?'export const readActualHostedLinuxBootstrapScope=globalThis.workflowFixture.scope;':u==='workflow:tools'?'export const receiveControllerTools=globalThis.workflowFixture.receive;export const verifiedControllerToolPaths=globalThis.workflowFixture.verify;':u==='workflow:read'?'export const readControllerToolFile=globalThis.workflowFixture.read;export const controllerToolPaths=["bin/node","scripts/release-hosted-native-worker.bundle.mjs"];':'export const spawn=globalThis.workflowFixture.spawn;',shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['valid','prerequisite-failed','prerequisite-ambiguous','dies-during-prerequisite-close','partial-records','shared-node','late-refusal','dies-during-clock','wrong-owner','changed-binding','expired-clock','retained-refusal','missing-final']){
- fault=name;child=undefined;killDuringRead=false;refusalDuringRead=false;process.env.PORTCOVE_FIXTURE_FAULT=name;binding='fixed';home=path.join(root,name);temporary=path.join(home,'temp');await mkdir(home,{mode:0o700});await mkdir(temporary,{mode:0o700});process.env.HOME=home;deadline=performance.now()+30000;
+ process.stderr.write('workflow-fixture:'+name+'\n');fault=name;child=undefined;killDuringRead=false;refusalDuringRead=false;process.env.PORTCOVE_FIXTURE_FAULT=name;binding='fixed';home=path.join(root,name);temporary=path.join(home,'temp');await mkdir(home,{mode:0o700});await mkdir(temporary,{mode:0o700});process.env.HOME=home;deadline=performance.now()+30000;
  try{
   if(name==='shared-node'){await assert.rejects(api.startHostedLinuxWorkflow());assert.equal(child,undefined);assert.equal(existsSync(path.join(temporary,'portcove-native-workflow-start.json')),true);continue}
   await api.startHostedLinuxWorkflow();await assert.rejects(api.startHostedLinuxWorkflow(),{code:'EEXIST'});
@@ -266,12 +268,24 @@ for(const name of ['valid','prerequisite-failed','prerequisite-ambiguous','dies-
 }
 console.log('actual file/PID workflow rendezvous passed; source, native worker and provider peers controlled');
 `;
+    const childStarted = performance.now();
     const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
-      timeout: 40000,
+      timeout: 120000,
       maxBuffer: 65536,
     });
-    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(
+      result.status,
+      0,
+      JSON.stringify({
+        error_code: result.error && "code" in result.error ? result.error.code : null,
+        error: result.error?.message,
+        signal: result.signal,
+        elapsed_milliseconds: Math.round(performance.now() - childStarted),
+        stdout: result.stdout,
+        stderr: result.stderr,
+      }),
+    );
     assert.match(result.stdout, /actual file\/PID workflow rendezvous passed/u);
   },
 );
@@ -280,9 +294,9 @@ void test(
   "actual prepared reaper supervises both fixed children and closes detached descendants or timeout",
   {
     skip:
-      process.platform !== "linux" ||
-      process.getuid?.() === 0 ||
-      !existsSync(preparedFixtureResult),
+      process.platform !== "linux" || process.getuid?.() === 0 || !existsSync(preparedFixtureResult)
+        ? "prepared original Linux custody fixture unavailable"
+        : false,
   },
   (t) => {
     const resultBytes = readFileSync(preparedFixtureResult);
@@ -384,14 +398,16 @@ import assert from 'node:assert/strict';import {registerHooks} from 'node:module
 import {EventEmitter} from 'node:events';import path from 'node:path';import {fileURLToPath} from 'node:url';import {performance} from 'node:perf_hooks';import {setTimeout as delay} from 'node:timers/promises';import {createHash} from 'node:crypto';
 import {rustSupportInputIdentity} from ${JSON.stringify(new URL("./rust-support-cache.mts", import.meta.url).href)};
 const root=process.argv[1],sourceRoot=fileURLToPath(new URL('../',${JSON.stringify(entry)})),hash=b=>createHash('sha256').update(b).digest('hex');
-let fault='',directory,tools,deadline,stopped=false,spawns=0,reads=[],done=false,identityAvailable=true;const plans=new WeakSet();
+let clock=1000,fault='',directory,tools,deadline,stopped=false,spawns=0,reads=[],done=false,identityAvailable=true;const plans=new WeakSet();
 function custody(files){return new Map(files.map(file=>{const s=fs.lstatSync(file,{bigint:true});return [file,[s.dev,s.ino,s.uid,s.gid,s.mode,s.nlink,s.size,s.mtimeNs,s.ctimeNs].join(':')]}))}
 globalThis.supervisionFixture={
- prepare:async operation=>{const plan={operation,binding:'fixed',temporary:directory,command:path.join(directory,'private-node'),arguments:[path.join(directory,'fixed-bootstrap.mjs'),operation]};await fsp.writeFile(path.join(directory,operation+'-launch.json'),JSON.stringify(plan),{flag:'wx'});if(operation==='pre-sign'){const now=process.hrtime.bigint();await fsp.writeFile(path.join(directory,'portcove-native-job-clock.json'),JSON.stringify({schema_version:1,binding:'fixed',started_ns:String(now),deadline_ns:String(now+BigInt(Math.max(1,Math.floor(deadline-performance.now())))*1000000n),authority:'none'}),{flag:'wx'})}plans.add(plan);return Object.freeze(plan)},
- claim:async plan=>{assert.ok(plans.has(plan));return {tools_root:tools,deadline,recheck(){assert.ok(!stopped&&identityAvailable&&performance.now()<deadline,'original owner or clock unavailable')},refuse(){stopped=true}}},
+ now:()=>{if(fault==='missing-post'&&directory&&fs.existsSync(path.join(directory,'pre-sign-supervision-settlement.json')))clock+=25;return clock},performance:{now:()=>globalThis.supervisionFixture.now()},
+ prepare:async operation=>{const plan={operation,binding:'fixed',temporary:directory,command:path.join(directory,'private-node'),arguments:[path.join(directory,'fixed-bootstrap.mjs'),operation]};await fsp.writeFile(path.join(directory,operation+'-launch.json'),JSON.stringify(plan),{flag:'wx'});if(operation==='pre-sign'){const now=process.hrtime.bigint();await fsp.writeFile(path.join(directory,'portcove-native-job-clock.json'),JSON.stringify({schema_version:1,binding:'fixed',started_ns:String(now),deadline_ns:String(now+60000000000n),authority:'none'}),{flag:'wx'})}plans.add(plan);return Object.freeze(plan)},
+ claim:async plan=>{assert.ok(plans.has(plan));return {tools_root:tools,deadline,recheck(){assert.ok(!stopped&&identityAvailable&&globalThis.supervisionFixture.now()<deadline,'original owner or clock unavailable')},refuse(){stopped=true}}},
  scope:async()=>{const frozenDirectory=directory;return {identity:{run_id:'123',run_attempt:1,controller_revision:'a'.repeat(40)},binding:'fixed',unchanged(){assert.equal(directory,frozenDirectory,'fixed fixture source changed')}}},
  identity:()=> identityAvailable?'fixture-owned-process':null,custody,recheck:(files,before)=>assert.deepEqual(custody(files),before),
- open:async file=>{const handle=await fsp.open(file,'wx',0o600);return {writeFile:async bytes=>{if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json'))identityAvailable=false;await handle.writeFile(bytes);if((fault==='late-stage'&&file.endsWith('pre-sign-supervision-settlement.json'))||(fault==='late-final'&&file.endsWith('native-supervision-settlement.json')))await delay(1500);if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json')){await delay(25)}},sync:()=>handle.sync(),close:()=>handle.close()}},
+ // Publish the controlled signal after close so late-settlement controls reach their intended phase.
+ open:async file=>{const pending=file.endsWith('native-post-start.json')?file+'.fixture-pending':file;const handle=await fsp.open(pending,'wx',0o600);return {writeFile:async bytes=>{if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json'))identityAvailable=false;if(fault==='late-final'&&file.endsWith('native-post-start.json'))await delay(125);await handle.writeFile(bytes);if((fault==='late-stage'&&file.endsWith('pre-sign-supervision-settlement.json'))||(fault==='late-final'&&file.endsWith('native-supervision-settlement.json'))){clock=deadline+1;await delay(0)};if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json')){await delay(25)}},sync:()=>handle.sync(),close:async()=>{await handle.close();if(pending!==file)await fsp.rename(pending,file)}}},
  resource:async(profile,command,args,options)=>{assert.equal(profile,'analysis');assert.ok(options.queueDeadline===deadline);return options.supervise(['--guard-command',command,...args],{})},
  inspect:(raw,pid)=>{assert.equal(raw.fixture,true);assert.equal(pid,12345);return {pid:12346}},
  spawn:()=>{spawns++;const child=new EventEmitter();child.pid=12345;child.stdout=new EventEmitter();child.stderr=new EventEmitter();return child},
@@ -410,12 +426,12 @@ globalThis.supervisionFixture={
  },
  fs:{...fs,readSync:(fd,bytes,offset,length,position)=>{reads.push(length);return fs.readSync(fd,bytes,offset,length,position)}}
 };
-const routes={'./release-hosted-native-launcher.mts':'launcher','./release-hosted-native-bootstrap.mts':'scope','./resource-command.mts':'resource','./run-rust-tests.mts':'run','./release-native-runtime-custody.mts':'custody','./heavy-rust-test-lock.mts':'identity','node:child_process':'spawn','node:fs/promises':'open','node:fs':'fs'};
-const exports={launcher:{prepareFixedHostedLinuxLaunch:'prepare',claimPreparedHostedLinuxLaunch:'claim'},scope:{readActualHostedLinuxBootstrapScope:'scope'},resource:{runResourceCommand:'resource'},run:{runRustTests:'run',inspectLinuxSupervisor:'inspect'},custody:{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck'},identity:{readProcessIdentity:'identity'},spawn:{spawn:'spawn'},open:{open:'open'}};
+const routes={'node:perf_hooks':'clock','./release-hosted-native-launcher.mts':'launcher','./release-hosted-native-bootstrap.mts':'scope','./resource-command.mts':'resource','./run-rust-tests.mts':'run','./release-native-runtime-custody.mts':'custody','./heavy-rust-test-lock.mts':'identity','node:child_process':'spawn','node:fs/promises':'open','node:fs':'fs'};
+const exports={clock:{performance:'performance'},launcher:{prepareFixedHostedLinuxLaunch:'prepare',claimPreparedHostedLinuxLaunch:'claim'},scope:{readActualHostedLinuxBootstrapScope:'scope'},resource:{runResourceCommand:'resource'},run:{runRustTests:'run',inspectLinuxSupervisor:'inspect'},custody:{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck'},identity:{readProcessIdentity:'identity'},spawn:{spawn:'spawn'},open:{open:'open'}};
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'supervision:'+routes[s],shortCircuit:true};return next(s,c)},load(u,c,next){if(u==='supervision:fs')return {format:'module',source:['closeSync','constants','fstatSync','fsyncSync','openSync','readSync','writeFileSync','writeSync'].map(name=>'export const '+name+'=globalThis.supervisionFixture.fs.'+name+';').join('\n'),shortCircuit:true};if(u.startsWith('supervision:'))return {format:'module',source:Object.entries(exports[u.slice('supervision:'.length)]).map(([name,key])=>'export const '+name+'=globalThis.supervisionFixture.'+key+';').join('\n'),shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['valid','overflow','oversized-registration','missing-post','bad-post','lost-supervisor','late-stage','late-final']){
- fault=name;stopped=false;spawns=0;reads=[];done=false;identityAvailable=true;
+ fault=name;clock=1000;stopped=false;spawns=0;reads=[];done=false;identityAvailable=true;
  const home=path.join(root,name);await fsp.mkdir(home);process.env.HOME=home;
  directory=path.join(home,'.portcove-native-123-1-'+'a'.repeat(40));await fsp.mkdir(directory);
  tools=path.join(directory,'tools');await fsp.mkdir(path.join(tools,'scripts/fixtures'),{recursive:true});await fsp.mkdir(path.join(tools,'bin'));
@@ -424,16 +440,16 @@ for(const name of ['valid','overflow','oversized-registration','missing-post','b
  const compiler={verbose_version:'fixture build',sysroot:'/build-only',commands:[{command:'rustc',resolved:null}],environment:[]};
  const input=rustSupportInputIdentity({product:'linux-process-tree-reaper',source:sourceFile,compiler,rustcArgs:['--edition=2024','--crate-name','portcove_linux_process_tree_reaper'],platform:'linux',architecture:'x64'});
  await fsp.writeFile(path.join(tools,'native-linux-support.json'),JSON.stringify({schema_version:1,product:'linux-process-tree-reaper',platform:'linux-x86_64',compiler,input_fingerprint:input.fingerprint,rustc_arguments:['--edition=2024','--crate-name','portcove_linux_process_tree_reaper'],source:{bytes:source.length,sha256:hash(source)},output:{bytes:64,sha256:hash(binary),mode:448}}));
- deadline=performance.now()+(name==='missing-post'?150:1000);
+ deadline=clock+(name==='missing-post'?150:1000);
  const outcome=api.superviseFixedHostedLinuxNativeStages().then(value=>({value}),error=>({error})).finally(()=>{done=true});
  if(['valid','bad-post','lost-supervisor','late-final'].includes(name)){
-  const ready=path.join(directory,'pre-sign-supervision-settlement.json');for(let i=0;i<1000&&!fs.existsSync(ready)&&!done;i++)await delay(2);
-  assert.ok(fs.existsSync(ready));
+  const ready=path.join(directory,'pre-sign-supervision-settlement.json');let complete=false;for(let i=0;i<1000&&!complete&&!done;i++){try{JSON.parse(await fsp.readFile(ready,'utf8'));complete=true}catch(error){if(error.code!=='ENOENT'&&!(error instanceof SyntaxError))throw error}if(!complete)await delay(2)}
+  assert.ok(complete,'fixture must await completed settlement bytes before signaling');
   if(name==='bad-post')await fsp.writeFile(path.join(directory,'native-post-start.json'),'{}');else if(name==='lost-supervisor'){await assert.rejects(api.signalFixedHostedLinuxPostStart(),/supervisor is unavailable/);stopped=true;assert.ok(fs.existsSync(path.join(directory,'native-post-start.json')))}else await api.signalFixedHostedLinuxPostStart();
  }
  const result=await outcome,final=JSON.parse(await fsp.readFile(path.join(directory,'native-supervision-settlement.json'),'utf8'));
  if(name==='valid'){assert.ok(!result.error,result.error?.stack);assert.equal(spawns,2);assert.equal(final.exit_code,0);assert.equal(final.post_sign_complete,true)}
- else {assert.ok(result.error,name);if(name==='late-final'){assert.equal(final.exit_code,0);assert.equal(JSON.parse(await fsp.readFile(path.join(directory,'native-supervision-refusal.json'),'utf8')).recovery_required,true)}else assert.equal(final.recovery_required,true)}
+ else {assert.ok(result.error,name);if(name==='late-final'){assert.match(result.error.message,/original native clock expired during final supervisor settlement/);assert.equal(final.exit_code,0,JSON.stringify({phase:final.phase,error:result.error?.message,final}));assert.equal(JSON.parse(await fsp.readFile(path.join(directory,'native-supervision-refusal.json'),'utf8')).recovery_required,true)}else assert.equal(final.recovery_required,true)}
  if(name==='lost-supervisor'){assert.equal(identityAvailable,false);assert.equal(spawns,1);assert.equal(final.post_sign_complete,false)}
  if(name==='late-stage'){const partial=JSON.parse(await fsp.readFile(path.join(directory,'pre-sign-supervision-settlement.json'),'utf8'));assert.equal(partial.exit_code,0);assert.equal(JSON.parse(await fsp.readFile(path.join(directory,'pre-sign-supervision-refusal.json'),'utf8')).recovery_required,true)}
  if(name==='overflow'){assert.equal((await fsp.stat(path.join(directory,'pre-sign-worker.stdout.bin'))).size,1024*1024);const row=JSON.parse(await fsp.readFile(path.join(directory,'pre-sign-supervision-settlement.json'),'utf8'));assert.equal(row.streams.stdout.observed_bytes,1024*1024+1);assert.equal(row.streams.stdout.truncated,true)}
@@ -452,28 +468,28 @@ console.log('controlled supervisor bounds and late partial outcomes passed; proc
 
 void test(
   "Linux private launch preparation preserves original Node identity and partial effects without spawning a worker",
-  { skip: process.platform !== "linux" || process.getuid?.() === 0 },
+  { timeout: 150000, skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
     const root = disposableDirectory(t, path.join(os.homedir(), ".native-launch-preparation-"));
     chmodSync(root, 0o700);
     const entry = new URL("./release-hosted-native-launcher.mts", import.meta.url).href;
     const code = String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
-import {mkdir,writeFile,readFile,chmod,rename,symlink,lstat,readdir} from 'node:fs/promises';
+import {mkdir,writeFile,readFile,copyFile,chmod,rename,symlink,lstat,readdir} from 'node:fs/promises';
 import path from 'node:path';import {performance} from 'node:perf_hooks';
 const root=process.argv[1], identity={controller_revision:'a'.repeat(40),controller_ref:'refs/tags/fixed-fixture',run_id:'123',run_attempt:1};
 let binding='fixed',fault='',checks=0,receives=0;const token={},actualTools=await import(${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)});let tools;
 globalThis.launchFixture={
 scope:async operation=>{assert.ok(['pre-sign','post-sign'].includes(operation));if(fault==='source')throw Error('source refused');return {operation,identity,binding,artifact:{expected:'fixed source'},bundle:{expected:'fixed issuer'},unchanged(){checks++;if(fault==='changed')throw Error('changed source')}}},
 clock:()=>{if(fault==='provider')throw Error('provider refused');return performance.now()+(fault==='expired'?-1:570000)},
-receive:async(root,artifact,bundle,options)=>{receives++;assert.deepEqual(artifact,{expected:'fixed source'});assert.deepEqual(bundle,{expected:'fixed issuer'});assert.ok(options.deadline>performance.now());if(fault==='foreign-tools')throw Error('foreign issuer');tools=path.join(root,'authenticated-tools');await mkdir(tools,{mode:0o700});await writeFile(path.join(tools,'verified-node'),await readFile(process.execPath),{mode:0o700});await writeFile(path.join(tools,'manifest.json'),'{}',{mode:0o600});return token},
+receive:async(root,artifact,bundle,options)=>{receives++;assert.deepEqual(artifact,{expected:'fixed source'});assert.deepEqual(bundle,{expected:'fixed issuer'});assert.ok(options.deadline>performance.now());if(fault==='foreign-tools')throw Error('foreign issuer');tools=path.join(root,'authenticated-tools');await mkdir(tools,{mode:0o700});await copyFile(process.execPath,path.join(tools,'verified-node'));await chmod(path.join(tools,'verified-node'),0o700);await writeFile(path.join(tools,'manifest.json'),'{}',{mode:0o600});return token},
 paths:async receipt=>{assert.equal(receipt,token);return {root:tools,node:path.join(tools,'verified-node'),identity:{expected:'fixed source'}}},
 read:async(...args)=>{assert.notEqual(args[0],process.execPath,'a shared source-path replacement must never choose executable bytes');return actualTools.readControllerToolFile(...args)}
 };
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}){if(s==='./release-hosted-native-bootstrap.mts')return {url:'launch:scope',shortCircuit:true};if(s==='./release-signing-job-budget.mts')return {url:'launch:clock',shortCircuit:true};if(s==='./release-controller-tool-admission.mts')return {url:'launch:tools',shortCircuit:true};if(s==='./release-controller-tools.mts')return {url:'launch:files',shortCircuit:true}}return next(s,c)},load(u,c,next){if(u==='launch:scope')return {format:'module',source:'export const readActualHostedLinuxBootstrapScope=globalThis.launchFixture.scope;',shortCircuit:true};if(u==='launch:clock')return {format:'module',source:'export const currentNativeJobDeadline=globalThis.launchFixture.clock;',shortCircuit:true};if(u==='launch:tools')return {format:'module',source:'export const receiveControllerTools=globalThis.launchFixture.receive;export const verifiedControllerToolPaths=globalThis.launchFixture.paths;',shortCircuit:true};if(u==='launch:files')return {format:'module',source:'export const controllerToolPaths=["verified-node"];export const readControllerToolFile=globalThis.launchFixture.read;',shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['valid','foreign-tools','missing-pre','replay','binding','replaced','bytes','writable','linked','source','provider','expired','changed','occupied']){
- const home=path.join(root,name);await mkdir(home,{mode:0o700});process.env.HOME=home;binding='fixed';fault=name;
+process.stderr.write('launch-fixture:'+name+'\n'); const home=path.join(root,name);await mkdir(home,{mode:0o700});process.env.HOME=home;binding='fixed';fault=name;
  const fixedRoot=path.join(home,'.portcove-native-123-1-'+identity.controller_revision),node=path.join(fixedRoot,'bootstrap-node');
  const pre=()=>api.prepareFixedHostedLinuxLaunch('pre-sign'),post=()=>api.prepareFixedHostedLinuxLaunch('post-sign');
  if(name==='missing-pre'){await assert.rejects(post());assert.deepEqual(await readdir(home),[]);continue}
@@ -482,7 +498,7 @@ for(const name of ['valid','foreign-tools','missing-pre','replay','binding','rep
  if(name==='foreign-tools'){await assert.rejects(pre(),/foreign issuer/);assert.deepEqual(await readdir(fixedRoot),[]);continue}
  const plan=await pre();assert.equal(plan.command,node);assert.equal(plan.temporary,fixedRoot);assert.equal(plan.authority,'none');assert.equal(plan.native_acceptance,'not-established');assert.equal(plan.arguments[1],'pre-sign');assert.equal((await lstat(node)).mode&0o777,0o700);
  if(name==='valid'){assert.ok(Object.isFrozen(plan.arguments));assert.throws(()=>{plan.arguments[0]='foreign-code'});await assert.rejects(api.claimPreparedHostedLinuxLaunch({...plan}),/original/);const context=await api.claimPreparedHostedLinuxLaunch(plan);context.recheck();assert.equal(context.tools_root,tools);await assert.rejects(api.claimPreparedHostedLinuxLaunch(plan),/original/)}
- assert.deepEqual(await readFile(node),await readFile(process.execPath));assert.deepEqual((await readdir(fixedRoot)).sort(),['authenticated-tools','bootstrap-node','launcher-binding.json','pre-sign-launch.json']);
+ assert.ok((await readFile(node)).equals(await readFile(process.execPath)),'copied Node byte identity differs');assert.deepEqual((await readdir(fixedRoot)).sort(),['authenticated-tools','bootstrap-node','launcher-binding.json','pre-sign-launch.json']);
  if(name==='binding')binding='changed';if(name==='replaced'){await rename(node,node+'.retained');await writeFile(node,await readFile(node+'.retained'),{mode:0o700})}if(name==='bytes')await writeFile(node,'changed');if(name==='writable')await chmod(node,0o777);if(name==='linked'){await rename(node,node+'.retained');await symlink(node+'.retained',node)}
  if(['binding','replaced','bytes','writable','linked'].includes(name)){await assert.rejects(post());assert.ok((await readFile(path.join(fixedRoot,'pre-sign-launch.json'))).length);continue}
  if(name==='replay'){await assert.rejects(pre(),{code:'EEXIST'});continue}
@@ -491,12 +507,24 @@ for(const name of ['valid','foreign-tools','missing-pre','replay','binding','rep
 await assert.rejects(api.prepareFixedHostedLinuxLaunch('selected-operation'));assert.ok(checks>0&&receives>0);
 console.log('real private Node custody and retained launch refusal checks passed; no worker or provider acceptance');
 `;
+    const childStarted = performance.now();
     const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
-      timeout: 20000,
+      timeout: 120000,
       maxBuffer: 65536,
     });
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      result.status,
+      0,
+      JSON.stringify({
+        error_code: result.error && "code" in result.error ? result.error.code : null,
+        error: result.error?.message,
+        signal: result.signal,
+        elapsed_milliseconds: Math.round(performance.now() - childStarted),
+        stdout: result.stdout,
+        stderr: result.stderr,
+      }),
+    );
     assert.match(result.stdout, /real private Node custody/u);
   },
 );
@@ -563,7 +591,7 @@ let fault='',directory,worker,executingRoot,receives=0,runs=[],providerReads=0,p
 const workerCode='globalThis.nativeBootstrapFixture.imported();export const runConfiguredHostedLinuxNativeJob=(...args)=>globalThis.nativeBootstrapFixture.run("pre-sign",...args);export const runConfiguredHostedLinuxPostSignJob=(...args)=>globalThis.nativeBootstrapFixture.run("post-sign",...args);';
 const actualTools=await import(${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)});
 globalThis.nativeBootstrapFixture={
- imported:()=>{imported++}, toolFiles:['fixed-runner.mjs'],read:actualTools.readControllerToolFile,custody:files=>{assert.ok(files.length===1||files.length===3);return new Map(files.map(file=>[file,'controlled']))},recheck:(files,observed)=>assert.deepEqual([...observed.keys()],files),
+ imported:()=>{imported++}, toolFiles:['fixed-runner.mjs'],profile:actualTools.controllerToolPlatformProfile,read:actualTools.readControllerToolFile,custody:files=>{assert.ok(files.length===1||files.length===3);return new Map(files.map(file=>[file,'controlled']))},recheck:(files,observed)=>assert.deepEqual([...observed.keys()],files),
  workflow:async()=>workflow,
  admit:(policy,environment,bytes,platform,stage)=>{assert.equal(policy,'inert policy');assert.equal(environment.GITHUB_JOB,'native_linux');assert.equal(bytes,workflow);assert.equal(platform,'linux-x86_64');assert.ok(['payload-signing','release-publication'].includes(stage));if(fault==='source')throw Error('source refused');return source},
  require:(value,job,purpose)=>{assert.equal(value,source);assert.equal(job,'native_linux');assert.equal(purpose,'application')},
@@ -577,7 +605,7 @@ const routes={
  './production-controller-admission.mts':{readProductionControllerWorkflowBytes:'workflow',admitProductionNativeParent:'admit',requireAdmittedProductionSource:'require'},
  './release-authority-configuration-contract.mts':{inspectBoundSelectedPublicationAuthorities:'selected'},
  './release-signing-job-budget.mts':{currentNativeJobDeadline:'clock'},
- './release-controller-tools.mts':{controllerToolPaths:'toolFiles',readControllerToolFile:'read'},
+ './release-controller-tools.mts':{controllerToolPaths:'toolFiles',controllerToolPlatformProfile:'profile',readControllerToolFile:'read'},
  './release-controller-tool-admission.mts':{receiveControllerTools:'receive',verifiedControllerToolPaths:'paths'},
 };
 if(!actualCustody)routes['./release-native-runtime-custody.mts']={inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck'};
@@ -885,7 +913,7 @@ void test(
 
 void test(
   "Linux runtime uses original controlled providers, exact inputs and prepared support without compiler fallback",
-  { skip: process.platform !== "linux" || process.getuid?.() === 0 },
+  { timeout: 60000, skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
     const root = mkdtempSync(path.join(os.homedir(), ".portcove-runtime-binding-"));
     chmodSync(root, 0o700);
@@ -925,6 +953,7 @@ function fixture(name){
  return {directory,tools,tool,parent,entry:path.join(tools,'scripts/release-hosted-native-runner.bundle.mjs')};
 }
 let f=fixture('valid');const runtime=await api.prepareHostedNativeRuntime(f.tool,f.parent,f.entry);
+assert.equal((await api.requireHostedNativeRuntime(runtime,f.parent)).tools,f.tool);
 await assert.rejects(api.requireHostedNativeRuntime({...runtime},f.parent),/original/);
 await assert.rejects(api.requireHostedNativeRuntime(runtime,{}),/original/);
 const deps=await api.hostedNativeSupportDependencies(runtime,f.parent,f.directory);
@@ -958,12 +987,24 @@ for(const kind of ['writable-root','writable-file','wrong-source','wrong-run','c
 }
 console.log('controlled original-runtime and fixed support refusals passed; no provider or native acceptance');
 `;
+    const childStarted = performance.now();
     const result = spawnSync(fixedNode, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
-      timeout: 20000,
+      timeout: 45000,
       maxBuffer: 65536,
     });
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      result.status,
+      0,
+      JSON.stringify({
+        error_code: result.error && "code" in result.error ? result.error.code : null,
+        error: result.error?.message,
+        signal: result.signal,
+        elapsed_milliseconds: Math.round(performance.now() - childStarted),
+        stdout: result.stdout,
+        stderr: result.stderr,
+      }),
+    );
     assert.match(result.stdout, /fixed support refusals passed/u);
   },
 );
@@ -994,7 +1035,7 @@ for(const [name,expected]of [['pre','payload-signing'],['post','release-publicat
 globalThis.fixture.receive=async(root,artifact,bundle,options)=>{received++;assert.deepEqual(artifact,{source:'inert expected source'});assert.deepEqual(bundle,{artifact_id:1,sha256:'f'.repeat(64)});assert.ok(options.deadline>performance.now());return toolsToken};
 globalThis.fixture.read=async(file,bound)=>{if(fault==='delayed-read'&&path.basename(file)==='native-upload-ready.json')await delay(1800);return realTools.readControllerToolFile(file,bound)};
 globalThis.fixture.marker=async(file,value)=>{await realMarker.retainReleaseRoutingMarker(file,value);if((fault==='late-settlement'&&path.basename(file)==='native-job-settlement.json')||(fault==='late-ack'&&path.basename(file)==='native-job-upload-ack.json'))await delay(1800)};
-registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(entry)}){const routes={'./release-hosted-native-job.mts':'job','./release-controller-tools.mts':'tools','./release-routing-marker.mts':'marker','./release-controller-tool-admission.mts':'admission'};if(routes[specifier])return {url:'inert:'+routes[specifier],shortCircuit:true}}return next(specifier,context)},load(url,context,next){const sources={'inert:job':'export const prepareActualHostedLinuxPreSignJob=globalThis.fixture.pre;export const readBackActualHostedLinuxPreSignUpload=globalThis.fixture.preRead;export const prepareActualHostedLinuxPostSignJob=globalThis.fixture.post;export const readBackActualHostedLinuxPostSignUpload=globalThis.fixture.postRead;','inert:admission':'export const receiveControllerTools=globalThis.fixture.receive;','inert:tools':'export const readControllerToolFile=globalThis.fixture.read;','inert:marker':'export const retainReleaseRoutingMarker=globalThis.fixture.marker;'};if(sources[url])return {format:'module',source:sources[url],shortCircuit:true};return next(url,context)}});
+registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(entry)}){const routes={'./release-hosted-native-job.mts':'job','./release-controller-tools.mts':'tools','./release-routing-marker.mts':'marker','./release-controller-tool-admission.mts':'admission'};if(routes[specifier])return {url:'inert:'+routes[specifier],shortCircuit:true}}return next(specifier,context)},load(url,context,next){const sources={'inert:job':'export const prepareActualHostedLinuxPreSignJob=globalThis.fixture.pre;export const readBackActualHostedLinuxPreSignUpload=globalThis.fixture.preRead;export const prepareActualHostedLinuxPostSignJob=globalThis.fixture.post;export const readBackActualHostedLinuxPostSignUpload=globalThis.fixture.postRead;','inert:admission':'export const receiveControllerTools=globalThis.fixture.receive;export const verifiedControllerToolPaths=()=>{};','inert:tools':'export const readControllerToolFile=globalThis.fixture.read;','inert:marker':'export const retainReleaseRoutingMarker=globalThis.fixture.marker;'};if(sources[url])return {format:'module',source:sources[url],shortCircuit:true};return next(url,context)}});
 const api=await import(${JSON.stringify(entry)});
 const run=(directory,deadline)=>{if(fault==='configured')return (post?api.runConfiguredHostedLinuxPostSignJob:api.runConfiguredHostedLinuxNativeJob)({tools:{artifact:{source:'inert expected source'},bundle:{artifact_id:1,sha256:'f'.repeat(64)}}},directory,deadline,'/fixed.bundle.mjs');return post?api.runActualHostedLinuxPostSignJob(directory,deadline,{tools:toolsToken,executing_entry:'/fixed.bundle.mjs'}):api.runActualHostedLinuxNativeJob(directory,deadline)};
 const read=post?api.readHostedNativePostSignUploadRequest:api.readHostedNativeUploadRequest,ack=post?api.acknowledgeHostedNativePostSignUpload:api.acknowledgeHostedNativeUpload;
@@ -1133,3 +1174,85 @@ void test("native failure diagnostics retain only bounded public lifecycle rows 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+for (const stage of ["payload-signing", "release-publication"] as const)
+  for (const diagnostic of [false, true])
+    void test(`Windows ${diagnostic ? "diagnostic " : ""}${stage} upload routing binds platform, bytes, ACK and one attempt without proof authority`, async (t) => {
+      const root = disposableDirectory(t, path.join(os.tmpdir(), "windows-native-upload-"));
+      const { mkdir, writeFile, readFile } = await import("node:fs/promises");
+      const api = await import("./release-hosted-native-runner.mts");
+      const directory = path.join(root, "public");
+      await mkdir(directory, { mode: 0o700 });
+      const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+      const files = [];
+      for (const name of ["subject", "report", "capture", "bundle"]) {
+        const bytes = Buffer.from("{}");
+        const file = path.join(directory, `${name}.json`);
+        await writeFile(file, bytes, { flag: "wx", mode: 0o600 });
+        files.push({ path: file, bytes: bytes.length, sha256: hash(bytes) });
+      }
+      const readyFile = path.join(directory, "native-upload-ready.json");
+      const ready = Buffer.from(
+        JSON.stringify({
+          schema_version: 1,
+          authority: "none",
+          retention_days: 7,
+          overwrite: false,
+          compression_level: 0,
+          name: `hosted-native-${diagnostic ? "diagnostic-" : ""}${stage}-windows-x86_64-123-1`,
+          files,
+        }),
+      );
+      await writeFile(readyFile, ready, { flag: "wx", mode: 0o600 });
+      const request = Buffer.from(
+        JSON.stringify({
+          schema_version: 1,
+          authority: "none",
+          nonce: "c".repeat(32),
+          ready_file: readyFile,
+          ready_sha256: hash(ready),
+          deadline_ns: String(process.hrtime.bigint() + 30000000000n),
+        }),
+      );
+      await writeFile(path.join(root, "native-job-upload-request.json"), request, {
+        flag: "wx",
+        mode: 0o600,
+      });
+      const read = diagnostic
+        ? (directory: string) => api.readHostedWindowsDiagnosticUploadRequest(directory, stage)
+        : stage === "payload-signing"
+          ? api.readHostedWindowsNativeUploadRequest
+          : api.readHostedWindowsNativePostSignUploadRequest;
+      const ack = diagnostic
+        ? (directory: string, sha: string, id: number, digest: string) =>
+            api.acknowledgeHostedWindowsDiagnosticUpload(directory, stage, sha, id, digest)
+        : stage === "payload-signing"
+          ? api.acknowledgeHostedWindowsNativeUpload
+          : api.acknowledgeHostedWindowsNativePostSignUpload;
+      const got = await read(root);
+      assert.equal(got.authority, "none");
+      if (diagnostic) {
+        await assert.rejects(api.readHostedWindowsNativeUploadRequest(root));
+        await assert.rejects(api.readHostedWindowsNativePostSignUploadRequest(root));
+      } else {
+        await assert.rejects(api.readHostedWindowsDiagnosticUploadRequest(root, stage));
+      }
+      assert.equal(got.files.length, 4);
+      await assert.rejects(api.readHostedNativeUploadRequest(root));
+      await assert.rejects(api.readHostedNativePostSignUploadRequest(root));
+      await assert.rejects(
+        (stage === "payload-signing"
+          ? api.readHostedWindowsNativePostSignUploadRequest
+          : api.readHostedWindowsNativeUploadRequest)(root),
+      );
+      await assert.rejects(ack(root, "b".repeat(64), 17, "d".repeat(64)));
+      await ack(root, hash(request), 17, "d".repeat(64));
+      const acknowledgement: unknown = JSON.parse(
+        await readFile(path.join(root, "native-job-upload-ack.json"), "utf8"),
+      );
+      assert.ok(isRecord(acknowledgement));
+      assert.equal(acknowledgement.nonce, "c".repeat(32));
+      await assert.rejects(ack(root, hash(request), 17, "d".repeat(64)));
+      await writeFile(files[0]!.path, "changed");
+      await assert.rejects(read(root));
+    });

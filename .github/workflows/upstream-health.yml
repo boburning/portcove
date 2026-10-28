@@ -58,6 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Reserve observed collection runtime and cleanup time
+        run: printf 'HEALTH_DEADLINE_MS=%s\n' "$(( $(date +%s) * 1000 + 540000 ))" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -104,6 +106,7 @@ jobs:
           name: upstream-health-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/upstream-health/report.json
+            work/upstream-health/failure.json
             work/upstream-health/summary.md
           if-no-files-found: warn
           retention-days: 7

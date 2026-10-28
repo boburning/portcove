@@ -518,6 +518,19 @@ impl PortcoveError {
             || (key, summary.to_owned()),
             KnownFailureCause::presentation,
         );
+        let summary = if matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::RuntimePathRequirement)
+        ) && self
+            .details
+            .get("runtime_path_requirement")
+            .map(String::as_str)
+            == Some("relative-file-max-path")
+        {
+            "This game needs a shorter Windows installation folder for its packaged files. Choose a shorter output folder in setup options, then review the installation again.".to_owned()
+        } else {
+            summary
+        };
         let summary: String =
             phase_label.map_or_else(|| summary.clone(), |phase| format!("{phase}: {summary}"));
         let summary = self.failure.preparation_target.as_ref().map_or_else(

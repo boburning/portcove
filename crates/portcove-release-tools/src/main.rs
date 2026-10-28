@@ -62,6 +62,26 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if let [command, config] = arguments.as_slice() {
+        if command == "inspect-catalog-key-inventory" {
+            let report =
+                portcove_release_tools::definition_repository::inspect_catalog_key_inventory(
+                    Path::new(config),
+                )?;
+            println!("{}", serde_json::to_string(&report)?);
+            return Ok(());
+        }
+        if command == "inspect-existing-tuf-key" {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()?;
+            let report = runtime.block_on(
+                portcove_release_tools::tuf_repository::offline_key::inspect_existing_key(
+                    Path::new(config),
+                ),
+            )?;
+            println!("{}", serde_json::to_string(&report)?);
+            return Ok(());
+        }
         if command == "create-offline-key" {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -180,7 +200,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     let [command, artifact, signature, public_key, sha256, bytes] = arguments.as_slice() else {
         return Err(
-            "usage: portcove-release-tools verify ARTIFACT SIGNATURE PUBLIC_KEY SHA256 BYTES\n       portcove-release-tools build-tuf CONFIG\n       portcove-release-tools sign-tuf-role releases|preview|stable|snapshot|timestamp CONFIG\n       portcove-release-tools assemble-tuf CONFIG\n       portcove-release-tools prepare-tuf-renewal CONFIG\n       portcove-release-tools inspect-tuf-bootstrap CONTEXT\n       portcove-release-tools create-offline-key CONFIG\n       portcove-release-tools prepare-offline-root CONFIG\n       portcove-release-tools sign-offline-root CONFIG\n       portcove-release-tools finalize-offline-root CONFIG\n       portcove-release-tools sign-offline-targets CONFIG"
+            "usage: portcove-release-tools verify ARTIFACT SIGNATURE PUBLIC_KEY SHA256 BYTES\n       portcove-release-tools build-tuf CONFIG\n       portcove-release-tools sign-tuf-role releases|preview|stable|snapshot|timestamp CONFIG\n       portcove-release-tools assemble-tuf CONFIG\n       portcove-release-tools prepare-tuf-renewal CONFIG\n       portcove-release-tools inspect-tuf-bootstrap CONTEXT\n       portcove-release-tools create-offline-key CONFIG\n       portcove-release-tools inspect-existing-tuf-key CONFIG\n       portcove-release-tools inspect-catalog-key-inventory CONFIG\n       portcove-release-tools prepare-offline-root CONFIG\n       portcove-release-tools sign-offline-root CONFIG\n       portcove-release-tools finalize-offline-root CONFIG\n       portcove-release-tools sign-offline-targets CONFIG"
                 .into(),
         );
     };

@@ -12,7 +12,12 @@ import type {
 } from "./types";
 
 import type { InstallInput, LaunchResult } from "./types";
-import type { GameUpdatePlan, PreparationCleanupPreview, PreparationPlan } from "./types";
+import type {
+  GameUpdateAcquisition,
+  GameUpdatePlan,
+  PreparationCleanupPreview,
+  PreparationPlan,
+} from "./types";
 import type {
   ListingDeliveryStatus,
   CatalogStatus,
@@ -80,6 +85,8 @@ import type {
   InstallPlan,
   InstallRecord,
   LibraryIdentity,
+  LibraryOrganization,
+  OrganizationChange,
   LibraryMetadataFile,
   LocalePreferenceSnapshot,
   OutputDestinationPreview,
@@ -113,6 +120,14 @@ export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "c
 };
 
 export const desktopApi = {
+  organizationPreferences: (generation: number) =>
+    invoke<LibraryOrganization>("get_library_organization", { generation }),
+  changeOrganization: (expectedRevision: number, change: OrganizationChange, generation: number) =>
+    invoke<LibraryOrganization>("change_library_organization", {
+      expectedRevision,
+      change,
+      generation,
+    }),
   favoritePorts: (generation: number) => invoke<string[]>("get_favorite_ports", { generation }),
   setPortFavorite: (portId: string, favorite: boolean, generation: number) =>
     invoke<void>("set_port_favorite", { portId, favorite, generation }),
@@ -186,6 +201,18 @@ export const desktopApi = {
       portId,
       slot,
       expectedRevision,
+      generation,
+    }),
+  catalogMediaThumbnail: (
+    portId: string,
+    mediaId: string,
+    expectedSha256: string,
+    generation: number,
+  ) =>
+    invoke<DesktopArtworkThumbnail>("get_catalog_media_thumbnail", {
+      portId,
+      mediaId,
+      expectedSha256,
       generation,
     }),
   importArtwork: (
@@ -360,6 +387,25 @@ export const desktopApi = {
       activate,
       generation,
     }),
+  planGameUpdateAcquisition: (portId: string, generation: number) =>
+    invoke<GameUpdatePlan>("plan_game_update_acquisition", { portId, generation }),
+  acquireGameUpdate: (
+    portId: string,
+    expectedPlan: string,
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<GameUpdateAcquisition>("acquire_game_update", {
+      portId,
+      expectedPlan,
+      generation,
+      onEvent: channel,
+    });
+  },
+  discardGameUpdateAcquisition: (portId: string, acquisitionId: string, generation: number) =>
+    invoke<void>("discard_game_update_acquisition", { portId, acquisitionId, generation }),
   applyGameUpdate: (
     portId: string,
     activate: boolean,

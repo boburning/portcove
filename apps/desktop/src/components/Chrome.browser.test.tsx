@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
-import { PageHeader, Sidebar } from "./Chrome";
+import { PageHeader, Sidebar, WorkspaceToolbar } from "./Chrome";
 import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { prepareCaptureTarget } from "../../test/capture-target";
 
@@ -17,7 +17,8 @@ for (const platform of ["Win32", "MacIntel"]) {
     it(`includes the visible command shortcut in the accessible name on ${platform} at ${width}px`, async () => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       await page.viewport(width, 720);
-      await render(<PageHeader view="library" query="" setQuery={() => {}} />);
+      const onOpenCommands = vi.fn();
+      await render(<WorkspaceToolbar view="library" onOpenCommands={onOpenCommands} />);
       const shortcut = platform === "MacIntel" ? "Command K" : "Ctrl K";
       const button = page.getByRole("button", {
         name: `Commands ${shortcut}: open command palette`,
@@ -25,13 +26,70 @@ for (const platform of ["Win32", "MacIntel"]) {
       });
       await expect.element(button).toBeVisible();
       expect(button.element().textContent).toContain(shortcut);
+      await expect.element(button.getByText(shortcut, { exact: true })).toBeVisible();
       const result = await axe.run(button.element(), {
         runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
       });
       expect(result.violations).toEqual([]);
+      await button.click();
+      expect(onOpenCommands).toHaveBeenCalledTimes(1);
     });
   }
 }
+
+it("keeps the actual workspace Commands trigger available on compact detail navigation without a duplicate header trigger", async () => {
+  await page.viewport(320, 720);
+  const onOpenCommands = vi.fn();
+  await render(
+    <>
+      <WorkspaceToolbar
+        view="catalog"
+        detailTitle="A long original game and exact port identity"
+        onOpenCommands={onOpenCommands}
+      />
+      <PageHeader view="catalog" query="" setQuery={() => {}} />
+    </>,
+  );
+  const commands = page.getByRole("button", { name: /^Commands .*open command palette$/ });
+  await expect.element(commands).toBeVisible();
+  expect(document.querySelectorAll(".command-trigger")).toHaveLength(1);
+  expect(document.querySelector('[aria-label="Current location"]')?.textContent).toContain(
+    "Discover",
+  );
+  await commands.click();
+  expect(onOpenCommands).toHaveBeenCalledTimes(1);
+  const labels = await axe.run(commands.element(), {
+    runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
+  });
+  expect(labels.violations).toEqual([]);
+});
+
+it("keeps the Library Add games action on the heading's existing return-focus target", async () => {
+  await page.viewport(1280, 720);
+  const onAddGames = vi.fn();
+  await render(
+    <PageHeader
+      view="library"
+      query=""
+      setQuery={() => {}}
+      libraryCount={12}
+      onAddGames={onAddGames}
+    />,
+  );
+  const add = page.getByRole("button", { name: "Add games", exact: true });
+  expect(add.element().hasAttribute("data-add-games-trigger")).toBe(true);
+  await add.click();
+  expect(onAddGames).toHaveBeenCalledTimes(1);
+});
+
+it("retains an explicitly requested standalone PageHeader Commands control", async () => {
+  const onOpenCommands = vi.fn();
+  await render(
+    <PageHeader view="library" query="" setQuery={() => {}} onOpenCommands={onOpenCommands} />,
+  );
+  await page.getByRole("button", { name: /^Commands .*open command palette$/ }).click();
+  expect(onOpenCommands).toHaveBeenCalledTimes(1);
+});
 
 it.for([
   [960, "dark"],
@@ -56,7 +114,7 @@ it.for([
     expect(document.querySelector(".sidebar-footer")?.textContent ?? "").not.toContain(
       "Copy existing installation",
     );
-    for (const label of ["Library", "Find games", "Activity", "Settings"])
+    for (const label of ["Library", "Discover", "Activity", "Settings"])
       await expect
         .element(page.getByRole("button", { name: new RegExp(`^${label}`) }))
         .toBeVisible();

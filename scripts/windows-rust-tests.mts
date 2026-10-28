@@ -13,6 +13,11 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCiMetrics } from "./ci-metrics.mts";
+import {
+  nextestSkipRouteInventory,
+  readNextestSkipRoutes,
+  type NextestSkipRoute,
+} from "./nextest-skip-routes.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import {
   nextestOutcomeSelection,
@@ -32,10 +37,49 @@ import {
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const packetDirectory = path.join(root, "work", "windows-rust-tests");
+export const windowsRustSkipResultsDirectory = path.join(
+  root,
+  "work",
+  "test-results",
+  "windows-rust-skip-routes",
+);
 const nextestProfile = "hosted-windows";
 const maxMetadataBytes = 32 * 1024 * 1024;
 const digest = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
 const ordered = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
+
+export function writeWindowsRustSkipRoutes(
+  directory: string,
+  inventory: unknown,
+  identity: ArchiveIdentity,
+  {
+    coreOnly = false,
+    routes = readNextestSkipRoutes(),
+  }: { coreOnly?: boolean; routes?: readonly NextestSkipRoute[] } = {},
+) {
+  mkdirSync(directory, { recursive: true });
+  const report = nextestSkipRouteInventory(
+    inventory,
+    coreOnly ? routes.filter((route) => route.package === "portcove-core") : routes,
+    { platform: "win32" },
+  );
+  const complete = JSON.stringify(inventory) + "\n";
+  writeFileSync(path.join(directory, "skip-routes.inventory.json"), complete, { flag: "wx" });
+  const bytes =
+    JSON.stringify(
+      {
+        format_version: 1,
+        identity,
+        complete_inventory_sha256: digest(complete),
+        ...report,
+      },
+      null,
+      2,
+    ) + "\n";
+  writeFileSync(path.join(directory, "skip-routes.json"), bytes, { flag: "wx" });
+  writeFileSync(path.join(directory, "skip-routes.sha256"), digest(bytes) + "\n", { flag: "wx" });
+  return report.errors;
+}
 
 interface TimingHints {
   format_version: 1;
@@ -372,6 +416,7 @@ function currentContext() {
         "rust-toolchain.toml",
         ".config/nextest.toml",
         ".config/rust-test-impact.json",
+        "scripts/nextest-skip-routes.mts",
         ".github/quality-tools.json",
         ...(plan.mode === "qualification"
           ? [
@@ -586,24 +631,27 @@ export function runWindowsRustPartition(partitionId: number) {
     throw new Error("Windows Rust archive digest mismatch");
   const extracted = path.join(root, "work", "windows-rust-extracted");
   mkdirSync(extracted, { recursive: true });
-  const complete = metrics.measure("windows-test-extract-and-inventory", () =>
-    listTests(
-      [
-        "--archive-file",
-        archive,
-        "--extract-to",
-        extracted,
-        "--workspace-remap",
-        root,
-        "--profile",
-        nextestProfile,
-        "-E",
-        "all()",
-      ],
-      false,
-    ),
+  const completeInventory = metrics.measure("windows-test-extract-and-inventory", () =>
+    listInventory([
+      "--archive-file",
+      archive,
+      "--extract-to",
+      extracted,
+      "--workspace-remap",
+      root,
+      "--profile",
+      nextestProfile,
+      "-E",
+      "all()",
+    ]),
   );
+  const complete = runnableWindowsRustTests(completeInventory);
   assertSameIdentities(complete, manifest.complete, "Transferred workspace");
+  const skipErrors = writeWindowsRustSkipRoutes(
+    path.join(windowsRustSkipResultsDirectory, `partition-${partition.id}`),
+    completeInventory,
+    identity,
+  );
   const target = path.join(extracted, "target");
   const metadata = [
     "--binaries-metadata",
@@ -633,6 +681,7 @@ export function runWindowsRustPartition(partitionId: number) {
     status: runNextestWithOutcomes(args, selection),
   }));
   if (result.status !== 0) throw new Error(`Nextest partition failed with status ${result.status}`);
+  if (skipErrors.length) throw new Error(skipErrors.join("; "));
 }
 
 const qualificationDirectory = path.join(root, "work", "windows-rust-qualification");
@@ -765,6 +814,12 @@ export function runWindowsQualificationCoreWorker(workerName: string) {
     throw new Error("Transferred qualification Core binary inventory differs");
   const complete = runnableWindowsRustTests(completeInventory);
   assertSameIdentities(complete, manifest.complete, "Transferred qualification Core");
+  const skipErrors = writeWindowsRustSkipRoutes(
+    path.join(windowsRustSkipResultsDirectory, `core-${worker.name}`),
+    completeInventory,
+    identity,
+    { coreOnly: true },
+  );
   const target = path.join(extracted, "target");
   const metadata = [
     "--binaries-metadata",
@@ -800,6 +855,7 @@ export function runWindowsQualificationCoreWorker(workerName: string) {
     if (result.status !== 0)
       throw new Error(`Qualification Core phase failed with status ${result.status}`);
   }
+  if (skipErrors.length) throw new Error(skipErrors.join("; "));
 }
 
 /** Refuse unbound, truncated or substituted packets before invoking nextest. */

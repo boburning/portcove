@@ -59,6 +59,11 @@ export type OutputActivityDiagnostic = ActivityDiagnostic[];
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type RuntimeOrigin = "verified_download" | "adopted_tree";
 export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
+/**
+ * Durable acquisition state. No phase grants permission to prepare or activate.
+ */
+export type GameUpdateAcquisitionPhase = "acquiring" | "verifying" | "acquired" | "attention_required";
+export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
 export type DefinitionEligibilityOutcome = "eligible" | "hold" | "escalate";
 export type DefinitionEligibilityReason =
   | "mandatory_checks_passed"
@@ -79,7 +84,6 @@ export type DefinitionEligibilityReason =
   | "source_identity_mismatch"
   | "required_source_missing";
 export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
-export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
 /**
  * A reviewed shared write scope, never a caller-selected external path.
  */
@@ -312,6 +316,17 @@ export type InstallationMethod =
   | "upstream-setup"
   | "managed-recompilation"
   | "user-prepared-runtime";
+export type CatalogMediaRole = "header" | "screenshot";
+export type CatalogMediaSubject =
+  | {
+      kind: "port";
+      port_id: string;
+    }
+  | {
+      game_id: string;
+      kind: "original";
+      source_edition_id: string;
+    };
 export type SavesAndSettingsBehavior = "portcove-managed" | "external-user-owned";
 export type PortSourceRole = "game" | "bios";
 export type SourceVerificationMethod = "catalog-identity" | "upstream-validator" | "catalog-rules";
@@ -344,7 +359,7 @@ export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
  */
-export type WindowsRuntimePathPolicy = "printable-ascii-max-path";
+export type WindowsRuntimePathPolicy = "printable-ascii-max-path" | "relative-file-max-path";
 export type CatalogAdmissionMode = "enforced" | "informational";
 export type CatalogEvidenceRole =
   "upstream_support" | "byte_identity" | "preservation_crosswalk" | "portcove_qualification";
@@ -619,6 +634,15 @@ export type ApplicationUpdateObservedTermination =
 export type ApplicationUpdateInstallEligibility =
   "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+export type InstallationContext =
+  | {
+      installation_id: string;
+      kind: "managed";
+    }
+  | {
+      installation_id: string;
+      kind: "external";
+    };
 export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
 export type SteamClientState = "closed" | "running" | "unknown";
 export type SteamEntryOperation = "add_or_repair" | "remove";
@@ -692,6 +716,7 @@ export interface TransportOutputs {
   game_file_roots: OutputGameFileRoots;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: OutputGameInstallPlan;
+  game_update_acquisition: GameUpdateAcquisition;
   game_update_plan: OutputGameUpdatePlan;
   ghostship_recovery_plan: OutputGhostshipRecoveryPlan;
   ghostship_recovery_result: OutputGhostshipRecoveryResult;
@@ -784,6 +809,7 @@ export interface TransportOutputs {
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
+  desktop_library_organization: OutputDesktopLibraryOrganization;
   desktop_locale_preference: OutputDesktopLocalePreference;
   desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
   desktop_managed_route_change_result: OutputManagedRouteChangeResult;
@@ -980,6 +1006,10 @@ export interface OutputApiResponsePortStatus {
   [k: string]: unknown;
 }
 export interface PortStatus {
+  /**
+   * Owned archive acquisition, separate from a staged or active runtime.
+   */
+  acquisition?: GameUpdateAcquisition | null;
   active: InstallRecord | null;
   channel: ReleaseChannel;
   /**
@@ -1000,6 +1030,30 @@ export interface PortStatus {
   successful_launches: number;
   update_policy: UpdatePolicy;
   user_data_root?: string | null;
+  [k: string]: unknown;
+}
+export interface GameUpdateAcquisition {
+  created_at: number;
+  id: string;
+  phase: GameUpdateAcquisitionPhase;
+  platform: Platform;
+  port_id: string;
+  release: ResolvedRelease;
+  updated_at: number;
+  [k: string]: unknown;
+}
+export interface ResolvedRelease {
+  asset: ReleaseAsset;
+  channel: ReleaseChannel;
+  published_at: string | null;
+  version: string;
+  [k: string]: unknown;
+}
+export interface ReleaseAsset {
+  name: string;
+  sha256: string;
+  size: number;
+  url: string;
   [k: string]: unknown;
 }
 /**
@@ -1089,20 +1143,6 @@ export interface UpdateCheck {
   release: ResolvedRelease;
   required_runtime: RuntimeIdentity | null;
   update_available: boolean;
-  [k: string]: unknown;
-}
-export interface ResolvedRelease {
-  asset: ReleaseAsset;
-  channel: ReleaseChannel;
-  published_at: string | null;
-  version: string;
-  [k: string]: unknown;
-}
-export interface ReleaseAsset {
-  name: string;
-  sha256: string;
-  size: number;
-  url: string;
   [k: string]: unknown;
 }
 export interface PortActionAssessment {
@@ -1452,8 +1492,13 @@ export interface PortPresentation {
   manual_preparation?: string | null;
   manual_setup?: ManualSetupGuide | null;
   /**
+   * Absent legacy metadata may use the directory; an explicit empty list clears it.
+   */
+  media?: CatalogMediaAsset[] | null;
+  original_game?: OriginalGameIdentity | null;
+  /**
    * Descriptive display metadata only. This never replaces the port, source,
-   * release or library identity, and does not group different implementations.
+   * release or library identity. Explicit original_game metadata owns display grouping.
    */
   original_game_title?: string | null;
   saves_and_settings: SavesAndSettingsBehavior;
@@ -1471,6 +1516,41 @@ export interface ManualSetupGuide {
 }
 export interface ManualSetupStep {
   instruction: string;
+  title: string;
+}
+export interface CatalogMediaAsset {
+  attribution: string;
+  caption: string;
+  height: number;
+  id: string;
+  license: string;
+  rights_url: string;
+  role: CatalogMediaRole;
+  sha256: string;
+  source_url: string;
+  subject: CatalogMediaSubject;
+  url: string;
+  width: number;
+}
+/**
+ * Reviewed descriptive identity only; port, installation and source authority remain separate.
+ */
+export interface OriginalGameIdentity {
+  evidence_urls: string[];
+  format_version: number;
+  id: string;
+  /**
+   * Empty means editions are not specified; never assume a PC edition.
+   */
+  source_editions: SourceEdition[];
+}
+export interface SourceEdition {
+  evidence_urls: string[];
+  id: string;
+  /**
+   * Original source system, distinct from the port's target operating systems.
+   */
+  system?: string | null;
   title: string;
 }
 export interface SourceRequirementPresentation {
@@ -1812,7 +1892,7 @@ export interface CatalogDownloadRequest {
 }
 /**
  * Independently versioned directory projection. Format 2 can restrict fresh
- * self-service downloads; neither format grants managed operations.
+ * downloads; format 3 adds descriptive game/edition identity. No format grants operations.
  */
 export interface CatalogListingDocument {
   format_version: number;
@@ -1846,7 +1926,9 @@ export interface PortListing {
   id: string;
   issue_number?: number | null;
   manual_setup?: ManualSetupGuide | null;
+  media?: CatalogMediaAsset[];
   name: string;
+  original_game?: OriginalGameIdentity | null;
   original_game_title?: string | null;
   /**
    * Empty means unknown; it is not an execution compatibility declaration.
@@ -2351,6 +2433,10 @@ export interface InstallSpaceRequirement {
  * A reviewed game update, independent of the saved automatic-update policy.
  */
 export interface OutputGameUpdatePlan {
+  /**
+   * Exact retained archive selected by this review; never authorization.
+   */
+  acquisition?: GameUpdateAcquisition | null;
   activate: boolean;
   assessment: PortActionAssessment3;
   plan: InstallPlan;
@@ -3301,6 +3387,40 @@ export interface OutputDesktopLaunchResult {
   processId: number | null;
   sessionId: string;
   [k: string]: unknown;
+}
+export interface OutputDesktopLibraryOrganization {
+  collections: {
+    [k: string]: CollectionPreference;
+  };
+  hidden_port_ids: string[];
+  revision: number;
+  saved_game_ids: string[];
+  setup_confirmations: SetupConfirmation[];
+  update_notices: {
+    [k: string]: UpdateNoticeChoice;
+  };
+  [k: string]: unknown;
+}
+export interface CollectionPreference {
+  name: string;
+  port_ids: string[];
+  [k: string]: unknown;
+}
+export interface SetupConfirmation {
+  context: InstallationContext;
+  port_id: string;
+}
+export interface UpdateNoticeChoice {
+  paused: boolean;
+  skipped_release: UpdateNoticeRelease | null;
+  [k: string]: unknown;
+}
+export interface UpdateNoticeRelease {
+  /**
+   * Same-tag rebuilds with different bytes must remain visible.
+   */
+  artifact_sha256: string;
+  version: string;
 }
 export interface OutputDesktopLocalePreference {
   locale: string | null;

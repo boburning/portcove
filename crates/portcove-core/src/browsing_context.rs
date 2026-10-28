@@ -515,6 +515,7 @@ mod tests {
 
     fn status(id: &str) -> PortStatus {
         PortStatus {
+            acquisition: None,
             port_id: id.into(),
             user_data_root: None,
             channel: ReleaseChannel::Stable,

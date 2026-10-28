@@ -565,15 +565,7 @@ impl ModRestore {
                 }
             }
         }
-        if snapshot(&self.source, checkpoint)? != self.source_tree
-            || snapshot(&self.destination, checkpoint)? != self.destination_tree
-        {
-            return Err(conflict(
-                &self.source,
-                &self.destination,
-                "mod paths changed after preflight",
-            ));
-        }
+        self.require_unchanged(checkpoint)?;
         for package in &self.additions {
             checkpoint()?;
             let destination = self.destination.join(package);
@@ -609,6 +601,19 @@ impl ModRestore {
                 checkpoint()?;
                 super::remove_managed_entry(&self.destination.join(relative))?;
             }
+        }
+        Ok(())
+    }
+
+    pub(super) fn require_unchanged(&self, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
+        if snapshot(&self.source, checkpoint)? != self.source_tree
+            || snapshot(&self.destination, checkpoint)? != self.destination_tree
+        {
+            return Err(conflict(
+                &self.source,
+                &self.destination,
+                "mod paths changed after preflight",
+            ));
         }
         Ok(())
     }
@@ -755,10 +760,10 @@ impl PortcoveService {
         Ok(())
     }
 
-    /// An older install journal can retain activate=true. Publish it inactive,
-    /// then perform current retained-data preflight before its original commit.
-    pub(crate) fn prepare_recovered_psx_activation(&self, install: &InstallRecord) -> Result<()> {
-        let port = self.installed_port(install)?;
+    /// Shared preflight before the caller's reuse, activation or recovery commit.
+    pub(crate) fn prepare_retained_install_data(&self, install: &InstallRecord) -> Result<()> {
+        crate::install::check_retained_runtime_paths(install, &install.path)?;
+        self.require_portable_runtime_unchanged(install)?;
         let qualification = self.installed_mutability_qualification(install)?;
         let active = self
             .library
@@ -771,7 +776,7 @@ impl PortcoveService {
         if let Some(active) = &active {
             self.require_portable_target_transition(active, install)?;
         }
-        self.restore_user_data_to(&port, &install.path)?;
+        self.restore_retained_user_data_to(install)?;
         if let Some(active) = &active {
             self.require_portable_target_transition(active, install)?;
         }

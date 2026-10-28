@@ -1,5 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
-import { investigationWindow } from "./discovery-checkpoint.mts";
+import { discoveryCheckpointBytes, investigationWindow } from "./discovery-checkpoint.mts";
 import { ecosystemSearchFamilies, parseRecompManifest } from "./discovery-ecosystems.mts";
 import type { RecompManifest } from "./discovery-ecosystems.mts";
 
@@ -57,12 +57,18 @@ export interface LeadState {
   records: Record<string, DiscoveryLead>;
   retired_slices?: Record<string, LeadSlice>;
 }
+function boundLeadState<T>(value: T): T {
+  if (Buffer.byteLength(JSON.stringify(value)) > discoveryCheckpointBytes)
+    throw new Error("Retained lead byte envelope exceeded; preserve prior continuation");
+  return value;
+}
 const clock = (v: unknown): v is string => typeof v === "string" && Number.isFinite(Date.parse(v));
 export function parseLeadState(value: unknown): LeadState {
   if (value === undefined) return { format: 1, next_family: 0, slices: {}, records: {} };
   if (
     !isRecord(value) ||
     value.format !== 1 ||
+    Buffer.byteLength(JSON.stringify(value)) > discoveryCheckpointBytes ||
     !isRecord(value.slices) ||
     !isRecord(value.records) ||
     !Number.isSafeInteger(value.next_family) ||
@@ -103,7 +109,6 @@ export function parseLeadState(value: unknown): LeadState {
     )
       throw new Error("Invalid retained lead search slice");
   }
-  if (Object.keys(value.records).length > 10000) throw new Error("Retained lead capacity exceeded");
   for (const [id, raw] of Object.entries(value.records)) {
     if (
       !isRecord(raw) ||
@@ -196,7 +201,7 @@ export function restartLeadSlice(
     };
   next.slices[plan.family] = { ...plan.slice, page: 1, seen: [], restart_reason: reason };
   delete next.slices[plan.family]!.total;
-  return next;
+  return boundLeadState(next);
 }
 export function retainLeadResults(
   state: LeadState,
@@ -209,6 +214,13 @@ export function retainLeadResults(
     throw new Error("Unknown discovery search family");
   const next = structuredClone(state);
   const ids = new Set<number>();
+  const paths = new Map<string, number>();
+  for (const lead of Object.values(next.records)) {
+    const key = lead.repository.toLowerCase();
+    if (paths.has(key) && paths.get(key) !== lead.id)
+      throw new Error("Lead repository identity changed");
+    paths.set(key, lead.id);
+  }
   for (const raw of rows) {
     if (
       !isRecord(raw) ||
@@ -229,12 +241,12 @@ export function retainLeadResults(
     // GitHub's immutable numeric identity binds transfers and renames. Requeue the
     // primary review while keeping one lead and its dated historical locations.
     const relocated = old && old.repository !== raw.full_name;
-    if (
-      Object.values(next.records).some(
-        (r) => r.repository.toLowerCase() === repository.toLowerCase() && r.id !== id,
-      )
-    )
+    const path = repository.toLowerCase(),
+      previousId = paths.get(path);
+    if (previousId !== undefined && previousId !== id)
       throw new Error("Lead repository identity changed");
+    if (relocated) paths.delete(old.repository.toLowerCase());
+    paths.set(path, id);
     const revision = `${typeof raw.pushed_at === "string" ? raw.pushed_at : "unknown"}:${typeof raw.description === "string" ? raw.description : ""}`;
     const due =
       old?.checked_at && Date.parse(observedAt) - Date.parse(old.checked_at) >= 7 * 86400000;
@@ -267,8 +279,7 @@ export function retainLeadResults(
         ...new Set([...(next.records[String(id)]!.search_families ?? []), family]),
       ];
   }
-  if (Object.keys(next.records).length > 10000) throw new Error("Retained lead capacity exceeded");
-  return next;
+  return boundLeadState(next);
 }
 export function nextLeadPage(state: LeadState, now: string) {
   if (!clock(now)) throw new Error("Invalid lead search clock");
@@ -350,7 +361,6 @@ export function acceptLeadPage(
   );
   if (response.items.length !== expected)
     throw new LeadSearchChanged("Lead search page coverage changed");
-  if (Object.keys(next.records).length > 10000) throw new Error("Retained lead capacity exceeded");
   slice.seen = [...ids];
   slice.total = total;
   slice.page++;
@@ -380,7 +390,7 @@ export function acceptLeadPage(
   }
   next.slices[plan.family] = slice;
   next.next_family = advanceLeadFamily(state.next_family);
-  return next;
+  return boundLeadState(next);
 }
 export function pendingLeads(
   state: LeadState,

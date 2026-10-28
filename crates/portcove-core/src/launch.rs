@@ -120,10 +120,25 @@ pub(crate) fn process_identity_for_child(child: &Child) -> Result<Option<String>
 
 #[cfg(target_os = "linux")]
 pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
+    linux_process_identity_with_reader(pid, |path| std::fs::read_to_string(path))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_process_identity_with_reader(
+    pid: u32,
+    read: impl FnOnce(&str) -> std::io::Result<String>,
+) -> Result<Option<String>> {
     let path = format!("/proc/{pid}/stat");
-    let body = match std::fs::read_to_string(&path) {
+    let body = match read(&path) {
         Ok(body) => body,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        // proc_single_show returns ESRCH when the task disappears after open.
+        // This observes only this PID's identity, not process-group quiescence.
+        Err(error)
+            if error.kind() == std::io::ErrorKind::NotFound
+                || error.raw_os_error() == Some(libc::ESRCH) =>
+        {
+            return Ok(None);
+        }
         Err(error) => {
             return Err(PortcoveError::state(format!(
                 "could not identify process {pid}: {error}"
@@ -602,5 +617,38 @@ mod tests {
                 .unwrap()
                 .is_some()
         );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn procfs_disappearance_preserves_unexpected_observation_errors() {
+        for error in [
+            std::io::Error::from(std::io::ErrorKind::NotFound),
+            std::io::Error::from_raw_os_error(libc::ESRCH),
+        ] {
+            let mut calls = 0;
+            let observed = linux_process_identity_with_reader(42, |path| {
+                calls += 1;
+                assert_eq!(path, "/proc/42/stat");
+                Err(error)
+            })
+            .unwrap();
+            assert_eq!(calls, 1);
+            assert!(observed.is_none());
+        }
+        for code in [libc::EPERM, libc::EACCES, libc::EIO, libc::EINTR] {
+            let error = std::io::Error::from_raw_os_error(code);
+            let diagnostic = error.to_string();
+            let observed = linux_process_identity_with_reader(42, |_| Err(error)).unwrap_err();
+            assert_eq!(observed.code, crate::ErrorCode::State);
+            assert!(observed.message.contains(&diagnostic));
+        }
+        let pid = std::process::id();
+        let live = std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap();
+        assert_eq!(
+            linux_process_identity_with_reader(pid, |_| Ok(live)).unwrap(),
+            process_identity(pid).unwrap()
+        );
+        assert!(linux_process_identity_with_reader(42, |_| Ok("malformed".into())).is_err());
     }
 }

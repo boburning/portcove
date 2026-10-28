@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readMacInstalledProcessField } from "./desktop-installed-update-harness.mts";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
@@ -165,7 +166,17 @@ void test("macOS owned cleanup refuses foreign markers and never signals a chang
 });
 
 void test("macOS process inspection treats only subprocess status one as an absent process", () => {
-  const inspect = fragment("function psField(", "function processIdentity(");
+  for (const field of ["lstart", "command", "stat"] as const) {
+    assert.equal(
+      readMacInstalledProcessField(42, field, (command, args, options) => {
+        assert.equal(command, "/bin/ps");
+        assert.deepEqual(args, ["-ww", "-p", "42", "-o", `${field}=`]);
+        assert.deepEqual(options, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+        return "  retained observation  ";
+      }),
+      "retained observation",
+    );
+  }
   for (const failure of [
     undefined,
     null,
@@ -177,11 +188,7 @@ void test("macOS process inspection treats only subprocess status one as an abse
     Object.assign(new Error("absent"), { status: 1 }),
   ]) {
     const invoke = (): unknown =>
-      runInNewContext(`${inspect} psField(42, "lstart")`, {
-        execFileSync: () => {
-          raiseBoundaryFailure(failure);
-        },
-      });
+      readMacInstalledProcessField(42, "lstart", () => raiseBoundaryFailure(failure));
     if (
       failure !== null &&
       typeof failure === "object" &&

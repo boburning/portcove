@@ -219,7 +219,13 @@ fn simultaneous_desktop_and_cli_sessions_have_distinct_leases_envelopes_and_file
 fn application_debug_expires_with_the_session_and_dependency_info_stays_off() {
     let temp = tempfile::tempdir().unwrap();
     for debug in [true, false] {
-        let (host, guard) = HostDiagnostics::start_in(temp.path(), Surface::Cli, debug);
+        // This case owns filtering and session-local debug, after filesystem
+        // preparation. The separate blocked-bootstrap case owns the production
+        // 250ms best-effort deadline, including late-worker lease cleanup.
+        let host = HostDiagnostics::disabled(Surface::Cli, debug);
+        let directory = portcove_core::prepare_support_log_directory(temp.path()).unwrap();
+        let prepared = HostDiagnostics::prepare_session(directory, host.session_id, Surface::Cli);
+        let (host, guard) = host.start_prepared(prepared);
         tracing::subscriber::with_default(
             tracing_subscriber::registry().with(host.layer().with_filter(host.filter())),
             || {

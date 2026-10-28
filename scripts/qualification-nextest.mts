@@ -5,6 +5,8 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } f
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { errorMessage, isRecord } from "./runtime-values.mts";
+import { nextestSkipRouteInventory, readNextestSkipRoutes } from "./nextest-skip-routes.mts";
+import type { NextestSkipRoute } from "./nextest-skip-routes.mts";
 import {
   nextestOutcomeSelection,
   runnableNextestTests,
@@ -96,6 +98,7 @@ export function runQualificationNextest(
     report?: (text: string) => void;
     diagnostic?: (text: string) => void;
     publishReceipt?: (file: string, text: string) => void;
+    skipRoutes?: readonly NextestSkipRoute[];
   } = {},
 ) {
   const cwd = dependencies.cwd ?? root;
@@ -209,6 +212,16 @@ export function runQualificationNextest(
       ]),
     );
     const selection = qualificationNextestSelection(complete, selected);
+    const skipRoutes = nextestSkipRouteInventory(
+      complete,
+      dependencies.skipRoutes ?? readNextestSkipRoutes(),
+      { excludeCore: mode === "workspace-other" },
+    );
+    writeFileSync(
+      path.join(packet, "skip-routes.json"),
+      JSON.stringify(skipRoutes, null, 2) + "\n",
+      { flag: "wx" },
+    );
     report(
       `Rust qualification selection observation: ${JSON.stringify({ ...request, compiled_cases: selection.compiledCount, complete_runnable: [...selection.all].sort(), selected: [...selection.outcomes.selected].sort(), dispositions: "Original inventory stdout retains ignored/filter-match records and skipped binary status; absent platform declarations are unknown", complete: true })}`,
     );
@@ -234,6 +247,12 @@ export function runQualificationNextest(
     });
     if (status !== 0)
       failure = "Native failure or incomplete nextest outcomes; retain original streams";
+    if (skipRoutes.errors.length) {
+      if (status === 0) status = 1;
+      failure = [failure, "Rust skip routes incomplete: " + skipRoutes.errors.join("; ")]
+        .filter(Boolean)
+        .join("; ");
+    }
   } catch (error) {
     status = nativeStatus !== null && nativeStatus !== 0 ? nativeStatus : 1;
     failure = errorMessage(error);
@@ -243,6 +262,7 @@ export function runQualificationNextest(
       "build-and-complete-inventory.stdout",
       "selected-inventory.stdout",
       "outcomes.log",
+      "skip-routes.json",
     ];
     const hashes = files.flatMap((name) => {
       try {

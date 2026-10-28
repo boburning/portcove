@@ -228,6 +228,26 @@ export function admitProductionController(
 ) {
   return admitController(productionControllerWorkflow, rawPolicy, environment, workflowBytes);
 }
+/** The same ratified source authority for the fixed Windows source bootstrap.
+ * This receipt grants no runtime mutation by itself: its caller must also
+ * obtain the actual signed bootstrap job identity before the held operation. */
+export function admitProductionWindowsToolBootstrap(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  const source = admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "tool_bootstrap_windows",
+    "application",
+  );
+  if (source.mode !== "bounded-application-release")
+    refuse("bounded application bootstrap source required");
+  return source;
+}
 /** Secret-free bootstrap of the same immutable workflow, under the distinct
  * catalog grant. This source check confers no role or publication acceptance. */
 export function admitProductionCatalogController(

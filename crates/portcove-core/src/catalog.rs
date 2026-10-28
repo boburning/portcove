@@ -28,6 +28,8 @@ pub struct CatalogProposalInspection {
 pub struct CatalogProposalPortInspection {
     pub port_id: String,
     pub definition_sha256: String,
+    /// Canonical normalized definition identity used by observation projections.
+    pub observation_definition_sha256: String,
     pub check: &'static str,
     /// Hashes declared records; evidence references remain unauthenticated.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
@@ -42,6 +44,14 @@ pub struct Catalog {
     user_selected_listing: bool,
     definition_snapshot: Option<(Arc<crate::definition_projection::DefinitionSnapshot>, u64)>,
     definition_selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
+}
+
+/// Share the observation contract without changing legacy proposal receipt hashes.
+pub(crate) fn observation_definition_sha256(port: &PortDefinition) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut canonical = serde_json::to_value(port)?;
+    canonical.sort_all_objects();
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&canonical)?)))
 }
 
 impl Catalog {
@@ -61,6 +71,7 @@ impl Catalog {
                 Ok(CatalogProposalPortInspection {
                     port_id: port.id.clone(),
                     definition_sha256: hex::encode(Sha256::digest(serde_json::to_vec(port)?)),
+                    observation_definition_sha256: observation_definition_sha256(port)?,
                     check: "catalog-declared-contract-validation",
                     curated_record_sha256: port
                         .release
@@ -104,7 +115,10 @@ impl Catalog {
     }
 
     pub fn from_json(value: &str) -> Result<Self> {
-        let mut document: CatalogDocument = serde_json::from_str(value)?;
+        Self::from_document(serde_json::from_str(value)?)
+    }
+
+    pub(crate) fn from_document(mut document: CatalogDocument) -> Result<Self> {
         match document.schema_version {
             1 => {
                 if document.source_catalog.is_some() {
@@ -135,15 +149,17 @@ impl Catalog {
                 )));
             }
         }
+        let mut listings = crate::CatalogListingDocument {
+            format_version: 1,
+            listings: document
+                .ports
+                .iter()
+                .map(crate::PortListing::from)
+                .collect(),
+        };
+        listings.promote_projected_format();
         let catalog = Self {
-            listings: Arc::new(crate::CatalogListingDocument {
-                format_version: 1,
-                listings: document
-                    .ports
-                    .iter()
-                    .map(crate::PortListing::from)
-                    .collect(),
-            }),
+            listings: Arc::new(listings),
             user_selected_listing: false,
             document: Arc::new(document),
             definition_snapshot: None,
@@ -405,8 +421,18 @@ impl Catalog {
         }
         let mut port_ids = HashSet::new();
         for port in &self.document.ports {
+            let native_archive_release = port.release.provider == ReleaseSource::Github
+                || (port.release.provider == ReleaseSource::DirectManifest
+                    && port.release.direct.values().all(|release| {
+                        reqwest::Url::parse(&release.url).is_ok_and(|url| {
+                            let path = url.path().to_ascii_lowercase();
+                            [".zip", ".tar.gz", ".tgz"]
+                                .iter()
+                                .any(|suffix| path.ends_with(suffix))
+                        })
+                    }));
             if port.adapter == AdapterKind::NativePortable
-                && (port.release.provider != ReleaseSource::Github
+                && (!native_archive_release
                     || port.source_profile.is_some()
                     || port.bios_source_profile.is_some()
                     || !port.bundled_runtime.is_empty()
@@ -423,7 +449,7 @@ impl Catalog {
                     || port.managed_initialization.is_some())
             {
                 return Err(PortcoveError::usage(
-                    "native portable packages require a GitHub archive, reviewed executable/persistence paths and upstream-owned game setup; mutable runtimes and installers use the external route",
+                    "native portable packages require a GitHub or exactly pinned archive, reviewed executable/persistence paths and upstream-owned game setup; mutable runtimes and installers use the external route",
                 ));
             }
             if port.id.is_empty()
@@ -536,6 +562,14 @@ impl Catalog {
                 }
             }
             if let Some(presentation) = &port.presentation {
+                if let Some(game) = &presentation.original_game {
+                    game.validate()?;
+                }
+                crate::catalog_media::validate_catalog_media(
+                    &port.id,
+                    presentation.original_game.as_ref(),
+                    presentation.media.as_deref().unwrap_or_default(),
+                )?;
                 for (name, value) in [
                     ("original game title", &presentation.original_game_title),
                     ("variant label", &presentation.variant_label),
@@ -1820,6 +1854,17 @@ mod tests {
                 checked.definition_sha256,
                 hex::encode(Sha256::digest(serde_json::to_vec(port).unwrap()))
             );
+            let mut canonical = serde_json::to_value(port).unwrap();
+            canonical.sort_all_objects();
+            assert_eq!(
+                checked.observation_definition_sha256,
+                hex::encode(Sha256::digest(serde_json::to_vec(&canonical).unwrap()))
+            );
+            // Field-order serialization is a different, retained legacy contract.
+            assert_ne!(
+                checked.observation_definition_sha256,
+                checked.definition_sha256
+            );
             assert_eq!(checked.check, "catalog-declared-contract-validation");
         }
         assert!(report.scope.contains("no trust"));
@@ -2706,6 +2751,15 @@ mod tests {
         // Keep frozen port facts except the reviewed metadata/runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
+        // Historical readers keep the unmodified launch recipe. Only the current
+        // definition gains the reviewed upstream update-owner switch.
+        let gen1 = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "gen1recomp")
+            .unwrap();
+        assert!(gen1.launch_environment.is_empty());
+        gen1.launch_environment
+            .insert("POKEPORT_PORTMASTER_MANAGED".into(), "1".into());
         let battleship = expected_ports
             .iter_mut()
             .find(|port| port.id == "battleship")
@@ -3290,6 +3344,9 @@ mod tests {
         let mut no_steps = guide.clone();
         no_steps["steps"] = serde_json::json!([]);
         invalid.push(no_steps);
+        let mut missing_warnings = guide.clone();
+        missing_warnings.as_object_mut().unwrap().remove("warnings");
+        invalid.push(missing_warnings);
         let mut empty_warning = guide.clone();
         empty_warning["warnings"] = serde_json::json!([""]);
         invalid.push(empty_warning);
@@ -3298,9 +3355,13 @@ mod tests {
             document["ports"][0]["presentation"]["manual_setup"] = bad;
             assert!(Catalog::from_json(&document.to_string()).is_err());
         }
-        let mut valid = original;
-        valid["ports"][0]["presentation"]["manual_setup"] = guide;
-        assert!(Catalog::from_json(&valid.to_string()).is_ok());
+        for warnings in [guide["warnings"].clone(), serde_json::json!([])] {
+            let mut valid = original.clone();
+            let mut valid_guide = guide.clone();
+            valid_guide["warnings"] = warnings;
+            valid["ports"][0]["presentation"]["manual_setup"] = valid_guide;
+            assert!(Catalog::from_json(&valid.to_string()).is_ok());
+        }
     }
 
     #[test]
@@ -4141,6 +4202,12 @@ mod tests {
             vec!["5ca7ba01642a3b27b0cc0b5349b52792795b62d3ed977e98a09390659af96b7b"]
         );
         let port = catalog.port("gen1recomp").unwrap();
+        // The upstream packaged runtime must not mount/download an independent
+        // update payload over the Core-owned version (including portable mode).
+        assert_eq!(
+            port.launch_environment.get("POKEPORT_PORTMASTER_MANAGED"),
+            Some(&"1".to_string())
+        );
         assert!(port.portable_marker);
         assert_eq!(
             port.source_environment.as_deref(),
@@ -7036,3 +7103,7 @@ mod tests {
         assert!(crate::preparation::validate_output_contract(&overlapping).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "catalog_native_pin_tests.rs"]
+mod native_pin_tests;

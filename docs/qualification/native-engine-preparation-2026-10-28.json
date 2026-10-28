@@ -1,0 +1,870 @@
+{
+  "format_version": 1,
+  "observed_at": "2026-10-28",
+  "scope": "17 existing frozen identities; no new listing, operational definition or supported-operation total",
+  "canonical_issues": [2510, 2926, 1422],
+  "counts": {
+    "listing_guides": 17,
+    "operational_definitions_added": 0,
+    "native_gameplay_observations": 0
+  },
+  "release_inventory_bracket": {
+    "data": {
+      "r0": {
+        "id": "MDEwOlJlcG9zaXRvcnkzOTcwMTI2NA==",
+        "releases": {
+          "totalCount": 28,
+          "nodes": [
+            {
+              "id": "RE_kwDOAl3LEM4X31_8",
+              "tagName": "release-20260930"
+            }
+          ]
+        }
+      },
+      "r1": {
+        "id": "R_kgDOT9XC-w",
+        "releases": {
+          "totalCount": 7,
+          "nodes": [
+            {
+              "id": "RE_kwDOT9XC-84ZFQrv",
+              "tagName": "v0.9.6"
+            }
+          ]
+        }
+      },
+      "r2": {
+        "id": "MDEwOlJlcG9zaXRvcnk5MjE0NjYw",
+        "releases": {
+          "totalCount": 2,
+          "nodes": [
+            {
+              "id": "RE_kwDOAIyaxM4XyB0R",
+              "tagName": "latest"
+            }
+          ]
+        }
+      },
+      "r3": {
+        "id": "MDEwOlJlcG9zaXRvcnkzNzM4NDQxNzc=",
+        "releases": {
+          "totalCount": 3,
+          "nodes": [
+            {
+              "id": "RE_kwDOFkho0c4EAtp5",
+              "tagName": "3.0.10"
+            }
+          ]
+        }
+      },
+      "r4": {
+        "id": "MDEwOlJlcG9zaXRvcnkzODk3MDkyMzc=",
+        "releases": {
+          "totalCount": 14,
+          "nodes": [
+            {
+              "id": "RE_kwDOFzp9tc4XP0qb",
+              "tagName": "0.8.2-beta.4"
+            }
+          ]
+        }
+      },
+      "r5": {
+        "id": "MDEwOlJlcG9zaXRvcnkyMzY5MDIyNg==",
+        "releases": {
+          "totalCount": 11,
+          "nodes": [
+            {
+              "id": "RE_kwDOAWl78s4Ffa_a",
+              "tagName": "latest-nightly"
+            }
+          ]
+        }
+      },
+      "r9": {
+        "id": "MDEwOlJlcG9zaXRvcnk3MzkwNTkz",
+        "releases": {
+          "totalCount": 0,
+          "nodes": []
+        }
+      },
+      "r10": {
+        "id": "MDEwOlJlcG9zaXRvcnkyOTAyOTg0Ng==",
+        "releases": {
+          "totalCount": 32,
+          "nodes": [
+            {
+              "id": "RE_kwDOAbr11s4OK31W",
+              "tagName": "v0.82.1"
+            }
+          ]
+        }
+      },
+      "r14": {
+        "id": "R_kgDOHUAjcQ",
+        "releases": {
+          "totalCount": 8,
+          "nodes": [
+            {
+              "id": "RE_kwDOHUAjcc4LzSnx",
+              "tagName": "1.10.7"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "ports": [
+    {
+      "id": "medal-of-honor-allied-assault-openmohaa",
+      "canonical_issue": 2592,
+      "upstream": "https://github.com/openmoh/openmohaa",
+      "source_commit": "a72bc153db1e6ced6e30431b5217e1a53576712c",
+      "source_hashes": [
+        {
+          "path": "docs/markdown/01-intro/01-installation.md",
+          "git_sha": "1224a3b5b07b2847b8c29ba3a4ddd63d5f1a3e96",
+          "sha256": "0eb3a467ac3f99d42d141811b1814871308174e5de2d634eb7c22e8b89d3711a",
+          "size": 7685
+        },
+        {
+          "path": "docs/markdown/03-configuration/01-configuration.md",
+          "git_sha": "a51fa976a753340defdcd6a919a184e156d1d040",
+          "sha256": "51885913faeaac9f9ba01ad35466ebf548a59fb0dc44188fa2d5ee3d1b2dbd45",
+          "size": 8851
+        },
+        {
+          "path": "code/sys/sys_win32.c",
+          "git_sha": "95b6a364f1a3eb4deab44017b8bf2c8201f054f6",
+          "sha256": "9b2dba03080ca8216faec92329c9b350668e5cda9baeec149193a6f2c9a3adbe",
+          "size": 19165
+        },
+        {
+          "path": "code/Launcher/launch_main.cpp",
+          "git_sha": "6980daf76291dd0e24901846b84e65898ab59766",
+          "sha256": "79243948aebe1e2acffe8599cc31cd5e75e3304bb395e6a8139d25002f105d52",
+          "size": 2154
+        },
+        {
+          "path": "code/Launcher/launch_win32.cpp",
+          "git_sha": "1821071458e4eb32a85ea10a26ea491e38cf4763",
+          "sha256": "80f5519724180e3f5f3c7a4b16a7b0a140d97eb624a13c93d0f31c8c9bf04485",
+          "size": 2697
+        },
+        {
+          "path": "code/sys/sys_main.c",
+          "git_sha": "578cd873bbd2c2f8a371f4c273caa8b3e38c14bb",
+          "sha256": "4aa09f332da5bcd98d76ea0445bdb677e6d2c2d5b470668d1f39ac56e8ae460d",
+          "size": 17670
+        },
+        {
+          "path": "docs/markdown/01-intro/02-installation-windows.md",
+          "git_sha": "05f6ddbc28409bdc02f71971410e743fc3478f54",
+          "sha256": "d37132ed929356790b114da247d5c04e2b112b59e73dc6d13d524b4caadbb8b6",
+          "size": 1895
+        },
+        {
+          "path": "code/qcommon/q_shared.h",
+          "git_sha": "80f1fcb59c4ae24e2366da8388cdd1fd85a9e9eb",
+          "sha256": "53f87cd3f60c89ed7bf5e52a6677a6cb810d3f7cafe1356e8f99780941bd395a",
+          "size": 76088
+        },
+        {
+          "path": "code/qcommon/files.cpp",
+          "git_sha": "5c94ab76c3a9d4e99b11e80cfcb2ea7cc52ee5e4",
+          "sha256": "9f7dbcb891ee79b789898c865ff7c596a74dff0d8de29e7bb25d755ddcafcdf1",
+          "size": 104224
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "launch_openmohaa_base.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your complete original Medal of Honor: Allied Assault base data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching main resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products.",
+      "preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher.",
+      "persistent_data": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities.",
+      "remaining": "Managed fitting requires a supported original-data preparation/completion contract and maintenance evidence; no managed definition or native gameplay acceptance is added.",
+      "before_sha256": "a6f2c8e90fa3ff49b7c5c1e86e83ece921f19f72f56fe50e5b5ea406103eea0f",
+      "after_sha256": "493269652e340ff431ccaf138ed51314aa76b3426ff0e843b1f975325643bbab"
+    },
+    {
+      "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
+      "canonical_issue": 2593,
+      "upstream": "https://github.com/openmoh/openmohaa",
+      "source_commit": "a72bc153db1e6ced6e30431b5217e1a53576712c",
+      "source_hashes": [
+        {
+          "path": "docs/markdown/01-intro/01-installation.md",
+          "git_sha": "1224a3b5b07b2847b8c29ba3a4ddd63d5f1a3e96",
+          "sha256": "0eb3a467ac3f99d42d141811b1814871308174e5de2d634eb7c22e8b89d3711a",
+          "size": 7685
+        },
+        {
+          "path": "docs/markdown/03-configuration/01-configuration.md",
+          "git_sha": "a51fa976a753340defdcd6a919a184e156d1d040",
+          "sha256": "51885913faeaac9f9ba01ad35466ebf548a59fb0dc44188fa2d5ee3d1b2dbd45",
+          "size": 8851
+        },
+        {
+          "path": "code/sys/sys_win32.c",
+          "git_sha": "95b6a364f1a3eb4deab44017b8bf2c8201f054f6",
+          "sha256": "9b2dba03080ca8216faec92329c9b350668e5cda9baeec149193a6f2c9a3adbe",
+          "size": 19165
+        },
+        {
+          "path": "code/Launcher/launch_main.cpp",
+          "git_sha": "6980daf76291dd0e24901846b84e65898ab59766",
+          "sha256": "79243948aebe1e2acffe8599cc31cd5e75e3304bb395e6a8139d25002f105d52",
+          "size": 2154
+        },
+        {
+          "path": "code/Launcher/launch_win32.cpp",
+          "git_sha": "1821071458e4eb32a85ea10a26ea491e38cf4763",
+          "sha256": "80f5519724180e3f5f3c7a4b16a7b0a140d97eb624a13c93d0f31c8c9bf04485",
+          "size": 2697
+        },
+        {
+          "path": "code/sys/sys_main.c",
+          "git_sha": "578cd873bbd2c2f8a371f4c273caa8b3e38c14bb",
+          "sha256": "4aa09f332da5bcd98d76ea0445bdb677e6d2c2d5b470668d1f39ac56e8ae460d",
+          "size": 17670
+        },
+        {
+          "path": "docs/markdown/01-intro/02-installation-windows.md",
+          "git_sha": "05f6ddbc28409bdc02f71971410e743fc3478f54",
+          "sha256": "d37132ed929356790b114da247d5c04e2b112b59e73dc6d13d524b4caadbb8b6",
+          "size": 1895
+        },
+        {
+          "path": "code/qcommon/q_shared.h",
+          "git_sha": "80f1fcb59c4ae24e2366da8388cdd1fd85a9e9eb",
+          "sha256": "53f87cd3f60c89ed7bf5e52a6677a6cb810d3f7cafe1356e8f99780941bd395a",
+          "size": 76088
+        },
+        {
+          "path": "code/qcommon/files.cpp",
+          "git_sha": "5c94ab76c3a9d4e99b11e80cfcb2ea7cc52ee5e4",
+          "sha256": "9f7dbcb891ee79b789898c865ff7c596a74dff0d8de29e7bb25d755ddcafcdf1",
+          "size": 104224
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "launch_openmohaa_spearhead.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your complete original Medal of Honor: Allied Assault base data plus the Spearhead expansion data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching mainta resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products.",
+      "preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher.",
+      "persistent_data": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities.",
+      "remaining": "Managed fitting requires a supported original-data preparation/completion contract and maintenance evidence; no managed definition or native gameplay acceptance is added.",
+      "before_sha256": "d0db03ae694b9e72d81415ffeb235d34345eb604d7a49ca562ae4128fe438d72",
+      "after_sha256": "7df5c41c1bcfe3489804d212df599a3f3c7533f9b27437331742e4aacc33c30b"
+    },
+    {
+      "id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+      "canonical_issue": 2594,
+      "upstream": "https://github.com/openmoh/openmohaa",
+      "source_commit": "a72bc153db1e6ced6e30431b5217e1a53576712c",
+      "source_hashes": [
+        {
+          "path": "docs/markdown/01-intro/01-installation.md",
+          "git_sha": "1224a3b5b07b2847b8c29ba3a4ddd63d5f1a3e96",
+          "sha256": "0eb3a467ac3f99d42d141811b1814871308174e5de2d634eb7c22e8b89d3711a",
+          "size": 7685
+        },
+        {
+          "path": "docs/markdown/03-configuration/01-configuration.md",
+          "git_sha": "a51fa976a753340defdcd6a919a184e156d1d040",
+          "sha256": "51885913faeaac9f9ba01ad35466ebf548a59fb0dc44188fa2d5ee3d1b2dbd45",
+          "size": 8851
+        },
+        {
+          "path": "code/sys/sys_win32.c",
+          "git_sha": "95b6a364f1a3eb4deab44017b8bf2c8201f054f6",
+          "sha256": "9b2dba03080ca8216faec92329c9b350668e5cda9baeec149193a6f2c9a3adbe",
+          "size": 19165
+        },
+        {
+          "path": "code/Launcher/launch_main.cpp",
+          "git_sha": "6980daf76291dd0e24901846b84e65898ab59766",
+          "sha256": "79243948aebe1e2acffe8599cc31cd5e75e3304bb395e6a8139d25002f105d52",
+          "size": 2154
+        },
+        {
+          "path": "code/Launcher/launch_win32.cpp",
+          "git_sha": "1821071458e4eb32a85ea10a26ea491e38cf4763",
+          "sha256": "80f5519724180e3f5f3c7a4b16a7b0a140d97eb624a13c93d0f31c8c9bf04485",
+          "size": 2697
+        },
+        {
+          "path": "code/sys/sys_main.c",
+          "git_sha": "578cd873bbd2c2f8a371f4c273caa8b3e38c14bb",
+          "sha256": "4aa09f332da5bcd98d76ea0445bdb677e6d2c2d5b470668d1f39ac56e8ae460d",
+          "size": 17670
+        },
+        {
+          "path": "docs/markdown/01-intro/02-installation-windows.md",
+          "git_sha": "05f6ddbc28409bdc02f71971410e743fc3478f54",
+          "sha256": "d37132ed929356790b114da247d5c04e2b112b59e73dc6d13d524b4caadbb8b6",
+          "size": 1895
+        },
+        {
+          "path": "code/qcommon/q_shared.h",
+          "git_sha": "80f1fcb59c4ae24e2366da8388cdd1fd85a9e9eb",
+          "sha256": "53f87cd3f60c89ed7bf5e52a6677a6cb810d3f7cafe1356e8f99780941bd395a",
+          "size": 76088
+        },
+        {
+          "path": "code/qcommon/files.cpp",
+          "git_sha": "5c94ab76c3a9d4e99b11e80cfcb2ea7cc52ee5e4",
+          "sha256": "9f7dbcb891ee79b789898c865ff7c596a74dff0d8de29e7bb25d755ddcafcdf1",
+          "size": 104224
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "launch_openmohaa_breakthrough.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your complete original Medal of Honor: Allied Assault base data plus the Breakthrough expansion data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching maintt resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products.",
+      "preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher.",
+      "persistent_data": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities.",
+      "remaining": "Managed fitting requires a supported original-data preparation/completion contract and maintenance evidence; no managed definition or native gameplay acceptance is added.",
+      "before_sha256": "f9c32f7f83591a171c7f984945dc45951d42eb7afd36038240c3bb287b8ba833",
+      "after_sha256": "5b3213765f6ee70d62eca3ec272fdd08d6150afc477e310e01ff5cd352271db9"
+    },
+    {
+      "id": "doom-3-classic-dude-doom-3-unified-development-engine",
+      "canonical_issue": 2565,
+      "upstream": "https://github.com/Inkub0/dude",
+      "source_commit": "1948b4e2bef25b55621f0569b72fb3525ed7713a",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "7097e740b7c912edfe560c538367e4a98aa3a094",
+          "sha256": "a4c7422520df90fc99d5cf0ea6d672eafc8198f62d1d28302d63588d39fb3eb3",
+          "size": 6325
+        },
+        {
+          "path": "neo/sys/win32/win_main.cpp",
+          "git_sha": "48c1e0be5e4162aa1de9e13025dfca3a7ced1a2d",
+          "sha256": "bc8f019b0fa4e5998d3c2eb8e05b491c765777a43a2a73ae3e28347be7085dd9",
+          "size": 44473
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "dude.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use original classic Doom 3 base PK4 data. BFG Edition is a different product. Keep the complete matching original-data installation unchanged and use a private working copy or the explicit upstream data-root option.",
+      "preparation": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Renderer and hardware requirements differ by mode; this fork does not inherit dhewm3 qualification.",
+      "persistent_data": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. This is an upstream copy, not a move, Core adoption or proof of save compatibility; decide whether to continue with that behavior before Play.",
+      "remaining": "Managed fitting requires a supported original-data preparation/completion contract and maintenance evidence; no managed definition or native gameplay acceptance is added.",
+      "before_sha256": "5e7c8b88cc6aef01fa319b89676060ba8002b7ecb9fc0f3cf23864fc9baa63d6",
+      "after_sha256": "e748a88388cb805c5a8bd933a48f69bf6f3c6681e4859febeac3ac96c9eaed00"
+    },
+    {
+      "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+      "canonical_issue": 2566,
+      "upstream": "https://github.com/Inkub0/dude",
+      "source_commit": "1948b4e2bef25b55621f0569b72fb3525ed7713a",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "7097e740b7c912edfe560c538367e4a98aa3a094",
+          "sha256": "a4c7422520df90fc99d5cf0ea6d672eafc8198f62d1d28302d63588d39fb3eb3",
+          "size": 6325
+        },
+        {
+          "path": "neo/sys/win32/win_main.cpp",
+          "git_sha": "48c1e0be5e4162aa1de9e13025dfca3a7ced1a2d",
+          "sha256": "bc8f019b0fa4e5998d3c2eb8e05b491c765777a43a2a73ae3e28347be7085dd9",
+          "size": 44473
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "dude.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use original classic Doom 3 base PK4 data plus the original Resurrection of Evil d3xp PK4 data. BFG Edition is a different product. Keep the complete matching original-data installation unchanged and use a private working copy or the explicit upstream data-root option.",
+      "preparation": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base and d3xp with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Add three more literal lines: +set, fs_game, d3xp. Optional baked-AO downloads are separate from the player. Renderer and hardware requirements differ by mode; this fork does not inherit dhewm3 qualification.",
+      "persistent_data": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. This is an upstream copy, not a move, Core adoption or proof of save compatibility; decide whether to continue with that behavior before Play.",
+      "remaining": "Managed fitting requires a supported original-data preparation/completion contract and maintenance evidence; no managed definition or native gameplay acceptance is added.",
+      "before_sha256": "6bf5c8d1fbc5512449136413a7e45bbca3fbc4b0e8f4643b42ac17d427112713",
+      "after_sha256": "76cafcebbe5b84443f11016d214e338a1ec24d96ae837b3011b3dde2d70df283"
+    },
+    {
+      "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+      "canonical_issue": 2612,
+      "upstream": "https://github.com/JACoders/OpenJK",
+      "source_commit": "260c59c2907187af555a676fe0cc798893bf7757",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "e100e95c8c3de8bafb2acea1d4e2888568c4d7fd",
+          "sha256": "617c291db3e826a630ee986c02320fd5041dc6bdba635aa204c7898005182451",
+          "size": 5556
+        },
+        {
+          "path": "shared/sys/sys_win32.cpp",
+          "git_sha": "a622b4b6a6249389fd09b2955e758e5c3bde86b2",
+          "sha256": "09f36eff1c90a2afd6edcd4851dc3bd314b2b3c2f6a67985302a0375576244dc",
+          "size": 13042
+        },
+        {
+          "path": "shared/sys/sys_main.cpp",
+          "git_sha": "16be54588a5d23813ca8bf4ac26e54c51c437573",
+          "sha256": "f77780d44fbf9911ced7a8992adcb84b18e2bd7e63e101d667bff753faaf873f",
+          "size": 19185
+        },
+        {
+          "path": "code/qcommon/q_shared.h",
+          "git_sha": "732b90259359bda987a64bf359f752ae659783f9",
+          "sha256": "284c5bea158b64573cad347ffa5522f5e92eff1be71bb679a49bbbc67e1bc5c9",
+          "size": 93928
+        },
+        {
+          "path": "codemp/qcommon/q_shared.h",
+          "git_sha": "526ede7d254108b62c6e2c0cdcc3903b2edea6b2",
+          "sha256": "f22d4a5f0d698ecd262a5a2bb2f1bee83b3296bce3454464999dfd138ca173d3",
+          "size": 55874
+        },
+        {
+          "path": "code/qcommon/files.cpp",
+          "git_sha": "d105742d2f23170a8fae9e0206ae734f35b5117c",
+          "sha256": "7064032c54eec0431f65385fbc2f5f2444980141d2700d0136d87bce6d461a3e",
+          "size": 77295
+        },
+        {
+          "path": "codeJK2/qcommon/game_version.h",
+          "git_sha": "ea720b923b455dfb6532068da1d7a489e2b119be",
+          "sha256": "437f5751f5dc012c89bfcd1801f145902acd1c4b9b8c6f3fafc8c58ccee33d73",
+          "size": 1883
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "openjk_sp.x86_64.exe or openjk.x86_64.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own complete Jedi Academy PC GameData/base resources. Jedi Outcast and OpenJKDF2 are different games. Keep the original installation unchanged and prepare a separate complete working GameData copy; the reviewed README does not pin a retail patch/revision.",
+      "preparation": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources.",
+      "persistent_data": "Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations.",
+      "remaining": "Managed fitting requires a supported original-data preparation/completion contract and maintenance evidence; no managed definition or native gameplay acceptance is added.",
+      "before_sha256": "9cbf7571784cae36397599eecd4f17011db21f70097ad0da0897e072b5319458",
+      "after_sha256": "3c7c2a341a1a00eae2a012e1e08bf41b4612a14aa17bfc1cfc27d10634b9bb1f"
+    },
+    {
+      "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+      "canonical_issue": 2611,
+      "upstream": "https://github.com/JACoders/OpenJK",
+      "source_commit": "260c59c2907187af555a676fe0cc798893bf7757",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "e100e95c8c3de8bafb2acea1d4e2888568c4d7fd",
+          "sha256": "617c291db3e826a630ee986c02320fd5041dc6bdba635aa204c7898005182451",
+          "size": 5556
+        },
+        {
+          "path": "shared/sys/sys_win32.cpp",
+          "git_sha": "a622b4b6a6249389fd09b2955e758e5c3bde86b2",
+          "sha256": "09f36eff1c90a2afd6edcd4851dc3bd314b2b3c2f6a67985302a0375576244dc",
+          "size": 13042
+        },
+        {
+          "path": "shared/sys/sys_main.cpp",
+          "git_sha": "16be54588a5d23813ca8bf4ac26e54c51c437573",
+          "sha256": "f77780d44fbf9911ced7a8992adcb84b18e2bd7e63e101d667bff753faaf873f",
+          "size": 19185
+        },
+        {
+          "path": "code/qcommon/q_shared.h",
+          "git_sha": "732b90259359bda987a64bf359f752ae659783f9",
+          "sha256": "284c5bea158b64573cad347ffa5522f5e92eff1be71bb679a49bbbc67e1bc5c9",
+          "size": 93928
+        },
+        {
+          "path": "codemp/qcommon/q_shared.h",
+          "git_sha": "526ede7d254108b62c6e2c0cdcc3903b2edea6b2",
+          "sha256": "f22d4a5f0d698ecd262a5a2bb2f1bee83b3296bce3454464999dfd138ca173d3",
+          "size": 55874
+        },
+        {
+          "path": "code/qcommon/files.cpp",
+          "git_sha": "d105742d2f23170a8fae9e0206ae734f35b5117c",
+          "sha256": "7064032c54eec0431f65385fbc2f5f2444980141d2700d0136d87bce6d461a3e",
+          "size": 77295
+        },
+        {
+          "path": "codeJK2/qcommon/game_version.h",
+          "git_sha": "ea720b923b455dfb6532068da1d7a489e2b119be",
+          "sha256": "437f5751f5dc012c89bfcd1801f145902acd1c4b9b8c6f3fafc8c58ccee33d73",
+          "size": 1883
+        }
+      ],
+      "offered_route": "prepared-existing-player-only",
+      "selected_player": "openjo_sp.x86_64.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "This identity is Jedi Outcast single player through OpenJO. It is not Jedi Academy, OpenJKDF2 or an Outcast multiplayer route. The reviewed upstream README documents Academy preparation but does not establish Outcast-specific original files, retail patch or exact first-setup layout.",
+      "preparation": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance.",
+      "persistent_data": "Normal Windows OpenJO builds use Documents/My Games/OpenJO; portable builds and explicit settings can differ. Preserve the actual profile, original files and creating runtime. No existing save compatibility, first setup or gameplay was observed.",
+      "remaining": "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here.",
+      "before_sha256": "3b305d1951ce2958e42588d49499358b4edfd9839e8141e3c42aae14714a4ac9",
+      "after_sha256": "2304e375c7178c4faaddd4eda6409696a414a2528fe1afedb306726408ba7dff"
+    },
+    {
+      "id": "perimeter-perimeter-community-engine",
+      "canonical_issue": 2889,
+      "upstream": "https://github.com/KD-lab-Open-Source/Perimeter",
+      "source_commit": "f58b3ae7369df502a1e3dcd697b9791a4b1a14c5",
+      "source_hashes": [
+        {
+          "path": "INSTALL.eng.md",
+          "git_sha": "de8299a8b1990e54809b6aa71ee3455ab39353e7",
+          "sha256": "5b3e09532001e0cb9c9d9ee616cd3023498780e8e319cf1265711103ee5658ac",
+          "size": 4214
+        },
+        {
+          "path": "Source/Game/Runtime.cpp",
+          "git_sha": "4c981349d0e42a5c392ddaca912f7de9c06a2d22",
+          "sha256": "108abe53334f49a721a7bfdc994059c94083e4ca3fdcb4c0fa8aca0bd9ccf310",
+          "size": 40849
+        },
+        {
+          "path": "Source/XTool/files/files.cpp",
+          "git_sha": "8f707d6b8fce0d65a974623aedf929bba1d73079",
+          "sha256": "bd969f1e02a63a3d006fa7a1b5a8db4d7b156181494c8250d3cbe920806d7fe2",
+          "size": 16310
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "perimeter.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own complete Perimeter resources (models, textures, sounds, text, Resource and Scripts). The other title does not automatically supply this game. Exact retail patch/localization and shared-base requirements remain unpinned; preserve the complete matching original installation.",
+      "preparation": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns.",
+      "persistent_data": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible.",
+      "remaining": "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit.",
+      "before_sha256": "17ac694c2e649c662302e8bd31fdd72544cf7324039b3d42ea11123900e05c53",
+      "after_sha256": "e41213a83541ed807eb21e833431c1a96bc6f64910215d1259265287316a7af7"
+    },
+    {
+      "id": "perimeter-emperor-s-testament-perimeter-community-engine",
+      "canonical_issue": 2890,
+      "upstream": "https://github.com/KD-lab-Open-Source/Perimeter",
+      "source_commit": "f58b3ae7369df502a1e3dcd697b9791a4b1a14c5",
+      "source_hashes": [
+        {
+          "path": "INSTALL.eng.md",
+          "git_sha": "de8299a8b1990e54809b6aa71ee3455ab39353e7",
+          "sha256": "5b3e09532001e0cb9c9d9ee616cd3023498780e8e319cf1265711103ee5658ac",
+          "size": 4214
+        },
+        {
+          "path": "Source/Game/Runtime.cpp",
+          "git_sha": "4c981349d0e42a5c392ddaca912f7de9c06a2d22",
+          "sha256": "108abe53334f49a721a7bfdc994059c94083e4ca3fdcb4c0fa8aca0bd9ccf310",
+          "size": 40849
+        },
+        {
+          "path": "Source/XTool/files/files.cpp",
+          "git_sha": "8f707d6b8fce0d65a974623aedf929bba1d73079",
+          "sha256": "bd969f1e02a63a3d006fa7a1b5a8db4d7b156181494c8250d3cbe920806d7fe2",
+          "size": 16310
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "perimeter.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own complete Perimeter: Emperor’s Testament resources (models, textures, sounds, text, Resource and Scripts). The other title does not automatically supply this game. Exact retail patch/localization and shared-base requirements remain unpinned; preserve the complete matching original installation.",
+      "preparation": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns.",
+      "persistent_data": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible.",
+      "remaining": "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit.",
+      "before_sha256": "d5addd9672f6d749f8e70bd89509f0c96f5c03804dc637e13b3afd01514526e6",
+      "after_sha256": "e55699b8544a4d008adf8e52670904a923aa5756bfdc689d8a630e13f19c1a3b"
+    },
+    {
+      "id": "zeus-master-of-olympus-ezeus",
+      "canonical_issue": 2910,
+      "upstream": "https://github.com/MaurycyLiebner/eZeus",
+      "source_commit": "474a96206278293dbd9cde6d506b5570934f8acf",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "457b971f2370344c81f535b38b1fb568fb918e52",
+          "sha256": "8580141c7625b3ab948915a2263972fe751202f8162a439746eeede5aead131b",
+          "size": 2600
+        },
+        {
+          "path": "esettings.cpp",
+          "git_sha": "6ae831175e0a6e2643043b8d2483a0ac9b333769",
+          "sha256": "33c4911fdc87cbd77de3e6a8b272f3ac40e7fa00462e5c72aa0b1bc9f22daa30",
+          "size": 2180
+        },
+        {
+          "path": "esettings.h",
+          "git_sha": "b718caf1b8d1bd263d42e06cf38f94f218f864e1",
+          "sha256": "dbd7dcd6adc5b920d0270a239ca3fca99fc683b0ce09d4a5bef6454827424424",
+          "size": 445
+        },
+        {
+          "path": "egamedir.cpp",
+          "git_sha": "24dfad7341bc07823ee03705c743b4b9d6a30a3c",
+          "sha256": "1710f72a09e8e831364e9ca83ec6ded8a5ba0c8aa5b80d75ee7ff2fa0951e858",
+          "size": 1534
+        },
+        {
+          "path": "egamedir.h",
+          "git_sha": "90224473deb3324ae90d1b341b0e4fb0c24723a3",
+          "sha256": "0e497f823c6c18e6854e3099a573764253d76ccc96d171900c112b56711324b8",
+          "size": 694
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "Bin/eZeus-0.8.2-beta.4.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Both Zeus: Master of Olympus and the Poseidon expansion original files are required, including for the base-game identity. Upstream currently supports English and Polish. Preserve the original installation and work in a separate complete copy; eZeus differs from the original and does not promise exact parity.",
+      "preparation": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed.",
+      "persistent_data": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred.",
+      "remaining": "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified.",
+      "before_sha256": "9b4ced491fbd37c6e64f9708128e735a054756888e60a6e45edc61ed9c9b7d1d",
+      "after_sha256": "afaabf64427080179f5101ccd96866db1a77a2d2108fa8c2b249171eda44fe6e"
+    },
+    {
+      "id": "poseidon-master-of-atlantis-ezeus",
+      "canonical_issue": 2911,
+      "upstream": "https://github.com/MaurycyLiebner/eZeus",
+      "source_commit": "474a96206278293dbd9cde6d506b5570934f8acf",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "457b971f2370344c81f535b38b1fb568fb918e52",
+          "sha256": "8580141c7625b3ab948915a2263972fe751202f8162a439746eeede5aead131b",
+          "size": 2600
+        },
+        {
+          "path": "esettings.cpp",
+          "git_sha": "6ae831175e0a6e2643043b8d2483a0ac9b333769",
+          "sha256": "33c4911fdc87cbd77de3e6a8b272f3ac40e7fa00462e5c72aa0b1bc9f22daa30",
+          "size": 2180
+        },
+        {
+          "path": "esettings.h",
+          "git_sha": "b718caf1b8d1bd263d42e06cf38f94f218f864e1",
+          "sha256": "dbd7dcd6adc5b920d0270a239ca3fca99fc683b0ce09d4a5bef6454827424424",
+          "size": 445
+        },
+        {
+          "path": "egamedir.cpp",
+          "git_sha": "24dfad7341bc07823ee03705c743b4b9d6a30a3c",
+          "sha256": "1710f72a09e8e831364e9ca83ec6ded8a5ba0c8aa5b80d75ee7ff2fa0951e858",
+          "size": 1534
+        },
+        {
+          "path": "egamedir.h",
+          "git_sha": "90224473deb3324ae90d1b341b0e4fb0c24723a3",
+          "sha256": "0e497f823c6c18e6854e3099a573764253d76ccc96d171900c112b56711324b8",
+          "size": 694
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "Bin/eZeus-0.8.2-beta.4.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Both Zeus: Master of Olympus and the Poseidon expansion original files are required, including for the base-game identity. Upstream currently supports English and Polish. Preserve the original installation and work in a separate complete copy; eZeus differs from the original and does not promise exact parity.",
+      "preparation": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed.",
+      "persistent_data": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred.",
+      "remaining": "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified.",
+      "before_sha256": "fe3b3e894e37bbb54b3ac370739ec5502ba102ba61b98e16613be9a5734982bf",
+      "after_sha256": "efbbc5da5f9299b5ed07b89c6e8303c7f7dc475c2adf2840fee4b0fa0042fcfd"
+    },
+    {
+      "id": "s-t-a-l-k-e-r-call-of-pripyat-openxray",
+      "canonical_issue": 2707,
+      "upstream": "https://github.com/OpenXRay/xray-16",
+      "source_commit": "c62d9d343981d50f6ed176412b85d94c61b578b5",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "d6ee5064be61516b003e55382fbf5ccd8b46edc0",
+          "sha256": "30ae4c236d943753f46c9af00eedb0f33b16418ecef6523bd23e6cced2651bcc",
+          "size": 16740
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "bin/xrEngine.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own complete Call of Pripyat 1.6.02 resources in a private working copy. Shadow of Chernobyl, Enhanced Edition and Legends of the Zone data are outside this route. Preserve the original installation and mod-specific files.",
+      "preparation": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Preserve the old bin and extract the complete matching archive into the working game root. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation.",
+      "persistent_data": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration.",
+      "remaining": "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed.",
+      "before_sha256": "8327fd93c0dd731460fc8e55ca9d407dfde6cd8e11ab95081f4f44d4034380ee",
+      "after_sha256": "8ae84594bb8f8ebca395c6b7ea8270a05cfa96f88ba453b456e1f83fadb3e2e5"
+    },
+    {
+      "id": "s-t-a-l-k-e-r-clear-sky-openxray",
+      "canonical_issue": 2708,
+      "upstream": "https://github.com/OpenXRay/xray-16",
+      "source_commit": "c62d9d343981d50f6ed176412b85d94c61b578b5",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "d6ee5064be61516b003e55382fbf5ccd8b46edc0",
+          "sha256": "30ae4c236d943753f46c9af00eedb0f33b16418ecef6523bd23e6cced2651bcc",
+          "size": 16740
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "bin/xrEngine.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own complete Clear Sky 1.5.10 resources in a private working copy. Shadow of Chernobyl, Enhanced Edition and Legends of the Zone data are outside this route. Preserve the original installation and mod-specific files.",
+      "preparation": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation.",
+      "persistent_data": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration.",
+      "remaining": "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed.",
+      "before_sha256": "4baba0311705b3c987350bc45601d0c158beff60b04961d297d94238e76dff86",
+      "after_sha256": "f75c7f8b196b79c1e151219ff12e182effd410c8779699dbfc03bbf2aa8cfb1c"
+    },
+    {
+      "id": "quake-iii-arena-ioquake3",
+      "canonical_issue": 2701,
+      "upstream": "https://github.com/ioquake/ioq3",
+      "source_commit": "87a99d18206e878a20289f05ac3c16005dcae5c3",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "577d1dab3eb226ff4ff9794e40f613518960e979",
+          "sha256": "bedca869dd8ca41c6368037c749f86c90f403e66129db94ba0265c9eba97661a",
+          "size": 29860
+        },
+        {
+          "path": "code/sys/sys_win32.c",
+          "git_sha": "5985ec69d78d383f0c5d52bc30db00e1c9bf5787",
+          "sha256": "b4e226121123ab7b2f3db68d4dde824f15115392842f6bf3f2ad869901811bee",
+          "size": 18084
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "ioquake3.x86_64.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own Quake III Arena baseq3/pak0.pk3 and the matching official patch PK3s (pak1 through pak8). Preserve the original installation; prepare a separate working data copy.",
+      "preparation": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403.",
+      "persistent_data": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred.",
+      "remaining": "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added.",
+      "before_sha256": "4655b007b082619560208162942cb3c9cc92e02d5e7eea565812cdc62c42911f",
+      "after_sha256": "c44eda53f92f65ebc5227e715e3cc283d021ee7fd96a2b638b4d5363398a501c"
+    },
+    {
+      "id": "quake-iii-team-arena-ioquake3",
+      "canonical_issue": 2702,
+      "upstream": "https://github.com/ioquake/ioq3",
+      "source_commit": "87a99d18206e878a20289f05ac3c16005dcae5c3",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "577d1dab3eb226ff4ff9794e40f613518960e979",
+          "sha256": "bedca869dd8ca41c6368037c749f86c90f403e66129db94ba0265c9eba97661a",
+          "size": 29860
+        },
+        {
+          "path": "code/sys/sys_win32.c",
+          "git_sha": "5985ec69d78d383f0c5d52bc30db00e1c9bf5787",
+          "sha256": "b4e226121123ab7b2f3db68d4dde824f15115392842f6bf3f2ad869901811bee",
+          "size": 18084
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "ioquake3.x86_64.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own Quake III Arena baseq3/pak0.pk3 and the matching official patch PK3s (pak1 through pak8). Team Arena additionally requires your own missionpack/pak0.pk3 and matching missionpack patch files; Arena alone is not the expansion. Preserve the original installation; prepare a separate working data copy.",
+      "preparation": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 and missionpack as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. Select the expansion with three separate argument lines: +set, fs_game, missionpack. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403.",
+      "persistent_data": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred.",
+      "remaining": "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added.",
+      "before_sha256": "9dcb7fea95d267ab62da351bdc1bf366d17e3ed3b97363e278a4a1bed38e523c",
+      "after_sha256": "2838fb5f99b07262b9a7063fe2e375f0c5bfe327a767f8b7d8842c0607589d2d"
+    },
+    {
+      "id": "serious-sam-the-first-encounter-serioussamclassic",
+      "canonical_issue": 2605,
+      "upstream": "https://github.com/tx00100xt/SeriousSamClassic",
+      "source_commit": "871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "0fc5a76dc78e26c964852dfcc5686a151d2151cf",
+          "sha256": "991c0ef95c80d3ec70cf0c0a04359e1e484fb54633ef405ff1869559934c8162",
+          "size": 19521
+        },
+        {
+          "path": "SamTFE/Sources/Engine/Base/Win32/Win32FileSystem.cpp",
+          "git_sha": "66bd0a992716fa1e053fae2a2735f9a70fdbeec7",
+          "sha256": "d1819e1cfc3b10f56ea801f99f01acb67e0b662a6b8999f109a0ada48b5add12",
+          "size": 2811
+        },
+        {
+          "path": "SamTFE/Sources/Engine/Engine.cpp",
+          "git_sha": "e6f7c4fb909b2b975b5701c67f2adb81e384736c",
+          "sha256": "414f594d0f69de002a3bfb3808268167903ceb64a4f9082557d3bb4eae38aecc",
+          "size": 47051
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "x64/SamTFE/Bin/SeriousSam.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own classic Serious Sam The First Encounter data, including matching *.gro files and original companion data. HD and Revolution editions are different products. Preserve the original installation and use a complete private working copy; the other encounter is a separate data scope.",
+      "preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE.",
+      "persistent_data": "Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement.",
+      "remaining": "Managed fitting requires a supported original-data preparation/completion contract and maintenance evidence; no managed definition or native gameplay acceptance is added.",
+      "before_sha256": "2879e940d9561f32da31b3dd34902221893067d027722547af7cca8af58c2f54",
+      "after_sha256": "a7da09097b223d738200f5c250c3ef1d4948a0433360d7b45a54b740ca8f353c"
+    },
+    {
+      "id": "serious-sam-the-second-encounter-serioussamclassic",
+      "canonical_issue": 2606,
+      "upstream": "https://github.com/tx00100xt/SeriousSamClassic",
+      "source_commit": "871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57",
+      "source_hashes": [
+        {
+          "path": "README.md",
+          "git_sha": "0fc5a76dc78e26c964852dfcc5686a151d2151cf",
+          "sha256": "991c0ef95c80d3ec70cf0c0a04359e1e484fb54633ef405ff1869559934c8162",
+          "size": 19521
+        },
+        {
+          "path": "SamTFE/Sources/Engine/Base/Win32/Win32FileSystem.cpp",
+          "git_sha": "66bd0a992716fa1e053fae2a2735f9a70fdbeec7",
+          "sha256": "d1819e1cfc3b10f56ea801f99f01acb67e0b662a6b8999f109a0ada48b5add12",
+          "size": 2811
+        },
+        {
+          "path": "SamTFE/Sources/Engine/Engine.cpp",
+          "git_sha": "e6f7c4fb909b2b975b5701c67f2adb81e384736c",
+          "sha256": "414f594d0f69de002a3bfb3808268167903ceb64a4f9082557d3bb4eae38aecc",
+          "size": 47051
+        }
+      ],
+      "offered_route": "upstream-preparation-and-existing-installation",
+      "selected_player": "x64/SamTSE/Bin/SeriousSam.exe",
+      "integration_added": false,
+      "native_gameplay": "not_evaluated",
+      "original_data": "Use your own classic Serious Sam The Second Encounter data, including matching *.gro files and original companion data. HD and Revolution editions are different products. Preserve the original installation and use a complete private working copy; the other encounter is a separate data scope.",
+      "preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE.",
+      "persistent_data": "Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement.",
+      "remaining": "Managed fitting requires a supported original-data preparation/completion contract and maintenance evidence; no managed definition or native gameplay acceptance is added.",
+      "before_sha256": "7f2782a37fd51888102a79f2ea3fe28c8fe05dbc1c4bff96110754679aefe134",
+      "after_sha256": "cfd17b00fe347cdfb0b3993a3f4929334785ad6b8d6612909b0724cf5453fcf2"
+    }
+  ],
+  "limits": [
+    "Package metadata and source evidence are not native setup/gameplay acceptance.",
+    "Original games and upstream preparation helpers were not executed.",
+    "OpenJO first setup remains a precise original-data dependency.",
+    "Marathon is a separate three-definition cohort; inventories must not be added as new identities."
+  ]
+}

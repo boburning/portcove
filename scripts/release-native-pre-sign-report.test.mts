@@ -14,7 +14,10 @@ import {
   prepareActualLinuxNativeStageReport,
   requireActualLinuxNativeStageReport,
 } from "./release-native-linux-report.mts";
+import { hostedWindowsContinuityPlatform } from "./release-native-qualification-contract.mts";
+import type { NativeStageRequest } from "./release-native-stage-capture.mts";
 import test from "node:test";
+import { isRecord } from "./runtime-values.mts";
 void test("actual captured streams preserve empty stderr without relaxing nonempty JSON/public bytes", async (context) => {
   const root = disposableDirectory(context, path.join(os.tmpdir(), "native-empty-stream-"));
   await writeFile(path.join(root, "harness.stderr.bin"), Buffer.alloc(0));
@@ -38,6 +41,8 @@ import {
 import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import {
   reconstructNativePreSignReport,
+  reconstructHostedNativeWindowsPreSignReport,
+  reconstructHostedNativeWindowsPostSignReport,
   reconstructNativePostSignReport,
   prepareActualNativePreSignReport,
   requireActualNativePreSignReport,
@@ -49,6 +54,109 @@ import {
   nativeLinuxReportFixture as linuxFixture,
   nativeLinuxPostSignReportFixture as linuxPostFixture,
 } from "./fixtures/native-linux-report-fixture.mts";
+
+const hostNonce = "a".repeat(64);
+const serverOs = {
+  caption: "Microsoft Windows Server 2022 Datacenter",
+  version: "10.0.20348.4000",
+  build_number: "20348",
+  display_version: "21H2",
+  product_type: 3,
+};
+function hostedWindowsRequest(
+  prior: NativeStageRequest,
+  minimum: "windows-11-26h2-x64" | typeof hostedWindowsContinuityPlatform,
+) {
+  const authorities = selectedPublicationAuthoritiesFixture("application");
+  assert.ok("hosted_native" in authorities);
+  Object.assign(authorities.hosted_native["windows-x86_64"], {
+    minimum_platform: minimum,
+    producer: structuredClone(prior.request.expected.producer),
+    compatibility: structuredClone(prior.request.expected.compatibility),
+  });
+  const projection = {
+    machine_id_sha256: prior.request.expected.host.machine_id_sha256,
+    qualification_profile: "fixed-hosted-native-v1",
+    account: prior.request.expected.host.account,
+  };
+  return prepareHostedNativeStageRequest(
+    {
+      schema_version: 1,
+      stage: prior.request.stage,
+      platform_label: "windows-x86_64",
+      candidate: prior.request.candidate,
+      journey: prior.request.journey,
+      invocation_id: prior.request.invocation_id,
+      setup_descriptor_sha256: authorities.journal.setup_plan_sha256,
+    },
+    authorities,
+    projection,
+  );
+}
+function windowsHostFacts(prepared: NativeStageRequest) {
+  const account = prepared.request.expected.host.account;
+  assert.ok(isRecord(account));
+  return {
+    schema_version: 1,
+    nonce: hostNonce,
+    architecture: "x86_64",
+    machine_id_sha256: prepared.request.expected.host.machine_id_sha256,
+    broker_sid: account.broker,
+    os: { ...serverOs },
+  };
+}
+void test("hosted Windows reconstruction positively binds Server/account/runtime evidence without claiming the client floor", async () => {
+  const f = await fixture(),
+    prepared = hostedWindowsRequest(f.prepared, hostedWindowsContinuityPlatform),
+    evidence = structuredClone(f.evidence);
+  evidence.driver.host_observation.os_version = serverOs.version;
+  evidence.runtime.operating_system = serverOs.version;
+  const observed = windowsHostFacts(prepared),
+    result = reconstructHostedNativeWindowsPreSignReport(
+      prepared,
+      evidence,
+      f.source,
+      observed,
+      hostNonce,
+    );
+  assert.equal(result.authority, "none");
+  assert.equal(result.report.host.minimum_platform, hostedWindowsContinuityPlatform);
+  assert.equal(
+    result.report.host.execution_context,
+    "native-windows-server-2022-hosted-isolated-account",
+  );
+  assert.equal(result.report.compatibility.minimum_os_version, "10.0.26200");
+  assert.throws(() => reconstructNativePreSignReport(prepared, evidence, f.source));
+  await assert.rejects(prepareActualNativePreSignReport(result));
+  await assert.rejects(requireActualNativePreSignReport(result));
+  for (const change of [
+    (value: typeof observed) => {
+      value.os.product_type = 1;
+    },
+    (value: typeof observed) => {
+      value.os.build_number = "26200";
+    },
+    (value: typeof observed) => {
+      value.broker_sid = "S-1-5-21-1-2-3-1003";
+    },
+    (value: typeof observed) => {
+      value.nonce = "c".repeat(64);
+    },
+    (value: typeof observed) => {
+      value.machine_id_sha256 = "c".repeat(64);
+    },
+  ]) {
+    const bad = structuredClone(observed);
+    change(bad);
+    assert.throws(() =>
+      reconstructHostedNativeWindowsPreSignReport(prepared, evidence, f.source, bad, hostNonce),
+    );
+  }
+  const client = hostedWindowsRequest(f.prepared, "windows-11-26h2-x64");
+  assert.throws(() =>
+    reconstructHostedNativeWindowsPreSignReport(client, evidence, f.source, observed, hostNonce),
+  );
+});
 
 void test("hosted Linux reconstruction uses the observed distro floor and keeps legacy accounts and capture authority separate", async () => {
   for (const stage of ["pre", "initial", "ordinary"] as const) {
@@ -152,15 +260,18 @@ void test("inert Linux report2 reconstructs initial or real distinct predecessor
   for (const initial of [true, false]) {
     const f = await linuxPostFixture(initial);
     assert.deepEqual(f.base.source.cli_protocol, { min: 82, max: 82 });
+    assert.equal(f.base.source.library.write_schema, 43);
     const result = reconstructNativeLinuxPostSignReport(f.prepared, f.input, f.base.source);
     // The original API80/library40 fixture at073ac7b9 reproduces its historical
     // hashes exactly. These bind the same reconstruction with current API82/
-    // library41 inputs, including their transitive request/stream digests.
+    // library43 inputs, including their transitive request/stream digests.
+    // Historical API82/library42 initial: b2bc15a2f9eed746a69fb1063f444dec15737f5dce7afa9b64a1d2254db98909;
+    // predecessor: e176bea4fe6dacf2b8d30cc5a1b23090aaaf2dcea03467fa83d8fb735c7e470e.
     assert.equal(
       createHash("sha256").update(JSON.stringify(result)).digest("hex"),
       initial
-        ? "7c9a5269737f96843da1a51045b0eb3b5efdd8c2cc0f4d4d3e27719dd4532f6c"
-        : "d267f1fb1d35a4c3aa31eea68f9d6cd09216115a6b3b4174dc273438a7ce4833",
+        ? "4a67ea353b8ab1a16dd9af2e755dc4d6b149b6ac53fb19abde5a14f3e01f97b9"
+        : "8811d9240f9c6b7901b8bca0ee0f1cae3f2c1db39b290b1faf00611433a6516a",
     );
     assert.equal(result.report.schema_version, 2);
     assert.equal(result.report.runtime.started_at, "2026-10-20T12:00:00.500Z");
@@ -216,12 +327,14 @@ void test("inert Linux report2 reconstructs initial or real distinct predecessor
 void test("inert Linux reconstruction binds actual-shaped source/host/process/namespace proofs without importing capture authority", async () => {
   const { base, prepared, input, start } = await linuxFixture();
   assert.deepEqual(base.source.cli_protocol, { min: 82, max: 82 });
+  assert.equal(base.source.library.write_schema, 43);
   const result = reconstructNativeLinuxPreSignReport(prepared, input, base.source);
   assert.equal(
     createHash("sha256").update(JSON.stringify(result)).digest("hex"),
     // Same inert reconstruction as the historical API80/library40 fixture,
-    // now bound to the current API82/library41 request and stream identities.
-    "89041e620d542ae26807c88f0b57d663ce7f09d8448091ca81193a6b428305af",
+    // now bound to the current API82/library43 request and stream identities.
+    // Historical API82/library42: 4d262b29be451f935f446e7ddce75ecde1efb5a43ee8b906be70e15b70cd6eea.
+    "68f3bef742c34a7e55ddbb729efed6d298bd79feaa6a7535088ef558fb0bb7ba",
   );
   assert.equal(result.authority, "none");
   assert.equal(result.report.host.loaded_engine.version, "2.52.6");
@@ -451,6 +564,34 @@ void test("post-sign report2 preserves initial versus predecessor package scope 
     predecessor_version: null,
   };
   const output = reconstructNativePostSignReport(prepared, evidence, f.source, crypto);
+  const hostedPrepared = hostedWindowsRequest(prepared, hostedWindowsContinuityPlatform),
+    hostedEvidence = structuredClone(evidence);
+  hostedEvidence.driver.host_observation.os_version = serverOs.version;
+  hostedEvidence.runtime.operating_system = serverOs.version;
+  const hostedResult = reconstructHostedNativeWindowsPostSignReport(
+    hostedPrepared,
+    hostedEvidence,
+    f.source,
+    crypto,
+    windowsHostFacts(hostedPrepared),
+    hostNonce,
+  );
+  assert.equal(hostedResult.report.host.minimum_platform, hostedWindowsContinuityPlatform);
+  assert.deepEqual(
+    hostedResult.report.scenarios.map((row) => row.name),
+    output.report.scenarios.map((row) => row.name),
+  );
+  assert.throws(() =>
+    reconstructHostedNativeWindowsPostSignReport(
+      hostedPrepared,
+      hostedEvidence,
+      f.source,
+      { ...crypto, sha256: "0".repeat(64) },
+      windowsHostFacts(hostedPrepared),
+      hostNonce,
+    ),
+  );
+
   assert.equal(output.authority, "none");
   assert.equal(output.report.schema_version, 2);
   assert.equal(output.report.stage, "release-publication");
@@ -533,6 +674,23 @@ void test("post-sign report2 preserves initial versus predecessor package scope 
   next.capture.roots.push(predecessorRoot);
   const ordinaryCrypto = { ...crypto, predecessor_version: "0.0.1" };
   const ordinaryOutput = reconstructNativePostSignReport(ordinary, next, f.source, ordinaryCrypto);
+  const hostedOrdinary = hostedWindowsRequest(ordinary, hostedWindowsContinuityPlatform),
+    hostedNext = structuredClone(next);
+  hostedNext.driver.host_observation.os_version = serverOs.version;
+  hostedNext.runtime.operating_system = serverOs.version;
+  const hostedOrdinaryResult = reconstructHostedNativeWindowsPostSignReport(
+    hostedOrdinary,
+    hostedNext,
+    f.source,
+    ordinaryCrypto,
+    windowsHostFacts(hostedOrdinary),
+    hostNonce,
+  );
+  assert.deepEqual(
+    hostedOrdinaryResult.report.scenarios.map((row) => row.name),
+    ordinaryOutput.report.scenarios.map((row) => row.name),
+  );
+
   assert.deepEqual(
     ordinaryOutput.report.scenarios.map((item) => item.name),
     ["install-over-prior", "candidate-launch", "retained-state", "package-rollback"],

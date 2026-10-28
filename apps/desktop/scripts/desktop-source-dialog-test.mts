@@ -3,7 +3,7 @@ import {
   fixtureObject as object,
 } from "./desktop-scenario-state.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
-import type { WebDriver } from "selenium-webdriver";
+import type { WebDriver, Locator } from "selenium-webdriver";
 import type { FixtureCommand, OwnedFixtureContext } from "./desktop-scenario-state.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type {
@@ -47,6 +47,18 @@ export function sourceProfileLabel(value: unknown, profile: string): string {
   );
   return identity.label;
 }
+export async function waitForDisabledSourceReview(browser: WebDriver, candidate: () => Locator) {
+  await browser.wait(
+    async () =>
+      !(await browser
+        .findElement(candidate())
+        .findElement(By.css("[data-candidate-review]"))
+        .isEnabled()),
+    5_000,
+    "Selected setup: stale review disabled after unavailable-root refresh",
+  );
+}
+
 function gameFileRoot(value: unknown): GameFileRoot {
   return required(transportValue("game_file_roots", [value])[0]);
 }
@@ -620,7 +632,7 @@ export async function sourceDialogScenario({
     const { button, click } = reviewControls(browser);
 
     await openCatalogPortAfterRefresh(browser, port);
-    await revealDetailSection(browser, "Files");
+    await revealDetailSection(browser, "Game files");
     const disclosure = await browser.findElement(By.css(".requirements-disclosure"));
     const detailsOpen = (element: Element) => {
       if (!(element instanceof HTMLDetailsElement))
@@ -791,6 +803,11 @@ export async function sourceDialogScenario({
     );
     const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
+    await click(
+      By.xpath(
+        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+      ),
+    );
     const sourceActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceRegistration.id)}]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
@@ -838,6 +855,11 @@ export async function sourceDialogScenario({
     }
 
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
+    await click(
+      By.xpath(
+        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+      ),
+    );
     const discoveryActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceDiscovery.id)}]//button[@aria-label="Open Game files settings for Portcove library"]`,
     );
@@ -1031,7 +1053,7 @@ async function selectedSetupDetail(
       reason,
       "Portcove will check required game files and verify the release before it becomes active.",
     );
-    // Requirements stay available in Files after successful source registration.
+    // Requirements stay available in Game files after successful source registration.
     assert.equal(
       await browser
         .findElement(By.xpath('//button[normalize-space(.)="Review installation"]'))
@@ -2426,15 +2448,7 @@ export async function selectedSetupScenario({
       rootMoved = true;
       await click(button("Refresh folders"));
       report.checkpoint = "unavailable-root-disabled-review";
-      await browser.wait(
-        async () =>
-          !(await browser
-            .findElement(row(owned.profiles[0]))
-            .findElement(By.css("[data-candidate-review]"))
-            .isEnabled()),
-        5_000,
-        "Selected setup: stale review disabled after unavailable-root refresh",
-      );
+      await waitForDisabledSourceReview(browser, () => row(owned.profiles[0]));
       report.checkpoint = "unavailable-root-observations";
       const snapshot = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(snapshot.freshness, "inputs_changed");

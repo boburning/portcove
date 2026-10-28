@@ -65,7 +65,7 @@ it("counts favorites within actual composed search/channel results and reset pre
     />,
   );
   expect(host.textContent).toContain("Favorites (1)");
-  expect(host.textContent).toContain("1 port");
+  expect(host.textContent).toContain("1 ungrouped project · 1 matching port");
   expect(host.querySelector('button[aria-label="Favorite Keep first"]')).not.toBeNull();
   expect(host.querySelector('button[aria-label="Favorite Keep second"]')).toBeNull();
   const reset = [...host.querySelectorAll<HTMLButtonElement>("button")].find(

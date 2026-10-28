@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { lstat, writeFile } from "node:fs/promises";
+import { createReadStream, constants } from "node:fs";
+import { lstat, writeFile, open } from "node:fs/promises";
 import path from "node:path";
 
 export interface FileIdentity {
@@ -8,11 +8,63 @@ export interface FileIdentity {
   bytes: number;
   sha256: string;
 }
+
+/** Metadata bytes and their identity come from the same bounded ordinary handle. */
+export async function readBoundedEvidenceFile(filename: string, maximum: number) {
+  if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > 64 * 1024 * 1024)
+    throw new Error("Evidence read requires a finite byte bound");
+  const absolute = path.resolve(filename);
+  const before = await lstat(absolute, { bigint: true });
+  if (!before.isFile() || before.size < 1n || before.size > BigInt(maximum))
+    throw new Error("Evidence input must be a bounded nonempty regular file");
+  const handle = await open(
+    absolute,
+    constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+  );
+  try {
+    const stable = (metadata: typeof before) =>
+      metadata.isFile() &&
+      metadata.dev === before.dev &&
+      metadata.ino === before.ino &&
+      metadata.size === before.size &&
+      metadata.mtimeNs === before.mtimeNs &&
+      metadata.ctimeNs === before.ctimeNs;
+    if (!stable(await handle.stat({ bigint: true })))
+      throw new Error("Evidence input physical identity changed");
+    const buffer = Buffer.alloc(maximum + 1);
+    let length = 0;
+    for (;;) {
+      const { bytesRead } = await handle.read(buffer, length, buffer.length - length, null);
+      length += bytesRead;
+      if (length > maximum) throw new Error("Evidence input exceeds its byte bound");
+      if (!bytesRead) break;
+    }
+    if (
+      BigInt(length) !== before.size ||
+      !stable(await handle.stat({ bigint: true })) ||
+      !stable(await lstat(absolute, { bigint: true }))
+    )
+      throw new Error("Evidence input changed during bounded reading");
+    const bytes = buffer.subarray(0, length);
+    return {
+      bytes,
+      identity: {
+        path: absolute,
+        bytes: length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      },
+    };
+  } finally {
+    await handle.close();
+  }
+}
 export interface EvidenceCheck {
   scenario: string;
   outcome: "passed" | "failed" | "not-run";
   message?: string;
   reason?: string | undefined;
+  duration_ms?: number | null;
+  duration_scope?: "scenario-action";
 }
 export interface EvidenceContext {
   selected_scenarios?: readonly string[];

@@ -190,3 +190,37 @@ async fn dynamic_policy_proof_binds_definition_platform_channel_and_exact_releas
         );
     }
 }
+
+#[tokio::test]
+async fn immutable_bytes_cannot_bypass_dynamic_runtime_provider_proof() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let catalog = catalog();
+    let installer = Installer::new(library.clone()).unwrap();
+    let mut request = request(
+        &catalog,
+        &library,
+        &format!("http://{}/game.zip", listener.local_addr().unwrap()),
+        "v2",
+    );
+    request.activate = false;
+    let private = temporary.path().join("private");
+    std::fs::create_dir(&private).unwrap();
+    let failure = installer
+        .acquire_immutable(
+            &request,
+            &private,
+            &OperationCoordinator::new("immutable-proof-control", None),
+            &mut |_| {},
+        )
+        .await
+        .unwrap_err();
+    assert!(failure.message.contains("provider resolution"), "{failure}");
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock)
+    );
+    assert_eq!(std::fs::read_dir(private).unwrap().count(), 0);
+    assert!(library.all_installs().unwrap().is_empty());
+}

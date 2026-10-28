@@ -1,0 +1,391 @@
+{
+  "format_version": 1,
+  "kind": "dated source-bound evidence, not a live registry/backlog",
+  "owners": [2510, 2926],
+  "source_commit": "d8ef4a218082fce12e961c0611b3df189d9b34bc",
+  "observed_at": "2026-10-26T22:05:38.529Z",
+  "scope": "Five remaining known N64 listing identities; no managed addition or new Core/UI/lifecycle abstraction.",
+  "ports": [
+    {
+      "id": "cdlewis-snowboardkids-recomp",
+      "canonical_issue": 1886,
+      "repository": {
+        "id": 1356220121,
+        "node_id": "R_kgDOUNZG2Q",
+        "name": "cdlewis/snowboardkids-recomp"
+      },
+      "reviewed_source": "2ac83a8af625acf7da92d5610b25f2693bff7c91",
+      "default_source": "ecdde76baf607ba6736cd2b789604bf481935e3f",
+      "release_history_complete": true,
+      "releases": 2,
+      "selected_release": "v1.0.6",
+      "assets": [
+        {
+          "name": "SnowboardKidsRecompiled-Flatpak-X64.flatpak",
+          "size": 10058296,
+          "independently_expected": "sha256:7cd1f450b30fd77a8b33cebb23d1c42d70285ee4f3c8197e2f263cead40f630a"
+        },
+        {
+          "name": "SnowboardKidsRecompiled-Linux-ARM64.tar.gz",
+          "size": 12712389,
+          "independently_expected": "sha256:a703df050731658eeedb4f34a031cfc3c52a908716edadc53984402a8bd36d44"
+        },
+        {
+          "name": "SnowboardKidsRecompiled-Linux-X64.tar.gz",
+          "size": 12915471,
+          "independently_expected": "sha256:85a53e15e73cbf0cc3da3778334a8006ed307b7d5b75e14fe9eee05c51421a2e"
+        },
+        {
+          "name": "SnowboardKidsRecompiled-macOS.zip",
+          "size": 23390327,
+          "independently_expected": "sha256:536de50551fb27cda790d3d38cde904dec3dbeb8c89683ff80b9d61b7c26ac32"
+        },
+        {
+          "name": "SnowboardKidsRecompiled-Windows.zip",
+          "size": 22733808,
+          "independently_expected": "sha256:acc7713309bc0fe848e44fcc0e1855a582b2f2f5bebab450dcde5c3c16e10124"
+        }
+      ],
+      "platform_scope": "Published Windows, Linux x64/ARM64 and macOS packages reviewed separately as metadata; Core has no Linux ARM64 host enum. No native header/runtime acceptance claimed.",
+      "recommended_download_channel": "stable",
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Useful conditional permitted-existing-copy setup; precise fresh-acquisition condition retained",
+      "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
+      "setup_data": [
+        {
+          "title": "Keep your complete permitted player",
+          "instruction": "For an existing Windows copy you are permitted to use, select SnowboardKidsRecompiled.exe and its supplied folder. Keep the entire player folder and companions together. On Linux, use the matching native player and supplied working folder; Flatpak and macOS application bundles retain their upstream installation and launchers."
+        },
+        {
+          "title": "Select your original game on first Play",
+          "instruction": "Choose Play explicitly, then select your own supported North American Snowboard Kids ROM in the game menu. The player checks the game identity and normalizes supported byte orders. No separate extraction or compiler step is needed for the released player."
+        },
+        {
+          "title": "Preserve your actual profile when updating",
+          "instruction": "You or upstream provide updates. Keep the working copy and actual profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. On Windows/native Linux, portable.txt in the working folder stores data there; on macOS the marker belongs beside the application bundle and data stays there. Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback."
+        },
+        {
+          "title": "Keep Flatpak data alongside the actual profile",
+          "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
+        }
+      ],
+      "condition": "The released player links cdlewis/RecompFrontend at fa4f0ca42ba2efaca631203ef1e0753f2be78985, whose applicable grant remains unestablished. The parent game-project GPL does not settle that separate component. Keep an existing copy you are permitted to use. Reconsider acquisition with an attributable compatible grant or a reviewed replacement component/package.",
+      "managed_fit": "Fitting archive shapes do not settle the exact linked frontend grant. No managed route is admitted while that operation fact is unresolved.",
+      "source_files": [
+        {
+          "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
+          "blob": "8b99c54869e6284f31a94407a49122d0fca4230a",
+          "sha256": "614aa68f8a43873170550853eb9867e836f1d7f3f153518ab9ed905ff8e17478"
+        },
+        {
+          "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/.gitmodules",
+          "blob": "662d43ee932abdbfad78b32f6b2df0af49f7c75c",
+          "sha256": "09cece757f499587023cb415d68dff9cc82b368e60eeaa4d087da15a405e8516"
+        },
+        {
+          "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/CMakeLists.txt",
+          "blob": "7716343edc4f8530faac5a017100de2755b23226",
+          "sha256": "54aff11b134654ce71b44b9bba5e3ff2bd002a66b4a3844e9d5991cc7bc2f134"
+        }
+      ],
+      "actual_archive_or_game_acquisition": false,
+      "validation_scope": "Maintained per-ID preparation/Core listing inspection, generated output and current-head hosted checks; source evidence is separate from native/gameplay/real-save/packaged Desktop acceptance.",
+      "delivery_status": "candidate; independent review, current-head checks, guarded merge/readback and canonical reconciliation pending"
+    },
+    {
+      "id": "chameleon-twist-recompiled",
+      "canonical_issue": 125,
+      "repository": {
+        "id": 803577244,
+        "node_id": "R_kgDOL-WdnA",
+        "name": "Rainchus/ChameleonTwist1-JP-Recomp"
+      },
+      "reviewed_source": "a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9",
+      "default_source": "f7d171462776e2dbf893206a96c2f55692bce559",
+      "release_history_complete": true,
+      "releases": 1,
+      "selected_release": "v0.1",
+      "assets": [
+        {
+          "name": "ChameleonTwistJPRecompiled.zip",
+          "size": 23929489,
+          "independently_expected": null
+        }
+      ],
+      "platform_scope": "Only published player archive is Windows ZIP without expected digest; source Linux instructions remain unqualified.",
+      "recommended_download_channel": "stable",
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Useful conditional permitted-existing-copy setup; precise fresh-acquisition condition retained",
+      "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
+      "setup_data": [
+        {
+          "title": "Keep a permitted Windows copy",
+          "instruction": "For an existing prepared copy you are permitted to use, select ChameleonTwistJPRecompiled.exe with its complete extracted folder as the working directory. Keep assets and all supplied libraries together. The reviewed release offers a Windows ZIP; its inherited Linux documentation does not establish a separately published native Linux player."
+        },
+        {
+          "title": "Select the Japanese game on first Play",
+          "instruction": "Choose Play explicitly and use your own unmodified Japanese Chameleon Twist ROM in the player. It recognizes the supported game and normalizes .z64, .v64 and .n64 byte orders. A different region or modified ROM is not equivalent; no game compiler or extractor is started by Portcove."
+        },
+        {
+          "title": "Keep the whole profile and working copy",
+          "instruction": "You or upstream manage runtime updates. Preserve the complete working folder and normally %LOCALAPPDATA%\\ChameleonTwistRecompiled, including its imported game, saves and settings. portable.txt or a custom upstream location can instead put data in the working folder. Keep that actual location and originals recoverable before replacing anything. Registration and Play stay separate; Portcove does not adopt, back up, roll back or delete these external files."
+        }
+      ],
+      "condition": "The v0.1 Windows ZIP still has no published independently expected SHA-256, preserving the existing artifact-integrity hold. Its pinned source also carries separately authored Chiaro font files whose applicable permission needs review; the parent GPL does not settle that scope. Keep a permitted existing copy. Reconsider fresh acquisition after the required artifact trust and affected component permissions are established or the package is appropriately replaced.",
+      "managed_fit": "No independently expected artifact SHA-256/curated approval; separately authored Chiaro files also require attributable permission. Existing trust hold is not replaced with a silent unverified-download exception.",
+      "source_files": [
+        {
+          "url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
+          "blob": "5697c6f393a8927fccaddf7f5819c04ef74503c4",
+          "sha256": "ee60c70e9384895a3ba4ff3d56d990a64946cc891f08f73b21794ce59990b943"
+        },
+        {
+          "url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/COPYING",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/.gitmodules",
+          "blob": "191d5a59072462b059816344a35ea88ba05404b4",
+          "sha256": "415b2ccf0386585b04153c4510d4c5828c09d8fe995d574357bb7a83630822d0"
+        },
+        {
+          "url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/CMakeLists.txt",
+          "blob": "72eb18a7cffeed31ba3a3ae79c82f206c2680648",
+          "sha256": "71af2a88fb4256c9521f15449430800409f0c55ca4b3ef4ae8706fe0fcca90b7"
+        }
+      ],
+      "actual_archive_or_game_acquisition": false,
+      "validation_scope": "Maintained per-ID preparation/Core listing inspection, generated output and current-head hosted checks; source evidence is separate from native/gameplay/real-save/packaged Desktop acceptance.",
+      "delivery_status": "candidate; independent review, current-head checks, guarded merge/readback and canonical reconciliation pending"
+    },
+    {
+      "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
+      "canonical_issue": 1800,
+      "repository": {
+        "id": 1359478825,
+        "node_id": "R_kgDOUQgAKQ",
+        "name": "danielgomesvieira2000/beetle-adventure-racing-recomp"
+      },
+      "reviewed_source": "974596dfa0493fe2c7c2446b3f5165dd11237020",
+      "default_source": "6497e67257809401468cd47850393775952b31bb",
+      "release_history_complete": true,
+      "releases": 6,
+      "selected_release": "v0.4.2-alpha",
+      "assets": [
+        {
+          "name": "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64-debug-symbols.zip",
+          "size": 6678029,
+          "independently_expected": "sha256:e38c91f344637e3fa977a0fd407fedde379e74476207de46f5265b4d4e5919ed"
+        },
+        {
+          "name": "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
+          "size": 18595622,
+          "independently_expected": "sha256:b7ad13d3518f6645d32b66bea2c8832595cfea76838299d800e20bf943a704d4"
+        }
+      ],
+      "platform_scope": "Selected Windows x64 alpha player; debug-symbols archive is not a player. No Linux package inherited from source.",
+      "recommended_download_channel": "beta",
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Useful conditional permitted-existing-copy setup; precise fresh-acquisition condition retained",
+      "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
+      "setup_data": [
+        {
+          "title": "Keep a permitted Windows player",
+          "instruction": "Select beetle-adventure-racing-recomp.exe in your existing permitted copy and use its complete extracted folder as the working directory. Keep assets and all supplied companions together. The selected release is a Windows x64 alpha; debug-symbols ZIPs are not player packages."
+        },
+        {
+          "title": "Load your original game on first Play",
+          "instruction": "Choose Play, then Load ROM in the player and select your own supported USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and caches the selected game. The released player needs no downstream decompilation build or separate game-generation step."
+        },
+        {
+          "title": "Preserve the current copy and Controller Pak data",
+          "instruction": "You or upstream provide updates. Back up the whole working folder and normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, including cached ROM, Controller Pak saves, settings and bindings. portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+        }
+      ],
+      "condition": "The Windows player links vendored RecompFrontend code whose applicable permission remains unestablished. The project AGPL and licensed nested dependencies do not themselves establish a grant for that separately authored frontend. Keep an existing copy you are permitted to use. Reconsider acquisition with attributable compatible permission or an appropriately licensed replacement package.",
+      "managed_fit": "Vendored frontend is linked; parent AGPL and licensed nested libraries do not establish its separate grant. No new engine/build work or generic-adapter downgrade.",
+      "source_files": [
+        {
+          "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
+          "blob": "978e8444b9550c99e4501a50dd5bb3d902d87559",
+          "sha256": "d14e0ea1271a74b9f081e8ee4e4104a77f04401c27126ee1dc72e460277102aa"
+        },
+        {
+          "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/COPYING",
+          "blob": "bae94e189e62df1b8d5bd11435d954b25bee9d7b",
+          "sha256": "4df3c306dddaaf4baffdff5ca820cc679ac8cd6dc263c6a74517783e42fa7a3b"
+        },
+        {
+          "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/THIRD_PARTY_NOTICES.md",
+          "blob": "e3c75e72d96faf4622e6d19249e3a4058b45e4d5",
+          "sha256": "ccda7928adb51c3217c8cf3a97a43cc1b91cd6fb5e25df45f10f22a433e7e2ad"
+        },
+        {
+          "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/CMakeLists.txt",
+          "blob": "7616d2fbbda6380cafe87601a68d3451a6172011",
+          "sha256": "e6e2969e5c03be65bb80ea9d16cc014ba93fec8a5b0fa76a09da43d2361eff9b"
+        }
+      ],
+      "actual_archive_or_game_acquisition": false,
+      "validation_scope": "Maintained per-ID preparation/Core listing inspection, generated output and current-head hosted checks; source evidence is separate from native/gameplay/real-save/packaged Desktop acceptance.",
+      "delivery_status": "candidate; independent review, current-head checks, guarded merge/readback and canonical reconciliation pending"
+    },
+    {
+      "id": "vidanox-banjotooierecompiled",
+      "canonical_issue": 1795,
+      "repository": {
+        "id": 1371760314,
+        "node_id": "R_kgDOUcNmug",
+        "name": "Vidanox/BanjoTooieRecompiled"
+      },
+      "reviewed_source": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "default_source": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "release_history_complete": true,
+      "releases": 3,
+      "selected_release": "v1.0.1",
+      "assets": [
+        {
+          "name": "BanjoTooieRecompiled-linux-x64.tar.gz",
+          "size": 11386543,
+          "independently_expected": "sha256:9b63b6304940e771d79500d0e2bac7aecca4c47dd844b1de8ab93ac950971da4"
+        },
+        {
+          "name": "BanjoTooieRecompiled-windows-x64.zip",
+          "size": 20697028,
+          "independently_expected": "sha256:cc34db186c61b432505fd2ce38c0686edcc6283a5272a4eb567c85b17cdce53b"
+        },
+        {
+          "name": "BanjoTooieRecompiled.flatpak",
+          "size": 34338712,
+          "independently_expected": "sha256:70f0c3f78c44f9a6d8939b5f4b3b43897fff6540abc39134b7e565e7fdd6bcc2"
+        }
+      ],
+      "platform_scope": "Windows/Linux x64 player packages plus a distinct Flatpak route; Linux working-folder/portal prerequisites remain.",
+      "recommended_download_channel": "stable",
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Useful conditional permitted-existing-copy setup; precise fresh-acquisition condition retained",
+      "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
+      "setup_data": [
+        {
+          "title": "Keep the complete permitted player",
+          "instruction": "On Windows, select BanjoTooieRecompiled.exe in your existing permitted copy and keep assets plus the supplied SDL2/DXC libraries together in its working folder. On Linux, retain run.sh for upstream launch, or select the native BanjoTooieRecompiled with that extracted folder as its working directory. The wrapper supplies that folder; the native build still needs its documented Vulkan, shared-library and file-dialog portal prerequisites."
+        },
+        {
+          "title": "Choose your original cartridge dump on first Play",
+          "instruction": "Choose Play explicitly, then Select ROM and supply your own supported Banjo-Tooie USA .z64 in big-endian byte order. The documented input is a 32 MiB original cartridge dump; another region, byte order or modified image is not equivalent. The released player reads it directly, without a separate extraction or compiler step."
+        },
+        {
+          "title": "Keep your actual profile when updating",
+          "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
+        }
+      ],
+      "condition": "The v1.0.1 source/package recipe links N64Recomp/RecompFrontend without an established applicable grant and includes Suplexmentary Comic NC.ttf, which upstream expressly identifies as carrying no license and an all-rights-reserved notice. The project GPL does not settle those separate works. Keep a permitted existing copy. Reconsider with attributable compatible grants or a released package replacing the affected components.",
+      "managed_fit": "Source recipe packages the named unlicensed font and links the separately unlicensed frontend; a later ordinary release number is not permission repair.",
+      "source_files": [
+        {
+          "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
+          "blob": "cc150009eababb5b497ca3ff0320fbd422fa199c",
+          "sha256": "5dca694eac91e5d42d56da94caef207ed0bbd6b74538f548a0d7a9b48771e785"
+        },
+        {
+          "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/COPYING",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/.gitmodules",
+          "blob": "fd6004049622a23573d582ee62b2645c52f16272",
+          "sha256": "11db02c2c9b132ab1c5899421069a859669d4b5054be530dc644afbd0c89ad3b"
+        },
+        {
+          "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/CMakeLists.txt",
+          "blob": "c33980eb0f45127b8d5295922419af7ae52796e3",
+          "sha256": "4fc61bdb3af81d371e6386f6bca073e3d270b64de862aea1f2d1a75b69c1949b"
+        },
+        {
+          "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/.github/workflows/build.yml",
+          "blob": "0c1220c01aa67f4b3c8a038c91eefc7b080d4111",
+          "sha256": "ef2df2189e64b52109baf1d353c0e1d2dc62c664536c9eb76cc9dd7597b651a7"
+        }
+      ],
+      "actual_archive_or_game_acquisition": false,
+      "validation_scope": "Maintained per-ID preparation/Core listing inspection, generated output and current-head hosted checks; source evidence is separate from native/gameplay/real-save/packaged Desktop acceptance.",
+      "delivery_status": "candidate; independent review, current-head checks, guarded merge/readback and canonical reconciliation pending"
+    },
+    {
+      "id": "wave-race-64-recompiled",
+      "canonical_issue": 168,
+      "repository": {
+        "id": 1276274679,
+        "node_id": "R_kgDOTBJn9w",
+        "name": "chronic8000/WaveRace64Recompiled"
+      },
+      "reviewed_source": "63817bc71d31210a064f99010a010eb5e335b239",
+      "default_source": "63817bc71d31210a064f99010a010eb5e335b239",
+      "release_history_complete": true,
+      "releases": 0,
+      "selected_release": null,
+      "assets": [],
+      "platform_scope": "Source/renderer prototype; no release, playable-player or new qualified registration route.",
+      "recommended_download_channel": null,
+      "current_route": "Generic listing-only upstream link",
+      "selected_route": "Accurate source/prototype discovery and retained-development-copy guidance; existing useful-output hold preserved",
+      "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
+      "setup_data": [
+        {
+          "title": "Check the current prototype status",
+          "instruction": "This upstream reports only two boxes of visual noise and publishes no player archive. It is not a useful fresh game installation. The README names an own USA Rev A Wave Race 64 .z64 dump, but BUILDING.md still contains inherited Majora’s Mask commands; do not substitute that game or treat those commands as a verified Wave Race preparation guide."
+        },
+        {
+          "title": "Preserve an already registered development copy",
+          "instruction": "Keep any already registered development copy, its complete folder, original inputs, generated files, saves and settings under its existing contract. You or upstream own its updates. This guide offers no new qualified registration or fresh player route and does not adopt, replace, back up, roll back or delete external files."
+        }
+      ],
+      "condition": "The current upstream is a renderer prototype with no published player archive and no demonstrated useful game output; its build guide still names another game. Fresh player acquisition remains on the existing useful-output hold. Reconsider when a useful runnable Wave Race player or title-specific reproducible preparation is available. Already registered development copies retain their existing contract.",
+      "managed_fit": "Known missing useful runtime output and title-specific preparation; source suggests renderer noise and inherited wrong-game build instructions. Existing deferral/hold, not optional gameplay uncertainty.",
+      "source_files": [
+        {
+          "url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
+          "blob": "0686860092112e75d2a7ac1e01f48e74436a4358",
+          "sha256": "f6483a538e7bd065c6d5985ae8594a8910378139b5a0ea951ec29b5d8a3c8881"
+        },
+        {
+          "url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/BUILDING.md",
+          "blob": "bb9ea724831969148a0c5913d9d3a0cd8e1aef11",
+          "sha256": "8792991a994b87bfadde378e70088dde00f670fef4c3969f5e162a30989a6265"
+        },
+        {
+          "url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/CMakeLists.txt",
+          "blob": "d9b0c65a441b4c0ece202ca178fb4500e5ac5e6e",
+          "sha256": "ff2f885b1c08ec421bbe6f5f52ab8aff89be3e2ebe78ae3a730f48da17179149"
+        }
+      ],
+      "actual_archive_or_game_acquisition": false,
+      "validation_scope": "Maintained per-ID preparation/Core listing inspection, generated output and current-head hosted checks; source evidence is separate from native/gameplay/real-save/packaged Desktop acceptance.",
+      "delivery_status": "candidate; independent review, current-head checks, guarded merge/readback and canonical reconciliation pending"
+    }
+  ],
+  "operational_definitions_preserved": 167,
+  "authored_identities_preserved": 1424,
+  "original_cohorts": [524, 312, 22],
+  "inventory_reference": {
+    "report": "classic-upstream-installation-routes-2026-10-26.json",
+    "source_commit": "303861a08f0f803d0ae7e063e26478ac46da47e1",
+    "cutoff": "2026-10-26T20:51:12.867Z",
+    "distinct_known": 1510,
+    "roadmap_only": 86,
+    "scope": "Previous complete identity refresh; these five existing identities change no membership. Not a new global retrieval or fit-completion claim."
+  },
+  "six_direct_legacy_decisions_unfinished": [152, 164, 165, 113, 154, 1113],
+  "full_public_beta_acceptance": false,
+  "game_helper_execution": false,
+  "native_gameplay": false,
+  "real_save_acceptance": false,
+  "packaged_desktop": false
+}

@@ -3,7 +3,10 @@ import { performance } from "node:perf_hooks";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
-import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import {
+  inspectReleaseControlPhase,
+  releaseControlPhaseProfile,
+} from "./release-control-phases.mts";
 import { requireFixedClassificationPrincipal } from "./release-classification-principal.mts";
 
 /** Transport only, emitted after the fixed production-observer verifier.
@@ -42,6 +45,28 @@ export function prepareProductionProtectionHandoff(
 
 const prefix = "repos/boburning/portcove";
 const refs = ["portcove-release-inputs", "portcove-release-pause"] as const;
+/** Derive the catalog-only environment boundary from the existing phase owner. */
+export const catalogProtectionEnvironments = Object.freeze(
+  [
+    ...new Set(
+      [
+        "coordinator",
+        "catalog-definitions",
+        "catalog-policy",
+        "catalog-snapshot",
+        "catalog-timestamp",
+        "site-publication",
+      ].flatMap((phase) => {
+        const profile = releaseControlPhaseProfile(inspectReleaseControlPhase(phase));
+        return [profile.reader_environment, profile.observer_environment].map((name) => {
+          if (typeof name !== "string" || !name)
+            throw new Error("catalog environment profile unavailable");
+          return name;
+        });
+      }),
+    ),
+  ].sort(),
+);
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (isRecord(value))
@@ -89,7 +114,7 @@ function observeProtections(
       Buffer.byteLength(JSON.stringify(result.body)) > 2 * 1024 * 1024
     )
       throw new Error("protection response unavailable, oversized or late");
-    return result.body;
+    return structuredClone(result.body);
   };
   const identity = get("");
   if (
@@ -172,6 +197,68 @@ function observeProtections(
         return { branch, ref, effective_rules: effective };
       },
     );
+    const environments =
+      purpose === "catalog-publication"
+        ? catalogProtectionEnvironments.map((name) => {
+            const environment = get(`/environments/${encodeURIComponent(name)}`);
+            if (!isRecord(environment) || environment.name !== name) {
+              throw new Error("catalog environment identity unavailable");
+            }
+            id(environment.id);
+            const policies: Record<string, unknown>[] = [];
+            let total: number | undefined;
+            let complete = false;
+            for (let page = 1; page <= 8; page++) {
+              const response = get(
+                `/environments/${encodeURIComponent(name)}/deployment-branch-policies?per_page=100&page=${page}`,
+              );
+              if (
+                !isRecord(response) ||
+                !Number.isSafeInteger(response.total_count) ||
+                Number(response.total_count) < 0 ||
+                Number(response.total_count) > 800 ||
+                !Array.isArray(response.branch_policies) ||
+                response.branch_policies.length > 100 ||
+                (total !== undefined && total !== response.total_count)
+              ) {
+                throw new Error("catalog deployment policy pagination unavailable or changed");
+              }
+              total = Number(response.total_count);
+              for (const policy of response.branch_policies) {
+                if (
+                  !isRecord(policy) ||
+                  typeof policy.name !== "string" ||
+                  !["branch", "tag"].includes(String(policy.type))
+                ) {
+                  throw new Error("catalog deployment policy identity incomplete");
+                }
+                id(policy.id);
+                policies.push(policy);
+              }
+              if (response.branch_policies.length < 100) {
+                complete = policies.length === total;
+                break;
+              }
+            }
+            if (
+              !complete ||
+              new Set(policies.map((policy) => policy.id)).size !== policies.length
+            ) {
+              throw new Error("catalog deployment policy inventory incomplete or duplicated");
+            }
+            return {
+              name,
+              environment,
+              policies: policies.sort((a, b) => Number(a.id) - Number(b.id)),
+            };
+          })
+        : undefined;
+    if (
+      environments &&
+      new Set(environments.map((row) => row.environment.id)).size !== environments.length
+    ) {
+      throw new Error("catalog environment identities duplicated");
+    }
     const immutable = options.releasePublication ? get("/immutable-releases") : undefined;
     if (
       options.releasePublication &&
@@ -184,6 +271,7 @@ function observeProtections(
     return {
       rulesets: rulesets.sort((a, b) => Number(a.id) - Number(b.id)),
       branches,
+      ...(environments ? { environments } : {}),
       ...(options.releasePublication ? { immutable_releases: immutable } : {}),
     };
   };
@@ -221,8 +309,78 @@ export function requireReleaseInputWriterPolicy(
 ) {
   return requireInputPolicy(raw, writerAppId, now, "application");
 }
-export function requireCatalogMaintenancePolicy(raw: unknown, now = Date.now()) {
-  return requireInputPolicy(raw, 43177418, now, "catalog-publication");
+export function requireCatalogMaintenancePolicy(
+  raw: unknown,
+  controllerRef: string,
+  now = Date.now(),
+) {
+  const policy = requireInputPolicy(raw, 43177418, now, "catalog-publication");
+  // The caller supplies its already authenticated original controller ref, not
+  // a tag selected by the observation or a candidate/dispatch body.
+  if (
+    typeof controllerRef !== "string" ||
+    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
+      controllerRef,
+    ) ||
+    !isRecord(raw) ||
+    !isRecord(raw.inventory) ||
+    !Array.isArray(raw.inventory.environments) ||
+    raw.inventory.environments.length !== catalogProtectionEnvironments.length
+  ) {
+    throw new Error("catalog environment protection inventory unavailable");
+  }
+  const tag = controllerRef.slice("refs/tags/".length);
+  const identities = new Set<number>();
+  for (const [index, name] of catalogProtectionEnvironments.entries()) {
+    const row: unknown = raw.inventory.environments[index];
+    if (
+      !isRecord(row) ||
+      row.name !== name ||
+      !isRecord(row.environment) ||
+      row.environment.name !== name ||
+      !Array.isArray(row.policies)
+    ) {
+      throw new Error("catalog environment protection coverage differs");
+    }
+    const environment = row.environment;
+    id(environment.id);
+    if (identities.has(environment.id)) throw new Error("catalog environment identity duplicated");
+    identities.add(environment.id);
+    if (
+      environment.can_admins_bypass !== false ||
+      !isRecord(environment.deployment_branch_policy) ||
+      environment.deployment_branch_policy.protected_branches !== false ||
+      environment.deployment_branch_policy.custom_branch_policies !== true ||
+      !Array.isArray(environment.protection_rules) ||
+      environment.protection_rules.length !== 1 ||
+      !isRecord(environment.protection_rules[0]) ||
+      environment.protection_rules[0].type !== "branch_policy"
+    ) {
+      throw new Error(
+        "catalog environment bypass, manual approval or deployment restriction differs",
+      );
+    }
+    id(environment.protection_rules[0].id);
+    const selected: unknown = row.policies[0];
+    if (
+      row.policies.length !== 1 ||
+      !isRecord(selected) ||
+      selected.type !== "tag" ||
+      selected.name !== tag
+    ) {
+      throw new Error(
+        "catalog environment must permit only the authenticated exact controller tag",
+      );
+    }
+    id(selected.id);
+  }
+  return {
+    ...policy,
+    execution_ref: controllerRef,
+    environment_policy_sha256: createHash("sha256")
+      .update(canonical(raw.inventory.environments))
+      .digest("hex"),
+  };
 }
 /** Actions is a storage principal, not semantic review authority. Only an
  * actual retained selected source/job join may interpret this named policy. */

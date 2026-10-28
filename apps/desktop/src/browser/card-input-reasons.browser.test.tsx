@@ -123,8 +123,8 @@ afterEach(() => {
   host.remove();
   delete document.documentElement.dataset.theme;
 });
-function gameCard(view: "library" | "catalog", name: string) {
-  return page.getByRole(view === "library" ? "article" : "button").filter({
+function gameCard(name: string) {
+  return page.getByRole("article").filter({
     has: page.getByRole("heading", { name, exact: true }),
   });
 }
@@ -168,24 +168,25 @@ it.each([
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture view={view} />));
     for (const [name, label, , reason] of cases) {
-      const card = gameCard(view, name);
+      const card = gameCard(name);
       await expect.element(card).toHaveAccessibleName(new RegExp(`^${name}.*${label}`));
       expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(label);
       await expect.element(card).toMatchTextContent(reason);
       await expect.element(card).toHaveAccessibleDescription(new RegExp(reason));
-      await expect
-        .element(card)
-        .toMatchTextContent(view === "library" ? "Release channel: Preview" : "Preview channel");
+      await expect.element(card).toMatchTextContent("Selected update channel: Preview");
+      await expect.element(card.getByText("Stable", { exact: true })).toBeVisible();
       await expect
         .element(card.getByRole("button", { name: "Play", exact: true }))
         .not.toBeInTheDocument();
       const details =
         view === "library"
           ? page.getByRole("button", {
-              name: `View details for ${name} Port: ${name}`,
+              name: `View details for ${name} ${name}`,
               exact: true,
             })
-          : card;
+          : card
+              .getByRole("button")
+              .filter({ has: page.getByRole("heading", { name, exact: true }) });
       await expect.element(details).toBeEnabled();
       await expect.element(details).toHaveAccessibleDescription(new RegExp(reason));
       await userEvent.click(details);
@@ -194,10 +195,12 @@ it.each([
         .toBeInTheDocument();
       await userEvent.click(page.getByRole("button", { name: "Back to cards", exact: true }));
     }
-    await expect.element(gameCard(view, "Unknown")).toHaveAccessibleName(/Readiness unavailable/);
+    await expect.element(gameCard("Unknown")).toHaveAccessibleName(/Readiness unavailable/);
     for (const name of ["Ready", "Staged ready"]) {
-      const card = gameCard(view, name);
-      expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe("Ready to play");
+      const card = gameCard(name);
+      expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(
+        name === "Staged ready" ? undefined : "Ready to play",
+      );
       await expect.element(card).not.toHaveAccessibleDescription();
       const play = card.getByRole("button", { name: "Play", exact: true });
       await expect
@@ -206,13 +209,7 @@ it.each([
       if (view === "library") await userEvent.click(play);
       await expect
         .element(card)
-        .toMatchTextContent(
-          name === "Staged ready"
-            ? view === "library"
-              ? "Review downloaded update"
-              : "Update downloaded"
-            : "Ready to play",
-        );
+        .toMatchTextContent(name === "Staged ready" ? "Update prepared" : "Ready to play");
     }
     expect(launch).toHaveBeenCalledTimes(view === "library" ? 2 : 0);
     expect(invoke).not.toHaveBeenCalled();

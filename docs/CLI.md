@@ -403,13 +403,22 @@ Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 ### Standalone package and focused build
 
 `catalog inspect-observation <port-id> <file> --repository-id <numeric-id>`
-inspects an inert format-1 GitHub observation using the embedded catalog and
+inspects an inert format-1 or scoped format-2 GitHub observation using the embedded catalog and
 shared core release policy, without network access or opening a library. Its
 machine command is `catalog.inspect-observation`; `schema export` includes the
 additive `upstream_observation_report` format-1 contract. Results distinguish
 observed facts, metadata eligibility and unassessed trust/admission. See
 [Configured upstream observations](UPSTREAM-OBSERVATIONS.md) for bounds,
 comparison inputs, hold reasons and operational evidence.
+
+For another reviewed provider, use `catalog inspect-observation <port-id> <file>
+--provider-facts`. That explicit mode accepts inert format-3 GitLab or fixed
+manifest facts and emits a version-2 provider report with actual provider
+identities. It rejects a GitHub repository-ID argument; GitHub keeps its required
+`--repository-id`. Inspection performs no network or library writes. The legacy
+`upstream_observation_report` schema remains the GitHub format-1 report contract;
+provider report versioning and evidence boundaries are described in the
+[observation contract](UPSTREAM-OBSERVATIONS.md#additional-reviewed-providers).
 
 Alpha 1 and Alpha 2 retain their published unversioned CLI archive names.
 The next-release packaging contract uses `portcove-cli-<version>-<platform>`;
@@ -997,6 +1006,17 @@ application updater.
 `ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` downloads it without switching versions, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target.
 
 Destructive or copying operations require `--yes` under `--non-interactive`; after confirmation, core issues a five-minute, one-use authorization bound to the action, target, and reviewed state and consumes it only under the operation lock. Adoption prints a content-hashed copy plan and every skipped symlink or special entry before confirmation.
+
+Desktop's separate immutable acquisition API returns a typed archive identity,
+not an installed version. It can transfer and verify bytes while the current
+verified managed runtime runs. A later Prepare for later or Apply obtains a fresh
+`game_update_plan` and consent under the normal exclusive mutation lock; acquired
+archives never imply staged or active state. The existing CLI `update --stage`,
+`reconcile`, and `activate` contracts are unchanged. Acquisition interruptions
+remain explicit attention-required records with an exact-ID private-archive
+discard route; they never automatically prepare or activate on restart. The
+[Core acquisition contract](ARCHITECTURE.md#immutable-game-update-acquisition)
+owns retention, concurrency and recovery bounds.
 
 #### Launch and retained observation
 

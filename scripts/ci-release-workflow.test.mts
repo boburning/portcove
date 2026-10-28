@@ -1,3 +1,5 @@
+import { workflowJobs } from "./qualification-coverage.mts";
+import { readWorkflow } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
 
 import { isRecord } from "./runtime-values.mts";
@@ -9,6 +11,9 @@ import { parseDocument } from "yaml";
 
 import {
   requiredFixture,
+  workflowJob,
+  workflowStep,
+  workflowJobSource,
   nativeDesignCompatibilityWorkflow,
   windowsStorage,
   catalog,
@@ -18,9 +23,22 @@ void test("ordinary Linux package operation is fixed and isolated from fixture b
   const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
   const block = sections.find((section) => section.startsWith("linux_package_boundary:\n"));
   assert.ok(block);
-  assert.match(
-    block,
-    /- name: Run the unchanged shipping boundary with synthetic media readiness\n        timeout-minutes: 10\n        env:\n          PORTCOVE_RETAINED_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\n        run: node scripts\/run-rust-tests\.mts --guard-command node scripts\/desktop-linux-media\.mts --run/u,
+  const owner = workflowJob("linux_package_boundary", nativeDesignCompatibilityWorkflow);
+  assert.ok(Array.isArray(owner.steps));
+  const shipping: unknown = owner.steps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      step.name === "Run the unchanged shipping boundary with synthetic media readiness",
+  );
+  assert.ok(isRecord(shipping) && isRecord(shipping.env));
+  assert.equal(shipping["timeout-minutes"], 10);
+  assert.equal(
+    shipping.env.PORTCOVE_RETAINED_EVIDENCE_DIR,
+    "${{ runner.temp }}/pcv-package2-retained-inputs",
+  );
+  assert.equal(
+    shipping.run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-media.mts --run",
   );
   assert.doesNotMatch(requiredFixture(block.split("    steps:")[0]), /\$\{\{ runner\./u);
   assert.match(block, /\$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\/\*\*/u);
@@ -71,46 +89,43 @@ void test("ordinary Linux package operation is fixed and isolated from fixture b
 });
 
 void test("Windows updater rehearsal adopts manifest-pinned prebuilt tools before Desktop bootstrap", async () => {
-  const rehearsal = await readFile(
+  const rehearsal = await readWorkflow(
     new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
-    "utf8",
   );
-  const steps = rehearsal.split(/\r?\n {6}- /).slice(1);
-  const readerIndex = steps.findIndex((step: string) =>
-    step.startsWith("name: Read pinned Windows quality-tool versions"),
+  const owner = workflowJob("packages", rehearsal);
+  assert.ok(Array.isArray(owner.steps));
+  const steps: unknown[] = owner.steps;
+  const readerIndex = steps.findIndex(
+    (step) => isRecord(step) && step.name === "Read pinned Windows quality-tool versions",
   );
   assert.ok(readerIndex >= 0, "Windows bootstrap must receive the existing prebuilt tool pins");
-  const reader = requiredFixture(steps[readerIndex]);
-  const prebuilt = requiredFixture(steps[readerIndex + 1]);
-  const bootstrap = requiredFixture(steps[readerIndex + 2]);
+  const reader = steps[readerIndex],
+    prebuilt = steps[readerIndex + 1],
+    bootstrap = steps[readerIndex + 2];
   for (const step of [reader, prebuilt, bootstrap]) {
-    assert.match(step, /\n {8}if: runner\.os == 'Windows'\r?\n/);
+    assert.ok(isRecord(step));
+    assert.equal(step.if, "runner.os == 'Windows'");
   }
-  assert.match(reader, /id: windows-quality-pins\r?\n/);
-  assert.match(reader, /shell: pwsh\r?\n/);
-  assert.match(
-    reader,
-    /run: node scripts\/quality-tools\.mts --github-output >> \$env:GITHUB_OUTPUT/,
+  assert.ok(
+    isRecord(reader) && isRecord(prebuilt) && isRecord(prebuilt.with) && isRecord(bootstrap),
   );
-  assert.match(prebuilt, /uses: taiki-e\/install-action@1e29709c0ec63babbe8f266397a465f29a825f91/);
-  assert.match(
-    prebuilt,
-    /tool: \$\{\{ steps\.windows-quality-pins\.outputs\.required_prebuilt \}\}/,
+  assert.equal(reader.id, "windows-quality-pins");
+  assert.equal(reader.shell, "pwsh");
+  assert.equal(reader.run, "node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT");
+  assert.equal(prebuilt.uses, "taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037");
+  assert.equal(prebuilt.with.tool, "${{ steps.windows-quality-pins.outputs.required_prebuilt }}");
+  assert.equal(prebuilt.with.checksum, undefined);
+  assert.equal(prebuilt.with.fallback, undefined);
+  assert.doesNotMatch(String(prebuilt.with.tool), /^(?:just|cargo-)/u);
+  assert.equal(
+    bootstrap.name,
+    "Install pinned Windows native driver for installed NSIS renderer qualification",
   );
-  assert.doesNotMatch(prebuilt, /checksum:|fallback:|tool: (?:just|cargo-)/);
-  assert.match(
-    bootstrap,
-    /^name: Install pinned Windows native driver for installed NSIS renderer qualification\r?\n/,
-  );
-  assert.match(bootstrap, /run: \.\/scripts\/bootstrap-quality-tools\.ps1 -Desktop/);
+  assert.equal(bootstrap.run, "./scripts/bootstrap-quality-tools.ps1 -Desktop");
 });
 
 void test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
-  const job = requiredFixture(
-    requiredFixture(nativeDesignCompatibilityWorkflow.split("\n  edge_driver_proof:")[1])?.split(
-      "\n  slice3_windows_recovery:",
-    )[0],
-  );
+  const job = workflowJobSource(nativeDesignCompatibilityWorkflow, "edge_driver_proof");
   assert.ok(job);
   assert.match(
     job,
@@ -135,17 +150,19 @@ void test("EdgeDriver trust proof is manual, isolated, and does not launch the a
 });
 
 void test("ordinary AppImage observations use restored source and default production configuration", async () => {
-  const workflow = await readFile(
+  const workflow = await readWorkflow(
     new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
-    "utf8",
   );
-  const ordinary = workflow
-    .split(/(?=      - name:)/u)
-    .find((step) =>
-      step.startsWith("      - name: Prove ordinary default-feature AppImage startup and IPC"),
-    );
-  assert.ok(ordinary);
-  assert.match(ordinary, /if: runner\.os == 'Linux'/u);
+  const owner = workflowJob("packages", workflow);
+  assert.ok(Array.isArray(owner.steps));
+  const step: unknown = owner.steps.find(
+    (candidate: unknown) =>
+      isRecord(candidate) &&
+      candidate.name === "Prove ordinary default-feature AppImage startup and IPC",
+  );
+  assert.ok(isRecord(step) && typeof step.run === "string");
+  assert.equal(step.if, "runner.os == 'Linux'");
+  const ordinary = step.run;
   assert.match(
     ordinary,
     /git diff --exit-code HEAD -- Cargo\.toml Cargo\.lock apps\/desktop\/package\.json apps\/desktop\/src-tauri\/tauri\.conf\.json/u,
@@ -177,9 +194,8 @@ void test("ordinary AppImage observations use restored source and default produc
 });
 
 void test("Linux package ownership rehearsal is focused and preserves managed executables", async () => {
-  const rehearsal = await readFile(
+  const rehearsal = await readWorkflow(
     new URL("../.github/workflows/linux-package-ownership-rehearsal.yml", import.meta.url),
-    "utf8",
   );
   const qualification = await readFile(
     new URL("./test-linux-package-ownership.sh", import.meta.url),
@@ -187,7 +203,9 @@ void test("Linux package ownership rehearsal is focused and preserves managed ex
   );
 
   assert.match(rehearsal, /^on:\r?\n {2}pull_request:\r?\n {4}paths:/m);
-  assert.match(rehearsal, /^ {2}workflow_dispatch:$/m);
+  const settings: unknown = parseDocument(rehearsal).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.on));
+  assert.ok(Object.hasOwn(settings.on, "workflow_dispatch"));
   for (const governedPath of [
     "apps/desktop/src-tauri/src/application_update_linux.rs",
     "apps/desktop/src-tauri/src/application_update_recovery.rs",
@@ -205,7 +223,19 @@ void test("Linux package ownership rehearsal is focused and preserves managed ex
   assert.equal(rehearsal.match(/ref: \$\{\{ env\.PORTCOVE_SOURCE_COMMIT \}\}/g)?.length, 3);
   assert.match(rehearsal, /pnpm tauri build --bundles deb,rpm --ci/);
   assert.match(rehearsal, /pnpm\/setup@[a-f0-9]{40}/);
-  assert.match(rehearsal, /install: false\s+node-version-file: \.node-version\s+cache: true/);
+  const setupSteps = Object.values(workflowJobs(rehearsal))
+    .flatMap((job): unknown[] => (Array.isArray(job.steps) ? job.steps : []))
+    .filter(
+      (step) =>
+        isRecord(step) && typeof step.uses === "string" && step.uses.startsWith("pnpm/setup@"),
+    );
+  assert.ok(setupSteps.length);
+  for (const step of setupSteps) {
+    assert.ok(isRecord(step) && isRecord(step.with));
+    assert.equal(step.with.install, false);
+    assert.equal(step.with["node-version-file"], ".node-version");
+    assert.equal(step.with.cache, true);
+  }
   assert.doesNotMatch(rehearsal, /pnpm\/action-setup|actions\/setup-node/);
   assert.match(rehearsal, /Verify pinned frontend runtime and store[\s\S]*pnpm store path/);
   assert.match(rehearsal, /pnpm install --frozen-lockfile/);
@@ -225,7 +255,7 @@ void test("Linux package ownership rehearsal is focused and preserves managed ex
   assert.match(qualification, /--application-update-recovery eligibility/);
   assert.match(qualification, /dpkg-query --search/);
   assert.match(qualification, /rpm --query --queryformat .* --file/);
-  assert.match(qualification, /dnf --assumeyes install/);
+  assert.match(qualification, /dnf --assumeyes --setopt=install_weak_deps=False install/);
   assert.match(qualification, /\$format-owners\.txt/);
   assert.match(qualification, /hash_before.*hash_after/s);
   assert.match(
@@ -299,13 +329,9 @@ void test("validation recipes separate routine, release, and packaged Windows co
 });
 
 void test("release and deep preflights require a fresh audit", async () => {
-  const release = await readFile(
-    new URL("../.github/workflows/release.yml", import.meta.url),
-    "utf8",
-  );
-  const deep = await readFile(
+  const release = await readWorkflow(new URL("../.github/workflows/release.yml", import.meta.url));
+  const deep = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
   const localPreflight = await readFile(
     new URL("./release-preflight.ps1", import.meta.url),
@@ -325,14 +351,23 @@ void test("release and deep preflights require a fresh audit", async () => {
 });
 
 void test("manual deep workflow preserves fresh default with explicit bounded audit reuse", async () => {
-  const deep = await readFile(
+  const deep = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
   assert.match(deep, /^name: Deep audit$/m);
   assert.match(deep, /^ {2}audit:\r?$/m);
   assert.match(deep, /just audit --fresh/);
-  assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check, fallow\]/);
+  const settings: unknown = parseDocument(deep).toJS();
+  assert.ok(
+    isRecord(settings) &&
+      isRecord(settings.on) &&
+      isRecord(settings.on.workflow_dispatch) &&
+      isRecord(settings.on.workflow_dispatch.inputs),
+  );
+  const operation = settings.on.workflow_dispatch.inputs.operation;
+  assert.ok(isRecord(operation));
+  assert.equal(operation.default, "audit");
+  assert.deepEqual(operation.options, ["audit", "audit-reuse", "local-check", "fallow"]);
   assert.doesNotMatch(deep, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(deep, /if: always\(\) && inputs.operation != 'audit-reuse'/);
   assert.doesNotMatch(deep, /actions: read|actions: write|contents: write/);
@@ -343,19 +378,19 @@ void test("manual deep workflow preserves fresh default with explicit bounded au
 void test("live upstream health has bounded independent triggers while catalog stays offline", async () => {
   assert.doesNotMatch(catalog, /check-catalog-repositories\.mts/);
   assert.match(catalog, /check-retcomm-upstreams\.mts --offline/);
-  const health = await readFile(
+  const health = await readWorkflow(
     new URL("../.github/workflows/upstream-health.yml", import.meta.url),
-    "utf8",
   );
   assert.match(health, /schedule:\r?\n {4}- cron:/);
   assert.match(health, /workflow_dispatch:/);
   assert.match(health, /timeout-minutes: 10/);
   assert.match(health, /^permissions:\r?\n {2}contents: read$/m);
   assert.doesNotMatch(health, /pull_request_target|continue-on-error/);
+  const settings: unknown = parseDocument(health).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
-    const section = requiredFixture(
-      requiredFixture(health.split(`  ${trigger}:`)[1]).split(/^ {2}\w+:/m)[0],
-    );
+    const section = settings.on[trigger];
+    assert.ok(isRecord(section) && Array.isArray(section.paths));
     for (const path of [
       "crates/portcove-core/catalog/**",
       "scripts/retcomm-psx-upstreams.json",
@@ -375,10 +410,7 @@ void test("live upstream health has bounded independent triggers while catalog s
       ".node-version",
       ".github/workflows/upstream-health.yml",
     ]) {
-      assert.ok(
-        section.includes(`'${path}'`) || section.includes(`"${path}"`),
-        `${trigger} must cover ${path}`,
-      );
+      assert.ok(section.paths.includes(path), `${trigger} must cover ${path}`);
     }
   }
   assert.match(health, /run: node scripts\/upstream-health-plan\.mts/);
@@ -430,17 +462,13 @@ void test("live upstream health has bounded independent triggers while catalog s
   assert.match(upload.with.path, /work\/upstream-health\/summary\.md/);
   assert.doesNotMatch(upload.with.path, /checkpoint\.json/);
   assert.equal(upload.with["retention-days"], 7);
-  const release = await readFile(
-    new URL("../.github/workflows/release.yml", import.meta.url),
-    "utf8",
-  );
+  const release = await readWorkflow(new URL("../.github/workflows/release.yml", import.meta.url));
   assert.match(release, /run: node scripts\/check-retcomm-upstreams\.mts\r?$/m);
 });
 
 void test("deep audit evidence retains audit status without privilege changes", async () => {
-  const deep = await readFile(
+  const deep = await readWorkflow(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
-    "utf8",
   );
   const auditJob = requiredFixture(
     requiredFixture(deep.split("  audit:")[1]).split(/\n  [a-z_]+:/u)[0],
@@ -461,7 +489,8 @@ void test("deep audit evidence retains audit status without privilege changes", 
   assert.match(deep, /exit "\$audit_status"/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mts --start/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mts --finish "\$audit_status"/);
-  assert.match(deep, /name: Summarize structured audit evidence\r?\n {8}if: always\(\)/);
+  const summary = workflowStep("audit", "Summarize structured audit evidence", deep);
+  assert.equal(summary.if, "always() && inputs.operation != 'audit-reuse'");
   assert.match(deep, /AUDIT_OUTCOME: \$\{\{ steps\.fresh-audit\.outcome \}\}/);
   assert.match(deep, /AUDIT_EXIT_CODE: \$\{\{ steps\.fresh-audit\.outputs\.exit_code \}\}/);
   assert.match(
@@ -471,10 +500,9 @@ void test("deep audit evidence retains audit status without privilege changes", 
   assert.match(deep, /^permissions:\r?\n {2}contents: read$/m);
   assert.doesNotMatch(deep, /continue-on-error|secrets:|schedule:|tee /);
   assert.match(deep, /PORTCOVE_AUDIT_CAPTURE: "1"/);
-  assert.match(
-    deep,
-    /name: Export attempt-bound audit evidence\r?\n {8}id: audit-evidence\r?\n {8}if: always\(\)/,
-  );
+  const exporter = workflowStep("audit", "Export attempt-bound audit evidence", deep);
+  assert.equal(exporter.id, "audit-evidence");
+  assert.equal(exporter.if, "always() && steps.fresh-audit.outputs.capture_available == 'true'");
   assert.match(deep, /node scripts\/audit-evidence.mts/);
   assert.match(deep, /if: always\(\) && steps.fresh-audit.outputs.capture_available == 'true'/);
   assert.match(deep, /if: always\(\) && steps.audit-evidence.outputs.available == 'true'/);
@@ -487,8 +515,35 @@ void test("deep audit evidence retains audit status without privilege changes", 
     deep,
     /path: work\/audit-bundles\/\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}\//,
   );
-  assert.match(
-    deep,
-    /retention-days: 7\r?\n {10}compression-level: 6\r?\n {10}if-no-files-found: error/,
+  const audit = workflowJob("audit", deep);
+  assert.ok(Array.isArray(audit.steps));
+  const bundle: unknown = audit.steps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      isRecord(step.with) &&
+      step.with.name === "audit-evidence-${{ github.run_id }}-${{ github.run_attempt }}",
   );
+  assert.ok(isRecord(bundle) && isRecord(bundle.with));
+  assert.equal(bundle.with["retention-days"], 7);
+  assert.equal(bundle.with["compression-level"], 6);
+  assert.equal(bundle.with["if-no-files-found"], "error");
+});
+
+void test("ordinary controller tool rebuilds cover Windows driver acquisition and parser policy", async () => {
+  const workflow = await readWorkflow(
+    new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
+  );
+  const settings: unknown = parseDocument(workflow).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.on));
+  for (const trigger of ["pull_request", "push"]) {
+    const section = settings.on[trigger];
+    assert.ok(isRecord(section) && Array.isArray(section.paths));
+    for (const file of [
+      "scripts/release-windows-webview-driver.mts",
+      "scripts/release-windows-webview-driver.test.mts",
+      "scripts/windows-webview-driver-policy.psm1",
+      "scripts/bounded-zip.mts",
+    ])
+      assert.ok(section.paths.includes(file), `${trigger}/${file}`);
+  }
 });

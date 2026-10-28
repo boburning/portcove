@@ -147,6 +147,7 @@ pub(crate) fn recover_published_install(
                     ));
                 }
                 require_install_publication_authority(service, operation, &staged)?;
+                crate::install::check_retained_runtime_paths(&staged, &install.path)?;
                 fs::create_dir_all(
                     install
                         .path
@@ -155,7 +156,9 @@ pub(crate) fn recover_published_install(
                 )?;
                 crate::durability::rename_noreplace(&payload, &install.path)?;
             }
-            (false, true) => {}
+            (false, true) => {
+                crate::install::check_retained_runtime_paths(&install, &install.path)?;
+            }
             (true, true) => {
                 return Err(PortcoveError::conflict(
                     "both prepared and published payloads exist; refusing automatic repair",
@@ -177,6 +180,7 @@ pub(crate) fn recover_published_install(
         }
     }
     if operation.phase == LifecyclePhase::PayloadPublished {
+        crate::install::check_retained_runtime_paths(&install, &install.path)?;
         if !Installer::new(service.library.clone())?
             .verify(&install)?
             .valid
@@ -218,7 +222,7 @@ pub(crate) fn recover_published_install(
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
-                        if crate::persistence::requires_restore_receipt(
+                        if crate::persistence::collect_before_first_launch(
                             catalog.port(&install.port_id)?,
                         ) =>
                     {
@@ -226,12 +230,12 @@ pub(crate) fn recover_published_install(
                         // activate-before-restore ordering. A failed preflight
                         // leaves the previous active and this staged copy intact.
                         service.library.register_install(&install, false)?;
-                        service.prepare_recovered_psx_activation(&install)?;
+                        service.prepare_retained_install_data(&install)?;
                     }
                     None if service
                         .catalog()
                         .port(&install.port_id)
-                        .is_ok_and(crate::persistence::requires_restore_receipt) =>
+                        .is_ok_and(crate::persistence::collect_before_first_launch) =>
                     {
                         return Err(PortcoveError::verification(
                             "Interrupted activation has no retained player-data contract. Preserve both runtime copies and the journal; recover the missing contract before retrying.",
@@ -357,9 +361,47 @@ pub(crate) fn recover_removal(
         &service.library.connection()?,
         &operation.port_id,
     )?;
+    // Preserve more specific recovery-data refusals before classifying legacy intent.
     for paths in removal.paths(&service.library)? {
         crate::managed_tfe::require_no_recovery_data(&paths.live)?;
         crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+    }
+    // Old journals can recover identities only while authenticated database rows remain.
+    // After deletion, unbound quarantine bytes cannot grant their own cleanup authority.
+    if operation.removal_installs.is_none() && !operation.original_paths.is_empty() {
+        let original = removal
+            .paths(&service.library)?
+            .into_iter()
+            .map(|paths| paths.live)
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut records = Vec::new();
+        for install in service.library.all_installs()? {
+            if install.port_id == operation.port_id
+                && original.contains(
+                    &crate::output_root::removal_paths(
+                        &service.library,
+                        &operation.port_id,
+                        &operation.id,
+                        &install.path,
+                    )?
+                    .live,
+                )
+            {
+                records.push(install);
+            }
+        }
+        if records.len() != operation.original_paths.len() {
+            return Err(PortcoveError::verification(
+                "Historical removal recovery lacks retained installation identities; preserve quarantine and journal for review",
+            ));
+        }
+        operation.removal_installs = Some(records);
+        removal = RemovalOperation::decode(&service.library, operation)?;
+        removal.require_retained_outputs(service, operation)?;
+        store.put(operation)?;
+    }
+    if !operation.original_paths.is_empty() {
+        removal.require_retained_outputs(service, operation)?;
     }
     if removal.phase == RemovalPhase::Quarantining {
         if operation.original_paths.is_empty() {
@@ -393,6 +435,7 @@ pub(crate) fn recover_removal(
         for paths in removal.paths(&service.library)? {
             crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
         }
+        removal.require_retained_outputs(service, operation)?;
         service.library.remove_port(&operation.port_id)?;
         removal.advance(RemovalPhase::Committed, operation, store)?;
     }
@@ -400,6 +443,7 @@ pub(crate) fn recover_removal(
         removal.phase,
         RemovalPhase::Committed | RemovalPhase::CleanupPending
     ) {
+        removal.require_retained_outputs(service, operation)?;
         let cleanup_roots = removal
             .paths(&service.library)?
             .into_iter()
@@ -763,7 +807,7 @@ pub(crate) fn recover_activation(
                 status.active.as_ref().map(|active| active.version.as_str()),
             )?;
             let commit = activation.prepare_commit(service, operation)?;
-            service.prepare_recovered_psx_activation(&install)?;
+            service.prepare_retained_install_data(&install)?;
             service.library.activate_staged(&install.port_id)?;
             commit.persist(store)?;
         } else {

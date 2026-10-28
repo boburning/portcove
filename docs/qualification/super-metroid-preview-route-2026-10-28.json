@@ -1,0 +1,249 @@
+{
+  "format_version": 1,
+  "kind": "dated nonowning Preview route and retained-managed constraints; not a live registry",
+  "owners": [2926, 2510, 164],
+  "shared_primitive_owner": 136,
+  "pickup_main": "67bb0f88c02647b834ddb94a4a08d499af803516",
+  "port_id": "super-metroid-recomp",
+  "canonical_issue": 164,
+  "guide_original": "Use your own exact unchanged headerless Super Metroid (Japan, USA) original, SHA-256 12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72. Keep the original unchanged outside the new player folder and place a matching copy named game.sfc in that folder. A headered, modified or other-region file is a different input. No original is supplied or downloaded; upstream handles its input recognition. Portcove registration does not authenticate this original or package.",
+  "guide_platform": "windows-x86-64",
+  "guide_maintenance": "user-managed-update",
+  "new_operational_definitions": 0,
+  "existing_integration_unchanged": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.3.12",
+          "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
+          "size": 13802349,
+          "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+          "published_at": "2026-10-17T22:09:41Z"
+        }
+      }
+    },
+    "source_profile": "super-metroid-snes-japan-usa",
+    "executable_hints": {
+      "windows-x86-64": ["SuperMetroidSNESRecomp.exe"]
+    },
+    "runtime_source_filename": "game.sfc",
+    "runtime_source_materialization": "copy",
+    "runtime_source_hashes": {
+      "game.sfc": "12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72"
+    },
+    "launch_arguments": ["game.sfc"],
+    "launch_environment": {
+      "SNESRECOMP_NO_LAUNCHER": "1"
+    },
+    "persistent_paths": [
+      "game.sfc",
+      "config.ini",
+      "keybinds.ini",
+      "rom.cfg",
+      "saves",
+      "screenshots",
+      "sm-video.ini",
+      "sm-video.ini.tmp"
+    ],
+    "runtime_mutable_paths": [".snesrecomp_write_probe", "last_run_report.json"],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "crash_report_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "crash_minidump_",
+        "suffix": ".dmp"
+      }
+    ],
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "super-metroid-snes-japan-usa",
+          "label": "Super Metroid (Japan, USA) exact headerless SNES original",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+    }
+  },
+  "legacy_runtime": {
+    "provider": "direct-manifest",
+    "version": "v0.3.12",
+    "old_artifact": {
+      "version": "v0.3.12",
+      "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
+      "size": 13802349,
+      "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+      "published_at": "2026-10-17T22:09:41Z"
+    },
+    "source_profile": "super-metroid-snes-japan-usa",
+    "source_copy": {
+      "game.sfc": "12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72"
+    },
+    "persistent_paths": [
+      "game.sfc",
+      "config.ini",
+      "keybinds.ini",
+      "rom.cfg",
+      "saves",
+      "screenshots",
+      "sm-video.ini",
+      "sm-video.ini.tmp"
+    ],
+    "working_coordinates": "retained executable-parent contract, unchanged; canonical user/<port_id> is shared across versions/channels"
+  },
+  "new_external_runtime": {
+    "tag": "v0.3.16",
+    "source_commit": "dc6bdeb054a79ab8ceabae525a4053576c72f644",
+    "framework_commit": "246c0d40a8bc5f706bc6ef71d7e8633842f8e42e",
+    "package": {
+      "tag": "v0.3.16",
+      "prerelease": true,
+      "asset_id": 678960123,
+      "name": "supermetroid-0.3.16-windows-x64.zip",
+      "size": 14560045,
+      "sha256": "ff3d7e14470a75f84f6a146188166afe2f2ac0a9f6149ee34c51341345e6148a",
+      "publisher_digest_match": true,
+      "entry_count": 31,
+      "expanded_bytes": 57113395,
+      "executables": [
+        {
+          "path": "supermetroid-0.3.16-windows-x64/SuperMetroidSNESRecomp.exe",
+          "pe_machine": "0x8664"
+        }
+      ],
+      "files": [
+        "supermetroid-0.3.16-windows-x64/assets/fonts/LatoLatin-Bold.ttf",
+        "supermetroid-0.3.16-windows-x64/assets/fonts/LatoLatin-Regular.ttf",
+        "supermetroid-0.3.16-windows-x64/assets/fonts/NotoSansSymbols2-Regular.ttf",
+        "supermetroid-0.3.16-windows-x64/assets/fonts/OpenMoji-black-glyf.ttf",
+        "supermetroid-0.3.16-windows-x64/assets/img/boxart.tga",
+        "supermetroid-0.3.16-windows-x64/assets/img/brand_mark.tga",
+        "supermetroid-0.3.16-windows-x64/assets/img/flags.png",
+        "supermetroid-0.3.16-windows-x64/assets/img/pad.tga",
+        "supermetroid-0.3.16-windows-x64/assets/img/verdict_bad.tga",
+        "supermetroid-0.3.16-windows-x64/assets/img/verdict_none.tga",
+        "supermetroid-0.3.16-windows-x64/assets/img/verdict_ok.tga",
+        "supermetroid-0.3.16-windows-x64/assets/img/verdict_warn.tga",
+        "supermetroid-0.3.16-windows-x64/assets/shaders/.src/crt.glsl",
+        "supermetroid-0.3.16-windows-x64/assets/shaders/.src/scanlines.glsl",
+        "supermetroid-0.3.16-windows-x64/assets/shaders/crt-light.glslp",
+        "supermetroid-0.3.16-windows-x64/assets/shaders/crt-strong.glslp",
+        "supermetroid-0.3.16-windows-x64/assets/shaders/crt.glslp",
+        "supermetroid-0.3.16-windows-x64/assets/shaders/scanlines-light.glslp",
+        "supermetroid-0.3.16-windows-x64/assets/shaders/scanlines-strong.glslp",
+        "supermetroid-0.3.16-windows-x64/assets/shaders/scanlines.glslp",
+        "supermetroid-0.3.16-windows-x64/config.ini",
+        "supermetroid-0.3.16-windows-x64/docs/custom-renderer.md",
+        "supermetroid-0.3.16-windows-x64/docs/images/widescreen-landing-site.png",
+        "supermetroid-0.3.16-windows-x64/docs/images/widescreen-tourian.jpg",
+        "supermetroid-0.3.16-windows-x64/framework_pins.txt",
+        "supermetroid-0.3.16-windows-x64/LICENSE",
+        "supermetroid-0.3.16-windows-x64/README.md",
+        "supermetroid-0.3.16-windows-x64/release-profile.json",
+        "supermetroid-0.3.16-windows-x64/replay_diagnostic.py",
+        "supermetroid-0.3.16-windows-x64/SuperMetroidSNESRecomp.exe",
+        "supermetroid-0.3.16-windows-x64/VERSION"
+      ],
+      "scope": "read-only bounded ZIP/native headers plus separately retained inert packaged text; no extracted or executed runtime/player/helper/original",
+      "later_bounded_packaged_text_reads": ["config.ini", "framework_pins.txt", "VERSION"]
+    },
+    "working_coordinates": "separate user-owned writable supermetroid-0.3.16-windows-x64 folder; whole folder retained externally, no old configuration or player data copied/adopted",
+    "arguments": ["--rom", "game.sfc"],
+    "publisher_digest_scope": "read-only package/header and bounded inert packaged-text inspection, no runtime extraction/execution",
+    "snapshot_scope": "title identity/preflight callbacks present in source; rejection boundary only, no old/new state compatibility or native execution inferred",
+    "package_selection": "Manual exact upstream v0.3.16 release-page handoff only. No listing download hints/channel override is authored: the existing operational Direct package policy retains its exact v0.3.12 authority.",
+    "registration_eligibility": "Existing generic listing AttachExisting is refused while any managed install, another registration or active launch owns this identity. Keep old managed installation; standalone upstream use remains possible. Registration only in a library satisfying those existing gates; no route-switch/removal/adoption permission."
+  },
+  "sources": [
+    {
+      "repository": "mstan/SuperMetroidRecomp",
+      "commit": "dc6bdeb054a79ab8ceabae525a4053576c72f644",
+      "path": "README.md",
+      "sha256": "cd5bd93ab5dc80de077ab8a3062e6410db4daddfc344e9db6ee9189e9cf518b9"
+    },
+    {
+      "repository": "mstan/SuperMetroidRecomp",
+      "commit": "dc6bdeb054a79ab8ceabae525a4053576c72f644",
+      "path": "CMakeLists.txt",
+      "sha256": "ca2bc94a7c1917e2aae40520f187ca265e28d1d2ae768f6f046e9d297dacb226"
+    },
+    {
+      "repository": "mstan/SuperMetroidRecomp",
+      "commit": "dc6bdeb054a79ab8ceabae525a4053576c72f644",
+      "path": "src/sm_cpu_infra.c",
+      "sha256": "096367370defe84fd6e0959bac62c523fe985b3189829a755cf34249d4575c75"
+    },
+    {
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "commit": "246c0d40a8bc5f706bc6ef71d7e8633842f8e42e",
+      "path": "runner/src/desktop/host_main.c",
+      "sha256": "c92f33bc91eb40ae0583d691c8a5c17f1e1a1214eaa37a6b35cfa84b4c24559d"
+    },
+    {
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "commit": "246c0d40a8bc5f706bc6ef71d7e8633842f8e42e",
+      "path": "runner/src/desktop/host_relaunch.c",
+      "sha256": "b06e8bd9469cb46fc9e44c76badb88e37f422cb912dbf788e578a3398ff2a4aa"
+    },
+    {
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "commit": "246c0d40a8bc5f706bc6ef71d7e8633842f8e42e",
+      "path": "runner/src/host_args.c",
+      "sha256": "6241de088ed2ddd282fbedef9fb8347351d83bd50c9c78daffdf59f22d075ddf"
+    },
+    {
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "commit": "246c0d40a8bc5f706bc6ef71d7e8633842f8e42e",
+      "path": "runner/src/host_paths.c",
+      "sha256": "bb68edf79c89da8fb83d9eb98259d980896a0af5e123afe0369bab1025ccdb88"
+    },
+    {
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "commit": "246c0d40a8bc5f706bc6ef71d7e8633842f8e42e",
+      "path": "runner/src/snapshot_guard.c",
+      "sha256": "18939f1e81b557cec5e028a84ed35821a81a2e42b6f68c537c3056b707c2a07b"
+    },
+    {
+      "repository": "RetroPortingToolKit/snesrecomp",
+      "commit": "246c0d40a8bc5f706bc6ef71d7e8633842f8e42e",
+      "path": "runner/src/snapshot_guard.h",
+      "sha256": "93a6e89ae6ccfb6360f3d16d6f64868ab0b741dc358ac6b0c0d443c0362e6dc5"
+    }
+  ],
+  "managed_fit": {
+    "status": "held: precise shared lifecycle and populated-data isolation requirements",
+    "lifetime": "framework host_main settings/lobby restart calls host_relaunch, whose Windows CreateProcess closes successor handles and returns; Core awaits original child then collects data/completes session. No full successor tracking was established. --no-launcher does not disable in-game restart.",
+    "data": "Changing launch recipe is compared for active transitions but cannot prove an empty canonical user/<port_id> root after inactive/removed legacy runtime or across channels. A new Preview is not data isolation.",
+    "resume": "#136: upstream parent must remain observable through successor final exit, or generic Core tracking must do so before collection/lock release; establish genuine empty-data/isolation/provenance and current writer qualification. Retain the old pin and all copies. No per-title adapter, fabricated marker, invented compatibility epoch, disabled useful settings or populated transition."
+  },
+  "before_record_sha256": "752c3ed5b3f8eec4f4d283b7ab1c0d6697fd51e88e925f61031ee867cf0cc848",
+  "qualification": "Source/artifact/guide only. No actual original/player/helper, native window/gameplay, state progression or populated profile execution; no accepted supported-operation total.",
+  "core_source": "67bb0f88c02647b834ddb94a4a08d499af803516",
+  "core_paths": [
+    "crates/portcove-core/src/service.rs",
+    "crates/portcove-core/src/library.rs",
+    "crates/portcove-core/src/service/native_portable.rs",
+    "crates/portcove-core/src/service/listings.rs"
+  ],
+  "authoring_correction": "Existing authoring validator rejected a duplicated listing.platforms declaration beside integration.platforms; removed it so the existing integration remains sole platform authority. Initial failed source/test output retained; corrected full test suite required.",
+  "framework_repository": {
+    "historical_title_url": "https://github.com/mstan/snesrecomp",
+    "canonical_repository": "RetroPortingToolKit/snesrecomp",
+    "id": 1182795039,
+    "node_id": "R_kgDORoAFHw",
+    "relationship": "GitHub resolves historical URL to the same opaque repository identity, not a second framework or adoption identity"
+  },
+  "authored_record_sha256": "daf17d7bf9abb3b12652578d058f91e1a9c951f918b669db23fc623a28af5d35"
+}

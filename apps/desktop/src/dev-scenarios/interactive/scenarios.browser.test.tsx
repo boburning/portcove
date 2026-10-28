@@ -52,12 +52,12 @@ async function click(label: string) {
   await act(async () => button!.click());
 }
 
-it("gives every disposable detail route four real tabs and binds external Play to its exact ID", async () => {
+it("gives every disposable detail route five real tabs and binds external Play to its exact ID", async () => {
   await mount("details");
   const launch = vi.spyOn(desktopApi, "launch");
   await page
     .getByRole("button", {
-      name: "View details for Summit Racer Port: Harbor upstream project · external",
+      name: "View details for Summit Racer Harbor upstream project · external",
       exact: true,
     })
     .click();
@@ -66,19 +66,19 @@ it("gives every disposable detail route four real tabs and binds external Play t
     .toHaveAttribute("aria-selected", "true");
   await page.getByRole("button", { name: "Play", exact: true }).click();
   expect(launch.mock.calls[0]).toEqual(["details-external", "", 1]);
-  for (const label of ["Files", "Saved data", "Versions", "Overview"]) {
+  for (const label of ["Game files", "Saves", "Versions & updates", "Manage", "Overview"]) {
     await page.getByRole("tab", { name: label, exact: true }).click();
     await expect.element(page.getByRole("tabpanel", { name: label, exact: true })).toBeVisible();
   }
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
   await page
     .getByRole("button", {
-      name: "View details for Summit Racer Port: Harbor upstream project · unknown",
+      name: "View details for Summit Racer Harbor upstream project · unknown",
       exact: true,
     })
     .click();
   await expect
-    .element(page.getByRole("tab", { name: "Files", exact: true }))
+    .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
   await expect
     .element(page.getByRole("button", { name: "Play", exact: true }))
@@ -87,8 +87,10 @@ it("gives every disposable detail route four real tabs and binds external Play t
     "Registered external installation",
   );
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
-  await page.getByRole("button", { name: "Review downloaded update", exact: true }).click();
-  await expect.element(page.getByRole("heading", { name: "Versions", exact: true })).toHaveFocus();
+  await page.getByRole("button", { name: "Update prepared", exact: true }).click();
+  await expect
+    .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
+    .toHaveFocus();
   await expect
     .element(page.getByRole("button", { name: "Use update · 1.3", exact: true }))
     .toBeVisible();
@@ -97,7 +99,7 @@ it("gives every disposable detail route four real tabs and binds external Play t
 
 it("opens actual game details, returns to Library and resets the selected journey", async () => {
   await mount("library");
-  await click("View details for Harbor Adventure Port: Harbor Adventure");
+  await click("View details for Harbor Adventure Harbor Adventure");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).not.toBeNull();
   await click("Back to previous workspace");
@@ -109,12 +111,12 @@ it("opens actual game details, returns to Library and resets the selected journe
 
 it("keeps the optional folder editor and artwork behind disclosures without losing a draft", async () => {
   await mount("library");
-  await click("View details for Harbor Adventure Port: Harbor Adventure");
+  await click("View details for Harbor Adventure Harbor Adventure");
   const folder = page.getByText("Folder for a future install", { exact: true });
   const input = page.getByRole("textbox", { name: "Folder for future installs", exact: true });
   await expect.element(input).not.toBeInTheDocument();
   expect(document.querySelector(".detail-artwork")).toBeNull();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.getByRole("tab", { name: "Manage", exact: true }).click();
   await folder.click();
   await expect.element(input).toBeVisible();
   await input.fill("fixture/future-draft");
@@ -122,8 +124,8 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   await expect.element(input).not.toBeInTheDocument();
   await folder.click();
   await expect.element(input).toHaveValue("fixture/future-draft");
-  await page.getByRole("tab", { name: "Versions", exact: true }).click();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+  await page.getByRole("tab", { name: "Manage", exact: true }).click();
   await expect.element(input).toHaveValue("fixture/future-draft");
   await page.getByText("Change artwork", { exact: true }).click();
   await expect
@@ -147,7 +149,7 @@ it("shows different installed and selected release channels separately", async (
   snapshot.statuses[0]!.channel = "beta";
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   await mount("library");
-  await click("View details for Harbor Adventure Port: Harbor Adventure");
+  await click("View details for Harbor Adventure Harbor Adventure");
   const facts = document.querySelector('[aria-label="Installation and release versions"]')!;
   expect(facts.textContent).toContain("Selected channelPreview");
   expect(facts.textContent).toContain("Installed channelStable");
@@ -323,7 +325,7 @@ it("opens the Updates category before focusing an application-update notice", as
 it("opens application updates from Activity without entering custom catalog settings", async () => {
   await mount("library");
   await navigateTo("Activity");
-  await page.getByRole("tab", { name: "Updates", exact: true }).click();
+  await page.getByRole("tab", { name: "Game updates", exact: true }).click();
   await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
   await expect
     .element(
@@ -409,7 +411,7 @@ it.each(["game", "bios"] as const)(
     };
     vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
     await mount("setup");
-    await click("View details for Harbor Adventure Port: Harbor Adventure");
+    await click("View details for Harbor Adventure Harbor Adventure");
     const inspect = vi
       .spyOn(desktopApi, "inspectSourceIntake")
       .mockRejectedValue(new Error("Check fixture"));
@@ -431,7 +433,7 @@ it.each(["game", "bios"] as const)(
 
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
   await mount("setup");
-  await click("View details for Harbor Adventure Port: Harbor Adventure");
+  await click("View details for Harbor Adventure Harbor Adventure");
   await click("Review game preparation");
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain("fixture/owned.iso");
   await click("Prepare game data");
@@ -450,12 +452,12 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
 
 it("revisits the original running task after browsing another game and records its exact completion", async () => {
   await mount("activity");
-  await click("View details for Harbor Adventure Port: Harbor Adventure");
+  await click("View details for Harbor Adventure Harbor Adventure");
   await click("Review game preparation");
   await click("Prepare game data");
   const retained = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
   await click("Back to previous workspace");
-  await click("View details for Orchard Quest Port: Orchard Quest");
+  await click("View details for Orchard Quest Orchard Quest");
   await click("Back to previous workspace");
   await navigateTo("Activity");
   const row = () => document.querySelector('[data-activity-id="fixture-preparation"]');

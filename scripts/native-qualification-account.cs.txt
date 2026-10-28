@@ -204,6 +204,46 @@ namespace Portcove.NativeQualification {
         public string AuthenticationId { get; private set; }
         internal AccountTokenObservation(string sid, uint policy,string authenticationId) { IntegritySid = sid; MandatoryPolicy = policy; AuthenticationId=authenticationId; }
     }
+    // Runs without a PowerShell runspace while the original owner serves bridge RPC.
+    public sealed class OwnedBrokerChildMonitor {
+        public Task<bool> Completion { get; private set; }
+        static void WriteNew(string root,string name,byte[] bytes) {
+            using(var file=new FileStream(Path.Combine(root,name),FileMode.CreateNew,FileAccess.Write,FileShare.None,4096,FileOptions.WriteThrough)) {
+                file.Write(bytes,0,bytes.Length);file.Flush(true);
+            }
+        }
+        public OwnedBrokerChildMonitor(System.Diagnostics.Process child,NativePipeCapture output,NativePipeCapture error,string root,long originalDeadlineTicks) {
+            if(child==null||output==null||error==null||!Path.IsPathRooted(root)||originalDeadlineTicks<=System.Diagnostics.Stopwatch.GetTimestamp())throw new ArgumentException("Original broker child observation required");
+            int pid=child.Id;long created=child.StartTime.ToFileTimeUtc();
+            Completion=Task.Run(async()=>{
+                string failure=null;
+                try {
+                    while(!child.HasExited) {
+                        if(output.Completion.IsFaulted||error.Completion.IsFaulted){failure="pipe-fault";break;}
+                        if(System.Diagnostics.Stopwatch.GetTimestamp()>=originalDeadlineTicks){failure="deadline";break;}
+                        await Task.Delay(25).ConfigureAwait(false);
+                    }
+                    if(failure==null) {
+                        long drainDeadline=Math.Min(originalDeadlineTicks,System.Diagnostics.Stopwatch.GetTimestamp()+5L*System.Diagnostics.Stopwatch.Frequency);
+                        while(!output.Completion.IsCompleted||!error.Completion.IsCompleted) {
+                            if(System.Diagnostics.Stopwatch.GetTimestamp()>=drainDeadline){failure="unobserved-eof";break;}
+                            await Task.Delay(25).ConfigureAwait(false);
+                        }
+                        if(output.Completion.IsFaulted||error.Completion.IsFaulted)failure="pipe-fault";
+                        else if(child.ExitCode!=0)failure="nonzero";
+                        else if(!File.Exists(Path.Combine(root,"worker-result.complete")))failure="early-zero";
+                    }
+                }catch {failure="observer-error";}
+                if(failure==null)return true;
+                byte[] stdout=output.Snapshot(),stderr=error.Snapshot();
+                WriteNew(root,"worker-failure.stdout.bin",stdout);WriteNew(root,"worker-failure.stderr.bin",stderr);
+                bool exited=child.HasExited;string code=exited?child.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture):"null";
+                string json="{\"schema_version\":1,\"pid\":"+pid+",\"created_filetime\":\""+created+"\",\"exited\":"+(exited?"true":"false")+",\"exit_code\":"+code+",\"stdout_bytes\":"+stdout.Length+",\"stderr_bytes\":"+stderr.Length+",\"reason\":\""+failure+"\",\"authority\":\"none\"}";
+                WriteNew(root,"worker-failure.json",new UTF8Encoding(false,true).GetBytes(json));
+                return false;
+            });
+        }
+    }
     public sealed class AccountProcess : IDisposable {
         IntPtr job, process, station, desktop;
         readonly uint pid;
@@ -454,6 +494,15 @@ namespace Portcove.NativeQualification {
     }
 
     public static class AccountLauncher {
+        // Null job queries the calling process's actual inherited supervisor job.
+        public static uint[] CurrentSupervisorProcessIds() {
+            bool member;
+            using (var current = System.Diagnostics.Process.GetCurrentProcess()) {
+                if (!Native.IsProcessInJob(current.Handle,IntPtr.Zero,out member) || !member)
+                    throw new InvalidOperationException("Original inherited supervisor job unavailable");
+            }
+            return Native.JobPids(IntPtr.Zero);
+        }
         public const string CredentialTarget = "Portcove/native-qualification/local-account/v1";
         public const string PublicProofCredentialTarget = "Portcove/public-update-proof/local-account/v1";
         public static string CredentialTargetFor(AccountConfiguration config) {
@@ -598,6 +647,34 @@ namespace Portcove.NativeQualification {
                 desktopName == null || !System.Text.RegularExpressions.Regex.IsMatch(desktopName, "^PortcoveHosted_[0-9a-f]{32}$"))
                 throw new ArgumentException("Fixed ordinary hosted GUI boundary required");
             return StartCore(config, password, executable, arguments, directory, environment, false, group, expectedSha256, desktopName);
+        }
+        // The consumed inert qualification does not authorize a candidate invocation.
+        public static bool HostedCandidateExecutionAuthorized { get { return false; } }
+        public static AccountProcess StartHostedCandidateVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, string desktopName) {
+            if (!HostedCandidateExecutionAuthorized) throw new InvalidOperationException("Hosted candidate execution awaits separate owner authority");
+            string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");
+            if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
+                Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" || Environment.GetEnvironmentVariable("GITHUB_JOB") != "native_windows" ||
+                workflow == null || !workflow.StartsWith("boburning/portcove/.github/workflows/application-update-production.yml@refs/tags/", StringComparison.Ordinal) ||
+                config.UserName != "PortcoveNativeQual" || group == null || expectedSha256 == null ||
+                !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$") ||
+                desktopName == null || !System.Text.RegularExpressions.Regex.IsMatch(desktopName, "^PortcoveHosted_[0-9a-f]{32}$"))
+                throw new ArgumentException("Fixed held hosted candidate boundary required");
+            return StartCore(config, password, executable, arguments, directory, environment, nsis, group, expectedSha256, desktopName);
+        }
+        // Distinct unbranded nonproduction lane; consumed inert grants cannot enable it.
+        public static bool HostedDiagnosticCandidateExecutionAuthorized { get { return false; } }
+        public static AccountProcess StartHostedDiagnosticCandidateVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, string desktopName) {
+            if (!HostedDiagnosticCandidateExecutionAuthorized) throw new InvalidOperationException("Hosted diagnostic candidate execution awaits exact separate authority");
+            string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");
+            if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
+                Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" || Environment.GetEnvironmentVariable("GITHUB_JOB") != "installed-prerequisite" || Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") != "workflow_dispatch" || Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT") != "1" ||
+                workflow == null || !System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$") ||
+                config.UserName != "PortcoveNativeQual" || group == null || expectedSha256 == null ||
+                !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$") ||
+                desktopName == null || !System.Text.RegularExpressions.Regex.IsMatch(desktopName, "^PortcoveHosted_[0-9a-f]{32}$"))
+                throw new ArgumentException("Fixed separately held diagnostic candidate boundary required");
+            return StartCore(config, password, executable, arguments, directory, environment, nsis, group, expectedSha256, desktopName);
         }
         public static AccountTokenObservation ObserveBrokerToken() {
             using (var identity = WindowsIdentity.GetCurrent(TokenAccessLevels.Query))

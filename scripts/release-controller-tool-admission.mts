@@ -165,6 +165,9 @@ export async function verifiedControllerToolPaths(receipt: object) {
     tauriAddon: path.join(retained.tools, "bin/tauri-addon.node"),
     nativeDriver: path.join(retained.tools, `bin/tauri-driver${profile.suffix}`),
     pnpm: path.join(retained.tools, `bin/pnpm${profile.suffix}`),
+    ...(profile.platform === "windows-x86_64"
+      ? { webviewDriver: path.join(retained.tools, "bin/msedgedriver.exe") }
+      : {}),
     publicAssets: path.join(retained.tools, "release"),
     compiler_source_closure: path.join(retained.tools, "compiler-source-closure.json"),
     entries: Object.freeze(

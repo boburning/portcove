@@ -11,6 +11,68 @@ struct Fixture {
     context: PathBuf,
     roles: PathBuf,
 }
+
+#[tokio::test]
+async fn recovery_public_inventory_derives_complete_appointed_keys_without_authority_or_writes() {
+    let fixture = Fixture::new_with_profile(InitialRootProfile::SingleOwnerOneOfOneV1).await;
+    let root = fixture.root();
+    let root_bytes = fs::read(root.join("root.json")).unwrap();
+    let top_bytes = fs::read(root.join("targets.json")).unwrap();
+    let config = json_file(
+        root,
+        "inventory.json",
+        json!({
+            "schema_version":1,"initial_root_profile":"single-owner-one-of-one-v1",
+            "trusted_root":"root.json","trusted_root_sha256":sha(&root_bytes),
+            "offline_targets":"targets.json","offline_targets_sha256":sha(&top_bytes)
+        }),
+    );
+    let before = fs::read_dir(root).unwrap().count();
+    let report = inspect_catalog_key_inventory(&config).unwrap();
+    let anchor: Signed<Root> = serde_json::from_slice(&root_bytes).unwrap();
+    let top: Signed<Targets> = serde_json::from_slice(&top_bytes).unwrap();
+    let expected = anchor
+        .signed
+        .keys
+        .keys()
+        .chain(top.signed.delegations.as_ref().unwrap().keys.keys())
+        .map(|id| hex::encode(id.as_ref()))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        report
+            .keys
+            .iter()
+            .map(|entry| entry.key_id.clone())
+            .collect::<BTreeSet<_>>(),
+        expected
+    );
+    assert_eq!(report.authority, "none");
+    assert_eq!(
+        report.freshness,
+        "not-evaluated-historical-key-bindings-only"
+    );
+    assert_eq!(fs::read_dir(root).unwrap().count(), before);
+    for entry in &report.keys {
+        assert_eq!(
+            hex::encode(
+                serde_json::from_value::<tough::schema::key::Key>(entry.public_key.clone())
+                    .unwrap()
+                    .key_id()
+                    .unwrap()
+                    .as_ref()
+            ),
+            entry.key_id
+        );
+    }
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&config).unwrap()).unwrap();
+    value["trusted_root_sha256"] = json!("0".repeat(64));
+    fs::write(&config, serde_json::to_vec(&value).unwrap()).unwrap();
+    assert!(inspect_catalog_key_inventory(&config).is_err());
+    value["trusted_root_sha256"] = json!(sha(&root_bytes));
+    value["initial_root_profile"] = json!("legacy-two-of-three-v1");
+    fs::write(&config, serde_json::to_vec(&value).unwrap()).unwrap();
+    assert!(inspect_catalog_key_inventory(&config).is_err());
+}
 impl Fixture {
     async fn new() -> Self {
         Self::new_with_profile(InitialRootProfile::LegacyTwoOfThreeV1).await

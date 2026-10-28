@@ -8,34 +8,43 @@ import { failureReport } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { controlledAct } from "../../test/controlled-react-act";
+import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
+let root: HTMLDivElement | undefined;
 afterEach(async () => {
   await cleanup();
+  root?.remove();
+  root = undefined;
   transport?.dispose();
   transport = undefined;
   vi.restoreAllMocks();
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
+  await page.viewport(1280, 800);
 });
 const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 async function painted() {
   await frame();
   await frame();
 }
-function owner() {
+function workspace() {
   const workspace = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]');
   if (!workspace) throw new Error("Actual App workspace is missing");
-  return getComputedStyle(workspace).overflowY === "visible"
+  return workspace;
+}
+function owner() {
+  const main = workspace();
+  return getComputedStyle(main).overflowY === "visible"
     ? (document.scrollingElement ?? document.documentElement)
-    : workspace;
+    : main;
 }
 function point(origin: HTMLButtonElement) {
   const scroll = owner();
   const rectangle = origin.getBoundingClientRect();
   return {
-    scroll: scroll.scrollTop,
+    scroll: workspaceScrollTop(workspace()),
     maximum: scroll.scrollHeight - scroll.clientHeight,
     originTop: rectangle.top,
     originDocumentTop: rectangle.top + scroll.scrollTop,
@@ -102,10 +111,15 @@ for (const layout of ["Covers", "Compact rows"] as const) {
           });
           initializeLocalization(["en"]);
           document.documentElement.dataset.theme = "dark";
+          // Match main.tsx so main has the production definite viewport height.
+          root = document.createElement("div");
+          root.id = "root";
+          document.body.append(root);
           await render(
             <LocalizationProvider api={desktopApi}>
               <App />
             </LocalizationProvider>,
+            { container: root },
           );
           await expect
             .element(page.getByRole("button", { name: layout, exact: true }))
@@ -132,7 +146,7 @@ for (const layout of ["Covers", "Compact rows"] as const) {
           if (!origin)
             throw new Error("Fixture must expose a launchable original collection control");
           origin.scrollIntoView({ block: position === "bottom" ? "end" : "center" });
-          if (position === "bottom") owner().scrollTo({ top: owner().scrollHeight });
+          if (position === "bottom") scrollWorkspaceTo(workspace(), owner().scrollHeight);
           origin.focus({ preventScroll: true });
           await painted();
           const before = point(origin);

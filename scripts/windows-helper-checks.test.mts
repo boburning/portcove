@@ -11,6 +11,22 @@ import { executableNodeCommands, parseNodeTestSuites } from "./node-test-suites.
 
 const sha = (character: string) => character.repeat(40);
 
+void test("every registered Windows helper test selects its maintained helper route", async () => {
+  const registry = parseNodeTestSuites(
+    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+  );
+  const files = new Set(
+    Object.entries(registry.suites)
+      .filter(([suite]) => /^windows-helpers(?:-\d+)?$/u.test(suite))
+      .flatMap(([, suite]) => suite.files),
+  );
+  assert.ok(files.size > 0);
+  for (const file of files) {
+    assert.equal(windowsHelperChecksRequired(plan(file)), true, file);
+    assert.equal(windowsHelperChecksRequired(plan(file, file, "D")), true, file);
+  }
+});
+
 void test(
   "release PowerShell help is inert and preserves the required installer input",
   { skip: process.platform !== "win32" },
@@ -1127,3 +1143,15 @@ foreach($required in @('Mount-DiskImage','Dismount-DiskImage','Connect-PreparedP
     });
   },
 );
+
+void test("operation-report helper changes preserve the Windows consumer route", () => {
+  const file = "scripts/operation-coverage.mts";
+  for (const change of [
+    { oldPath: file, newPath: file },
+    { oldPath: "", newPath: file },
+    { oldPath: file, newPath: "" },
+    { oldPath: file, newPath: "scripts/renamed-operation-report.mts" },
+    { oldPath: "scripts/old-operation-report.mts", newPath: file },
+  ])
+    assert.equal(windowsHelperChecksRequired({ mode: "fast", changes: [change] }), true);
+});

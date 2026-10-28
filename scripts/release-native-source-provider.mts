@@ -7,6 +7,7 @@ import { isRecord } from "./runtime-values.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import {
   nativeCompatibilitySourcePaths,
+  nativeSourceDeclarationByteLimit,
   inspectNativeCompatibilitySources,
 } from "./release-native-source-contract.mts";
 
@@ -16,26 +17,47 @@ export async function retainNativeSourceDeclarations(
     status?: number;
     body: unknown;
   },
+  readBlob?: (sha: string) => { status?: number; body: unknown },
 ) {
   const files: Record<string, Buffer> = {};
   for (const pathname of nativeCompatibilitySourcePaths) {
-    const response = read(pathname),
-      raw = response.body;
+    const response = read(pathname);
+    let raw = response.body;
+    const maximum = nativeSourceDeclarationByteLimit(pathname);
     if (
       response.status !== 200 ||
       !isRecord(raw) ||
       raw.type !== "file" ||
       raw.path !== pathname ||
-      raw.encoding !== "base64" ||
       typeof raw.size !== "number" ||
+      !Number.isSafeInteger(raw.size) ||
       raw.size < 1 ||
-      raw.size > 1024 * 1024 ||
-      typeof raw.content !== "string" ||
-      raw.content.length > 2 * 1024 * 1024 ||
+      raw.size > maximum ||
       typeof raw.sha !== "string" ||
       !/^[a-f0-9]{40}$/u.test(raw.sha)
     )
       throw new Error("native source provider declaration is incomplete");
+    // Contents omits bytes above its inline envelope. Resolve only the exact
+    // immutable blob named by this path at the selected source commit.
+    if (raw.encoding === "none" && raw.content === "") {
+      const blob = readBlob?.(raw.sha);
+      if (
+        blob?.status !== 200 ||
+        !isRecord(blob.body) ||
+        blob.body.sha !== raw.sha ||
+        blob.body.size !== raw.size ||
+        blob.body.encoding !== "base64"
+      )
+        throw new Error("native immutable source blob differs from selected file");
+      raw = { ...raw, encoding: blob.body.encoding, content: blob.body.content };
+    }
+    if (
+      !isRecord(raw) ||
+      raw.encoding !== "base64" ||
+      typeof raw.content !== "string" ||
+      raw.content.length > 2 * maximum
+    )
+      throw new Error("native source provider encoding is incomplete or oversized");
     const compact = raw.content.replace(/\n/gu, "");
     if (!/^[A-Za-z0-9+/]*={0,2}$/u.test(compact))
       throw new Error("native source encoding is invalid");
@@ -52,7 +74,7 @@ export async function retainNativeSourceDeclarations(
     files[pathname] = bytes;
     const filename = `native-source-${nativeCompatibilitySourcePaths.indexOf(pathname)}.bin`;
     try {
-      const original = await readBoundedPublicBuildInputFile(directory, filename, 1024 * 1024);
+      const original = await readBoundedPublicBuildInputFile(directory, filename, maximum);
       if (!original.equals(bytes))
         throw new Error("native retained source declaration changed; preserve original input");
     } catch (error) {

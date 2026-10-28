@@ -8,22 +8,41 @@ const nativeNodeTestPath = /^apps\/desktop\/scripts\/[a-z0-9-]+\.native\.test\.m
 const registeredTestPath = (file: string) =>
   nodeTestPath.test(file) || nativeNodeTestPath.test(file);
 export interface NodePlatformSkipContract {
-  platform: "linux" | "win32";
+  platform: "linux" | "win32" | "darwin" | readonly ("linux" | "win32" | "darwin")[];
+  requires_non_root?: true;
+  category?: "platform" | "prerequisite" | "explicit-acceptance" | "supervised-parent";
+  required_environment?: string[];
+  skip_reason_prefix?: string;
+  intended_route?: string;
   owner: string;
   prerequisite: string;
   reason: string;
   cases: string[];
+  suite?: string;
 }
 export interface NodeTestSuite {
   arguments: string[];
   files: string[];
+  localResourceProfile?: "analysis";
 }
 export interface NodeTestSuites {
   format_version: 1;
   suites: Record<string, NodeTestSuite>;
   qualificationOwners?: Record<string, Record<string, string>>;
-  platformSkips?: Record<string, NodePlatformSkipContract>;
+  platformSkips?: Record<string, NodePlatformSkipContract[]>;
   desktopDependencies?: string[];
+}
+
+export function localNodeResourceProfile(files: readonly string[], registry: NodeTestSuites) {
+  const selected = new Set(files);
+  const registered = new Set(Object.values(registry.suites).flatMap((suite) => suite.files));
+  if (!files.length || files.some((file) => !registered.has(file))) return "analysis" as const;
+  return Object.values(registry.suites).some(
+    (suite) =>
+      suite.localResourceProfile === "analysis" && suite.files.some((file) => selected.has(file)),
+  )
+    ? ("analysis" as const)
+    : undefined;
 }
 function validPlatformCases(cases: unknown): cases is string[] {
   return (
@@ -40,43 +59,150 @@ function registerPlatformSkips(
   entry: Record<string, unknown>,
   file: string,
   memberships: ReadonlySet<string>,
-  contracts: Record<string, NodePlatformSkipContract>,
+  contracts: Record<string, NodePlatformSkipContract[]>,
   owners: Record<string, Record<string, string>>,
 ) {
-  const value = entry.platform_skips;
-  if (value === undefined) return;
-  if (
-    !isRecord(value) ||
-    Object.keys(value).sort().join(",") !== "cases,owner,platform,prerequisite,reason"
-  )
-    throw new Error("Invalid platform skip contract: " + file);
-  if (value.platform !== "linux" && value.platform !== "win32")
-    throw new Error("Unknown platform skip target: " + file);
-  const owner = value.owner;
-  if (typeof owner !== "string" || !memberships.has(owner))
-    throw new Error("Platform skip owner must execute its file: " + file);
-  for (const key of ["prerequisite", "reason"] as const)
-    if (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 1024)
-      throw new Error("Platform skip prerequisite/reason missing: " + file);
-  const cases = value.cases;
-  if (!validPlatformCases(cases)) throw new Error("Invalid platform skip case inventory: " + file);
-  const platform = value.platform === "linux" ? "linux-x86_64" : "windows-x86_64";
-  const existing = owners[file]?.[platform];
-  if (existing !== undefined && existing !== owner)
-    throw new Error("Platform skip qualification owner conflicts: " + file);
-  owners[file] = { ...owners[file], [platform]: owner };
-  contracts[file] = {
-    platform: value.platform,
-    owner,
-    prerequisite: value.prerequisite as string,
-    reason: value.reason as string,
-    cases,
-  };
+  const declaration = entry.platform_skips;
+  if (declaration === undefined) return;
+  const values: unknown[] = Array.isArray(declaration) ? declaration : [declaration];
+  if (!values.length || values.length > 128)
+    throw new Error("Invalid platform skip contracts: " + file);
+  const records: NodePlatformSkipContract[] = [];
+  const names = new Set<string>();
+  for (const value of values) {
+    if (
+      !isRecord(value) ||
+      Object.keys(value).some(
+        (key) =>
+          ![
+            "platform",
+            "owner",
+            "prerequisite",
+            "reason",
+            "cases",
+            "category",
+            "required_environment",
+            "skip_reason_prefix",
+            "intended_route",
+            "requires_non_root",
+            "suite",
+          ].includes(key),
+      )
+    )
+      throw new Error("Invalid platform skip contract: " + file);
+    let platform: NodePlatformSkipContract["platform"];
+    const supported = (input: unknown): input is "linux" | "win32" | "darwin" =>
+      input === "linux" || input === "win32" || input === "darwin";
+    if (supported(value.platform)) platform = value.platform;
+    else if (
+      Array.isArray(value.platform) &&
+      value.platform.length > 0 &&
+      value.platform.length <= 3 &&
+      value.platform.every(supported) &&
+      new Set(value.platform).size === value.platform.length
+    )
+      platform = value.platform;
+    else throw new Error("Invalid platform skip target: " + file);
+    const category = value.category ?? "platform";
+    if (
+      category !== "platform" &&
+      category !== "prerequisite" &&
+      category !== "explicit-acceptance" &&
+      category !== "supervised-parent"
+    )
+      throw new Error("Invalid skip category: " + file);
+    const owner = value.owner;
+    if (typeof owner !== "string" || !memberships.has(owner))
+      throw new Error("Platform skip owner must execute its file: " + file);
+    for (const key of ["prerequisite", "reason"] as const)
+      if (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 1024)
+        throw new Error("Platform skip prerequisite/reason missing: " + file);
+    if (!validPlatformCases(value.cases) || value.cases.some((name) => names.has(name)))
+      throw new Error("Invalid or overlapping platform skip case inventory: " + file);
+    value.cases.forEach((name) => names.add(name));
+    if (
+      value.suite !== undefined &&
+      (typeof value.suite !== "string" || !value.suite.trim() || value.suite.length > 2048)
+    )
+      throw new Error("Invalid skip suite identity: " + file);
+    let requiredEnvironment: string[] | undefined;
+    if (value.required_environment !== undefined) {
+      if (
+        category !== "explicit-acceptance" ||
+        !Array.isArray(value.required_environment) ||
+        !value.required_environment.length ||
+        value.required_environment.length > 16 ||
+        value.required_environment.some(
+          (name: unknown) => typeof name !== "string" || !/^[A-Z][A-Z0-9_]{0,127}$/u.test(name),
+        ) ||
+        new Set(value.required_environment).size !== value.required_environment.length
+      )
+        throw new Error("Invalid skip acceptance prerequisites: " + file);
+      requiredEnvironment = value.required_environment.map((name: unknown) => String(name));
+    }
+    if (category === "explicit-acceptance" && !requiredEnvironment && !value.skip_reason_prefix)
+      throw new Error("Missing explicit acceptance prerequisites: " + file);
+    if (
+      value.intended_route !== undefined &&
+      (typeof value.intended_route !== "string" ||
+        !value.intended_route.trim() ||
+        value.intended_route.length > 2048)
+    )
+      throw new Error("Invalid intended skip route: " + file);
+    if (category === "explicit-acceptance" && !value.intended_route)
+      throw new Error("Missing explicit acceptance route: " + file);
+    if (
+      value.skip_reason_prefix !== undefined &&
+      ((category !== "prerequisite" && category !== "explicit-acceptance") ||
+        typeof value.skip_reason_prefix !== "string" ||
+        !value.skip_reason_prefix.trim() ||
+        value.skip_reason_prefix.length > 512)
+    )
+      throw new Error("Invalid skip reason prefix: " + file);
+    if (
+      value.requires_non_root !== undefined &&
+      (value.requires_non_root !== true || category !== "prerequisite" || platform !== "linux")
+    )
+      throw new Error("Invalid ordinary-owner prerequisite: " + file);
+    if (category === "prerequisite" && !value.skip_reason_prefix && !value.requires_non_root)
+      throw new Error("Missing prerequisite skip reason prefix: " + file);
+    // Legacy single-platform records retain their reviewed exclusive owners.
+    // New complementary route arrays do not grant file-level ownership.
+    const targets =
+      !Array.isArray(declaration) && category === "platform" && platform === "linux"
+        ? ["linux-x86_64"]
+        : !Array.isArray(declaration) && category === "platform" && platform === "win32"
+          ? ["windows-x86_64"]
+          : [];
+    for (const target of targets) {
+      const existing = owners[file]?.[target];
+      if (existing !== undefined && existing !== owner)
+        throw new Error("Platform skip qualification owner conflicts: " + file);
+      owners[file] = { ...owners[file], [target]: owner };
+    }
+    records.push({
+      platform,
+      owner,
+      prerequisite: String(value.prerequisite),
+      reason: String(value.reason),
+      cases: value.cases,
+      ...(typeof value.suite === "string" ? { suite: value.suite } : {}),
+      ...(value.category === undefined ? {} : { category }),
+      ...(value.requires_non_root === true ? { requires_non_root: true as const } : {}),
+      ...(requiredEnvironment ? { required_environment: requiredEnvironment } : {}),
+      ...(typeof value.intended_route === "string" ? { intended_route: value.intended_route } : {}),
+      ...(typeof value.skip_reason_prefix === "string"
+        ? { skip_reason_prefix: value.skip_reason_prefix }
+        : {}),
+    });
+  }
+  contracts[file] = records;
 }
+
 function expandNodeTestOwnership(
   value: Record<string, unknown>,
   qualificationOwners: Record<string, Record<string, string>>,
-  platformSkips: Record<string, NodePlatformSkipContract>,
+  platformSkips: Record<string, NodePlatformSkipContract[]>,
   desktopDependencies: string[],
 ) {
   if (
@@ -86,17 +212,27 @@ function expandNodeTestOwnership(
     !value.tests.length
   )
     throw new Error("Invalid Node test ownership registry");
-  const suites: Record<string, { arguments: unknown; files: string[] }> = {};
+  const suites: Record<
+    string,
+    { arguments: unknown; files: string[]; localResourceProfile?: "analysis" }
+  > = {};
   const positions = new Map<string, Map<number, string>>();
   for (const [id, entry] of Object.entries(value.suites)) {
     if (
       !/^[a-z][a-z0-9-]*$/u.test(id) ||
       !isRecord(entry) ||
-      Object.keys(entry).length !== 1 ||
+      Object.keys(entry).some((key) => !["arguments", "localResourceProfile"].includes(key)) ||
+      (entry.localResourceProfile !== undefined && entry.localResourceProfile !== "analysis") ||
       !Object.hasOwn(entry, "arguments")
     )
       throw new Error("Invalid Node ownership suite: " + id);
-    suites[id] = { arguments: entry.arguments, files: [] };
+    suites[id] = {
+      arguments: entry.arguments,
+      files: [],
+      ...(entry.localResourceProfile === "analysis"
+        ? { localResourceProfile: "analysis" as const }
+        : {}),
+    };
     positions.set(id, new Map());
   }
   const seenFiles = new Set<string>();
@@ -173,7 +309,7 @@ function expandNodeTestOwnership(
 export function parseNodeTestSuites(text: string): NodeTestSuites {
   let value: unknown = JSON.parse(text);
   const qualificationOwners: Record<string, Record<string, string>> = {};
-  const platformSkips: Record<string, NodePlatformSkipContract> = {};
+  const platformSkips: Record<string, NodePlatformSkipContract[]> = {};
   const desktopDependencies: string[] = [];
   if (isRecord(value) && value.format_version === 2)
     value = expandNodeTestOwnership(value, qualificationOwners, platformSkips, desktopDependencies);
@@ -184,6 +320,7 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
     if (!/^[a-z][a-z0-9-]*$/u.test(id) || !isRecord(entry))
       throw new Error(`Invalid Node suite: ${id}`);
     if (
+      (entry.localResourceProfile !== undefined && entry.localResourceProfile !== "analysis") ||
       !Array.isArray(entry.arguments) ||
       !entry.arguments.every((arg: unknown) => typeof arg === "string") ||
       entry.arguments[0] !== "--test" ||
@@ -209,7 +346,13 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
       if (/^--test-(?:name|skip)-pattern$/u.test(arg) && args[++i]?.length) continue;
       throw new Error(`Unsupported Node suite flag in ${id}: ${arg}`);
     }
-    suites[id] = { arguments: args, files };
+    suites[id] = {
+      arguments: args,
+      files,
+      ...(entry.localResourceProfile === "analysis"
+        ? { localResourceProfile: "analysis" as const }
+        : {}),
+    };
   }
   if (!Object.keys(suites).length) throw new Error("Node suite registry must be nonempty");
   return {

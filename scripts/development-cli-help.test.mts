@@ -3,10 +3,45 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  symlinkSync,
+  unlinkSync,
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+
+void test("desktop launcher help resolves both physical and aliased entry identities", (t) => {
+  const fixture = mkdtempSync(path.join(os.tmpdir(), "portcove-desktop-entry-"));
+  t.after(() => rmSync(fixture, { recursive: true, force: true }));
+  const scripts = path.join(fixture, "scripts");
+  symlinkSync(
+    path.join(root, "scripts"),
+    scripts,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  const result = spawnSync(
+    process.execPath,
+    ["--preserve-symlinks-main", path.join(scripts, "desktop-test-cli.mts"), "--help"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Usage:/iu);
+  assert.deepEqual(readdirSync(fixture), ["scripts"]);
+});
 
 function run(command: string, args: readonly string[]) {
   return spawnSync(command, args, {
@@ -89,7 +124,8 @@ void test("capability selection rejects an unknown profile before any setup", ()
 });
 
 void test("release tool help works before inputs, dependencies, network, or output exist", (t) => {
-  const fixtureRoot = mkdtempSync(path.join(os.tmpdir(), "portcove-release-help-"));
+  // Keep direct-entry identity equal to Node's resolved module URL on macOS.
+  const fixtureRoot = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-release-help-")));
   t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
   mkdirSync(path.join(fixtureRoot, "scripts"));
   function copyTool(name: string) {
@@ -98,6 +134,9 @@ void test("release tool help works before inputs, dependencies, network, or outp
     return target;
   }
   for (const name of ["runtime-values.mts", "brand-vector-contract.mts"]) copyTool(name);
+  const aliasRoot = fixtureRoot + "-alias";
+  symlinkSync(fixtureRoot, aliasRoot, process.platform === "win32" ? "junction" : "dir");
+  t.after(() => unlinkSync(aliasRoot));
   const preload = path.join(fixtureRoot, "deny-network.mjs");
   writeFileSync(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
   for (const name of [
@@ -105,27 +144,30 @@ void test("release tool help works before inputs, dependencies, network, or outp
     "check-retcomm-upstreams.mts",
     "qualification-report.mts",
   ]) {
-    const script = copyTool(name);
-    const result = spawnSync(
-      process.execPath,
-      ["--import", pathToFileURL(preload).href, script, "--help"],
-      {
-        cwd: fixtureRoot,
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 10000,
-        env: {
-          ...process.env,
-          PATH: "",
-          RETCOMM_CATALOG_DIR: path.join(fixtureRoot, "missing-upstream"),
+    copyTool(name);
+    for (const invokedRoot of [fixtureRoot, aliasRoot]) {
+      const script = path.join(invokedRoot, "scripts", name);
+      const result = spawnSync(
+        process.execPath,
+        ["--import", pathToFileURL(preload).href, script, "--help"],
+        {
+          cwd: fixtureRoot,
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 10000,
+          env: {
+            ...process.env,
+            PATH: "",
+            RETCOMM_CATALOG_DIR: path.join(fixtureRoot, "missing-upstream"),
+          },
         },
-      },
-    );
-    assert.equal(result.status, 0, `${name}: ${result.stderr}`);
-    assert.match(result.stdout, /Usage:/u);
-    assert.match(result.stdout, /Example:/u);
-    assert.match(result.stdout, /--help/u);
-    assert.equal(result.stderr, "");
+      );
+      assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+      assert.match(result.stdout, /Usage:/u);
+      assert.match(result.stdout, /Example:/u);
+      assert.match(result.stdout, /--help/u);
+      assert.equal(result.stderr, "");
+    }
   }
   assert.deepEqual(readdirSync(fixtureRoot).sort(), ["deny-network.mjs", "scripts"]);
 });

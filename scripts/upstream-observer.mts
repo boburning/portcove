@@ -23,6 +23,8 @@ export interface ObserverConfig {
   cadence_hours: number;
   stale_after_hours: number;
   budget: ObserverBudget;
+  asset_scope?: "core-channel-candidates";
+  policy_input_sha256?: string;
 }
 export interface GithubPinScope {
   repository: string;
@@ -61,10 +63,55 @@ export interface ObserverRequestOptions {
   signal: AbortSignal;
 }
 export type ObserverFetch = (url: string, options: ObserverRequestOptions) => Promise<Response>;
+export interface ProviderObservation extends Record<string, unknown> {
+  format: number;
+  config_sha256: string;
+  port_id: string;
+  started_at: string;
+  completed_at: string;
+  validation_started_at?: string | null;
+  facts_sha256: string;
+  facts: {
+    repository: ReturnType<typeof repositoryFact>;
+    releases: (ReturnType<typeof releaseFact> & { assets: ReturnType<typeof assetFact>[] })[];
+  };
+  consumed: { requests: number; response_bytes: number; conditional_hits: number };
+  batch_consumed?: ProviderObservation["consumed"];
+  interval_semantics?: string;
+  coverage?: {
+    kind: "channel-candidate-assets";
+    complete_release_headers: true;
+    asset_release_ids: number[];
+  };
+  authority: "provider-observation-only";
+}
+export interface ObservationContinuation {
+  format: 1;
+  config_sha256: string;
+  started_at: string;
+  phase: "collect" | "validate" | "restart";
+  pages: Record<string, CachedPage>;
+  validation_cursor: number;
+  last_validated_at: string | null;
+  first_validated_at: string | null;
+  validation_order_sha256: string | null;
+  selected_asset_release_ids?: number[];
+  consumed: { requests: number; response_bytes: number; conditional_hits: number };
+}
 export interface ObserveOptions {
   cache?: unknown;
+  continuation?: unknown;
+  onCheckpoint?: (continuation: ObservationContinuation) => void | Promise<void>;
+  signal?: AbortSignal;
+  selectAssetReleases?: (headers: ProviderObservation) => Promise<readonly number[]>;
+  /** Additional invocation-wide admission; cannot relax configured operation bounds. */
+  admitRequest?: () => void;
+  observeResponse?: (response: Response) => void;
+  consumeResponseBytes?: (bytes: number | null) => void;
   fetch?: ObserverFetch;
   now?: () => number;
+  /** Absolute caller boundary may only shorten this operation. */
+  deadline?: number;
   sleep?: (milliseconds: number) => Promise<unknown>;
   token?: string;
 }
@@ -73,6 +120,8 @@ const apiRoot = "https://api.github.com";
 export class ObservationFailure extends Error {
   rule: string;
   retryAt: string | null;
+  continuation?: ObservationContinuation;
+  restartContinuation?: boolean;
   constructor(rule: string, details: string, retryAt: string | null = null) {
     super(details);
     this.rule = rule;
@@ -109,11 +158,12 @@ function assertObserverConfig(config: unknown): asserts config is ObserverConfig
       "cadence_hours",
       "stale_after_hours",
       "budget",
+      ...(isRecord(config) && config.format === 2 ? ["asset_scope", "policy_input_sha256"] : []),
     ],
     "observer configuration",
   );
   requireFact(
-    config.format === 1 &&
+    (config.format === 1 || config.format === 2) &&
       typeof config.port_id === "string" &&
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(config.port_id),
     "invalid-config",
@@ -145,6 +195,14 @@ function assertObserverConfig(config: unknown): asserts config is ObserverConfig
     "invalid-config",
     "invalid observation cadence",
   );
+  if (config.format === 2)
+    requireFact(
+      config.asset_scope === "core-channel-candidates" &&
+        typeof config.policy_input_sha256 === "string" &&
+        /^[a-f0-9]{64}$/u.test(config.policy_input_sha256),
+      "invalid-config",
+      "scoped observation requires an exact Core policy input identity",
+    );
   const limits = {
     requests: 512,
     pages_per_collection: 20,
@@ -537,17 +595,368 @@ function validatedCache(cache: unknown, configHash: string): Record<string, unkn
   return cache.pages;
 }
 
-/** Read-only provider observations. No candidate data is executed or admitted. */
-export async function observeUpstream(input: unknown, options: ObserveOptions = {}) {
+export function validateObservationContinuation(
+  value: unknown,
+  config: ObserverConfig,
+): ObservationContinuation | undefined {
+  if (value === undefined) return undefined;
+  keys(
+    value,
+    [
+      "format",
+      "config_sha256",
+      "started_at",
+      "phase",
+      "pages",
+      "validation_cursor",
+      "last_validated_at",
+      "first_validated_at",
+      "validation_order_sha256",
+      "consumed",
+      ...(isRecord(value) && Object.hasOwn(value, "selected_asset_release_ids")
+        ? ["selected_asset_release_ids"]
+        : []),
+    ],
+    "observation continuation",
+  );
+  const continuedUsage = value.consumed;
+  requireFact(
+    value.format === 1 &&
+      value.config_sha256 === observationHash(config) &&
+      typeof value.started_at === "string" &&
+      Number.isFinite(Date.parse(value.started_at)) &&
+      ["collect", "validate", "restart"].includes(String(value.phase)) &&
+      isRecord(value.pages) &&
+      Number.isSafeInteger(value.validation_cursor) &&
+      Number(value.validation_cursor) >= 0 &&
+      Number(value.validation_cursor) <= Object.keys(value.pages).length &&
+      (value.last_validated_at === null ||
+        (typeof value.last_validated_at === "string" &&
+          Number.isFinite(Date.parse(value.last_validated_at)))) &&
+      (value.first_validated_at === null ||
+        (typeof value.first_validated_at === "string" &&
+          Number.isFinite(Date.parse(value.first_validated_at)))) &&
+      isRecord(continuedUsage) &&
+      ["requests", "response_bytes", "conditional_hits"].every(
+        (key) => Number.isSafeInteger(continuedUsage[key]) && Number(continuedUsage[key]) >= 0,
+      ) &&
+      Buffer.byteLength(JSON.stringify(value)) <= 32 * 1024 * 1024,
+    "invalid-checkpoint",
+    "continuation configuration, cursor or retained bytes are invalid",
+  );
+  requireFact(
+    value.phase === "validate" || value.validation_cursor === 0,
+    "invalid-checkpoint",
+    "only complete collection can have validation progress",
+  );
+  requireFact(
+    value.validation_cursor === 0
+      ? value.first_validated_at === null && value.last_validated_at === null
+      : typeof value.first_validated_at === "string" &&
+          typeof value.last_validated_at === "string" &&
+          Date.parse(value.started_at) <= Date.parse(value.first_validated_at) &&
+          Date.parse(value.first_validated_at) <= Date.parse(value.last_validated_at),
+    "invalid-checkpoint",
+    "continuation validation clocks do not match its cursor",
+  );
+  requireFact(
+    value.phase === "validate"
+      ? typeof value.validation_order_sha256 === "string" &&
+          /^[a-f0-9]{64}$/u.test(value.validation_order_sha256)
+      : value.validation_order_sha256 === null,
+    "invalid-checkpoint",
+    "continuation validation order is invalid",
+  );
+  if (value.selected_asset_release_ids !== undefined)
+    requireFact(
+      config.format === 2 &&
+        Array.isArray(value.selected_asset_release_ids) &&
+        value.selected_asset_release_ids.every(
+          (id) => Number.isSafeInteger(id) && Number(id) > 0,
+        ) &&
+        new Set(value.selected_asset_release_ids).size === value.selected_asset_release_ids.length,
+      "invalid-checkpoint",
+      "continued Core asset selection is invalid",
+    );
+  if (config.format === 2 && value.phase === "validate")
+    requireFact(
+      Array.isArray(value.selected_asset_release_ids),
+      "invalid-checkpoint",
+      "validated scoped observation has no asset selection",
+    );
+  const repositoryPath = `/repos/${config.repository}`;
+  for (const [address, page] of Object.entries(value.pages)) {
+    const url = new URL(address);
+    const tail = url.pathname.slice(repositoryPath.length);
+    requireFact(
+      url.origin === apiRoot &&
+        !url.username &&
+        !url.password &&
+        !url.hash &&
+        url.pathname.startsWith(repositoryPath) &&
+        ((tail === "" && url.search === "") ||
+          (/^\/releases(?:\/\d+\/assets)?$/u.test(tail) &&
+            url.searchParams.get("per_page") === "100" &&
+            /^\d+$/u.test(url.searchParams.get("page") ?? "") &&
+            Number.isSafeInteger(Number(url.searchParams.get("page"))) &&
+            Number(url.searchParams.get("page")) > 0 &&
+            [...url.searchParams.keys()].length === 2)),
+      "invalid-checkpoint",
+      "continued page escaped its configured collection",
+    );
+    keys(page, ["etag", "link", "body", "sha256"], "continued page");
+    requireFact(
+      typeof page.etag === "string" &&
+        page.etag.length <= 512 &&
+        !/[\r\n]/u.test(page.etag) &&
+        typeof page.link === "string" &&
+        page.link.length <= 8192 &&
+        Buffer.byteLength(JSON.stringify(page.body)) <= config.budget.response_bytes &&
+        page.sha256 === observationHash(page.body),
+      "invalid-checkpoint",
+      "continued page digest differs",
+    );
+  }
+  return value as unknown as ObservationContinuation;
+}
+
+/** Reconstruct a previously complete provider snapshot from its bounded page proofs.
+ * This does not reuse eligibility or refresh its original provider observation clock.
+ */
+export function reusableProviderObservation(
+  input: unknown,
+  observation: unknown,
+  cache: unknown,
+  continuation: unknown,
+  now: number,
+): ProviderObservation | null {
   const config = validateObserverConfig(input);
+  if (!observation || !cache) return null;
+  requireFact(
+    isRecord(observation),
+    "invalid-checkpoint",
+    "Retained provider observation is malformed",
+  );
   const configHash = observationHash(config);
-  const prior = validatedCache(options.cache, configHash);
+  requireFact(
+    observation.authority === "provider-observation-only" &&
+      observation.format === config.format &&
+      observation.config_sha256 === configHash &&
+      observation.port_id === config.port_id,
+    "invalid-checkpoint",
+    "Retained provider scope differs",
+  );
+  const started = timestamp(observation.started_at, "observation start");
+  const completed = timestamp(observation.completed_at, "observation completion");
+  const validated =
+    observation.validation_started_at == null
+      ? completed
+      : timestamp(observation.validation_started_at, "observation validation");
+  requireFact(
+    Date.parse(started) <= Date.parse(validated) &&
+      Date.parse(validated) <= Date.parse(completed) &&
+      Date.parse(completed) <= now,
+    "invalid-checkpoint",
+    "Retained provider clocks differ",
+  );
+  if (now - Date.parse(validated) >= config.stale_after_hours * 3600000) return null;
+  const proof = validateObservationContinuation(
+    {
+      format: 1,
+      config_sha256: configHash,
+      started_at: started,
+      phase: "collect",
+      pages: validatedCache(cache, configHash),
+      validation_cursor: 0,
+      last_validated_at: null,
+      first_validated_at: null,
+      validation_order_sha256: null,
+      consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
+    },
+    config,
+  )!;
+  const pending = validateObservationContinuation(continuation, config);
+  if (pending?.phase === "restart") return null;
+  if (
+    pending &&
+    Object.entries(pending.pages).some(
+      ([url, page]) =>
+        !proof.pages[url] ||
+        proof.pages[url].sha256 !== page.sha256 ||
+        proof.pages[url].link !== page.link,
+    )
+  )
+    return null;
+  const root = `/repos/${config.repository}`;
+  const repositoryPage = proof.pages[`${apiRoot}${root}`];
+  requireFact(
+    repositoryPage,
+    "invalid-checkpoint",
+    "Complete provider snapshot has no repository proof",
+  );
+  const repository = repositoryFact(repositoryPage.body, config);
+  const collection = (pathname: string) => {
+    const records: unknown[] = [];
+    for (let index = 1; ; index++) {
+      const page = proof.pages[`${apiRoot}${pathname}?per_page=100&page=${index}`];
+      requireFact(
+        page && Array.isArray(page.body) && page.body.length <= 100,
+        "invalid-checkpoint",
+        "Complete provider snapshot has an incomplete page chain",
+      );
+      records.push(...(page.body as unknown[]));
+      if (!nextPage(page.link, pathname, index, config)) return records;
+    }
+  };
+  const releases = collection(`${root}/releases`).map((value) => ({
+    ...releaseFact(value),
+    assets: [] as ReturnType<typeof assetFact>[],
+  }));
+  const releaseIds = new Set(releases.map((release) => release.id));
+  requireFact(
+    releaseIds.size === releases.length,
+    "invalid-checkpoint",
+    "Complete provider snapshot repeats release identities",
+  );
+  let selected = [...releaseIds];
+  if (config.format === 2) {
+    const coverage = observation.coverage;
+    requireFact(
+      isRecord(coverage) &&
+        coverage.kind === "channel-candidate-assets" &&
+        coverage.complete_release_headers === true &&
+        Array.isArray(coverage.asset_release_ids),
+      "invalid-checkpoint",
+      "Retained scoped provider coverage is incomplete",
+    );
+    const ids: unknown[] = coverage.asset_release_ids;
+    requireFact(
+      ids.every((id) => Number.isSafeInteger(id) && Number(id) > 0 && releaseIds.has(Number(id))) &&
+        new Set(ids).size === ids.length,
+      "invalid-checkpoint",
+      "Retained provider coverage has unknown or repeated release identities",
+    );
+    selected = ids.map(Number);
+  }
+  const assets = new Set<number>();
+  for (const release of releases) {
+    if (!selected.includes(release.id)) continue;
+    release.assets = collection(`${root}/releases/${release.id}/assets`).map((value) =>
+      assetFact(value, config, release.tag_name),
+    );
+    for (const asset of release.assets) {
+      requireFact(
+        !assets.has(asset.id),
+        "invalid-checkpoint",
+        "Complete provider snapshot repeats asset identities",
+      );
+      assets.add(asset.id);
+    }
+  }
+  const facts = { repository, releases };
+  requireFact(
+    observationHash(facts) === observation.facts_sha256 &&
+      observationHash(observation.facts) === observation.facts_sha256,
+    "invalid-checkpoint",
+    "Complete provider facts differ from their validated page proofs",
+  );
+  const consumed = observation.consumed;
+  requireFact(
+    isRecord(consumed) &&
+      [consumed.requests, consumed.response_bytes, consumed.conditional_hits].every(
+        (value) => Number.isSafeInteger(value) && Number(value) >= 0,
+      ),
+    "invalid-checkpoint",
+    "Retained provider accounting is invalid",
+  );
+  return {
+    format: config.format,
+    config_sha256: configHash,
+    port_id: config.port_id,
+    started_at: started,
+    completed_at: completed,
+    ...(typeof observation.validation_started_at === "string"
+      ? { validation_started_at: validated }
+      : {}),
+    facts_sha256: observationHash(facts),
+    facts,
+    ...(config.format === 2
+      ? {
+          coverage: {
+            kind: "channel-candidate-assets",
+            complete_release_headers: true,
+            asset_release_ids: selected,
+          },
+        }
+      : {}),
+    consumed: {
+      requests: Number(consumed.requests),
+      response_bytes: Number(consumed.response_bytes),
+      conditional_hits: Number(consumed.conditional_hits),
+    },
+    batch_consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
+    interval_semantics:
+      "Previously complete validated provider interval reused without refreshing its clock; eligibility is recomputed under current Core",
+    authority: "provider-observation-only",
+  };
+}
+
+/** Read-only provider observations. No candidate data is executed or admitted. */
+export async function observeUpstream(
+  input: unknown,
+  options: ObserveOptions = {},
+): Promise<{
+  observation: ProviderObservation;
+  cache: { format: number; config_sha256: string; pages: Record<string, CachedPage> };
+}> {
+  const config = validateObserverConfig(input);
+  if (config.format === 2)
+    requireFact(
+      options.selectAssetReleases,
+      "invalid-config",
+      "scoped observation requires the maintained Core channel selector",
+    );
+  const configHash = observationHash(config);
+  const retained = validateObservationContinuation(options.continuation, config);
+  const prior = {
+    ...validatedCache(options.cache, configHash),
+    ...(retained?.phase === "restart" ? retained.pages : {}),
+  };
   const fetcher = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
   const sleep =
     options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const started = now();
-  const pages: Record<string, CachedPage> = {};
+  requireFact(
+    options.deadline === undefined || Number.isFinite(options.deadline),
+    "budget",
+    "Observation opportunity is unknown",
+  );
+  const deadline = Math.min(started + config.budget.duration_ms, options.deadline ?? Infinity);
+  requireFact(
+    !retained ||
+      (Date.parse(retained.started_at) <= started &&
+        (retained.last_validated_at === null || Date.parse(retained.last_validated_at) <= started)),
+    "clock-or-budget",
+    "continued observation starts in the future",
+  );
+  const continuation: ObservationContinuation =
+    retained && retained.phase !== "restart"
+      ? structuredClone(retained)
+      : {
+          format: 1,
+          config_sha256: configHash,
+          started_at: new Date(started).toISOString(),
+          phase: "collect",
+          pages: {},
+          validation_cursor: 0,
+          last_validated_at: null,
+          first_validated_at: null,
+          validation_order_sha256: null,
+          consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
+        };
+  const pages = continuation.pages;
+  const previouslyConsumed = { ...continuation.consumed };
   const consumed = { requests: 0, response_bytes: 0, conditional_hits: 0 };
   const requestOrder: {
     pathname: string;
@@ -557,11 +966,26 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
     value: CachedPage;
   }[] = [];
 
+  const retain = async () => {
+    continuation.consumed = {
+      requests: previouslyConsumed.requests + consumed.requests,
+      response_bytes: previouslyConsumed.response_bytes + consumed.response_bytes,
+      conditional_hits: previouslyConsumed.conditional_hits + consumed.conditional_hits,
+    };
+    await options.onCheckpoint?.(structuredClone(continuation));
+  };
+
   async function request(
     pathname: string,
     page: number | null = null,
     cached: unknown = null,
+    replay = false,
   ): Promise<{ url: string; value: CachedPage }> {
+    if (options.signal?.aborted)
+      throw new ObservationFailure(
+        "cancelled",
+        "Observation cancelled; retain the exact continuation",
+      );
     const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
     const candidate = cached ?? prior[url];
     let previous: CachedPage | undefined;
@@ -590,8 +1014,17 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
         "cached response exceeds the byte budget",
       );
     }
+    if (replay) {
+      requireFact(previous, "invalid-checkpoint", "continued page is missing");
+      return { url, value: previous };
+    }
     for (let attempt = 0; ; attempt++) {
-      const remaining = config.budget.duration_ms - (now() - started);
+      if (options.signal?.aborted)
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled; retain the exact continuation",
+        );
+      const remaining = deadline - now();
       requireFact(
         remaining > 0 && consumed.requests < config.budget.requests,
         "budget",
@@ -604,23 +1037,37 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
       };
       if (options.token) headers.Authorization = `Bearer ${options.token}`;
       if (previous?.etag) headers["If-None-Match"] = previous.etag;
+      options.admitRequest?.();
       consumed.requests++;
       let response;
       try {
         response = await fetcher(url, {
           headers,
           redirect: "error",
-          signal: AbortSignal.timeout(Math.min(15_000, remaining)),
+          signal: options.signal
+            ? AbortSignal.any([options.signal, AbortSignal.timeout(Math.min(15_000, remaining))])
+            : AbortSignal.timeout(Math.min(15_000, remaining)),
         });
       } catch {
+        if (options.signal?.aborted)
+          throw new ObservationFailure(
+            "cancelled",
+            "Observation cancelled; retain the exact continuation",
+          );
+        if (now() >= deadline)
+          throw new ObservationFailure(
+            "budget",
+            "Observation opportunity exhausted during provider request",
+          );
         if (attempt >= config.budget.retries)
           throw new ObservationFailure(
             "transport",
             "provider transport failed within its retry budget",
           );
-        await sleep(250 * 2 ** attempt);
+        await sleep(Math.max(0, Math.min(250 * 2 ** attempt, deadline - now())));
         continue;
       }
+      options.observeResponse?.(response);
       if (
         response.status === 429 ||
         (response.status === 403 &&
@@ -650,7 +1097,7 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
       }
       if (response.status >= 500 && attempt < config.budget.retries) {
         await response.body?.cancel();
-        await sleep(250 * 2 ** attempt);
+        await sleep(Math.max(0, Math.min(250 * 2 ** attempt, deadline - now())));
         continue;
       }
       if (response.status === 304) {
@@ -685,6 +1132,7 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
         );
         bytes += bytesChunk.length;
         consumed.response_bytes += bytesChunk.length;
+        options.consumeResponseBytes?.(bytesChunk.length);
         requireFact(
           bytes <= config.budget.response_bytes &&
             consumed.response_bytes <= config.budget.total_bytes,
@@ -715,10 +1163,21 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
     pathname: string,
     page: number | null,
     normalize: (value: unknown) => unknown,
+    deferCheckpoint = false,
   ) {
-    const result = await request(pathname, page);
+    const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
+    const replay = Object.hasOwn(pages, url);
+    const result = await request(pathname, page, replay ? pages[url] : null, replay);
+    normalize(result.value.body);
+    if (page !== null && nextPage(result.value.link, pathname, page, config))
+      requireFact(
+        Array.isArray(result.value.body) && result.value.body.length === 100,
+        "pagination",
+        "nonterminal page is incomplete",
+      );
     pages[result.url] = result.value;
     requestOrder.push({ pathname, page, normalize, ...result });
+    if (!replay && !deferCheckpoint) await retain();
     return result.value;
   }
 
@@ -728,92 +1187,236 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
   ): Promise<unknown[]> {
     const all = [];
     const ids = new Set();
+    let chargedPages = 0;
     for (let page = 1; ; page++) {
+      const url = `${apiRoot}${pathname}?per_page=100&page=${page}`;
+      if (!Object.hasOwn(pages, url)) chargedPages++;
       requireFact(
-        page <= config.budget.pages_per_collection,
+        chargedPages <= config.budget.pages_per_collection,
         "budget",
-        "collection exceeded the complete-pagination budget",
+        "collection batch page budget exhausted; retain the exact continuation",
       );
-      const response = await read(pathname, page, (body) => {
+      const fresh = !Object.hasOwn(pages, url);
+      const response = await read(
+        pathname,
+        page,
+        (body) => {
+          requireFact(
+            Array.isArray(body) && body.length <= 100,
+            "invalid-metadata",
+            "collection page must contain at most 100 objects",
+          );
+          return body.map((value: unknown) => normalizeItem(value));
+        },
+        true,
+      );
+      let more: boolean;
+      try {
         requireFact(
-          Array.isArray(body) && body.length <= 100,
+          Array.isArray(response.body) && response.body.length <= 100,
           "invalid-metadata",
           "collection page must contain at most 100 objects",
         );
-        return body.map((value: unknown) => normalizeItem(value));
-      });
-      requireFact(
-        Array.isArray(response.body) && response.body.length <= 100,
-        "invalid-metadata",
-        "collection page must contain at most 100 objects",
-      );
-      const items: unknown[] = response.body;
-      for (const item of items) {
-        const id = identity(isRecord(item) ? item.id : undefined, "collection item");
-        requireFact(!ids.has(id), "pagination", "collection repeated an identity across pages");
-        ids.add(id);
-        all.push(item);
+        for (const item of response.body as unknown[]) {
+          const id = identity(isRecord(item) ? item.id : undefined, "collection item");
+          requireFact(!ids.has(id), "pagination", "collection repeated an identity across pages");
+          ids.add(id);
+          all.push(item);
+        }
+        more = nextPage(response.link, pathname, page, config);
+      } catch (error) {
+        if (fresh) {
+          delete pages[url];
+          requestOrder.pop();
+        }
+        throw error;
       }
-      if (!nextPage(response.link, pathname, page, config)) return all;
-      requireFact(response.body.length === 100, "pagination", "nonterminal page is incomplete");
+      if (fresh) await retain();
+      if (!more) return all;
     }
   }
 
-  const repositoryPath = `/repos/${config.repository}`;
-  const repository = repositoryFact(
-    (await read(repositoryPath, null, (value) => repositoryFact(value, config))).body,
-    config,
-  );
-  const releases = [];
-  const assetIds = new Set();
-  for (const raw of await collection(`${repositoryPath}/releases`, releaseFact)) {
-    const release = releaseFact(raw);
-    const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
-    const assets = (
-      await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
-    ).map(normalizeAsset);
-    for (const asset of assets) {
-      requireFact(
-        !assetIds.has(asset.id),
-        "invalid-metadata",
-        "asset identity appears in multiple releases",
-      );
-      assetIds.add(asset.id);
-    }
-    releases.push({ ...release, assets });
-  }
-  // GitHub provides no atomic repository snapshot. Revalidate every consumed
-  // page and preserve the observation interval; any detected change aborts.
-  for (const entry of requestOrder) {
-    const current = await request(entry.pathname, entry.page, entry.value);
-    requireFact(
-      observationHash(entry.normalize(current.value.body)) ===
-        observationHash(entry.normalize(entry.value.body)) &&
-        current.value.link === entry.value.link,
-      "concurrent-change",
-      `provider collection changed during observation: ${entry.pathname}`,
+  try {
+    const repositoryPath = `/repos/${config.repository}`;
+    const repository = repositoryFact(
+      (await read(repositoryPath, null, (value) => repositoryFact(value, config))).body,
+      config,
     );
-    pages[entry.url] = current.value;
+    const headers = (await collection(`${repositoryPath}/releases`, releaseFact)).map(releaseFact);
+    let selectedAssets: Set<number> | null = null;
+    if (config.format === 2) {
+      requireFact(
+        options.selectAssetReleases,
+        "invalid-config",
+        "scoped observation requires the maintained Core channel selector",
+      );
+      const facts = { repository, releases: headers.map((header) => ({ ...header, assets: [] })) };
+      const selected = await options.selectAssetReleases({
+        format: 2,
+        config_sha256: configHash,
+        port_id: config.port_id,
+        started_at: continuation.started_at,
+        completed_at: new Date(now()).toISOString(),
+        facts_sha256: observationHash(facts),
+        facts,
+        consumed: continuation.consumed,
+        coverage: {
+          kind: "channel-candidate-assets",
+          complete_release_headers: true,
+          asset_release_ids: [],
+        },
+        interval_semantics:
+          "Inert Core channel-selection probe; not a completed provider observation",
+        authority: "provider-observation-only",
+      });
+      requireFact(
+        Array.isArray(selected) &&
+          new Set(selected).size === selected.length &&
+          selected.every(
+            (id) => Number.isSafeInteger(id) && headers.some((header) => header.id === id),
+          ),
+        "core-selection",
+        "Core requested an unknown or duplicate release identity",
+      );
+      selectedAssets = new Set(selected);
+      const ordered = [...selectedAssets].sort((a, b) => a - b);
+      if (
+        continuation.selected_asset_release_ids &&
+        observationHash(continuation.selected_asset_release_ids) !== observationHash(ordered)
+      ) {
+        continuation.phase = "collect";
+        continuation.validation_cursor = 0;
+        continuation.first_validated_at = null;
+        continuation.last_validated_at = null;
+        continuation.validation_order_sha256 = null;
+      }
+      continuation.selected_asset_release_ids = ordered;
+      for (const [url, page] of Object.entries(pages)) {
+        const id = new URL(url).pathname.match(/\/releases\/(\d+)\/assets$/u)?.[1];
+        if (id && !selectedAssets.has(Number(id))) {
+          prior[url] = page;
+          delete pages[url];
+        }
+      }
+      await retain();
+    }
+    const releases: ProviderObservation["facts"]["releases"] = [];
+    const assetIds = new Set();
+    for (const release of headers) {
+      const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
+      const assets =
+        selectedAssets && !selectedAssets.has(release.id)
+          ? []
+          : (
+              await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
+            ).map(normalizeAsset);
+      for (const asset of assets) {
+        if (assetIds.has(asset.id)) {
+          const failure = new ObservationFailure(
+            "invalid-metadata",
+            "asset identity appears in multiple releases",
+          );
+          failure.restartContinuation = true;
+          throw failure;
+        }
+        assetIds.add(asset.id);
+      }
+      releases.push({ ...release, assets });
+    }
+    // GitHub provides no atomic repository snapshot. Revalidate every consumed
+    // page and preserve the observation interval; any detected change aborts.
+    if (continuation.phase === "collect") {
+      continuation.phase = "validate";
+      continuation.validation_order_sha256 = observationHash(
+        requestOrder.map((entry) => entry.url),
+      );
+      await retain();
+    }
+    requireFact(
+      continuation.validation_cursor <= requestOrder.length &&
+        continuation.validation_order_sha256 ===
+          observationHash(requestOrder.map((entry) => entry.url)),
+      "invalid-checkpoint",
+      "validation cursor exceeds the reconstructed collection",
+    );
+    for (let index = continuation.validation_cursor; index < requestOrder.length; index++) {
+      const entry = requestOrder[index]!;
+      const current = await request(entry.pathname, entry.page, entry.value);
+      requireFact(
+        observationHash(entry.normalize(current.value.body)) ===
+          observationHash(entry.normalize(entry.value.body)) &&
+          current.value.link === entry.value.link,
+        "concurrent-change",
+        `provider collection changed during observation: ${entry.pathname}`,
+      );
+      pages[entry.url] = current.value;
+      const validationClock = now();
+      requireFact(
+        validationClock >= started &&
+          validationClock >= Date.parse(continuation.last_validated_at ?? continuation.started_at),
+        "clock-or-budget",
+        "observation clock moved backwards during validation",
+      );
+      continuation.validation_cursor = index + 1;
+      continuation.last_validated_at = new Date(validationClock).toISOString();
+      continuation.first_validated_at ??= continuation.last_validated_at;
+      await retain();
+    }
+    if (options.signal?.aborted)
+      throw new ObservationFailure("cancelled", "Observation cancelled before completion");
+    const completed = Date.parse(continuation.last_validated_at!);
+    requireFact(
+      completed >= Date.parse(continuation.started_at) &&
+        completed <= now() &&
+        now() >= started &&
+        now() - started <= config.budget.duration_ms,
+      "clock-or-budget",
+      "observation clock moved backwards or exceeded its deadline",
+    );
+    const facts = { repository, releases };
+    return {
+      observation: {
+        format: config.format,
+        config_sha256: configHash,
+        port_id: config.port_id,
+        started_at: continuation.started_at,
+        completed_at: new Date(completed).toISOString(),
+        validation_started_at: continuation.first_validated_at,
+        facts_sha256: observationHash(facts),
+        facts,
+        ...(selectedAssets
+          ? {
+              coverage: {
+                kind: "channel-candidate-assets" as const,
+                complete_release_headers: true as const,
+                asset_release_ids: [...selectedAssets].sort((a, b) => a - b),
+              },
+            }
+          : {}),
+        consumed: continuation.consumed,
+        batch_consumed: consumed,
+        interval_semantics:
+          "Independently revalidated pages over the retained observation interval; not an atomic provider snapshot",
+        authority: "provider-observation-only",
+      },
+      cache: { format: 1, config_sha256: configHash, pages },
+    };
+  } catch (error) {
+    if (error instanceof ObservationFailure) {
+      if (error.rule === "concurrent-change" || error.restartContinuation) {
+        continuation.phase = "restart";
+        continuation.validation_cursor = 0;
+        continuation.last_validated_at = null;
+        continuation.first_validated_at = null;
+        continuation.validation_order_sha256 = null;
+      }
+      continuation.consumed = {
+        requests: previouslyConsumed.requests + consumed.requests,
+        response_bytes: previouslyConsumed.response_bytes + consumed.response_bytes,
+        conditional_hits: previouslyConsumed.conditional_hits + consumed.conditional_hits,
+      };
+      error.continuation = structuredClone(continuation);
+    }
+    throw error;
   }
-  const completed = now();
-  requireFact(
-    completed >= started && completed - started <= config.budget.duration_ms,
-    "clock-or-budget",
-    "observation clock moved backwards or exceeded its deadline",
-  );
-  const facts = { repository, releases };
-  return {
-    observation: {
-      format: 1,
-      config_sha256: configHash,
-      port_id: config.port_id,
-      started_at: new Date(started).toISOString(),
-      completed_at: new Date(completed).toISOString(),
-      facts_sha256: observationHash(facts),
-      facts,
-      consumed,
-      authority: "provider-observation-only",
-    },
-    cache: { format: 1, config_sha256: configHash, pages },
-  };
 }

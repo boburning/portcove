@@ -61,8 +61,26 @@ for (const spec of [
     mime: "text/plain",
     error: /image unavailable/,
   },
-  { name: "image length", route: "image", status: 200, length: 4096, error: /byte contract/ },
-  { name: "image streaming limit", route: "image", status: 200, error: /byte contract/ },
+  {
+    name: "image length",
+    route: "image",
+    status: 200,
+    length: 4096,
+    error: /remaining bounded operation/,
+  },
+  {
+    name: "image streaming limit",
+    route: "image",
+    status: 200,
+    error: /remaining bounded operation/,
+  },
+  {
+    name: "image oversized response",
+    route: "image",
+    status: 200,
+    length: 16777217,
+    error: /byte contract/,
+  },
 ]) {
   void test(`provider response lifecycle closes unfinished ${spec.name} before request timeout`, async () => {
     const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
@@ -179,7 +197,9 @@ for (const refusal of ["status", "length", "streaming"]) {
       );
       await assert.rejects(boundedLifecycleResult(inspector.inspectImage("coprobe", 1)), {
         message:
-          refusal === "status" ? "IGDB image unavailable." : "Response exceeds its byte contract.",
+          refusal === "status"
+            ? "IGDB image unavailable."
+            : "Response exceeds the remaining bounded operation; continue in a fresh batch.",
       });
       assert.equal(cancellations, 1);
       assert.equal(requiredFixture(response.body).locked, false);
@@ -262,4 +282,23 @@ void test("provider response lifecycle preserves malformed JSON and missing-body
     async () => new Response(null, { headers: { "Content-Type": "image/jpeg" } }),
   );
   await assert.rejects(empty.inspectImage("coprobe"), /byte contract/);
+});
+
+void test("unknown-length image exceeding its per-response ceiling remains a security refusal", async () => {
+  const { createIgdbInspector, ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");
+  const inspector = createIgdbInspector(
+    lifecycleCredentials(),
+    () => assert.fail("oversized image cannot decode"),
+    async () =>
+      new Response(new Uint8Array(16 * 1024 * 1024 + 1), {
+        headers: { "content-type": "image/jpeg" },
+      }),
+  );
+  await assert.rejects(
+    inspector.inspectImage("oversized"),
+    (error: unknown) =>
+      error instanceof Error &&
+      !(error instanceof ArtworkBatchExhausted) &&
+      /byte contract/.test(error.message),
+  );
 });

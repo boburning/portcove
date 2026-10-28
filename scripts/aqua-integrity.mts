@@ -57,6 +57,15 @@ const assetInventories: Readonly<Record<string, (version: string) => string[]>> 
   ],
   "rhysd/actionlint": actionlintAssets,
   "koalaman/shellcheck": shellcheckAssets,
+  // Recovery-only configuration. Ordinary aqua.yaml does not appoint these tools.
+  "FiloSottile/age": (version) => [
+    `age-${version}-linux-amd64.tar.gz`,
+    `age-${version}-windows-amd64.zip`,
+  ],
+  "cli/cli": (version) => [
+    `gh_${version.replace(/^v/u, "")}_linux_amd64.tar.gz`,
+    `gh_${version.replace(/^v/u, "")}_windows_amd64.zip`,
+  ],
 };
 
 function exactUnique(values: readonly string[], label: string) {

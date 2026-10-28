@@ -10,7 +10,7 @@ import {
   observePacketDeliveryBindings,
 } from "../../../scripts/acceptance-packet.mts";
 import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
-import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
+import { captureKeyboardTarget as captureNativeKeyboardTarget } from "./desktop-capture-target.mts";
 import type { WebElement } from "selenium-webdriver";
 import {
   parseDesktopHarnessOptions,
@@ -26,7 +26,7 @@ import {
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mts";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
-import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
+import { observeDesktopScenario, recordDesktopCheck } from "./desktop-scenario-outcomes.mts";
 import { spawn } from "node:child_process";
 import {
   DesktopNativeAccountSession,
@@ -56,11 +56,13 @@ import {
   nativeSessionScript,
   readNativeProcessSnapshot,
   readNativeSessionObservation,
+  assertNativeApplicationInventory,
 } from "./desktop-owned-native-session.mts";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
 import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-session.mts";
 import { inspectIsolatedNativeLinuxBinding } from "./native-linux-isolated-plan.mts";
 import { createHash } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { get as httpGet } from "node:http";
 import {
   connectLinuxInspector,
@@ -103,6 +105,11 @@ import {
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
+  reviewControls,
+  selectCatalogPort,
+  openCatalogFilters,
+  clearCatalogFilters,
+  catalogResultPortIds,
 } from "./desktop-review-controls.mts";
 import { createInstallFixture } from "./desktop-install-fixture.mts";
 import {
@@ -118,6 +125,7 @@ import {
   nativeGameFileFolderPicker,
 } from "./desktop-native-confirmation.mts";
 import { installScenarios } from "./desktop-install-test.mts";
+import type { AcquisitionGameObserver } from "./desktop-install-test.mts";
 import { hostPublicationScenario } from "./desktop-host-publication-test.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
@@ -312,7 +320,7 @@ const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
       selectedScenarios: selection.selected_scenarios,
     })
   : null;
-const { inputs, runnerMetadata } = await observeDesktopHarnessInputs({
+const { inputs, runnerMetadata, metadataPhases } = await observeDesktopHarnessInputs({
   custody,
   capture: {
     root,
@@ -323,10 +331,6 @@ const { inputs, runnerMetadata } = await observeDesktopHarnessInputs({
   },
   runMetadata: values["run-metadata"],
 });
-const phases = runnerMetadata.phases;
-assert.ok(phases === undefined || Array.isArray(phases));
-const metadataPhases: object[] =
-  phases === undefined ? [] : phases.map((value: unknown) => object(value));
 let acceptancePreflight: Awaited<ReturnType<typeof writeAcceptancePreflight>> | undefined;
 const packetFixtureIdentities: (FileIdentity & { role: string })[] = [];
 type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
@@ -348,6 +352,9 @@ let connectedLaunches = 0;
 const library = path.join(runtimeRoot, "library");
 const profile = path.join(runtimeRoot, "webview");
 const checks: EvidenceCheck[] = [];
+function recordChecks(...records: EvidenceCheck[]) {
+  for (const record of records) recordDesktopCheck(checks, revision, record);
+}
 const setupChecks: EvidenceCheck[] = [];
 const artifacts: string[] = [];
 const scenarioOutcomes = new Map<string, EvidenceCheck["outcome"]>();
@@ -614,7 +621,55 @@ function stopBackupFocusDriver() {
   driver = undefined;
 }
 
-function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQualified = false) {
+let acquisitionLaunchProofCount = 0;
+function acquisitionLaunchSessions(deadline: number) {
+  const game = ownedSession.game;
+  if (!game) return [];
+  const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
+  let ids: string[];
+  try {
+    const rows = database
+      .prepare("SELECT id FROM launch_sessions WHERE port_id = ? ORDER BY started_at, id LIMIT 17")
+      .all(game.installation.port_id);
+    assert.ok(rows.length <= 16, "Owned acquisition launch inventory exceeded its fixture bound");
+    ids = rows.map((row) => {
+      assert.equal(typeof row.id, "string");
+      return String(row.id);
+    });
+  } finally {
+    database.close();
+  }
+  const command = ownedFixtureCommand(
+    { cli: required(values["preparation-cli"]), library, output },
+    (file, args, options) => {
+      const remaining = Math.floor(deadline - performance.now());
+      assert.ok(remaining > 0, "Owned supervisor evidence exceeded the native capture budget");
+      return spawnCommand(file, args, { ...options, timeout: remaining });
+    },
+  );
+  const sessions = ids.map((id) => {
+    const session = transportValue("launch_request", command(["launch", "show", id]));
+    assert.ok(session, "Captured owned launch record disappeared");
+    return session;
+  });
+  const receipt = path.join(
+    output,
+    `acquisition-launch-binding-${++acquisitionLaunchProofCount}.json`,
+  );
+  writeFileSync(
+    receipt,
+    JSON.stringify({ game, previous_games: ownedSession.games, sessions }, null, 2) + "\n",
+    { flag: "wx" },
+  );
+  artifacts.push(receipt);
+  return sessions;
+}
+
+function validateBackupFocusInventory(
+  captured: NativeProcessSnapshot,
+  requireQualified = false,
+  deadline = performance.now() + 10_000,
+) {
   if (
     requireQualified ||
     savedLibraryRecoverySession ||
@@ -627,6 +682,7 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
           "native-reviewed-steam-batch-add",
           "native-host-publication-recovery",
           "native-game-update-review",
+          "native-update-acquisition-lifecycle",
           "native-selected-setup-completion",
           "native-preliminary-source-review",
           "native-retained-contract-repair-state",
@@ -642,14 +698,25 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
         ].includes(check.scenario) && check.outcome === "passed",
     )
   ) {
-    assert.equal(
-      captured.processes.filter(
-        (entry) =>
-          path.resolve(entry.path).toLowerCase() === path.resolve(application).toLowerCase(),
-      ).length,
-      1,
-      "Successful native qualification requires one captured application",
-    );
+    if (executionPlan.fixtures.acquisitionJourney) {
+      const connectedApplication = ownedSession.requireApplication(captured);
+      assertNativeApplicationInventory(
+        captured,
+        connectedApplication,
+        ownedSession.game,
+        acquisitionLaunchSessions(deadline),
+        ownedSession.games,
+      );
+    } else {
+      assert.equal(
+        captured.processes.filter(
+          (entry) =>
+            path.resolve(entry.path).toLowerCase() === path.resolve(application).toLowerCase(),
+        ).length,
+        1,
+        "Successful native qualification requires one captured application",
+      );
+    }
     assert.ok(
       captured.processes.some(
         (entry) => path.basename(entry.path).toLowerCase() === "msedgewebview2.exe",
@@ -691,7 +758,7 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
   try {
     validateBackupFocusInventory(captured);
   } catch (error) {
-    checks.push({
+    recordChecks({
       scenario: "native-backup-process-inventory",
       outcome: "failed",
       message: errorMessage(error),
@@ -926,7 +993,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
 
 async function verifyLongTitleCatalogDetail(theme: string) {
   const browser = driverBrowser();
-  await browser.findElement(By.css('[data-detail-origin="catalog:card:cvlod-recomp"]')).click();
+  await selectCatalogPort(browser, "cvlod-recomp");
   await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
   await browser.wait(
     () =>
@@ -985,7 +1052,7 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
     assert.equal(layout.project, "Port project: Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    assert.equal(layout.action.label, "Choose game files");
+    assert.equal(layout.action.label, "Set up game");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
       layout.action.top >= 0 &&
@@ -1032,7 +1099,7 @@ async function selectSettingsCategory(id: string) {
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
 const deadline = setTimeout(
   () => {
-    checks.push({
+    recordChecks({
       scenario: "native-harness-deadline",
       outcome: "failed",
       message: `Native harness exceeded its ${harnessDeadlineMs}ms allowance; stopping the owned driver.`,
@@ -1042,7 +1109,7 @@ const deadline = setTimeout(
       try {
         await stopDriver();
       } catch (error) {
-        checks.push({
+        recordChecks({
           scenario: "native-backup-watchdog-cleanup",
           outcome: "failed",
           message: errorMessage(error),
@@ -1181,9 +1248,9 @@ function recordScenario(
   target: ScenarioTarget,
   name: string,
   outcome: EvidenceCheck["outcome"],
-  details: Pick<EvidenceCheck, "message" | "reason"> = {},
+  details: Pick<EvidenceCheck, "message" | "reason" | "duration_ms" | "duration_scope"> = {},
 ) {
-  target.records.push({ scenario: name, outcome, ...details });
+  recordDesktopCheck(target.records, revision, { scenario: name, outcome, ...details });
   scenarioOutcomes.set(name, outcome);
 }
 
@@ -1228,106 +1295,12 @@ async function captureKeyboardTarget(
   element: WebElement,
   scenarioId = "keyboard-layout",
 ) {
-  const session = driverBrowser();
-  assert.match(name, /^[a-z0-9-]+$/u);
-  const label = `native-${name}`;
-  const target = `[data-capture-target="${label}"]`;
-  const previous = await executeBrowserScript(
-    session,
-    (target, label) => {
-      const previous = target.getAttribute("data-capture-target");
-      target.setAttribute("data-capture-target", label);
-      return previous;
-    },
+  return captureNativeKeyboardTarget(
+    { browser: driverBrowser(), output, artifacts },
+    name,
     element,
-    label,
+    scenarioId,
   );
-  let lastObservation: ReturnType<typeof observeVisibleTarget> | undefined;
-  let preflightComplete = false;
-  try {
-    const metadata = await prepareCaptureTarget({
-      target,
-      label,
-      scroll: () =>
-        executeBrowserScript(
-          session,
-          (element) =>
-            element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
-          element,
-        ),
-      observe: async () => {
-        lastObservation = await executeBrowserScript(
-          session,
-          observeVisibleTarget,
-          target,
-          "visual" as const,
-        );
-        return lastObservation;
-      },
-    });
-    preflightComplete = true;
-    const capture = await captureSettledVisual({
-      browser: session,
-      output,
-      name,
-      scenario: scenarioId,
-      target,
-      observeTarget: async () => {
-        const state = await executeBrowserScript(
-          session,
-          observeVisibleTarget,
-          target,
-          "visual" as const,
-        );
-        requireUnchangedCaptureTarget(metadata.observation, state);
-        return { ...state, capture_target_preflight: metadata };
-      },
-      readiness: async () => ({ ready: true }),
-    });
-    artifacts.push(capture.image.path, capture.receipt);
-  } catch (error) {
-    if (!preflightComplete) {
-      try {
-        const body = `${JSON.stringify({
-          format_version: 1,
-          outcome: "failed",
-          scenario: scenarioId,
-          target,
-          label,
-          message: errorMessage(error),
-          preflight_complete: preflightComplete,
-          preflight_observation: lastObservation ?? null,
-          acceptance: false,
-        })}\n`;
-        if (new TextEncoder().encode(body).byteLength > 16 * 1024)
-          throw new Error("Capture failure metadata exceeds16KiB");
-        await writeFile(path.join(output, `${name}-capture-failure.json`), body, { flag: "wx" });
-      } catch {
-        /* Preserve the original failure and any existing settled-capture receipt. */
-      }
-    }
-    for (const suffix of [".png", "-capture-failure.json"]) {
-      const file = path.join(output, name + suffix);
-      try {
-        if ((await lstat(file)).isFile()) artifacts.push(file);
-      } catch {
-        /* no capture file was written */
-      }
-    }
-    throw error;
-  } finally {
-    await executeBrowserScript(
-      session,
-      (element, previous) => {
-        if (previous === null) element.removeAttribute("data-capture-target");
-        else element.setAttribute("data-capture-target", previous);
-      },
-      element,
-      previous,
-    ).catch(() => {
-      /* Preserve an original capture/route failure. */
-    });
-  }
 }
 
 async function selectSettingsTheme(theme: string) {
@@ -1485,19 +1458,21 @@ async function scenario(name: string, action: () => unknown) {
   if (failedDependency) {
     recordScenario(target, name, "not-run", {
       reason: `Prerequisite ${failedDependency} did not pass`,
+      duration_ms: null,
+      duration_scope: "scenario-action",
     });
     return;
   }
-  try {
-    await action();
-    recordScenario(target, name, "passed");
-  } catch (error) {
-    recordScenario(target, name, "failed", { message: errorMessage(error) });
-    await captureScenarioDiagnostics(name, target.setup);
-    process.exitCode = 1;
-    if (isUntrustworthyProbeError(error)) throw error;
-  }
-  if (!target.setup) await captureScenarioScreenshot(name);
+  await observeDesktopScenario(action, {
+    record: ({ outcome, ...details }) => {
+      recordScenario(target, name, outcome, { ...details, duration_scope: "scenario-action" });
+      if (outcome === "failed") process.exitCode = 1;
+    },
+    diagnostics: () => captureScenarioDiagnostics(name, target.setup),
+    screenshot: async () => {
+      if (!target.setup) await captureScenarioScreenshot(name);
+    },
+  });
 }
 
 async function connectObservedDriver() {
@@ -1568,7 +1543,7 @@ async function connectObservedDriver() {
     if (finishObservation) {
       const observation = await finishObservation();
       artifacts.push(...observation.artifacts);
-      setupChecks.push({
+      recordDesktopCheck(setupChecks, revision, {
         scenario: "session-startup-observation",
         outcome: observation.successful ? "passed" : "failed",
       });
@@ -1607,6 +1582,15 @@ async function connect() {
     async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
     30_000,
   );
+  if (executionPlan.fixtures.acquisitionJourney) {
+    const snapshot = path.join(
+      output,
+      `acquisition-connected-${connectedLaunches + 1}-processes.json`,
+    );
+    const captured = observeNativeSession("Snapshot", snapshot);
+    artifacts.push(snapshot);
+    ownedSession.bindApplication(captured, application);
+  }
   connectedLaunches++;
 }
 
@@ -1639,17 +1623,25 @@ async function restartApplication(
     await connect();
     return driverBrowser();
   }
-  if (savedLibraryRecoverySession || selectedSetupRestart || hostPublicationSession) {
-    if (!preferencesRecoverySession && !hostPublicationSession)
+  const acquisitionRestart = Boolean(executionPlan.fixtures.acquisitionJourney);
+  if (
+    savedLibraryRecoverySession ||
+    selectedSetupRestart ||
+    hostPublicationSession ||
+    acquisitionRestart
+  ) {
+    if (!preferencesRecoverySession && !hostPublicationSession && !acquisitionRestart)
       assert.equal(
         prepareWhileStopped,
         undefined,
         "Identity-bound restart cannot rewrite fixture state",
       );
-    const inventory = captureBackupFocusCleanup(selectedSetupRestart ? name : cleanupName);
+    const inventory = captureBackupFocusCleanup(
+      selectedSetupRestart || acquisitionRestart ? name : cleanupName,
+    );
     validateBackupFocusInventory(
       readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
-      selectedSetupRestart,
+      selectedSetupRestart || acquisitionRestart,
     );
     await required(browser).quit();
     browser = undefined;
@@ -1952,10 +1944,76 @@ interface RestartObservation {
   fixture_prepared_while_stopped?: boolean;
   reconnected_at?: string;
 }
+// Read-only identity evidence through the existing owned driver-tree observer.
+// An exact executable under the isolated library is required; no PID/name-only ownership.
+const acquisitionGameObserver: AcquisitionGameObserver = {
+  capture(game, name) {
+    assert.equal(process.platform, "win32");
+    assert.ok(executionPlan.fixtures.acquisitionJourney && identityBoundSession);
+    const { executable } = game;
+    const canonical = (value: string) =>
+      path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase();
+    const relative = path.relative(canonical(library), canonical(executable));
+    assert.ok(
+      relative && !relative.startsWith("..") && !path.isAbsolute(relative),
+      "Only an executable inside the owned fixture library may be observed",
+    );
+    const installed = path.relative(canonical(game.installation.path), canonical(executable));
+    assert.ok(
+      installed && !installed.startsWith("..") && !path.isAbsolute(installed),
+      "Observed game must belong to its exact expected installation",
+    );
+    ownedSession.game = { executable, installation: { ...game.installation } };
+    assert.match(name, /^[a-z0-9-]+$/u);
+    const deadline = performance.now() + 30_000;
+    const snapshot = path.join(output, `${name}-processes.json`);
+    // Cold observer startup and the Core session read share this bounded capture
+    // budget; other observations and cleanup retain their existing default.
+    const captured = observeNativeSession("SnapshotDriverTree", snapshot, undefined, 30_000);
+    artifacts.push(snapshot);
+    assert.deepEqual(captured.driver, ownedSession.driver, "Captured driver identity changed");
+    ownedSession.requireApplication(captured);
+    const candidates = captured.processes.filter(
+      (entry) => canonical(entry.path) === canonical(executable),
+    );
+    assert.ok(candidates.length <= 1, "Owned game executable has ambiguous live identities");
+    const identity = candidates[0];
+    // A supervisor can exist before its game and Core record publication. No capture qualifies yet.
+    if (!identity) return null;
+    validateBackupFocusInventory(captured, true, deadline);
+    if (!ownedSession.games.some((previous) => previous.installation.id === game.installation.id))
+      ownedSession.games.push({ executable, installation: { ...game.installation } });
+    return { identity, snapshot };
+  },
+  observe(game, name) {
+    assert.match(name, /^[a-z0-9-]+$/u);
+    const current = observeNativeSession("Observe", game.snapshot);
+    const gameProcess = current.processes.find(
+      (entry) =>
+        entry.pid === game.identity.pid &&
+        entry.path === game.identity.path &&
+        entry.started_filetime === game.identity.started_filetime,
+    );
+    assert.ok(
+      gameProcess,
+      "Exact captured game identity disappeared from its own observation inventory",
+    );
+    const receipt = path.join(output, `${name}-observation.json`);
+    writeFileSync(
+      receipt,
+      JSON.stringify({ identity: game.identity, observation: current }, null, 2) + "\n",
+      { flag: "wx" },
+    );
+    artifacts.push(receipt);
+    return gameProcess.state;
+  },
+};
+
 function observeNativeSession<Mode extends NativeSessionMode>(
   mode: Mode,
   snapshot: string,
   identity?: { applicationPid: number; parentPid: number; sha256: string },
+  timeoutMs = 10_000,
 ): NativeSessionObservations[Mode] {
   if (nativeAccount) {
     assert.equal(
@@ -1989,7 +2047,7 @@ function observeNativeSession<Mode extends NativeSessionMode>(
           ]
         : []),
     ],
-    { encoding: "utf8", windowsHide: true, timeout: 10_000 },
+    { encoding: "utf8", windowsHide: true, timeout: timeoutMs },
   );
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return readNativeSessionObservation(mode, JSON.parse(result.stdout));
@@ -2417,6 +2475,7 @@ try {
       preliminarySetupJourney: Boolean(executionPlan.fixtures.preliminarySetupJourney),
       hashResumeJourney: Boolean(executionPlan.fixtures.hashResumeJourney),
       completionJourney: executionPlan.fixtures.completionJourney,
+      acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
@@ -2901,11 +2960,11 @@ try {
     assert.ok(status.ok);
     assert.equal(status.value.filter((item) => item.active).length, 0);
     const firstCatalog = await browser.wait(
-      until.elementLocated(By.xpath('//h1[normalize-space(.)="Find games"]')),
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Discover"]')),
       15_000,
     );
     assert.equal(await firstCatalog.isDisplayed(), true);
-    assert.ok((await browser.findElements(By.css("button.port-card-selectable"))).length > 0);
+    assert.ok((await browser.findElements(By.css("button.discover-game-identity"))).length > 0);
     const connection = await browser.findElement(
       By.css('[aria-label="Connect your game files"] button'),
     );
@@ -2939,7 +2998,7 @@ try {
         typeof entryState.right === "number",
     );
     assert.ok(typeof viewport.height === "number" && typeof viewport.width === "number");
-    assert.equal(entryState.title, "Find games");
+    assert.equal(entryState.title, "Discover");
     assert.ok(entryState.top >= 0 && entryState.bottom <= viewport.height);
     assert.ok(entryState.left >= 0 && entryState.right <= viewport.width);
     const entryArtifact = path.join(output, "first-use-port-catalog-state.json");
@@ -3162,40 +3221,42 @@ try {
     assert.equal(path.resolve(required(original.library_root)), library);
     const alternate = path.join(output, "browsing-alternate-library");
     await mkdir(alternate);
-    await selectPrimaryNavigation(browser, "Find games");
+    await selectPrimaryNavigation(browser, "Discover");
     let search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    const catalog = await invoke("get_catalog");
-    assert.ok(catalog.ok);
-    const channelButton = (channel: string) =>
-      browser.findElement(
+    const workspace = transportValue(
+      "desktop_workspace_snapshot",
+      success(await invoke("get_workspace_snapshot", { generation: original.generation })),
+    );
+    const allPortIds = [
+      ...new Set([
+        ...workspace.catalog.ports.map((port) => port.id),
+        ...(workspace.listing_catalog?.listings.map((listing) => listing.id) ?? []),
+        ...(workspace.pending_setups?.map((setup) => setup.port_id) ?? []),
+      ]),
+    ].sort();
+    const channelButton = async (channel: string) => {
+      const panel = await openCatalogFilters(browser);
+      const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
+      return panel.findElement(
         By.xpath(
-          `//div[@aria-label="Release channel filters"]//button[normalize-space(.)="${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"}"]`,
+          `.//fieldset[legend[normalize-space(.)="Release channels"]]//button[contains(normalize-space(.),"${label}")]`,
         ),
       );
+    };
     const expectChannels = async (channels: string[]) => {
-      const expected = catalog.value.ports
-        .filter(
-          (port) =>
-            channels.length === 0 || port.channels.some((channel) => channels.includes(channel)),
-        )
-        .map((port) => port.id)
-        .sort();
+      const expected =
+        channels.length === 0
+          ? allPortIds
+          : workspace.catalog.ports
+              .filter((port) => port.channels.some((channel) => channels.includes(channel)))
+              .map((port) => port.id)
+              .sort();
       assert.ok(expected.length > 0, "Channel fixture must contain matching ports");
       await browser.wait(
-        async () => {
-          const ids = await executeBrowserScript(browser, () =>
-            [...document.querySelectorAll('[data-detail-origin^="catalog:card:"]')]
-              .map((card) => {
-                const origin = card.getAttribute("data-detail-origin");
-                if (origin === null) throw new Error("Catalog card lost its origin identity");
-                return origin.slice("catalog:card:".length);
-              })
-              .sort(),
-          );
-          return JSON.stringify(ids) === JSON.stringify(expected);
-        },
+        async () =>
+          JSON.stringify(await catalogResultPortIds(browser)) === JSON.stringify(expected),
         5_000,
-        `Catalog did not display the exact ${channels.join("+") || "All"} union once`,
+        `Discover did not display the exact ${channels.join("+") || "All"} matching-port union once`,
       );
       for (const channel of ["stable", "beta", "rolling"])
         assert.equal(
@@ -3203,51 +3264,54 @@ try {
           String(channels.includes(channel)),
         );
     };
+    await clearCatalogFilters(browser);
     await (await channelButton("stable")).click();
     await expectChannels(["stable"]);
-    const beta = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
-        ),
-      ),
-      15_000,
-    );
-    await beta.click();
+    await (await channelButton("beta")).click();
     await expectChannels(["stable", "beta"]);
     await (await channelButton("stable")).click();
     await expectChannels(["beta"]);
-    await beta.click();
+    await (await channelButton("beta")).click();
     await expectChannels([]);
     await (await channelButton("rolling")).click();
     await expectChannels(["rolling"]);
-    await (await channelButton("All")).click();
+    await clearCatalogFilters(browser);
     await expectChannels([]);
     await (await channelButton("stable")).click();
-    await beta.click();
+    await (await channelButton("beta")).click();
     await expectChannels(["stable", "beta"]);
     await search.sendKeys("zelda");
-    await browser.wait(
-      async () =>
-        (await browser.findElements(By.css('[data-detail-origin^="catalog:card:"]'))).length > 0,
-      5_000,
+    await reviewControls(browser).click(
+      By.xpath('//section[@aria-label="Filter options"]//button[normalize-space(.)="Done"]'),
     );
+    await browser.wait(async () => (await catalogResultPortIds(browser)).length > 0, 5_000);
     const sort = By.xpath('//button[@role="combobox"][contains(., "Sort")]');
     await browser.findElement(sort).click();
     await browser
       .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Name A–Z")]')), 5_000)
       .click();
-    const card = await browser.findElement(By.css('[data-detail-origin^="catalog:card:"]'));
+    const card = await browser.findElement(By.css(".discover-game-identity"));
     await executeBrowserScript(browser, "arguments[0].scrollIntoView({block:'center'});", card);
     const origin = await executeBrowserScript(
       browser,
-      (card) => ({
-        key: card.getAttribute("data-detail-origin"),
-        scroll: document.querySelector("main")?.scrollTop,
-      }),
+      (card) => {
+        const ids: unknown = JSON.parse(
+          card.closest(".discover-game")?.getAttribute("data-discover-matching-port-ids") ?? "[]",
+        );
+        if (!Array.isArray(ids)) throw new Error("Discover group lost its matching identities");
+        const candidates: unknown[] = ids;
+        const portId = candidates[0];
+        if (typeof portId !== "string" || !portId.length)
+          throw new Error("Discover group lost its first matching port identity");
+        return {
+          key: card.getAttribute("data-detail-origin"),
+          portId,
+          scroll: document.querySelector("main")?.scrollTop,
+        };
+      },
       card,
     );
-    await card.click();
+    await selectCatalogPort(browser, origin.portId);
     await browser.wait(until.elementLocated(By.css(".detail-back")), 15_000).click();
     await browser.wait(
       () =>
@@ -3384,26 +3448,23 @@ try {
       );
     };
     await switchTo(alternate, "library-picker-select-alternate", original.generation);
-    await selectPrimaryNavigation(browser, "Find games");
+    await selectPrimaryNavigation(browser, "Discover");
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
-    const alternateBeta = await browser.findElement(
-      By.xpath(
-        '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
-      ),
-    );
+    const alternateBeta = await channelButton("beta");
     assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
     const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
-    await selectPrimaryNavigation(browser, "Find games");
+    await selectPrimaryNavigation(browser, "Discover");
     const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await restoredSearch.getAttribute("value"), "zelda");
-    const restoredBeta = await browser.findElement(
-      By.xpath(
-        '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
-      ),
+    await browser.wait(
+      () => executeBrowserScript(browser, "return document.activeElement.id === 'port-search'"),
+      5_000,
+      "Saved catalog focus did not return after library data loaded",
     );
+    const restoredBeta = await channelButton("beta");
     assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "true");
     assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
@@ -3412,11 +3473,6 @@ try {
       async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
       15_000,
       "Restored catalog did not finish loading",
-    );
-    await browser.wait(
-      () => executeBrowserScript(browser, "return document.activeElement.id === 'port-search'"),
-      5_000,
-      "Saved catalog focus did not return after library data loaded",
     );
     await executeBrowserScript(
       browser,
@@ -3472,7 +3528,7 @@ try {
       );
       assert.deepEqual(
         labels.map((label) => label.text),
-        ["Library", "Find games", "Activity", "Settings"],
+        ["Library", "Discover", "Activity", "Settings"],
       );
       assert.ok(
         labels.every(
@@ -3673,11 +3729,37 @@ try {
       "Application update settings did not receive focus",
     );
 
-    await selectPrimaryNavigation(browser, "Find games");
+    await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
+    await clearCatalogFilters(browser);
+    const filters = await openCatalogFilters(browser);
+    const selectedFilter = await filters.findElement(
+      By.xpath(
+        './/fieldset[legend[normalize-space(.)="Release channels"]]//button[starts-with(normalize-space(.),"Stable (")]',
+      ),
+    );
+    await selectedFilter.sendKeys(Key.SPACE);
+    await browser.wait(
+      async () => (await selectedFilter.getAttribute("aria-pressed")) === "true",
+      5_000,
+      "Keyboard activation did not select the Stable channel filter",
+    );
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
     assert.equal(await selectedFilter.getAttribute("data-variant"), "selected");
+    await selectedFilter.sendKeys(Key.ESCAPE);
+    await browser.wait(
+      () =>
+        executeBrowserScript(browser, () => {
+          const active = document.activeElement;
+          return (
+            active instanceof HTMLButtonElement &&
+            active.textContent?.trim() === "Filters (1)" &&
+            active.getAttribute("aria-expanded") === "false"
+          );
+        }),
+      5_000,
+      "Escape did not close Filters and restore focus to its trigger",
+    );
     // WebDriver clear() can empty the DOM without committing React's query;
     // the next render then restores the previous scenario's search. Exercise
     // actual editing with a nonempty preimage, including on standalone runs.
@@ -3686,24 +3768,20 @@ try {
     assert.equal(await search.getAttribute("value"), "prior catalog query");
     await search.sendKeys(selectAll, "a", Key.NULL, Key.BACK_SPACE);
     await browser.wait(async () => (await search.getAttribute("value")) === "", 5_000);
-    const allChannels = await browser.findElement(
-      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]'),
-    );
-    await allChannels.click();
-    assert.equal(await allChannels.getAttribute("aria-pressed"), "true");
+    await clearCatalogFilters(browser);
     await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
     assert.equal(await search.getAttribute("value"), "Ghostship");
     await browser.wait(
       () =>
         executeBrowserScript(browser, () =>
-          [...document.querySelectorAll(".port-card")].some((card) =>
+          [...document.querySelectorAll(".discover-game-identity")].some((card) =>
             card.textContent?.includes("Ghostship"),
           ),
         ),
       15_000,
     );
     const origin = await executeBrowserScript(browser, () => {
-      const cards = [...document.querySelectorAll(".port-card")];
+      const cards = [...document.querySelectorAll(".discover-game-identity")];
       const card = cards.find((item) => item.textContent?.includes("Ghostship"));
       if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
       card.scrollIntoView({ block: "center", inline: "nearest" });
@@ -3740,7 +3818,7 @@ try {
       "Detail navigation did not focus the game heading",
     );
     const verifyDetailActionHierarchy = async () => {
-      await revealDetailSection(browser, "Files");
+      await revealDetailSection(browser, "Game files");
       const hierarchy = await executeBrowserScript(browser, () => {
         document
           .querySelector(".detail-hero")
@@ -3786,15 +3864,21 @@ try {
         /Choose the required game files before reviewing installation/u,
       );
       assert.match(required(hierarchy.requirement), /Super Mario 64 \(US\) source/u);
-      assert.deepEqual(hierarchy.tabs, ["Overview", "Files", "Saved data", "Versions"]);
-      assert.equal(hierarchy.selected, "Files");
+      assert.deepEqual(hierarchy.tabs, [
+        "Overview",
+        "Game files",
+        "Saves",
+        "Versions & updates",
+        "Manage",
+      ]);
+      assert.equal(hierarchy.selected, "Game files");
       assert.equal(hierarchy.action, "Set up game");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);
       assert.equal(hierarchy.actionVisible, true);
       assert.equal(hierarchy.horizontalOverflow, false);
-      assert.ok([144, 160, 240].includes(hierarchy.artwork.width));
+      assert.ok([0, 96, 128, 148].includes(hierarchy.artwork.width));
       assert.equal(hierarchy.artwork.height, hierarchy.artwork.width * 1.5);
       assert.deepEqual(hierarchy.futureChoices, [
         { title: "Folder for a future install", open: false },
@@ -3805,7 +3889,7 @@ try {
     await browser.manage().window().setRect({ width: 960, height: 640 });
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
-    await revealDetailSection(browser, "Files");
+    await revealDetailSection(browser, "Manage");
     const outputChoices = await browser.findElement(futureFolderSummary);
     const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
     await outputChoices.click();
@@ -3835,10 +3919,12 @@ try {
     await captureOutputDestinationReview("game-details");
     const draftPath = "C:\\Portcove-fixture\\Future-install";
     await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
+    await revealDetailSection(browser, "Game files");
     const sourceDraft = await browser.findElement(
       By.css('.requirements-body input[id^="source-"]'),
     );
     await sourceDraft.sendKeys("C:\\Portcove-fixture\\candidate.z64");
+    await revealDetailSection(browser, "Manage");
     await browser.wait(
       async () =>
         (await executeBrowserScript(
@@ -3850,7 +3936,9 @@ try {
       "the open future-folder editor closed after selecting game files",
     );
     assert.equal(await outputDraft.getAttribute("value"), draftPath);
+    await revealDetailSection(browser, "Game files");
     await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await revealDetailSection(browser, "Manage");
     await browser.wait(
       async () =>
         (await executeBrowserScript(
@@ -3890,7 +3978,7 @@ try {
       .findElement(By.id("port-search"))
       .sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
     await browser.wait(
-      async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+      async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
       15_000,
     );
 
@@ -3949,19 +4037,19 @@ try {
           }
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
-        await selectPrimaryNavigation(browser, "Find games");
+        await selectPrimaryNavigation(browser, "Discover");
         await browser.wait(
-          async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+          async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
           15_000,
         );
         const descriptions = await executeBrowserScript(browser, () => {
-          const cards = [...document.querySelectorAll(".port-card-selectable")].slice(0, 3);
+          const cards = [...document.querySelectorAll(".discover-game")].slice(0, 3);
           cards[0]?.scrollIntoView({ block: "center" });
           return {
             documentOverflow:
               document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
             items: cards.map((card) => {
-              const description = card.querySelector(".card-content > p.line-clamp-2");
+              const description = card.querySelector(".collection-title");
               const rect = description?.getBoundingClientRect();
               const style = description ? getComputedStyle(description) : null;
               return {
@@ -3977,14 +4065,13 @@ try {
         assert.equal(descriptions.items.length, 3);
         assert.ok(
           descriptions.items.every(
-            ({ text, visible, clamp, cardOverflow }) =>
-              text && visible && clamp === "2" && !cardOverflow,
+            ({ text, visible, cardOverflow }) => text && visible && !cardOverflow,
           ),
         );
         await captureScenarioScreenshot(`catalog-short-window-${theme}`);
 
         const themedOrigin = await executeBrowserScript(browser, () => {
-          const card = [...document.querySelectorAll(".port-card")].find((item) =>
+          const card = [...document.querySelectorAll(".discover-game-identity")].find((item) =>
             item.textContent?.includes("Ghostship"),
           );
           if (!(card instanceof HTMLElement)) throw new Error("Ghostship card is missing");
@@ -4009,6 +4096,7 @@ try {
             `game-details-missing-source-${theme}-${size.width}`,
             true,
           );
+          await revealDetailSection(browser, "Manage");
           const folderChoices = await browser.findElement(futureFolderSummary);
           await folderChoices.click();
           await captureOutputDestinationReview(`game-details-${theme}-${size.width}`);
@@ -4526,6 +4614,9 @@ try {
             interruptApplication,
             closeApplication,
             captureLivePreparation,
+            ...(executionPlan.fixtures.acquisitionJourney
+              ? { ownedGameProcess: acquisitionGameObserver }
+              : {}),
             chooseOwnedLibrary: nativeConfirmation({
               application,
               getDriverPid: () => required(required(driver).pid),
@@ -4550,7 +4641,7 @@ try {
               artifacts,
             }),
           recordKnownGap: (gap) =>
-            checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
+            recordChecks({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
         },
       },
       {
@@ -4596,7 +4687,7 @@ try {
       });
   }
 } catch (error) {
-  checks.push({
+  recordChecks({
     scenario: "harness",
     outcome: "failed",
     message: errorMessage(error),
@@ -4625,6 +4716,12 @@ try {
         if (browser)
           await browser.quit().catch((error) => {
             quitFailure = { error };
+            recordChecks({
+              scenario: "native-linux-session-quit",
+              outcome: "failed",
+              message: errorMessage(error),
+            });
+            process.exitCode = 1;
           });
         browser = undefined;
         await stopDriver();
@@ -4636,6 +4733,12 @@ try {
       } catch (error) {
         cleanupError = error;
         cleanupFailed = true;
+        recordChecks({
+          scenario: "native-linux-owned-cleanup",
+          outcome: "failed",
+          message: errorMessage(error),
+        });
+        process.exitCode = 1;
       }
       if (cleanupFailed || quitFailure) {
         const failure = cleanupFailed ? cleanupError : required(quitFailure).error;
@@ -4647,12 +4750,6 @@ try {
           { flag: "wx" },
         );
         artifacts.push(evidence);
-        checks.push({
-          scenario: "native-linux-owned-cleanup",
-          outcome: "failed",
-          message: errorMessage(failure),
-        });
-        process.exitCode = 1;
       }
     } else if (identityBoundSession) {
       try {
@@ -4661,6 +4758,12 @@ try {
         if (browser)
           await browser.quit().catch((error) => {
             quitFailure = { error };
+            recordChecks({
+              scenario: "native-backup-session-quit",
+              outcome: "failed",
+              message: errorMessage(error),
+            });
+            process.exitCode = 1;
           });
         browser = undefined;
         await stopDriver();
@@ -4679,16 +4782,8 @@ try {
           { flag: "wx" },
         );
         artifacts.push(report);
-        if (quitFailure) {
-          checks.push({
-            scenario: "native-backup-session-quit",
-            outcome: "failed",
-            message: errorMessage(quitFailure.error),
-          });
-          process.exitCode = 1;
-        }
       } catch (error) {
-        checks.push({
+        recordChecks({
           scenario: "native-backup-owned-cleanup",
           outcome: "failed",
           message: errorMessage(error),
@@ -4719,6 +4814,12 @@ try {
         if (browser)
           await browser.quit().catch((error) => {
             quitFailure = { error };
+            recordChecks({
+              scenario: "native-history-session-quit",
+              outcome: "failed",
+              message: errorMessage(error),
+            });
+            process.exitCode = 1;
           });
         browser = undefined;
         await stopDriver();
@@ -4734,13 +4835,8 @@ try {
           { flag: "wx" },
         );
         artifacts.push(report);
-        assert.equal(
-          quitFailure,
-          undefined,
-          "History session deletion failed; preserve its cleanup receipt",
-        );
       } catch (error) {
-        checks.push({
+        recordChecks({
           scenario: "native-history-owned-cleanup",
           outcome: "failed",
           message: errorMessage(error),
@@ -4761,7 +4857,7 @@ try {
         "Executable changed during the run; discard its scenario claims.",
       );
     } catch (error) {
-      checks.push({
+      recordChecks({
         scenario: "executable-identity",
         outcome: "failed",
         message: errorMessage(error),
@@ -4773,7 +4869,7 @@ try {
     artifacts.push(log);
     for (const name of selection.selected_scenarios) {
       if (!checks.some((check) => check.scenario === name))
-        checks.push({
+        recordChecks({
           scenario: name,
           outcome: "not-run",
           reason: "The harness ended before this selected scenario ran",
@@ -4885,7 +4981,7 @@ async function cleanupFailedDriverLaunch() {
     try {
       await stopDriver();
     } catch (cleanupError) {
-      checks.push({
+      recordChecks({
         scenario: "native-driver-launch-cleanup",
         outcome: "failed",
         message: errorMessage(cleanupError),

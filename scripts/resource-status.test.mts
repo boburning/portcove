@@ -6,6 +6,38 @@ import path from "node:path";
 import test from "node:test";
 import { collectResourceStatus } from "./resource-status.mts";
 import { writeFileSync } from "node:fs";
+import { parsePressure, parseDiskStats, sampleHostObservations } from "./resource-observations.mts";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+void test("resource status CLI renders its collected I/O observation without requiring JSON", () => {
+  const output = execFileSync(
+    process.execPath,
+    [fileURLToPath(new URL("./resource-status.mts", import.meta.url)), "--sample-seconds", "0"],
+    { encoding: "utf8", timeout: 40_000, maxBuffer: 64 * 1024 },
+  );
+  assert.match(output, /Host I\/O: (?:recorded|unavailable); 1 sample/u);
+  assert.match(output, /unregistered runners are unobserved/u);
+});
+
+void test("host I/O observations preserve counters and reject malformed or incomplete data", async () => {
+  assert.deepEqual(parsePressure("some avg10=1.25 avg60=2 avg300=3 total=900\n"), {
+    some: { avg10: 1.25, avg60: 2, avg300: 3, total: 900 },
+  });
+  assert.throws(() => parsePressure("some avg10=0"), /Incomplete/u);
+  assert.throws(() => parsePressure("some avg10=NaN avg60=0 avg300=0 total=0"), /Invalid/u);
+  const [disk] = parseDiskStats("8 0 sda 10 0 20 30 40 0 50 60 2 70 80");
+  assert.equal(disk?.read_sectors, 20);
+  assert.equal(disk?.weighted_queue_ms, 80);
+  assert.throws(() => parseDiskStats("8 0 sda 1"), /Incomplete/u);
+  await assert.rejects(sampleHostObservations(61), /0 to 60/u);
+  const sampled = await sampleHostObservations(0);
+  assert.equal(sampled.samples.length, 1);
+  assert.ok(sampled.samples[0]?.observed_at);
+  const cancellation = new AbortController();
+  cancellation.abort();
+  await assert.rejects(sampleHostObservations(1, cancellation.signal), { name: "AbortError" });
+});
 
 void test("PID reuse is observed without reclaiming the recorded lock", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "resource-status-"));

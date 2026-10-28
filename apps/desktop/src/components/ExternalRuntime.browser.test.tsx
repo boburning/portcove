@@ -147,8 +147,8 @@ it("retains external launch drafts across detail tabs and reviews the same targe
   await page
     .getByRole("textbox", { name: "Working directory", exact: true })
     .fill("C:/Player/Retained directory");
-  await page.getByRole("tab", { name: "Versions", exact: true }).click();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
   await expect
     .element(page.getByRole("textbox", { name: "Working directory", exact: true }))
     .toHaveValue("C:/Player/Retained directory");

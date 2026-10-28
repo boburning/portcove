@@ -1,9 +1,15 @@
 param(
     [Parameter(Mandatory)][string]$Configuration,
     [Parameter(Mandatory)][ValidatePattern('^[a-f0-9]{64}$')][string]$ExpectedConfigurationSha256,
-    [Parameter(Mandatory)][ValidatePattern('^[a-f0-9]{64}$')][string]$InvocationId
+    [Parameter(Mandatory)][ValidatePattern('^[a-f0-9]{64}$')][string]$InvocationId,
+    [object]$HostedMemoryContext = $null
 )
 $ErrorActionPreference = 'Stop'
+$hostedMode = $null -ne $HostedMemoryContext
+if ($hostedMode) {
+    $hostedCandidateExecutionAuthorized = $false
+    if (-not $hostedCandidateExecutionAuthorized) { throw 'Hosted memory bridge awaits separate candidate execution authority' }
+}
 
 # This is fixed owner-side launch plumbing, not an acceptance report importer.
 # It receives no issuer credential and never produces a CheckRun.
@@ -77,7 +83,10 @@ function Save-State([string]$Phase, [string]$Failure = '') {
         broker_pid=$PID; broker_created_filetime=([Diagnostics.Process]::GetCurrentProcess().StartTime.ToFileTimeUtc().ToString()); sequence=$sequence;
         observed_at=[DateTime]::UtcNow.ToString('o'); phase=$Phase; failure=$Failure;
         roots=$records; group_remaining_pids=@($group.RemainingPids()); native_acceptance='not-established' }
-    [IO.File]::WriteAllText((Join-Path $configurationValue.capture_root 'bridge-state.json'), ($state | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+    $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($state|ConvertTo-Json -Depth 8 -Compress))
+    if($bytes.Length -gt 65536){throw 'Native bridge state exceeds readback bound'}
+    $file=[IO.FileStream]::new((Join-Path $configurationValue.capture_root 'bridge-state.json'),[IO.FileMode]::Create,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{$file.Write($bytes);$file.Flush($true)}finally{$file.Dispose()}
 }
 function Assert-CaptureHealthy {
     foreach ($process in $roots.Values) { $process.RefuseFaultedCapture() }
@@ -104,7 +113,7 @@ if ($configurationValue.helper_sha256 -cnotmatch '^[a-f0-9]{64}$' -or
 Assert-OwnerFile $configurationValue.capture_root
 if (-not (Get-Acl -LiteralPath $configurationValue.capture_root).AreAccessRulesProtected) { throw 'Capture inheritance is not protected' }
 if (Test-Path -LiteralPath (Join-Path $configurationValue.capture_root 'bridge-state.json')) { throw 'Retained bridge invocation cannot be repeated' }
-Add-Type -TypeDefinition (Get-Content -LiteralPath $helper -Raw)
+if (-not $hostedMode -or -not ('Portcove.NativeQualification.AccountLauncher' -as [type])) { Add-Type -TypeDefinition (Get-Content -LiteralPath $helper -Raw) }
 $config = [Portcove.NativeQualification.AccountConfiguration]::new()
 $config.UserName=$configurationValue.account_name; $config.AccountSid=$configurationValue.account_sid; $config.BrokerSid=$owner
 if($configurationValue.schema_version -eq 2){$config.CredentialPurpose=[Portcove.NativeQualification.AccountCredentialPurpose]::OrdinaryPublicProof}
@@ -113,13 +122,45 @@ $config.PrivateDesktop='PortcoveNative_' + $InvocationId.Substring(0,32) + '\Qua
 $roots = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
 $launchIdentities = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
 $captureLengths = [Collections.Generic.Dictionary[string,long]]::new([StringComparer]::OrdinalIgnoreCase)
-$group = [Portcove.NativeQualification.AccountLauncher]::CreateGroup($config)
+if ($hostedMode) {
+    if ($HostedMemoryContext -isnot [hashtable]) { throw 'Original in-process hosted memory context required' }
+    $hostedMemory = $HostedMemoryContext.Clone()
+    if (
+        (@($hostedMemory.Keys | Sort-Object) -join ',') -cne $(if($hostedMemory.ContainsKey('diagnostic')){'configuration,credential,deadline_ticks,desktop_name,diagnostic,frequency,group,helper_sha256,owner_created_filetime,owner_pid'}else{'configuration,credential,deadline_ticks,desktop_name,frequency,group,helper_sha256,owner_created_filetime,owner_pid'}) -or
+        $hostedMemory.credential -isnot [Security.SecureString] -or
+        -not $hostedMemory.credential.IsReadOnly() -or
+        $hostedMemory.configuration -isnot [Portcove.NativeQualification.AccountConfiguration] -or
+        $hostedMemory.group -isnot [Portcove.NativeQualification.AccountGroup] -or
+        $hostedMemory.helper_sha256 -cne $configurationValue.helper_sha256 -or
+        $hostedMemory.owner_pid -ne $PID -or
+        $hostedMemory.owner_created_filetime -cne ([Diagnostics.Process]::GetCurrentProcess().StartTime.ToFileTimeUtc().ToString()) -or
+        $hostedMemory.deadline_ticks -isnot [long] -or
+        $hostedMemory.frequency -isnot [long] -or
+        $hostedMemory.frequency -ne [Diagnostics.Stopwatch]::Frequency -or
+        $hostedMemory.deadline_ticks -le [Diagnostics.Stopwatch]::GetTimestamp() -or
+        $hostedMemory.deadline_ticks - [Diagnostics.Stopwatch]::GetTimestamp() -gt 570L * [Diagnostics.Stopwatch]::Frequency -or
+        $hostedMemory.desktop_name -cnotmatch '^PortcoveHosted_[a-f0-9]{32}$') { throw 'Original in-process hosted memory context required' }
+    if($hostedMemory.ContainsKey('diagnostic') -and $hostedMemory.diagnostic -isnot [bool]){throw 'Fixed diagnostic memory scope required'}
+    $memoryConfig = $hostedMemory.configuration
+    foreach ($field in @('UserName','AccountSid','BrokerSid','ProfileRoot','WorkRoot')) {
+        if ($memoryConfig.$field -cne $config.$field) { throw 'Hosted memory account context differs' }
+    }
+    $group = $hostedMemory.group
+    $hostedDeadlineTicks = [long]$hostedMemory.deadline_ticks
+    $hostedDesktopName = [string]$hostedMemory.desktop_name
+    $hostedCredential = $hostedMemory.credential
+} else { $group = [Portcove.NativeQualification.AccountLauncher]::CreateGroup($config) }
+function Assert-BridgeDeadline {
+    if ($hostedMode) {
+        if ([Diagnostics.Stopwatch]::GetTimestamp() -ge $hostedDeadlineTicks) { throw 'Original hosted bridge deadline exhausted' }
+    } elseif ($clock.Elapsed.TotalSeconds -ge 1800) { throw 'Native bridge fixed 1800-second deadline reached' }
+}
 $credential = $null; $pipe = $null; $groupStopped = $false; $finished = $false
 $clock = [Diagnostics.Stopwatch]::StartNew()
 $sequence=0
 try {
     Save-State 'prepared'
-    $credential = [Portcove.NativeQualification.AccountLauncher]::ReadAccountCredential($config)
+    $credential = if ($hostedMode) { $hostedCredential } else { [Portcove.NativeQualification.AccountLauncher]::ReadAccountCredential($config) }
     # One owner-only connection per command. Candidate roots have null stdin and
     # never receive this pipe name in their explicit environment.
     for ($sequence = 1; $sequence -le 512; $sequence++) {
@@ -129,7 +170,7 @@ try {
         $waiting = $pipe.WaitForConnectionAsync()
         while (-not $waiting.IsCompleted) {
             Assert-CaptureHealthy
-            if ($clock.Elapsed.TotalSeconds -ge 1800) { throw 'Native bridge fixed 1800-second deadline reached' }
+            Assert-BridgeDeadline
             Start-Sleep -Milliseconds 25
         }
         $waiting.GetAwaiter().GetResult()
@@ -137,9 +178,11 @@ try {
         $commandClock = [Diagnostics.Stopwatch]::StartNew()
         while (-not $reading.IsCompleted) {
             Assert-CaptureHealthy
-            if ($commandClock.Elapsed.TotalSeconds -ge 5 -or $clock.Elapsed.TotalSeconds -ge 1800) { throw 'Incomplete bridge command deadline reached' }
+            if ($commandClock.Elapsed.TotalSeconds -ge 5) { throw 'Incomplete bridge command deadline reached' }
+            Assert-BridgeDeadline
             Start-Sleep -Milliseconds 25
         }
+        Assert-BridgeDeadline
         $request = $reading.GetAwaiter().GetResult() | ConvertFrom-Json
         Assert-ExactMembers $request @('schema_version','invocation_id','sequence','operation','id','launch','target')
         if ($request.schema_version -ne 1 -or $request.invocation_id -cne $InvocationId -or $request.sequence -ne $sequence -or $request.id -cnotmatch '^[a-z][a-z0-9-]{0,63}$') { throw 'Bridge command identity mismatch' }
@@ -158,7 +201,10 @@ try {
                     if ($property.Value -isnot [string]) { throw 'Native environment must contain explicit strings' }
                     $environment.Add($property.Name,$property.Value)
                 }
-                $process=[Portcove.NativeQualification.AccountLauncher]::StartVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis)
+                Assert-BridgeDeadline
+                $process = if ($hostedMode) {
+                    $(if($hostedMemory.ContainsKey('diagnostic') -and $hostedMemory.diagnostic){[Portcove.NativeQualification.AccountLauncher]::StartHostedDiagnosticCandidateVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis,$hostedDesktopName)}else{[Portcove.NativeQualification.AccountLauncher]::StartHostedCandidateVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis,$hostedDesktopName)})
+                } else { [Portcove.NativeQualification.AccountLauncher]::StartVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis) }
                 $roots.Add($request.id,$process)
                 # This digest is bound by StartVerifiedInGroup's deny-write /
                 # delete handle through suspended creation and resume. Retain
@@ -172,7 +218,7 @@ try {
                 $exited=$process.HasExited
                 $identities=@($process.SnapshotOwnedJob() | ForEach-Object { [ordered]@{ pid=$_.Pid; path=$_.Path; started_filetime=$_.CreatedFileTime.ToString() } })
                 $value=[ordered]@{ exited=$exited; exit_code=$(if ($exited) {$process.ExitCode} else {$null}); processes=$identities;
-                    responding=$process.Responding; window_title=$process.MainWindowTitle; window_handle=$process.MainWindowHandle.ToInt64().ToString() }
+                    responding=$(if ($hostedMode) {$process.HostedResponding} else {$process.Responding}); window_title=$process.MainWindowTitle; window_handle=$process.MainWindowHandle.ToInt64().ToString() }
             }
             'window' {
                 if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id) -or $null -eq $request.target) { throw 'Unknown native window root/target' }
@@ -214,6 +260,7 @@ try {
                     if (-not $observed.RootExited -or -not $observed.JobEmpty) { throw 'Native root teardown remains incomplete' }
                     if (-not [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($process.Output,$process.ErrorOutput),5000)) { throw 'Native pipe completion remains incomplete' }
                     $process.RefuseFaultedCapture()
+                    if ($hostedMode -and -not $process.DrainHostedObserver(5000)) { throw 'Hosted bridge observer has not drained' }
                 }
                 $finished=$true; $value=[ordered]@{ group_empty=$true; roots=$roots.Count }
             }
@@ -240,7 +287,7 @@ try {
     if ($pipe) { $pipe.Dispose() }
     # Credential release and success are different: only a complete actual stage
     # with positive teardown may obtain a distinct issuer credential later.
-    if ($credential) { $credential.Dispose() }
+    if ($credential -and -not $hostedMode) { $credential.Dispose() }
     foreach ($process in $roots.Values) { $process.Dispose() }
-    $group.Dispose()
+    if (-not $hostedMode) { $group.Dispose() }
 }

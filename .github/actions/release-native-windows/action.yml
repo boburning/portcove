@@ -1,0 +1,43 @@
+name: Fixed same-job Windows native proof handoff
+description: Held original Windows owner through both public uploads; no execution or release authority
+inputs:
+  stage:
+    description: Fixed pre-sign or post-sign literal; caller establishes actual prerequisites
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Start the original Windows owner once
+      if: inputs.stage == 'pre-sign'
+      shell: pwsh
+      env:
+        PORTCOVE_NATIVE_STAGE: ${{ inputs.stage }}
+      run: node scripts/release-hosted-native-workflow.mts windows-start $env:PORTCOVE_NATIVE_STAGE
+    - id: ready
+      name: Read only the original Windows owner's bounded public upload request
+      shell: pwsh
+      env:
+        PORTCOVE_NATIVE_STAGE: ${{ inputs.stage }}
+      run: node scripts/release-hosted-native-workflow.mts windows-request $env:PORTCOVE_NATIVE_STAGE
+    - id: upload
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.ready.outputs.name }}
+        path: ${{ steps.ready.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - name: Bind the exact Windows upload response without retry
+      shell: pwsh
+      env:
+        PORTCOVE_NATIVE_STAGE: ${{ inputs.stage }}
+        PORTCOVE_NATIVE_REQUEST_SHA256: ${{ steps.ready.outputs.request_sha256 }}
+        PORTCOVE_NATIVE_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        PORTCOVE_NATIVE_ARTIFACT_SHA256: ${{ steps.upload.outputs.artifact-digest }}
+      run: node scripts/release-hosted-native-workflow.mts windows-ack $env:PORTCOVE_NATIVE_STAGE
+    - name: Require original provider readback and matching owner settlement
+      shell: pwsh
+      env:
+        PORTCOVE_NATIVE_STAGE: ${{ inputs.stage }}
+      run: node scripts/release-hosted-native-workflow.mts windows-settle $env:PORTCOVE_NATIVE_STAGE

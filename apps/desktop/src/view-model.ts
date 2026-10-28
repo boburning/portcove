@@ -198,7 +198,7 @@ export function formatCountMessage(
 export type View = "library" | "catalog" | "updates" | "settings";
 export type DetailDestination = "updates" | "saves";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
-export type CatalogSort = "catalog" | "name" | "installed-first";
+export type CatalogSort = "catalog" | "name" | "name-desc" | "recent" | "installed-first";
 export type PortReadiness =
   | "available"
   | "ready"
@@ -364,7 +364,15 @@ export function mostRecentPort(
 ): RecentPort | undefined {
   return ports.reduce<RecentPort | undefined>((recent, port) => {
     const status = statuses.get(port.id);
-    if ((!status?.active && !status?.external_runtime) || !status.last_launched_at) return recent;
+    if (
+      (!status?.active && !status?.external_runtime) ||
+      !status.last_launched_at ||
+      port.pendingSetup ||
+      status.readiness?.launchable !== true ||
+      status.readiness.blockers.length > 0 ||
+      portActionPresentation(status, "launch").blocked
+    )
+      return recent;
     if (!recent || status.last_launched_at > (recent.status.last_launched_at ?? 0))
       return { port, status };
     return recent;
@@ -448,11 +456,17 @@ export function filterPorts(
   const candidates = ports.filter(
     (port) =>
       visibleInView(port, selectedStatuses, view) &&
-      matchesFilter(selectedStatuses.get(port.id), legacyFilter, Boolean(port.pendingSetup)) &&
-      searchableText(port).includes(normalizedQuery),
+      matchesFilter(selectedStatuses.get(port.id), legacyFilter, Boolean(port.pendingSetup)),
   );
-  const visible = evaluateCatalogQuery(candidates, structuredQuery, context).ports;
-  if (view !== "catalog" || (catalogSort === "catalog" && !context.devicePlatform)) return visible;
+  const visible = evaluateCatalogQuery(candidates, structuredQuery, {
+    ...context,
+    catalogUniverse: context.catalogUniverse ?? ports,
+  }).ports.filter((port) => searchableText(port).includes(normalizedQuery));
+  if (
+    (view !== "catalog" && view !== "library") ||
+    (catalogSort === "catalog" && !context.devicePlatform)
+  )
+    return visible;
   return visible
     .map((port, index) => ({ port, index }))
     .sort((left, right) => {
@@ -460,22 +474,26 @@ export function filterPorts(
         catalogSort === "catalog"
           ? catalogRank(left.port, selectedStatuses.get(left.port.id), context.devicePlatform) -
             catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
-          : catalogSort === "name"
-            ? gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
+          : catalogSort === "name" || catalogSort === "name-desc"
+            ? (catalogSort === "name-desc" ? -1 : 1) *
+              gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
                 sensitivity: "base",
               })
-            : Number(
-                Boolean(
-                  selectedStatuses.get(right.port.id)?.active ||
-                  selectedStatuses.get(right.port.id)?.external_runtime,
-                ),
-              ) -
-              Number(
-                Boolean(
-                  selectedStatuses.get(left.port.id)?.active ||
-                  selectedStatuses.get(left.port.id)?.external_runtime,
-                ),
-              );
+            : catalogSort === "recent"
+              ? (selectedStatuses.get(right.port.id)?.last_launched_at ?? 0) -
+                (selectedStatuses.get(left.port.id)?.last_launched_at ?? 0)
+              : Number(
+                  Boolean(
+                    selectedStatuses.get(right.port.id)?.active ||
+                    selectedStatuses.get(right.port.id)?.external_runtime,
+                  ),
+                ) -
+                Number(
+                  Boolean(
+                    selectedStatuses.get(left.port.id)?.active ||
+                    selectedStatuses.get(left.port.id)?.external_runtime,
+                  ),
+                );
       return comparison || left.index - right.index;
     })
     .map(({ port }) => port);

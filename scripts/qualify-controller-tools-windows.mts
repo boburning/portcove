@@ -1,9 +1,11 @@
 /** Credential-free source/tool qualification. Never a native or protected producer. */
+import { nativeQualificationWorkerPath } from "./release-native-qualification-contract.mts";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { openSync, closeSync } from "node:fs";
+import { openSync, closeSync, constants } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, writeFile, lstat } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile, lstat, open } from "node:fs/promises";
+import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,9 +22,13 @@ import {
 } from "./release-controller-tools.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { qualifyNativePnpmRuntime } from "./release-pnpm-runtime.mts";
+import { inspectWindowsWebviewDriverProof } from "./release-windows-webview-driver.mts";
 import {
   inspectNativeRuntimeCustody,
   recheckNativeRuntimeCustody,
+  inspectWindowsSourceSystemCustody,
+  recheckWindowsSourceSystemCustody,
+  windowsSourceSystemExecutables,
 } from "./release-native-runtime-custody.mts";
 import { readCatalogCoreMachineEnvelope } from "./release-catalog-inspection.mts";
 import {
@@ -35,7 +41,18 @@ import { runRustTests } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { isRecord } from "./runtime-values.mts";
 import { isDeepStrictEqual } from "node:util";
+import { performance } from "node:perf_hooks";
+import {
+  inspectWindowsNativeDependencyInputs,
+  snapshotWindowsNativeDependencies,
+} from "./release-hosted-native-windows-dependency-files.mts";
+import {
+  hostedWindowsDependencyPreparationMilliseconds,
+  inspectWindowsNativeSourceTree,
+  verifyWindowsNativeSourceFiles,
+} from "./release-hosted-native-windows-source.mts";
 import { observeWindowsAccountCommand } from "./release-hosted-native-windows-observation.mts";
+import { inspectSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
 
 // The single dedicated-account qualification was consumed in 40366111230/1.
 // Ordinary tool builds cannot renew that execution grant.
@@ -80,6 +97,149 @@ function assertHostedWindowsSource(source: string, expected: { commit: string; t
   );
 }
 
+/** Same-job prerequisite observations only. These public data cannot authorize
+ * a candidate, reconstruct a native session or establish a loaded engine. */
+export async function prepareHostedWindowsFixtureRuntime(
+  source: string,
+  sourceIdentity: { commit: string; tree: string },
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  const expected = Object.freeze({ ...sourceIdentity });
+  const context = {
+    source: environment.FIXTURE_SOURCE_SHA,
+    event: environment.GITHUB_EVENT_NAME,
+    job: environment.GITHUB_JOB,
+    workflow: environment.GITHUB_WORKFLOW_REF,
+    run_id: environment.GITHUB_RUN_ID,
+    attempt: environment.GITHUB_RUN_ATTEMPT,
+  };
+  assert.equal(context.source, expected.commit);
+  assert.match(expected.commit, /^[a-f0-9]{40}$/u);
+  assert.match(expected.tree, /^[a-f0-9]{40}$/u);
+  assert.equal(context.job, "windows-tools");
+  assert.ok(
+    (context.event === "push" &&
+      context.workflow ===
+        "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/main") ||
+      (context.event === "pull_request" &&
+        typeof context.workflow === "string" &&
+        /^boburning\/portcove\/\.github\/workflows\/controller-tool-build-fixture\.yml@refs\/pull\/[1-9][0-9]*\/merge$/u.test(
+          context.workflow,
+        )),
+    "original Windows fixture workflow required",
+  );
+  assert.ok(context.run_id && /^[1-9][0-9]{0,15}$/u.test(context.run_id));
+  assert.ok(context.attempt && /^[1-9][0-9]{0,5}$/u.test(context.attempt));
+  const unchanged = () => {
+    assert.deepEqual(
+      {
+        source: environment.FIXTURE_SOURCE_SHA,
+        event: environment.GITHUB_EVENT_NAME,
+        job: environment.GITHUB_JOB,
+        workflow: environment.GITHUB_WORKFLOW_REF,
+        run_id: environment.GITHUB_RUN_ID,
+        attempt: environment.GITHUB_RUN_ATTEMPT,
+      },
+      context,
+      "original Windows runtime context changed",
+    );
+    assertHostedWindowsSource(source, expected);
+  };
+  const read = async (relative: string) => {
+    const filename = await assertOwnedUnlinkedPath(
+        source,
+        path.join(source, relative),
+        "Windows fixture runtime input",
+      ),
+      before = await lstat(filename, { bigint: true });
+    assert.ok(before.isFile() && !before.isSymbolicLink() && before.nlink === 1n);
+    const bytes = await readControllerToolFile(filename, 65536);
+    const after = await lstat(filename, { bigint: true });
+    for (const key of ["dev", "ino", "mode", "size", "nlink", "mtimeNs", "ctimeNs"] as const)
+      assert.equal(after[key], before[key], "Windows fixture runtime input changed during read");
+    await assertOwnedUnlinkedPath(source, filename, "Windows fixture runtime input");
+    return { relative, bytes, identity: before };
+  };
+  unchanged();
+  const floor = await read("apps/desktop/src-tauri/src/runtime_support.rs"),
+    input = await read("work/hosted-continuity-evidence/windows-runtime.json");
+  unchanged();
+  const { raw, minimum, observed, before, installed, observation, phases } =
+    inspectSupportedHostedWindowsRuntimeInput(floor.bytes, input.bytes, context);
+  const identity = (file: typeof input) => ({
+    path: file.relative,
+    bytes: file.bytes.length,
+    sha256: createHash("sha256").update(file.bytes).digest("hex"),
+  });
+  const report = {
+    source: expected,
+    workflow: context.workflow,
+    event: context.event,
+    job: context.job,
+    run_id: context.run_id,
+    attempt: context.attempt,
+    input: identity(input),
+    floor_source: identity(floor),
+    minimum,
+    version: observed,
+    before,
+    installed,
+    exit_code: installed ? 0 : null,
+    ...(installed
+      ? { installer_sha256: raw.installer_sha256, signer_thumbprint: raw.signer_thumbprint }
+      : {}),
+    observation: { elapsed_milliseconds: Number(observation.elapsed_milliseconds), phases },
+    scope: "same-job Windows runtime prerequisite; no loaded engine or native acceptance",
+    authority: "none",
+  };
+  let stopped = false;
+  const recheck = async () => {
+    assert.ok(!stopped, "original Windows fixture runtime input stopped; retain original attempt");
+    try {
+      unchanged();
+      for (const original of [floor, input]) {
+        const current = await read(original.relative);
+        assert.ok(
+          current.bytes.equals(original.bytes),
+          "original Windows runtime input bytes changed",
+        );
+        for (const key of ["dev", "ino", "mode", "size", "nlink", "mtimeNs", "ctimeNs"] as const)
+          assert.equal(
+            current.identity[key],
+            original.identity[key],
+            "original Windows runtime input identity changed",
+          );
+      }
+      unchanged();
+    } catch (error) {
+      stopped = true;
+      throw error;
+    }
+  };
+  await recheck();
+  return Object.freeze({ version: observed, minimum, report, recheck });
+}
+
+export async function joinHostedWindowsFixtureRuntime(
+  runtime: Awaited<ReturnType<typeof prepareHostedWindowsFixtureRuntime>>,
+  driverVersion: string,
+) {
+  await runtime.recheck();
+  assert.equal(
+    driverVersion,
+    runtime.version,
+    "authenticated Windows driver differs from original runtime input",
+  );
+  return {
+    runtime_input: runtime.report.input,
+    runtime_version: runtime.version,
+    minimum_version: runtime.minimum,
+    driver_version: driverVersion,
+    scope: "exact runtime/driver prerequisite version join; candidate engine not observed",
+    authority: "none",
+  };
+}
+
 export const hostedWindowsAccountSourcePaths = Object.freeze([
   "scripts/release-hosted-native-windows-setup.ps1",
   "scripts/release-hosted-native-windows-setup.cs.txt",
@@ -90,6 +250,52 @@ export const hostedWindowsAccountSourcePaths = Object.freeze([
 ] as const);
 
 /** Source-only inert diagnostic inputs, never a controller-tool manifest. */
+/** Bounded raw fixture evidence, including oversized output; no provenance. */
+export async function readWindowsFixtureStreamPrefix(root: string, name: string) {
+  const filename = await assertOwnedUnlinkedPath(
+      root,
+      path.join(root, name),
+      "Windows fixture stream",
+    ),
+    before = await lstat(filename, { bigint: true });
+  assert.ok(
+    before.isFile() &&
+      !before.isSymbolicLink() &&
+      before.nlink === 1n &&
+      before.size <= BigInt(Number.MAX_SAFE_INTEGER),
+  );
+  const handle = await open(
+    filename,
+    constants.O_RDONLY | (process.platform === "win32" ? 0 : constants.O_NOFOLLOW),
+  );
+  const same = (info: typeof before) => {
+    for (const key of ["dev", "ino", "mode", "size", "nlink", "mtimeNs", "ctimeNs"] as const)
+      assert.equal(info[key], before[key], "Windows fixture stream changed");
+  };
+  try {
+    same(await handle.stat({ bigint: true }));
+    const bytes = Buffer.alloc(Number(before.size < 16384n ? before.size : 16384n));
+    let count = 0;
+    while (count < bytes.length) {
+      const { bytesRead } = await handle.read(bytes, count, bytes.length - count, null);
+      assert.ok(bytesRead > 0, "Windows fixture prefix shortened");
+      count += bytesRead;
+    }
+    same(await handle.stat({ bigint: true }));
+    same(await lstat(filename, { bigint: true }));
+    await assertOwnedUnlinkedPath(root, filename, "Windows fixture stream");
+    return {
+      observed_bytes: Number(before.size),
+      retained_bytes: bytes.length,
+      truncated: before.size > BigInt(bytes.length),
+      base64: bytes.toString("base64"),
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function stageHostedWindowsAccountSource(
   source: string,
   tools: string,
@@ -159,6 +365,10 @@ async function main() {
       scope: "ordinary-hosted-Windows-tool-build",
       authority: "none",
     });
+    phase = "supported-Windows-runtime-input";
+    const runtime = await prepareHostedWindowsFixtureRuntime(source, expected);
+    await record("windows-runtime.json", runtime.report);
+    await runtime.recheck();
     phase = "source-only-Windows-account-primitives";
     const primitiveTools = await mkdtemp(path.join(buildParent, "gui-"));
     const primitiveSource = await stageHostedWindowsAccountSource(source, primitiveTools, expected);
@@ -401,7 +611,9 @@ async function main() {
       });
     }
     phase = "actual-Windows-build";
+    await runtime.recheck();
     const built = await buildControllerTools(source, buildParent, expected);
+    await runtime.recheck();
     assert.equal(built.manifest.platform, "windows-x86_64");
     await record("manifest.json", built.manifest);
     for (const file of [
@@ -496,6 +708,38 @@ async function main() {
     const driver = invoke("tauri-driver.exe", ["--help"]);
     assert.equal(driver.status, 0);
     assert.match(driver.stdout, /tauri-driver/u);
+    phase = "actual-Microsoft-WebViewDriver";
+    const edgeProof: unknown = JSON.parse(
+        (
+          await readControllerToolFile(path.join(built.tools, "webview-driver.json"), 16384)
+        ).toString("utf8"),
+      ),
+      edgeBinary = await readControllerToolFile(
+        path.join(built.tools, "bin/msedgedriver.exe"),
+        64 * 1024 ** 2,
+      ),
+      edgePolicy = await readControllerToolFile(
+        path.join(built.tools, "scripts/windows-webview-driver-policy.psm1"),
+        16384,
+      ),
+      edgeFacts = inspectWindowsWebviewDriverProof(edgeProof, edgeBinary, edgePolicy),
+      edge = invoke("msedgedriver.exe", ["--version"]);
+    assert.equal(edge.status, 0, edge.stderr);
+    assert.ok(edge.stdout.trim().startsWith(`Microsoft Edge WebDriver ${edgeFacts.version} (`));
+    const runtimeJoin = await joinHostedWindowsFixtureRuntime(runtime, edgeFacts.version);
+    recheckNativeRuntimeCustody(files, custody);
+    await record("windows-webview-driver.json", {
+      source: expected,
+      proof: edgeProof,
+      observed_version: edge.stdout.trim(),
+      executable: edgeFacts.executable,
+      runtime_join: runtimeJoin,
+      account_execution: "not_requested",
+      scope:
+        "source-builder signature-before-version and independent same-byte tool observation only",
+      native_acceptance: "not-established",
+      authority: "none",
+    });
     phase = "actual-Tauri-addon";
     const addon = invoke("node.exe", [
       "-e",
@@ -581,11 +825,270 @@ async function main() {
       scope: "inert resource-admitted child only; no candidate/native acceptance",
       authority: "none",
     });
+    phase = "credential-free-Windows-source-preparation";
+    const sourceRoot = path.join(buildParent, "windows-source"),
+      sourcePlan = path.join(buildParent, "windows-source-intent.json");
+    const sourceDeadline = performance.now() + 90000;
+    const harnessHash = createHash("sha256")
+      .update(
+        await readControllerToolFile(path.join(source, nativeQualificationWorkerPath), 1024 ** 2),
+      )
+      .digest("hex");
+    const binding = createHash("sha256").update(JSON.stringify(expected)).digest("hex");
+    await writeFile(
+      sourcePlan,
+      JSON.stringify({
+        schema_version: 1,
+        binding,
+        source_commit: expected.commit,
+        source_tree: expected.tree,
+        harness_sha256: harnessHash,
+        root: sourceRoot,
+        setup: path.join(built.tools, "scripts/release-hosted-native-windows-setup.cs.txt"),
+        expires_at: Date.now() + Math.floor(sourceDeadline - performance.now()),
+      }),
+      { flag: "wx", flush: true },
+    );
+    const osGit = windowsSourceSystemExecutables.git,
+      sourceFiles = [sourcePlan],
+      sourceCustody = inspectNativeRuntimeCustody(sourceFiles);
+    await record("source-system-inputs.json", {
+      authority: "none",
+      scope: "host-image path/type/link metadata only",
+      files: await Promise.all(
+        Object.values(windowsSourceSystemExecutables).map(async (filename) => {
+          const stat = await lstat(filename, { bigint: true });
+          return {
+            path: filename,
+            file: stat.isFile(),
+            linked: stat.isSymbolicLink(),
+            links: String(stat.nlink),
+            device: String(stat.dev),
+            inode: String(stat.ino),
+          };
+        }),
+      ),
+    });
+    const sourceSystemCustody = inspectWindowsSourceSystemCustody();
+    const observedGit = createHash("sha256")
+      .update(await readControllerToolFile(osGit))
+      .digest("hex");
+    const runPreparation = async (
+      operation: "source" | "dependencies",
+      planFile: string,
+      deadline: number,
+    ) => {
+      const stdout = openSync(path.join(directory, `windows-${operation}.stdout.json`), "wx");
+      let stderr: number;
+      try {
+        stderr = openSync(path.join(directory, `windows-${operation}.stderr.bin`), "wx");
+      } catch (error) {
+        closeSync(stdout);
+        throw error;
+      }
+      try {
+        assert.equal(
+          await runResourceCommand(
+            "analysis",
+            path.join(built.tools, "bin/node.exe"),
+            [
+              path.join(built.tools, "scripts/release-hosted-native-windows-source.bundle.mjs"),
+              `acquire-${operation}`,
+              planFile,
+            ],
+            {
+              cwd: buildParent,
+              environment: { ...environment, GITHUB_ACTIONS: "true" },
+              output: { stdout, stderr },
+              queueDeadline: deadline,
+              executionTimeoutMilliseconds: Math.floor(deadline - performance.now()),
+              supervise: (args, dependencies) =>
+                runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+            },
+          ),
+          0,
+          `ordinary Windows ${operation} helper refused; retain evidence`,
+        );
+      } finally {
+        closeSync(stdout);
+        closeSync(stderr);
+      }
+      const readback: unknown = JSON.parse(
+        (
+          await readControllerToolFile(
+            path.join(directory, `windows-${operation}.stdout.json`),
+            65536,
+          )
+        ).toString("utf8"),
+      );
+      return readback;
+    };
+    const sourceReadback = await runPreparation("source", sourcePlan, sourceDeadline);
+    assert.ok(
+      isRecord(sourceReadback) &&
+        sourceReadback.binding === binding &&
+        sourceReadback.source_commit === expected.commit &&
+        sourceReadback.source_tree === expected.tree &&
+        sourceReadback.acquired === true &&
+        sourceReadback.dependencies_prepared === false &&
+        sourceReadback.native_acceptance === "not-established" &&
+        sourceReadback.authority === "none",
+    );
+    const tree = await readControllerToolFile(path.join(sourceRoot, "tree.bin"), 4 * 1024 ** 2);
+    assert.equal(
+      createHash("sha256").update(tree).digest("hex"),
+      sourceReadback.tree_inventory_sha256,
+    );
+    verifyWindowsNativeSourceFiles(
+      path.join(sourceRoot, "source"),
+      inspectWindowsNativeSourceTree(tree),
+      harnessHash,
+      () => assert.ok(performance.now() < sourceDeadline),
+    );
+    recheckNativeRuntimeCustody(sourceFiles, sourceCustody);
+    recheckWindowsSourceSystemCustody(sourceSystemCustody);
+    assert.equal(
+      createHash("sha256")
+        .update(await readControllerToolFile(osGit))
+        .digest("hex"),
+      observedGit,
+    );
+    assert.ok(performance.now() < sourceDeadline && !stopped);
+    await record("windows-source-preparation.json", {
+      ...sourceReadback,
+      observed_git_sha256: observedGit,
+      elapsed_milliseconds: 90000 - Math.floor(sourceDeadline - performance.now()),
+      original_parent_runtime_acceptance: "not-established",
+      account_execution: "not_requested",
+      scope:
+        "credential-free Git/source/directory observation only; no original protected capability",
+    });
+    phase = "credential-free-Windows-dependency-preparation";
+    const dependencyDeadline = performance.now() + hostedWindowsDependencyPreparationMilliseconds;
+    const dependencyActive = () => assert.ok(performance.now() < dependencyDeadline && !stopped);
+    const dependencySource = path.join(sourceRoot, "source");
+    const inputs = await inspectWindowsNativeDependencyInputs(
+      dependencySource,
+      dependencyDeadline,
+      dependencyActive,
+    );
+    const dependencyPlan = path.join(buildParent, "windows-dependencies-intent.json");
+    await writeFile(
+      dependencyPlan,
+      JSON.stringify({
+        schema_version: 1,
+        binding,
+        root: path.join(buildParent, "windows-dependencies"),
+        setup: path.join(built.tools, "scripts/release-hosted-native-windows-setup.cs.txt"),
+        source: dependencySource,
+        pnpm: path.join(built.tools, "bin/pnpm.exe"),
+        inputs,
+        expires_at: Date.now() + Math.floor(dependencyDeadline - performance.now()),
+      }),
+      { flag: "wx", flush: true },
+    );
+    const dependencyFiles = [dependencyPlan],
+      dependencyCustody = inspectNativeRuntimeCustody(dependencyFiles);
+    const dependencies = await runPreparation("dependencies", dependencyPlan, dependencyDeadline);
+    assert.ok(
+      isRecord(dependencies) &&
+        dependencies.binding === binding &&
+        dependencies.dependencies_prepared === true &&
+        dependencies.authority === "none" &&
+        dependencies.native_acceptance === "not-established",
+    );
+    assert.deepEqual(dependencies.inputs, inputs);
+    const graph = await snapshotWindowsNativeDependencies(
+      dependencySource,
+      dependencyDeadline,
+      dependencyActive,
+    );
+    assert.equal(graph.sha256, dependencies.graph_sha256);
+    assert.equal(graph.entries, dependencies.entries);
+    assert.equal(graph.bytes, dependencies.bytes);
+    verifyWindowsNativeSourceFiles(
+      dependencySource,
+      inspectWindowsNativeSourceTree(tree),
+      harnessHash,
+      dependencyActive,
+    );
+    recheckNativeRuntimeCustody(sourceFiles, sourceCustody);
+    recheckNativeRuntimeCustody(dependencyFiles, dependencyCustody);
+    recheckWindowsSourceSystemCustody(sourceSystemCustody);
+    dependencyActive();
+    await record("windows-dependencies-preparation.json", {
+      ...dependencies,
+      source: expected,
+      elapsed_milliseconds:
+        hostedWindowsDependencyPreparationMilliseconds -
+        Math.floor(dependencyDeadline - performance.now()),
+      original_parent_runtime_acceptance: "not-established",
+      account_execution: "not_requested",
+      scope: "frozen registry dependency/source observation only; no original protected capability",
+    });
+    phase = "Windows-dependency-graph-contracts";
+    const graphOut = openSync(path.join(directory, "windows-dependency-controls.stdout.txt"), "wx");
+    let graphErr: number;
+    try {
+      graphErr = openSync(path.join(directory, "windows-dependency-controls.stderr.txt"), "wx");
+    } catch (error) {
+      closeSync(graphOut);
+      throw error;
+    }
+    let graphStatus: number | undefined;
+    try {
+      graphStatus = await runResourceCommand(
+        "analysis",
+        path.join(built.tools, "bin/node.exe"),
+        [
+          "--test",
+          "--test-timeout=30000",
+          path.join(source, "scripts/release-hosted-native-windows-dependency-files.test.mts"),
+        ],
+        {
+          cwd: source,
+          environment: { ...environment, GITHUB_ACTIONS: "true" },
+          output: { stdout: graphOut, stderr: graphErr },
+          executionTimeoutMilliseconds: 60000,
+          supervise: (args, dependencies) =>
+            runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+        },
+      );
+      assert.equal(graphStatus, 0, "Windows graph controls refused; retain partial evidence");
+    } finally {
+      closeSync(graphOut);
+      closeSync(graphErr);
+      const streams = await Promise.all(
+        ["stdout", "stderr"].map(async (stream) => ({
+          stream,
+          ...(await readWindowsFixtureStreamPrefix(
+            directory,
+            `windows-dependency-controls.${stream}.txt`,
+          )),
+        })),
+      );
+      await record("windows-dependency-controls.json", {
+        status: graphStatus === 0 ? "pass" : "failed-or-unsettled",
+        exit_code: graphStatus ?? null,
+        source: expected,
+        streams,
+        scope: "ordinary Windows filesystem graph controls only",
+        native_acceptance: "not-established",
+        authority: "none",
+      });
+    }
     recheckNativeRuntimeCustody(files, custody);
+    await runtime.recheck();
     await record("result.json", {
       status: "pass",
       phase,
       source: expected,
+      runtime_join: runtimeJoin,
+      tool_build_observation: {
+        scope: "builder entry through complete inventory; cold workflow setup excluded",
+        elapsed_milliseconds: built.elapsed_milliseconds,
+        phases: built.timings,
+      },
       expanded_bytes: built.manifest.files.reduce((sum, file) => sum + file.bytes, 0),
       inventory: controllerToolPlatformProfile("windows-x86_64").paths,
       actual_executables: [
@@ -593,12 +1096,14 @@ async function main() {
         "portcove.exe",
         "portcove-release-tools.exe",
         "tauri-driver.exe",
+        "msedgedriver.exe",
         "pnpm.exe",
         "tauri-addon.node",
       ],
       filesystem_custody: "actual-owner-ACL-and-identity-recheck",
       account_execution: "not_requested",
-      scope: "Windows controller-tool bootstrap only",
+      scope:
+        "Windows controller-tool bootstrap and credential-free source/dependency preparation only",
       native_acceptance: "not-established",
       production_tool_acceptance: "not-established",
       authority: "none",

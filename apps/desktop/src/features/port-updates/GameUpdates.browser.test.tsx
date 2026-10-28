@@ -3,9 +3,18 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
+import { browserFixture } from "../../../test/browser-fixture";
 import { desktopApi } from "../../api";
 import { portDefinition, portStatus } from "../../test-fixtures";
-import type { DesktopError, GameUpdatePlan, InstallRecord } from "../../types";
+import type {
+  DesktopError,
+  GameUpdateAcquisition,
+  GameUpdatePlan,
+  InstallRecord,
+  PortStatus,
+} from "../../types";
+import { OperationPresentationProvider } from "../operations/operation-presentation";
+import type { InvocationRecord } from "../operations/invocation-state";
 import { useOperationState, type Perform } from "../operations/use-operation-state";
 
 vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => undefined }));
@@ -13,6 +22,7 @@ import { GameUpdateControl, UpdatePolicyControl } from "../../components/GameUpd
 import { UpdateCenter } from "../../components/UpdateCenter";
 import { StatusLayer } from "../../components/Chrome";
 import { DetailLayout } from "../../components/DetailLayout";
+import "../../styles/index.css";
 
 const plan: GameUpdatePlan = {
   assessment: { action: "update", availability: "allowed", reason: "available" },
@@ -67,14 +77,20 @@ const stagedUpdate: InstallRecord = {
   selected_executable: "sample.exe",
   runtime: null,
 };
+const acquisition: GameUpdateAcquisition = {
+  id: "archive-2.0",
+  port_id: "sample",
+  platform: "windows-x86-64",
+  release: plan.plan.release,
+  phase: "acquired",
+  created_at: 1,
+  updated_at: 2,
+};
 const perform: Perform = async (_name, task) => task();
 let root: RenderResult;
 let container: HTMLDivElement;
 beforeEach(async () => {
-  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-    callback(0);
-    return 1;
-  });
+  await page.viewport(1280, 900);
   container = document.createElement("div");
   document.body.append(container);
   root = await renderComponent(null, { container: document.body.appendChild(container) });
@@ -96,10 +112,11 @@ function dialog() {
   return document.body.querySelector("[data-game-update-review]");
 }
 
-it("retains Download for later across detail tabs and applies only its reviewed target", async () => {
+it("retains Download for later across detail tabs and acquires only its reviewed target", async () => {
   vi.unstubAllGlobals();
-  const review = vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
-  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
+  const review = vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  const acquire = vi.spyOn(desktopApi, "acquireGameUpdate").mockResolvedValue(acquisition);
   await root.rerender(
     <DetailLayout
       port={portDefinition()}
@@ -127,16 +144,17 @@ it("retains Download for later across detail tabs and applies only its reviewed 
   );
   await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
   await page.getByRole("option", { name: "Download for later", exact: true }).click();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
-  await page.getByRole("tab", { name: "Versions", exact: true }).click();
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
+  await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   await expect
     .element(page.getByRole("combobox", { name: /^What would you like to do/ }))
     .toHaveAccessibleName("What would you like to do? Download for later");
   await click("Review game update");
-  expect(review).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
+  expect(review).toHaveBeenCalledExactlyOnceWith("sample", 9);
   expect(apply).not.toHaveBeenCalled();
-  await click("Download update for later");
-  expect(apply.mock.calls[0]?.slice(0, 4)).toEqual(["sample", false, plan.plan_sha256, 9]);
+  await click("Download archive for later");
+  expect(acquire.mock.calls[0]?.slice(0, 3)).toEqual(["sample", plan.plan_sha256, 9]);
+  expect(apply).not.toHaveBeenCalled();
 });
 
 it("leaves a running update with valid focus without cancelling or changing its reviewed target", async () => {
@@ -162,10 +180,10 @@ it("leaves a running update with valid focus without cancelling or changing its 
   await click("Review game update");
   await click("Download and install update");
   await click("Continue browsing");
-  expect(dialog()).toBeNull();
-  expect(document.activeElement).toBe(
-    container.querySelector('section[aria-label="Review game update"]'),
-  );
+  await expect.poll(dialog).toBeNull();
+  await expect
+    .poll(() => document.activeElement)
+    .toBe(container.querySelector('section[aria-label="Review game update"]'));
   expect(apply.mock.calls[0]?.slice(0, 4)).toEqual(["sample", true, expected.plan_sha256, 9]);
   expect(cancel).not.toHaveBeenCalled();
   await act(async () => finish(stagedUpdate));
@@ -205,8 +223,9 @@ it("does not report a settings save as successful after failure", async () => {
 });
 
 it("reviews without execution and submits the exact download-only plan on confirmation", async () => {
-  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
-  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
+  vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  const acquire = vi.spyOn(desktopApi, "acquireGameUpdate").mockResolvedValue(acquisition);
   await root.rerender(
     <GameUpdateControl
       portId="sample"
@@ -220,21 +239,24 @@ it("reviews without execution and submits the exact download-only plan on confir
   await click("Download for later");
   await click("Review game update");
   expect(apply).not.toHaveBeenCalled();
-  expect(desktopApi.planGameUpdate).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
+  expect(desktopApi.planGameUpdateAcquisition).toHaveBeenCalledExactlyOnceWith("sample", 9);
   expect(dialog()?.textContent).toContain("to download");
-  expect(dialog()?.textContent).toContain("current version stays unchanged");
-  expect(document.activeElement).toBe(dialog()?.querySelector('[data-slot="dialog-title"]'));
-  await click("Download update for later");
-  expect(apply).toHaveBeenCalledExactlyOnceWith(
+  expect(dialog()?.textContent).toContain("Download only the immutable archive");
+  expect(dialog()?.textContent).not.toContain(plan.plan.output_location.user_data_root);
+  await expect
+    .poll(() => document.activeElement)
+    .toBe(dialog()?.querySelector('[data-slot="dialog-title"]'));
+  await click("Download archive for later");
+  expect(acquire).toHaveBeenCalledExactlyOnceWith(
     "sample",
-    false,
     "reviewed-download",
     9,
     expect.any(Function),
   );
+  expect(apply).not.toHaveBeenCalled();
   expect(container.textContent).toContain("Review game update");
   expect(container.textContent).toContain(
-    "Update saved for later. Your current version is unchanged.",
+    "Last command: Archive downloaded. Review again to prepare or install it. Your current version is unchanged.",
   );
   expect(container.textContent).not.toContain("Update downloaded for later");
 });
@@ -301,8 +323,11 @@ it("shows shared and local preference paths before an update without accepting t
 it("reviews an immediate update in place and obtains new consent before keeping it for later", async () => {
   const review = vi
     .spyOn(desktopApi, "planGameUpdate")
-    .mockResolvedValueOnce({ ...plan, activate: true, plan_sha256: "install-reviewed" })
-    .mockResolvedValueOnce({ ...plan, plan_sha256: "later-reviewed" });
+    .mockResolvedValueOnce({ ...plan, activate: true, plan_sha256: "install-reviewed" });
+  const archiveReview = vi
+    .spyOn(desktopApi, "planGameUpdateAcquisition")
+    .mockResolvedValue({ ...plan, plan_sha256: "later-reviewed" });
+  const acquire = vi.spyOn(desktopApi, "acquireGameUpdate").mockResolvedValue(acquisition);
   const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
   const savePolicy = vi.spyOn(desktopApi, "setPolicy");
   await root.rerender(
@@ -322,38 +347,37 @@ it("reviews an immediate update in place and obtains new consent before keeping 
   expect(dialog()?.textContent).toContain("Original Game · Sample Project update");
   expect(dialog()?.textContent).toContain("current version remains available for rollback");
   expect(apply).not.toHaveBeenCalled();
-  await click("Review download for later");
-  expect(review).toHaveBeenNthCalledWith(2, "sample", false, 9);
-  expect(dialog()?.textContent).toContain("current version stays unchanged");
-  await click("Download update for later");
-  expect(apply).toHaveBeenCalledExactlyOnceWith(
+  await click("Download for later");
+  expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
+  expect(dialog()?.textContent).toContain("Download only the immutable archive");
+  await click("Download archive for later");
+  expect(acquire).toHaveBeenCalledExactlyOnceWith(
     "sample",
-    false,
     "later-reviewed",
     9,
     expect.any(Function),
   );
+  expect(apply).not.toHaveBeenCalled();
   expect(savePolicy).not.toHaveBeenCalled();
 });
 
 it("does not submit duplicate reviews or apply a stale plan after a failed change of action", async () => {
   let release!: (value: GameUpdatePlan) => void;
   let rejectChange!: (reason: Error) => void;
-  const review = vi
-    .spyOn(desktopApi, "planGameUpdate")
-    .mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          release = resolve;
-        }),
-    )
-    .mockImplementationOnce(
-      () =>
-        new Promise((_resolve, reject) => {
-          rejectChange = reject;
-        }),
-    );
+  const review = vi.spyOn(desktopApi, "planGameUpdate").mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  const archiveReview = vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectChange = reject;
+      }),
+  );
   const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  const acquire = vi.spyOn(desktopApi, "acquireGameUpdate");
   await root.rerender(
     <GameUpdateControl
       portId="sample"
@@ -373,18 +397,22 @@ it("does not submit duplicate reviews or apply a stale plan after a failed chang
   });
   expect(review).toHaveBeenCalledTimes(1);
   await act(async () => release({ ...plan, activate: true }));
-  await click("Review download for later");
+  await click("Download for later");
   expect(dialog()?.textContent).toContain("Checking update…");
   expect(dialog()?.textContent).not.toContain("Updating…");
+  expect(dialog()?.textContent).toContain("current version remains available for rollback");
+  expect(dialog()?.textContent).not.toContain("Download only the immutable archive");
   expect(apply).not.toHaveBeenCalled();
+  expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
   const confirmation = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
     (button) => button.textContent === "Checking update…",
   );
   expect(confirmation?.disabled).toBe(true);
   await act(async () => rejectChange(new Error("Update service offline")));
-  expect(dialog()).toBeNull();
+  await expect.poll(dialog).toBeNull();
   expect(container.textContent).toContain("Update service offline");
   expect(apply).not.toHaveBeenCalled();
+  expect(acquire).not.toHaveBeenCalled();
 });
 
 it("plays the current version independently and reviews a saved update without opening details", async () => {
@@ -427,7 +455,7 @@ it("plays the current version independently and reviews a saved update without o
   expect(onSelect).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
   await click("Cancel review");
-  expect(document.activeElement?.textContent).toBe("Review game update");
+  await expect.poll(() => document.activeElement?.textContent).toBe("Review game update");
 });
 
 it("shows only the newest game review when two row requests complete out of order", async () => {
@@ -476,7 +504,7 @@ it("shows only the newest game review when two row requests complete out of orde
   await act(async () => reviewButtons[1]!.click());
   expect(review).toHaveBeenCalledTimes(2);
   await act(async () => pending.get("sample")!({ ...plan, activate: true }));
-  expect(dialog()).toBeNull();
+  await expect.poll(dialog).toBeNull();
   await act(async () =>
     pending.get("other")!({
       ...plan,
@@ -489,7 +517,7 @@ it("shows only the newest game review when two row requests complete out of orde
   expect(dialog()?.textContent).not.toContain("First Game update");
   expect(apply).not.toHaveBeenCalled();
   await click("Cancel review");
-  expect(document.activeElement).toBe(reviewButtons[1]);
+  await expect.poll(() => document.activeElement).toBe(reviewButtons[1]);
 });
 
 it.each(["notify", "stage", "automatic"] as const)(
@@ -509,7 +537,7 @@ it.each(["notify", "stage", "automatic"] as const)(
       />,
     );
     expect(container.textContent).toContain("What would you like to do?");
-    expect(dialog()).toBeNull();
+    await expect.poll(dialog).toBeNull();
     await click("Review game update");
     expect(review).toHaveBeenCalledExactlyOnceWith("sample", true, 9);
     expect(dialog()?.textContent).toContain("2.0");
@@ -518,14 +546,12 @@ it.each(["notify", "stage", "automatic"] as const)(
 );
 
 it("requires another review when the chosen action changes and binds activation to that review", async () => {
-  const review = vi
-    .spyOn(desktopApi, "planGameUpdate")
-    .mockResolvedValueOnce(plan)
-    .mockResolvedValueOnce({
-      ...plan,
-      activate: true,
-      plan_sha256: "reviewed-activation",
-    });
+  const archiveReview = vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
+  const review = vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValueOnce({
+    ...plan,
+    activate: true,
+    plan_sha256: "reviewed-activation",
+  });
   const apply = vi
     .spyOn(desktopApi, "applyGameUpdate")
     .mockRejectedValue(new Error("Release changed"));
@@ -539,15 +565,17 @@ it("requires another review when the chosen action changes and binds activation 
     />,
   );
   expect(container.textContent).not.toContain("This update");
-  expect(document.body.textContent).not.toContain("Review install now");
+  await expect
+    .element(page.getByRole("button", { name: "Update now", exact: true }))
+    .not.toBeInTheDocument();
   await page.getByRole("combobox", { name: /^What would you like to do\?/ }).click();
   await click("Download for later");
   await click("Review game update");
   expect(dialog()?.textContent).toContain("2.0");
-  expect(dialog()?.textContent).toContain("Your current version stays unchanged");
-  await click("Review install now");
-  expect(review).toHaveBeenNthCalledWith(1, "sample", false, 9);
-  expect(review).toHaveBeenNthCalledWith(2, "sample", true, 9);
+  expect(dialog()?.textContent).toContain("active version stay unchanged");
+  await click("Update now");
+  expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
+  expect(review).toHaveBeenCalledExactlyOnceWith("sample", true, 9);
   expect(apply).not.toHaveBeenCalled();
   expect(dialog()?.textContent).toContain("current version remains available for rollback");
   await click("Download and install update");
@@ -595,7 +623,7 @@ it("keeps update cancellation inside the busy review and locks dismissal", async
     />,
   );
   await click("Review game update");
-  await click("Download update for later");
+  await click("Prepare update for later");
   expect(dialog()?.textContent).toContain("Cancel game update");
   await pressEscape();
   expect(dialog()).not.toBeNull();
@@ -603,7 +631,7 @@ it("keeps update cancellation inside the busy review and locks dismissal", async
   expect(cancel).toHaveBeenCalledExactlyOnceWith("update-1");
   expect(dialog()?.textContent).toContain("Cancellation requested");
   await act(async () => finish());
-  expect(dialog()).toBeNull();
+  await expect.poll(dialog).toBeNull();
 });
 
 it("discards a late update review after switching the selected library", async () => {
@@ -670,7 +698,7 @@ it.each(["future_action", "constructor", "__proto__", "toString"])(
     expect(apply).not.toHaveBeenCalled();
     await click("Review game update again");
     expect(dialog()?.querySelector('[role="alert"]')).toBeNull();
-    await click("Download update for later");
+    await click("Prepare update for later");
     expect(apply).toHaveBeenCalledExactlyOnceWith(
       "sample",
       false,
@@ -734,7 +762,7 @@ it.each(["missing_source", "missing_bios"] as const)(
     );
     expect(
       Array.from(dialog()?.querySelectorAll("button") ?? []).some(
-        (button) => button.textContent === "Download update for later",
+        (button) => button.textContent === "Prepare update for later",
       ),
     ).toBe(false);
     expect(apply).not.toHaveBeenCalled();
@@ -762,7 +790,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
     await click("Review game update");
     expect(apply).not.toHaveBeenCalled();
     expect(dialog()?.textContent).toContain("No download; use the verified local release.");
-    expect(dialog()?.textContent).toContain("This keeps the verified update for later.");
+    expect(dialog()?.textContent).toContain("This keeps the prepared update for later.");
     await click("Keep saved update for later");
     expect(apply).toHaveBeenCalledExactlyOnceWith(
       "sample",
@@ -833,7 +861,7 @@ it.each([
     const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockRejectedValue(failure);
     await root.rerender(<ActualOperationFixture />);
     await click("Review game update");
-    await click("Download update for later");
+    await click("Prepare update for later");
     expect(container.textContent).toContain(failure.presentation.summary);
     const outcome = container.querySelector(
       cancelled ? "[data-game-update-outcome]" : "[data-invocation-id] [role=alert]",
@@ -847,7 +875,7 @@ it.each([
     expect(container.textContent).not.toContain("Update did not complete");
     expect(actualOperation.error).toBe(cancelled ? undefined : failure);
     expect(apply).toHaveBeenCalledTimes(1);
-    expect(dialog()).toBeNull();
+    await expect.poll(dialog).toBeNull();
     expect(outcome?.querySelector("details")?.open).toBe(false);
     expect(outcome?.querySelector("pre")?.textContent).toContain("[REDACTED]");
     await click("Review game update");
@@ -868,7 +896,7 @@ it("does not attach an old supplied failure to the newly selected library's upda
   );
   await root.rerender(<ActualOperationFixture />);
   await click("Review game update");
-  await click("Download update for later");
+  await click("Prepare update for later");
   await root.rerender(<ActualOperationFixture generation={10} />);
   await act(async () => reject(updateFailure("committed")));
   expect(container.querySelector("[data-game-update-outcome]")).toBeNull();
@@ -882,7 +910,7 @@ it("retains authoritative success through the real wrapper when only display ref
   const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
   await root.rerender(<ActualOperationFixture />);
   await click("Review game update");
-  await click("Download update for later");
+  await click("Prepare update for later");
   expect(container.textContent).toContain(
     "Update saved for later. Your current version is unchanged.",
   );
@@ -910,7 +938,7 @@ it("ignores retained task events during shared refresh and after terminal failur
   );
   await root.rerender(<ActualOperationFixture />);
   await click("Review game update");
-  await click("Download update for later");
+  await click("Prepare update for later");
   const sendLateEvents = () => {
     const common = {
       schema_version: 3 as const,
@@ -1062,8 +1090,8 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
   );
   expect(dialog()?.textContent).toContain(notice);
   expect(dialog()?.textContent).toContain("No download; use the verified local release");
-  expect(dialog()?.textContent).not.toContain("Review download for later");
-  await click("Review keeping for later");
+  expect(dialog()?.textContent).not.toContain("Download for later");
+  await click("Keep for later");
   expect(review.mock.calls.map((call) => call.slice(0, 3))).toEqual([
     ["sample", true, 9],
     ["sample", false, 9],
@@ -1073,3 +1101,657 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
   expect(dialog()?.textContent).toContain(notice);
   expect(apply).not.toHaveBeenCalled();
 });
+
+it("Activity refuses Apply while the same port has file work, but keeps unrelated work independent", async () => {
+  const port = portDefinition();
+  const status = {
+    ...portStatus(),
+    active: { ...stagedUpdate, id: "active-v1", version: "1", staged: false },
+    staged: stagedUpdate,
+  };
+  const reviewed = {
+    ...plan,
+    activate: true,
+    plan: { ...plan.plan, action: "use_staged" as const, download_bytes: 0 },
+  };
+  const review = vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(reviewed);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
+  const work = (target: string): InvocationRecord => ({
+    id: 1,
+    name: "verify game files",
+    phase: "pending",
+    context: {
+      action: "Verify files",
+      target: { kind: "port", id: target, label: target },
+      libraryGeneration: 9,
+      exclusionScope: "target",
+    },
+  });
+  const view = (pending: ReadonlyMap<number, InvocationRecord>) => (
+    <OperationPresentationProvider generation={9} pending={pending}>
+      <UpdateCenter
+        section="updates"
+        generation={9}
+        ports={[port]}
+        statuses={new Map([[port.id, status]])}
+        activities={[]}
+        outcomes={[]}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSettings={vi.fn()}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        perform={perform}
+      />
+    </OperationPresentationProvider>
+  );
+  await root.rerender(view(new Map()));
+  await click("Review game update");
+  const applyButton = () =>
+    [...dialog()!.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Use saved update",
+    )!;
+  expect(applyButton()).toBeDefined();
+  expect(applyButton().disabled).toBe(false);
+  await root.rerender(view(new Map([[1, work(port.id)]])));
+  expect(applyButton().disabled).toBe(true);
+  await act(async () => applyButton().click());
+  expect(apply).not.toHaveBeenCalled();
+  await root.rerender(view(new Map([[1, work("another-port")]])));
+  expect(applyButton().disabled).toBe(false);
+  await click("Cancel review");
+  await click("Review game update");
+  expect(review).toHaveBeenCalledTimes(2);
+  await act(async () => applyButton().click());
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    true,
+    plan.plan_sha256,
+    9,
+    expect.any(Function),
+  );
+});
+
+it("downloads an immutable archive during an explicit launch without granting Apply an exemption", async () => {
+  const pending: InvocationRecord = {
+    id: 91,
+    name: "play",
+    phase: "pending",
+    context: {
+      action: "Play",
+      target: { kind: "port", id: "sample", label: "Sample" },
+      libraryGeneration: 9,
+      exclusionScope: "target",
+      operation: "launch",
+    },
+  };
+  const review = vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
+  const acquire = vi.spyOn(desktopApi, "acquireGameUpdate").mockResolvedValue(acquisition);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  const calls: Array<{
+    name: string;
+    context: import("../operations/invocation-state").InvocationContext | undefined;
+  }> = [];
+  const owned: Perform = async (name, task, options) => {
+    calls.push({ name, context: options?.context });
+    return task();
+  };
+  await root.rerender(
+    <OperationPresentationProvider generation={9} pending={new Map([[91, pending]])}>
+      <GameUpdateControl portId="sample" generation={9} policy="notify" busy perform={owned} />
+    </OperationPresentationProvider>,
+  );
+  await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
+  await page.getByRole("option", { name: "Download for later", exact: true }).click();
+  await click("Review game update");
+  expect(review).toHaveBeenCalledExactlyOnceWith("sample", 9);
+  await click("Download archive for later");
+  expect(acquire).toHaveBeenCalledExactlyOnceWith(
+    "sample",
+    plan.plan_sha256,
+    9,
+    expect.any(Function),
+  );
+  expect(apply).not.toHaveBeenCalled();
+  expect(calls).toEqual([
+    {
+      name: "acquire_game_update",
+      context: {
+        action: "Download update archive",
+        target: { kind: "port", id: "sample", label: "sample" },
+        libraryGeneration: 9,
+        exclusionScope: "target",
+        operation: "acquire_game_update",
+      },
+    },
+  ]);
+  expect(container.textContent).toContain("Archive downloaded");
+  expect(container.textContent).not.toContain("Update saved for later");
+  await expect
+    .element(page.getByRole("button", { name: "Review game update", exact: true }))
+    .toBeDisabled();
+});
+
+it.each([false, true])(
+  "uses a fresh exclusive review for an acquired archive (activate=%s)",
+  async (activate) => {
+    const review = vi
+      .spyOn(desktopApi, "planGameUpdate")
+      .mockImplementation(async (_port, useNow) => ({
+        ...plan,
+        activate: useNow,
+        acquisition,
+        plan_sha256: useNow ? "acquired-install" : "acquired-prepare",
+      }));
+    const acquire = vi.spyOn(desktopApi, "acquireGameUpdate");
+    const archiveReview = vi.spyOn(desktopApi, "planGameUpdateAcquisition");
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
+    await root.rerender(
+      <GameUpdateControl
+        portId="sample"
+        generation={9}
+        policy="notify"
+        busy={false}
+        perform={perform}
+        status={{ ...portStatus(), active: { ...stagedUpdate, staged: false }, acquisition }}
+        currentVersion="1.0"
+      />,
+    );
+    expect(container.textContent).toContain("Archive downloaded");
+    expect(apply).not.toHaveBeenCalled();
+    await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
+    expect(
+      [...document.querySelectorAll('[role="option"]')].map((option) => option.textContent),
+    ).not.toContain("Download for later");
+    await page.getByRole("option", { name: "Update now", exact: true }).click();
+    if (!activate) {
+      await page.getByText("Advanced update choice", { exact: true }).click();
+      await page.getByRole("button", { name: "Prepare for later", exact: true }).click();
+    }
+    await click("Review game update");
+    expect(review).toHaveBeenCalledExactlyOnceWith("sample", activate, 9);
+    expect(dialog()?.textContent).toContain("No new archive download is planned");
+    expect(dialog()?.textContent).toContain(acquisition.id);
+    expect(acquire).not.toHaveBeenCalled();
+    expect(archiveReview).not.toHaveBeenCalled();
+    await click(activate ? "Update now" : "Prepare update for later");
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      "sample",
+      activate,
+      activate ? "acquired-install" : "acquired-prepare",
+      9,
+      expect.any(Function),
+    );
+  },
+);
+
+it.each(["acquired", "attention_required"] as const)(
+  "confirms discard against one exact %s archive and rejects replacement during review",
+  async (phase) => {
+    const discard = vi
+      .spyOn(desktopApi, "discardGameUpdateAcquisition")
+      .mockResolvedValue(undefined);
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+    const first = { ...acquisition, phase };
+    const next = { ...first, id: "replacement-archive" };
+    const show = (record: GameUpdateAcquisition) =>
+      root.rerender(
+        <GameUpdateControl
+          portId="sample"
+          generation={9}
+          policy="notify"
+          busy={false}
+          perform={perform}
+          status={{ ...portStatus(), acquisition: record }}
+        />,
+      );
+    await show(first);
+    await click("Discard archive…");
+    expect(document.querySelector("[data-game-update-discard-review]")?.textContent).toContain(
+      first.id,
+    );
+    expect(discard).not.toHaveBeenCalled();
+    await show(next);
+    await expect
+      .element(page.getByRole("button", { name: "Discard archive", exact: true }))
+      .toBeDisabled();
+    await click("Discard archive");
+    expect(discard).not.toHaveBeenCalled();
+    await click("Keep archive");
+    await click("Discard archive…");
+    expect(document.querySelector("[data-game-update-discard-review]")?.textContent).toContain(
+      next.id,
+    );
+    await click("Discard archive");
+    expect(discard).toHaveBeenCalledExactlyOnceWith("sample", next.id, 9);
+    expect(apply).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
+    expect(container.textContent).toContain("Archive discarded");
+  },
+);
+
+it("distinguishes acquired archives from prepared updates in Activity and keeps current Play available", async () => {
+  const port = portDefinition();
+  const status = {
+    ...portStatus(),
+    port_id: port.id,
+    active: { ...stagedUpdate, id: "current-1", version: "1.0", staged: false },
+    staged: null,
+    acquisition,
+    readiness: { ...portStatus().readiness, launchable: true, pending_setup: false, blockers: [] },
+  };
+  const launch = vi.fn();
+  await root.rerender(
+    <UpdateCenter
+      section="updates"
+      generation={9}
+      ports={[port]}
+      statuses={new Map([[port.id, status]])}
+      activities={[]}
+      outcomes={[]}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+      perform={perform}
+      onLaunch={launch}
+    />,
+  );
+  expect(
+    container.querySelector(".update-state")?.textContent ??
+      container.querySelector(".update-row")?.textContent,
+  ).toContain("Archive downloaded");
+  expect(container.querySelector('[aria-label="Retained update archive"]')?.textContent).toContain(
+    "separate from a prepared update",
+  );
+  expect(container.textContent).not.toContain("Update saved for later");
+  const prepared = [...container.querySelectorAll(".update-stat")].find((stat) =>
+    stat.textContent?.includes("Prepared updates"),
+  );
+  expect(prepared?.querySelector("strong")?.textContent).toBe("0");
+  await click("Play");
+  expect(launch).toHaveBeenCalledExactlyOnceWith(port.id);
+});
+
+it("holds Apply during same-port immutable acquisition while keeping unrelated ports independent", async () => {
+  const review = vi
+    .spyOn(desktopApi, "planGameUpdate")
+    .mockResolvedValue({ ...plan, activate: true, acquisition });
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
+  const work = (id: string): InvocationRecord => ({
+    id: 1,
+    name: "acquire_game_update",
+    phase: "pending",
+    context: {
+      action: "Download update archive",
+      target: { kind: "port", id, label: id },
+      libraryGeneration: 9,
+      exclusionScope: "target",
+      operation: "acquire_game_update",
+    },
+  });
+  const show = (pending: ReadonlyMap<number, InvocationRecord>) =>
+    root.rerender(
+      <OperationPresentationProvider generation={9} pending={pending}>
+        <GameUpdateControl
+          portId="sample"
+          generation={9}
+          policy="notify"
+          busy={false}
+          perform={perform}
+          status={{ ...portStatus(), active: { ...stagedUpdate, staged: false }, acquisition }}
+        />
+      </OperationPresentationProvider>,
+    );
+  await show(new Map());
+  await click("Review game update");
+  await show(new Map([[1, work("sample")]]));
+  await expect
+    .element(page.getByRole("button", { name: "Update now", exact: true }))
+    .toBeDisabled();
+  await click("Update now");
+  expect(apply).not.toHaveBeenCalled();
+  await show(new Map([[1, work("another-port")]]));
+  await expect.element(page.getByRole("button", { name: "Update now", exact: true })).toBeEnabled();
+  await click("Update now");
+  expect(review).toHaveBeenCalledTimes(1);
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    "sample",
+    true,
+    plan.plan_sha256,
+    9,
+    expect.any(Function),
+  );
+});
+
+it("keeps acquisition completion as a receipt until a fresh status replaces it", async () => {
+  vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
+  vi.spyOn(desktopApi, "acquireGameUpdate").mockResolvedValue(acquisition);
+  const original = { ...portStatus(), active: { ...stagedUpdate, staged: false } };
+  const show = (status: ReturnType<typeof portStatus>) =>
+    root.rerender(
+      <GameUpdateControl
+        portId="sample"
+        generation={9}
+        policy="notify"
+        busy={false}
+        perform={perform}
+        status={status}
+      />,
+    );
+  await show(original);
+  await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
+  await page.getByRole("option", { name: "Download for later", exact: true }).click();
+  await click("Review game update");
+  await click("Download archive for later");
+  expect(container.textContent).toContain("Last command: Archive downloaded");
+  expect(container.textContent).toContain(
+    "The operation finished, but library status could not be refreshed",
+  );
+  expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
+  expect(
+    [...container.querySelectorAll("button")].some(
+      (button) => button.textContent === "Discard archive…",
+    ),
+  ).toBe(false);
+  // Another client may have discarded it. A successful fresh Core status owns
+  // current absence even when the optional field is absent in both snapshots.
+  await show({ ...original });
+  expect(container.textContent).not.toContain(
+    "The operation finished, but library status could not be refreshed",
+  );
+  await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
+  await expect
+    .element(page.getByRole("option", { name: "Download for later", exact: true }))
+    .toBeVisible();
+});
+
+it.each([
+  [1280, "100%"],
+  [640, "100%"],
+  [1280, "200%"],
+  [640, "200%"],
+] as const)(
+  "keeps all pending archive actions reachable at %spx with %s text",
+  async (width, fontSize) => {
+    const environment = browserFixture({ styles: ["font-size"], viewport: true });
+    let owner: ReturnType<typeof useOperationState> | undefined;
+    const refresh = vi.fn(async () => undefined);
+    let finish!: (value: GameUpdateAcquisition) => void;
+    const transfer = new Promise<GameUpdateAcquisition>((resolve) => {
+      finish = resolve;
+    });
+    const review = vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
+    const acquire = vi
+      .spyOn(desktopApi, "acquireGameUpdate")
+      .mockImplementation((_port, _plan, _generation, receive) => {
+        receive?.({
+          schema_version: 2,
+          operation_id: "pending-archive-transfer",
+          parent_operation_id: null,
+          target: null,
+          sequence: 0,
+          timestamp_ms: 1,
+          operation: "update",
+          type: "started",
+        });
+        return transfer;
+      });
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+    const cancel = vi.spyOn(desktopApi, "cancelOperation");
+    function Fixture() {
+      owner = useOperationState({ refresh, libraryGeneration: 9 });
+      return (
+        <OperationPresentationProvider generation={9} pending={owner.pendingOperations}>
+          <GameUpdateControl
+            portId="sample"
+            generation={9}
+            policy="notify"
+            busy={Boolean(owner.busy)}
+            perform={owner.perform}
+          />
+        </OperationPresentationProvider>
+      );
+    }
+    try {
+      await page.viewport(width, 900);
+      document.documentElement.style.fontSize = fontSize;
+      await root.rerender(<Fixture />);
+      await document.fonts.ready;
+      await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
+      await page.getByRole("option", { name: "Download for later", exact: true }).click();
+      await page.getByRole("button", { name: "Review game update", exact: true }).click();
+      await page.getByRole("button", { name: "Download archive for later", exact: true }).click();
+      const pending = [...owner!.pendingOperations.values()].find(
+        (record) => record.context.operation === "acquire_game_update",
+      );
+      expect(pending?.context.target).toEqual({ kind: "port", id: "sample", label: "sample" });
+      expect(pending?.phase).toBe("pending");
+      expect(acquire).toHaveBeenCalledExactlyOnceWith(
+        "sample",
+        plan.plan_sha256,
+        9,
+        expect.any(Function),
+      );
+      const surface = page.getByRole("dialog").element() as HTMLElement;
+      const footer = surface.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+      const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
+      expect(actions.map((button) => button.textContent?.trim())).toEqual([
+        "Continue browsing",
+        "Downloading archive…",
+        "Update now",
+        "Prepare for later",
+        "Cancel review",
+      ]);
+      expect(
+        surface.scrollWidth,
+        "review must reflow without horizontal scrolling",
+      ).toBeLessThanOrEqual(surface.clientWidth + 1);
+      for (const button of actions) {
+        button.scrollIntoView({ block: "nearest", inline: "nearest" });
+        const box = button.getBoundingClientRect(),
+          dialogBox = surface.getBoundingClientRect(),
+          left = dialogBox.left + surface.clientLeft,
+          top = dialogBox.top + surface.clientTop;
+        expect(box.left, button.textContent ?? "action").toBeGreaterThanOrEqual(left);
+        expect(box.right, button.textContent ?? "action").toBeLessThanOrEqual(
+          left + surface.clientWidth,
+        );
+        expect(box.top, button.textContent ?? "action").toBeGreaterThanOrEqual(top);
+        expect(box.bottom, button.textContent ?? "action").toBeLessThanOrEqual(
+          top + surface.clientHeight,
+        );
+      }
+      const refreshesBeforeLeaving = refresh.mock.calls.length;
+      await page.getByRole("button", { name: "Continue browsing", exact: true }).click();
+      await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+      expect(owner!.pendingOperations.get(pending!.id)).toEqual(pending);
+      expect(review).toHaveBeenCalledExactlyOnceWith("sample", 9);
+      expect(acquire).toHaveBeenCalledTimes(1);
+      expect(apply).not.toHaveBeenCalled();
+      expect(cancel).not.toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalledTimes(refreshesBeforeLeaving);
+    } finally {
+      await act(async () => finish(acquisition));
+      await environment.dispose();
+    }
+  },
+);
+
+it("runs immutable acquisition alongside a pending launch through the actual invocation owner", async () => {
+  let owner: ReturnType<typeof useOperationState> | undefined;
+  const refresh = vi.fn(async () => undefined);
+  function Fixture() {
+    owner = useOperationState({ refresh, libraryGeneration: 9 });
+    return (
+      <OperationPresentationProvider generation={9} pending={owner.pendingOperations}>
+        <GameUpdateControl
+          portId="sample"
+          generation={9}
+          policy="notify"
+          busy={Boolean(owner.busy)}
+          perform={owner.perform}
+        />
+      </OperationPresentationProvider>
+    );
+  }
+  vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
+  const acquire = vi.spyOn(desktopApi, "acquireGameUpdate").mockResolvedValue(acquisition);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(<Fixture />);
+  if (!owner) throw new Error("Invocation fixture did not mount");
+  let finish: (() => void) | undefined;
+  let launched: Promise<void | undefined> | undefined;
+  const mounted = owner;
+  try {
+    await act(async () => {
+      launched = mounted.perform(
+        "launch",
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+        {
+          context: {
+            action: "Play",
+            target: { kind: "port", id: "sample", label: "Sample" },
+            libraryGeneration: 9,
+            exclusionScope: "target",
+            operation: "launch",
+          },
+        },
+      );
+    });
+    await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
+    await page.getByRole("option", { name: "Download for later", exact: true }).click();
+    await click("Review game update");
+    await click("Download archive for later");
+    expect(acquire).toHaveBeenCalledExactlyOnceWith(
+      "sample",
+      plan.plan_sha256,
+      9,
+      expect.any(Function),
+    );
+    expect(apply).not.toHaveBeenCalled();
+    expect(
+      [...owner.invocations.values()].some(
+        (record) => record.context.operation === "launch" && record.phase === "pending",
+      ),
+    ).toBe(true);
+    expect(
+      [...owner.invocations.values()].some(
+        (record) =>
+          record.context.operation === "acquire_game_update" && record.outcome === "succeeded",
+      ),
+    ).toBe(true);
+    expect(owner.error).toBeUndefined();
+    await expect
+      .element(page.getByRole("button", { name: "Review game update", exact: true }))
+      .toBeDisabled();
+  } finally {
+    await act(async () => {
+      finish?.();
+      await launched;
+    });
+  }
+});
+
+it.each([
+  ["acquired", false],
+  ["attention_required", false],
+  ["acquired", true],
+  ["attention_required", true],
+] as const)(
+  "keeps exact archive discard reachable after runtime removal (phase=%s, metadata=%s)",
+  async (phase, hasMetadata) => {
+    const retainedId = "removed-port";
+    const archive = { ...acquisition, id: "retained-after-removal", port_id: retainedId, phase };
+    let snapshot: PortStatus = {
+      ...portStatus(),
+      port_id: retainedId,
+      active: null,
+      acquisition: archive,
+    };
+    const discard = vi
+      .spyOn(desktopApi, "discardGameUpdateAcquisition")
+      .mockResolvedValue(undefined);
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+    const review = vi.spyOn(desktopApi, "planGameUpdate");
+    const archiveReview = vi.spyOn(desktopApi, "planGameUpdateAcquisition");
+    const onSelect = vi.fn();
+    const show = () =>
+      root.rerender(
+        <UpdateCenter
+          section="updates"
+          generation={9}
+          ports={[]}
+          activityPorts={
+            hasMetadata
+              ? [
+                  {
+                    id: retainedId,
+                    name: "Retained project",
+                    summary: "Descriptive listing",
+                    platforms: [],
+                  },
+                ]
+              : []
+          }
+          statuses={new Map([[retainedId, snapshot]])}
+          activities={[]}
+          outcomes={[]}
+          diagnosticsRefreshing={false}
+          diagnosticsStale={false}
+          refreshDiagnostics={vi.fn()}
+          checkAll={vi.fn()}
+          onSelect={onSelect}
+          onOpenSettings={vi.fn()}
+          perform={owned}
+        />,
+      );
+    const owned: Perform = async (_name, task) => {
+      const result = await task();
+      // The shared operation owner refreshes an authoritative workspace snapshot;
+      // no current catalog definition is fabricated to make cleanup available.
+      snapshot = { ...snapshot, acquisition: null };
+      await show();
+      return result;
+    };
+    await show();
+    const archives = page.getByRole("region", { name: "Retained update archives", exact: true });
+    await expect.element(archives).toBeVisible();
+    await expect
+      .element(
+        archives.getByRole("heading", {
+          name: hasMetadata ? "Retained project" : retainedId,
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    expect(
+      document.querySelector(`[data-retained-update-archive-port-id="${retainedId}"]`),
+    ).not.toBeNull();
+    expect(document.querySelector('[aria-label="Review game update"]')).toBeNull();
+    expect(document.querySelector('[role="combobox"]')).toBeNull();
+    await archives.getByRole("button", { name: "Discard archive…", exact: true }).click();
+    const confirmation = page.getByRole("dialog");
+    await expect
+      .element(confirmation.getByRole("heading", { name: "Discard update archive?", exact: true }))
+      .toBeVisible();
+    expect(document.querySelector("[data-game-update-discard-review]")?.textContent).toContain(
+      archive.id,
+    );
+    expect(discard).not.toHaveBeenCalled();
+    await confirmation.getByRole("button", { name: "Discard archive", exact: true }).click();
+    expect(discard).toHaveBeenCalledExactlyOnceWith(retainedId, archive.id, 9);
+    await expect.element(archives).not.toBeInTheDocument();
+    expect(snapshot.acquisition).toBeNull();
+    expect(apply).not.toHaveBeenCalled();
+    expect(review).not.toHaveBeenCalled();
+    expect(archiveReview).not.toHaveBeenCalled();
+    expect(onSelect).not.toHaveBeenCalled();
+  },
+);

@@ -1,5 +1,6 @@
 import type { ReleasePackagePolicy } from "./release-package-policy.mts";
 import { isRecord } from "./runtime-values.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
 interface ArtifactIdentity {
   bytes: number;
   sha256: string;
@@ -49,7 +50,7 @@ export interface VerifyUpdaterOptions extends CommonOptions {
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants, createReadStream } from "node:fs";
-import { copyFile, lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -234,7 +235,9 @@ export async function verifyUpdaterInventory(
   await assertOwnedUnlinkedPath(root, manifest, "updater inventory manifest");
   if ((await lstat(manifest)).size > 64 * 1024)
     throw new Error("updater inventory exceeds its size limit");
-  const inventory: unknown = JSON.parse(await readFile(manifest, "utf8"));
+  const inventory: unknown = JSON.parse(
+    (await readControllerToolFile(manifest, 64 * 1024)).toString("utf8"),
+  );
   assertInventory(inventory);
   const policy = await loadPackagePolicy(root);
   const version = options.version ?? (await workspaceVersion(root));

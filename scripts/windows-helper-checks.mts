@@ -1,3 +1,4 @@
+import nodeTestRegistry from "./node-test-suites.json" with { type: "json" };
 import {
   nativeHelperDependencies,
   nativeHelperRegistryPath,
@@ -5,6 +6,7 @@ import {
 } from "./native-helper-dependencies.mts";
 
 const nativeToolInputs = new Set([
+  "scripts/fixtures/desktop-module-fixture.mts",
   "apps/desktop/scripts/desktop-artwork-observations.mts",
   "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
   "scripts/rust-test-impact.mts",
@@ -54,6 +56,14 @@ interface HelperSelectionPlan {
 }
 
 const helperPaths = new Set([
+  "scripts/node-test-suites.json",
+  ...nodeTestRegistry.tests
+    .filter((entry) =>
+      entry.memberships.some(
+        ([suite]) => typeof suite === "string" && /^windows-helpers(?:-\d+)?$/u.test(suite),
+      ),
+    )
+    .map((entry) => entry.file),
   "scripts/release-local-worker-accounts.ps1",
   "scripts/release-local-worker-accounts.test.mts",
   "scripts/recover-local-worker-empty-setup.ps1",
@@ -83,6 +93,7 @@ const helperPaths = new Set([
   "scripts/viteplus-cli.mts",
   "scripts/frontend-command-preflight.test.mts",
   "scripts/desktop-verify.mts",
+  "scripts/operation-coverage.mts",
   "scripts/desktop-verify.test.mts",
   "scripts/desktop-execution-plan.mts",
   "scripts/desktop-execution-plan.test.mts",

@@ -5,7 +5,9 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { inspectReleaseControlPhase } from "./release-control-phases.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { errorCode } from "./runtime-values.mts";
+import { errorCode, isRecord } from "./runtime-values.mts";
+import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import { homedir } from "node:os";
 
 export async function retainControllerDiagnostics(root: string, rawPhase: unknown) {
   const phase = inspectReleaseControlPhase(rawPhase);
@@ -74,6 +76,7 @@ export async function retainHostedNativeDiagnostics(
   home: string,
   run: string,
   revision: string,
+  windows?: { platform: "windows-x86_64"; binding?: string },
 ) {
   if (
     !path.isAbsolute(temporary) ||
@@ -82,41 +85,117 @@ export async function retainHostedNativeDiagnostics(
     !/^[a-f0-9]{40}$/u.test(revision)
   )
     throw new Error("fixed native diagnostics binding required");
-  const source = path.join(home, `.portcove-native-${run}-1-${revision}`);
-  const directory = path.join(temporary, "native-public-evidence-linux");
+  if (
+    windows &&
+    (windows.platform !== "windows-x86_64" ||
+      (windows.binding !== undefined && !/^[a-f0-9]{64}$/u.test(windows.binding)))
+  )
+    throw new Error("fixed Windows native diagnostics binding required");
+  const source = windows
+    ? windows.binding
+      ? path.join(home, `.pcn-${windows.binding.slice(0, 32)}`)
+      : undefined
+    : path.join(home, `.portcove-native-${run}-1-${revision}`);
+  const directory = path.join(
+    temporary,
+    windows ? "native-public-evidence-windows" : "native-public-evidence-linux",
+  );
   await mkdir(directory, { mode: 0o700 });
-  const names = [
-    "native-supervision-started.json",
-    "native-supervision-settlement.json",
-    "native-supervision-refusal.json",
-    "portcove-native-job-clock.json",
-    "native-post-start.json",
-    ...["pre-sign", "post-sign"].flatMap((stage) => [
-      `${stage}-supervision-settlement.json`,
-      `${stage}-supervision-refusal.json`,
-      `${stage}-tree-cleanup.json`,
-      ...["started", "refusal", "settlement", "upload-request", "upload-ack"].map(
-        (suffix) => `portcove-native-linux-${stage}/native-job-${suffix}.json`,
-      ),
-    ]),
-  ];
+  const names = windows
+    ? [
+        "native-supervision-started.json",
+        "native-supervision-settlement.json",
+        "native-supervision-settlement.json.complete.json",
+        "portcove-native-job-clock.json",
+        ...["pre-sign", "post-sign"].flatMap((stage) => [
+          `windows-native-${stage}-stage.json`,
+          `windows-native-${stage}-stage.json.complete.json`,
+        ]),
+      ]
+    : [
+        "native-supervision-started.json",
+        "native-supervision-settlement.json",
+        "native-supervision-refusal.json",
+        "portcove-native-job-clock.json",
+        "native-post-start.json",
+        ...["pre-sign", "post-sign"].flatMap((stage) => [
+          `${stage}-supervision-settlement.json`,
+          `${stage}-supervision-refusal.json`,
+          `${stage}-tree-cleanup.json`,
+          ...["started", "refusal", "settlement", "upload-request", "upload-ack"].map(
+            (suffix) => `portcove-native-linux-${stage}/native-job-${suffix}.json`,
+          ),
+        ]),
+      ];
+  if (windows && source) {
+    for (const [stage, phase] of [
+      ["pre-sign", "payload-signing"],
+      ["post-sign", "release-publication"],
+    ] as const) {
+      try {
+        const raw: unknown = JSON.parse(
+          (
+            await readBoundedPublicBuildInputFile(
+              source,
+              `windows-native-${stage}-stage.json`,
+              8192,
+            )
+          ).toString("utf8"),
+        );
+        if (
+          !isRecord(raw) ||
+          raw.run_id !== run ||
+          raw.revision !== revision ||
+          raw.run_attempt !== 1 ||
+          raw.platform !== "windows-x86_64" ||
+          raw.stage !== stage ||
+          typeof raw.directory !== "string" ||
+          !new RegExp(
+            `^hosted-native-parent-[A-Za-z0-9]{6}/windows-session/${phase}/capture$`,
+            "u",
+          ).test(raw.directory)
+        )
+          continue;
+        const relative = raw.directory;
+        names.push(
+          ...["started", "refusal", "settlement", "upload-request", "upload-ack"].map(
+            (suffix) => `${relative}/native-job-${suffix}.json`,
+          ),
+        );
+      } catch {
+        /* Unavailable routes never select other directories. Fixed rows remain observable below. */
+      }
+    }
+  }
+  const records = names.map((name) => ({ root: source, name, source: name }));
+  if (windows)
+    records.push(
+      ...["start", "started", "refusal"].map((suffix) => ({
+        root: temporary,
+        name: `portcove-native-windows-workflow-${suffix}.json`,
+        source: `temporary:portcove-native-windows-workflow-${suffix}.json`,
+      })),
+    );
   const files: { path: string; source: string; bytes: number; sha256: string }[] = [];
   const unavailable: { path: string; reason: string }[] = [];
-  for (const [index, name] of names.entries()) {
+  for (const [index, record] of records.entries()) {
     try {
-      const bytes = await readControllerToolFile(path.join(source, name), 65536);
+      if (!record.root) throw new Error("original Windows routing binding unavailable");
+      const bytes = windows
+        ? await readBoundedPublicBuildInputFile(record.root, record.name, 65536)
+        : await readControllerToolFile(path.join(record.root, record.name), 65536);
       JSON.parse(bytes.toString("utf8"));
       const output = `record-${index}.json`;
       await writeFile(path.join(directory, output), bytes, { flag: "wx", mode: 0o600 });
       files.push({
         path: output,
-        source: name,
+        source: record.source,
         bytes: bytes.length,
         sha256: createHash("sha256").update(bytes).digest("hex"),
       });
     } catch (error) {
       unavailable.push({
-        path: name,
+        path: record.source,
         reason: errorCode(error) === "ENOENT" ? "absent" : "unreadable-or-invalid",
       });
     }
@@ -128,6 +207,7 @@ export async function retainHostedNativeDiagnostics(
       run_id: run,
       run_attempt: 1,
       controller_revision: revision,
+      ...(windows ? { platform: windows.platform, binding: windows.binding ?? null } : {}),
       files,
       unavailable,
       scope: "public-native-routing-diagnostics-only",
@@ -139,7 +219,39 @@ export async function retainHostedNativeDiagnostics(
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  if (process.argv[2] === "native-linux" && process.argv.length === 3)
+  if (process.argv[2] === "native-windows" && process.argv.length === 3) {
+    const temporary = process.env.RUNNER_TEMP ?? "";
+    let binding: string | undefined;
+    try {
+      const raw: unknown = JSON.parse(
+        (
+          await readBoundedPublicBuildInputFile(
+            temporary,
+            "portcove-native-windows-workflow-start.json",
+            8192,
+          )
+        ).toString("utf8"),
+      );
+      if (
+        isRecord(raw) &&
+        raw.platform === "windows-x86_64" &&
+        raw.authority === "none" &&
+        raw.schema_version === 1 &&
+        typeof raw.binding === "string" &&
+        /^[a-f0-9]{64}$/u.test(raw.binding)
+      )
+        binding = raw.binding;
+    } catch {
+      /* Collection cannot reconstruct missing authority or retry an attempt. */
+    }
+    await retainHostedNativeDiagnostics(
+      temporary,
+      homedir(),
+      process.env.GITHUB_RUN_ID ?? "",
+      process.env.GITHUB_SHA ?? "",
+      { platform: "windows-x86_64", ...(binding === undefined ? {} : { binding }) },
+    );
+  } else if (process.argv[2] === "native-linux" && process.argv.length === 3)
     await retainHostedNativeDiagnostics(
       process.env.RUNNER_TEMP ?? "",
       process.env.HOME ?? "",

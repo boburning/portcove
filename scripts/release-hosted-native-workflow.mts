@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
+import { homedir } from "node:os";
 import { lstatSync } from "node:fs";
 import { appendFile, mkdir, open } from "node:fs/promises";
 import path from "node:path";
@@ -27,6 +29,7 @@ import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { waitForNativePostSignReadiness } from "./release-native-postsign-readiness.mts";
 
 type Stage = "pre-sign" | "post-sign";
+type WorkflowPlatform = "linux-x86_64" | "windows-x86_64";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 async function retain(file: string, value: unknown) {
   const bytes = Buffer.from(JSON.stringify(value));
@@ -59,27 +62,40 @@ async function optional(file: string) {
     return undefined;
   }
 }
-async function context(selected: Stage) {
-  const scope = await readActualHostedLinuxBootstrapScope(selected);
-  assert.ok(process.env.HOME && path.isAbsolute(process.env.HOME));
+async function context(selected: Stage, platform: WorkflowPlatform = "linux-x86_64") {
+  const windows = platform === "windows-x86_64";
+  const bootstrap = windows ? await import("./release-hosted-native-bootstrap.mts") : undefined;
+  if (windows)
+    assert.ok(
+      bootstrap?.hostedWindowsBootstrapExecutionAuthorized,
+      "Windows workflow transport awaits separate bootstrap execution authority",
+    );
+  const scope = windows
+    ? await bootstrap!.readActualHostedWindowsBootstrapScope(selected)
+    : await readActualHostedLinuxBootstrapScope(selected);
+  const home = windows ? homedir() : process.env.HOME;
+  assert.ok(home && path.isAbsolute(home));
   const root = path.join(
-    process.env.HOME,
-    `.portcove-native-${scope.identity.run_id}-${scope.identity.run_attempt}-${scope.identity.controller_revision}`,
+    home,
+    windows
+      ? `.pcn-${scope.binding.slice(0, 32)}`
+      : `.portcove-native-${scope.identity.run_id}-${scope.identity.run_attempt}-${scope.identity.controller_revision}`,
   );
   const deadline = currentNativeJobDeadline(
-    "linux-x86_64",
+    platform,
     scope.identity,
     repository,
     performance.now() + 570000,
   );
-  const intent = path.join(scope.temporary, "portcove-native-workflow-start.json");
-  const started = path.join(scope.temporary, "portcove-native-workflow-started.json");
+  const prefix = windows ? "portcove-native-windows-workflow" : "portcove-native-workflow";
+  const intent = path.join(scope.temporary, `${prefix}-start.json`);
+  const started = path.join(scope.temporary, `${prefix}-started.json`);
   const active = () => {
     scope.unchanged();
     assert.ok(performance.now() < deadline, "original native workflow deadline exhausted");
   };
   active();
-  return { scope, root, deadline, intent, started, active };
+  return { scope, root, deadline, intent, started, active, platform, windows };
 }
 type Context = Awaited<ReturnType<typeof context>>;
 type Owner = {
@@ -91,6 +107,14 @@ type Owner = {
   custody: NativeRuntimeCustody;
 };
 function refusalAbsent(c: Context) {
+  if (c.windows)
+    assert.equal(
+      lstatSync(path.join(c.scope.temporary, "portcove-native-windows-workflow-refusal.json"), {
+        throwIfNoEntry: false,
+      }),
+      undefined,
+      "retained Windows workflow refusal requires recovery",
+    );
   for (const name of [
     "pre-sign-supervision-refusal.json",
     "post-sign-supervision-refusal.json",
@@ -164,6 +188,14 @@ async function original(c: Context, requireLive = true): Promise<Owner> {
     end = BigInt(clock.deadline_ns),
     now = process.hrtime.bigint();
   assert.ok(begin <= now && now < end && end > begin && end - begin <= 570000000000n);
+  if (c.windows) {
+    assert.equal(clock.platform, c.platform);
+    assert.equal(intent.platform, c.platform);
+    assert.ok(
+      typeof intent.deadline_ns === "string" && /^[1-9][0-9]{0,19}$/u.test(intent.deadline_ns),
+    );
+    assert.ok(end <= BigInt(intent.deadline_ns), "Windows worker widened original workflow clock");
+  }
   const owner = { pid, identity, end, live: false, files, custody };
   owner.live = fence(c, owner, requireLive);
   return owner;
@@ -177,19 +209,129 @@ async function refusal(c: Context, selected: Stage) {
     );
 }
 
+async function completedRead<T>(read: () => Promise<T>) {
+  try {
+    return await read();
+  } catch (error) {
+    if (errorCode(error) === "ENOENT")
+      throw Object.assign(
+        new Error("Completed routing data disappeared; preserve original attempt and corruption", {
+          cause: error,
+        }),
+        { code: "EINTEGRITY" },
+      );
+    throw error;
+  }
+}
+async function completedRoutingRecord(c: Context, file: string) {
+  c.active();
+  const marker = `${file}.complete.json`;
+  const before = await readControllerToolFile(marker, 1024);
+  return completedRead(async () => {
+    const completion: unknown = JSON.parse(before.toString("utf8"));
+    assert.ok(
+      isRecord(completion) &&
+        Object.keys(completion).sort().join(",") === "authority,bytes,record,schema_version,sha256",
+    );
+    assert.equal(completion.schema_version, 1);
+    assert.equal(completion.authority, "none");
+    assert.equal(completion.record, path.basename(file));
+    assert.ok(
+      Number.isSafeInteger(completion.bytes) &&
+        Number(completion.bytes) > 0 &&
+        Number(completion.bytes) <= 8192,
+    );
+    assert.ok(typeof completion.sha256 === "string" && /^[a-f0-9]{64}$/u.test(completion.sha256));
+    const custody = inspectNativeRuntimeCustody([file]);
+    const bytes = await readControllerToolFile(file, 8192);
+    assert.equal(bytes.length, completion.bytes);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), completion.sha256);
+    recheckNativeRuntimeCustody([file], custody);
+    assert.ok(
+      (await readControllerToolFile(marker, 1024)).equals(before),
+      "routing completion changed during readback",
+    );
+    recheckNativeRuntimeCustody([file], custody);
+    c.active();
+    const value: unknown = JSON.parse(bytes.toString("utf8"));
+    assert.ok(isRecord(value) && value.schema_version === 1 && value.authority === "none");
+    return value;
+  });
+}
+
+async function windowsStageDirectory(c: Context, selected: Stage, owner: Owner) {
+  assert.ok(c.windows);
+  const read = async (which: Stage) => {
+    const route = await completedRoutingRecord(
+      c,
+      path.join(c.root, `windows-native-${which}-stage.json`),
+    );
+    assert.equal(
+      Object.keys(route).sort().join(","),
+      "authority,directory,owner_identity,owner_pid,platform,revision,run_attempt,run_id,schema_version,stage",
+    );
+    assert.equal(route.platform, c.platform);
+    assert.equal(route.stage, which);
+    assert.equal(route.run_id, c.scope.identity.run_id);
+    assert.equal(route.run_attempt, 1);
+    assert.equal(route.revision, c.scope.identity.controller_revision);
+    assert.equal(route.owner_pid, owner.pid);
+    assert.equal(route.owner_identity, owner.identity);
+    assert.ok(typeof route.directory === "string");
+    const phase = which === "pre-sign" ? "payload-signing" : "release-publication";
+    assert.match(
+      route.directory,
+      new RegExp(`^hosted-native-parent-[A-Za-z0-9]{6}/windows-session/${phase}/capture$`, "u"),
+    );
+    return route.directory;
+  };
+  const relative = await read(selected);
+  if (selected === "post-sign") {
+    const previous = await read("pre-sign");
+    assert.equal(
+      relative.split("/").slice(0, 2).join("/"),
+      previous.split("/").slice(0, 2).join("/"),
+      "both Windows stages must retain the original session parent",
+    );
+  }
+  fence(c, owner, selected === "pre-sign");
+  return path.join(c.root, ...relative.split("/"));
+}
+function windowsStageRefusal(c: Context, directory: string) {
+  if (c.windows)
+    assert.equal(
+      lstatSync(path.join(directory, "native-job-refusal.json"), { throwIfNoEntry: false }),
+      undefined,
+      "original Windows stage refused; preserve effects and recover",
+    );
+}
+
 /** Claim before spawn. Existing intent, even without a PID record, cannot retry. */
 export async function startHostedLinuxWorkflow() {
-  const c = await context("pre-sign");
+  return startWorkflow("linux-x86_64");
+}
+export async function startHostedWindowsWorkflow() {
+  return startWorkflow("windows-x86_64");
+}
+async function startWorkflow(platform: WorkflowPlatform) {
+  const c = await context("pre-sign", platform);
+  const origin = process.hrtime.bigint(),
+    remaining = Math.floor(c.deadline - performance.now());
+  assert.ok(remaining > 0 && remaining <= 570000);
   await retain(c.intent, {
     schema_version: 1,
     binding: c.scope.binding,
     automatic_retry: false,
     authority: "none",
+    ...(c.windows ? { platform, deadline_ns: String(origin + BigInt(remaining) * 1000000n) } : {}),
   });
   c.active();
   // Receive/authenticate the complete existing opaque closure before selecting
   // another executable. The shared setup-node pathname is never spawned here.
-  const runtime = path.join(c.scope.temporary, "portcove-native-workflow-runtime");
+  const runtime = path.join(
+    c.scope.temporary,
+    c.windows ? "portcove-native-windows-workflow-runtime" : "portcove-native-workflow-runtime",
+  );
   await mkdir(runtime, { mode: 0o700 });
   const receipt = await receiveControllerTools(runtime, c.scope.artifact, c.scope.bundle, {
     deadline: c.deadline,
@@ -197,15 +339,19 @@ export async function startHostedLinuxWorkflow() {
   const tools = await verifiedControllerToolPaths(receipt);
   const executable = tools.entries["release-hosted-native-worker"];
   assert.ok(executable);
+  const paths = c.windows
+    ? (await import("./release-controller-tools.mts")).controllerToolPlatformProfile(platform).paths
+    : controllerToolPaths;
+  if (c.windows) assert.equal(tools.platform, platform);
   const files = [
-    ...controllerToolPaths.map((name) => path.join(tools.root, name)),
+    ...paths.map((name) => path.join(tools.root, name)),
     path.join(tools.root, "manifest.json"),
   ];
   const custody = inspectNativeRuntimeCustody(files);
   await verifiedControllerToolPaths(receipt);
   recheckNativeRuntimeCustody(files, custody);
   c.active();
-  const child = spawn(tools.node, [executable, "run"], {
+  const child = spawn(tools.node, [executable, c.windows ? "windows-run" : "run"], {
     cwd: repository,
     env: { ...process.env },
     stdio: "ignore",
@@ -228,6 +374,9 @@ export async function startHostedLinuxWorkflow() {
   });
   c.active();
   refusalAbsent(c);
+  recheckNativeRuntimeCustody(files, custody);
+  await verifiedControllerToolPaths(receipt);
+  c.active();
   assert.equal(
     readProcessIdentity(child.pid),
     identity,
@@ -239,8 +388,14 @@ export async function startHostedLinuxWorkflow() {
 
 /** Reads only the original worker's four bounded public proof files. */
 export async function hostedLinuxWorkflowUploadRequest(raw: unknown) {
+  return workflowUploadRequest(raw, "linux-x86_64");
+}
+export async function hostedWindowsWorkflowUploadRequest(raw: unknown) {
+  return workflowUploadRequest(raw, "windows-x86_64");
+}
+async function workflowUploadRequest(raw: unknown, platform: WorkflowPlatform) {
   const selected = stage(raw),
-    c = await context(selected);
+    c = await context(selected, platform);
   const runner = await import("./release-hosted-native-runner.mts");
   for (;;) {
     c.active();
@@ -250,25 +405,43 @@ export async function hostedLinuxWorkflowUploadRequest(raw: unknown) {
       // after its clock/start records are complete. Never read an in-flight
       // private record as though it were a completed, malformed claim.
       await readControllerToolFile(
-        path.join(c.root, `portcove-native-linux-${selected}`, "native-job-upload-request.json"),
+        c.windows
+          ? path.join(c.root, `windows-native-${selected}-stage.json.complete.json`)
+          : path.join(
+              c.root,
+              `portcove-native-linux-${selected}`,
+              "native-job-upload-request.json",
+            ),
         4096,
       );
-      const owner = await original(c);
+      const owner = c.windows ? await completedRead(() => original(c)) : await original(c);
       await refusal(c, selected);
-      const read =
-        selected === "pre-sign"
+      const directory = c.windows
+        ? await completedRead(() => windowsStageDirectory(c, selected, owner))
+        : path.join(c.root, `portcove-native-linux-${selected}`);
+      windowsStageRefusal(c, directory);
+      if (c.windows)
+        await readControllerToolFile(path.join(directory, "native-job-upload-request.json"), 4096);
+      const read = c.windows
+        ? selected === "pre-sign"
+          ? runner.readHostedWindowsNativeUploadRequest
+          : runner.readHostedWindowsNativePostSignUploadRequest
+        : selected === "pre-sign"
           ? runner.readHostedNativeUploadRequest
           : runner.readHostedNativePostSignUploadRequest;
-      const request = await read(path.join(c.root, `portcove-native-linux-${selected}`));
+      const request = c.windows
+        ? await completedRead(() => read(directory))
+        : await read(directory);
       assert.equal(
         request.name,
-        `hosted-native-${selected === "pre-sign" ? "payload-signing" : "release-publication"}-linux-x86_64-${c.scope.identity.run_id}-1`,
+        `hosted-native-${selected === "pre-sign" ? "payload-signing" : "release-publication"}-${platform}-${c.scope.identity.run_id}-1`,
       );
       assert.ok(BigInt(request.deadline_ns) <= owner.end);
-      const current = await original(c);
+      const current = c.windows ? await completedRead(() => original(c)) : await original(c);
       await refusal(c, selected);
       fence(c, owner);
       fence(c, current);
+      windowsStageRefusal(c, directory);
       return request;
     } catch (error) {
       if (errorCode(error) !== "ENOENT") throw error;
@@ -292,27 +465,47 @@ export async function acknowledgeHostedLinuxWorkflowUpload(
   artifact: string,
   digest: string,
 ) {
+  return acknowledgeWorkflowUpload(raw, request, artifact, digest, "linux-x86_64");
+}
+export async function acknowledgeHostedWindowsWorkflowUpload(
+  raw: unknown,
+  request: string,
+  artifact: string,
+  digest: string,
+) {
+  return acknowledgeWorkflowUpload(raw, request, artifact, digest, "windows-x86_64");
+}
+async function acknowledgeWorkflowUpload(
+  raw: unknown,
+  request: string,
+  artifact: string,
+  digest: string,
+  platform: WorkflowPlatform,
+) {
   const selected = stage(raw),
-    c = await context(selected);
+    c = await context(selected, platform);
   const before = await original(c);
   await refusal(c, selected);
   assert.ok(/^[1-9][0-9]{0,15}$/u.test(artifact));
   const runner = await import("./release-hosted-native-runner.mts");
-  const acknowledge =
-    selected === "pre-sign"
+  const directory = c.windows
+    ? await windowsStageDirectory(c, selected, before)
+    : path.join(c.root, `portcove-native-linux-${selected}`);
+  windowsStageRefusal(c, directory);
+  const acknowledge = c.windows
+    ? selected === "pre-sign"
+      ? runner.acknowledgeHostedWindowsNativeUpload
+      : runner.acknowledgeHostedWindowsNativePostSignUpload
+    : selected === "pre-sign"
       ? runner.acknowledgeHostedNativeUpload
       : runner.acknowledgeHostedNativePostSignUpload;
   fence(c, before);
-  await acknowledge(
-    path.join(c.root, `portcove-native-linux-${selected}`),
-    request,
-    Number(artifact),
-    digest,
-  );
+  await acknowledge(directory, request, Number(artifact), digest);
   const current = await original(c, selected === "pre-sign");
   await refusal(c, selected);
   fence(c, before, selected === "pre-sign");
   fence(c, current, selected === "pre-sign");
+  windowsStageRefusal(c, directory);
   return { acknowledgement_retained: true, authority: "none" };
 }
 /** Wait for fixed same-run signer completion before signaling. These scheduling
@@ -459,6 +652,74 @@ export async function settleHostedLinuxWorkflowStage(raw: unknown) {
     await delay(100);
   }
 }
+/** Windows signers are awaited by the same original private runner. Public
+ * stage rows only confirm its existing provider readback; final completion also
+ * requires its terminal record and process death, never PID absence alone. */
+export async function settleHostedWindowsWorkflowStage(raw: unknown) {
+  const selected = stage(raw),
+    c = await context(selected, "windows-x86_64");
+  for (;;) {
+    const owner = await original(c, selected === "pre-sign");
+    const directory = await windowsStageDirectory(c, selected, owner);
+    windowsStageRefusal(c, directory);
+    try {
+      const bytes = await readControllerToolFile(
+        path.join(directory, "native-job-settlement.json"),
+        4096,
+      );
+      const row: unknown = JSON.parse(bytes.toString("utf8"));
+      assert.ok(isRecord(row));
+      assert.equal(row.schema_version, 1);
+      assert.equal(row.authority, "none");
+      assert.equal(row.exit_code, 0);
+      assert.equal(row.provider_bytes_match, true);
+      assert.equal(row.native_acceptance, "not-established");
+      if (selected === "post-sign") {
+        const final = await completedRoutingRecord(
+          c,
+          path.join(c.root, "native-supervision-settlement.json"),
+        );
+        assert.equal(final.binding, c.scope.binding);
+        assert.equal(final.platform, c.platform);
+        assert.equal(final.exit_code, 0);
+        assert.equal(final.recovery_required, false);
+        assert.equal(final.phase, "complete");
+        assert.equal(final.pre_sign_complete, true);
+        assert.equal(final.post_sign_complete, true);
+        assert.equal(final.native_acceptance, "not-established");
+        assert.ok(
+          typeof final.deadline_ns === "string" && /^[1-9][0-9]{0,19}$/u.test(final.deadline_ns),
+        );
+        assert.ok(
+          BigInt(final.deadline_ns) <= owner.end &&
+            process.hrtime.bigint() < BigInt(final.deadline_ns),
+        );
+        if (owner.live) {
+          await delay(100);
+          continue;
+        }
+      }
+      const current = await original(c, selected === "pre-sign");
+      windowsStageRefusal(c, directory);
+      fence(c, owner, selected === "pre-sign", selected === "post-sign");
+      fence(c, current, selected === "pre-sign", selected === "post-sign");
+      return {
+        stage: selected,
+        process_settled: true,
+        native_acceptance: "not-established",
+        authority: "none",
+      };
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT") throw error;
+      assert.ok(
+        owner.live,
+        "Windows worker exited without matching terminal settlement; recovery required",
+      );
+      if (!fence(c, owner, selected === "pre-sign")) continue;
+      await delay(100);
+    }
+  }
+}
 async function output(values: Record<string, string>) {
   assert.ok(process.env.GITHUB_OUTPUT && path.isAbsolute(process.env.GITHUB_OUTPUT));
   for (const [key, value] of Object.entries(values)) {
@@ -468,35 +729,38 @@ async function output(values: Record<string, string>) {
   }
 }
 async function main() {
-  const operation = process.argv[2],
+  const rawOperation = process.argv[2],
+    windows = rawOperation?.startsWith("windows-") === true,
+    operation = windows ? rawOperation.slice("windows-".length) : rawOperation,
     selected = stage(process.argv[3]);
   if (operation === "start" && selected === "pre-sign" && process.argv.length === 4)
-    return startHostedLinuxWorkflow();
-  if (operation === "start" && selected === "post-sign" && process.argv.length === 4)
+    return windows ? startHostedWindowsWorkflow() : startHostedLinuxWorkflow();
+  if (!windows && operation === "start" && selected === "post-sign" && process.argv.length === 4)
     return startHostedLinuxWorkflowPostSign();
   if (operation === "request" && process.argv.length === 4) {
-    const result = await hostedLinuxWorkflowUploadRequest(selected);
+    const read = windows ? hostedWindowsWorkflowUploadRequest : hostedLinuxWorkflowUploadRequest;
+    const result = await read(selected);
     await output({
       name: result.name,
       paths: result.files.join("\n"),
       request_sha256: result.request_sha256,
     });
-    assert.deepEqual(
-      await hostedLinuxWorkflowUploadRequest(selected),
-      result,
-      "upload routing changed during output",
-    );
+    assert.deepEqual(await read(selected), result, "upload routing changed during output");
     return { ready: true, authority: "none" };
   }
   if (operation === "ack" && process.argv.length === 4)
-    return acknowledgeHostedLinuxWorkflowUpload(
+    return (
+      windows ? acknowledgeHostedWindowsWorkflowUpload : acknowledgeHostedLinuxWorkflowUpload
+    )(
       selected,
       process.env.PORTCOVE_NATIVE_REQUEST_SHA256 ?? "",
       process.env.PORTCOVE_NATIVE_ARTIFACT_ID ?? "",
       process.env.PORTCOVE_NATIVE_ARTIFACT_SHA256 ?? "",
     );
   if (operation === "settle" && process.argv.length === 4)
-    return settleHostedLinuxWorkflowStage(selected);
+    return windows
+      ? settleHostedWindowsWorkflowStage(selected)
+      : settleHostedLinuxWorkflowStage(selected);
   throw new Error("fixed native workflow operation required");
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
