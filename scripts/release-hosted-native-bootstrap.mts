@@ -357,30 +357,77 @@ type WindowsOperations = {
 
 export const hostedWindowsBootstrapExecutionAuthorized = false;
 /** Fixed connected operation; the original source/job clock is never renewed. */
-export async function launchFixedHostedWindowsNativeJob() {
+export async function launchFixedHostedWindowsNativeJob(originalWorkflowDeadline?: bigint) {
   assert.ok(
     hostedWindowsBootstrapExecutionAuthorized,
     "Hosted Windows bootstrap execution awaits separate owner authority",
   );
-  return runFixedHostedWindowsOperation("runConfiguredHostedWindowsNativeJob");
+  return runFixedHostedWindowsOperation(
+    "runConfiguredHostedWindowsNativeJob",
+    originalWorkflowDeadline,
+  );
 }
 
 async function runFixedHostedWindowsOperation<Operation extends keyof WindowsOperations>(
   operation: Operation,
+  originalWorkflowDeadline?: bigint,
 ): Promise<WindowsOperations[Operation]> {
   const scope = await readActualHostedWindowsBootstrapScope("pre-sign");
-  const providerDeadline = currentNativeJobDeadline(
+  let providerDeadline = currentNativeJobDeadline(
     "windows-x86_64",
     scope.identity,
     fileURLToPath(new URL("..", import.meta.url)),
     performance.now() + 570000,
   );
+  if (originalWorkflowDeadline !== undefined) {
+    const origin = performance.now(),
+      now = process.hrtime.bigint();
+    assert.ok(
+      typeof originalWorkflowDeadline === "bigint" &&
+        originalWorkflowDeadline > now &&
+        originalWorkflowDeadline - now <= maximumNs,
+      "original Windows workflow deadline exhausted or invalid",
+    );
+    // Caller data can only shorten this independently admitted provider window.
+    providerDeadline = Math.min(
+      providerDeadline,
+      origin + Number(originalWorkflowDeadline - now) / 1e6,
+    );
+  }
   scope.unchanged();
   const home = homedir();
   assert.ok(path.isAbsolute(home) && path.normalize(home) === home);
   assert.equal(await realpath(home), home);
   const root = path.join(home, `.pcn-${scope.binding.slice(0, 32)}`);
   await mkdir(root, { mode: 0o700 });
+  if (originalWorkflowDeadline !== undefined) {
+    const intentFile = path.join(scope.temporary, "portcove-native-windows-workflow-start.json");
+    const intent: unknown = JSON.parse(
+      (await readControllerToolFile(intentFile, 8192)).toString("utf8"),
+    );
+    assert.ok(
+      isRecord(intent) &&
+        intent.binding === scope.binding &&
+        intent.platform === "windows-x86_64" &&
+        intent.deadline_ns === String(originalWorkflowDeadline) &&
+        intent.authority === "none" &&
+        intent.automatic_retry === false,
+      "original Windows workflow intent differs",
+    );
+    const identity = (await import("./heavy-rust-test-lock.mts")).readProcessIdentity(process.pid);
+    assert.ok(identity, "original Windows worker birth identity unavailable");
+    await writeFile(
+      path.join(root, "native-supervision-started.json"),
+      JSON.stringify({
+        schema_version: 1,
+        binding: scope.binding,
+        pid: process.pid,
+        identity,
+        authority: "none",
+      }),
+      { flag: "wx", mode: 0o600, flush: true },
+    );
+  }
   const started = process.hrtime.bigint();
   const remaining = Math.floor(providerDeadline - performance.now());
   assert.ok(remaining > 0 && remaining <= 570000);

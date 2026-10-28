@@ -4265,6 +4265,13 @@
         ["catalog-full-2", 1000024],
         ["release-check", 16224]
       ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-workflow.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000025],
+        ["release-check", 16225]
+      ]
     }
   ]
 }
