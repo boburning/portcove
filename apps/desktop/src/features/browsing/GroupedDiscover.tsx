@@ -303,7 +303,7 @@ function DiscoverGameCard({
     >
       <Button
         variant="ghost"
-        className="discover-game-identity grid w-full min-w-0 grid-cols-1 justify-start justify-items-stretch gap-0 p-0 text-start"
+        className="discover-game-identity grid w-full min-w-0 justify-start justify-items-stretch gap-x-3 gap-y-0 p-0 text-start"
         data-focusable
         data-detail-origin={detailOrigin}
         aria-label={

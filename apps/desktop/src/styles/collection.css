@@ -133,6 +133,7 @@
   }
   .discover-game-identity {
     align-content: start;
+    grid-template-columns: minmax(0, 1fr);
   }
   .discover-game-personal-actions {
     min-block-size: var(--control-height-sm);
@@ -157,7 +158,6 @@
   }
   .discover-rows .discover-game-identity {
     grid-template-columns: 2.5rem minmax(0, 1fr);
-    column-gap: var(--space-3);
   }
   .discover-rows .collection-art {
     grid-row: span 2;

@@ -79,6 +79,20 @@ it.each(
       .toBeVisible();
     await page.getByRole("button", { name: "View port", exact: true }).first().click();
     expect(select).toHaveBeenCalledExactlyOnceWith(entries[0]!.id, "catalog:card:harbor-0:details");
+    const identities = document.querySelectorAll<HTMLElement>(".discover-game-identity");
+    expect(identities).toHaveLength(2);
+    for (const identity of identities) {
+      const art = identity.querySelector<HTMLElement>(".collection-art")!.getBoundingClientRect();
+      const title = identity
+        .querySelector<HTMLElement>(".collection-title")!
+        .getBoundingClientRect();
+      const textSize = Number.parseFloat(getComputedStyle(identity).fontSize);
+      const compact = layout === "rows";
+      expect(art.width).toBeGreaterThan(0);
+      expect(art.width).toBeLessThanOrEqual(textSize * (compact ? 3 : 16));
+      expect(art.height).toBeLessThanOrEqual(textSize * (compact ? 4.5 : 24));
+      expect(compact ? title.left : title.top).toBeGreaterThan(compact ? art.right : art.bottom);
+    }
     await page.screenshot({
       path: `../../../../../outputs/ui-refinement/discover-${layout}-${theme}-1440.png`,
     });
