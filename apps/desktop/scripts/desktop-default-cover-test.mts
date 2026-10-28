@@ -404,12 +404,12 @@ async function missingCacheNegativeControl({
       executeBrowserScript(
         browser,
         (selector) => {
-          const card = document.querySelector(selector)?.closest(".collection-entry");
+          const card = document.querySelector(selector)?.closest("article.discover-game");
           const frame = card?.querySelector<HTMLElement>(".collection-art");
           return (
             frame?.dataset.artworkSource === "generated_fallback" &&
             !frame.querySelector("img") &&
-            Array.from(card?.querySelectorAll(".collection-state > p") ?? []).some(
+            Array.from(card?.querySelectorAll(".discover-game-metadata > p") ?? []).some(
               (note) => note.textContent === "Image unavailable",
             )
           );
