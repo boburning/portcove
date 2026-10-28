@@ -34,6 +34,11 @@ on:
         description: Exact qualified candidate revision.
         value: ${{ jobs.qualify.outputs.checkout }}
   workflow_dispatch:
+    inputs:
+      diagnostic_macos_contracts:
+        description: Temporary isolated Audit01 diagnostics; never full qualification.
+        type: boolean
+        default: false
   schedule:
     - cron: "17 5 * * *"
 
@@ -48,6 +53,7 @@ concurrency:
 
 jobs:
   qualify:
+    if: ${{ !inputs.diagnostic_macos_contracts }}
     permissions:
       contents: read
       actions: read
@@ -59,3 +65,52 @@ jobs:
       qualification_caller: ${{ inputs.qualification_caller || github.event_name }}
       caller_workflow: ${{ inputs.caller_workflow || 'qualification.yml' }}
       provenance_scope: ${{ inputs.provenance_scope || 'qualification' }}
+
+  diagnostic_macos_contracts:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_macos_contracts }}
+    runs-on: macos-26
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - case: analyzer
+            file: scripts/rust-test-tree-supervisor.test.mts
+            pattern: ^analyzer deadline retains live partial streams
+          - case: publisher-lookup
+            file: scripts/release-workflow.test.mts
+            pattern: ^mock publisher restores private lookup
+          - case: publisher-draft
+            file: scripts/release-workflow.test.mts
+            pattern: ^publisher retries and recovers
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          package_json_file: package.json
+          run_install: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+        env:
+          VP_GIT_HOOKS: "0"
+      - name: Observe one original failing contract in an isolated runner
+        shell: bash
+        env:
+          CASE_FILE: ${{ matrix.file }}
+          CASE_PATTERN: ${{ matrix.pattern }}
+        run: |
+          mkdir -p work/audit01-diagnostic
+          node --test --test-timeout=120000 --test-reporter=tap --test-name-pattern="$CASE_PATTERN" "$CASE_FILE" 2>&1 | tee work/audit01-diagnostic/original.log
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: audit01-macos-${{ matrix.case }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/audit01-diagnostic/original.log
+          retention-days: 7
+          if-no-files-found: error
