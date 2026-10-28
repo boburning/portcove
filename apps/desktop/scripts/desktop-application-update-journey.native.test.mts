@@ -43,6 +43,7 @@ async function importControlledJourney(
     for (const name of [
       "openInstalledUpdateSettings",
       "driveInstalledUpdateToRestart",
+      "driveInstalledStableWaiting",
       "driveInstalledUpdateRecovery",
       "driveInstalledForwardRepairToRestart",
     ])
@@ -60,6 +61,7 @@ const drivers = await importControlledJourney(
 const {
   openInstalledUpdateSettings,
   driveInstalledUpdateToRestart,
+  driveInstalledStableWaiting,
   driveInstalledUpdateRecovery,
   driveInstalledForwardRepairToRestart,
 } = drivers;
@@ -441,5 +443,62 @@ void test("ordinary query callback refuses missing bridge, command failure and o
     } as unknown as WebDriver;
     await assert.rejects(readInstalledUpdateStatus(browser));
     assert.equal(retained, '{"ok":false}');
+  }
+});
+
+void test("installed Stable waiting requires fresh UI result without advancing automatic cadence", async () => {
+  for (const change of [null, "staged", "apply", "current", "offer", "stale", "offline"] as const) {
+    const f = fixture();
+    const after = { ...f.before, schedule: { last_success_unix_seconds: null } };
+    const responses: unknown[] = [
+      f.before,
+      change === "staged"
+        ? { ...after, staged: { version: "0.2.0" } }
+        : change === "apply"
+          ? { ...after, apply: { revision: 1 } }
+          : after,
+    ];
+    const calls: string[] = [];
+    const browser = {
+      manage: () => ({ setTimeouts: async () => {} }),
+      wait: async (condition: unknown) => {
+        if (typeof condition === "function")
+          assert.equal(await (condition as () => Promise<unknown>)(), true);
+        return {
+          click: async () => {},
+          getText: async () =>
+            change === "offline"
+              ? "Couldn't check for updates"
+              : "No update can be offered on this channel.",
+        };
+      },
+      findElement: (locator: { value: string }) => ({
+        click: async () => {
+          calls.push(locator.value);
+        },
+      }),
+      findElements: async (locator: { value: string }) => {
+        if (change === "stale" && locator.value.includes("One-time check · Stable")) return [{}];
+        if (
+          (change === "current" && locator.value.includes("Portcove is current")) ||
+          (change === "offer" && locator.value.includes("Download and verify update"))
+        )
+          return [{}];
+        return [];
+      },
+      executeAsyncScript: async () => JSON.stringify({ ok: true, value: responses.shift() }),
+    } as unknown as WebDriver;
+    const actions: string[] = [];
+    if (change) {
+      await assert.rejects(driveInstalledStableWaiting(browser, actions));
+      assert.ok(!actions.includes("stable-waiting-without-staging-or-current-claim"));
+    } else {
+      const result = await driveInstalledStableWaiting(browser, actions);
+      assert.equal(result.authority, "none");
+      assert.equal(result.after.staged, null);
+      assert.equal(calls.filter((x) => x.includes("Check for updates")).length, 1);
+      assert.ok(calls.some((x) => x.includes("One-time update channel") && x.includes("Stable")));
+      assert.equal(actions.at(-1), "stable-waiting-without-staging-or-current-claim");
+    }
   }
 });

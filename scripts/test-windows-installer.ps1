@@ -62,6 +62,7 @@ param(
     [Parameter(Position = 25)]
     [string]$InstalledUpdatePredecessorVersion,
     [switch]$RendererUpdate,
+    [switch]$VerifyStableWaiting,
     [ValidateSet('official', 'embedded')]
     [Parameter(Position = 26)]
     [string]$RendererTransport = 'official',
@@ -109,6 +110,7 @@ Qualification modes (use their documented admitted parent commands):
     -InstalledUpdateTargetsPath DIRECTORY, -InstalledUpdateCandidatePath FILE,
     -InstalledUpdatePredecessorVersion VERSION
   -RendererUpdate, -RendererTransport official|embedded
+  -VerifyStableWaiting (opt-in disposable renderer fixture; no eligible Stable candidate)
   -TestFault post-spawn-verification  Isolated fault fixture only.
   -Help, --help  Show this help before storage, Registry, or process operations.
 
@@ -131,6 +133,9 @@ $ordinaryPublicInputs = $null
 $ordinaryPublicPark = $false
 $ordinaryPublicContinue = $false
 $ordinaryPublicMode = [bool]($OrdinaryPublicUpdateInputsPath -or $OrdinaryPublicUpdateInputsSha256 -or $OrdinaryPublicUpdateRemainingMilliseconds)
+if ($VerifyStableWaiting -and ($ordinaryPublicMode -or $NativeAccountBindingPath -or $NativeAccountBindingSha256 -or $NativeParentOwnsFinish -or $NormalPackageManifestPath -or $NormalPackageAdmissionPath)) {
+    throw 'Stable waiting fixture verification cannot widen public, dedicated-account or ordinary-package routes'
+}
 if ($ordinaryPublicMode) {
     if (-not $NativeParentOwnsFinish -or -not $NativeAccountBindingPath -or -not $OrdinaryPublicUpdateInputsPath -or
         $OrdinaryPublicUpdateInputsSha256 -cnotmatch '^[a-f0-9]{64}$' -or $OrdinaryPublicUpdateRemainingMilliseconds -lt 1 -or
@@ -426,6 +431,7 @@ if ($QualifyPackageRollback -and (-not $nativeAccount -or -not $predecessor -or 
 if ($ExpectedPredecessorVersion -and -not $QualifyPackageRollback) {
     throw 'ExpectedPredecessorVersion belongs only to the explicit package rollback mode'
 }
+if ($VerifyStableWaiting -and -not $RendererUpdate) { throw "Stable waiting verification requires the installed renderer journey" }
 if ($RendererUpdate -and -not $installedUpdate) {
     throw "Renderer update qualification requires an installed application update"
 }
@@ -1265,6 +1271,7 @@ try {
                 "--candidate-version", $ExpectedVersion
             )
             $rendererArguments += @('--transport', $RendererTransport)
+            if ($VerifyStableWaiting) { $rendererArguments += '--verify-stable-waiting' }
             & node @rendererArguments
             if ($LASTEXITCODE -ne 0) { throw "Installed Windows renderer update qualification failed" }
             $rendererReport = Get-Content -LiteralPath (Join-Path $rendererEvidence "renderer-update-evidence.json") -Raw | ConvertFrom-Json
