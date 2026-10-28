@@ -1,3 +1,4 @@
+import { hostedWindowsDiagnosticWorkflowRef } from "./release-hosted-native-windows-worker-contract.mts";
 /** Unbranded same-job diagnostic data only. No protected admission or receipts. */
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
@@ -271,7 +272,7 @@ async function readOriginalDiagnosticDrivers(version: string, deadline: number) 
  * This is neither an admitted candidate nor authority to execute its bytes.
  * The separately held controller calls it only after the rehearsal has restored
  * the original tracked checkout and removed the disposable private key. */
-export async function readOriginalHostedWindowsDiagnosticInputs() {
+export function requireOriginalHostedWindowsDiagnosticContext() {
   assert.equal(process.platform, "win32");
   assert.equal(process.arch, "x64");
   assert.equal(process.env.GITHUB_EVENT_NAME, "workflow_dispatch");
@@ -288,10 +289,16 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
     run_id = process.env.GITHUB_RUN_ID;
   assert.match(source ?? "", /^[a-f0-9]{40}$/u);
   assert.match(run_id ?? "", /^[1-9][0-9]{0,15}$/u);
-  assert.match(
-    workflow ?? "",
-    /^boburning\/portcove\/[.]github\/workflows\/hosted-native-continuity[.]yml@refs\/heads\/(?:main|feature\/534-[A-Za-z0-9-]+)$/u,
+  assert.equal(
+    workflow,
+    hostedWindowsDiagnosticWorkflowRef,
+    "Fixed diagnostic workflow ref required",
   );
+  return { source: source!, workflow: workflow, run_id: run_id! };
+}
+export async function readOriginalHostedWindowsDiagnosticInputs() {
+  const { source, workflow, run_id } = requireOriginalHostedWindowsDiagnosticContext();
+
   const routeNames = [
     "GITHUB_SHA",
     "GITHUB_WORKFLOW_REF",
@@ -430,7 +437,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
       input,
       label: "windows-x86_64",
       publicKey,
-      revision: source!,
+      revision: source,
       version,
       verifier,
     });
@@ -480,7 +487,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   );
   const fixture = inspectDiagnosticFixtureDerivation(
     derivation,
-    { source: source!, tree, run_id: run_id!, workflow: workflow! },
+    { source: source, tree, run_id: run_id, workflow: workflow },
     observed,
   );
   for (const [filename, bytes] of evidence)
@@ -493,10 +500,10 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   assert.equal(checkout(), tree);
   active();
   return {
-    source: source!,
+    source: source,
     tree,
-    run_id: run_id!,
-    workflow: workflow!,
+    run_id: run_id,
+    workflow: workflow,
     stages,
     runtime,
     drivers,

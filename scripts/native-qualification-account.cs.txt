@@ -663,13 +663,13 @@ namespace Portcove.NativeQualification {
             return StartCore(config, password, executable, arguments, directory, environment, nsis, group, expectedSha256, desktopName);
         }
         // Distinct unbranded nonproduction lane; consumed inert grants cannot enable it.
-        public static bool HostedDiagnosticCandidateExecutionAuthorized { get { return false; } }
+        public static bool HostedDiagnosticCandidateExecutionAuthorized { get { return true; } }
         public static AccountProcess StartHostedDiagnosticCandidateVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, string desktopName) {
             if (!HostedDiagnosticCandidateExecutionAuthorized) throw new InvalidOperationException("Hosted diagnostic candidate execution awaits exact separate authority");
             string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");
             if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
                 Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" || Environment.GetEnvironmentVariable("GITHUB_JOB") != "installed-prerequisite" || Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") != "workflow_dispatch" || Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT") != "1" ||
-                workflow == null || !System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$") ||
+                workflow == null || !System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/feature/534-connected-native-s2-20261028$") ||
                 config.UserName != "PortcoveNativeQual" || group == null || expectedSha256 == null ||
                 !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$") ||
                 desktopName == null || !System.Text.RegularExpressions.Regex.IsMatch(desktopName, "^PortcoveHosted_[0-9a-f]{32}$"))

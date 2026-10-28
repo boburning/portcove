@@ -2,9 +2,14 @@ param([Parameter(Mandatory)][string]$Context,[Parameter(Mandatory)][ValidatePatt
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $hostedRecoveryExecutionAuthorized=$false
-$hostedDiagnosticRecoveryExecutionAuthorized=$false
+$hostedDiagnosticRecoveryExecutionAuthorized=$true
 if($Diagnostic){if(-not $hostedDiagnosticRecoveryExecutionAuthorized){throw 'Connected diagnostic original-session recovery awaits exact separate authority'}}
 elseif(-not $hostedRecoveryExecutionAuthorized){throw 'Hosted original-session recovery awaits separate owner authority'}
+if($Diagnostic -and (-not $IsWindows -or [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne 'X64' -or
+    $env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+    $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or $env:GITHUB_JOB -cne 'installed-prerequisite' -or
+    $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
+    $env:GITHUB_WORKFLOW_REF -cne 'boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028')){throw 'Fixed hosted Windows diagnostic recovery context required'}
 function Read-RecoveryBytes([string]$File,[int]$Maximum) {
     $item=Get-Item -LiteralPath $File -Force
     if($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Original regular recovery file required'}
@@ -18,7 +23,7 @@ $value=$recoveryUtf8.GetString($recoveryBytes)|ConvertFrom-Json
 $recoveryKeys=if($Diagnostic){'account_sid,binding,broker_sid,description,original_owner_created_filetime,original_owner_pid,run_attempt,run_id,setup_sha256,source_commit,station'}else{'account_sid,binding,broker_sid,description,original_owner_created_filetime,original_owner_pid,setup_sha256,station'}
 $fixedRecoveryContext=if($Diagnostic) {
     $env:GITHUB_JOB -ceq 'installed-prerequisite' -and $env:GITHUB_EVENT_NAME -ceq 'workflow_dispatch' -and
-    $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$' -and
+    $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/feature/534-connected-native-s2-20261028$' -and
     $value.source_commit -ceq $env:GITHUB_SHA -and $value.run_id -ceq $env:GITHUB_RUN_ID -and $value.run_attempt -eq 1 -and $env:GITHUB_RUN_ATTEMPT -ceq '1'
 }else {
     $env:GITHUB_JOB -ceq 'native_windows' -and $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/application-update-production[.]yml@refs/tags/[^/]+$'

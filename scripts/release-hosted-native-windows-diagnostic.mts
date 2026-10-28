@@ -51,6 +51,7 @@ import {
 } from "./release-windows-owner-mechanism.mts";
 import {
   readOriginalHostedWindowsDiagnosticInputs,
+  requireOriginalHostedWindowsDiagnosticContext,
   readOrdinaryHostedWindowsDiagnosticDeadline,
   readBoundedDiagnosticProviderBody,
 } from "./release-hosted-native-windows-diagnostic-source.mts";
@@ -60,7 +61,7 @@ import {
   awaitOriginalNativeUploadAcknowledgment,
 } from "./release-hosted-native-runner.mts";
 
-export const hostedWindowsConnectedDiagnosticExecutionAuthorized = false;
+export const hostedWindowsConnectedDiagnosticExecutionAuthorized = true;
 const project = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const diagnosticRoot = path.join(project, "work/hosted-windows-connected-diagnostic");
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -101,6 +102,7 @@ function held() {
     hostedWindowsConnectedDiagnosticExecutionAuthorized,
     "Connected Windows diagnostic awaits exact new source/account/candidate/recovery authority",
   );
+  requireOriginalHostedWindowsDiagnosticContext();
 }
 function environment(root: string) {
   return {
@@ -1567,7 +1569,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (process.argv[2] !== "run") console.log(JSON.stringify(result));
     })
     .catch(async (error: unknown) => {
-      if (hostedWindowsConnectedDiagnosticExecutionAuthorized) {
+      let originalContextVerified = false;
+      try {
+        requireOriginalHostedWindowsDiagnosticContext();
+        originalContextVerified = true;
+      } catch {
+        /* Wrong scope cannot write even a failure record. */
+      }
+      if (hostedWindowsConnectedDiagnosticExecutionAuthorized && originalContextVerified) {
         await retain(path.join(controlRoot(), "controller-failure.json"), {
           source: process.env.GITHUB_SHA,
           run_id: process.env.GITHUB_RUN_ID,
