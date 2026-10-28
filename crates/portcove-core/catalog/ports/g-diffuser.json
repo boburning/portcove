@@ -16,7 +16,32 @@
       "game_slug": "g-diffuser",
       "match_kind": "port"
     },
-    "issue_number": 111
+    "issue_number": 111,
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero-x",
+      "evidence_urls": [
+        "https://github.com/Zorkats/G-Diffuser/blob/37e4daa95afb44e5e3a36050dd5a0dc30d85f034/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "f-zero-x-n64-us-rev0",
+          "title": "F-Zero X (Nintendo 64, US revision 0)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Zorkats/G-Diffuser/blob/37e4daa95afb44e5e3a36050dd5a0dc30d85f034/README.md"
+          ]
+        },
+        {
+          "id": "f-zero-x-64dd-expansion-kit",
+          "title": "F-Zero X Expansion Kit (Nintendo 64DD, translated disk)",
+          "system": "nintendo-64dd",
+          "evidence_urls": [
+            "https://github.com/Zorkats/G-Diffuser/blob/37e4daa95afb44e5e3a36050dd5a0dc30d85f034/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "stable",

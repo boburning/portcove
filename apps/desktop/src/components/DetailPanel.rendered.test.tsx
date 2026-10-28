@@ -17,8 +17,11 @@ import {
   runtimeIdentity,
 } from "./rendered-test-fixtures";
 
-function detailSection(html: string, section: "overview" | "files" | "saves" | "versions") {
-  const sections = ["overview", "files", "saves", "versions"];
+function detailSection(
+  html: string,
+  section: "overview" | "files" | "saves" | "versions" | "manage",
+) {
+  const sections = ["overview", "files", "saves", "versions", "manage"];
   const start = html.indexOf(`id="detail-section-${section}"`);
   expect(start, `${section} panel heading is present`).toBeGreaterThan(-1);
   const next = sections[sections.indexOf(section) + 1];
@@ -1066,10 +1069,8 @@ describe("desktop components", () => {
     expect(html.indexOf("Choose and add the game files again before playing.")).toBeLessThan(
       html.indexOf(port.summary),
     );
-    expect(detailSection(html, "files")).toContain("Installation location");
-    expect(detailSection(html, "files").indexOf("Installation location")).toBeLessThan(
-      detailSection(html, "files").indexOf("Requirements"),
-    );
+    expect(detailSection(html, "manage")).toContain("Installation location");
+    expect(detailSection(html, "files")).toContain("Requirements");
     expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(detailSection(html, "versions")).toContain("Installed version");
     expect(html).not.toContain(">Play</button>");
@@ -1400,7 +1401,12 @@ describe("desktop components", () => {
           .trim(),
     );
     expect(uninstalled).toContain("Choose game files");
-    expect(uninstalled.match(/Game files needed/g)).toHaveLength(1);
+    const heroStart = uninstalled.indexOf('class="detail-hero"');
+    const tabsStart = uninstalled.indexOf('class="detail-tabs');
+    expect(heroStart).toBeGreaterThanOrEqual(0);
+    expect(tabsStart).toBeGreaterThan(heroStart);
+    expect(uninstalled.slice(heroStart, tabsStart).match(/Game files needed/g)).toHaveLength(1);
+    expect(uninstalled).toContain("<dt>Readiness</dt><dd>Game files needed</dd>");
     expect(uninstalled).not.toContain("readiness-card");
     expect(uninstalled.indexOf('class="hero-reason"')).toBeLessThan(
       uninstalled.indexOf("Choose game files"),
@@ -1908,6 +1914,7 @@ describe("desktop components", () => {
     const files = detailSection(html, "files");
     const saves = detailSection(html, "saves");
     const versions = detailSection(html, "versions");
+    const manage = detailSection(html, "manage");
     for (const content of [
       port.summary,
       "Project status and release information",
@@ -1915,14 +1922,10 @@ describe("desktop components", () => {
       "Recorded checks",
     ])
       expect(overview).toContain(content);
-    for (const content of [
-      'aria-label="Game actions"',
-      "Installation location",
-      "Requirements",
-      "Technical details",
-      install.path,
-    ])
+    for (const content of ['aria-label="Game actions"', "Requirements"])
       expect(files).toContain(content);
+    for (const content of ["Installation location", "Technical details", install.path])
+      expect(manage).toContain(content);
     for (const content of ["Saves and storage", "Back up data", "E:/Portcove/user/sample"])
       expect(saves).toContain(content);
     for (const content of [
@@ -2086,4 +2089,33 @@ it("keeps Core-permitted launch available while original bytes await an explicit
   expect(html).toContain(">Try launch</button>");
   expect(html).not.toContain("Locate game files");
   expect(html).not.toContain("Review game preparation");
+});
+
+it("uses descriptive display metadata only in the shared detail shell", () => {
+  const displayPort = {
+    ...port,
+    name: "Display project",
+    source_profile: "display-only-source",
+    presentation: {
+      installation_method: "portable-package" as const,
+      source_requirements: [],
+      saves_and_settings: "external-user-owned" as const,
+    },
+  };
+  const html = renderToStaticMarkup(
+    <DetailPanel
+      port={port}
+      displayPort={displayPort}
+      status={{ ...portStatus(), active: installRecord() }}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  const heroStart = html.indexOf('class="detail-hero"');
+  const tabsStart = html.indexOf('class="detail-tabs');
+  expect(html.slice(heroStart, tabsStart)).toContain("Display project");
+  expect(detailSection(html, "manage")).toContain(`Uninstall ${port.name}`);
+  expect(detailSection(html, "manage")).not.toContain("Uninstall Display project");
+  expect(detailSection(html, "files")).not.toContain('id="source-display-only-source"');
 });

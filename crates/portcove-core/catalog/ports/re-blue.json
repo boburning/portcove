@@ -15,7 +15,24 @@
       "game_slug": "re-blue",
       "match_kind": "port"
     },
-    "issue_number": 56
+    "issue_number": 56,
+    "original_game": {
+      "format_version": 1,
+      "id": "blue-dragon",
+      "evidence_urls": [
+        "https://github.com/zolaware/reblue/blob/85aae686489dff775890fb8100ab525d7b7427b0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "blue-dragon-xbox360-global",
+          "title": "Blue Dragon (Xbox 360, Global three-disc release)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/zolaware/reblue/blob/85aae686489dff775890fb8100ab525d7b7427b0/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "stable",

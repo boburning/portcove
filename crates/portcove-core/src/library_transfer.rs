@@ -215,11 +215,16 @@ pub(crate) fn verify_source_plan(library: &crate::Library, plan: &LibraryMovePla
 }
 
 fn ensure_idle(library: &crate::Library) -> Result<()> {
-    if !library.launch_sessions()?.is_empty()
-        || !crate::operation::OperationStore::new(library.clone())
-            .all()?
-            .is_empty()
+    let operations = crate::operation::OperationStore::new(library.clone()).all()?;
+    if let Some(acquisition) = operations
+        .iter()
+        .find(|operation| operation.kind == crate::operation::LifecycleOperationKind::AcquireUpdate)
     {
+        return Err(PortcoveError::conflict("finish or cancel the archive transfer, discard its exact private acquisition, then review the library move again")
+            .detail("acquisition_id",&acquisition.id).detail("port_id",&acquisition.port_id)
+            .detail("recovery_action","discard_game_update_acquisition"));
+    }
+    if !library.launch_sessions()?.is_empty() || !operations.is_empty() {
         return Err(PortcoveError::conflict(
             "finish launch and lifecycle recovery before moving the library",
         ));

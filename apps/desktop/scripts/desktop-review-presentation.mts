@@ -61,3 +61,23 @@ export function readReviewFieldStyles(
     ...fields,
   );
 }
+
+/** Observe exact port membership; a grouped card is not an installation identity. */
+export function decodeDiscoverPortIds(value: string | null): string[] {
+  const ids: unknown = JSON.parse(value ?? "null");
+  assert.ok(Array.isArray(ids), "Discover group lost its exact port identities");
+  const candidates: unknown[] = ids;
+  const validated = candidates.map((id) => {
+    assert.ok(
+      typeof id === "string" && id.length > 0,
+      "Discover group lost its exact port identities",
+    );
+    return id;
+  });
+  assert.equal(
+    new Set(validated).size,
+    validated.length,
+    "Discover group repeated a port identity",
+  );
+  return validated;
+}

@@ -48,7 +48,7 @@ async function open(index = 0) {
   const entry = comparisonEntries[index]!;
   await page
     .getByRole("button", {
-      name: `View details for ${entry.title} Port: ${entry.port}${entry.variant ? " · " + entry.variant : ""}`,
+      name: `View details for ${entry.title} ${entry.port}${entry.variant ? " · " + entry.variant : ""}`,
       exact: true,
     })
     .click();
@@ -95,11 +95,13 @@ for (const theme of ["dark", "light"]) {
       await mount(theme);
       await open();
       const cover = document.querySelector(".detail-cover")!.getBoundingClientRect();
-      expect([cover.width, cover.height]).toEqual(height > 820 ? [240, 360] : [160, 240]);
+      expect(cover.width).toBeGreaterThanOrEqual(72);
+      expect(cover.width).toBeLessThanOrEqual(148);
+      expect(cover.height).toBe(cover.width * 1.5);
       const play = page.getByRole("button", { name: "Play", exact: true });
       expect(play.element().getBoundingClientRect().width).toBeLessThan(160);
       await capture(`managed-${theme}-${width}`);
-      for (const label of ["Overview", "Files", "Saved data", "Versions"]) {
+      for (const label of ["Overview", "Game files", "Saves", "Versions & updates", "Manage"]) {
         await page.getByRole("tab", { name: label, exact: true }).click();
         contained();
         const detail = document.querySelector<HTMLElement>("[data-detail-workspace]")!;
@@ -133,20 +135,22 @@ it.each(["dark", "light"])(
     await open(2);
     document.documentElement.style.fontSize = "200%";
     contained();
-    expect(document.querySelector(".detail-cover")!.getBoundingClientRect().width).toBe(160);
+    expect(
+      document.querySelector(".detail-cover")!.getBoundingClientRect().width,
+    ).toBeLessThanOrEqual(108);
     await capture(`enlarged-text-${theme}`);
     document.documentElement.style.removeProperty("font-size");
     await page.viewport(320, 720);
     contained();
     const cover = document.querySelector(".detail-cover")!.getBoundingClientRect();
-    expect([cover.width, cover.height]).toEqual([144, 216]);
+    expect([cover.width, cover.height]).toEqual([96, 144]);
     await capture(`long-identity-${theme}-320`);
     const spacing = document.createElement("style");
     spacing.id = "detail-text-spacing";
     spacing.textContent =
       "* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }";
     document.head.append(spacing);
-    for (const label of ["Overview", "Files", "Saved data", "Versions"]) {
+    for (const label of ["Overview", "Game files", "Saves", "Versions & updates", "Manage"]) {
       await page.getByRole("tab", { name: label, exact: true }).click();
       contained();
     }
@@ -160,9 +164,9 @@ it("keeps whole-image portrait, landscape, square and missing artwork at a fixed
   for (const index of [0, 1, 2]) {
     await open(index);
     const cover = document.querySelector<HTMLElement>(".detail-cover")!;
-    expect([cover.getBoundingClientRect().width, cover.getBoundingClientRect().height]).toEqual([
-      240, 360,
-    ]);
+    const frame = cover.getBoundingClientRect();
+    expect(frame.width).toBeLessThanOrEqual(148);
+    expect(frame.height).toBe(frame.width * 1.5);
     await expect.poll(() => cover.querySelector("img")?.naturalWidth ?? 0).toBeGreaterThan(0);
     expect(getComputedStyle(cover.querySelector("img")!).objectFit).toBe("contain");
     await capture(`artwork-${index}-dark`);
@@ -170,7 +174,7 @@ it("keeps whole-image portrait, landscape, square and missing artwork at a fixed
   }
   await open(4);
   await expect
-    .element(page.getByRole("tab", { name: "Files", exact: true }))
+    .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
   expect(document.querySelector(".detail-cover img")).toBeNull();
   await capture("artwork-4-dark");
@@ -181,9 +185,9 @@ it.each(["dark", "light"])(
   async (theme) => {
     await page.viewport(960, 640);
     await mount(theme, "details");
-    await page.getByRole("button", { name: "Review downloaded update", exact: true }).click();
+    await page.getByRole("button", { name: "Review prepared update", exact: true }).click();
     await expect
-      .element(page.getByRole("heading", { name: "Versions", exact: true }))
+      .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
       .toHaveFocus();
     await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeEnabled();
     page
@@ -195,11 +199,11 @@ it.each(["dark", "light"])(
     await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
     await page
       .getByRole("button", {
-        name: "View details for Summit Racer Port: Harbor upstream project · external",
+        name: "View details for Summit Racer Harbor upstream project · external",
         exact: true,
       })
       .click();
-    await page.getByRole("tab", { name: "Files", exact: true }).click();
+    await page.getByRole("tab", { name: "Game files", exact: true }).click();
     page
       .getByRole("heading", { name: "Launch details", exact: true })
       .element()
@@ -209,12 +213,12 @@ it.each(["dark", "light"])(
     await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
     await page
       .getByRole("button", {
-        name: "View details for Summit Racer Port: Harbor upstream project · unknown",
+        name: "View details for Summit Racer Harbor upstream project · unknown",
         exact: true,
       })
       .click();
     await expect
-      .element(page.getByRole("tab", { name: "Files", exact: true }))
+      .element(page.getByRole("tab", { name: "Game files", exact: true }))
       .toHaveAttribute("aria-selected", "true");
     await expect
       .element(page.getByRole("button", { name: "Play", exact: true }))
@@ -224,7 +228,7 @@ it.each(["dark", "light"])(
     await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
     await page
       .getByRole("button", {
-        name: "View details for Moonlit Harbor Port: Harbor upstream project · downloaded",
+        name: "View details for Moonlit Harbor Harbor upstream project · downloaded",
         exact: true,
       })
       .click();
@@ -235,8 +239,8 @@ it.each(["dark", "light"])(
     await page
       .getByRole("textbox", { name: "Working directory", exact: true })
       .fill("fixture/disposable-retained-draft");
-    await page.getByRole("tab", { name: "Versions", exact: true }).click();
-    await page.getByRole("tab", { name: "Files", exact: true }).click();
+    await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+    await page.getByRole("tab", { name: "Game files", exact: true }).click();
     await expect
       .element(page.getByRole("textbox", { name: "Working directory", exact: true }))
       .toHaveValue("fixture/disposable-retained-draft");
@@ -249,11 +253,11 @@ it.each(["dark", "light"])(
     await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
     await page
       .getByRole("button", {
-        name: "View details for Orchard Quest Port: Harbor desktop port · Backup history unavailable",
+        name: "View details for Orchard Quest Harbor desktop port · Backup history unavailable",
         exact: true,
       })
       .click();
-    await page.getByRole("tab", { name: "Saved data", exact: true }).click();
+    await page.getByRole("tab", { name: "Saves", exact: true }).click();
     await expect
       .element(page.getByRole("button", { name: "Retry backup history", exact: true }))
       .toBeVisible();
@@ -271,12 +275,12 @@ it.each(["dark", "light"])("renders the production preparation owner in %s", asy
   await mount(theme, "setup");
   await page
     .getByRole("button", {
-      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      name: "View details for Harbor Adventure Harbor Adventure",
       exact: true,
     })
     .click();
   await expect
-    .element(page.getByRole("tab", { name: "Files", exact: true }))
+    .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
   page
     .getByRole("button", { name: "Review game preparation", exact: true })

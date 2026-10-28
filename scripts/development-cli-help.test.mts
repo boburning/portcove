@@ -9,6 +9,7 @@ import {
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   readdirSync,
   rmSync,
   writeFileSync,
@@ -98,7 +99,8 @@ void test("capability selection rejects an unknown profile before any setup", ()
 });
 
 void test("release tool help works before inputs, dependencies, network, or output exist", (t) => {
-  const fixtureRoot = mkdtempSync(path.join(os.tmpdir(), "portcove-release-help-"));
+  // Keep direct-entry identity equal to Node's resolved module URL on macOS.
+  const fixtureRoot = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-release-help-")));
   t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
   mkdirSync(path.join(fixtureRoot, "scripts"));
   function copyTool(name: string) {

@@ -567,7 +567,21 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
-        self.install_with_external_replacement(request, None, operation, emit)
+        self.install_with_external_replacement(request, None, None, operation, emit)
+            .await
+    }
+
+    pub(crate) async fn install_acquired<F>(
+        &self,
+        request: InstallRequest,
+        acquired: Option<&crate::service::game_update_acquisition::AcquiredInputs>,
+        operation: &OperationCoordinator,
+        emit: F,
+    ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        self.install_with_external_replacement(request, None, acquired, operation, emit)
             .await
     }
 
@@ -611,6 +625,7 @@ impl Installer {
                 previous_path,
                 prepare_activation,
             }),
+            None,
             operation,
             emit,
         )
@@ -621,6 +636,7 @@ impl Installer {
         &self,
         request: InstallRequest,
         replacement: Option<ExternalReplacement<'_>>,
+        acquired: Option<&crate::service::game_update_acquisition::AcquiredInputs>,
         operation: &OperationCoordinator,
         mut emit: F,
     ) -> Result<InstallRecord>
@@ -708,6 +724,7 @@ impl Installer {
             .install_inner(
                 request,
                 replacement.as_ref(),
+                acquired,
                 operation,
                 &mut lifecycle,
                 &mut emit,
@@ -788,6 +805,14 @@ impl Installer {
         &self,
         request: &InstallRequest,
     ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+        self.require_acquisition_scope(request, false)
+    }
+
+    fn require_acquisition_scope(
+        &self,
+        request: &InstallRequest,
+        immutable: bool,
+    ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
         if request.qualification.runtime_data_policy.is_some()
             && request.qualification.retained_contract.is_none()
         {
@@ -847,11 +872,13 @@ impl Installer {
             let destination = request
                 .output_root
                 .join(artifact_storage_key(&request.release.asset.sha256)?);
-            crate::managed_shared_preferences::require_acceptance(
-                port,
-                request.qualification.shared_preferences.as_ref(),
-                &destination,
-            )?;
+            if !immutable {
+                crate::managed_shared_preferences::require_acceptance(
+                    port,
+                    request.qualification.shared_preferences.as_ref(),
+                    &destination,
+                )?;
+            }
         }
         if request.qualification.runtime_data_policy.is_some()
             || crate::runtime_data_policy::known_artifact(&request.release.asset.sha256)
@@ -978,10 +1005,69 @@ impl Installer {
         Ok(())
     }
 
+    /// No extraction, source materialization, output ownership or runtime publication.
+    pub(crate) async fn acquire_immutable<F>(
+        &self,
+        request: &InstallRequest,
+        private: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
+        request.qualification.require_runtime_creation()?;
+        let scope = self.require_acquisition_scope(request, true)?;
+        self.refresh_curated_acquisition(request, scope.as_ref(), operation)
+            .await?;
+        let curated = match &scope {
+            Some(scope) => {
+                let contract = request
+                    .qualification
+                    .retained_contract
+                    .as_ref()
+                    .ok_or_else(|| PortcoveError::state("acquisition lost retained definition"))?;
+                let catalog = contract.catalog(&request.port_id)?;
+                scope.curated_checks == Some(1)
+                    && catalog
+                        .port(&request.port_id)?
+                        .release
+                        .curated
+                        .contains_key(&request.qualification.platform)
+            }
+            None => false,
+        };
+        self.acquire_asset_bytes(
+            &request.release.asset,
+            &private.join("0.archive"),
+            operation,
+            emit,
+            scope
+                .as_ref()
+                .map(|scope| AssetAcquisition { scope, curated }),
+            None,
+        )
+        .await?;
+        if let Some(runtime) = &request.qualification.runtime {
+            self.acquire_asset_bytes(
+                &runtime.asset,
+                &private.join("1.archive"),
+                operation,
+                emit,
+                None,
+                None,
+            )
+            .await?;
+        }
+        self.require_acquisition_scope(request, true)?;
+        Ok(())
+    }
+
     async fn install_inner<F>(
         &self,
         request: InstallRequest,
         replacement: Option<&ExternalReplacement<'_>>,
+        acquired: Option<&crate::service::game_update_acquisition::AcquiredInputs>,
         operation: &OperationCoordinator,
         lifecycle: &mut InstallLifecycle,
         emit: &mut F,
@@ -1026,6 +1112,9 @@ impl Installer {
                 operation,
                 emit,
                 acquisition,
+                acquired
+                    .map(|inputs| inputs.path(&request.release.asset))
+                    .transpose()?,
             )
             .await?;
         if request.qualification.managed_shared_preferences.is_some() {
@@ -1053,6 +1142,9 @@ impl Installer {
                 operation,
                 emit,
                 None,
+                acquired
+                    .map(|inputs| inputs.path(&runtime.asset))
+                    .transpose()?,
             )
             .await?;
             let source = unpacked.join(&runtime.archive_root);
@@ -1201,15 +1293,15 @@ impl Installer {
         Ok(install)
     }
 
-    async fn prepare_asset<F>(
+    async fn acquire_asset_bytes<F>(
         &self,
         asset: &ReleaseAsset,
         download_path: &Path,
-        payload_root: &Path,
         operation: &OperationCoordinator,
         emit: &mut F,
         acquisition: Option<AssetAcquisition<'_>>,
-    ) -> Result<ArtifactIdentity>
+        acquired: Option<&Path>,
+    ) -> Result<(ArtifactIdentity, Option<crate::curated_cache::CacheWorker>)>
     where
         F: FnMut(OperationEvent),
     {
@@ -1227,11 +1319,28 @@ impl Installer {
             }
             worker
         });
-        let restored = match cache_worker.as_ref() {
+        let restored = match cache_worker.as_ref().filter(|_| acquired.is_none()) {
             Some(worker) => worker.restore(download_path).await?,
             None => false,
         };
-        if !restored {
+        if let Some(source) = acquired {
+            let source = source.to_path_buf();
+            let destination = download_path.to_path_buf();
+            let expected = asset.clone();
+            let operation = operation.clone();
+            let faults = self.faults.clone();
+            tokio::task::spawn_blocking(move || {
+                faults.check(LifecycleFaultPoint::UpdateArchiveCopyStarted)?;
+                crate::service::game_update_acquisition::copy_archive(
+                    &source,
+                    &destination,
+                    &expected,
+                    &operation,
+                )
+            })
+            .await
+            .map_err(|error| PortcoveError::install(error.to_string()))??;
+        } else if !restored {
             match scope {
                 Some(scope) => {
                     self.download_scoped(asset, download_path, operation, emit, Some(scope))
@@ -1260,6 +1369,32 @@ impl Installer {
             .detail("actual", actual_hash));
         }
         emit(operation.message("info", format!("Download checksum matches: {}", asset.name)));
+        Ok((
+            ArtifactIdentity {
+                asset_name: asset.name.clone(),
+                sha256: actual_hash.to_ascii_lowercase(),
+                size: actual_size,
+            },
+            cache_worker,
+        ))
+    }
+
+    async fn prepare_asset<F>(
+        &self,
+        asset: &ReleaseAsset,
+        download_path: &Path,
+        payload_root: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+        acquisition: Option<AssetAcquisition<'_>>,
+        acquired: Option<&Path>,
+    ) -> Result<ArtifactIdentity>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let (artifact, cache_worker) = self
+            .acquire_asset_bytes(asset, download_path, operation, emit, acquisition, acquired)
+            .await?;
         let asset_name = asset.name.clone();
         let extraction_path = download_path.to_path_buf();
         let extraction_root = payload_root.to_path_buf();
@@ -1318,11 +1453,7 @@ impl Installer {
                 },
             ));
         }
-        Ok(ArtifactIdentity {
-            asset_name: asset.name.clone(),
-            sha256: actual_hash.to_ascii_lowercase(),
-            size: actual_size,
-        })
+        Ok(artifact)
     }
 
     async fn download<F>(
@@ -1404,9 +1535,12 @@ impl Installer {
             .await?
         {
             let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+            let next = completed
+                .checked_add(chunk.len() as u64)
+                .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;
+            validate_download_progress(next, asset.size)?;
             file.write_all(&chunk).await?;
-            completed += chunk.len() as u64;
-            validate_download_progress(completed, asset.size)?;
+            completed = next;
             if total.is_some_and(|total| completed == total)
                 || completed.saturating_sub(reported) >= 1024 * 1024
             {

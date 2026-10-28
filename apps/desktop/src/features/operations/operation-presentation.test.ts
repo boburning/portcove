@@ -51,3 +51,32 @@ it("excludes every target for known library/application maintenance", () => {
     ).toBe("prepare");
   }
 });
+
+it("keeps Core launch holds while allowing the dedicated immutable transfer locally", () => {
+  const transfer: InvocationRecord = {
+    ...pending,
+    name: "acquire_game_update",
+    context: { ...pending.context, operation: "acquire_game_update" },
+  };
+  const transferring = { generation: 7, pending: new Map([[1, transfer]]) };
+  expect(presentPortAction(transferring, "A", portStatus(), "launch").assessment.blocked).toBe(
+    false,
+  );
+  expect(presentPortAction(transferring, "A", portStatus(), "install").assessment.blocked).toBe(
+    true,
+  );
+  const held = {
+    ...portStatus(),
+    port_actions: [
+      { action: "launch", availability: "held", reason: "invalid_installation", definition: null },
+    ],
+  } as const;
+  expect(
+    presentPortAction(
+      transferring,
+      "A",
+      { ...held, port_actions: [...held.port_actions] },
+      "launch",
+    ).assessment.blocked,
+  ).toBe(true);
+});

@@ -15,7 +15,24 @@
       "game_slug": "beetle-adventure-racing",
       "match_kind": "underlying-game"
     },
-    "issue_number": 88
+    "issue_number": 88,
+    "original_game": {
+      "format_version": 1,
+      "id": "beetle-adventure-racing",
+      "evidence_urls": [
+        "https://github.com/bryankruman/BeetleRecomp/blob/fcb1c87443a1ca78b8e464e923d1134d8b758d6e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "beetle-adventure-racing-n64-usa",
+          "title": "Beetle Adventure Racing! (Nintendo 64, USA)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/bryankruman/BeetleRecomp/blob/fcb1c87443a1ca78b8e464e923d1134d8b758d6e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

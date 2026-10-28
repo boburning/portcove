@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { PortBrowser } from "../components/PortBrowser";
+import { openDiscoverPort } from "./discover-test-helpers";
 import {
   useLibraryBrowsingContext,
   libraryBrowsingPreferenceKey,
@@ -235,12 +236,14 @@ afterEach(() => {
 const roleButton = (name: string) => page.getByRole("button", { name, exact: true });
 async function openAdvancedFilters(name: string) {
   await userEvent.click(roleButton(name));
-  if (!document.querySelector<HTMLDetailsElement>("[role=dialog] details")?.open)
+  if (!document.querySelector<HTMLDetailsElement>(".catalog-filter-panel details")?.open)
     await userEvent.click(page.getByText("Advanced filters", { exact: true }));
 }
 async function closeFilters() {
   await userEvent.keyboard("{Escape}");
-  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("region", { name: "Filter options", exact: true }))
+    .not.toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
     .toHaveFocus();
@@ -265,8 +268,8 @@ it("keeps host, setup method and membership on one context through details and r
     .toHaveAttribute("aria-pressed", "true");
   await userEvent.click(roleButton("Original disc referenced at launch (1)"));
   await closeFilters();
-  expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(1);
-  await userEvent.click(page.getByRole("button", { name: /^Windows game\s/ }));
+  expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(1);
+  await openDiscoverPort("windows");
   const region = page.getByRole("region", { name: "Matching browsing contexts" });
   await expect.element(region).toBeInTheDocument();
   await expect
@@ -296,7 +299,7 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Filters (2)")).toHaveFocus();
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     await expect.element(roleButton("Remove Preview filter")).toBeInTheDocument();
-    await userEvent.click(page.getByRole("button", { name: /^Both game\s/ }));
+    await openDiscoverPort("both");
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     flushSync(() => root.unmount());
@@ -328,7 +331,9 @@ it("retains unsupported persisted intent until explicit reset", async () => {
   flushSync(() => root.render(<Fixture />));
   await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
   const key = libraryBrowsingPreferenceKey("/filters-library-a");
-  await userEvent.click(roleButton("Stable"));
+  await openAdvancedFilters("Filters (0)");
+  await userEvent.click(roleButton("Stable (2)"));
+  await closeFilters();
   const stored = JSON.parse(localStorage.getItem(key)!) as {
     inputs: { sections: { catalog: { filter: unknown } } };
   };
@@ -342,7 +347,7 @@ it("retains unsupported persisted intent until explicit reset", async () => {
   expect(JSON.parse(localStorage.getItem(key)!) as unknown).toMatchObject({
     inputs: { sections: { catalog: { filter: { version: 999 } } } },
   });
-  await userEvent.click(roleButton("Reset catalog filters"));
+  await userEvent.click(roleButton("Clear filters"));
   await expect.element(roleButton("Windows (2)")).toBeEnabled();
   await closeFilters();
   await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
@@ -360,8 +365,8 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Stable (2)"));
     await expect.element(roleButton("Linux (0)")).toBeEnabled();
     await closeFilters();
-    expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(2);
-    await userEvent.click(page.getByRole("button", { name: /^Both game\s/ }));
+    expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(2);
+    await openDiscoverPort("both");
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
     flushSync(() => root.unmount());
@@ -374,7 +379,7 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("In my library (0)")).toBeEnabled();
     await userEvent.click(roleButton("Not in my library (3)"));
     await closeFilters();
-    expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(3);
+    expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(3);
     await userEvent.click(roleButton("Switch library"));
     await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
     await userEvent.click(roleButton("Toggle membership snapshot"));
@@ -388,7 +393,7 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Filters (1)")).toHaveFocus();
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await openAdvancedFilters("Filters (1)");
-    await userEvent.click(roleButton("Reset catalog filters"));
+    await userEvent.click(roleButton("Clear filters"));
     await closeFilters();
     expect(invoke).not.toHaveBeenCalled();
   },
@@ -408,7 +413,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Stable (2)"));
     await expect.element(roleButton("Finish setup (1)")).toHaveAttribute("aria-pressed", "true");
     await closeFilters();
-    await userEvent.click(page.getByRole("button", { name: /^Both game\s/ }));
+    await openDiscoverPort("both");
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Missing BIOS filter")).toBeInTheDocument();
     flushSync(() => root.unmount());
@@ -436,7 +441,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await expect.element(roleButton("Remove Stable filter")).toBeInTheDocument();
     await openAdvancedFilters("Filters (1)");
-    await userEvent.click(roleButton("Reset catalog filters"));
+    await userEvent.click(roleButton("Clear filters"));
     await closeFilters();
     expect(invoke).not.toHaveBeenCalled();
   },
@@ -452,7 +457,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Matching update staged (1)"));
     await expect.element(roleButton("Available at last check (0)")).toBeEnabled();
     await closeFilters();
-    await userEvent.click(page.getByRole("button", { name: /^Windows game\s/ }));
+    await openDiscoverPort("windows");
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Matching update staged filter")).toBeInTheDocument();
     flushSync(() => root.unmount());

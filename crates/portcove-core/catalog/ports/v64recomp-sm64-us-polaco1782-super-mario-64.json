@@ -34,6 +34,23 @@
       "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
       "game_slug": "super-mario-64",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-64",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/ac76a5d223149521d2d22a175db6affb3bf91f46/games/sm64-us/profile.toml"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-64-n64-usa",
+          "title": "Super Mario 64 (Nintendo 64, USA)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/polaco1782/v64recomp/blob/ac76a5d223149521d2d22a175db6affb3bf91f46/games/sm64-us/profile.toml"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

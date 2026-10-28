@@ -70,7 +70,7 @@ for (const theme of ["dark", "light"]) {
       </LocalizationProvider>,
     );
     const origin = page.getByRole("button", {
-      name: "View details for Orchard Quest Port: Orchard Quest",
+      name: "View details for Orchard Quest Orchard Quest",
       exact: true,
     });
     await expect.element(origin).toBeVisible();
@@ -144,7 +144,7 @@ for (const theme of ["dark", "light"]) {
     }
     await page.getByRole("button", { name: /^Activity/ }).click();
     await expect.element(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
-    await page.getByRole("tab", { name: "Updates", exact: true }).click();
+    await page.getByRole("tab", { name: "Game updates", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".update-row").length).toBeGreaterThan(0);
     for (const width of [320, 240]) {
       await page.viewport(width, 800);

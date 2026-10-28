@@ -4,12 +4,16 @@ import { runInNewContext } from "node:vm";
 import { errorCode, errorMessage } from "./runtime-values.mts";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { inspectLinuxSupervisor } from "./run-rust-tests.mts";
-import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
+import {
+  heavyRustTestLockPath,
+  readHeavyRustLockOwner,
+  readProcessIdentity,
+} from "./heavy-rust-test-lock.mts";
 import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mts";
 import { executeFallow } from "./fallow-execution.mts";
 import { runResourceCommand } from "./resource-command.mts";
@@ -144,6 +148,7 @@ void test(
         phase: "analysis",
         timeoutMilliseconds: 5000,
         identity: { fixture: "owned-hanging-analyzer" },
+        queueDeadline: performance.now() + 10_000,
       },
     )
       .then((result) => {
@@ -231,8 +236,9 @@ for (const mode of ["format-timeout", "native-124", "output-limit", "finalizatio
     async (context) => {
       const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-analyzer-control-"));
       let verified = false;
+      let result: Awaited<ReturnType<typeof executeFallow>> | undefined;
       try {
-        const result = await executeFallow(
+        result = await executeFallow(
           process.execPath,
           [
             "-e",
@@ -255,6 +261,7 @@ for (const mode of ["format-timeout", "native-124", "output-limit", "finalizatio
             phase: mode === "format-timeout" ? "format" : "analysis",
             timeoutMilliseconds: mode === "format-timeout" ? 1500 : 5000,
             identity: { fixture: mode },
+            queueDeadline: performance.now() + 10_000,
           },
         );
         if (mode === "native-124") {
@@ -293,10 +300,116 @@ for (const mode of ["format-timeout", "native-124", "output-limit", "finalizatio
         verified = true;
       } finally {
         if (verified) await rm(directory, { recursive: true, force: true });
-        else context.diagnostic(`Retained failed analyzer control: ${directory}`);
+        else {
+          context.diagnostic(`Retained failed analyzer control: ${directory}`);
+          context.diagnostic(
+            JSON.stringify({
+              mode,
+              result: result
+                ? {
+                    status: result.status,
+                    code: errorCode(result.error),
+                    error: result.error ? errorMessage(result.error).slice(0, 2048) : null,
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                    evidenceFailure: result.evidenceFailure,
+                  }
+                : null,
+              retained: await analyzerControlEvidence(directory),
+            }),
+          );
+        }
       }
     },
   );
+
+async function boundedControlText(file: string) {
+  try {
+    const handle = await open(file, "r");
+    try {
+      const bytes = Buffer.alloc(4096);
+      const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
+      return bytes.subarray(0, bytesRead).toString("utf8");
+    } finally {
+      await handle.close();
+    }
+  } catch (error) {
+    return { error: errorCode(error) ?? errorMessage(error).slice(0, 512) };
+  }
+}
+
+async function analyzerControlEvidence(directory: string) {
+  try {
+    const capture = (await readdir(directory)).find((name) => /^(analysis|format)-/u.test(name));
+    if (!capture) return { capture: null };
+    const retained = path.join(directory, capture);
+    const files = await Promise.all(
+      ["running.json", "native-exit.json", "finished.json"].map(async (name) => [
+        name,
+        await boundedControlText(path.join(retained, name)),
+      ]),
+    );
+    try {
+      const owner = await readHeavyRustLockOwner(heavyRustTestLockPath());
+      if (
+        owner.process.pid === process.pid &&
+        typeof owner.command === "string" &&
+        owner.command.includes(path.join(retained, "invocation.json"))
+      )
+        return {
+          files,
+          owned: true,
+          owner: {
+            pid: owner.process.pid,
+            child: owner.child,
+            created_at: owner.created_at,
+            command: owner.command.slice(0, 2048),
+          },
+          cleanup: owner.child?.cleanup_receipt
+            ? await boundedControlText(owner.child.cleanup_receipt)
+            : null,
+        };
+      return { files, owned: false };
+    } catch (error) {
+      return { files, owner_error: errorCode(error) ?? errorMessage(error).slice(0, 512) };
+    }
+  } catch (error) {
+    return { observation_error: errorCode(error) ?? errorMessage(error).slice(0, 512) };
+  }
+}
+
+void test("analyzer admission deadline refuses before payload launch and retains incomplete custody evidence", async (context) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-analyzer-admission-"));
+  const sentinel = path.join(directory, "must-not-launch");
+  let verified = false;
+  try {
+    const result = await executeFallow(
+      process.execPath,
+      ["-e", `require('node:fs').writeFileSync(${JSON.stringify(sentinel)}, 'unexpected payload')`],
+      { cwd: process.cwd(), env: process.env, encoding: "utf8", maxBuffer: 1024 },
+      {
+        directory,
+        phase: "analysis",
+        timeoutMilliseconds: 5000,
+        identity: { fixture: "expired admission" },
+        queueDeadline: performance.now() - 1,
+      },
+    );
+    assert.equal(result.status, null);
+    assert.equal(errorCode(result.error), "PORTCOVE_RESOURCE_QUEUE_TIMEOUT");
+    assert.equal(existsSync(sentinel), false);
+    const capture = required(
+      (await readdir(directory)).find((name) => name.startsWith("analysis-")),
+    );
+    const finished = json(await readFile(path.join(directory, capture, "finished.json"), "utf8"));
+    assert.equal(finished.outcome, "failed");
+    assert.equal(finished.quiescent, false);
+    verified = true;
+  } finally {
+    if (verified) await rm(directory, { recursive: true, force: true });
+    else context.diagnostic(`Retained analyzer admission control: ${directory}`);
+  }
+});
 void test(
   "inherited analyzer deadline establishes inner custody before releasing its outer owner",
   {
@@ -442,7 +555,7 @@ async function waitUntil(predicate: () => boolean, milliseconds: number) {
 void test(
   "non-Linux Unix supervisor gates launch and kills a surviving grandchild after wrapper loss",
   { skip: process.platform === "win32" || process.platform === "linux", timeout: 15_000 },
-  async () => {
+  async (context) => {
     const root = await mkdtemp(path.join(os.tmpdir(), "portcove-unix-supervisor-"));
     const gatePath = path.join(root, "registered.gate");
     const statusPath = path.join(root, "status.json");
@@ -476,6 +589,7 @@ void test(
       supervisor.once("close", (code, signal) => resolve({ code, signal }));
     });
     let descendantPid: number | undefined;
+    let verified = false;
     try {
       await new Promise((resolve) => setTimeout(resolve, 200));
       assert.equal(existsSync(startedPath), false, "managed command started before registration");
@@ -499,6 +613,26 @@ void test(
           throw error;
         }
       }, 5_000);
+      verified = true;
+    } catch (error) {
+      context.diagnostic(
+        JSON.stringify({
+          scope: "owned non-Linux watchdog control",
+          root,
+          code: errorCode(error),
+          error: errorMessage(error).slice(0, 2048),
+          supervisor: {
+            pid: supervisor.pid,
+            exitCode: supervisor.exitCode,
+            signalCode: supervisor.signalCode,
+          },
+          descendantPid,
+          gate: await boundedControlText(gatePath),
+          status: await boundedControlText(statusPath),
+          cleanup: await boundedControlText(cleanupReceiptPath),
+        }),
+      );
+      throw error;
     } finally {
       if (supervisor.exitCode === null && supervisor.signalCode === null) {
         try {
@@ -510,7 +644,8 @@ void test(
           process.kill(descendantPid, "SIGKILL");
         } catch {}
       }
-      await rm(root, { recursive: true, force: true });
+      if (verified) await rm(root, { recursive: true, force: true });
+      else context.diagnostic(`Retained incomplete Unix watchdog control: ${root}`);
     }
   },
 );

@@ -2,6 +2,7 @@ import type { WebDriver, WebElement, Locator } from "selenium-webdriver";
 import type { PortDefinition } from "../src/transport-types.generated.js";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
+import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 // Shared native review interactions; visibility waits never bypass product consent.
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
@@ -11,7 +12,7 @@ import { By, Key, until } from "selenium-webdriver";
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,
-  label: "Overview" | "Files" | "Saved data" | "Versions",
+  label: "Overview" | "Game files" | "Saves" | "Versions & updates" | "Manage",
 ) {
   const tab = await browser.wait(
     until.elementLocated(
@@ -45,20 +46,106 @@ export async function openCatalogPortAfterRefresh(
   port: Pick<PortDefinition, "id">,
   query = "",
 ) {
-  const { click } = reviewControls(browser);
   await browser.navigate().refresh();
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
-  await selectPrimaryNavigation(browser, "Find games");
+  await selectPrimaryNavigation(browser, "Discover");
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(
     Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
     Key.BACK_SPACE,
     query,
   );
-  await click(
-    By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]'),
+  await clearCatalogFilters(browser);
+  await selectCatalogPort(browser, port.id);
+}
+
+export async function catalogPortGroup(browser: WebDriver, portId: string): Promise<WebElement> {
+  let selected: WebElement | undefined;
+  await browser.wait(
+    async () => {
+      for (const group of await browser.findElements(
+        By.css(".discover-game[data-discover-port-ids]"),
+      )) {
+        const ids = decodeDiscoverPortIds(await group.getAttribute("data-discover-port-ids"));
+        if (ids.includes(portId)) {
+          selected = group;
+          return true;
+        }
+      }
+      return false;
+    },
+    15_000,
+    `Discover group for exact port ${portId} did not appear`,
   );
-  await click(By.css(`[data-detail-origin="catalog:card:${port.id}"]`));
+  assert.ok(selected);
+  return selected;
+}
+
+/** Use the real single-port action or comparison dialog, never a direct state change. */
+export async function selectCatalogPort(browser: WebDriver, portId: string) {
+  const group = await catalogPortGroup(browser, portId);
+  const matching = decodeDiscoverPortIds(
+    await group.getAttribute("data-discover-matching-port-ids"),
+  );
+  if (matching.length === 1 && matching[0] === portId) {
+    await clickVisible(browser, await group.findElement(By.css(".discover-game-identity")));
+  } else {
+    const compare = await group.findElement(
+      By.xpath('.//button[starts-with(normalize-space(.),"Compare")]'),
+    );
+    await clickVisible(browser, compare);
+    const target = await browser.wait(
+      until.elementLocated(By.css(`[role="dialog"] button[data-discover-port-id="${portId}"]`)),
+      5_000,
+    );
+    await clickVisible(browser, target);
+  }
+  await browser.wait(
+    until.elementLocated(By.css(`[data-detail-workspace][data-detail-port-id="${portId}"]`)),
+    15_000,
+  );
+}
+
+export async function catalogResultPortIds(browser: WebDriver): Promise<string[]> {
+  const groups = await executeBrowserScript(browser, () =>
+    [
+      ...document.querySelectorAll<HTMLElement>(".discover-game[data-discover-matching-port-ids]"),
+    ].map((group) => group.dataset.discoverMatchingPortIds ?? null),
+  );
+  const ids = groups.flatMap(decodeDiscoverPortIds).sort();
+  assert.equal(
+    new Set(ids).size,
+    ids.length,
+    "Each matching port appears in exactly one authored group",
+  );
+  return ids;
+}
+
+export async function openCatalogFilters(browser: WebDriver) {
+  const trigger = await browser.wait(
+    until.elementLocated(By.xpath('//button[starts-with(normalize-space(.),"Filters (")]')),
+    15_000,
+  );
+  if ((await trigger.getAttribute("aria-expanded")) !== "true")
+    await clickVisible(browser, trigger);
+  const panel = await browser.wait(
+    until.elementLocated(By.css('section[aria-label="Filter options"]')),
+    5_000,
+  );
+  await browser.wait(until.elementIsVisible(panel), 5_000);
+  return panel;
+}
+
+export async function clearCatalogFilters(browser: WebDriver) {
+  const panel = await openCatalogFilters(browser);
+  await clickVisible(
+    browser,
+    await panel.findElement(By.xpath('.//button[normalize-space(.)="Clear filters"]')),
+  );
+  await clickVisible(
+    browser,
+    await panel.findElement(By.xpath('.//button[normalize-space(.)="Done"]')),
+  );
 }
 
 async function waitForEntrance(browser: WebDriver, element: WebElement) {
@@ -159,7 +246,7 @@ export async function clickVisible(
 /** Use the shipping narrow navigation sheet when the desktop navigation is hidden. */
 export async function selectPrimaryNavigation(
   browser: WebDriver,
-  label: "Library" | "Find games" | "Activity" | "Settings",
+  label: "Library" | "Discover" | "Activity" | "Settings",
 ) {
   const locator = By.xpath(
     `//nav[@aria-label="Primary navigation"]//button[.//span[normalize-space(.)="${label}"]]`,
@@ -205,14 +292,18 @@ export function reviewControls(browser: WebDriver) {
 
 export async function chooseGameUpdateDisposition(
   browser: WebDriver,
-  choice: "install" | "download",
+  choice: "install" | "prepare" | "download",
 ) {
   const trigger = await browser.wait(
     until.elementLocated(By.css('section[aria-label="Review game update"] [role="combobox"]')),
     15_000,
   );
   await clickVisible(browser, trigger);
-  const label = choice === "install" ? "Install update" : "Download for later";
+  const label = {
+    install: "Install update",
+    prepare: "Prepare for later",
+    download: "Download for later",
+  }[choice];
   await reviewControls(browser).click(
     By.xpath(`//*[@role="option"][normalize-space(.)="${label}"]`),
   );
@@ -412,4 +503,7 @@ export async function captureAccessibilityReport(
   assertNoAccessibilityViolations(accessibility);
 }
 
-export { assertReviewFieldPresentation } from "./desktop-review-presentation.mts";
+export {
+  assertReviewFieldPresentation,
+  decodeDiscoverPortIds,
+} from "./desktop-review-presentation.mts";

@@ -1584,6 +1584,19 @@ async function livePreparationRecoveryScenario({
       ordinaryClose,
     });
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
+    if (required(recovered).status === "succeeded") {
+      const history = await browser.findElement(
+        By.xpath(
+          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+        ),
+      );
+      await executeBrowserScript(
+        browser,
+        (element) => element.scrollIntoView({ block: "center" }),
+        history,
+      );
+      await history.click();
+    }
     const row = await browser.wait(
       async () => {
         for (const candidate of await browser.findElements(

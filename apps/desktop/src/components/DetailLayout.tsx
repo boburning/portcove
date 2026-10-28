@@ -1,6 +1,6 @@
 import { Tabs } from "@base-ui/react/tabs";
 import { Menu } from "@base-ui/react/menu";
-import { ArrowLeft, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, FileText, MoreHorizontal } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   detailSections,
@@ -15,6 +15,13 @@ import {
   type PortIdentity,
 } from "../port-identity";
 import { ArtworkImage } from "./Artwork";
+import { useArtwork, useArtworkVisibility, useCatalogMedia } from "../artwork";
+import { CatalogMediaGallery, MediaCredit } from "./CatalogMedia";
+import { IdentityIcon } from "../features/identity/IdentityIcon";
+import { identityLabel, identityStyle } from "../features/identity/identity-style";
+import { platformLabel, releaseChannelPresentation } from "../view-model";
+import type { PortDefinition } from "../types";
+import { Chip } from "./ui/chip";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -22,11 +29,16 @@ import { controlFocus } from "./ui/control-style";
 
 const labels: Record<DetailSection, string> = {
   overview: "Overview",
-  files: "Files",
-  saves: "Saved data",
-  versions: "Versions",
+  files: "Game files",
+  saves: "Saves",
+  versions: "Versions & updates",
+  manage: "Manage",
 };
-type Identity = PortIdentity & { id: string };
+type Identity = PortIdentity & {
+  id: string;
+  platforms?: PortDefinition["platforms"] | undefined;
+  channels?: PortDefinition["channels"] | undefined;
+};
 export type RevealDetailSection = (
   section: DetailSection,
   targetId?: string,
@@ -37,6 +49,9 @@ export type RevealDetailSection = (
 export function DetailLayout({
   port,
   projectUrl,
+  openSupport,
+  overviewRequirements,
+  overviewActions,
   opening,
   initialSection,
   readiness,
@@ -49,6 +64,9 @@ export function DetailLayout({
 }: {
   port: Identity;
   projectUrl?: string | undefined;
+  openSupport?: (() => void) | undefined;
+  overviewRequirements?: ReactNode;
+  overviewActions?: ((reveal: RevealDetailSection) => ReactNode) | undefined;
   opening?: DetailOpening | undefined;
   initialSection: DetailSection;
   readiness: ReactNode;
@@ -57,7 +75,7 @@ export function DetailLayout({
   attention?: ((reveal: RevealDetailSection) => ReactNode) | undefined;
   close: () => void;
   steam?: boolean | undefined;
-  children: (reveal: RevealDetailSection) => Record<DetailSection, ReactNode>;
+  children: (reveal: RevealDetailSection) => Partial<Record<DetailSection, ReactNode>>;
 }) {
   const identity = `${port.id}:${opening?.token ?? "standalone"}`;
   const [selection, setSelection] = useState({ identity, section: initialSection });
@@ -65,6 +83,21 @@ export function DetailLayout({
   if (selection.identity !== identity) setSelection({ identity, section: initialSection });
   const selected = selection.identity === identity ? selection.section : initialSection;
   const root = useRef<HTMLElement>(null);
+  const { element: hero, visible: heroVisible } = useArtworkVisibility();
+  const { display: headerArtwork } = useArtwork(port.id, "detail", heroVisible);
+  const catalogHeader = port.presentation?.media?.find((asset) => asset.role === "header");
+  // An unavailable selected local image keeps its precedence and its recovery path.
+  const allowCatalogHeader = Boolean(
+    headerArtwork.state && !headerArtwork.state.choice.asset_sha256,
+  );
+  const { display: catalogHeaderArtwork } = useCatalogMedia(
+    port.id,
+    catalogHeader,
+    heroVisible && allowCatalogHeader,
+  );
+  const usingCatalogHeader = Boolean(allowCatalogHeader && catalogHeaderArtwork.image);
+  const heroArtwork = usingCatalogHeader ? catalogHeaderArtwork : headerArtwork;
+  const heroImage = heroArtwork.image;
   const [pending, setPending] = useState<{
     section: DetailSection;
     targetId?: string | undefined;
@@ -118,6 +151,16 @@ export function DetailLayout({
     return () => cancelAnimationFrame(frame);
   }, [identity, opening, selected, pending]);
   const panels = children(reveal);
+  const sections = detailSections.filter((section) => panels[section] !== undefined);
+  const managementSection = panels.manage !== undefined ? "manage" : "files";
+  const sourceSystems = [
+    ...new Set(
+      port.presentation?.original_game?.source_editions.map(
+        (edition) => edition.system ?? "not-specified",
+      ) ?? [],
+    ),
+  ];
+  if (!sourceSystems.length) sourceSystems.push("not-specified");
   return (
     <section
       ref={root}
@@ -126,10 +169,11 @@ export function DetailLayout({
       data-detail-workspace
       data-detail-port-id={port.id}
       data-detail-opening={identity}
+      data-detail-section={selected}
     >
       <Button
         data-focusable
-        className="detail-back mb-6"
+        className="detail-back mb-5"
         variant="ghost"
         size="sm"
         aria-label="Back to previous workspace"
@@ -137,18 +181,21 @@ export function DetailLayout({
       >
         <Icon glyph={ArrowLeft} /> Back
       </Button>
-      <div className="detail-hero">
-        <ArtworkImage
-          port={port}
-          quietFallback
-          className="detail-cover rounded-pc-md border border-pc-border"
-        />
+      <div className="detail-hero" ref={hero}>
+        {heroImage && (
+          <div className="detail-header-artwork" aria-hidden="true">
+            <img
+              src={heroImage}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              onError={heroArtwork.onImageError}
+            />
+          </div>
+        )}
+        <ArtworkImage port={port} quietFallback className="detail-cover" />
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
-          <h1
-            id="port-detail-title"
-            tabIndex={-1}
-            className="detail-title m-0 text-[length:var(--text-3xl)]"
-          >
+          <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
           </h1>
           {gameProjectLabel(port) && (
@@ -156,6 +203,37 @@ export function DetailLayout({
               Port project: {gameProjectLabel(port)}
             </p>
           )}
+          <div
+            className="detail-identity-chips mt-3 flex flex-wrap gap-2"
+            role="group"
+            aria-label="Game and port identity"
+          >
+            {sourceSystems.map((system) => (
+              <Chip key={`system:${system}`} style={identityStyle(system)} title="Original system">
+                <IdentityIcon name={system} />
+                {identityLabel(system)}
+              </Chip>
+            ))}
+            {port.platforms?.map((platform) => {
+              const system = platform.split("-")[0]!;
+              return (
+                <Chip key={`platform:${platform}`} style={identityStyle(system)} title="Runs on">
+                  <IdentityIcon name={system} />
+                  {platformLabel(platform)}
+                </Chip>
+              );
+            })}
+            {port.channels?.map((channel) => (
+              <Chip
+                key={`channel:${channel}`}
+                style={identityStyle(channel, true)}
+                title="Offered release channel"
+              >
+                <IdentityIcon name={channel} channel />
+                {releaseChannelPresentation(channel).label}
+              </Chip>
+            ))}
+          </div>
           <div data-detail-readiness className="detail-readiness mt-4 text-sm">
             {readiness}
           </div>
@@ -188,7 +266,7 @@ export function DetailLayout({
                     <Menu.Item
                       className={`${controlFocus} cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection`}
                       onClick={() =>
-                        reveal("files", "detail-artwork", ".artwork-controls > summary")
+                        reveal(managementSection, "detail-artwork", ".artwork-controls > summary")
                       }
                     >
                       Change artwork
@@ -196,7 +274,9 @@ export function DetailLayout({
                     {steam && (
                       <Menu.Item
                         className={`${controlFocus} cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection`}
-                        onClick={() => reveal("files", "detail-steam", "[data-steam-shortcut]")}
+                        onClick={() =>
+                          reveal(managementSection, "detail-steam", "[data-steam-shortcut]")
+                        }
                       >
                         Steam shortcut
                       </Menu.Item>
@@ -219,7 +299,12 @@ export function DetailLayout({
           </p>
         </div>
       </div>
-      {attention && <div className="detail-attention my-6 text-sm">{attention(reveal)}</div>}
+      {usingCatalogHeader && catalogHeaderArtwork.media && (
+        <div className="mt-2">
+          <MediaCredit media={catalogHeaderArtwork.media} />
+        </div>
+      )}
+      {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
       <Tabs.Root
         value={selected}
         onValueChange={(value: unknown) => {
@@ -228,14 +313,14 @@ export function DetailLayout({
             setSelection({ identity, section: value as DetailSection });
           }
         }}
-        className="detail-tabs mt-7"
+        className="detail-tabs"
       >
         <Tabs.List
           activateOnFocus={false}
           aria-label="Game detail sections"
-          className="detail-tab-list flex flex-wrap gap-x-6 gap-y-1 border-b border-pc-border"
+          className="detail-tab-list flex flex-wrap gap-x-7 gap-y-1 border-b border-pc-border"
         >
-          {detailSections.map((section) => (
+          {sections.map((section) => (
             <Tabs.Tab
               key={section}
               value={section}
@@ -246,23 +331,74 @@ export function DetailLayout({
             </Tabs.Tab>
           ))}
         </Tabs.List>
-        {detailSections.map((section) => (
+        {sections.map((section) => (
           <Tabs.Panel
             key={section}
             value={section}
             keepMounted
             hidden={selected !== section}
             inert={selected !== section}
-            className="detail-tab-panel min-w-0 pt-6 pb-10"
+            className="detail-tab-panel min-w-0 pb-10"
           >
-            <h2 id={`detail-section-${section}`} tabIndex={-1} className="mb-5 text-xl">
+            <h2
+              id={`detail-section-${section}`}
+              tabIndex={-1}
+              className={section === "overview" ? "sr-only" : "mb-5 text-xl"}
+            >
               {labels[section]}
             </h2>
-            {panels[section]}
-            {section === "overview" && projectUrl && (
-              <div id="detail-project-link" tabIndex={-1} className="mt-5">
-                <ExternalLink href={projectUrl}>Open upstream project</ExternalLink>
+            {section === "overview" ? (
+              <div className="detail-overview">
+                <div className="detail-overview-main min-w-0">
+                  {panels.overview}
+                  <CatalogMediaGallery portId={port.id} media={port.presentation?.media} />
+                  {overviewActions?.(reveal)}
+                </div>
+                <aside className="detail-overview-support min-w-0">
+                  <section className="detail-requirements" aria-label="Requirements">
+                    <h3 className="mb-4 text-base">Requirements</h3>
+                    {overviewRequirements ?? (
+                      <p className="text-sm text-pc-muted-foreground">
+                        Review Game files and the upstream instructions for this port’s
+                        requirements.
+                      </p>
+                    )}
+                  </section>
+                  {(projectUrl || openSupport) && (
+                    <section className="detail-resources" aria-label="Project & support">
+                      <h3 className="mb-3 text-base">Project & support</h3>
+                      {projectUrl && (
+                        <div id="detail-project-link" tabIndex={-1}>
+                          <ExternalLink
+                            href={projectUrl}
+                            className="flex w-full gap-2.5 border-b border-pc-border py-3 text-xs"
+                          >
+                            <ArrowUpRight aria-hidden="true" />
+                            <span>Open upstream project</span>
+                          </ExternalLink>
+                        </div>
+                      )}
+                      {openSupport && (
+                        <Button
+                          variant="link"
+                          className="w-full justify-start rounded-none border-b border-pc-border px-0 py-3 text-start text-xs"
+                          onClick={openSupport}
+                        >
+                          <FileText aria-hidden="true" />
+                          <span>Create support report</span>
+                        </Button>
+                      )}
+                      {openSupport && (
+                        <p className="mt-3 max-w-prose text-sm text-pc-muted-foreground">
+                          Save and review a sanitized report locally before choosing to share it.
+                        </p>
+                      )}
+                    </section>
+                  )}
+                </aside>
               </div>
+            ) : (
+              panels[section]
             )}
           </Tabs.Panel>
         ))}

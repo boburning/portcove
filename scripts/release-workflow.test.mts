@@ -129,6 +129,25 @@ function mockPublisherArguments(script: string, bin: string, ghShim: string) {
   ];
 }
 
+// The production publisher runs on Ubuntu. This private fixture adapter maps
+// only its epoch/UTC ISO modes onto macOS's real BSD date parser.
+const mockBsdDateAdapter = [
+  "#!/usr/bin/env bash",
+  "set -euo pipefail",
+  'if [[ "$#" == 1 && "$1" == +%s ]]; then exec /bin/date +%s; fi',
+  'if [[ "$#" == 3 && "$1" == -d && "$3" == +%s ]]; then',
+  '  if [[ "$2" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$ ]]; then',
+  // Epoch seconds discard the fractional part on GNU date as well.
+  '    timestamp="${2%%.*}"',
+  '    timestamp="${timestamp%Z}Z"',
+  '    exec /bin/date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$timestamp" +%s',
+  "  fi",
+  "fi",
+  'printf "%s\\n" "Unsupported publisher fixture date mode" >&2',
+  "exit 2",
+  "",
+].join("\n");
+
 function assertWriteAuthority(data: typeof workflowData) {
   assert.deepEqual(data.permissions, { contents: "read" });
   for (const name of ["build", "build_intel", "assemble", "rehearse"])
@@ -485,7 +504,9 @@ void test(
   },
   async (t) => {
     assert.ok(bashExecutable);
-    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-"));
+    const root = await realpath(
+      await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-")),
+    );
     const evidence = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-evidence-"));
     console.log(`Retained mock publisher diagnostics: ${evidence}`);
     t.after(async () => {
@@ -501,6 +522,11 @@ void test(
     await mkdir(metadata);
     await mkdir(bin);
     await mkdir(stateRoot);
+    if (process.platform === "darwin") {
+      const dateShim = path.join(bin, "date");
+      await writeFile(dateShim, mockBsdDateAdapter);
+      await chmod(dateShim, 0o755);
+    }
     await writeFile(path.join(assets, "alpha.bin"), "alpha");
     await writeFile(path.join(assets, "beta.bin"), "beta");
     await writeFile(path.join(metadata, "generated-release-body.md"), "fixture release\n");
@@ -673,6 +699,37 @@ void test(
     assert.ok(bashVersion && bashPath, `Missing Bash identity: ${evidence}`);
     assert.equal(ghKind, "file", `gh is not the fixture executable; diagnostics: ${evidence}`);
     assert.equal(ghPath, ghShim, `gh escaped its fixture; diagnostics: ${evidence}`);
+    // Exercise both accepted timestamp spellings with the real host parser,
+    // including the macOS adapter, before any mock publication is attempted.
+    const timestamps = ["2001-02-03T04:05:06Z", "2001-02-03T04:05:06.789Z"];
+    for (const timestamp of timestamps) {
+      const parsed: SpawnSyncReturns<string> = spawnSync(
+        bashExecutable,
+        mockPublisherArguments('date -d "$3" +%s', bin, ghShim).concat(timestamp),
+        {
+          cwd: root,
+          env: fixtureEnvironment,
+          encoding: "utf8",
+          timeout: 5_000,
+          killSignal: "SIGKILL",
+        },
+      );
+      assert.equal(parsed.status, 0, parsed.stderr);
+      assert.equal(parsed.stdout.trim(), String(Math.floor(Date.parse(timestamp) / 1_000)));
+    }
+    const unknownDateMode = spawnSync(
+      bashExecutable,
+      mockPublisherArguments("date --portcove-fixture-unknown-mode", bin, ghShim),
+      {
+        cwd: root,
+        env: fixtureEnvironment,
+        encoding: "utf8",
+        timeout: 5_000,
+        killSignal: "SIGKILL",
+      },
+    );
+    assert.notEqual(unknownDateMode.status, 0);
+    assert.equal(existsSync(path.join(stateRoot, "exists")), false);
     const runPublisher = (overrides: NodeJS.ProcessEnv = {}) =>
       spawnSync(bashExecutable, mockPublisherArguments(publicationScript, bin, ghShim), {
         cwd: root,

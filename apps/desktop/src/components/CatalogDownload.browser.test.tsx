@@ -549,17 +549,17 @@ it.each(["loading", "loaded"] as const)(
     );
     await click("Change download options");
     await click("Change download folder…");
-    await page.getByRole("tab", { name: "Saved data", exact: true }).click();
+    await page.getByRole("tab", { name: "Saves", exact: true }).click();
     await expect
       .element(page.getByRole("button", { name: "Back up data", exact: true }))
       .not.toBeInTheDocument();
-    await page.getByRole("tab", { name: "Versions", exact: true }).click();
+    await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
     await expect
       .element(page.getByRole("button", { name: "Check for updates", exact: true }))
       .not.toBeInTheDocument();
     await page.getByRole("tab", { name: "Overview", exact: true }).click();
     await expect.element(page.getByText(listing.summary, { exact: true })).toBeVisible();
-    await page.getByRole("tab", { name: "Files", exact: true }).click();
+    await page.getByRole("tab", { name: "Game files", exact: true }).click();
     await click("Review download");
     expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledExactlyOnceWith(
       entry.id,
@@ -587,8 +587,8 @@ it("reveals pending setup through the header without restarting the download", a
   await expect
     .element(page.getByRole("heading", { name: "Launch details", exact: true }))
     .toBeVisible();
-  await page.getByRole("tab", { name: "Versions", exact: true }).click();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
   await expect
     .element(page.getByRole("heading", { name: "Launch details", exact: true }))
     .toBeVisible();

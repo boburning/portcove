@@ -5,13 +5,194 @@ import test from "node:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { readNativeSessionObservation } from "./desktop-owned-native-session.mts";
+import {
+  OwnedNativeSession,
+  assertNativeApplicationInventory,
+  readNativeSessionObservation,
+} from "./desktop-owned-native-session.mts";
+import type { NativeManagedGame, NativeProcessSnapshot } from "./desktop-owned-native-session.mts";
+import type { LaunchSessionRecord } from "../src/transport-types.generated.d.ts";
 import {
   recordInstalledUpdateFailure,
   hashFile,
   verifyInstalledUpdateStaging,
 } from "./desktop-installed-update-harness.mts";
 import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.mts";
+
+void test("native acquisition binds the connected GUI and admits only its exact Core-recorded supervisor", () => {
+  const driver = { pid: 10, path: process.execPath, started_filetime: "100" };
+  const application = { pid: 11, path: path.resolve("owned-desktop.exe"), started_filetime: "200" };
+  const supervisor = { ...application, pid: 12, started_filetime: "134375515263942076" };
+  const game: NativeManagedGame = {
+    executable: path.resolve("owned-library/versions/fixture/artifact/game.exe"),
+    installation: {
+      id: "owned-installation",
+      port_id: "owned-fixture",
+      path: path.resolve("owned-library/versions/fixture/artifact"),
+    },
+  };
+  const record: LaunchSessionRecord = {
+    id: "owned-session",
+    port_id: game.installation.port_id,
+    install_id: game.installation.id,
+    install_root: game.installation.path,
+    owner_kind: "managed",
+    supervisor_pid: supervisor.pid,
+    supervisor_identity: `windows-filetime:${supervisor.started_filetime}`,
+    child_pid: 13,
+    child_identity: "windows-filetime:400",
+    phase: "running",
+    outcome: null,
+    exit_code: null,
+    message: null,
+    started_at: 1,
+    updated_at: 1,
+    finished_at: null,
+  };
+  const connected: NativeProcessSnapshot = {
+    captured_at: "owned-connection",
+    driver,
+    application_pid: application.pid,
+    processes: [application],
+  };
+  const owner = new OwnedNativeSession();
+  owner.beginLaunch();
+  owner.driver = driver;
+  owner.bindApplication(connected, application.path);
+  assert.deepEqual(owner.requireApplication(connected), application);
+  const live = { ...connected, application_pid: null, processes: [application, supervisor] };
+  const original = structuredClone(live);
+  assertNativeApplicationInventory(live, owner.requireApplication(live), game, [record]);
+  assert.deepEqual(live, original, "Qualification must retain the complete captured descendants");
+  // Published completion is not process-exit evidence; an exact supervisor can still be leaving.
+  assertNativeApplicationInventory(live, application, game, [
+    { ...record, phase: "collecting", outcome: "succeeded", finished_at: 2 },
+  ]);
+  for (const changed of [
+    { supervisor_pid: supervisor.pid + 1 },
+    { supervisor_identity: "windows-filetime:134375515263942077" },
+    { supervisor_identity: null },
+    { port_id: "other-port" },
+    { install_id: "other-installation" },
+    { install_root: path.resolve("foreign-library/versions/fixture/artifact") },
+    { owner_kind: "external" as const },
+  ]) {
+    assert.throws(() =>
+      assertNativeApplicationInventory(live, application, game, [{ ...record, ...changed }]),
+    );
+  }
+  assert.throws(() => assertNativeApplicationInventory(live, application, game, []));
+  assert.throws(() => assertNativeApplicationInventory(live, application, undefined, [record]));
+  assert.throws(() =>
+    assertNativeApplicationInventory(
+      {
+        ...live,
+        processes: [...live.processes, { ...application, pid: 14, started_filetime: "500" }],
+      },
+      application,
+      game,
+      [record],
+    ),
+  );
+  assert.throws(() =>
+    assertNativeApplicationInventory({ ...live, processes: [supervisor] }, application, game, [
+      record,
+    ]),
+  );
+  assert.throws(() =>
+    assertNativeApplicationInventory(
+      { ...live, processes: [{ ...application, started_filetime: "201" }, supervisor] },
+      application,
+      game,
+      [record],
+    ),
+  );
+  assert.throws(() =>
+    assertNativeApplicationInventory(
+      { ...live, processes: [...live.processes, supervisor] },
+      application,
+      game,
+      [record],
+    ),
+  );
+  assert.throws(() => owner.bindApplication(live, application.path));
+  assert.throws(() =>
+    owner.requireApplication({ ...live, driver: { ...driver, started_filetime: "101" } }),
+  );
+  owner.game = game;
+  const nextGame: NativeManagedGame = {
+    executable: path.resolve("owned-library/versions/fixture/next-artifact/game.exe"),
+    installation: {
+      ...game.installation,
+      id: "next-installation",
+      path: path.resolve("owned-library/versions/fixture/next-artifact"),
+    },
+  };
+  const nextRecord = {
+    ...record,
+    install_id: nextGame.installation.id,
+    install_root: nextGame.installation.path,
+  };
+  assert.throws(() => assertNativeApplicationInventory(live, application, nextGame, [record]));
+  assertNativeApplicationInventory(live, application, nextGame, [nextRecord]);
+  const leaving = { ...supervisor, pid: 15, started_filetime: "134375515263942075" };
+  const afterActivation = { ...live, processes: [...live.processes, leaving] };
+  const priorRecord: LaunchSessionRecord = {
+    ...record,
+    supervisor_pid: leaving.pid,
+    supervisor_identity: `windows-filetime:${leaving.started_filetime}`,
+    phase: "collecting",
+    outcome: "succeeded",
+  };
+  assertNativeApplicationInventory(
+    afterActivation,
+    application,
+    nextGame,
+    [nextRecord, priorRecord],
+    [game],
+  );
+  assert.throws(() =>
+    assertNativeApplicationInventory(afterActivation, application, nextGame, [
+      nextRecord,
+      priorRecord,
+    ]),
+  );
+  assert.throws(() =>
+    assertNativeApplicationInventory(
+      afterActivation,
+      application,
+      nextGame,
+      [nextRecord, { ...priorRecord, outcome: null }],
+      [game],
+    ),
+  );
+  assert.throws(() =>
+    assertNativeApplicationInventory(
+      afterActivation,
+      application,
+      nextGame,
+      [nextRecord, { ...priorRecord, supervisor_identity: "windows-filetime:134375515263942074" }],
+      [game],
+    ),
+  );
+  owner.games = [game];
+  const missingOutcome = { ...priorRecord };
+  Reflect.deleteProperty(missingOutcome, "outcome");
+  assert.throws(() =>
+    assertNativeApplicationInventory(
+      afterActivation,
+      application,
+      nextGame,
+      [nextRecord, missingOutcome],
+      [game],
+    ),
+  );
+  owner.beginLaunch();
+  assert.equal(owner.application, undefined);
+  assert.equal(owner.game, undefined);
+  assert.deepEqual(owner.games, []);
+  assert.throws(() => owner.requireApplication(live));
+});
 
 void test("native process observations reject malformed identities without issuing process actions", () => {
   const process = { pid: 42, path: globalThis.process.execPath, started_filetime: "123" };

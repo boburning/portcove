@@ -26,6 +26,9 @@ mod definition_capability_contract;
 #[path = "machine_contract/human_presentation.rs"]
 mod human_presentation;
 
+#[path = "machine_contract/update_inventory.rs"]
+mod update_inventory;
+
 #[cfg(all(windows, feature = "qualification-fixtures"))]
 #[path = "machine_contract/source_discovery.rs"]
 mod source_discovery_contract;

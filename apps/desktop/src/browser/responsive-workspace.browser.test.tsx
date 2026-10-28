@@ -73,8 +73,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.viewport(1280, 800);
     await mount(theme);
     for (const view of ["library", "catalog"]) {
-      if (view === "catalog")
-        await page.getByRole("button", { name: /^Find games(?:\s|$)/ }).click();
+      if (view === "catalog") await page.getByRole("button", { name: /^Discover(?:\s|$)/ }).click();
       await page.viewport(1280, 800);
       const ordinaryColumns = columns();
       await page.viewport(2560, 800);
@@ -90,14 +89,14 @@ for (const theme of ["dark", "light"] as const) {
         .at(-1)!;
       const box = rightmost.getBoundingClientRect();
       expect(box.left + box.width / 2).toBeGreaterThan(innerWidth * 0.75);
-      for (const frame of document.querySelectorAll<HTMLElement>(".card-art")) {
+      for (const frame of document.querySelectorAll<HTMLElement>(".collection-art")) {
         const art = frame.getBoundingClientRect();
         expect(art.width).toBeLessThanOrEqual(221);
         expect(art.height / art.width).toBeCloseTo(1.5, 2);
       }
       const wheelTarget = page
         .getByRole("region", {
-          name: view === "library" ? "Library entries" : "Find games entries",
+          name: view === "library" ? "Library entries" : "Discover games",
         })
         .getByRole("heading")
         .nth(cards.indexOf(rightmost));
