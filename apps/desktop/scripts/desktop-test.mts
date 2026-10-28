@@ -56,7 +56,6 @@ import {
   nativeSessionScript,
   readNativeProcessSnapshot,
   readNativeSessionObservation,
-  assertNativeApplicationInventory,
 } from "./desktop-owned-native-session.mts";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
 import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-session.mts";
@@ -670,68 +669,15 @@ function validateBackupFocusInventory(
   requireQualified = false,
   deadline = performance.now() + 10_000,
 ) {
-  if (
-    requireQualified ||
-    savedLibraryRecoverySession ||
-    checks.some(
-      (check) =>
-        [
-          "native-real-prepared-runtime",
-          "native-reviewed-backup-restore-and-delete",
-          "native-reviewed-source-reference-removal",
-          "native-reviewed-steam-batch-add",
-          "native-host-publication-recovery",
-          "native-game-update-review",
-          "native-update-acquisition-lifecycle",
-          "native-selected-setup-completion",
-          "native-preliminary-source-review",
-          "native-retained-contract-repair-state",
-          "native-backup-delete-focus",
-          "native-host-interrupted-preparation",
-          "native-closed-preparation-recovery",
-          "native-minimized-preparation-continuity",
-          "native-normal-package-webview-boundary",
-          "native-startup-library-recovery",
-          "native-library-switch-recovery",
-          "native-late-listener-disposal",
-          "native-rejected-listener-registration",
-        ].includes(check.scenario) && check.outcome === "passed",
-    )
-  ) {
-    if (executionPlan.fixtures.acquisitionJourney) {
-      const connectedApplication = ownedSession.requireApplication(captured);
-      assertNativeApplicationInventory(
-        captured,
-        connectedApplication,
-        ownedSession.game,
-        acquisitionLaunchSessions(deadline),
-        ownedSession.games,
-      );
-    } else {
-      assert.equal(
-        captured.processes.filter(
-          (entry) =>
-            path.resolve(entry.path).toLowerCase() === path.resolve(application).toLowerCase(),
-        ).length,
-        1,
-        "Successful native qualification requires one captured application",
-      );
-    }
-    assert.ok(
-      captured.processes.some(
-        (entry) => path.basename(entry.path).toLowerCase() === "msedgewebview2.exe",
-      ),
-      "Successful native qualification requires actual WebView identities",
-    );
-    assert.equal(
-      captured.processes.filter(
-        (entry) =>
-          path.resolve(entry.path).toLowerCase() === path.resolve(nativeDriverPath).toLowerCase(),
-      ).length,
-      1,
-      "Successful native qualification requires the exact selected native driver identity",
-    );
-  }
+  ownedSession.validateQualificationInventory(captured, {
+    requireQualified,
+    savedLibraryRecoverySession,
+    checks,
+    application,
+    nativeDriverPath,
+    acquisitionJourney: executionPlan.fixtures.acquisitionJourney,
+    acquisitionLaunchSessions: () => acquisitionLaunchSessions(deadline),
+  });
 }
 
 function captureBackupFocusCleanup(evidenceName = cleanupName) {

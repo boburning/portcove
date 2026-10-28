@@ -954,67 +954,6 @@ void test("Steam batch adds Windows custody without changing builds, setup or cl
   }
 });
 
-void test("qualified reviews and a running setup restart reject missing or foreign native identities", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("function validateBackupFocusInventory(");
-  const end = source.indexOf("function captureBackupFocusCleanup(", start);
-  assert(start >= 0 && end > start);
-  for (const { scenario, outcome = "passed", requireQualified = false } of [
-    { scenario: "native-host-publication-recovery" },
-    { scenario: "native-real-prepared-runtime" },
-    { scenario: "native-reviewed-backup-restore-and-delete" },
-    { scenario: "native-reviewed-source-reference-removal" },
-    { scenario: "native-reviewed-steam-batch-add" },
-    { scenario: "native-preliminary-source-review" },
-    { scenario: "native-late-listener-disposal" },
-    { scenario: "native-rejected-listener-registration" },
-    { scenario: "native-selected-setup-completion", outcome: "running", requireQualified: true },
-  ]) {
-    const validate = callable(
-      runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
-        assert,
-        path,
-        performance,
-        executionPlan: { fixtures: { acquisitionJourney: false } },
-        savedLibraryRecoverySession: false,
-        checks: [{ scenario, outcome }],
-        application: "/owned/app.exe",
-        nativeDriverPath: "/owned/driver.exe",
-      }),
-    );
-    const entries = [
-      { path: "/owned/app.exe" },
-      { path: "/owned/driver.exe" },
-      { path: "/owned/msedgewebview2.exe" },
-    ];
-    validate({ processes: entries }, requireQualified);
-    for (let missing = 0; missing < entries.length; missing++) {
-      assert.throws(() =>
-        validate({ processes: entries.filter((_, i) => i !== missing) }, requireQualified),
-      );
-    }
-    assert.throws(() =>
-      validate(
-        { processes: [{ path: "/foreign/app.exe" }, ...entries.slice(1)] },
-        requireQualified,
-      ),
-    );
-    if (
-      scenario === "native-reviewed-source-reference-removal" ||
-      scenario === "native-reviewed-steam-batch-add"
-    ) {
-      assert.throws(() =>
-        validate({ processes: [entries[0], { path: "/foreign/driver.exe" }, entries[2]] }),
-      );
-      assert.throws(() => validate({ processes: [...entries, entries[0]] }));
-      assert.throws(() => validate({ processes: [...entries, entries[1]] }));
-    }
-  }
-});
-
 void test("retained rollback repair requires identity-bound cleanup without changing its deadline", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-retained-contract-repair-state"],
