@@ -3735,9 +3735,35 @@ try {
 
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
+    await clearCatalogFilters(browser);
+    const filters = await openCatalogFilters(browser);
+    const selectedFilter = await filters.findElement(
+      By.xpath(
+        './/fieldset[legend[normalize-space(.)="Release channels"]]//button[starts-with(normalize-space(.),"Stable (")]',
+      ),
+    );
+    await selectedFilter.sendKeys(Key.SPACE);
+    await browser.wait(
+      async () => (await selectedFilter.getAttribute("aria-pressed")) === "true",
+      5_000,
+      "Keyboard activation did not select the Stable channel filter",
+    );
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
     assert.equal(await selectedFilter.getAttribute("data-variant"), "selected");
+    await selectedFilter.sendKeys(Key.ESCAPE);
+    await browser.wait(
+      () =>
+        executeBrowserScript(browser, () => {
+          const active = document.activeElement;
+          return (
+            active instanceof HTMLButtonElement &&
+            active.textContent?.trim() === "Filters (1)" &&
+            active.getAttribute("aria-expanded") === "false"
+          );
+        }),
+      5_000,
+      "Escape did not close Filters and restore focus to its trigger",
+    );
     // WebDriver clear() can empty the DOM without committing React's query;
     // the next render then restores the previous scenario's search. Exercise
     // actual editing with a nonempty preimage, including on standalone runs.
