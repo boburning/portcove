@@ -22680,7 +22680,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/Inkub0/dude",
+        "repository": "Inkub0/dude",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -22743,7 +22743,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/Inkub0/dude",
+        "repository": "Inkub0/dude",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -23905,7 +23905,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/openmoh/openmohaa",
+        "repository": "openmoh/openmohaa",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -23966,7 +23966,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/openmoh/openmohaa",
+        "repository": "openmoh/openmohaa",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -24035,7 +24035,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/openmoh/openmohaa",
+        "repository": "openmoh/openmohaa",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -25102,7 +25102,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/KD-lab-Open-Source/Perimeter",
+        "repository": "KD-lab-Open-Source/Perimeter",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -25173,7 +25173,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/KD-lab-Open-Source/Perimeter",
+        "repository": "KD-lab-Open-Source/Perimeter",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -25596,7 +25596,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/MaurycyLiebner/eZeus",
+        "repository": "MaurycyLiebner/eZeus",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -25667,7 +25667,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/ioquake/ioq3",
+        "repository": "ioquake/ioq3",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -25738,7 +25738,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/ioquake/ioq3",
+        "repository": "ioquake/ioq3",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -26031,7 +26031,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/OpenXRay/xray-16",
+        "repository": "OpenXRay/xray-16",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -26102,7 +26102,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/OpenXRay/xray-16",
+        "repository": "OpenXRay/xray-16",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -26232,7 +26232,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/tx00100xt/SeriousSamClassic",
+        "repository": "tx00100xt/SeriousSamClassic",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -26301,7 +26301,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/tx00100xt/SeriousSamClassic",
+        "repository": "tx00100xt/SeriousSamClassic",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -26634,7 +26634,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/JACoders/OpenJK",
+        "repository": "JACoders/OpenJK",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -26697,7 +26697,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/JACoders/OpenJK",
+        "repository": "JACoders/OpenJK",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
@@ -27182,7 +27182,7 @@
       "manually_validated_platforms": [],
       "release": {
         "provider": "user-prepared",
-        "repository": "https://github.com/MaurycyLiebner/eZeus",
+        "repository": "MaurycyLiebner/eZeus",
         "user_prepared": {
           "windows-x86-64": {
             "trust": "user-selected",
