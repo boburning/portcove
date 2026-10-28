@@ -13,6 +13,12 @@ when investigating routes: a useful limited integration, upstream dependency or
 product deferral can replace disproportionate downstream engineering. Discovery
 does not authorize implementation or reversal of deferrals.
 Use the existing portcove-roadmap skill for canonical intake and readback.
+Hosted discovery remains the primary investigator when that is the owner's
+selected schedule. Use the [hosted intake bridge](../../../docs/DAILY-PORT-DISCOVERY.md#hosted-investigation-and-actions-intake)
+for its proposal, separate review and Actions receipt. A hosted chat submits
+candidate data on #177; the maintained executor owns canonical creation, neutral
+Project fields and doctor. Keep unvalidated candidates pending. The interactive
+runner instructions below apply to local investigation, not hosted scheduling.
 Run the maintained `node scripts/daily-discovery.mts plan`, then `run` in the
 clean, detached dedicated metadata checkout. Start `run` with `exec_command`
 using `tty:true`, `login:false` and the installed Vite+ Node environment. Retain

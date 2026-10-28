@@ -3451,6 +3451,13 @@
       ]
     },
     {
+      "file": "scripts/hosted-discovery-intake.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9690],
+        ["roadmap-check", 190]
+      ]
+    },
+    {
       "file": "scripts/roadmap-scoped.test.mts",
       "memberships": [
         ["catalog-full-2", 9700],

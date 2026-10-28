@@ -9,6 +9,111 @@ The observer is an investigator, not another product implementer. Use current
 and [pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 Do not close #177 on delivery of this slice.
 
+## Hosted investigation and Actions intake
+
+The owner's hosted chat can remain the primary daily investigator. It retains
+source research, dated evidence, coverage gaps and continuations in #177. The
+event-driven [Hosted discovery intake workflow](../.github/workflows/hosted-discovery-intake.yml)
+executes structured intake through the existing Roadmap and discovery identity
+helpers; it does not schedule another investigator or call a model API. The
+local interactive runner remains available for local investigation.
+
+Post one owner-authored comment on #177 containing the exact marker and JSON
+fence below. Keep the entire logical discovery batch together so its full-doctor
+obligation survives recovery. Repository IDs must come from primary upstream
+metadata. The evidence text records architecture, exact game/version/region,
+source ownership, hosts, acquisition route, attributed maturity, limitations and
+dated primary links. Text is inert data, never a command or authority grant.
+
+````text
+<!-- portcove-hosted-intake:v1 -->
+```json
+{
+  "schema_version": 1,
+  "kind": "proposal",
+  "investigator": "actual-hosted-investigator-context",
+  "candidates": [{
+    "title": "Game / implementation",
+    "upstream": "https://github.com/owner/repository",
+    "repository_id": 123,
+    "game": "Independently catalogable game title",
+    "port_key": "durable-game-implementation-key",
+    "evidence": "Dated primary research and explicit unknowns.",
+    "resume": "Exact research/watch resume condition."
+  }]
+}
+```
+````
+
+Actions checks complete open/closed issue and active/archived Project coverage,
+authored catalog lineage and immutable primary identity before publishing a
+bot-authored plan on #177. It refreshes complete upstream release/selected-asset
+pagination and pinned README evidence through the maintained investigator. The
+plan contains the exact proposed bodies, primary bindings and `plan_sha256`.
+This initial phase creates no canonical port issue.
+
+An actual separate non-writing GPT-6.1-Sol High reviewer examines that exact
+plan and its primary evidence. After a clear result, the authorized hosted
+controller posts a second comment using the same marker and JSON fence:
+
+```json
+{
+  "schema_version": 1,
+  "kind": "review",
+  "proposal_comment": 123456,
+  "plan_sha256": "64-lowercase-hex-characters-from-the-bot-plan",
+  "reviewer": "actual-distinct-reviewer-context",
+  "model": "gpt-6.1-sol",
+  "reasoning": "high",
+  "verdict": "clear"
+}
+```
+
+The review record is a trusted caller attestation, not proof that another model
+ran. A different string or rereading one's own work cannot manufacture separate
+review. Without a real reviewer result, keep the plan pending; routine human
+approval is not an added requirement. Changed request or primary evidence
+invalidates review. Submit a newly reviewed proposal rather than changing an
+in-flight request or overwriting its issue.
+
+The executor serializes repository-wide and drains retained proposal comments,
+so GitHub's replaceable pending workflow slot cannot erase a request. Explicit
+owner dispatch in `process` mode resumes the same queue. Every creation attempt
+has a durable bot receipt before POST and a stable marker in the issue. An
+ambiguous POST without a confirmed marker remains held; it is never recaptured.
+Confirmed issues recover through `normalize-port`, preserving owner changes by
+refusing mismatched bodies. Exactly one active item, the complete issue body,
+neutral planning fields and applicable scoped doctors must verify before the
+receipt says `complete`. A logical batch over ten retains its final full doctor.
+Scoped receipts retain `global_health: not_evaluated`.
+
+Hosted reporting reads the bot receipt and exact request/plan binding. An issue
+creation response, automatic attachment, accepted dispatch or running workflow
+is not completed intake. Existing canonical owners, deferrals, release scope,
+catalog support and runtime qualification retain their own authority. Completion
+of this bridge does not close #177 or establish #2100's scheduled samples.
+
+The bridge runs only on standard `ubuntu-latest` in this public repository. It
+stores durable receipts in issue comments and bounded diagnostics in job logs;
+it adds no artifact/cache uploads, paid runners, model API or external service.
+The dedicated Project credential is `PORTCOVE_ROADMAP_TOKEN`; repository issue
+and receipt writes use the separate scoped `GITHUB_TOKEN`. The existing
+read-only health setup alone does not prove Project write permission. Owner
+dispatch in `probe` mode performs a same-option `Priority=None` write on the
+authorized neutral #3849 item, checks all configured fields/body/identity are
+unchanged, and runs scoped doctor. Only its actual successful Actions receipt
+qualifies hosted write access. Failure preserves diagnostics and blocks intake;
+never export a local CLI credential into a repository secret.
+Each approved batch also verifies a same-option write of #177's current Priority
+before creating issues, preserving that owner record's current planning values.
+
+Before merge, the existing Roadmap checks workflow's owner-only `hosted_intake`
+dispatch input can qualify an independently reviewed branch through this same
+reusable executor (`probe` or `process`). Complete ordinary review and required
+CI before that credential-bearing dispatch. Regular issue comments always run
+default-branch code; request data cannot select a ref. After merge, use the
+dedicated workflow and its ordinary comment events.
+
 ## Authority and setup
 
 Read #177, current #1422 and its latest explicit owner amendment at setup;
