@@ -1,18 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { runTypeScriptInNewContext as runInNewContext } from "../../../scripts/test-source.mts";
-
-async function source(name: string, start: string, end?: string) {
-  const text = await readFile(new URL(name, import.meta.url), "utf8");
-  const first = text.indexOf(start);
-  assert.ok(first >= 0, start);
-  const last = end ? text.indexOf(end, first + start.length) : text.length;
-  assert.ok(last > first, end);
-  return text.slice(first, last).replace("export async function", "async function");
-}
 
 function callable(value: unknown) {
   assert.equal(typeof value, "function");
@@ -22,7 +12,7 @@ function callable(value: unknown) {
 
 // Exercise the actual serialized probe with a deterministic frame consumer. The
 // consumer models layout receivers, not production controller functionality.
-async function controllerObservation() {
+async function controllerObservation(probeSource: string) {
   const document = {
     activeElement: undefined as HTMLElement | undefined,
     documentElement: { dataset: { inputMode: "keyboard" } as Record<string, string> },
@@ -75,39 +65,36 @@ async function controllerObservation() {
   const outside = new HTMLElement();
   let ticks = 0;
   const probe = callable(
-    runInNewContext(
-      `${await source("./desktop-controller-test.mts", "export async function observeInjectedController(")}\nobserveInjectedController;`,
-      {
-        HTMLElement,
-        document,
-        navigator,
-        performance: { now: () => ++ticks },
-        queueMicrotask,
-        requestAnimationFrame: (callback: (tick: number) => void) =>
-          queueMicrotask(() => {
-            const [pad] = navigator.getGamepads();
-            assert.ok(pad && dialog);
-            const active = pad.buttons[0]?.pressed;
-            if (active && !wasActive) {
-              dialog.getClientRects();
-              dialog.children[0]?.getClientRects();
-              dialog.children[0]?.onclick?.();
+    runInNewContext(`(${probeSource})`, {
+      HTMLElement,
+      document,
+      navigator,
+      performance: { now: () => ++ticks },
+      queueMicrotask,
+      requestAnimationFrame: (callback: (tick: number) => void) =>
+        queueMicrotask(() => {
+          const [pad] = navigator.getGamepads();
+          assert.ok(pad && dialog);
+          const active = pad.buttons[0]?.pressed;
+          if (active && !wasActive) {
+            dialog.getClientRects();
+            dialog.children[0]?.getClientRects();
+            dialog.children[0]?.onclick?.();
+          }
+          wasActive = Boolean(active);
+          if (pad.buttons[13]?.pressed) {
+            dialog.getClientRects();
+            for (const control of dialog.children) {
+              control.getClientRects();
+              control.getBoundingClientRect();
             }
-            wasActive = Boolean(active);
-            if (pad.buttons[13]?.pressed) {
-              dialog.getClientRects();
-              for (const control of dialog.children) {
-                control.getClientRects();
-                control.getBoundingClientRect();
-              }
-              // Shell focus/reflow work remains in the global profile and gets its
-              // own attribution; it must not turn 1000 controls into 1003 controls.
-              for (let index = 0; index < 3; index++) outside.getBoundingClientRect();
-            }
-            callback(++ticks);
-          }),
-      },
-    ),
+            // Shell focus/reflow work remains in the global profile and gets its
+            // own attribution; it must not turn 1000 controls into 1003 controls.
+            for (let index = 0; index < 3; index++) outside.getBoundingClientRect();
+          }
+          callback(++ticks);
+        }),
+    }),
   );
   let calls = 0;
   let report: unknown;
@@ -134,8 +121,24 @@ async function controllerObservation() {
   return JSON.parse(JSON.stringify(report)) as Record<string, unknown>;
 }
 
+function actualControllerObservation() {
+  const output = runDesktopModuleFixture(
+    new URL("./desktop-controller-test.mts", import.meta.url),
+    `
+      import {runInNewContext} from 'node:vm';
+      import {isRecord} from ${JSON.stringify(new URL("../../../scripts/runtime-values.mts", import.meta.url).href)};
+      const {observeInjectedController}=await import(entry);
+      const callable=${callable.toString()};
+      console.log(JSON.stringify(await (${controllerObservation.toString()})(observeInjectedController.toString())));
+    `,
+  );
+  const report: unknown = JSON.parse(output);
+  assert.ok(isRecord(report));
+  return report;
+}
+
 void test("native remainder controller attributes unrelated layout reads and restores injected methods", async () => {
-  const report = await controllerObservation();
+  const report = actualControllerObservation();
   assert.ok(Array.isArray(report.samples));
   const direction: unknown = report.samples[3];
   assert.ok(isRecord(direction));
@@ -149,7 +152,7 @@ void test("native remainder controller attributes unrelated layout reads and res
 });
 
 void test("native remainder controller retains exact control count and rejects unattributed reads", async () => {
-  const original = await controllerObservation();
+  const original = actualControllerObservation();
   for (const variant of ["original", "aliased", "wrong-export"] as const) {
     const execute = () =>
       runDesktopModuleFixture(
