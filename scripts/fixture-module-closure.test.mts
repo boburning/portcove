@@ -360,6 +360,7 @@ void test("cover and catalog Native contracts execute without optional package i
   });
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stdout, /pass 5/u);
+  // Two catalog cases and five cover cases, including the focused selection controls.
+  assert.match(result.stdout, /pass 7/u);
   assert.match(result.stdout, /fail 0/u);
 });
