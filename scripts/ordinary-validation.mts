@@ -1650,6 +1650,8 @@ for (const [file, tests] of [
       "scripts/dev-doctor.test.mts",
     ],
   ],
+  [".config/recovery-tools/aqua.yaml", ["scripts/recovery-tools.test.mts"]],
+  [".config/recovery-tools/aqua-checksums.json", ["scripts/recovery-tools.test.mts"]],
   [
     "scripts/roadmap-issue.mts",
     [
