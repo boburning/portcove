@@ -3863,29 +3863,39 @@ void test("resource observation ledger remains an affected consumer of every mai
 
 void test("native transport producers retain their actual Node consumers across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
+  const { windowsHelperChecksRequired, windowsNativeToolsRequired } =
+    await import("./windows-helper-checks.mts");
   const consumers: [string, string[]][] = [
     [
-      "desktop-boundary-invoke.mts",
+      "apps/desktop/scripts/desktop-boundary-invoke.mts",
       ["apps/desktop/scripts/desktop-webview-boundary.native.test.mts"],
     ],
     [
-      "desktop-windows-embedded-session.mts",
+      "apps/desktop/scripts/desktop-windows-embedded-session.mts",
       [
         "apps/desktop/scripts/desktop-native-observations.native.test.mts",
         "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
       ],
     ],
     [
-      "browser-script.mts",
+      "apps/desktop/scripts/browser-script.mts",
       [
         "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
         "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
       ],
     ],
+    [
+      "scripts/fixtures/desktop-module-fixture.mts",
+      [
+        "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
+        "apps/desktop/scripts/desktop-default-cover.native.test.mts",
+        "apps/desktop/scripts/desktop-reload.native.test.mts",
+      ],
+    ],
   ];
-  for (const [name, tests] of consumers)
+  for (const [file, tests] of consumers)
     for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
-      const file = `apps/desktop/scripts/${name}`;
+      const name = path.basename(file);
       const oldPath = variant === "R-new" ? "docs/moved.md" : file;
       const newPath = variant === "R-old" ? "docs/moved.md" : file;
       const change = {
@@ -3907,6 +3917,10 @@ void test("native transport producers retain their actual Node consumers across 
         head: "b".repeat(40),
         checkout: "b".repeat(40),
       });
+      if (file === "scripts/fixtures/desktop-module-fixture.mts") {
+        assert.equal(windowsHelperChecksRequired(plan), true, variant);
+        assert.equal(windowsNativeToolsRequired(plan), true, variant);
+      }
       if (name === "browser-script.mts") {
         assert.equal(local.ui, true);
         assert.ok(plan.groups.includes("frontend"));

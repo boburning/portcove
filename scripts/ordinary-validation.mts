@@ -322,6 +322,14 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/fixtures/desktop-module-fixture.mts",
+    [
+      "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
+      "apps/desktop/scripts/desktop-default-cover.native.test.mts",
+      "apps/desktop/scripts/desktop-reload.native.test.mts",
+    ],
+  ],
+  [
     "apps/desktop/scripts/desktop-windows-embedded-session.mts",
     [
       "apps/desktop/scripts/desktop-native-observations.native.test.mts",

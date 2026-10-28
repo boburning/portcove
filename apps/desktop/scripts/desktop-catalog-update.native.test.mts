@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { stripTypeScriptTypes } from "node:module";
-import { runInNewContext, runInThisContext } from "node:vm";
+import { runInNewContext } from "node:vm";
 import { readReviewFieldStyles } from "./desktop-review-presentation.mts";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 
 void test("catalog field presentation reaches the browser as executable JavaScript with both element arguments", async () => {
   const caller = readFileSync(
@@ -51,58 +51,24 @@ void test("catalog field presentation reaches the browser as executable JavaScri
   assert.deepEqual(result, fields);
 });
 
-void test("catalog transport is required only after its scenario is selected", async () => {
-  const source = stripTypeScriptTypes(
-    readFileSync(new URL("./desktop-catalog-update-test.mts", import.meta.url), "utf8"),
-    { mode: "strip" },
-  );
-  const start = source.indexOf("export async function catalogUpdateScenario(");
-  assert.ok(start >= 0);
-  // This native suite runs before frontend dependencies are installed. Execute
-  // the actual erased producer, supplying only its selected-transport boundary.
-  const factory: unknown = runInThisContext(
-    `(function(assert,WebDriver){${source.slice(start).replace("export ", "")} return catalogUpdateScenario;})`,
-  );
-  assert.ok(typeof factory === "function");
-  const producer: unknown = Reflect.apply(factory, undefined, [assert, class WebDriver {}]);
-  assert.ok(typeof producer === "function");
-  const catalogUpdateScenario = (context: {
-    browser: undefined;
-    invoke: () => Promise<unknown>;
-    output: string;
-    artifacts: string[];
-    scenario: (name: string, run: () => Promise<void>) => Promise<void>;
-  }): Promise<unknown> => {
-    const result: unknown = Reflect.apply(producer, undefined, [context]);
-    return Promise.resolve(result);
-  };
-  let invoked = 0;
-  const context = {
-    browser: undefined,
-    invoke: async () => {
-      invoked++;
-      return {};
-    },
-    output: "/owned",
-    artifacts: [],
-  };
-  const selected: string[] = [];
-  await catalogUpdateScenario({
-    ...context,
-    scenario: async (name) => {
-      selected.push(name);
-    },
-  });
-  assert.deepEqual(selected, ["native-catalog-update-dialog"]);
-  assert.equal(invoked, 0);
-  await assert.rejects(
-    catalogUpdateScenario({
-      ...context,
-      scenario: async (_name, run) => {
-        await run();
-      },
-    }),
-    /Selected catalog scenario requires its connected WebDriver transport/u,
-  );
-  assert.equal(invoked, 0);
+void test("catalog transport is required only after its scenario is selected", () => {
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        new URL("./desktop-catalog-update-test.mts", import.meta.url),
+        `
+    const {catalogUpdateScenario}=await import(entry);
+    let invoked=0;const selected=[];
+    const context={browser:undefined,invoke:async()=>{invoked++;return {};},output:'/owned',artifacts:[]};
+    await catalogUpdateScenario({...context,scenario:async(name)=>{selected.push(name);}});
+    assert.deepEqual(selected,['native-catalog-update-dialog']);assert.equal(invoked,0);
+    await assert.rejects(catalogUpdateScenario({...context,scenario:async(_name,run)=>run()}),
+      /Selected catalog scenario requires its connected WebDriver transport/u);
+    assert.equal(invoked,0);
+  `,
+        variant === "original" ? undefined : { exportName: "catalogUpdateScenario", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute, /native-catalog-update-dialog/u);
+    else execute();
+  }
 });
