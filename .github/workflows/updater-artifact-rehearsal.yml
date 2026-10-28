@@ -153,6 +153,8 @@ jobs:
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-rc.2-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-${{ matrix.label }}/**
+            work/updater-rehearsal/qualified-*-bundles/nsis/*.exe
+            work/updater-rehearsal/qualified-*-bundles/nsis/*.exe.sig
             work/updater-rehearsal/qualified-*-bundles/appimage/**
             work/updater-rehearsal/qualified-*-bundles/macos/Portcove.app/**
             work/updater-rehearsal/windows-installed-update-qualification/TEST-ONLY
