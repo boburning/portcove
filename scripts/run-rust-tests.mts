@@ -264,14 +264,15 @@ async function closeChildTree(
     }
     return;
   }
-  if (!force) {
+  if (!force && platform === "win32") {
     await observation.completed.catch(() => {});
     return;
   }
   const signalled =
-    platform === "win32"
+    force &&
+    (platform === "win32"
       ? terminateWindowsTree(child.pid, runSync)
-      : signalUnixTree(child.pid, dependencies);
+      : signalUnixTree(child.pid, dependencies));
   if (!signalled && observation.outcome()) return;
   if (!(await waitForBoundedExit(observation, waitMilliseconds))) {
     const error: NodeJS.ErrnoException = new Error(
@@ -736,9 +737,9 @@ export async function runRustTests(
         return cancellationExitCode(first.signal);
       }
       if (platform === "linux") await proveQuiescence(!observation.outcome());
-      else if (platform === "win32") await proveQuiescence(false);
-      else if (!observation.outcome()) await proveQuiescence(true);
-      else await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
+      // The Unix status precedes watchdog closure. A second group kill can race
+      // that closure on macOS; await bounded supervisor exit and its receipt.
+      else await proveQuiescence(false);
       return cancellation.requested()
         ? cancellationExitCode(cancellation.requested())
         : first.status;
