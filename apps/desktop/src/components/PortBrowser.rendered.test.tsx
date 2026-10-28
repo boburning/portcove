@@ -300,7 +300,7 @@ describe("desktop components", () => {
     expect(cards).not.toContain("Stable channel");
     expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
-    expect(empty).toContain("No ports match these filters");
+    expect(empty).toContain("No matching games");
     expect(empty).toContain("Try another search or change the filters.");
     expect(empty).not.toContain("The catalog itself has not been changed.");
     expect(empty).toContain("Reset view");
@@ -384,7 +384,12 @@ describe("desktop components", () => {
     expect(html).toContain(`aria-label="More actions for ${port.name}"`);
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="link"');
-    expect(html).toContain('data-variant="primary"');
+    const play = html
+      .match(/<button\b[^>]*>[\s\S]*?<\/button>/gu)
+      ?.find((button) => button.endsWith(">Play</button>"));
+    expect(play).toBeDefined();
+    expect(play).toContain('data-variant="outline"');
+    expect(play).not.toContain('data-variant="primary"');
     expect(html).not.toContain("Release channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");

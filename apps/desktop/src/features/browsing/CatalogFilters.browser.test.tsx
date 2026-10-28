@@ -329,6 +329,7 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
     false,
   );
   expect((await control("Linux (unavailable)")).getAttribute("aria-checked")).toBe("true");
+  await userEvent.keyboard("{Escape}");
   await page.getByText("Advanced filters", { exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: /^Installation attention:/ }))

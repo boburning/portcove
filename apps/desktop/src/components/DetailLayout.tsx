@@ -168,6 +168,7 @@ export function DetailLayout({
         className="detail-back mb-5"
         variant="ghost"
         size="sm"
+        data-detail-back
         aria-label={backLabel ?? "Back to previous workspace"}
         onClick={close}
       >

@@ -1,3 +1,4 @@
+import { openAdvancedFilters } from "../../test/filter-fields";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -862,6 +863,7 @@ it("counts a pending listing under Needs attention beside a ready registration w
     );
   }
   await root.rerender(<PendingLibrary />);
+  await openAdvancedFilters();
   const readiness = page.getByRole("combobox", { name: /^Readiness / });
   await expect.element(readiness).toHaveAccessibleName("Readiness All (2)");
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();

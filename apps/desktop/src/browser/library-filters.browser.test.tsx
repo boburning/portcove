@@ -404,18 +404,18 @@ it("holds unknown migrated readiness and query separately until correction", asy
 it("retains Library narrowing and readiness counts for membership without relaxing a zero match", async () => {
   flushSync(() => root.render(<Fixture />));
   await openAdvancedFilters("Filters (0)");
-  await userEvent.click(button("Not in my library (0)"));
+  await userEvent.click(await filterChoice("Not in my library (0)"));
   await closeFilters();
   await expectReadinessOption("Ready (0)");
   await expect.element(page.getByText("No matching games", { exact: true })).toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
-  await userEvent.click(button("In my library (3)"));
+  await userEvent.click(await filterChoice("In my library (3)"));
   await closeFilters();
   await expectReadinessOption("Ready (2)");
   await chooseReadiness("Ready (2)");
   await openAdvancedFilters("Filters (2)");
-  await expect.element(button("In my library (2)")).toBeEnabled();
-  await userEvent.click(button("Not in my library (0)"));
+  await expect.element(await filterChoice("In my library (2)")).toBeEnabled();
+  await userEvent.click(await filterChoice("Not in my library (0)"));
   await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (unavailable)");
@@ -430,15 +430,17 @@ it("retains Library narrowing and readiness counts for membership without relaxi
 it("retains specific attention with independent Library readiness, zero counts and unavailable removable focus", async () => {
   flushSync(() => root.render(<Fixture />));
   await openAdvancedFilters("Filters (0)");
-  await userEvent.click(button("Missing game files (1)"));
-  await expect.element(button("Finish setup (0)")).toBeEnabled();
+  await userEvent.click(await filterChoice("Missing game files (1)"));
+  await expect.element(await filterChoice("Finish setup (0)")).toBeEnabled();
   await closeFilters();
   await expectReadinessOption("Ready (0)");
   await expectReadinessOption("Needs attention (1)");
   await chooseReadiness("Ready (0)");
   await expect.element(page.getByText("No matching games", { exact: true })).toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
-  await expect.element(button("Missing game files (0)")).toHaveAttribute("aria-checked", "true");
+  await expect
+    .element(await filterChoice("Missing game files (0)"))
+    .toHaveAttribute("aria-checked", "true");
   await closeFilters();
   await chooseReadiness("Needs attention (1)");
   await userEvent.click(button("View details for Both game Both game"));
@@ -470,7 +472,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(button("Back to library"));
   await openAdvancedFilters("Filters (1)");
   await userEvent.click(await filterChoice("Available at last check (1)"));
-  await userEvent.click(button("Missing game files (0)"));
+  await userEvent.click(await filterChoice("Missing game files (0)"));
   await closeFilters();
   await expectReadinessLabel("Readiness Ready (0)");
   await expect.element(page.getByText("No matching games", { exact: true })).toBeInTheDocument();

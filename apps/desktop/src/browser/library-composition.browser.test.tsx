@@ -192,11 +192,11 @@ it("plays the distinct duplicate port from details and returns to its filtered r
     .click();
   const detail = page.getByRole("region", { name: "Super Mario 64", exact: true });
   await expect
-    .element(detail.getByText("Port project: Mario modern port · Modern renderer", { exact: true }))
+    .element(detail.getByText("Mario modern port · Modern renderer", { exact: true }))
     .toBeVisible();
   await detail.getByRole("button", { name: "Play", exact: true }).click();
   await expect.poll(() => launch.mock.calls[0]).toEqual(["collection-1", "", 1]);
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   await expect.element(search).toHaveValue("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-row").length).toBe(2);
   await expect
@@ -231,7 +231,7 @@ it("names exact port choices from their visible identity and readiness inside gr
   expect(choice.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
   await userEvent.click(choice);
   await expect
-    .element(page.getByText("Port project: Mario modern port · Modern renderer", { exact: true }))
+    .element(page.getByText("Mario modern port · Modern renderer", { exact: true }))
     .toBeVisible();
   expect(document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id")).toBe(
     "collection-1",
@@ -307,7 +307,7 @@ it("opens Continue playing details and restores its exact trigger after Back", a
   await expect.element(page.getByText("Continue playing", { exact: true })).toBeVisible();
   const origin = '[data-detail-origin="library:continue-details:collection-0"]';
   await page.getByRole("button", { name: "View details", exact: true }).click();
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   await expect.poll(() => document.activeElement?.matches(origin)).toBe(true);
   const target = document.querySelector<HTMLElement>(origin)!;
   expect(target.closest(".continue-card")).not.toBeNull();
@@ -363,9 +363,9 @@ it.each([
     await expect
       .element(page.getByRole("heading", { name: title, exact: true }))
       .toHaveAccessibleName(title);
-    await expect.element(page.getByText(`Port project: ${project}`, { exact: true })).toBeVisible();
+    await expect.element(page.getByText(project, { exact: true })).toBeVisible();
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     const play = continuation.getByRole("button", { name: "Play again", exact: true });
     await expect.element(play).toBeEnabled();
     play.element().scrollIntoView({ block: "nearest" });
@@ -529,7 +529,7 @@ for (const theme of ["dark", "light"]) {
         document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
       )
       .toBe("collection-1");
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await expect
       .poll(() => document.activeElement?.getAttribute("data-detail-origin"))
       .toBe("catalog:card:collection-0");

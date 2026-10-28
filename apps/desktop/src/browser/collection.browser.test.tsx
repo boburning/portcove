@@ -199,7 +199,7 @@ it("retains a session-only layout through the real details unmount and return", 
   expect(localStorage.getItem(key)).toBeNull();
   await page.getByRole("button", { name: /^View details for Super Mario 64 sm64-port$/ }).click();
   expect(document.querySelector(".collection-rows")).toBeNull();
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Compact rows", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
@@ -309,7 +309,7 @@ for (const theme of ["dark", "light"]) {
       .fill("Super Mario 64");
     await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
     await page.getByRole("button", { name: /^View details for Super Mario 64 sm64-port$/ }).click();
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await expect
       .element(page.getByRole("textbox", { name: "Search your library", exact: true }))
       .toHaveValue("Super Mario 64");

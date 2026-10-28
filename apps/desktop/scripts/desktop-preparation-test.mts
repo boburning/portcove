@@ -2110,7 +2110,7 @@ export async function preparationScenarios({
           await clickVisible(browser, identity);
           await clickVisible(
             browser,
-            await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')),
+            await browser.findElement(By.css("button[data-detail-back]")),
           );
           await browser.wait(
             () =>

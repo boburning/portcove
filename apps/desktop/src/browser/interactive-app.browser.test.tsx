@@ -1,3 +1,4 @@
+import { openAdvancedFilters } from "../../test/filter-fields";
 import { afterEach, beforeEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import {
@@ -123,6 +124,7 @@ it("keeps enlarged review facts and cancellation reachable", async () => {
 it("keeps one named readiness choice across narrow, desktop and enlarged widths", async () => {
   await page.viewport(320, 900);
   mount("library");
+  await openAdvancedFilters();
   const readiness = page.getByRole("combobox", { name: /^Readiness/ });
   await expect.element(readiness).toBeVisible();
   await readiness.click();
@@ -174,6 +176,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
       }),
     )
     .not.toBeInTheDocument();
+  await openAdvancedFilters();
   await page.getByRole("combobox", { name: /^Readiness / }).click();
   await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
   await expect
@@ -194,14 +197,14 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
     }),
   );
   await expect
-    .element(page.getByRole("button", { name: "Back to previous workspace", exact: true }))
+    .element(page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }))
     .toBeVisible();
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent).toContain(
     "Harbor Adventure",
   );
   expect(document.querySelector('[data-artwork-source="generated_fallback"]')).not.toBeNull();
   await userEvent.click(
-    page.getByRole("button", { name: "Back to previous workspace", exact: true }),
+    page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }),
   );
   await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("Harbor");
   await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();

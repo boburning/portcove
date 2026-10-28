@@ -182,7 +182,7 @@ it("keeps whole-image portrait, landscape, square and missing artwork at a fixed
     await expect.poll(() => cover.querySelector("img")?.naturalWidth ?? 0).toBeGreaterThan(0);
     expect(getComputedStyle(cover.querySelector("img")!).objectFit).toBe("contain");
     await capture(`artwork-${index}-dark`);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   }
   await open(4);
   await expect
@@ -208,7 +208,7 @@ it.each(["dark", "light"])(
       .scrollIntoView({ block: "center" });
     contained();
     await capture(`staged-${theme}-960`, false);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await page
       .getByRole("button", {
         name: "View details for Summit Racer Harbor upstream project · external",
@@ -222,7 +222,7 @@ it.each(["dark", "light"])(
       .scrollIntoView({ block: "start" });
     contained();
     await capture(`external-${theme}-960`, false);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await page
       .getByRole("button", {
         name: "View details for Summit Racer Harbor upstream project · unknown",
@@ -237,7 +237,7 @@ it.each(["dark", "light"])(
       .not.toBeInTheDocument();
     contained();
     await capture(`external-unknown-${theme}-960`);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await page
       .getByRole("button", {
         name: "View details for Moonlit Harbor Harbor upstream project · downloaded",
@@ -262,7 +262,7 @@ it.each(["dark", "light"])(
       .scrollIntoView({ block: "start" });
     contained();
     await capture(`downloaded-${theme}-960`, false);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await page
       .getByRole("button", {
         name: "View details for Orchard Quest Harbor desktop port · Backup history unavailable",
@@ -340,4 +340,16 @@ it("opens and focuses the real artwork disclosure from the hero menu after Manag
   await expect.element(summary).toHaveFocus();
   expect(summary.element().closest("details")?.open).toBe(true);
   expect(document.activeElement?.closest("[inert], [hidden]")).toBeNull();
+});
+
+it.each(["Library", "Discover"])("names and restores the known %s origin", async (origin) => {
+  await mount("dark");
+  if (origin === "Discover") await page.getByRole("button", { name: /^Discover / }).click();
+  await open();
+  const back = page.getByRole("button", { name: `Back to ${origin}`, exact: true });
+  await expect.element(back).toBeVisible();
+  await back.click();
+  expect(document.activeElement?.getAttribute("data-detail-origin")).toMatch(
+    new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`),
+  );
 });

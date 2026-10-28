@@ -190,7 +190,9 @@ describe("Library empty browsing context", () => {
     expect(resultStatus?.textContent).toBe("0 library entries");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("No matching games");
-    expect(host.textContent).toContain("This library has no ports yet");
+    expect(host.textContent).toContain(
+      "No library entries match “unmatched title” with the current view.",
+    );
     expect(host.textContent).not.toContain("Your installed ports are still in this library");
     await act(async () =>
       [...host.querySelectorAll("button")]

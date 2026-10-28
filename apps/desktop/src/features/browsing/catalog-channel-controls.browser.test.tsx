@@ -1,3 +1,4 @@
+import { filterChoice, openFilterField, openAdvancedFilters } from "../../../test/filter-fields";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -95,6 +96,7 @@ async function openChannelPanel() {
   );
   expect(trigger).toBeDefined();
   if (trigger!.getAttribute("aria-expanded") !== "true") await act(async () => trigger!.click());
+  await openFilterField("Release channels");
 }
 
 async function click(name: string) {
@@ -105,16 +107,19 @@ async function click(name: string) {
 function channelButton(name: string) {
   const label = name === "beta" ? "preview" : name === "all" ? "clear filters" : name;
   const button = [
-    ...host.querySelectorAll<HTMLButtonElement>('[aria-label="Filter options"] button'),
+    ...document.querySelectorAll<HTMLButtonElement>('button, [role="checkbox"]'),
   ].find(
     (item) =>
-      item.textContent
+      (item.getAttribute("aria-label") ?? item.textContent)
         ?.trim()
         .toLowerCase()
         .replace(/ \(.*\)$/u, "") === label,
   );
   expect(button).toBeDefined();
   return button!;
+}
+async function fixtureChoice(name: string) {
+  return (await filterChoice(name)).element() as HTMLButtonElement;
 }
 
 function visibleIds() {
@@ -226,7 +231,7 @@ describe("Catalog channel controls", () => {
       null,
     ).singleNodeValue as HTMLButtonElement | null;
     expect(confirmation).not.toBeNull();
-    expect(confirmation!.disabled).toBe(false);
+    expect(confirmation!.matches(":disabled,[aria-disabled=true]")).toBe(false);
     await act(async () => confirmation!.click());
     expect(switchLibrary).toHaveBeenCalledExactlyOnceWith(target);
     expect(document.querySelector('[aria-labelledby="library-selection-review-title"]')).toBeNull();
@@ -251,9 +256,9 @@ describe("Catalog channel controls", () => {
     expect(visibleIds()).toEqual(["stable", "both"]);
     await click("beta");
     expect(visibleIds()).toEqual(["stable", "beta", "both"]);
-    expect(channelButton("stable").getAttribute("aria-pressed")).toBe("true");
-    expect(channelButton("beta").getAttribute("aria-pressed")).toBe("true");
-    expect(channelButton("rolling").getAttribute("aria-pressed")).toBe("false");
+    expect(channelButton("stable").getAttribute("aria-checked")).toBe("true");
+    expect(channelButton("beta").getAttribute("aria-checked")).toBe("true");
+    expect(channelButton("rolling").getAttribute("aria-checked")).toBe("false");
   });
 
   it("removes one or the last channel and explicitly resets all channels", async () => {
@@ -273,7 +278,7 @@ describe("Catalog channel controls", () => {
     expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
     await click("all");
     for (const channel of ["stable", "beta", "rolling"])
-      expect(channelButton(channel).getAttribute("aria-pressed")).toBe("false");
+      expect(channelButton(channel).getAttribute("aria-checked")).toBe("false");
   });
 
   it("consumes a supported legacy selection without losing it on the next toggle", async () => {
@@ -316,7 +321,7 @@ describe("Catalog channel controls", () => {
     expect(visibleIds()).toEqual([]);
     await openChannelPanel();
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("not supported");
-    expect(channelButton("beta").disabled).toBe(true);
+    expect(channelButton("beta").matches(":disabled,[aria-disabled=true]")).toBe(true);
     await click("beta");
     expect(shell.filter).toEqual(filter);
     await click("all");
@@ -370,6 +375,7 @@ describe("Catalog channel controls", () => {
     await click("beta");
     await click("stable");
     await act(async () => shell.setView("library"));
+    await openAdvancedFilters();
     const readiness = page.getByRole("combobox", { name: /^Readiness / });
     await readiness.click();
     await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
@@ -388,6 +394,7 @@ describe("Catalog channel controls", () => {
     await act(async () => shell.setView("catalog"));
     expect(visibleIds()).toEqual(["stable", "beta", "both"]);
     await act(async () => shell.setView("library"));
+    await openAdvancedFilters();
     await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
   });
 });
@@ -418,9 +425,11 @@ it("feeds the accepted membership context consistently into results, counts and 
     return result!;
   };
   await act(async () => control("Filters (0)").click());
-  await act(async () => control("In my library (1)").click());
+  await act(async () => (await fixtureChoice("In my library (1)")).click());
   expect(visibleIds()).toEqual(["both"]);
-  expect(control("Preview (unavailable)").disabled).toBe(true);
+  expect(
+    (await fixtureChoice("Preview (unavailable)")).matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
   await act(async () =>
     shell.setFilter({ version: 1, membership: ["in-library"], channels: ["beta"] }),
   );
@@ -462,10 +471,12 @@ it("composes raw Core attention with readiness/channel counts and keeps unavaila
       (b) => b.getAttribute("aria-label") === name || b.textContent?.trim() === name,
     )!;
   await act(async () => control("Filters (0)").click());
-  expect(control("Missing game files (0)")).toBeDefined();
-  await act(async () => control("Finish setup (1)").click());
+  expect(await fixtureChoice("Missing game files (0)")).toBeDefined();
+  await act(async () => (await fixtureChoice("Finish setup (1)")).click());
   expect(visibleIds()).toEqual(["both"]);
-  expect(control("Preview (unavailable)").disabled).toBe(true);
+  expect(
+    (await fixtureChoice("Preview (unavailable)")).matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
   await act(async () =>
     shell.setFilter({ version: 1, attention: ["finish-setup"], channels: ["beta"] }),
   );
@@ -541,10 +552,12 @@ it("feeds identity-matched staged updates into results/counts without update che
       (b) => b.getAttribute("aria-label") === name || b.textContent?.trim() === name,
     )!;
   await act(async () => control("Filters (0)").click());
-  await act(async () => control("Matching update staged (1)").click());
+  await act(async () => (await fixtureChoice("Matching update staged (1)")).click());
   expect(visibleIds()).toEqual(["both"]);
-  expect(control("Available at last check (0)")).toBeDefined();
-  expect(control("Preview (unavailable)").disabled).toBe(true);
+  expect(await fixtureChoice("Available at last check (0)")).toBeDefined();
+  expect(
+    (await fixtureChoice("Preview (unavailable)")).matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
   await act(async () => shell.setFilter({ version: 1, updates: ["staged"], channels: ["beta"] }));
   membershipFacts = false;
   await act(async () => root.render(<Fixture />));

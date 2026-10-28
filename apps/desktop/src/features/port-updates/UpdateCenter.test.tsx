@@ -202,14 +202,12 @@ describe("update center presentation", () => {
     for (const [label, current, outcomes] of states)
       expect(render(current, outcomes)).toContain(`>${label}</span>`);
 
-    expect(render(status)).toMatch(
-      /<small[^>]*>Latest eligible<\/small><span[^>]*>Not checked<\/span>/u,
-    );
+    expect(render(status)).toMatch(/Latest eligible: Not checked<\/p>/u);
     expect(
       render(status, [{ port_id: port.id, ok: false, error: failureReport(), result: null }]),
-    ).toMatch(/<small[^>]*>Latest eligible<\/small><span[^>]*>Check failed<\/span>/u);
+    ).toMatch(/Latest eligible: Check failed<\/p>/u);
     expect(render(status, [{ port_id: port.id, ok: true, error: null, result: null }])).toMatch(
-      /<small[^>]*>Latest eligible<\/small><span[^>]*>Unavailable<\/span>/u,
+      /Latest eligible: Unavailable<\/p>/u,
     );
     expect(render(status)).toMatch(
       /<strong[^>]*>Unknown<\/strong><span[^>]*>Updates available<\/span>/u,
@@ -503,7 +501,7 @@ it.each(["pending", "failed", "cancelled"] as const)(
     expect(html).toContain("Updates at last check");
     expect(html).toContain("Failed at last check");
     expect(html).toContain("Latest eligible at last check");
-    expect(html).toContain(">2.0</span>");
+    expect(html).toContain("offered version: </span>2.0");
     expect(html).not.toContain(">Update available</span>");
   },
 );

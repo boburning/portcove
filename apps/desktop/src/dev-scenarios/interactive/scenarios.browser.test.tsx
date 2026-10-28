@@ -76,7 +76,7 @@ it("gives every disposable detail route five real tabs and binds external Play t
     await page.getByRole("tab", { name: label, exact: true }).click();
     await expect.element(page.getByRole("tabpanel", { name: label, exact: true })).toBeVisible();
   }
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await page
     .getByRole("button", {
       name: "View details for Summit Racer Harbor upstream project · unknown",
@@ -92,7 +92,7 @@ it("gives every disposable detail route five real tabs and binds external Play t
   expect(document.querySelector("[data-installation-fact]")?.textContent).toBe(
     "Registered external installation",
   );
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await page.getByRole("button", { name: "Update prepared", exact: true }).click();
   await expect
     .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
@@ -108,7 +108,7 @@ it("opens actual game details, returns to Library and resets the selected journe
   await click("View details for Harbor Adventure Harbor Adventure");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).not.toBeNull();
-  await click("Back to previous workspace");
+  await click("Back to Library");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).toBeNull();
   await click("Reset journey");
   expect(document.querySelector("#port-search")).not.toBeNull();
@@ -462,9 +462,9 @@ it("revisits the original running task after browsing another game and records i
   await click("Review setup");
   await click("Prepare game data");
   const retained = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
-  await click("Back to previous workspace");
+  await click("Back to Library");
   await click("View details for Orchard Quest Orchard Quest");
-  await click("Back to previous workspace");
+  await click("Back to Library");
   await navigateTo("Activity");
   const row = () => document.querySelector('[data-activity-id="fixture-preparation"]');
   await expect.poll(() => row()?.textContent).toContain("In progress");

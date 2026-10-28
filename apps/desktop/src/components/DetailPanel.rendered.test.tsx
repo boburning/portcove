@@ -848,7 +848,7 @@ describe("desktop components", () => {
 
     expect(ready).toContain("Ready to play");
     expect(ready).not.toContain('class="hero-reason"');
-    expect(ready.indexOf("Ready to play")).toBeLessThan(ready.indexOf("Play"));
+    expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Ready to play"));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf(port.summary));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
     expect(downloaded).toContain("Ready to play");
@@ -1067,7 +1067,7 @@ describe("desktop components", () => {
     expect(html.indexOf("Choose and add the game files again before playing.")).toBeLessThan(
       html.indexOf(port.summary),
     );
-    expect(detailSection(html, "manage")).toContain("Installation location");
+    expect(detailSection(html, "manage")).toContain("Installation ownership");
     expect(detailSection(html, "files")).toContain("Requirements");
     expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(detailSection(html, "versions")).toContain("Installed version");
@@ -1462,7 +1462,7 @@ describe("desktop components", () => {
     )?.[0];
     expect(backupButton).toBeDefined();
     expect(backupButton).not.toContain(' disabled=""');
-    expect(uninstalled).toContain("Checking your saved data…");
+    expect(uninstalled).toContain("Saved-data availability has not been checked.");
     expect(
       uninstalled.match(/<button\b[^>]*aria-describedby="backup-create-explanation"[^>]*>/)?.[0],
     ).toContain(' disabled=""');
@@ -1920,14 +1920,11 @@ describe("desktop components", () => {
       "Recorded checks",
     ])
       expect(overview).toContain(content);
-    for (const content of [
-      'aria-label="Game actions"',
-      "Requirements",
-      'id="detail-artwork"',
-      'aria-labelledby="detail-saves-and-storage"',
-    ])
+    for (const content of ['aria-label="Game actions"', "Requirements"])
       expect(files).toContain(content);
-    for (const content of ["Installation location", "Technical details", install.path])
+    expect(manage).toContain('id="detail-artwork"');
+    expect(saves).toContain('aria-labelledby="detail-saves-and-storage"');
+    for (const content of ["Installation ownership", "Technical details", install.path])
       expect(manage).toContain(content);
     for (const content of ["Saves &amp; backups", "Back up data", "E:/Portcove/user/sample"])
       expect(saves).toContain(content);

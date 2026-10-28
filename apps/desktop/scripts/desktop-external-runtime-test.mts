@@ -272,7 +272,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     report.steps.push("review-dismissed-without-registration");
     // Reachable ordinary context transition after dismissal; no forced navigation
     // through a native modal or claim about delayed A-B-A picker responses.
-    await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')).click();
+    await browser.findElement(By.css("button[data-detail-back]")).click();
     await selectCatalogPort(browser, fixture.port.id);
     assert.equal((await browser.findElements(dialogFor("register"))).length, 0);
     report.steps.push("ordinary-workspace-return-has-no-old-review");

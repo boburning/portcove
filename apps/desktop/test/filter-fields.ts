@@ -9,7 +9,11 @@ export async function openFilterField(label: string) {
   );
   if (close) await userEvent.click(close);
   const trigger = page.getByRole("button", { name: new RegExp(`^${label}:`) });
-  const details = trigger.element().closest("details");
+  const rawTrigger = [...globalThis.document.querySelectorAll<HTMLButtonElement>("button")].find(
+    (node) => node.getAttribute("aria-label")?.startsWith(`${label}:`),
+  );
+  if (!rawTrigger) throw new Error(`Missing filter field ${label}`);
+  const details = rawTrigger.closest("details");
   if (details && !details.open) await userEvent.click(details.querySelector("summary")!);
   await trigger.click();
 }
@@ -28,4 +32,15 @@ export function filterFieldForChoice(name: string) {
 export async function filterChoice(name: string) {
   await openFilterField(filterFieldForChoice(name));
   return page.getByRole("checkbox", { name, exact: true });
+}
+
+export async function openAdvancedFilters() {
+  const close = [...globalThis.document.querySelectorAll<HTMLButtonElement>("button")].find(
+    (node) => /^Close .+ choices$/.test(node.getAttribute("aria-label") ?? ""),
+  );
+  if (close) await userEvent.click(close);
+  const trigger = page.getByRole("button", { name: /^Filters \(\d+\)$/ });
+  if (trigger.element().getAttribute("aria-expanded") !== "true") await trigger.click();
+  const advanced = page.getByText("Advanced filters", { exact: true });
+  if (!advanced.element().closest("details")?.open) await advanced.click();
 }
