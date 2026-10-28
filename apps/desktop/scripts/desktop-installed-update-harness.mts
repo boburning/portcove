@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { WebDriver } from "selenium-webdriver";
 import { errorCode, isRecord } from "../../../scripts/runtime-values.mts";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
@@ -357,4 +357,74 @@ export function waitForHealthyAppImageRestart(
     "renderer-driven restart and healthy-startup reconciliation",
     90_000,
   );
+}
+
+export interface WindowsUpdateProcessMarker {
+  schema_version: 1;
+  process_id: number;
+  executable: string;
+}
+export interface WindowsUpdateProcessObservation {
+  status: "captured" | "exited" | "prior-process-exited" | "stopped";
+  pid: number;
+  path?: string;
+}
+
+function installedUpdatePid(value: unknown): number {
+  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+  return value;
+}
+export function readWindowsUpdateProcessMarker(value: unknown): WindowsUpdateProcessMarker {
+  const marker = object(value);
+  assert.equal(marker.schema_version, 1);
+  assert.ok(typeof marker.executable === "string" && path.win32.isAbsolute(marker.executable));
+  return {
+    ...marker,
+    schema_version: 1,
+    process_id: installedUpdatePid(marker.process_id),
+    executable: marker.executable,
+  };
+}
+export function readWindowsUpdateProcessObservation(
+  value: unknown,
+): WindowsUpdateProcessObservation {
+  const observation = object(value);
+  const status = observation.status;
+  assert.ok(
+    status === "captured" ||
+      status === "exited" ||
+      status === "prior-process-exited" ||
+      status === "stopped",
+  );
+  const result: WindowsUpdateProcessObservation = {
+    ...observation,
+    status,
+    pid: installedUpdatePid(observation.pid),
+  };
+  if (observation.path !== undefined) {
+    assert.ok(typeof observation.path === "string" && path.win32.isAbsolute(observation.path));
+    result.path = observation.path;
+  }
+  return result;
+}
+
+export function readMacInstalledProcessField(
+  pid: number,
+  field: "lstart" | "command" | "stat",
+  read: (
+    command: string,
+    args: string[],
+    options: { encoding: "utf8"; stdio: ["ignore", "pipe", "ignore"] },
+  ) => string = execFileSync,
+) {
+  try {
+    return read("/bin/ps", ["-ww", "-p", String(pid), "-o", `${field}=`], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch (error) {
+    if (error !== null && typeof error === "object" && "status" in error && error.status === 1)
+      return null;
+    throw error;
+  }
 }

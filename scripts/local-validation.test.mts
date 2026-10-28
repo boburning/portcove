@@ -3869,6 +3869,14 @@ void test("native transport producers retain their actual Node consumers across 
   const { windowsHelperChecksRequired, windowsNativeToolsRequired } =
     await import("./windows-helper-checks.mts");
   const consumers: [string, string[]][] = [
+    ...[
+      "apps/desktop/scripts/desktop-installed-update-harness.mts",
+      "apps/desktop/scripts/desktop-windows-update-test.mts",
+      "apps/desktop/scripts/desktop-macos-installed-update-test.mts",
+    ].map((file): [string, string[]] => [
+      file,
+      ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    ]),
     [
       "apps/desktop/scripts/desktop-webview-boundary.mts",
       [

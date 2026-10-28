@@ -1191,7 +1191,6 @@ for (const [file, tests] of [
   ]),
   ...[
     "apps/desktop/scripts/desktop-application-update-journey.mts",
-    "apps/desktop/scripts/desktop-installed-update-harness.mts",
     "apps/desktop/scripts/desktop-windows-public-update.mts",
     "apps/desktop/scripts/desktop-windows-public-update-files.mts",
   ].map((file): [string, string[]] => [file, ["scripts/desktop-scenarios.test.mts"]]),
@@ -1200,6 +1199,14 @@ for (const [file, tests] of [
     "scripts/validation-plan.test.mts",
     "scripts/local-validation.test.mts",
   ].map((file): [string, string[]] => [file, selectionContractTests]),
+  ...[
+    "apps/desktop/scripts/desktop-installed-update-harness.mts",
+    "apps/desktop/scripts/desktop-windows-update-test.mts",
+    "apps/desktop/scripts/desktop-macos-installed-update-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ]),
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
   [
     "scripts/fixtures/disposable-directory.mts",

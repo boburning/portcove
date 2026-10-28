@@ -20,6 +20,10 @@ import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mts";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
 import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mts";
 import {
+  readWindowsUpdateProcessMarker as processMarker,
+  readWindowsUpdateProcessObservation as markedObservation,
+  type WindowsUpdateProcessMarker as ProcessMarker,
+  type WindowsUpdateProcessObservation as MarkedObservation,
   awaitInstalledUpdateDriver,
   connectInstalledUpdateDriver,
   hashFile,
@@ -86,16 +90,6 @@ assert.ok(
 const drivers = embedded ? null : cachedDesktopDrivers();
 assert.ok(embedded || drivers, "Pinned Tauri and WebView2 drivers are unavailable");
 await mkdir(output, { recursive: false });
-interface ProcessMarker {
-  schema_version: 1;
-  process_id: number;
-  executable: string;
-}
-interface MarkedObservation {
-  status: "captured" | "exited" | "prior-process-exited" | "stopped";
-  pid: number;
-  path?: string;
-}
 interface MarkedExit {
   capture: MarkedObservation;
   exit: MarkedObservation;
@@ -152,33 +146,6 @@ function object(value: unknown): Record<string, unknown> {
 function positivePid(value: unknown): number {
   assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
   return value;
-}
-function processMarker(value: unknown): ProcessMarker {
-  const marker = object(value);
-  assert.equal(marker.schema_version, 1);
-  assert.ok(typeof marker.executable === "string" && path.win32.isAbsolute(marker.executable));
-  return {
-    ...marker,
-    schema_version: 1,
-    process_id: positivePid(marker.process_id),
-    executable: marker.executable,
-  };
-}
-function markedObservation(value: unknown): MarkedObservation {
-  const observation = object(value);
-  const status = observation.status;
-  assert.ok(
-    status === "captured" ||
-      status === "exited" ||
-      status === "prior-process-exited" ||
-      status === "stopped",
-  );
-  const result: MarkedObservation = { ...observation, status, pid: positivePid(observation.pid) };
-  if (observation.path !== undefined) {
-    assert.ok(typeof observation.path === "string" && path.win32.isAbsolute(observation.path));
-    result.path = observation.path;
-  }
-  return result;
 }
 const report: WindowsUpdateReport = {
   schema_version: 1,
