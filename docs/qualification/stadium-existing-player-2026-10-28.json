@@ -1,0 +1,205 @@
+{
+  "format_version": 1,
+  "kind": "dated existing permitted upstream-player receipt",
+  "owners": [331, 1422, 2510, 2926],
+  "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
+  "frozen_membership": {
+    "cohort": "original-524",
+    "historical_1422_member": true,
+    "new_identity": false
+  },
+  "counts": {
+    "listings": 1424,
+    "operational_definitions_before": 197,
+    "new_operational_definitions": 1,
+    "operational_definitions_after": 198,
+    "source_profiles": 112,
+    "supported_operations_added": 0
+  },
+  "source_commit": "fb68669321b02ba8eb7e5743d04079d252bd466f",
+  "source_files": [
+    {
+      "path": "src/main/main.cpp",
+      "git_sha": "464a627194f3594b25fb740e5d85f52148790d53",
+      "sha256": "00db8f332698d938df42cf0803ea661d76af54c61a005028f0c715bf691d0d04",
+      "bytes": 100109
+    },
+    {
+      "path": "src/main/transfer_pak.cpp",
+      "git_sha": "9ec857d4cd53a59f89259294a6462779ec208cb3",
+      "sha256": "bb1fc4507d9a65a09412d0480b47ad3150aa95a67d91bf2911fef94eac93333f",
+      "bytes": 5178
+    },
+    {
+      "path": "src/main/app_paths.h",
+      "git_sha": "81f3974e4cd8846adae9e43e7de3338ceb35fe22",
+      "sha256": "c52afbf2c4a25a9c2468c312a489fd5ddd830d272bfaa8917f36e8c8e963169d",
+      "bytes": 1360
+    },
+    {
+      "path": "src/main/debug_server.cpp",
+      "git_sha": "b2f3c1dccc413cfa456b3a3ed69007d7cacd851e",
+      "sha256": "f77538484b877d77cee5abfe3955e569bb447c5febafc60de7166e7a7e6dc5c6",
+      "bytes": 111548
+    }
+  ],
+  "release": {
+    "tag": "v0.4.7-beta",
+    "url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
+    "asset": {
+      "url": "https://api.github.com/repos/mstan/PokemonStadiumRecomp/releases/assets/516096885",
+      "id": 516096885,
+      "node_id": "RA_kwDOSTnYPs4ewwN1",
+      "name": "PokemonStadiumRecomp-v0.4.7-beta-win64.zip",
+      "label": "",
+      "uploader": {
+        "login": "mstan",
+        "id": 5354790,
+        "node_id": "MDQ6VXNlcjUzNTQ3OTA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/5354790?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/mstan",
+        "html_url": "https://github.com/mstan",
+        "followers_url": "https://api.github.com/users/mstan/followers",
+        "following_url": "https://api.github.com/users/mstan/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mstan/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/mstan/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mstan/subscriptions",
+        "organizations_url": "https://api.github.com/users/mstan/orgs",
+        "repos_url": "https://api.github.com/users/mstan/repos",
+        "events_url": "https://api.github.com/users/mstan/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/mstan/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/zip",
+      "state": "uploaded",
+      "size": 115227902,
+      "digest": "sha256:60b24bcc21d6ae1cc92bfd1796b1c36adbfd4481f4138da66d996bb40aeddbea",
+      "download_count": 4474,
+      "created_at": "2026-08-15T21:40:18Z",
+      "updated_at": "2026-08-15T21:40:43Z",
+      "browser_download_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/download/v0.4.7-beta/PokemonStadiumRecomp-v0.4.7-beta-win64.zip"
+    },
+    "computed_sha256": "60b24bcc21d6ae1cc92bfd1796b1c36adbfd4481f4138da66d996bb40aeddbea",
+    "separate_publisher_checksum": null,
+    "digest_scope": "Computed bytes equal the official GitHub provider digest; no separate publisher checksum or source-to-binary equivalence.",
+    "entries": 30,
+    "expanded_bytes": 479417076,
+    "core_archive_refusal": {
+      "reason": "23 backslash ZIP names; Core requires forward-slash separators.",
+      "entries": [
+        "assets\\gamecontrollerdb.txt",
+        "assets\\LatoLatin-Bold.ttf",
+        "assets\\LatoLatin-Regular.ttf",
+        "assets\\launcher.rml",
+        "assets\\NotoEmoji-Regular.ttf",
+        "assets\\rml.rcss",
+        "assets\\ss_anne.rcss",
+        "assets\\carts\\blue.png",
+        "assets\\carts\\check.png",
+        "assets\\carts\\chev.png",
+        "assets\\carts\\cog.png",
+        "assets\\carts\\empty.png",
+        "assets\\carts\\n64.png",
+        "assets\\carts\\red.png",
+        "assets\\carts\\yellow.png",
+        "licenses\\Dear-ImGui-LICENSE.txt",
+        "licenses\\fonts-OFL-1.1.txt",
+        "licenses\\GamepadMotionHelpers-LICENSE.txt",
+        "licenses\\N64ModernRuntime-GPLv3-COPYING.txt",
+        "licenses\\N64Recomp-MIT-LICENSE.txt",
+        "licenses\\PokemonStadiumRecomp-GPLv3-COPYING.txt",
+        "licenses\\rt64-MIT-LICENSE.txt",
+        "licenses\\SlotMap-LICENSE.txt"
+      ],
+      "scope": "Core acquisition/extraction remains unoffered. Only an already working permitted upstream-prepared Windows folder may be selected; no Core normalization, parser bypass or alternate extractor added."
+    },
+    "players": [
+      {
+        "path": "PokemonStadiumRecomp.exe",
+        "bytes": 453147648,
+        "pe_machine": "0x8664",
+        "sha256": "0526863291440ee7817e1d23ab4261fde4af07fdf625e540e60900e33cd84994"
+      }
+    ],
+    "component_notices": [
+      {
+        "path": "licenses\\Dear-ImGui-LICENSE.txt",
+        "bytes": 1083,
+        "sha256": "0ebf8feb061536bdebd7c6a365b64808ae3479048b1c44113e19037680c5f2be"
+      },
+      {
+        "path": "licenses\\fonts-OFL-1.1.txt",
+        "bytes": 4459,
+        "sha256": "f24009efe43c3755780b27204a8ee2417e5259533fec8d3c0c8dbcca766e4897"
+      },
+      {
+        "path": "licenses\\GamepadMotionHelpers-LICENSE.txt",
+        "bytes": 1081,
+        "sha256": "cab235520dc9bda018e27ccc8c533ecf375766823f9ed918f3698fa52aaffa33"
+      },
+      {
+        "path": "licenses\\N64ModernRuntime-GPLv3-COPYING.txt",
+        "bytes": 35149,
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+      },
+      {
+        "path": "licenses\\N64Recomp-MIT-LICENSE.txt",
+        "bytes": 1109,
+        "sha256": "fe9b6d0f4c213d9cc18fafeb1428f9e105f833d2bb337f93d6af663bb3c1be60"
+      },
+      {
+        "path": "licenses\\PokemonStadiumRecomp-GPLv3-COPYING.txt",
+        "bytes": 35149,
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+      },
+      {
+        "path": "licenses\\rt64-MIT-LICENSE.txt",
+        "bytes": 1109,
+        "sha256": "f42f42387b6753856dae4e5e13f39c33984f14f3b11255f20eed5dab26638631"
+      },
+      {
+        "path": "licenses\\SlotMap-LICENSE.txt",
+        "bytes": 9590,
+        "sha256": "a5e48e395a12983fd8758a71edebdaac0cbba33cd8b5a1f122868e059806f60b"
+      }
+    ]
+  },
+  "original": {
+    "game": "Pokémon Stadium US v1.0",
+    "canonical_representation": "big-endian z64",
+    "bytes": 33554432,
+    "md5": "ed1378bc12115f71209a77844965ba50",
+    "tagged_runtime_rom_hash_xxh3_64": "6E46EACF8F27011D",
+    "other_upstream_representations": ["n64", "v64"],
+    "incompatible": "Rev A/v1.1",
+    "scope": "Core acquires, copies or independently admits no original files for this non-owning definition."
+  },
+  "definition_contract": "Existing DKR-R UserPrepared/UserSelected Windows x86-64, user-managed version and empty immutable archive/source/persistence authority. Consent/register, retained restart, explicit supervised Play and reviewed registration-only preserving removal. Managed Install/Update/Backup/Rollback/migration/external deletion unavailable.",
+  "working_directory": "Actual PokemonStadiumRecomp.exe parent; tagged source registers configuration at current working directory, while launcher/ROM/diagnostic helpers resolve at executable folder.",
+  "data_boundaries": [
+    "Keep complete actual executable/working/configuration folder, FlashRAM progress, rom.cfg, launcher.cfg, logs/dumps and other created files. This is not a complete managed writer inventory.",
+    "Transfer Pak and GB Tower load separately owned GB/GBC originals and write cartridge saves. launcher.cfg p1_rom/p1_save through p4_rom/p4_save resolve relative to executable folder or absolute; PSR_TRANSFER_PAK_Pn_ROM/SAVE override them. Preserve all actual configured files and creating runtimes; no Core adoption or state compatibility."
+  ],
+  "lifetime_source_observation": "Tagged main keeps SS Anne and game in selected process; recomp::start blocks until return. Not actual native game execution.",
+  "debug_source_observation": {
+    "bind": "127.0.0.1",
+    "default_tcp_port": 4371,
+    "authentication": "none in inspected local command server",
+    "commands": "input/memory mutation and quit",
+    "override": "PSR_DEBUG_PORT chooses a valid port, not a disable flag",
+    "scope": "Tagged source observation only; no network/debug isolation or runtime observation claimed."
+  },
+  "maintenance": "Upstream states maintenance ceased. Selected v0.4.7-beta is distinct from README v0.4.6 reference. Known bugs and incomplete cup/Gym Leader Castle coverage persist; no future updates promised.",
+  "validation": "One independent real-ID Core case reuses existing prepared-player operation control. Windows strict selected-definition/retained contract and other-host generic fallback remain separate. Hosted qualification pending; no source or production Core behavior change.",
+  "unknown_or_not_run": [
+    "Actual game/original/Transfer Pak execution and startup/normal close",
+    "Image/menu/gameplay/save-load/physical input and hardware minima",
+    "Other platforms, save/state compatibility and managed maintenance",
+    "Source-to-binary equivalence, signing/protected acceptance and Supported"
+  ],
+  "trust_boundary": "Only a permitted working existing runtime. OS/archive refusals remain in force; no security exclusions or protection changes.",
+  "record_sha256": "a96964c560284feb00713f9b025003a061a86700ceca17d55b7bd25b4b554c8d"
+}

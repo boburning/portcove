@@ -1004,6 +1004,11 @@ mod tests {
         "serious-sam-the-second-encounter-serioussamclassic"
     );
 
+    prepared_player_case!(
+        historical_route_stadium,
+        "pokemon-stadium-ss-anne-pokemonstadiumrecomp"
+    );
+
     #[test]
     fn pre_declaration_selected_registration_keeps_its_creating_listing_contract() {
         let id = "super-mario-64-sm64-co-op-dx";
