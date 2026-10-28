@@ -582,7 +582,7 @@ void test("manual rehearsal retains the complete matrix without production crede
   assert.match(rehearsal, /wrong_signature_verified_with_distinct_key = \$true/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$wrongPrivateRoot -Recurse -Force/);
   const outerFinally = rehearsal.match(
-    /} finally \{\r?\n(?<body>(?:    [^\r\n]*\r?\n)+)}\r?\n\[ordered]@\{ source_commit = \$revision; platform = \$PlatformLabel; status = "passed"/,
+    /} finally \{\r?\n(?<body>(?:    [^\r\n]*\r?\n)+)}\r?\nif\(\$captureFixtureDerivation\)\{/,
   );
   assert.ok(outerFinally?.groups?.body);
   assert.match(

@@ -634,7 +634,7 @@ ConvertTo-Json -InputObject $results -Depth 4 -Compress
           ),
           PORTCOVE_TEST_NATIVE_ROOT: root,
           PORTCOVE_TEST_NATIVE_OWNER: fileURLToPath(
-            new URL("./release-hosted-native-windows-owner.ps1", import.meta.url),
+            new URL("./release-hosted-native-windows-owner-mechanism.ps1", import.meta.url),
           ),
           PORTCOVE_TEST_NATIVE_NODE: process.execPath,
         },

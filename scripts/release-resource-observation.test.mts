@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { parse, stringify } from "yaml";
 import { observeReleaseResources } from "./release-resource-observation.mts";
@@ -86,5 +87,103 @@ void test("resource observations reconcile current purposes and keep provider, b
     ).separate_candidate_and_repair_workflow.find((row) => row.key === "identity")
       ?.maximum_job_minutes,
     null,
+  );
+});
+
+void test("measured resource amendment remains concrete, complete and unratified under effective100", async () => {
+  const proposal = JSON.parse(
+    await readFile(
+      new URL(
+        "../docs/qualification/slice4-resource-amendment-proposal-2026-10-28.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    status: string;
+    authority: string;
+    source_scope: { current_workflow_sha256: string; current_policy_sha256: string };
+    proposed_policy: {
+      application_minutes: number;
+      catalog_alternative_minutes: number;
+      hard_cap_minutes: number;
+    };
+    jobs: { job: string; effective_minutes: number | null; proposed_minutes: number }[];
+    allocations: Record<string, Record<string, number>>;
+  };
+  assert.equal(proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
+  assert.equal(proposal.authority, "none");
+  const constraint = (
+    proposal as unknown as {
+      windows_owner_constraint: {
+        effective_total_milliseconds: number;
+        full_signing_job_maximum_milliseconds: number;
+        job_ceiling_does_not_extend_owner: boolean;
+        full_signing_wait_fit: string;
+      };
+    }
+  ).windows_owner_constraint;
+  assert.equal(constraint.effective_total_milliseconds, 570000);
+  assert.equal(constraint.full_signing_job_maximum_milliseconds, 600000);
+  assert.equal(constraint.job_ceiling_does_not_extend_owner, true);
+  assert.match(constraint.full_signing_wait_fit, /^Unknown/u);
+  const linux = (
+    proposal as unknown as {
+      linux_owner_constraint: {
+        effective_total_milliseconds: number;
+        full_signing_job_maximum_milliseconds: number;
+        job_ceiling_does_not_extend_owner: boolean;
+        full_signing_wait_fit: string;
+      };
+    }
+  ).linux_owner_constraint;
+  assert.equal(linux.effective_total_milliseconds, 570000);
+  assert.equal(linux.full_signing_job_maximum_milliseconds, 600000);
+  assert.equal(linux.job_ceiling_does_not_extend_owner, true);
+  assert.match(linux.full_signing_wait_fit, /^Unknown/u);
+
+  assert.equal(slice4CapacityResources.total_job_minutes, 100);
+  assert.equal(proposal.proposed_policy.application_minutes, 163);
+  assert.equal(proposal.proposed_policy.hard_cap_minutes, 163);
+  assert.equal(proposal.proposed_policy.catalog_alternative_minutes, 40);
+  const workflow = await readFile(
+      new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+    ),
+    actual = parse(workflow.toString()) as { jobs: Record<string, { "timeout-minutes": number }> };
+  assert.deepEqual(
+    proposal.jobs.map((row) => row.job).sort(),
+    [
+      ...Object.keys(actual.jobs).filter((name) => !name.startsWith("catalog_")),
+      "native_windows",
+      "wake",
+    ].sort(),
+  );
+  assert.equal(
+    proposal.jobs.reduce((sum, row) => sum + row.proposed_minutes, 0),
+    163,
+  );
+  for (const row of proposal.jobs) {
+    assert.equal(
+      row.effective_minutes,
+      row.job === "wake" ? 1 : (actual.jobs[row.job]?.["timeout-minutes"] ?? null),
+    );
+    assert.ok(Number.isSafeInteger(row.proposed_minutes) && row.proposed_minutes > 0);
+  }
+  for (const allocation of Object.values(proposal.allocations))
+    assert.equal(
+      Object.entries(allocation)
+        .filter(([name]) => name !== "total")
+        .reduce((sum, [, value]) => sum + value, 0),
+      allocation.total,
+    );
+  assert.equal(
+    proposal.source_scope.current_workflow_sha256,
+    createHash("sha256").update(workflow).digest("hex"),
+  );
+  assert.equal(
+    proposal.source_scope.current_policy_sha256,
+    createHash("sha256")
+      .update(await readFile(new URL("./release-capacity.mts", import.meta.url)))
+      .digest("hex"),
   );
 });

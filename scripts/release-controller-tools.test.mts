@@ -2058,3 +2058,97 @@ void test("Windows runtime join permanently refuses changed identity, context an
     await assert.rejects(runtime.recheck(), /stopped/u);
   }
 });
+
+void test("shared supported-runtime byte fence preserves original identities and refuses drift before trusted Windows tool production", async (t) => {
+  const { captureSupportedHostedWindowsRuntimeInput } =
+      await import("./hosted-windows-runtime-input.mts"),
+    { readSupportedRuntimeMechanism, prepareAdmittedWindowsBootstrapRuntime } =
+      await import("./release-windows-bootstrap-runtime.mts"),
+    f = await windowsRuntimeInputFixture(t);
+  const bytes = await f.write(f.receipt(true));
+  let sourceLive = true;
+  const runtime = await captureSupportedHostedWindowsRuntimeInput(
+    f.root,
+    {
+      source: f.expected.commit,
+      workflow: f.environment.GITHUB_WORKFLOW_REF,
+      run_id: f.environment.GITHUB_RUN_ID,
+      attempt: f.environment.GITHUB_RUN_ATTEMPT,
+    },
+    () => assert.ok(sourceLive, "Original source revoked"),
+  );
+  assert.equal(runtime.facts.observed, "156.0.4314.50");
+  assert.equal(runtime.report.input.sha256, hash(bytes));
+  await runtime.recheck();
+  await f.write({ ...f.receipt(true), after: ["157.0.0.0"] });
+  await assert.rejects(runtime.recheck(), /changed/u);
+  await f.write(f.receipt(true));
+  await assert.rejects(runtime.recheck(), /stopped/u);
+  const restored = await captureSupportedHostedWindowsRuntimeInput(
+    f.root,
+    {
+      source: f.expected.commit,
+      workflow: f.environment.GITHUB_WORKFLOW_REF,
+      run_id: f.environment.GITHUB_RUN_ID,
+      attempt: f.environment.GITHUB_RUN_ATTEMPT,
+    },
+    () => assert.ok(sourceLive, "Original source revoked"),
+  );
+  sourceLive = false;
+  await assert.rejects(restored.recheck(), /revoked/u);
+  const helper = await readFile(new URL("./prepare-hosted-windows-runtime.ps1", import.meta.url)),
+    parts = readSupportedRuntimeMechanism(helper);
+  assert.match(parts.prelude, /function Test-EngineVersion/u);
+  assert.match(parts.effects, /Start-Process -FilePath \$taskInstaller/u);
+  assert.ok(!parts.effects.includes("$taskOrdinaryDiagnostic"));
+  for (const bad of [
+    Buffer.alloc(131073),
+    Buffer.from(helper.toString().replace("# portcove-supported-runtime-prelude-end", "")),
+    Buffer.concat([helper, Buffer.from("\n# portcove-supported-runtime-effects-begin")]),
+  ])
+    assert.throws(() => readSupportedRuntimeMechanism(bad));
+  await assert.rejects(
+    prepareAdmittedWindowsBootstrapRuntime(),
+    /Protected Windows runtime preparation remains held/u,
+  );
+  const profile = controllerToolPlatformProfile("windows-x86_64");
+  assert.ok(profile.paths.includes("windows-runtime-prerequisite.json"));
+  assert.ok(new Set<string>(profile.assets).has("scripts/native-qualification-account-client.ps1"));
+});
+
+void test("protected Windows runtime sequential budget preserves original provider window", async () => {
+  const {
+    remainingProtectedWindowsRuntimeWindow: remaining,
+    protectedWindowsRuntimeHelperMilliseconds: helper,
+    protectedWindowsRuntimeFinalizerReserveMilliseconds: reserve,
+  } = await import("./release-windows-bootstrap-runtime.mts");
+  assert.equal(helper, 450000);
+  assert.equal(reserve, 30000);
+  const original = {
+    startedAt: 1700000000000,
+    providerDate: 1700000010000,
+    localDate: 1700000010000,
+    minutes: 10,
+    requestMilliseconds: 1000,
+  };
+  assert.equal(remaining(original), 589000);
+  assert.equal(
+    remaining({
+      ...original,
+      providerDate: original.providerDate + 10000,
+      localDate: original.localDate + 10000,
+    }),
+    579000,
+  );
+  for (const changed of [
+    { minutes: 4 },
+    { minutes: 8 },
+    { providerDate: original.startedAt + 121000, localDate: original.startedAt + 121000 },
+    { requestMilliseconds: -1 },
+    { requestMilliseconds: 15001 },
+    { localDate: original.providerDate + 30001 },
+    { startedAt: original.providerDate + 1 },
+    { minutes: Infinity },
+  ])
+    assert.throws(() => remaining({ ...original, ...changed }));
+});

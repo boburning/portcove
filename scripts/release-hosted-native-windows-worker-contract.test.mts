@@ -88,6 +88,11 @@ void test("held B stage ABI fixes package leaves and rejects imported execution 
       worker_sha256: sha,
     };
   const selected = inspectHostedWindowsWorkerRequest(raw);
+  // A serializes this canonical value; B must accept that exact wire form.
+  assert.deepEqual(
+    inspectHostedWindowsWorkerRequest(JSON.parse(JSON.stringify(selected)) as unknown),
+    selected,
+  );
   assert.equal(selected.stage, "payload-signing");
   assert.equal(selected.predecessor, null);
   const publication = {

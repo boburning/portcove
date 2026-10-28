@@ -52,6 +52,10 @@ New-Item -ItemType Directory -Path $runRoot | Out-Null
 $metadataPaths = @("Cargo.toml", "Cargo.lock", "apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json")
 $original = @{}
 foreach ($relative in $metadataPaths) { $original[$relative] = [IO.File]::ReadAllBytes((Join-Path $root $relative)) }
+$captureFixtureDerivation = $PlatformLabel -ceq 'windows-x86_64' -and $TransitionProfile -ceq 'preview-final'
+$fixtureDerivations = [Collections.Generic.List[object]]::new()
+$fixtureSourceTree = (& git rev-parse 'HEAD^{tree}' | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $fixtureSourceTree -cnotmatch '^[a-f0-9]{40}$') { throw 'Original rehearsal source tree unavailable' }
 $environmentNames = @(
     "TAURI_SIGNING_PRIVATE_KEY",
     "TAURI_SIGNING_PRIVATE_KEY_PATH",
@@ -103,6 +107,25 @@ function Set-FixtureVersion([string]$Version) {
         [IO.File]::WriteAllText((Join-Path $root $relative), ($data | ConvertTo-Json -Depth 30))
     }
     Invoke-Checked "node" @("scripts/check-release-metadata.mts")
+}
+
+# Observed same-job derivation from the maintained producer, never a publisher
+# credential or a reproducible-build attestation. The loader rechecks these
+# fixed paths and the actual artifacts independently before any held execution.
+function Get-FixtureDerivationIdentity([string]$Relative,[long]$Maximum) {
+    $item=Get-Item -LiteralPath (Join-Path $root $Relative) -Force
+    if($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.Length -lt 1 -or $item.Length -gt $Maximum){throw 'Fixture derivation input exceeds regular-file bound'}
+    [ordered]@{path=$Relative.Replace('\','/');bytes=$item.Length;sha256=(Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
+}
+function Get-FixtureDerivationState {
+    $head=(& git rev-parse HEAD|Out-String).Trim()
+    if($LASTEXITCODE -ne 0 -or $head -cne $revision){throw 'Original rehearsal HEAD changed'}
+    $tree=(& git rev-parse 'HEAD^{tree}'|Out-String).Trim()
+    if($LASTEXITCODE -ne 0 -or $tree -cne $fixtureSourceTree){throw 'Original rehearsal tree changed'}
+    $changed=@(& git diff --name-only HEAD --)
+    if($LASTEXITCODE -ne 0 -or ($changed|Out-String).Length -gt 65536){throw 'Fixture tracked-diff inventory unavailable'}
+    foreach($entry in $changed){if($entry -cnotin $metadataPaths){throw 'Rehearsal changed a tracked file outside fixed fixture metadata'}}
+    [ordered]@{source=$head;tree=$tree;tracked_changes=$changed;metadata=@(foreach($entry in $metadataPaths){Get-FixtureDerivationIdentity $entry 4194304})}
 }
 
 function Invoke-PackagedPayloadConsumer([string]$Stage, [string]$CandidateVersion, [string]$TufPrivateRootPath = "") {
@@ -226,6 +249,7 @@ try {
     Move-RehearsalInput $cliRoot "previous-cli-assets"
     foreach ($version in $fixtureVersions) {
         Set-FixtureVersion $version
+        $fixtureBefore = if($captureFixtureDerivation){Get-FixtureDerivationState}else{$null}
         $cliTargetRoot = Join-Path $root "target"
         $cliBuildArguments = @("build", "--release", "-p", "portcove-cli", "-p", "portcove-release-tools")
         if ($IsWindows) {
@@ -318,6 +342,14 @@ try {
         }
         $native | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runRoot "$version-native.json") -Encoding utf8
         & git diff --binary -- Cargo.toml Cargo.lock apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json | Set-Content -LiteralPath (Join-Path $runRoot "$version-fixture.patch") -Encoding utf8
+        if($captureFixtureDerivation){
+            $fixtureAfter=Get-FixtureDerivationState
+            $inventory=Get-Content -LiteralPath (Join-Path $stage 'updater-inventory.json') -Raw|ConvertFrom-Json
+            $names=@($inventory.packages.filename)+@($inventory.updater.filename,$inventory.updater.signature.filename);$names=@($names|Select-Object -Unique)
+            if($names.Count -lt 2 -or $names.Count -gt 8){throw 'Fixture artifact inventory exceeds bound'}
+            $artifacts=@(foreach($name in $names){if($name -cnotmatch '^[A-Za-z0-9_.-]{1,128}$'){throw 'Fixture artifact name differs'};Get-FixtureDerivationIdentity "work/updater-rehearsal/$version-$PlatformLabel/$name" 536870912})
+            $fixtureDerivations.Add([ordered]@{version=$version;generator='Set-FixtureVersion';before=$fixtureBefore;after=$fixtureAfter;commands_successful=$true;commands=@([ordered]@{program='cargo';arguments=$cliBuildArguments;success=$true},[ordered]@{program='pnpm';arguments=$tauriArguments;success=$true},[ordered]@{program='node';operation='updater-inventory-stage';success=$true},[ordered]@{program='node';operation='updater-inventory-verify';success=$true});inventory=(Get-FixtureDerivationIdentity "work/updater-rehearsal/$version-$PlatformLabel/updater-inventory.json" 65536);patch=(Get-FixtureDerivationIdentity "work/updater-rehearsal/$version-fixture.patch" 524288);public_key=(Get-FixtureDerivationIdentity 'work/updater-rehearsal/disposable.key.pub' 16384);verifier=(Get-FixtureDerivationIdentity "target/updater-rehearsal-cli-$version/release/portcove-release-tools.exe" 134217728);artifacts=$artifacts})
+        }
         Move-RehearsalInput $bundleRoot "$version-bundles"
         Move-RehearsalInput $cliRoot "$version-cli-assets"
     }
@@ -774,6 +806,17 @@ try {
     if ([IO.Directory]::Exists($windowsFixturePrivate)) { [IO.Directory]::Delete($windowsFixturePrivate, $true) }
     $macosFixturePrivate = Join-Path $runRoot "macos-installed-selection-qualification/private"
     if ([IO.Directory]::Exists($macosFixturePrivate)) { [IO.Directory]::Delete($macosFixturePrivate, $true) }
+}
+if($captureFixtureDerivation){
+    $restored=Get-FixtureDerivationState
+    if($restored.tracked_changes.Count -ne 0 -or $fixtureDerivations.Count -ne 2){throw 'Original clean rehearsal checkout was not restored'}
+    foreach($relative in $metadataPaths){if(-not [Collections.StructuralComparisons]::StructuralEqualityComparer.Equals([byte[]]$original[$relative],[byte[]][IO.File]::ReadAllBytes((Join-Path $root $relative)))){throw 'Original fixture metadata restoration differs'}}
+    foreach($relative in @('disposable.key','packaged-payload-consumer-private','windows-installed-update-qualification/private')){if(Test-Path -LiteralPath (Join-Path $runRoot $relative)){throw 'Private rehearsal input remains before derivation publication'}}
+    $derivation=[ordered]@{schema_version=1;source=$revision;tree=$fixtureSourceTree;run_id=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;workflow=$env:GITHUB_WORKFLOW_REF;platform=$PlatformLabel;transition_profile=$TransitionProfile;producer=(Get-FixtureDerivationIdentity 'scripts/rehearse-updater-artifacts.ps1' 131072);stages=$fixtureDerivations.ToArray();restored=$restored;private_inputs_absent=$true;native_rehearsal_passed=$true;authority='none';scope='observed same-job maintained fixture producer; not reproducible-build attestation or publisher authentication'}
+    $bytes=[Text.UTF8Encoding]::new($false,$true).GetBytes(($derivation|ConvertTo-Json -Depth 16 -Compress))
+    if($bytes.Length -gt 65536){throw 'Fixture derivation report exceeds bound'}
+    $stream=[IO.FileStream]::new((Join-Path $runRoot 'windows-fixture-derivation.json'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
+    try{$stream.Write($bytes);$stream.Flush($true)}finally{$stream.Dispose()}
 }
 [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "passed"; transition_profile = $TransitionProfile; fixture_versions = $fixtureVersions; production_signing = $false } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
