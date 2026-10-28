@@ -323,6 +323,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   ];
   // Admit only these exact platform/filter identities. Comparing the complete
   // inventory also rejects duplicates without a separately maintained count.
+  const windowsQueryDriftFilter =
+    "package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)";
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
     JSON.stringify([value.platform ?? null, value.filter]);
   const intelRecoveryFilter =
@@ -332,6 +334,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
+      { platform: "x86_64-pc-windows-msvc", filter: windowsQueryDriftFilter },
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
@@ -358,6 +361,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     platform: "x86_64-apple-darwin",
     filter: intelRecoveryFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.deepEqual(overrideFor(windowsQueryDriftFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsQueryDriftFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
     "success-output": "immediate",
   });
   const sourcePreparation = overrideFor(sourcePreparationFilter);

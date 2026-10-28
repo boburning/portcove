@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI40731813951/a1 Windows partition8 job122974032101 exhausted30.054s
+# in the two-variant channel/instance drift fixture. Each request retains its
+# existing30s QueryFence; allow90s only for the enclosing two-request/setup
+# harness and retain all Conflict assertions, cleanup, workers and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 40263836082/a1 reached this Windows case's 30.044s cap after verified
 # withdrawal and fresh-acquisition refusal at 28.68s, before cache refusal ended.
 # Preserve the full signed transition, assertions, two workers and zero retries;
