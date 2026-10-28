@@ -166,13 +166,13 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   commands.open = true;
   expect(commands.textContent).toContain("12 installed entries");
   expect(commands.textContent).toContain("hidden by filters");
-  await page.getByRole("button", { name: "Clear search and filters", exact: true }).click();
+  await page.getByRole("button", { name: "Reset view", exact: true }).click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
   const more = page.getByRole("button", { name: /^More actions for/ }).first();
   await more.click();
   await expect.element(page.getByRole("menu", { name: /^More actions for/ })).toHaveFocus();
   await userEvent.keyboard("{End}");
-  await expect.element(page.getByRole("menuitem", { name: "Saves and storage" })).toHaveFocus();
+  await expect.element(page.getByRole("menuitem", { name: "Saves & backups" })).toHaveFocus();
   await userEvent.keyboard("{Escape}");
   await expect.element(more).toHaveFocus();
 });

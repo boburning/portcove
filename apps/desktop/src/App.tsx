@@ -1,3 +1,4 @@
+import { Star } from "lucide-react";
 import {
   addRequiredSource,
   replaceRegisteredSource,
@@ -674,6 +675,7 @@ function useWorkspace(props: WorkspaceProps) {
     ) : model.port ? (
       <>
         <SelectedPortPanel
+          favorites={favorites}
           extraFiles={
             model.entry?.listing &&
             !model.status?.active &&
@@ -1497,6 +1499,7 @@ function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useA
 }
 
 function SelectedPortPanel({
+  favorites,
   organization,
   openSupport,
   extraFiles,
@@ -1516,6 +1519,7 @@ function SelectedPortPanel({
   openLibraryStorage,
   close,
 }: {
+  favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
   extraFiles?: ReactNode;
@@ -1536,6 +1540,7 @@ function SelectedPortPanel({
   close: () => void;
 }) {
   if (!model.port) return null;
+  const favoritePortId = model.port.id;
   const pickSource = model.sourceProfile
     ? () => {
         return applyPathChoice(
@@ -1566,6 +1571,45 @@ function SelectedPortPanel({
     : undefined;
   return (
     <DetailPanel
+      backLabel={
+        ui.view === "library"
+          ? "Back to Library"
+          : ui.view === "catalog"
+            ? "Back to Discover"
+            : undefined
+      }
+      favoriteControl={
+        <>
+          <Button
+            data-focusable
+            variant={favorites.ids?.has(favoritePortId) ? "selected" : "outline"}
+            size="icon-lg"
+            aria-label={`Favorite ${gameIdentityLabel(model.entry ?? model.port)}`}
+            aria-pressed={favorites.ids?.has(favoritePortId) ?? false}
+            disabled={!favorites.ids || favorites.busy}
+            focusableWhenDisabled={Boolean(favorites.ids) && favorites.busy}
+            aria-busy={favorites.busy}
+            onClick={() => void favorites.toggle(favoritePortId)}
+          >
+            <Star aria-hidden="true" />
+          </Button>
+          {favorites.failure && (
+            <span role="alert" className="max-w-prose text-sm text-pc-warning-foreground">
+              {favorites.failure === "write"
+                ? "The favorite change could not be confirmed. Refresh to reconcile."
+                : "Favorites could not be loaded."}{" "}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={favorites.busy}
+                onClick={() => void favorites.refresh()}
+              >
+                Refresh favorites
+              </Button>
+            </span>
+          )}
+        </>
+      }
       organization={organization}
       openSupport={openSupport}
       extraFiles={extraFiles}

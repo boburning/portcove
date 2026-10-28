@@ -66,7 +66,13 @@ it("gives every disposable detail route five real tabs and binds external Play t
     .toHaveAttribute("aria-selected", "true");
   await page.getByRole("button", { name: "Play", exact: true }).click();
   expect(launch.mock.calls[0]).toEqual(["details-external", "", 1]);
-  for (const label of ["Game files", "Saves", "Versions & updates", "Manage", "Overview"]) {
+  for (const label of [
+    "Game files",
+    "Saves & backups",
+    "Versions & updates",
+    "Manage",
+    "Overview",
+  ]) {
     await page.getByRole("tab", { name: label, exact: true }).click();
     await expect.element(page.getByRole("tabpanel", { name: label, exact: true })).toBeVisible();
   }
@@ -230,7 +236,7 @@ it("returns to the exact older recovery activity after opening its game", async 
   });
   await mount("library");
   await navigateTo("Activity");
-  await page.getByRole("button", { name: "Review activity", exact: true }).click();
+  await page.getByRole("button", { name: "View related task record", exact: true }).click();
   await expect
     .poll(() => document.activeElement?.getAttribute("data-activity-id"))
     .toBe("recovery-history-12");
@@ -434,7 +440,7 @@ it.each(["game", "bios"] as const)(
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
   await mount("setup");
   await click("View details for Harbor Adventure Harbor Adventure");
-  await click("Review game preparation");
+  await click("Review setup");
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain("fixture/owned.iso");
   await click("Prepare game data");
   expect(document.body.textContent).toContain("Fixture preparation is waiting");
@@ -443,7 +449,7 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
   expect((await desktopApi.activities()).records[0]?.status).toBe("running");
   await click("Settle fixture cancellation");
   expect(document.body.textContent).toContain("Preparation did not complete");
-  await click("Review game preparation");
+  await click("Review setup");
   await click("Prepare game data");
   await click("Fail fixture preparation");
   expect(document.body.textContent).toContain("The demo setup did not finish");
@@ -453,7 +459,7 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
 it("revisits the original running task after browsing another game and records its exact completion", async () => {
   await mount("activity");
   await click("View details for Harbor Adventure Harbor Adventure");
-  await click("Review game preparation");
+  await click("Review setup");
   await click("Prepare game data");
   const retained = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
   await click("Back to previous workspace");

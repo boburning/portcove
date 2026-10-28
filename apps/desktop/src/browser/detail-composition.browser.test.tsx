@@ -101,7 +101,13 @@ for (const theme of ["dark", "light"]) {
       const play = page.getByRole("button", { name: "Play", exact: true });
       expect(play.element().getBoundingClientRect().width).toBeLessThan(160);
       await capture(`managed-${theme}-${width}`);
-      for (const label of ["Overview", "Game files", "Saves", "Versions & updates", "Manage"]) {
+      for (const label of [
+        "Overview",
+        "Game files",
+        "Saves & backups",
+        "Versions & updates",
+        "Manage",
+      ]) {
         await page.getByRole("tab", { name: label, exact: true }).click();
         contained();
         const detail = document.querySelector<HTMLElement>("[data-detail-workspace]")!;
@@ -150,7 +156,13 @@ it.each(["dark", "light"])(
     spacing.textContent =
       "* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }";
     document.head.append(spacing);
-    for (const label of ["Overview", "Game files", "Saves", "Versions & updates", "Manage"]) {
+    for (const label of [
+      "Overview",
+      "Game files",
+      "Saves & backups",
+      "Versions & updates",
+      "Manage",
+    ]) {
       await page.getByRole("tab", { name: label, exact: true }).click();
       contained();
     }
@@ -257,7 +269,7 @@ it.each(["dark", "light"])(
         exact: true,
       })
       .click();
-    await page.getByRole("tab", { name: "Saves", exact: true }).click();
+    await page.getByRole("tab", { name: "Saves & backups", exact: true }).click();
     await expect
       .element(page.getByRole("button", { name: "Retry backup history", exact: true }))
       .toBeVisible();
@@ -283,7 +295,7 @@ it.each(["dark", "light"])("renders the production preparation owner in %s", asy
     .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
   page
-    .getByRole("button", { name: "Review game preparation", exact: true })
+    .getByRole("button", { name: "Review setup", exact: true })
     .element()
     .scrollIntoView({ block: "center" });
   contained();
@@ -312,4 +324,20 @@ it.each(["dark", "light"])("preserves transparent artwork against the %s frame",
   expect(getComputedStyle(document.querySelector(".detail-cover img")!).objectFit).toBe("contain");
   contained();
   await capture(`transparent-${theme}-960`);
+});
+
+it("opens and focuses the real artwork disclosure from the hero menu after Manage rows are flattened", async () => {
+  await mount("dark");
+  await open();
+  await page.getByRole("button", { name: /^More actions for / }).click();
+  await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
+  await expect
+    .element(page.getByRole("tab", { name: "Manage", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  const summary = page.elementLocator(
+    document.querySelector<HTMLElement>(".artwork-controls > summary")!,
+  );
+  await expect.element(summary).toHaveFocus();
+  expect(summary.element().closest("details")?.open).toBe(true);
+  expect(document.activeElement?.closest("[inert], [hidden]")).toBeNull();
 });

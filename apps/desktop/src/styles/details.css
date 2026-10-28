@@ -1,4 +1,8 @@
 @layer components {
+  .detail-hero-action {
+    min-inline-size: min(100%, 12rem);
+  }
+
   .detail-panel {
     max-width: 97.5rem;
     margin-inline: auto;

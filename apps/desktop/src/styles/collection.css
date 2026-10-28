@@ -3,6 +3,14 @@
     align-items: center;
     padding-block-start: 4px;
   }
+  .browse-navigation > [aria-label="Library quick views"] {
+    flex: 1 1 auto;
+  }
+  @container library-query (max-width: 52em) {
+    .browse-toolbar > .search {
+      flex-basis: 100%;
+    }
+  }
   .browse-toolbar > .filter-row {
     display: contents;
   }
@@ -53,8 +61,8 @@
   }
   .collection-title {
     display: -webkit-box;
-    min-height: 2.8em;
-    margin-block-start: 12px;
+    min-height: 0;
+    margin-block-start: var(--space-2);
     overflow: hidden;
     overflow-wrap: anywhere;
     -webkit-box-orient: vertical;
@@ -62,8 +70,8 @@
   }
   .collection-project {
     display: -webkit-box;
-    min-block-size: 3em;
-    margin-block-start: 4px;
+    min-block-size: 0;
+    margin-block-start: var(--space-1);
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -106,7 +114,7 @@
   .port-comparison-project {
     display: grid;
     grid-template-rows: subgrid;
-    grid-row: span 7;
+    grid-row: span 8;
     align-content: start;
     gap: var(--space-2);
   }

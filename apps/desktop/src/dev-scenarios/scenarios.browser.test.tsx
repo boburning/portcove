@@ -28,9 +28,7 @@ describe("static development scenarios", () => {
 
   it("uses current product presentation as positive controls", () => {
     expect(renderScenario("ready-game")).toContain("Play");
-    expect(renderScenario("filtered-empty-library")).toContain(
-      "No ports in your library match your search and filters",
-    );
+    expect(renderScenario("filtered-empty-library")).toContain("No matching games");
     const unavailableLibrary = renderScenario("unavailable-library");
     expect(unavailableLibrary).toContain("Library information could not be loaded");
     expect(unavailableLibrary).toContain("Initial scenario library load failed");

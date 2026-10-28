@@ -130,7 +130,7 @@ export function PreparationControl({
           void review();
         }}
       >
-        {pending === "review" ? "Checking preparation inputs…" : "Review game preparation"}
+        {pending === "review" ? "Checking preparation inputs…" : "Review setup"}
       </Button>
       {plan && (
         <Dialog

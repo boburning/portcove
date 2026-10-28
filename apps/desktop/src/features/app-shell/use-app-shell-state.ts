@@ -118,12 +118,12 @@ export function useAppShellState(
         ...current,
         library: {
           ...current.library,
-          sort: typeof sort === "function" ? sort(current.library.sort ?? "catalog") : sort,
+          sort: typeof sort === "function" ? sort(current.library.sort ?? "name") : sort,
         },
       })),
     [],
   );
-  const librarySort = browserState.library.sort ?? "catalog";
+  const librarySort = browserState.library.sort ?? "name";
   const libraryReadiness = browserState.library.readiness ?? "all";
   const { filter, query } = browserState[view];
   return {

@@ -1,3 +1,4 @@
+import { openFilterField } from "../../../test/filter-fields";
 import { browserFixture } from "../../../test/browser-fixture";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -173,6 +174,7 @@ it("labels active facets and restores focus after removing chips or clearing whi
     .element(page.getByRole("button", { name: "Filters (0)", exact: true }))
     .toHaveFocus();
   await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
+  await page.getByText("How filters work", { exact: true }).click();
   await expect
     .element(
       page.getByText(
@@ -188,10 +190,9 @@ it("labels active facets and restores focus after removing chips or clearing whi
     .element(page.getByRole("button", { name: "Filters (0)", exact: true }))
     .toHaveFocus();
   await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
-  await page
-    .getByRole("group", { name: "Release channels", exact: true })
-    .getByRole("button", { name: /^Stable/ })
-    .click();
+  await openFilterField("Release channels");
+  await page.getByRole("checkbox", { name: /^Stable/ }).click();
+  await userEvent.keyboard("{Escape}");
   const panelClear = page.getByRole("button", { name: "Clear filters", exact: true });
   panelClear.element().focus();
   await userEvent.keyboard("{Enter}");

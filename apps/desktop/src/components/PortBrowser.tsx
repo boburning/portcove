@@ -83,7 +83,7 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "../features/browsing/catalog-query";
-import { CatalogFilters } from "../features/browsing/CatalogFilters";
+import { CatalogFilters, queryFromFilter } from "../features/browsing/CatalogFilters";
 import type { GameFileFilterState } from "../features/browsing/use-game-file-filter-context";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
@@ -380,16 +380,24 @@ function PortBrowserView({
       {renderConnectPrompt()}
       {<BrowserLastPlayed {...{ favorites, model, renderContinue }} />}
 
-      {model.organization && (
-        <OrganizationControls
-          organization={model.organization}
-          selected={model.organizationView}
-          onSelect={model.setOrganizationView}
-          discover={model.view === "catalog"}
-        >
-          {renderSteamBatch()}
-        </OrganizationControls>
-      )}
+      <div
+        className={cn(
+          "browse-navigation flex min-w-0 flex-wrap items-start gap-2",
+          model.view === "library" && "mb-3",
+        )}
+      >
+        <BrowserQuickViews model={model} favorites={favorites} filterButton={filterButton} />
+        {model.organization && (
+          <OrganizationControls
+            organization={model.organization}
+            selected={model.organizationView}
+            onSelect={model.setOrganizationView}
+            discover={model.view === "catalog"}
+          >
+            {renderSteamBatch()}
+          </OrganizationControls>
+        )}
+      </div>
       {renderFavoritesFailure()}
       {model.unresolvedReadiness && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
@@ -420,6 +428,7 @@ function PortBrowserView({
       <BrowserFilterRecovery model={model} />
       <BrowserResults
         layout={model.collectionLayout}
+        query={model.query}
         view={model.view}
         ports={model.visiblePorts}
         allCatalogPorts={model.catalogUniverse ?? model.declaredCandidates ?? model.visiblePorts}
@@ -464,7 +473,7 @@ function BrowserFilterRecovery({
             </p>
             {(model.resultsUnavailable || model.visiblePorts.length > 0) && (
               <Button variant="ghost" onClick={model.reset}>
-                Clear search and filters
+                Reset view
               </Button>
             )}
           </div>
@@ -530,6 +539,7 @@ function SteamBatchLibraryAction({
 
 function BrowserResults({
   organization,
+  query,
   restoreAfter,
   layout,
   favorites,
@@ -552,6 +562,7 @@ function BrowserResults({
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
   layout: CollectionLayout;
+  query: string;
   favorites?: ReturnType<typeof useFavorites> | undefined;
   onFavoriteToggle: (portId: string, button: HTMLElement) => void;
   view: View;
@@ -574,6 +585,7 @@ function BrowserResults({
     return (
       <BrowserEmptyState
         view={view}
+        query={query}
         installedCount={installedCount}
         constrained={constrained}
         clearFilters={clearFilters}
@@ -657,6 +669,7 @@ function LoadingState() {
 
 function BrowserEmptyState({
   view,
+  query,
   installedCount,
   constrained,
   clearFilters,
@@ -664,13 +677,14 @@ function BrowserEmptyState({
   onConnectGameFiles,
 }: {
   view: View;
+  query: string;
   installedCount: number;
   constrained: boolean;
   clearFilters?: (() => void) | undefined;
   onBrowseCatalog?: (() => void) | undefined;
   onConnectGameFiles?: (() => void) | undefined;
 }) {
-  if (view === "library" && installedCount === 0 && !constrained)
+  if (view === "library" && installedCount === 0 && !constrained && !query.trim())
     return (
       <EmptyState
         visual={
@@ -701,33 +715,19 @@ function BrowserEmptyState({
         }
       />
     );
-  if (view === "library")
-    return (
-      <EmptyState
-        icon={Settings2}
-        title="No ports in your library match your search and filters"
-        description={
-          installedCount === 0
-            ? "This library has no ports yet. Clear the current search and readiness filters to return to the empty Library."
-            : "Clear the search or change the readiness filter."
-        }
-        action={
-          <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
-            <Icon glyph={Settings2} />
-            Clear search and filters
-          </Button>
-        }
-      />
-    );
   return (
     <EmptyState
       icon={Settings2}
-      title="No ports match these filters"
-      description="Try another search or change the filters."
+      title="No matching games"
+      description={
+        query
+          ? `No ${view === "library" ? "library entries" : "games"} match “${query}” with the current view. Reset search, filters, quick views and collection selection to browse again.`
+          : "No games match the current filters and view. Reset filters, quick views and collection selection to browse again."
+      }
       action={
         <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
           <Icon glyph={Settings2} />
-          Clear search and filters
+          Reset view
         </Button>
       }
     />
@@ -1107,7 +1107,7 @@ function PortCardStatus({
         {!taskPrimary && canLaunch && (
           <Button
             data-focusable
-            variant="primary"
+            variant="outline"
             size="sm"
             className="library-card-action"
             disabled={Boolean(action.busy)}
@@ -1316,7 +1316,7 @@ function renderFiltersPortBrowserView(
     "browserRoot" | "filterButton" | "favorites" | "setCollectionLayout"
   >,
   favorites: ReturnType<typeof usePortBrowser>["favorites"],
-  filterButton: ReturnType<typeof usePortBrowser>["filterButton"],
+  filterButton: ReturnType<typeof usePortBrowser>["filterButton"] | undefined,
 ) {
   return (
     !model.firstUseEmpty && (
@@ -1357,11 +1357,102 @@ function renderFiltersPortBrowserView(
         )}
         {favorites?.only && model.view !== "library" && (
           <Button data-focusable size="sm" variant="ghost" onClick={model.reset}>
-            Clear search and filters
+            Reset view
           </Button>
         )}
       </div>
     )
+  );
+}
+
+function BrowserQuickViews({
+  model,
+  favorites,
+  filterButton,
+}: {
+  model: Parameters<typeof renderFiltersPortBrowserView>[0];
+  favorites: ReturnType<typeof usePortBrowser>["favorites"];
+  filterButton: ReturnType<typeof usePortBrowser>["filterButton"];
+}) {
+  if (!model.composedLibrary || model.firstUseEmpty) return null;
+  const updateQuery = queryFromFilter(model.filter).updates ?? [];
+  const clearUpdates = (current: Filter | CatalogQuery) => {
+    const query = queryFromFilter(current);
+    return query.version === 1 ? { ...query, updates: [] } : current;
+  };
+  const all =
+    model.libraryReadiness === "all" &&
+    !favorites?.only &&
+    !updateQuery.length &&
+    model.organizationView === "all";
+  return (
+    <div
+      role="group"
+      aria-label="Library quick views"
+      data-focus-group
+      className="flex min-w-0 flex-wrap items-center gap-1"
+    >
+      <Button
+        size="sm"
+        data-focusable
+        variant={all ? "selected" : "ghost"}
+        aria-pressed={all}
+        title="Reset quick views and collection selection; keep search and other filters"
+        onClick={() => {
+          model.setLibraryReadiness?.("all");
+          favorites?.setOnly(false);
+          model.setOrganizationView("all");
+          model.setFilter(clearUpdates);
+        }}
+      >
+        All games
+      </Button>
+      {favorites && (
+        <Button
+          size="sm"
+          data-focusable
+          data-favorites-filter
+          ref={filterButton}
+          variant={favorites.only ? "selected" : "ghost"}
+          aria-pressed={favorites.only}
+          disabled={!favorites.ids}
+          onClick={() => favorites.setOnly(!favorites.only)}
+        >
+          <Icon glyph={Star} size="sm" />
+          Favorites{" "}
+          {model.favoriteCount === undefined ? "(unavailable)" : `(${model.favoriteCount})`}
+        </Button>
+      )}
+      <Button
+        size="sm"
+        data-focusable
+        variant={model.libraryReadiness === "setup" ? "selected" : "ghost"}
+        aria-pressed={model.libraryReadiness === "setup"}
+        title="Recorded setup, repair or readiness needs"
+        onClick={() =>
+          model.setLibraryReadiness?.(model.libraryReadiness === "setup" ? "all" : "setup")
+        }
+      >
+        Needs attention
+      </Button>
+      <Button
+        size="sm"
+        data-focusable
+        variant={updateQuery.length ? "selected" : "ghost"}
+        aria-pressed={updateQuery.length > 0}
+        disabled={model.unresolvedFilter}
+        onClick={() =>
+          model.setFilter((current) => {
+            const query = queryFromFilter(current);
+            return query.version === 1
+              ? { ...query, updates: query.updates?.length ? [] : ["available", "staged"] }
+              : current;
+          })
+        }
+      >
+        Updates
+      </Button>
+    </div>
   );
 }
 
@@ -1422,7 +1513,7 @@ function BrowserCollectionTools({
           library={model.view === "library"}
         />
       )}
-      {renderFilters()}
+      {!model.composedLibrary && renderFilters()}
     </>
   );
   const after = (
@@ -1486,6 +1577,11 @@ function BrowserCollectionTools({
         <CatalogFilters
           before={before}
           after={after}
+          advanced={
+            model.composedLibrary
+              ? renderFiltersPortBrowserView(model, undefined, undefined)
+              : undefined
+          }
           summary={summary}
           gameFileQuery={model.gameFileQuery}
           view={model.view === "library" ? "library" : "catalog"}
@@ -1695,7 +1791,7 @@ function PortCardActionMenu({
                 )}
                 onClick={() => onSelect(port.id, overflowOrigin, "saves")}
               >
-                Saves and storage
+                Saves & backups
               </Menu.Item>
             )}
           </Menu.Popup>

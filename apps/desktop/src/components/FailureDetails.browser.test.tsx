@@ -429,7 +429,7 @@ describe("core-owned failure presentation", () => {
         expect(host.textContent).toContain(error.presentation.summary);
         expect(host.innerHTML).not.toContain("raw-machine-secret");
         const button = [...host.querySelectorAll("button")].find(
-          (item) => item.textContent === "Review game preparation",
+          (item) => item.textContent === "Review setup",
         )!;
         expect(button.dataset.variant).toBe("outline");
         await act(async () => button.click());

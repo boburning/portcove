@@ -303,7 +303,7 @@ describe("desktop components", () => {
     expect(empty).toContain("No ports match these filters");
     expect(empty).toContain("Try another search or change the filters.");
     expect(empty).not.toContain("The catalog itself has not been changed.");
-    expect(empty).toContain("Clear search and filters");
+    expect(empty).toContain("Reset view");
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("Your library is empty");
@@ -313,12 +313,10 @@ describe("desktop components", () => {
     expect(emptyLibrary).not.toContain('aria-label="Library filters"');
     expect(emptyLibrary).toContain("copy a supported installation");
     expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
-    expect(emptyLibrary).not.toContain("Clear search and filters");
-    expect(filteredEmptyLibrary).toContain(
-      "No ports in your library match your search and filters",
-    );
+    expect(emptyLibrary).not.toContain("Reset view");
+    expect(filteredEmptyLibrary).toContain("No matching games");
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
-    expect(filteredEmptyLibrary).toContain("Clear search and filters");
+    expect(filteredEmptyLibrary).toContain("Reset view");
     expect(filteredEmptyLibrary).toContain("Clear the search or change the readiness filter.");
     expect(filteredEmptyLibrary).not.toContain("Your installed ports are still in this library.");
     expect(filteredEmptyLibrary).not.toContain("Your library is empty");

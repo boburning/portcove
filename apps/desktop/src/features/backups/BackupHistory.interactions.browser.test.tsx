@@ -256,7 +256,7 @@ it("returns focus to the backup heading when the final backup is deleted", async
   );
 });
 
-it("returns focus to Saves and storage when the uninstalled detail consumer removes all backup history", async () => {
+it("returns focus to Saves & backups when the uninstalled detail consumer removes all backup history", async () => {
   let finish!: (result: boolean) => void;
   const deleteBackup = vi.fn((_backup: BackupRecord) => {
     updateBackups([]);
@@ -931,7 +931,7 @@ it("routes the actual native backup selector to visible owned controls without o
   expect(apply).not.toHaveBeenCalled();
 });
 
-it("exposes a failed initial read through Saves and storage even without a known backup row", async () => {
+it("exposes a failed initial read through Saves & backups even without a known backup row", async () => {
   vi.spyOn(desktopApi, "backups").mockRejectedValueOnce(failureReport());
   await root.rerender(<DetailReadHistory />);
   expect(container.querySelector(".backup-history")?.textContent).toContain(

@@ -203,7 +203,7 @@ describe("source intake dialog", () => {
         run={run}
       />,
     );
-    await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
+    await page.getByRole("button", { name: "Review setup", exact: true }).click();
     const prepare = page.getByRole("button", { name: "Prepare game data", exact: true });
     await expect.element(prepare).toBeEnabled();
     await prepare.click();

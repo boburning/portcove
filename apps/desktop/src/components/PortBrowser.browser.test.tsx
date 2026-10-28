@@ -55,7 +55,7 @@ describe("Library card overflow", () => {
     );
     expect(focusableControls(menu as HTMLElement).map((item) => item.textContent)).toEqual([
       "Updates and activity",
-      "Saves and storage",
+      "Saves & backups",
     ]);
     const updates = [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
       (item) => item.textContent === "Updates and activity",
@@ -66,7 +66,7 @@ describe("Library card overflow", () => {
 
     await act(async () => more.click());
     const saves = [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
-      (item) => item.textContent === "Saves and storage",
+      (item) => item.textContent === "Saves & backups",
     )!;
     await act(async () => saves.click());
     expect(onSelect).toHaveBeenCalledWith(port.id, `library:card-more:${port.id}`, "saves");
@@ -105,7 +105,7 @@ describe("Library empty browsing context", () => {
     }
     await act(async () => root.render(<ResetContext />));
     const clear = [...host.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Clear search and filters"),
+      button.textContent?.includes("Reset view"),
     )!;
     await act(async () => {
       clear.focus();
@@ -189,18 +189,18 @@ describe("Library empty browsing context", () => {
     const resultStatus = host.querySelector('[role="status"]');
     expect(resultStatus?.textContent).toBe("0 library entries");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
-    expect(host.textContent).toContain("No ports in your library match your search and filters");
+    expect(host.textContent).toContain("No matching games");
     expect(host.textContent).toContain("This library has no ports yet");
     expect(host.textContent).not.toContain("Your installed ports are still in this library");
     await act(async () =>
       [...host.querySelectorAll("button")]
-        .find((button) => button.textContent?.includes("Clear search and filters"))!
+        .find((button) => button.textContent?.includes("Reset view"))!
         .click(),
     );
     expect(clearFilters).toHaveBeenCalledOnce();
 
     await render("ready", "");
-    expect(host.textContent).toContain("No ports in your library match your search and filters");
+    expect(host.textContent).toContain("No matching games");
 
     await render("all", "   ");
     expect(host.querySelector('[role="status"]')).toBe(resultStatus);
@@ -215,6 +215,6 @@ describe("Library empty browsing context", () => {
     );
     expect(connectGameFiles).toHaveBeenCalledOnce();
     expect(host.textContent).toContain("copy a supported installation");
-    expect(host.textContent).not.toContain("Clear search and filters");
+    expect(host.textContent).not.toContain("Reset view");
   });
 });

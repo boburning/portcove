@@ -709,7 +709,7 @@ describe("desktop components", () => {
         actions,
       };
       const ready = renderToStaticMarkup(<DetailPanel {...props} />);
-      const reviewButton = ready.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+      const reviewButton = ready.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
       expect(reviewButton).toBeDefined();
       expect(reviewButton).not.toMatch(/\sdisabled(?:\s|=|>)/);
       expect(ready).toContain("First-time setup required");
@@ -728,9 +728,7 @@ describe("desktop components", () => {
           }}
         />,
       );
-      const metadataReview = metadataOnly.match(
-        /<button\b[^>]*>Review game preparation<\/button>/,
-      )?.[0];
+      const metadataReview = metadataOnly.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
       expect(metadataReview).toBeDefined();
       expect(metadataReview).not.toMatch(/\sdisabled(?:\s|=|>)/);
       expect(props.prepare).not.toHaveBeenCalled();
@@ -755,16 +753,16 @@ describe("desktop components", () => {
       ];
       for (const refusal of blocked.slice(0, 2)) {
         const html = renderToStaticMarkup(<DetailPanel {...refusal} />);
-        const button = html.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+        const button = html.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
         expect(button).toBeDefined();
         expect(button).toMatch(/\sdisabled(?:\s|=|>)/);
       }
       for (const missingRequirement of blocked.slice(2)) {
         const html = renderToStaticMarkup(<DetailPanel {...missingRequirement} />);
-        expect(html).not.toContain("Review game preparation");
+        expect(html).not.toContain("Review setup");
         expect(html).not.toContain(">Play</button>");
         expect(html).toContain("Requirements");
-        expect(html).toContain("Next step");
+        expect(html).toContain("Setup needed");
       }
       expect(props.prepare).not.toHaveBeenCalled();
     },
@@ -813,7 +811,7 @@ describe("desktop components", () => {
       ];
       for (const outsideContract of unavailable) {
         const html = renderToStaticMarkup(<DetailPanel {...outsideContract} />);
-        expect(html).not.toContain("Review game preparation");
+        expect(html).not.toContain("Review setup");
       }
       expect(props.prepare).not.toHaveBeenCalled();
     },
@@ -1922,11 +1920,16 @@ describe("desktop components", () => {
       "Recorded checks",
     ])
       expect(overview).toContain(content);
-    for (const content of ['aria-label="Game actions"', "Requirements"])
+    for (const content of [
+      'aria-label="Game actions"',
+      "Requirements",
+      'id="detail-artwork"',
+      'aria-labelledby="detail-saves-and-storage"',
+    ])
       expect(files).toContain(content);
     for (const content of ["Installation location", "Technical details", install.path])
       expect(manage).toContain(content);
-    for (const content of ["Saves and storage", "Back up data", "E:/Portcove/user/sample"])
+    for (const content of ["Saves &amp; backups", "Back up data", "E:/Portcove/user/sample"])
       expect(saves).toContain(content);
     for (const content of [
       "Installed version",
@@ -2054,7 +2057,7 @@ it.each(["g-diffuser", "animal-crossing-pc-port", "openpete"])(
         actions={actions}
       />,
     );
-    const review = html.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+    const review = html.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
     expect(review).toBeDefined();
     expect(review).not.toMatch(/\sdisabled(?:\s|=|>)/);
     expect(html).not.toContain(">Start setup</button>");
@@ -2088,7 +2091,7 @@ it("keeps Core-permitted launch available while original bytes await an explicit
   );
   expect(html).toContain(">Try launch</button>");
   expect(html).not.toContain("Locate game files");
-  expect(html).not.toContain("Review game preparation");
+  expect(html).not.toContain("Review setup");
 });
 
 it("uses descriptive display metadata only in the shared detail shell", () => {

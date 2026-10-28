@@ -49,6 +49,7 @@ import type {
 } from "../types";
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
+import { CurrentStateSummary } from "./ui/patterns";
 import { useEffect, useId, useRef, useState } from "react";
 import type { UpdateBatchRead } from "../features/port-updates/use-update-center";
 import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
@@ -216,6 +217,7 @@ function useUpdateCenter({
     ...installed.map((port) => savedByPort.get(port.id)?.checked_at ?? 0),
   );
   const failed = outcomes.filter((outcome) => !outcome.ok).length;
+  const failedInstalled = installed.filter((port) => byPort.get(port.id)?.ok === false).length;
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
   const renderStatistics = () => (
     <div className="update-stats grid grid-cols-[repeat(4,minmax(78px,1fr))] gap-2">
@@ -285,6 +287,10 @@ function useUpdateCenter({
     savedByPort,
     effectiveCheck,
     checked,
+    available,
+    complete,
+    failed,
+    failedInstalled,
     latestSavedCheck,
     renderStatistics,
   };
@@ -329,7 +335,22 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
           className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
           data-focus-group
         >
-          {model.renderStatistics()}
+          <CurrentStateSummary
+            title={
+              model.installed.length === 0
+                ? "No managed installations to check"
+                : model.failedInstalled > 0
+                  ? "Some update checks failed"
+                  : model.checked.length === 0
+                    ? "Updates not checked"
+                    : `${model.available}${model.complete ? "" : "+"} updates available${model.earlierBatch ? " at last check" : ""}`
+            }
+          >
+            <p className="text-sm text-pc-muted-foreground">
+              {model.checked.length} of {model.installed.length} installed ports have a check
+              result. Unchecked or failed ports may still have updates.
+            </p>
+          </CurrentStateSummary>
           <UpdateCheckControl
             busy={model.busy}
             status={model.batchRead?.status}
@@ -338,9 +359,13 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
           />
         </div>
         <UpdateBatchNotice read={model.batchRead} />
+        <details className="mb-4">
+          <summary className="cursor-pointer py-2 text-sm">Update statistics</summary>
+          {model.renderStatistics()}
+        </details>
         <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Checking only looks for updates. Review an available update before downloading or
-          installing it. Play keeps using your current version.
+          Checking does not install. Review an update before downloading or installing; Play uses
+          your current version.
         </p>
         <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
           Looking for Portcove or catalog updates?{" "}
@@ -409,7 +434,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
               const renderActions = () =>
                 (canReviewUpdate || canLaunch) && (
                   <div
-                    className="flex flex-wrap items-start gap-2 border-t border-pc-border pt-3"
+                    className="flex flex-wrap items-center gap-2"
                     role="group"
                     aria-label={`Actions for ${gameIdentityLabel(port)}`}
                   >
@@ -446,7 +471,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
                     {canLaunch && (
                       <Button
                         data-focusable
-                        variant="primary"
+                        variant="outline"
                         disabled={Boolean(action.busy)}
                         focusableWhenDisabled={Boolean(action.busy)}
                         aria-busy={Boolean(action.busy)}
@@ -480,34 +505,41 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
                         {policyLabel(status.update_policy)}
                       </small>
                     </div>
-                    <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
-                      <div className="update-version min-w-0">
-                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                          Installed
-                        </small>
-                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                          {status.active?.version}
-                        </span>
-                      </div>
-                      <div className="update-version min-w-0">
-                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                          {model.earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
-                        </small>
-                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                          {releaseLabel(model.effectiveCheck(port.id), outcome)}
-                        </span>
-                      </div>
+                    <div className="update-versions min-w-0 text-sm [overflow-wrap:anywhere] text-pc-muted-foreground">
+                      <span className="sr-only">Installed version: </span>
+                      {status.active?.version || "Unavailable"}
+                      {status.active?.version &&
+                        model.effectiveCheck(port.id)?.update_available &&
+                        model.effectiveCheck(port.id)?.release?.version && (
+                          <>
+                            <span aria-hidden> → </span>
+                            <span className="sr-only">; offered version: </span>
+                            {model.effectiveCheck(port.id)?.release?.version}
+                          </>
+                        )}
                     </div>
                     <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
                       {state.label}
                     </span>
                   </button>
                   {renderActions()}
+                  <details className="col-span-full text-xs text-pc-muted-foreground">
+                    <summary className="cursor-pointer py-1">Update details</summary>
+                    <p>
+                      Latest eligible{model.earlierBatch ? " at last check" : ""}:{" "}
+                      {releaseLabel(model.effectiveCheck(port.id), outcome)}
+                    </p>
+                    <p>
+                      {releaseChannelPresentation(status.channel).label} ·{" "}
+                      {policyLabel(status.update_policy)}
+                    </p>
+                    {status.staged && <p>Prepared version: {status.staged.version}</p>}
+                  </details>
                   {outcome?.error && (
                     <section
                       aria-label={`Update check failure for ${port.name}`}
                       data-update-check-failure={port.id}
-                      className="min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
+                      className="col-span-full min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
                     >
                       <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
                       {failure && (
@@ -834,7 +866,7 @@ function ActivityHistory({
     <section className="activity-history" data-record-view={mode}>
       <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
-          <h3 className="sr-only">Task records</h3>
+          <h3 className="text-sm">Task records and diagnostics</h3>
         </div>
         <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
@@ -1058,7 +1090,7 @@ function ActivityFailure({
                 data-detail-origin={`updates:activity:${activity.id}:review`}
                 onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
               >
-                Review game preparation
+                Review setup
               </Button>
             )}
           <FailureDetails

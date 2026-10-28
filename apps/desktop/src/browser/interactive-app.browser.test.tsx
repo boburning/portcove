@@ -106,7 +106,7 @@ it("keeps enlarged review facts and cancellation reachable", async () => {
       exact: true,
     })
     .click();
-  await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
+  await page.getByRole("button", { name: "Review setup", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect.element(dialog.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
   expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
@@ -116,7 +116,7 @@ it("keeps enlarged review facts and cancellation reachable", async () => {
   await page.getByRole("button", { name: "Cancel review", exact: true }).click();
   await expect.element(dialog).not.toBeInTheDocument();
   await expect
-    .element(page.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(page.getByRole("button", { name: "Review setup", exact: true }))
     .toHaveFocus();
 });
 
@@ -233,10 +233,10 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .not.toBeInTheDocument();
   const next = page.getByRole("region", { name: "Game actions", exact: true });
   await expect
-    .element(next.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(next.getByRole("button", { name: "Review setup", exact: true }))
     .toBeEnabled();
   expect(next.element().textContent).toContain("Harbor Adventure");
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await expect.element(page.getByText("Selected game files", { exact: true })).toBeVisible();
   await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
@@ -255,19 +255,19 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .toBeVisible();
   await userEvent.keyboard("{Alt>}{Shift>}C{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}F{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await expect
     .element(page.getByText("The demo setup did not finish.", { exact: false }).first())
     .toBeVisible();
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}{Enter}{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await expect
-    .element(page.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(page.getByRole("button", { name: "Review setup", exact: true }))
     .not.toBeInTheDocument();
   await expect
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)

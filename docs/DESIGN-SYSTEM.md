@@ -504,6 +504,34 @@ width is below 60rem, including enlarged root text, without changing
 the artwork frame. Search matches the game, project, variant and stable port ID;
 name sorting uses the game title. Matching game titles never combine cards.
 
+Library uses Title A–Z only when no sort preference exists; explicit legacy Catalog
+order and saved sorts remain available. Discover retains Suggested order. Everyday
+Library quick views compose existing query and favorites state; collection editing
+and Hidden stay in the collection menu. Clear filters retains search; Reset view
+states that it also clears search, quick views and collection selection. At compact
+widths search occupies its own toolbar row.
+
+Common filters use compact labeled checkbox popovers. Selection stays multi-select,
+with OR within a category and AND across categories; route-dependent predicates
+must still match the same observed route. Advanced filters and per-field help retain
+technical semantics. Escape closes the active popover before the containing panel.
+
+Repeated collection Play controls use neutral secondary emphasis. The selected-game
+hero and Continue keep primary emphasis. Card metadata supports two lines without
+reserving blank lines on every short title. Detail uses current-state summaries and
+compact management rows around existing operation/review owners. File paths never
+establish file validation. Saves & backups distinguishes unknown/error history from
+known empty history; Manage distinguishes installed paths from future defaults.
+Update coverage, errors and unchecked state precede secondary statistics; version
+arrows require both known installed and offered versions. Task records retain their
+operation identity and diagnostics, with exact-operation recovery cross-links; no
+records are grouped by game name or inferred installation identity.
+
+Comparison separates original system, runtime targets and release channels, and
+reports observed ownership. Feature comparison remains unavailable until the shared
+catalog contract carries revalidated, sourced and dated claims. Presentation code
+must not supply project-specific feature maps.
+
 At enlarged text sizes the full application shell must reflow as well as the
 cards. Header search and command controls may wrap onto separate rows; neither
 may force horizontal workspace scrolling. The sidebar scrolls independently so

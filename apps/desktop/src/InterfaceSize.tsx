@@ -98,7 +98,7 @@ function InterfaceSizeControl({ owner }: { owner: InterfaceSizeController }) {
   return (
     <SettingsRow data-focus-group>
       <h2>Interface size</h2>
-      <p>Enlarge text, artwork and controls together. Your library and game files are unchanged.</p>
+      <p>Enlarge text, artwork and controls together.</p>
       <div className="flex flex-wrap items-end gap-2">
         <ChoiceSelect
           label="Interface size"

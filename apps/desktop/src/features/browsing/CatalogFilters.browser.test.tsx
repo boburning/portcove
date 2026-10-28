@@ -1,3 +1,4 @@
+import { filterChoice, openFilterField as openField } from "../../../test/filter-fields";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
@@ -114,7 +115,9 @@ function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery | undefi
     />
   );
 }
-function button(name: string) {
+async function control(name: string) {
+  if (!/^(Filters \(|Remove |Clear filters$|Done$)/.test(name))
+    return (await filterChoice(name)).element() as HTMLButtonElement;
   const result = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
     (item) => item.getAttribute("aria-label") === name || item.textContent?.trim() === name,
   );
@@ -122,7 +125,8 @@ function button(name: string) {
   return result!;
 }
 async function click(name: string) {
-  await act(async () => button(name).click());
+  const element = await control(name);
+  await act(async () => element.click());
 }
 async function render(initial?: Filter | CatalogQuery) {
   await root.rerender(<Fixture initial={initial} />);
@@ -151,29 +155,27 @@ it.each([
   await click("Filters (0)");
   await page.getByText("Advanced filters", { exact: true }).click();
   const panel = page.getByRole("region", { name: "Filter options", exact: true });
-  const options = [...panel.element().querySelectorAll<HTMLButtonElement>("fieldset button")];
-  expect(options.length).toBeGreaterThan(20);
-  for (const option of options) {
-    expect(option.getBoundingClientRect().height).toBeLessThanOrEqual(48);
-    expect(option.scrollWidth).toBeLessThanOrEqual(option.clientWidth + 1);
+  const fields = [
+    ...panel.element().querySelectorAll<HTMLButtonElement>(".compact-filter-field button"),
+  ];
+  let choices = 0;
+  for (const field of fields) {
+    expect(field.getBoundingClientRect().height).toBeLessThanOrEqual(48);
+    await openField(field.getAttribute("aria-label")!.split(":")[0]!);
+    const options = [...document.querySelectorAll<HTMLElement>('[role="checkbox"]')];
+    choices += options.length;
+    for (const option of options) {
+      expect(option.getBoundingClientRect().height).toBeLessThanOrEqual(48);
+      expect(option.scrollWidth).toBeLessThanOrEqual(option.clientWidth + 1);
+    }
   }
+  expect(choices).toBeGreaterThan(20);
   await click("Windows (2)");
   await click("Preview (1)");
   expect(current).toMatchObject({ platforms: ["windows-x86-64"], channels: ["beta"] });
-  await expect
-    .element(
-      page
-        .getByRole("group", { name: "Target OS", exact: true })
-        .getByRole("button", { name: /^Windows/ }),
-    )
-    .toHaveAttribute("aria-pressed", "true");
-  await expect
-    .element(
-      page
-        .getByRole("group", { name: "Release channels", exact: true })
-        .getByRole("button", { name: /^Preview/ }),
-    )
-    .toHaveAttribute("aria-pressed", "true");
+  expect((await control("Windows (1)")).getAttribute("aria-checked")).toBe("true");
+  expect((await control("Preview (1)")).getAttribute("aria-checked")).toBe("true");
+  await userEvent.keyboard("{Escape}");
   await userEvent.keyboard("{Escape}");
   await expect
     .element(page.getByRole("button", { name: "Filters (2)", exact: true }))
@@ -184,14 +186,12 @@ it.each([
 it("starts with ordinary filters and exposes technical groups on request", async () => {
   await render();
   await click("Filters (0)");
-  await expect.element(page.getByRole("group", { name: "Target OS", exact: true })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Target OS:/ })).toBeVisible();
   expect(
-    document.querySelector<HTMLDetailsElement>('[aria-label="Filter options"] details')?.open,
+    page.getByText("Advanced filters", { exact: true }).element().closest("details")?.open,
   ).toBe(false);
   await page.getByText("Advanced filters", { exact: true }).click();
-  await expect
-    .element(page.getByRole("group", { name: "Setup methods", exact: true }))
-    .toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Setup methods:/ })).toBeVisible();
 });
 it("uses one inline panel and returns focus from Escape and Done without clearing search", async () => {
   await render();
@@ -203,11 +203,10 @@ it("uses one inline panel and returns focus from Escape and Done without clearin
   await expect
     .element(page.getByRole("heading", { name: "Discover filters", exact: true }))
     .toHaveFocus();
-  await expect
-    .element(page.getByRole("group", { name: "Original system", exact: true }))
-    .toBeVisible();
-  await expect.element(page.getByRole("group", { name: "Target OS", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Windows (1)", exact: true }).click();
+  await expect.element(page.getByRole("button", { name: /^Original system:/ })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Target OS:/ })).toBeVisible();
+  await click("Windows (1)");
+  await userEvent.keyboard("{Escape}");
   await userEvent.keyboard("{Escape}");
   await expect
     .element(page.getByRole("button", { name: "Filters (1)", exact: true }))
@@ -228,10 +227,11 @@ it("keeps advanced choices open and focus visible after clearing their last sele
   await render({ version: 1, installationMethods: ["portable-package"] });
   await act(async () => setContext(retainedContext(new Map())));
   await click("Filters (1)");
-  const choice = page.getByRole("button", { name: "Portable upstream package (3)", exact: true });
+  await openField("Setup methods");
+  const choice = page.getByRole("checkbox", { name: "Portable upstream package (3)", exact: true });
   await choice.click();
   expect(
-    document.querySelector<HTMLDetailsElement>('[aria-label="Filter options"] details')?.open,
+    page.getByText("Advanced filters", { exact: true }).element().closest("details")?.open,
   ).toBe(true);
   await expect.element(choice).toHaveFocus();
   await expect.element(choice).toBeVisible();
@@ -240,43 +240,43 @@ it("uses distinct self-excluding counts and functional OR/AND selections", async
   await render();
   await click("Filters (0)");
   await click("Windows (2)");
-  expect(button("Preview (1)").getAttribute("aria-pressed")).toBe("false");
+  expect((await control("Preview (1)")).getAttribute("aria-checked")).toBe("false");
   await click("Preview (1)");
   expect(filterPorts(ports, new Map(), "catalog", current, "").map((port) => port.id)).toEqual([
     "both",
   ]);
-  expect(button("Linux (2)")).toBeDefined();
+  expect(await control("Linux (2)")).toBeDefined();
   await click("Linux (2)");
   expect(filterPorts(ports, new Map(), "catalog", current, "").map((port) => port.id)).toEqual([
     "linux",
     "both",
   ]);
   await act(async () => {
-    button("Stable (2)").click();
-    button("Stable (2)").click();
+    (await control("Stable (2)")).click();
+    (await control("Stable (2)")).click();
   });
   expect((current as CatalogQuery).channels).toEqual(["beta"]);
   await act(async () => setFavoritesOnly(true));
-  expect(button("Windows (1)")).toBeDefined();
-  expect(button("Linux (1)")).toBeDefined();
+  expect(await control("Windows (1)")).toBeDefined();
+  expect(await control("Linux (1)")).toBeDefined();
   await act(async () => setQuery("no matching title"));
-  expect(button("Windows (0)").disabled).toBe(false);
-  expect(button("Preview (0)").disabled).toBe(false);
+  expect((await control("Windows (0)")).matches(":disabled,[aria-disabled=true]")).toBe(false);
+  expect((await control("Preview (0)")).matches(":disabled,[aria-disabled=true]")).toBe(false);
   await click("Preview (0)");
   expect((current as CatalogQuery).channels).toEqual([]);
 });
 it("keeps zero selections removable and returns focused chip to the trigger", async () => {
   await render({ version: 1, platforms: ["macos-aarch64"] });
-  const chip = button("Remove Apple silicon filter");
+  const chip = await control("Remove Apple silicon filter");
   chip.focus();
   await act(async () => {
     chip.click();
     chip.click();
   });
-  expect(document.activeElement).toBe(button("Filters (0)"));
+  expect(document.activeElement).toBe(await control("Filters (0)"));
   await click("Filters (0)");
   await click("Apple silicon (0)");
-  expect(button("Apple silicon (0)").getAttribute("aria-pressed")).toBe("true");
+  expect((await control("Apple silicon (0)")).getAttribute("aria-checked")).toBe("true");
   await click("Apple silicon (0)");
   expect((current as CatalogQuery).platforms).toEqual([]);
 });
@@ -287,11 +287,13 @@ it.each([
 ])("holds restored query %j until explicit reset", async (initial) => {
   await render(initial as unknown as CatalogQuery);
   await click("Filters (0)");
-  expect(button("Windows (unavailable)").disabled).toBe(true);
+  expect((await control("Windows (unavailable)")).matches(":disabled,[aria-disabled=true]")).toBe(
+    true,
+  );
   expect(current).toEqual(initial);
   await click("Clear filters");
   expect(current).toBe("all");
-  expect(button("Windows (2)").disabled).toBe(false);
+  expect((await control("Windows (2)")).matches(":disabled,[aria-disabled=true]")).toBe(false);
 });
 it("preserves established extra predicates visibly on edit and clears only query on reset", async () => {
   const method = "portable-package";
@@ -299,7 +301,9 @@ it("preserves established extra predicates visibly on edit and clears only query
     port.presentation = { installation_method: method } as NonNullable<typeof port.presentation>;
   await render({ version: 1, installationMethods: [method] });
   await click("Filters (1)");
-  expect(button("Portable upstream package (3)").getAttribute("aria-pressed")).toBe("true");
+  expect((await control("Portable upstream package (3)")).getAttribute("aria-checked")).toBe(
+    "true",
+  );
   await click("Windows (2)");
   expect((current as CatalogQuery).installationMethods).toEqual([method]);
   await act(async () => {
@@ -308,8 +312,8 @@ it("preserves established extra predicates visibly on edit and clears only query
   });
   await click("Clear filters");
   expect(currentSearch).toBe("Both");
-  expect(button("Windows (1)")).toBeDefined();
-  expect(button("Linux (1)")).toBeDefined();
+  expect(await control("Windows (1)")).toBeDefined();
+  expect(await control("Linux (1)")).toBeDefined();
 });
 
 it("keeps selections editable when candidate facts are unavailable instead of claiming zero counts", async () => {
@@ -321,17 +325,20 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
     />,
   );
   await click("Filters (1)");
-  expect(button("Linux (unavailable)").disabled).toBe(false);
-  expect(button("Linux (unavailable)").getAttribute("aria-pressed")).toBe("true");
+  expect((await control("Linux (unavailable)")).matches(":disabled,[aria-disabled=true]")).toBe(
+    false,
+  );
+  expect((await control("Linux (unavailable)")).getAttribute("aria-checked")).toBe("true");
   await page.getByText("Advanced filters", { exact: true }).click();
   await expect
-    .element(page.getByRole("group", { name: "Installation attention", exact: true }))
+    .element(page.getByRole("button", { name: /^Installation attention:/ }))
     .toBeVisible();
+  await openField("Installation attention");
   const attention = [...document.querySelectorAll("fieldset")].find(
     (group) => group.querySelector("legend")?.textContent === "Installation attention",
   );
   expect(attention?.textContent).toContain("Unavailable details remain unknown");
-  expect(button("Remove Linux filter")).toBeDefined();
+  expect(await control("Remove Linux filter")).toBeDefined();
 });
 
 const install = (port_id: string) => ({
@@ -385,7 +392,9 @@ it("composes managed/external membership with declarations and keeps zero option
   await click("Filters (0)");
   await click("In my library (2)");
   await click("Windows (2)");
-  expect(button("Not in my library (0)").disabled).toBe(false);
+  expect((await control("Not in my library (0)")).matches(":disabled,[aria-disabled=true]")).toBe(
+    false,
+  );
   await click("Not in my library (0)");
   expect((current as CatalogQuery).membership).toEqual(["in-library", "not-in-library"]);
   await click("In my library (2)");
@@ -406,17 +415,25 @@ it("composes managed/external membership with declarations and keeps zero option
 it("retains removable membership intent through unavailable and confirmed-empty context", async () => {
   await render({ version: 1, membership: ["not-in-library"] });
   await click("Filters (1)");
-  expect(button("Not in my library (unavailable)").disabled).toBe(true);
-  expect(button("Not in my library (unavailable)").getAttribute("aria-pressed")).toBe("true");
-  expect(button("Remove Not in my library filter")).toBeDefined();
+  expect(
+    (await control("Not in my library (unavailable)")).matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
+  expect((await control("Not in my library (unavailable)")).getAttribute("aria-checked")).toBe(
+    "true",
+  );
+  expect(await control("Remove Not in my library filter")).toBeDefined();
   await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
-  expect(button("Not in my library (3)").disabled).toBe(false);
-  expect(button("In my library (0)")).toBeDefined();
+  expect((await control("Not in my library (3)")).matches(":disabled,[aria-disabled=true]")).toBe(
+    false,
+  );
+  expect(await control("In my library (0)")).toBeDefined();
   await act(async () => setContext(undefined));
   await click("Remove Not in my library filter");
   expect((current as CatalogQuery).membership).toEqual([]);
-  expect(button("In my library (unavailable)").disabled).toBe(true);
-  expect(button("Windows (2)").disabled).toBe(false);
+  expect(
+    (await control("In my library (unavailable)")).matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
+  expect((await control("Windows (2)")).matches(":disabled,[aria-disabled=true]")).toBe(false);
 });
 
 it("composes observed installation attention and keeps zero/unavailable reasons removable", async () => {
@@ -444,23 +461,31 @@ it("composes observed installation attention and keeps zero/unavailable reasons 
   expect(
     filterPorts(ports, statuses, "catalog", current, "", "catalog", context).map((p) => p.id),
   ).toEqual(["both"]);
-  expect(button("Missing game files (0)").disabled).toBe(false);
+  expect((await control("Missing game files (0)")).matches(":disabled,[aria-disabled=true]")).toBe(
+    false,
+  );
   await click("Finish setup (1)");
   expect(filterPorts(ports, statuses, "catalog", current, "", "catalog", context)).toEqual([]);
-  expect(button("Missing game files (0)").getAttribute("aria-pressed")).toBe("true");
+  expect((await control("Missing game files (0)")).getAttribute("aria-checked")).toBe("true");
   await act(async () => setContext(undefined));
-  expect(button("Missing game files (unavailable)").disabled).toBe(true);
+  expect(
+    (await control("Missing game files (unavailable)")).matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
   await click("Remove Missing game files filter");
   expect(current).toMatchObject({ attention: [], channels: ["beta"] });
-  expect(button("Preview (2)").disabled).toBe(false);
+  expect((await control("Preview (2)")).matches(":disabled,[aria-disabled=true]")).toBe(false);
   await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
-  expect(button("Repair needed (unavailable)").disabled).toBe(true);
+  expect(
+    (await control("Repair needed (unavailable)")).matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
 });
 it("keeps unknown restored attention unresolved until reset", async () => {
   await render({ version: 1, attention: ["future-reason"] });
   await act(async () => setContext(membershipContext));
   await click("Filters (0)");
-  expect(button("Missing BIOS (unavailable)").disabled).toBe(true);
+  expect(
+    (await control("Missing BIOS (unavailable)")).matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
   expect(current).toMatchObject({ attention: ["future-reason"] });
   await click("Clear filters");
   expect(current).toBe("all");
@@ -531,20 +556,32 @@ it("composes observed update choices and removes retained zero/unavailable selec
   expect(
     filterPorts(ports, statuses, "catalog", current, "", "catalog", context).map((p) => p.id),
   ).toEqual(["both"]);
-  expect(button("Matching update staged (0)").getAttribute("aria-pressed")).toBe("true");
+  expect((await control("Matching update staged (0)")).getAttribute("aria-checked")).toBe("true");
   await click("Available at last check (1)");
   expect(filterPorts(ports, statuses, "catalog", current, "", "catalog", context)).toEqual([]);
   await act(async () => setContext(undefined));
-  expect(button("Matching update staged (unavailable)").disabled).toBe(true);
+  expect(
+    (await control("Matching update staged (unavailable)")).matches(
+      ":disabled,[aria-disabled=true]",
+    ),
+  ).toBe(true);
   await click("Remove Matching update staged filter");
   expect(current).toMatchObject({ updates: [], channels: ["beta"] });
   await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
-  expect(button("Available at last check (unavailable)").disabled).toBe(true);
+  expect(
+    (await control("Available at last check (unavailable)")).matches(
+      ":disabled,[aria-disabled=true]",
+    ),
+  ).toBe(true);
 });
 it("retains unsupported restored update values until reset", async () => {
   await render({ version: 1, updates: ["future-candidate"] });
   await click("Filters (0)");
-  expect(button("Matching update staged (unavailable)").disabled).toBe(true);
+  expect(
+    (await control("Matching update staged (unavailable)")).matches(
+      ":disabled,[aria-disabled=true]",
+    ),
+  ).toBe(true);
   expect(current).toMatchObject({ updates: ["future-candidate"] });
   await click("Clear filters");
   expect(current).toBe("all");
