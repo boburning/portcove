@@ -778,7 +778,7 @@ mod tests {
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently
     // bounded by the ordinary harness; no case or assertion is sampled away.
-    fn assert_historical_prepared_player_route(id: &str) {
+    fn assert_prepared_player_route(id: &str) {
         let (_temporary, mut service, executable, working) = fixture(id);
         service.catalog = Catalog::embedded().unwrap();
         let declared = service.catalog.port(id).unwrap();
@@ -918,33 +918,90 @@ mod tests {
         );
     }
 
-    macro_rules! historical_prepared_player_case {
+    macro_rules! prepared_player_case {
         ($name:ident, $id:literal) => {
             #[test]
             fn $name() {
-                assert_historical_prepared_player_route($id);
+                assert_prepared_player_route($id);
             }
         };
     }
 
-    historical_prepared_player_case!(historical_route_zelda3, "zelda3");
-    historical_prepared_player_case!(historical_route_smw, "super-mario-world-snesrev-smw");
-    historical_prepared_player_case!(historical_route_sonic3air, "sonic-3-knuckles-sonic-3-a-i-r");
-    historical_prepared_player_case!(historical_route_sm64coopdx, "super-mario-64-sm64-co-op-dx");
-    historical_prepared_player_case!(historical_route_wipeout, "wipeout-phantom-edition");
-    historical_prepared_player_case!(historical_route_emerald, "pokemon-emerald-emeraldrecomp");
-    historical_prepared_player_case!(
+    prepared_player_case!(historical_route_zelda3, "zelda3");
+    prepared_player_case!(historical_route_smw, "super-mario-world-snesrev-smw");
+    prepared_player_case!(historical_route_sonic3air, "sonic-3-knuckles-sonic-3-a-i-r");
+    prepared_player_case!(historical_route_sm64coopdx, "super-mario-64-sm64-co-op-dx");
+    prepared_player_case!(historical_route_wipeout, "wipeout-phantom-edition");
+    prepared_player_case!(historical_route_emerald, "pokemon-emerald-emeraldrecomp");
+    prepared_player_case!(
         historical_route_firered,
         "pokemon-firered-fireredleafgreenrecomp"
     );
-    historical_prepared_player_case!(
+    prepared_player_case!(
         historical_route_leafgreen,
         "pokemon-leafgreen-fireredleafgreenrecomp"
     );
-    historical_prepared_player_case!(historical_route_ruby, "pokemon-ruby-rubysapphirerecomp");
-    historical_prepared_player_case!(
+    prepared_player_case!(historical_route_ruby, "pokemon-ruby-rubysapphirerecomp");
+    prepared_player_case!(
         historical_route_sapphire,
         "pokemon-sapphire-rubysapphirerecomp"
+    );
+
+    prepared_player_case!(
+        native_engine_route_2592,
+        "medal-of-honor-allied-assault-openmohaa"
+    );
+    prepared_player_case!(
+        native_engine_route_2593,
+        "medal-of-honor-allied-assault-spearhead-openmohaa"
+    );
+    prepared_player_case!(
+        native_engine_route_2594,
+        "medal-of-honor-allied-assault-breakthrough-openmohaa"
+    );
+    prepared_player_case!(
+        native_engine_route_2565,
+        "doom-3-classic-dude-doom-3-unified-development-engine"
+    );
+    prepared_player_case!(
+        native_engine_route_2566,
+        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine"
+    );
+    prepared_player_case!(
+        native_engine_route_2612,
+        "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo"
+    );
+    prepared_player_case!(
+        native_engine_route_2611,
+        "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo"
+    );
+    prepared_player_case!(
+        native_engine_route_2889,
+        "perimeter-perimeter-community-engine"
+    );
+    prepared_player_case!(
+        native_engine_route_2890,
+        "perimeter-emperor-s-testament-perimeter-community-engine"
+    );
+    prepared_player_case!(native_engine_route_2910, "zeus-master-of-olympus-ezeus");
+    prepared_player_case!(
+        native_engine_route_2911,
+        "poseidon-master-of-atlantis-ezeus"
+    );
+    prepared_player_case!(
+        native_engine_route_2707,
+        "s-t-a-l-k-e-r-call-of-pripyat-openxray"
+    );
+    prepared_player_case!(native_engine_route_2708, "s-t-a-l-k-e-r-clear-sky-openxray");
+    prepared_player_case!(native_engine_route_2701, "quake-iii-arena-ioquake3");
+    prepared_player_case!(native_engine_route_2702, "quake-iii-team-arena-ioquake3");
+    prepared_player_case!(
+        native_engine_route_2605,
+        "serious-sam-the-first-encounter-serioussamclassic"
+    );
+    prepared_player_case!(
+        native_engine_route_2606,
+        "serious-sam-the-second-encounter-serioussamclassic"
     );
 
     #[test]
