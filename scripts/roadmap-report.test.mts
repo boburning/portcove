@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { parse } from "yaml";
+import { isRecord } from "./runtime-values.mts";
 import {
   mergeRoadmapObservations,
   observationFromReceipt,
@@ -246,7 +248,7 @@ void test("incomplete success, unchecked issues, and publication gaps cannot est
   state.publication_gaps.push("Collector artifact missing; replay required");
   assert.match(render(state), /\*\*Unable to verify\*\*/u);
 });
-void test("only the publisher writes comments, serializes on trusted main and retains recovery state", () => {
+void test("health collection stays read-only beside owner-gated intake; publisher retains serialized recovery", () => {
   const collector = readFileSync(
     new URL("../.github/workflows/roadmap-health.yml", import.meta.url),
     "utf8",
@@ -255,7 +257,27 @@ void test("only the publisher writes comments, serializes on trusted main and re
     new URL("../.github/workflows/roadmap-report.yml", import.meta.url),
     "utf8",
   );
-  assert.doesNotMatch(collector, /issues: write|concurrency:/u);
+  const health: unknown = parse(collector);
+  assert.ok(isRecord(health) && isRecord(health.jobs));
+  assert.deepEqual(health.permissions, { contents: "read" });
+  assert.equal(health.concurrency, undefined);
+  for (const [name, job] of Object.entries(health.jobs)) {
+    assert.ok(isRecord(job));
+    assert.equal(job.concurrency, undefined);
+    if (name === "hosted-intake") {
+      assert.deepEqual(job.permissions, { contents: "read", issues: "write" });
+      assert.equal(job.uses, "./.github/workflows/hosted-discovery-intake.yml");
+      assert.equal(
+        job.if,
+        "github.event_name == 'workflow_dispatch' && inputs.hosted_intake != 'none' && inputs.hosted_intake != '' && github.actor == 'boburning'",
+      );
+    } else {
+      const permissions = job.permissions ?? health.permissions;
+      assert.ok(isRecord(permissions));
+      for (const value of Object.values(permissions))
+        assert.ok(value === "read" || value === "none", `${name} must stay read-only`);
+    }
+  }
   assert.match(publisher, /workflow_run:[\s\S]*types: \[completed\]/u);
   assert.match(publisher, /group: roadmap-maintained-report[\s\S]*cancel-in-progress: false/u);
   assert.doesNotMatch(publisher, /queue: max/u);
