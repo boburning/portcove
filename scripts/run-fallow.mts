@@ -43,7 +43,7 @@ import { fallowSource } from "./fallow-source.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const cli = fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url));
-const version = "3.34.1";
+const version = "3.36.0";
 
 // Fixed maintained scopes must not silently inherit a production subset, a line
 // filter, or a different semantic backend. Cache and presentation settings remain

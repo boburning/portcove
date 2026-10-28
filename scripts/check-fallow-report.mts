@@ -27,9 +27,9 @@ function metric(value: unknown, field: string, maximum = Number.MAX_SAFE_INTEGER
 // alone cannot make parsed JSON trustworthy. Version changes require review.
 function validateFallowReport(value: unknown) {
   const report = object(value, "report");
-  if (report.kind !== "combined" || report.schema_version !== 14 || report.version !== "3.34.1")
+  if (report.kind !== "combined" || report.schema_version !== 14 || report.version !== "3.36.0")
     throw new Error(
-      "Unsupported Fallow report kind, schema or tool version (expected combined/14/3.34.1)",
+      "Unsupported Fallow report kind, schema or tool version (expected combined/14/3.36.0)",
     );
   const check = object(report.check, "check");
   const dupes = object(report.dupes, "dupes");

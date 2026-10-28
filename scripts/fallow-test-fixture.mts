@@ -2,7 +2,7 @@ export function report({ issues = 0, duplication = 0, critical = 0 } = {}) {
   return {
     kind: "combined",
     schema_version: 14,
-    version: "3.34.1",
+    version: "3.36.0",
     gate_outcomes: {
       "parse-error": { status: "pass", enforced: true },
       "error-severity-findings": { status: "pass", enforced: false },
