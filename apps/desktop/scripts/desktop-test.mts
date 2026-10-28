@@ -320,7 +320,7 @@ const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
       selectedScenarios: selection.selected_scenarios,
     })
   : null;
-const { inputs, runnerMetadata } = await observeDesktopHarnessInputs({
+const { inputs, runnerMetadata, metadataPhases } = await observeDesktopHarnessInputs({
   custody,
   capture: {
     root,
@@ -331,10 +331,6 @@ const { inputs, runnerMetadata } = await observeDesktopHarnessInputs({
   },
   runMetadata: values["run-metadata"],
 });
-const phases = runnerMetadata.phases;
-assert.ok(phases === undefined || Array.isArray(phases));
-const metadataPhases: object[] =
-  phases === undefined ? [] : phases.map((value: unknown) => object(value));
 let acceptancePreflight: Awaited<ReturnType<typeof writeAcceptancePreflight>> | undefined;
 const packetFixtureIdentities: (FileIdentity & { role: string })[] = [];
 type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
