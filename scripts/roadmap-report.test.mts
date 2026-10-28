@@ -269,7 +269,7 @@ void test("health collection stays read-only beside owner-gated intake; publishe
       assert.equal(job.uses, "./.github/workflows/hosted-discovery-intake.yml");
       assert.equal(
         job.if,
-        "github.event_name == 'workflow_dispatch' && inputs.hosted_intake != 'none' && inputs.hosted_intake != '' && github.actor == 'boburning'",
+        "github.event_name == 'workflow_dispatch' && inputs.hosted_intake != 'none' && inputs.hosted_intake != '' && github.actor == 'boburning' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)",
       );
     } else {
       const permissions = job.permissions ?? health.permissions;
@@ -278,6 +278,11 @@ void test("health collection stays read-only beside owner-gated intake; publishe
         assert.ok(value === "read" || value === "none", `${name} must stay read-only`);
     }
   }
+  assert.ok(isRecord(health.jobs.configuration));
+  assert.equal(
+    health.jobs.configuration.if,
+    "github.event_name != 'workflow_dispatch' || inputs.hosted_intake == 'none' || inputs.hosted_intake == '' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)",
+  );
   assert.match(publisher, /workflow_run:[\s\S]*types: \[completed\]/u);
   assert.match(publisher, /group: roadmap-maintained-report[\s\S]*cancel-in-progress: false/u);
   assert.doesNotMatch(publisher, /queue: max/u);

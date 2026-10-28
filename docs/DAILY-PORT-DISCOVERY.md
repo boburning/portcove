@@ -96,6 +96,9 @@ reusable executor (`probe` or `process`). Complete ordinary review and required
 CI before that credential-bearing dispatch. Regular issue comments always run
 default-branch code; request data cannot select a ref. After merge, use the
 dedicated workflow and its ordinary comment events.
+The qualification route is restricted to nondefault refs. Dispatches on the
+default branch retain ordinary health collection and its publication journal,
+including when a qualification mode was selected.
 
 ## Authority and setup
 

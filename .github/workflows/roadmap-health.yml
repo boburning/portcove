@@ -44,7 +44,7 @@ permissions:
 
 jobs:
   hosted-intake:
-    if: github.event_name == 'workflow_dispatch' && inputs.hosted_intake != 'none' && inputs.hosted_intake != '' && github.actor == 'boburning'
+    if: github.event_name == 'workflow_dispatch' && inputs.hosted_intake != 'none' && inputs.hosted_intake != '' && github.actor == 'boburning' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
     permissions:
       contents: read
       issues: write
@@ -55,7 +55,7 @@ jobs:
     secrets:
       PORTCOVE_ROADMAP_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
   configuration:
-    if: github.event_name != 'workflow_dispatch' || inputs.hosted_intake == 'none' || inputs.hosted_intake == ''
+    if: github.event_name != 'workflow_dispatch' || inputs.hosted_intake == 'none' || inputs.hosted_intake == '' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     timeout-minutes: 1
     permissions: {}
