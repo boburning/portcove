@@ -1956,6 +1956,7 @@ for (const file of [
   "scripts/quality-tools.mts",
   "scripts/resource-command.mts",
   "scripts/resource-capacity.mts",
+  "scripts/prepared-file-replacement.mts",
   "scripts/runtime-values.mts",
 ]) {
   explicitNodeTests.set(file, [

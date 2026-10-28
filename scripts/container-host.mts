@@ -1219,6 +1219,7 @@ export function createContainerHost(profile: string) {
       resource_sources: Object.fromEntries(
         [
           "resource-capacity.mts",
+          "prepared-file-replacement.mts",
           "resource-paths.mts",
           "heavy-rust-test-lock.mts",
           "process-lock.mts",
