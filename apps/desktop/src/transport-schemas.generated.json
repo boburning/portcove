@@ -5909,10 +5909,19 @@
       },
       "WindowsRuntimePathPolicy": {
         "description": "A declared upstream limitation, checked by Core rather than left to the game.",
-        "enum": [
-          "printable-ascii-max-path"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "printable-ascii-max-path"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "relative-file-max-path",
+            "description": "Legacy relative file access; no restriction on the character repertoire.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -22452,10 +22461,19 @@
       },
       "WindowsRuntimePathPolicy": {
         "description": "A declared upstream limitation, checked by Core rather than left to the game.",
-        "enum": [
-          "printable-ascii-max-path"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "printable-ascii-max-path"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "relative-file-max-path",
+            "description": "Legacy relative file access; no restriction on the character repertoire.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -30612,10 +30630,19 @@
       },
       "WindowsRuntimePathPolicy": {
         "description": "A declared upstream limitation, checked by Core rather than left to the game.",
-        "enum": [
-          "printable-ascii-max-path"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "printable-ascii-max-path"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "relative-file-max-path",
+            "description": "Legacy relative file access; no restriction on the character repertoire.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

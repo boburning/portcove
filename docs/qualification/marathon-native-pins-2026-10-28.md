@@ -71,7 +71,7 @@ files were the shared `Aleph One Log.txt` and distinct `Marathon Preferences`,
 These are actual Windows process/version/startup/restart/write observations.
 Window titles and timed sessions do not establish rendered menu content,
 gameplay, save/load, physical input, minimum hardware or backwards compatibility.
-A later private Core probe using the exact CI-produced prior candidate CLI completed install/verify/explicit Play/reverify/removal for Marathon and Durandal. Infinity installed and verified but Play failed opening its packaged MML file at long coordinates. Ordinary and Core working-directory controls both failed; a shorter alias to the same physical runtime succeeded. These observations establish a coordinate restriction, not its exact threshold or a general long-path repair. Missing exit-code harness attempts and the failed Infinity launch remain retained. Repaired Native4 Core validation remains pending on the PR.
+A later private Core probe using the exact CI-produced prior candidate CLI completed install/verify/explicit Play/reverify/removal for Marathon and Durandal. Infinity installed and verified but Play failed opening its packaged MML file at long coordinates. Ordinary and Core working-directory controls both failed; a shorter alias to the same physical runtime succeeded. These observations establish a coordinate restriction, not its exact threshold or a general long-path repair. Missing exit-code harness attempts and the failed Infinity launch remain retained. The repaired Native4 normal CLI from exact source140773cd /CI40649083764/a1 then completed all three private Windows Core lifecycles at supported short output paths: plan, install, immutable verification, two explicit startup/normal-close cycles, re-verification and removal. All six game and CLI exits were0, with no forced termination and positive process/operation drain. A negative long-coordinate install returned the typed path refusal without publishing/launching or changing observed upstream profile files. These are process/lifecycle observations, not gameplay, save/load or rendered menu acceptance.
 Qualification flags remain empty; no Project Supported promotion is inferred.
 
 Thirty-three native-related Core contracts and 43 authoring/preparation/proposal
@@ -100,5 +100,7 @@ folder when held; a short diagnostic alias is not a Core managed-path guarantee.
 
 Earlier oracle-only source bbc0 passed all five contexts in40643429882/a1; Native4
 changes invalidate that qualification. The companion JSON preserves its scope and
-exact native failure/control hashes. Final review, exact-head CI and repaired
-Windows Core observations belong to the PR before delivery.
+exact native failure/control hashes. The Native4 Windows Core observations are now retained in the companion JSON.
+CI40649083764/a1 failed the stale generated Desktop transport projection; the
+Rust-owned schema/type regeneration changes no Core behavior. Final independent
+review and fresh exact-head CI still belong to the PR before delivery.

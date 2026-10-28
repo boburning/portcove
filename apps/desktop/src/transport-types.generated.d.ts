@@ -359,7 +359,7 @@ export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
  */
-export type WindowsRuntimePathPolicy = "printable-ascii-max-path";
+export type WindowsRuntimePathPolicy = "printable-ascii-max-path" | "relative-file-max-path";
 export type CatalogAdmissionMode = "enforced" | "informational";
 export type CatalogEvidenceRole =
   "upstream_support" | "byte_identity" | "preservation_crosswalk" | "portcove_qualification";
