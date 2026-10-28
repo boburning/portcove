@@ -711,3 +711,13 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
+
+# CI40750251340/a1 Windows partition8 job123039317262 completed the first
+# full cache/corruption/capacity iteration at28.408s, then began iteration1
+# before the30.044s cutoff. Preserve both iterations and all byte, lock,
+# corruption, capacity and cleanup assertions under this exact60s safeguard.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
