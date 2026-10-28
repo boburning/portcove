@@ -448,9 +448,60 @@ retained verification result; a partial cache, alias or changed bytes refuses
 without reinstalling or overwriting the original attempt. Downloads and commands
 have finite bounds under the maintained process/resource supervisor.
 
-This supplies no encryption, key generation, vault restore, credential placement,
-production signing or publication authority. The complete appointed-key inventory
-and encrypted create/restore adapter remain separate implementation work.
+This tool bootstrap supplies no custody, credential placement, production signing
+or publication authority.
+
+`scripts/catalog-recovery-vault.mts` supplies the separate offline catalog-only
+adapter. `prepareCatalogRecoveryPlan` requires independently ratified release-tools
+binary/source identities, the exact selected catalog configuration bytes, its
+public Root/Targets pins, and public fingerprints from the appointed two-App
+captures. It snapshots the binary and public inputs privately and invokes the
+read-only `inspect-catalog-key-inventory` command. That command verifies signed
+Root/Targets structure and derives every appointed catalog role key; it deliberately
+does not grant freshness, signing or private custody. The public-only
+`inspectCatalogRecoveryPlan` cannot create a usable vault session.
+
+`createCatalogRecoveryVault` accepts an already-authorized owner custody callback,
+invoked only for the derived complete appointments. Each catalog key must pass
+the existing Tough `inspect-existing-tuf-key` projection through that same pinned
+binary; each App RSA key must match its captured SPKI fingerprint. A parsed
+configuration, prepared local session or available credential never authorizes
+that callback. Vault preparation and custody acquisition reject Actions runtimes
+and UID 0; reviewer identity and owner custody still require the separate grant.
+Actual custody reads remain held until their separate prerequisites
+are satisfied. No discovery, key generation, Root rotation or provider operation
+exists in this adapter.
+
+The create-only private output contains an authenticated age ciphertext and a
+public completion receipt. A native age recipient is the only accepted encryption
+recipient; native recovery identity bytes travel through stdin, never arguments,
+environment variables, logs or temporary identity files. The owner must retain
+the encryption identity separately from the ciphertext; passphrase prompting and
+automatic identity generation are absent. Existing `prepareRecoveryTools` must
+qualify the exact standard age executable before private reads. Each subprocess
+has a 30-second ceiling, credential-free environment and bounded output. Bundle
+size is at most 1 MiB and each private key at most 32 KiB. Caller custody callbacks
+must themselves be bounded and must return a fresh transferred buffer; returned
+buffers are cleared after consumption. JavaScript heap strings are not claimed
+to provide guaranteed secure erasure.
+
+`restoreCatalogRecoveryVault` requires the retained ciphertext digest, separately
+held native identity and a newly prepared plan for the same public appointments.
+It accepts decrypted bytes only after age exits successfully, then verifies the
+exact complete inventory and every private/public projection before writing any
+recovered `.key` file. The create-only output is quarantine, never an installed
+signing store. Interrupted or failed attempts retain their private directory and
+cannot be overwritten; a successful durable `complete.json` is the sole local
+completion marker. No completion marker grants activation or signing. Changed
+appointments, wrong recipients, aliases, missing backups and corrupt ciphertext
+refuse. Losing both primary material and the decryptable backup never regenerates
+Root. Recipient rotation means a new encrypted copy of the same recovered keys;
+TUF and App key rotation remain their existing separate authorities.
+
+Ciphertext-only transport may use a shared recovery volume: its bounded
+single-link/canonical read, retained digest and age authentication remain required,
+while Linux 0700/0600 custody requirements apply only to plaintext working and
+quarantine material. This adapter does not provision or copy to that storage.
 
 For that explicitly selected profile, `top_level_targets_profile:
 "online-unchanged-authority-v1"` permits separately isolated Targets signing only
