@@ -156,6 +156,10 @@ it("keeps a legacy required-input card unconfirmed when health and assessment ar
   await userEvent.click(card.getByRole("button", { name: "Try launch", exact: true }));
   expect(launch).toHaveBeenCalledWith(port.id);
 });
+// CI40745384613/a1 macOS producer123018113028 reached the15s case
+// deadline while these complete multi-step observations were progressing.
+// Preserve every interaction, assertion, matrix row and cleanup; calibrate only
+// this test-family safeguard to45s, without changing product deadlines.
 it.each([
   ["catalog", "dark"],
   ["catalog", "light"],
@@ -214,4 +218,5 @@ it.each([
     expect(launch).toHaveBeenCalledTimes(view === "library" ? 2 : 0);
     expect(invoke).not.toHaveBeenCalled();
   },
+  45_000,
 );
