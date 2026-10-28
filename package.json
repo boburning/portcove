@@ -35,7 +35,7 @@
     "@types/semver": "7.8.0",
     "@vitest/coverage-v8": "5.0.5",
     "es-module-lexer": "3.0.4",
-    "fallow": "3.34.1",
+    "fallow": "3.37.0",
     "vite-plus": "catalog:",
     "yaml": "2.9.1"
   },
