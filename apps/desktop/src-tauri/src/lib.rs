@@ -3294,11 +3294,11 @@ mod tests {
         {
             validate_external_url(&service, url).unwrap();
         }
-        for suffix in ["?redirect=elsewhere", "/unreviewed"] {
-            assert!(
-                validate_external_url(&service, &format!("{}{suffix}", listing.project_url))
-                    .is_err()
-            );
+        for unreviewed_url in [
+            format!("{}?redirect=elsewhere", listing.project_url),
+            format!("{}/unreviewed", listing.project_url),
+        ] {
+            assert!(validate_external_url(&service, &unreviewed_url).is_err());
         }
         assert!(
             validate_external_url(&service, "https://user:password@github.com/login/device")
