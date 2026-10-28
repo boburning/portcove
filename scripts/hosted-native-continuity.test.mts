@@ -614,3 +614,246 @@ void test("Windows tool fixture prepares the ordinary supported runtime before i
   assert.equal(upload.with["retention-days"], 7);
   assert.equal(upload.with.overwrite, false);
 });
+
+async function hostedResourceObservationFixture(context: test.TestContext) {
+  const raw: unknown = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+      "utf8",
+    ),
+    { uniqueKeys: true },
+  ).toJS();
+  assert.ok(isRecord(raw) && isRecord(raw.jobs) && isRecord(raw.jobs["installed-prerequisite"]));
+  const job = raw.jobs["installed-prerequisite"];
+  assert.ok(Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const start = steps[0],
+    stop = steps.find(
+      (step) =>
+        isRecord(step) &&
+        step.name === "Stop the original resource observer and retain sampled coverage",
+    );
+  assert.ok(
+    isRecord(start) &&
+      typeof start.run === "string" &&
+      isRecord(stop) &&
+      typeof stop.run === "string",
+  );
+  assert.equal(start.name, "Start bounded runner resource observation before checkout");
+  assert.ok(Buffer.byteLength(start.run) < 21000);
+  assert.ok(isRecord(steps[1]) && String(steps[1].uses).startsWith("actions/checkout@"));
+  assert.equal(stop.if, "always()");
+  const root = await mkdtemp(path.join(os.tmpdir(), "pc-hosted-resource-")),
+    temporary = path.join(root, "runner temp"),
+    workspace = path.join(root, "workspace");
+  await mkdir(temporary);
+  await mkdir(workspace);
+  const startPath = path.join(root, "start.ps1"),
+    stopPath = path.join(root, "stop.ps1");
+  await writeFile(startPath, start.run);
+  await writeFile(stopPath, stop.run);
+  const environment = {
+    ...process.env,
+    GITHUB_ACTIONS: "true",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    RUNNER_ENVIRONMENT: "github-hosted",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_JOB: "installed-prerequisite",
+    GITHUB_SHA: "a".repeat(40),
+    GITHUB_RUN_ID: "123456",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-hosted-job-usage",
+    PORTCOVE_HOSTED_PLATFORM: process.platform === "win32" ? "windows-x86_64" : "linux-x86_64",
+    RUNNER_TEMP: temporary,
+    GITHUB_WORKSPACE: workspace,
+    PORTCOVE_INERT_PRIVATE_VALUE: "never-collect-this-inert-value",
+  };
+  const invoke = (filename: string) =>
+    spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", filename], {
+      env: environment,
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 65536,
+    });
+  const evidence = path.join(temporary, "portcove-hosted-resource-observation");
+  const identityFunction = start.run.slice(
+    start.run.indexOf("function Get-MeasurementBirth"),
+    start.run.indexOf("function Get-MeasurementMemory"),
+  );
+  const identityScript = (pid: unknown, birth: unknown, action: string) =>
+    `$ErrorActionPreference='Stop'\n$taskUtf8=[Text.UTF8Encoding]::new($false,$true)\n${identityFunction}\n$taskProcess=Get-Process -Id ${Number(pid)} -ErrorAction SilentlyContinue\nif($null -ne $taskProcess -and (Get-MeasurementBirth $taskProcess) -ceq '${String(birth)}'){${action}}\n`;
+  context.after(async () => {
+    try {
+      await readFile(path.join(evidence, "observer-started.json"));
+      try {
+        await readFile(path.join(evidence, "stop"));
+      } catch {
+        invoke(stopPath);
+      }
+    } catch {
+      /* Never started. */
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+  const read = async (name: string): Promise<unknown> =>
+    JSON.parse(await readFile(path.join(evidence, name), "utf8"));
+  return {
+    root,
+    temporary,
+    workspace,
+    evidence,
+    startPath,
+    stopPath,
+    environment,
+    invoke,
+    read,
+    steps,
+    identityScript,
+  };
+}
+
+void test("hosted resource observation samples before checkout and stops only its original finite observer", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context),
+    started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const ready = await fixture.read("observer-ready.json"),
+    intent = await fixture.read("intent.json");
+  assert.ok(isRecord(ready) && isRecord(intent));
+  assert.equal(intent.authority, "none");
+  const samplesBefore = await readFile(path.join(fixture.evidence, "samples.jsonl"), "utf8");
+  assert.ok(samplesBefore.endsWith("\n") && samplesBefore.length > 0);
+  const stopped = fixture.invoke(fixture.stopPath);
+  assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
+  const observation = await fixture.read("observation.json");
+  assert.ok(isRecord(observation));
+  assert.equal(observation.coverage_status, "sampled-through-finalizer");
+  assert.equal(observation.forced_stop, false);
+  assert.equal(observation.authority, "none");
+  assert.equal(observation.continuous_peaks, "not-observed");
+  assert.equal(observation.provider_setup, "not-observed");
+  assert.equal(observation.post_last_sample, "not-observed");
+  assert.ok(Number(observation.sample_count) >= 1 && Number(observation.sample_bytes) <= 8388608);
+  const samples = await readFile(path.join(fixture.evidence, "samples.jsonl"));
+  assert.equal(
+    observation.sample_sha256,
+    createHash("sha256").update(samples).digest("hex").toUpperCase(),
+  );
+  assert.ok(
+    !JSON.stringify({ intent, ready, observation, samples: samples.toString("utf8") }).includes(
+      "never-collect-this-inert-value",
+    ),
+  );
+  const before = await readFile(path.join(fixture.evidence, "observer-started.json"));
+  assert.notEqual(fixture.invoke(fixture.startPath).status, 0);
+  assert.deepEqual(await readFile(path.join(fixture.evidence, "observer-started.json")), before);
+  const publicUpload = fixture.steps.find(
+    (step) =>
+      isRecord(step) && step.name === "Retain bounded public resource observations separately",
+  );
+  assert.ok(isRecord(publicUpload) && isRecord(publicUpload.with));
+  assert.equal(publicUpload.if, "always()");
+  assert.equal(publicUpload.with["retention-days"], 7);
+  assert.doesNotMatch(String(publicUpload.with.path), /stdout|stderr|\.ps1|\*|environment/u);
+});
+
+void test("hosted resource observation refuses foreign contexts before starting a sampler", async (context) => {
+  for (const [key, value] of [
+    ["GITHUB_JOB", "native_windows"],
+    ["GITHUB_EVENT_NAME", "pull_request"],
+    ["GITHUB_REPOSITORY", "foreign/portcove"],
+  ] as const) {
+    const fixture = await hostedResourceObservationFixture(context);
+    fixture.environment[key] = value;
+    const result = fixture.invoke(fixture.startPath);
+    assert.notEqual(result.status, 0);
+    await assert.rejects(readFile(path.join(fixture.evidence, "intent.json")), { code: "ENOENT" });
+  }
+});
+
+void test("interrupted hosted resource observation retains sampled data without inventing completed coverage", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context),
+    started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const owner = await fixture.read("observer-started.json");
+  assert.ok(isRecord(owner));
+  const terminate = path.join(fixture.root, "terminate-owned.ps1");
+  await writeFile(
+    terminate,
+    fixture.identityScript(
+      owner.pid,
+      owner.birth_ticks,
+      "$taskProcess.Kill();if(-not $taskProcess.WaitForExit(5000)){throw 'Owned test observer did not stop'}",
+    ),
+  );
+  const killed = fixture.invoke(terminate);
+  assert.equal(killed.status, 0, killed.stderr || killed.stdout);
+  const stopped = fixture.invoke(fixture.stopPath);
+  assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
+  const report = await fixture.read("observation.json");
+  assert.ok(isRecord(report));
+  assert.equal(report.coverage_status, "partial-or-interrupted");
+  assert.equal(report.terminal, null);
+  assert.ok(Number(report.sample_count) >= 1);
+  assert.equal(report.continuous_peaks, "not-observed");
+});
+
+void test("hosted resource observation cleans its original observer on startup qualification failure", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context);
+  const start = await readFile(fixture.startPath, "utf8");
+  await writeFile(
+    fixture.startPath,
+    start.replace("if ($taskReady.pid", "throw 'Injected readiness failure'\nif ($taskReady.pid"),
+  );
+  const result = fixture.invoke(fixture.startPath);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Injected readiness failure/u);
+  const owner = await fixture.read("observer-started.json");
+  assert.ok(isRecord(owner));
+  const verify = path.join(fixture.root, "verify-original-stopped.ps1");
+  await writeFile(
+    verify,
+    fixture.identityScript(
+      owner.pid,
+      owner.birth_ticks,
+      "throw 'Original startup observer still running'",
+    ),
+  );
+  const checked = fixture.invoke(verify);
+  assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+});
+
+void test("hosted resource observation refuses complete coverage for a truncated original sample log", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context);
+  const started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  await writeFile(path.join(fixture.evidence, "stop"), "");
+  let terminal: unknown;
+  for (let poll = 0; poll < 100; poll++) {
+    try {
+      terminal = await fixture.read("observer-terminal.json");
+      break;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  assert.ok(isRecord(terminal));
+  assert.equal(terminal.reason, "stop-requested");
+  await rm(path.join(fixture.evidence, "stop"));
+  const samplePath = path.join(fixture.evidence, "samples.jsonl"),
+    samples = await readFile(samplePath);
+  assert.ok(samples.length > 1 && samples.at(-1) === 10);
+  await writeFile(samplePath, samples.subarray(0, samples.length - 1));
+  const stopped = fixture.invoke(fixture.stopPath);
+  assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
+  const observation = await fixture.read("observation.json");
+  assert.ok(isRecord(observation));
+  assert.equal(observation.coverage_status, "partial-or-interrupted");
+  assert.equal(observation.parse_error_rows, 0);
+  assert.ok(Number(observation.sample_count) > 0);
+  assert.equal(
+    observation.terminal && isRecord(observation.terminal) ? observation.terminal.bytes : null,
+    samples.length,
+  );
+});
