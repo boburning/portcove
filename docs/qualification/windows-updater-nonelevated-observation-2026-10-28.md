@@ -109,9 +109,9 @@ byte readback; resource, native-session and frontend-output guards remain active
 
 ## Preservation and retained failures
 
-Across update, the checked continuity is the synthetic 32-byte
-`user/installer-qualification/preserve.txt` marker (SHA-256
-`70f6c4ee65826fee9dddcc4320fb47cb14a022d821202820f9eb7e9578e3433f`)
+Across update, the checked continuity is each run's synthetic 32-byte
+`user/installer-qualification/preserve.txt` marker (per-cohort hashes are retained
+in the JSON receipt)
 and the application/reconciliation state. Recursive library database/artwork
 manifest equality is **uninstall-only**. The preference entry is absent in these
 manifests; equality of absent entries cannot prove general preference continuity.
