@@ -6,20 +6,25 @@ import { runInNewContext } from "node:vm";
 import { EventEmitter } from "node:events";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import {
+  windowsOwnerFiletime,
+  windowsOwnerEnvironment,
+} from "./release-windows-owner-mechanism.mts";
 
 const source = readFileSync(
   new URL("./release-hosted-native-windows-session.mts", import.meta.url),
   "utf8",
 );
-function body(begin: string, end: string) {
-  const start = source.indexOf(begin),
-    stop = source.indexOf(end, start + begin.length);
+function body(begin: string, end: string, text = source) {
+  const start = text.indexOf(begin),
+    stop = text.indexOf(end, start + begin.length);
   assert.ok(start >= 0 && stop > start, "Actual private implementation boundary required");
-  return stripTypeScriptTypes(source.slice(start, stop).replace(/^export /gmu, ""));
+  return stripTypeScriptTypes(text.slice(start, stop).replace(/^export /gmu, ""));
 }
 const spawnBody = body(
-  "function captureOwnerSupervisor(",
-  "export async function startActualHostedWindowsSession",
+  "export function captureWindowsOwnerSupervisor(",
+  "/** End of shared owner supervisor mechanics. */",
+  readFileSync(new URL("./release-windows-owner-mechanism.mts", import.meta.url), "utf8"),
 );
 const terminalBody = body(
   "async function recheckTerminalSettlement(",
@@ -42,7 +47,7 @@ void test("supervisor callback returns its child to cleanup ownership before fal
     signals++;
     child.emit("close", 143);
   });
-  const create = runInNewContext(spawnBody + ";captureOwnerSupervisor", {
+  const create = runInNewContext(spawnBody + ";captureWindowsOwnerSupervisor", {
     assert,
     spawn: () => {
       spawns++;
@@ -169,4 +174,101 @@ void test("actual final settlement refuses late role or custody changes after in
       assert.equal(recovered, scenario === "cloned" ? 0 : 1);
     }
   }
+});
+
+void test("shared Windows owner mechanics preserve generation identity and a credential-free environment", () => {
+  assert.equal(windowsOwnerFiletime("win32:42:504911232000000123", 42), "123");
+  for (const identity of [
+    null,
+    "win32:43:504911232000000123",
+    "win32:42:504911232000000000",
+    "linux:42:123",
+  ])
+    assert.throws(() => windowsOwnerFiletime(identity, 42));
+  const source = {
+    SystemRoot: "C:\\Windows",
+    GITHUB_ACTIONS: "true",
+    RUNNER_ENVIRONMENT: "github-hosted",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_JOB: "native_windows",
+    GITHUB_WORKFLOW_REF: "fixed-held-production-route",
+    GITHUB_RUN_ID: "123",
+    GITHUB_RUN_ATTEMPT: "1",
+    GH_TOKEN: "inert-never-copy",
+    TAURI_SIGNING_PRIVATE_KEY: "inert-never-copy",
+  };
+  const actual = windowsOwnerEnvironment("C:\\owned", source);
+  assert.equal(actual.SystemDrive, "C:");
+  assert.equal(actual.PATH, "C:\\Windows\\System32");
+  assert.equal(actual.GH_TOKEN, undefined);
+  assert.equal(actual.TAURI_SIGNING_PRIVATE_KEY, undefined);
+  assert.equal(actual.USERPROFILE, "C:\\owned");
+  assert.equal(actual.GITHUB_WORKFLOW_REF, source.GITHUB_WORKFLOW_REF);
+  assert.deepEqual(
+    Object.keys(actual).sort(),
+    [
+      "SystemRoot",
+      "WINDIR",
+      "SystemDrive",
+      "PATH",
+      "PATHEXT",
+      "USERPROFILE",
+      "HOME",
+      "TEMP",
+      "TMP",
+      "GITHUB_ACTIONS",
+      "RUNNER_ENVIRONMENT",
+      "GITHUB_REPOSITORY",
+      "GITHUB_JOB",
+      "GITHUB_WORKFLOW_REF",
+      "GITHUB_RUN_ID",
+      "GITHUB_RUN_ATTEMPT",
+    ].sort(),
+  );
+  assert.throws(() =>
+    windowsOwnerEnvironment("C:\\owned", { ...source, GITHUB_RUN_ID: undefined }),
+  );
+});
+
+void test("shared Windows owner framing preserves byte and original deadline bounds before invoking the OS", () => {
+  const mechanism = readFileSync(
+    new URL("./release-windows-owner-mechanism.mts", import.meta.url),
+    "utf8",
+  );
+  const frame = body(
+    "export function writeWindowsOwnerFrame(",
+    "export function captureWindowsOwnerSupervisor(",
+    mechanism,
+  );
+  let effects = 0;
+  const calls: unknown[][] = [];
+  const write = runInNewContext(frame + ";writeWindowsOwnerFrame", {
+    assert,
+    Buffer,
+    performance: { now: () => 10 },
+    execFileSync: (...args: unknown[]) => {
+      effects++;
+      calls.push(args);
+    },
+  }) as (file: string, wire: Record<string, unknown>, options: unknown) => void;
+  const options = {
+    root: "C:\\owned",
+    deadline: 100,
+    powershell: "fixed-system-powershell",
+    environment: { fixed: "closed" },
+  };
+  assert.throws(() => write("C:\\owned\\request.json", {}, { ...options, deadline: 10 }));
+  assert.throws(() => write("C:\\owned\\request.json", { oversized: "x".repeat(16384) }, options));
+  assert.equal(effects, 0);
+  write("C:\\owned\\request.json", { binding: "a".repeat(64), sequence: 1 }, options);
+  assert.equal(effects, 1);
+  const call = calls[0];
+  assert.ok(call && Array.isArray(call[1]) && isRecord(call[2]));
+  assert.equal(call[0], "fixed-system-powershell");
+  assert.equal(call[2].timeout, 90);
+  assert.equal(call[2].maxBuffer, 16384);
+  const script = Buffer.from(String(call[1].at(-1)), "base64").toString("utf16le");
+  assert.match(script, /FileMode\]::CreateNew/u);
+  assert.match(script, /FileShare\]::None/u);
+  assert.match(script, /Flush\(\$true\)/u);
 });
