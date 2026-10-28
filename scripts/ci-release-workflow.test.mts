@@ -255,7 +255,7 @@ void test("Linux package ownership rehearsal is focused and preserves managed ex
   assert.match(qualification, /--application-update-recovery eligibility/);
   assert.match(qualification, /dpkg-query --search/);
   assert.match(qualification, /rpm --query --queryformat .* --file/);
-  assert.match(qualification, /dnf --assumeyes install/);
+  assert.match(qualification, /dnf --assumeyes --setopt=install_weak_deps=False install/);
   assert.match(qualification, /\$format-owners\.txt/);
   assert.match(qualification, /hash_before.*hash_after/s);
   assert.match(
