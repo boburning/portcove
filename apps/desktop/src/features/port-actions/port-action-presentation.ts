@@ -411,3 +411,19 @@ function assessmentAllowsInputReview(
     return true;
   return false;
 }
+
+/** Keep concurrent non-input blockers visible beside the existing input summary. */
+export function concurrentReadinessReasons(status: PortStatus | undefined): string[] {
+  const blockers = status?.readiness?.blockers;
+  if (!Array.isArray(blockers) || blockers.length < 2) return [];
+  return [...new Set(blockers)]
+    .filter(
+      (reason) =>
+        !installedCardInputPresentation(status) || !Object.hasOwn(installedInputLabels, reason),
+    )
+    .map((reason) =>
+      Object.hasOwn(actionReasons, reason)
+        ? actionReasons[reason]!
+        : "Another launch requirement needs review. View details.",
+    );
+}

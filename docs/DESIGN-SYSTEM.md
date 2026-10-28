@@ -11,16 +11,16 @@ inline. Keep location dismisses the inline region and returns focus to its
 trigger. Cancellation is neutral and changed impact requires renewed intent.
 Other destructive reviews retain their own consent contracts.
 
-## Library covers and compact rows
+## Library and Discover covers and compact rows
 
-Library defaults to Covers; Compact rows uses the same entries and authoritative
-local actions. Counts describe entries, including separate ports for one game.
+Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library retains Catalog order by default and offers Title A–Z, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter
 chips, counts and reset stay with the existing browsing projection. First use
 omits retrieval controls. Add games sits beside the Library heading; scoped
-Collection commands and Covers/Compact rows share the retrieval toolbar. At
+Collection commands accompany collection navigation; Covers/Compact rows share the retrieval toolbar. At
 compact widths the visible Rows label retains its full Compact rows accessible
 name. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit
@@ -43,7 +43,7 @@ and focus return when a filtered entry disappears. Discovery retains its separat
 Favorite control. Checked Ready to play uses semantic success green in both
 themes; selection remains blue and focus retains its distinct indicator. A
 playable current installation keeps Play when a downloaded candidate is present.
-The candidate has a separate review action.
+The candidate has a concise update review link. Healthy update entries omit the redundant green readiness summary while retaining Play. Mandatory setup/repair/unknown states and concurrent blockers remain visible. Acquisition work or attention precedes prepared/available update copy; secondary update/channel facts use an explicit disclosure. Active invocations lead to their existing task destination.
 
 Compact rows keep 32x48px contained thumbnails (up to 40x60px with text enlargement),
 10px block padding, full wrapping identity and a bounded action span. The list
@@ -66,6 +66,10 @@ setup, attention, updates and observed file controls retain their existing query
 owners and unavailable states. OR within facets and AND across facets must match
 one eligible port/context. Clear filters preserves search; Escape and Done return
 focus to Filters. Source systems without reviewed metadata say Not specified.
+Each workspace composes collection/navigation choices, one search/filter/sort/view toolbar, then a wrapping result and active-filter summary. Chips name their categories and share the choices’ canonical identity icons/colors; target labels retain architecture. Clear filters preserves search and returns focus to Filters.
+
+Comparisons use balanced project cards, side by side where space allows and stacked in compact windows, with aligned setup, file, target, ownership and observation sections. Filtered-out projects retain their own actions and explicit qualification. Unresearched gameplay differences remain unclaimed.
+
 Identity chips use the v58 decorative Lucide/palette mappings; semantic readiness,
 warning, failure, selection and focus retain their own tokens.
 Facet choices wrap at their natural width and align to the start of each group;
@@ -88,9 +92,7 @@ not installed. Readiness never establishes ownership.
 The contained 2:3 cover frame is independent of title length: 128 by 192 CSS pixels
 ordinarily, 148 by 222 in wide detail containers and 96 by 144 in compact
 containers. Narrow layouts omit the cover and retain the complete identity and
-actions. The illustrated hero uses flat semantic tonal overlays; identity copy
-has a content-sized opaque elevated surface, leaving the hero image visible
-outside it. Controls and focus retain production semantic colors. Existing artwork precedence,
+actions. The illustrated hero uses a directional opacity mask behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
 cache/provenance, overrides and quiet fallback remain with Artwork; both artwork
 slots are accessible through Change artwork in Manage. No cover crop or provider
 mapping is inferred.

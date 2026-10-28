@@ -54,10 +54,13 @@ function storedSectionValid(
     !onlyKeys(
       inputs,
       version === 2 && section === "library"
-        ? ["query", "filter", "readiness"]
+        ? ["query", "filter", "readiness", "sort"]
         : ["query", "filter"],
     ) ||
     (inputs.readiness !== undefined && typeof inputs.readiness !== "string") ||
+    (inputs.sort !== undefined &&
+      (typeof inputs.sort !== "string" ||
+        !["catalog", "name", "name-desc", "recent"].includes(inputs.sort))) ||
     typeof inputs.query !== "string" ||
     !(typeof inputs.filter === "string" || object(inputs.filter))
   )
@@ -74,7 +77,7 @@ function storedInputs(value: unknown, root: string): BrowsingInputs | undefined 
     !object(value.inputs) ||
     !onlyKeys(value.inputs, ["sections", "catalogSort"]) ||
     typeof value.inputs.catalogSort !== "string" ||
-    !["catalog", "name", "installed-first"].includes(value.inputs.catalogSort) ||
+    !["catalog", "name", "name-desc", "installed-first"].includes(value.inputs.catalogSort) ||
     !object(value.inputs.sections) ||
     !onlyKeys(value.inputs.sections, browsingSections)
   )
