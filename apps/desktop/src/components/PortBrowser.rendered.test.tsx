@@ -301,7 +301,7 @@ describe("desktop components", () => {
     expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No matching games");
-    expect(empty).toContain("Try another search or change the filters.");
+    expect(empty).toContain("No games match the current filters and view.");
     expect(empty).not.toContain("The catalog itself has not been changed.");
     expect(empty).toContain("Reset view");
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");

@@ -1085,7 +1085,7 @@ function ActivityFailure({
             target.portId && (
               <Button
                 data-focusable
-                variant="outline"
+                variant="link"
                 size="sm"
                 data-detail-origin={`updates:activity:${activity.id}:review`}
                 onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
