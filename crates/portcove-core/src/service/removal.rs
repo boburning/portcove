@@ -141,7 +141,7 @@ impl RemovalOperation {
                 &install.path,
             )?;
             let actual = match (paths.live.try_exists()?, paths.quarantined.try_exists()?) {
-                (true, false) => paths.live,
+                (true, false) if self.phase == RemovalPhase::Quarantining => paths.live,
                 (false, true) => paths.quarantined,
                 (false, false)
                     if matches!(

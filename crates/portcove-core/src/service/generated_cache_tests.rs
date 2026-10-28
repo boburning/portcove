@@ -568,3 +568,23 @@ fn retained_removal_partial_cleanup_verifies_remaining_payload_then_retires() {
     assert!(!paths.quarantined.exists());
     assert!(store.all().unwrap().is_empty());
 }
+
+#[test]
+fn removal_recovery_holds_unexpected_live_payload_after_quarantine_phase() {
+    for phase in [
+        LifecyclePhase::PayloadPublished,
+        LifecyclePhase::MetadataCommitted,
+        LifecyclePhase::CleanupPending,
+    ] {
+        let (_temporary, service, install) = fixture(true);
+        let mut operation = removal_journal(&service, &install, phase, true);
+        if phase != LifecyclePhase::PayloadPublished {
+            service.library.remove_port(ID).unwrap();
+        }
+        let store = OperationStore::new(service.library.clone());
+        store.put(&mut operation).unwrap();
+        assert!(crate::recovery::recover_removal(&service, &store, &mut operation).is_err());
+        assert!(install.path.join("immutable.bin").is_file());
+        assert_eq!(store.all().unwrap().len(), 1);
+    }
+}
