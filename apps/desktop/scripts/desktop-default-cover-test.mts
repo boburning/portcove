@@ -321,6 +321,12 @@ export async function defaultCoverScenario({
         artifacts.push(report);
       } catch (error) {
         primaryFailure = { error };
+        // Restoration starts a replacement app. Preserve the failing UI first.
+        try {
+          await capture("default-cover-before-restoration-failure", true);
+        } catch (captureError) {
+          console.error(`Could not retain the failing artwork UI: ${errorMessage(captureError)}`);
+        }
         throw error;
       } finally {
         await restoreCacheAfterObservation({
