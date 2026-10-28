@@ -106,7 +106,7 @@ it("labels active facets and restores focus after removing chips or clearing whi
   await expect.element(chip).toHaveTextContent("Release channels: Preview");
   await expect
     .element(page.getByRole("button", { name: /Remove Windows/ }))
-    .toHaveTextContent("Target OS:");
+    .toMatchTextContent("Target OS:");
   chip.element().focus();
   await userEvent.keyboard("{Enter}");
   await expect

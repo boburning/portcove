@@ -1059,6 +1059,7 @@ function PortCardStatus({
   detailOrigin: string;
 }) {
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
+  const taskPrimary = Boolean(action.busy && action.pending?.context.operation !== "launch");
   const canLaunch = cardCanLaunch(port, status, action, onLaunch);
   const overflowOrigin = `library:card-more:${port.id}`;
   const reviewOrigin = `${detailOrigin}:review`;
@@ -1073,7 +1074,7 @@ function PortCardStatus({
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
       <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
-        {action.busy && (
+        {taskPrimary && (
           <Button
             data-focusable
             variant="outline"
@@ -1089,7 +1090,7 @@ function PortCardStatus({
             View task
           </Button>
         )}
-        {!action.busy && !canLaunch && (
+        {!taskPrimary && !canLaunch && (
           <Button
             data-focusable
             variant="outline"
@@ -1103,7 +1104,7 @@ function PortCardStatus({
             {reviewLabel}
           </Button>
         )}
-        {!action.busy && canLaunch && (
+        {!taskPrimary && canLaunch && (
           <Button
             data-focusable
             variant="primary"
@@ -1372,8 +1373,9 @@ function renderSortPortBrowserView(
 ) {
   return (
     model.setCatalogSort && (
-      <div className="w-52 max-w-full min-w-0">
+      <div className="browse-sort w-52 max-w-full min-w-0">
         <ChoiceSelect
+          inline
           label="Sort"
           value={model.catalogSort}
           options={
@@ -1426,7 +1428,6 @@ function BrowserCollectionTools({
   const after = (
     <>
       {renderSort()}
-      {renderSteamBatch()}
       {setCollectionLayout && (
         <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">
           <span className="self-center text-xs text-pc-muted-foreground">View</span>
@@ -1452,11 +1453,12 @@ function BrowserCollectionTools({
           ))}
         </div>
       )}
+      {renderSteamBatch()}
     </>
   );
   const summary = (
     <>
-      <span>{model.resultsUnavailable ? "Results unavailable" : model.resultCount}</span>
+      <span>{model.resultsUnavailable ? "Ports unavailable" : model.resultCount}</span>
       {model.organizationView !== "all" && (
         <span>
           Collection:{" "}

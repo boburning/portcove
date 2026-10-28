@@ -345,6 +345,21 @@
     }
   }
   @container library-query (max-width: 32rem) {
+    .browse-toolbar .collection-readiness {
+      flex-basis: 100%;
+    }
+    .browse-toolbar .browse-sort {
+      flex: 1 1 7rem;
+      width: auto;
+    }
+    .browse-sort [data-slot="select-trigger"] > span[aria-hidden="true"] {
+      display: none;
+    }
+    .continue-card {
+      gap: var(--space-2);
+      padding: var(--space-3);
+      min-block-size: 0;
+    }
     .library-query-tools .filter-row {
       flex-basis: 100%;
       min-width: 0;
@@ -376,7 +391,7 @@
     }
   }
   @container library-query (max-width: 46em) {
-    .discover-grid {
+    .discover-grid.discover-covers {
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
     }
   }

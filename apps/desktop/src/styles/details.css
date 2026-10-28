@@ -318,7 +318,7 @@
       min-width: 0;
     }
     .detail-header-artwork {
-      opacity: 0.45;
+      display: none;
     }
     .detail-overview-support,
     .detail-journey-links {

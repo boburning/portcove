@@ -531,7 +531,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
     failure,
   } = control;
   const finalFocus = () => {
-    if (applying && actionRegion.current?.isConnected) return actionRegion.current;
+    if ((applying || pending) && actionRegion.current?.isConnected) return actionRegion.current;
     if (reviewButton.current?.isConnected && !reviewButton.current.disabled)
       return reviewButton.current;
     return false;

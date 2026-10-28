@@ -299,7 +299,7 @@ export function CatalogFilters({
               variant="ghost"
               onClick={() => {
                 setFilter("all");
-                trigger.current?.focus();
+                close();
               }}
             >
               Clear filters
@@ -346,7 +346,7 @@ export function CatalogFilters({
               <X aria-hidden="true" />
             </ChipButton>
           ))}
-        {activeCount > 0 && (
+        {!open && activeCount > 0 && (
           <Button
             data-focusable
             size="sm"

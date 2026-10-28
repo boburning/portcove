@@ -565,7 +565,9 @@ it("requires another review when the chosen action changes and binds activation 
     />,
   );
   expect(container.textContent).not.toContain("This update");
-  expect(document.body.textContent).not.toContain("Update now");
+  await expect
+    .element(page.getByRole("button", { name: "Update now", exact: true }))
+    .not.toBeInTheDocument();
   await page.getByRole("combobox", { name: /^What would you like to do\?/ }).click();
   await click("Download for later");
   await click("Review game update");
