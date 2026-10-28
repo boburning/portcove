@@ -35,6 +35,36 @@ interface ProcessExit {
   signal: NodeJS.Signals | null;
 }
 
+void test(
+  "Linux child discovery preserves ownership without task children support",
+  {
+    skip: process.platform !== "linux",
+    timeout: 30_000,
+  },
+  async (t) => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-reaper-inventory-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const output = path.join(directory, "inventory-tests");
+    const compiled = spawnSync(
+      "rustc",
+      [
+        "--edition=2024",
+        "--crate-name",
+        "portcove_reaper_inventory",
+        "--test",
+        "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+        "-o",
+        output,
+      ],
+      { encoding: "utf8", timeout: 15_000 },
+    );
+    assert.equal(compiled.status, 0, compiled.stderr);
+    const result = spawnSync(output, [], { encoding: "utf8", timeout: 5_000 });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /4 passed; 0 failed/u);
+  },
+);
+
 void test("supervisor aliased entry refuses missing arguments before native side effects", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-supervisor-entry-"));
   t.after(() => rm(root, { recursive: true, force: true }));
