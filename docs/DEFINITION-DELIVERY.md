@@ -38,6 +38,15 @@ preparation and mutable-runtime exclusions remain in force. Capability and API
 envelope versions remain separate; advertising version 3 grants no publisher,
 installation, protected-delivery or external-profile authority.
 
+Native portable version 4 consumes the Windows `relative-file-max-path` policy.
+It checks authenticated immutable package members and actual selected launch
+coordinates at their final destination before publication or data synchronization.
+It preserves Unicode, counts UTF-16 units with the relative spelling and NUL
+headroom, and does not claim a general long-path fix or external-profile coverage.
+New and retained independent entries declaring this policy require minimum4;
+Direct-only version3 and earlier versions retain their separate meanings. This
+capability grants no additional publisher or protected-operation authority.
+
 Native portable version 2 observes an upstream-owned manual setup completion
 record beneath declared player data. New and retained indexed entries using
 this optional JSON marker require minimum version 2. Core checks bounded regular
