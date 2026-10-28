@@ -1,13 +1,12 @@
 /** One original controller realm owns the persistent Windows credential process. */
 import assert from "node:assert/strict";
 import path from "node:path";
-import { mkdir, open, lstat } from "node:fs/promises";
+import { mkdir, open } from "node:fs/promises";
 import { constants, openSync, closeSync, writeSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import { EventEmitter } from "node:events";
-import { setTimeout as delay } from "node:timers/promises";
 import { requireActualHostedWindowsInstallation } from "./release-hosted-native-windows-installation.mts";
 import { requireActualHostedWindowsDependencies } from "./release-hosted-native-windows-source.mts";
 import {
@@ -36,7 +35,7 @@ import {
   hostedWindowsWorkerAbi,
   inspectHostedWindowsWorkerRequest,
 } from "./release-hosted-native-windows-worker-contract.mts";
-import { isRecord, errorCode } from "./runtime-values.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   requireActualHostedNativeCandidate,
   readActualHostedNativePostSignController,
@@ -51,13 +50,18 @@ import {
   verifyActualHostedNativePostSignPayload,
   requireActualHostedNativePostSignPayload,
 } from "./release-hosted-native-postsign-inputs.mts";
-import { NativeAccountClient } from "./native-qualification-account-client.mts";
 
 import {
   windowsOwnerFiletime as filetime,
   windowsOwnerEnvironment as ownerEnvironment,
   captureWindowsOwnerSupervisor as captureOwnerSupervisor,
   writeWindowsOwnerFrame,
+  readWindowsOwnerRecord,
+  readWindowsOwnerWorkerRecord,
+  copyWindowsOwnerStageFile,
+  establishWindowsOwnerAccount,
+  startWindowsOwnerStageMechanism,
+  settleWindowsOwnerStageMechanism,
 } from "./release-windows-owner-mechanism.mts";
 
 export const hostedWindowsSessionExecutionAuthorized = false;
@@ -148,21 +152,10 @@ async function retain(file: string, value: unknown) {
   return bytes;
 }
 async function readOwner(state: State, name: string) {
-  assert.ok(/^[a-z][a-z0-9-]{0,95}\.json$/u.test(name));
-  const file = path.join(state.root, name);
-  while (true) {
-    active(state);
-    try {
-      const bytes = await readControllerToolFile(file, 16384),
-        value: unknown = JSON.parse(bytes.toString("utf8"));
-      assert.ok(isRecord(value) && value.binding === state.binding);
-      active(state);
-      return { value, bytes, file };
-    } catch (error) {
-      if (!["ENOENT", "EBUSY", "EACCES"].includes(errorCode(error) ?? "")) throw error;
-    }
-    await delay(50);
-  }
+  return readWindowsOwnerRecord(
+    { root: state.root, binding: state.binding, active: () => active(state) },
+    name,
+  );
 }
 function writeFramedFile(state: State, file: string, wire: Record<string, unknown>) {
   active(state);
@@ -397,90 +390,16 @@ export async function startActualHostedWindowsSession(installationReceipt: objec
   );
   void state.running.finally(() => clearTimeout(timer)).catch(() => {});
   try {
-    const ready = await readOwner(state, "owner-ready.json"),
-      received = performance.now(),
-      value = ready.value;
-    assert.ok(
-      Number.isSafeInteger(value.owner_pid) &&
-        Number(value.owner_pid) > 0 &&
-        typeof value.owner_created_filetime === "string" &&
-        typeof value.broker_sid === "string" &&
-        typeof value.sample_ticks === "string" &&
-        typeof value.frequency === "number" &&
-        value.bridge_root === path.join(root, "bridge"),
-    );
-    const pid = Number(value.owner_pid);
-    assert.equal(filetime(readProcessIdentity(pid), pid), value.owner_created_filetime);
-    assert.ok(state.supervisor && state.supervisor.pid);
-    const supervisorIdentity = readProcessIdentity(state.supervisor.pid);
-    assert.ok(supervisorIdentity);
-    state.supervisor.identity = supervisorIdentity;
-    await inspectChildLineage(
-      state,
-      pid,
-      value.owner_created_filetime,
-      state.supervisor.pid,
-      windowsSourceSystemExecutables.powershell,
-    );
-    state.owner = {
-      pid,
-      created: value.owner_created_filetime,
-      broker: value.broker_sid,
-      bridge: String(value.bridge_root),
-    };
-    state.frequency = value.frequency;
-    state.clockSample = value.sample_ticks;
-    state.clockReceived = received;
-    state.fullTicks = hostedWindowsOwnerDeadline(
-      value.sample_ticks,
-      value.frequency,
-      parent.deadline,
-      received,
-    );
-    state.activeTicks = (BigInt(state.fullTicks) - 30n * BigInt(value.frequency)).toString();
-    const bridgeFiles = [
-      "native-qualification-account.cs.txt",
-      "native-qualification-account-bridge.ps1",
-    ].map((name) => path.join(state.owner.bridge, "scripts", name));
-    for (const file of bridgeFiles)
-      assert.ok(
-        (await readControllerToolFile(file, 131072)).equals(
-          await readControllerToolFile(
-            path.join(tools.root, "scripts", path.basename(file)),
-            131072,
-          ),
-        ),
-      );
-    await remember(state, [ready.file, ...bridgeFiles]);
-    writeRequest(state, "owner-start.json", {
-      active_deadline_ticks: state.activeTicks,
-      full_deadline_ticks: state.fullTicks,
+    await establishWindowsOwnerAccount(state, {
+      toolsRoot: tools.root,
+      powershell: windowsSourceSystemExecutables.powershell,
+      read: (name) => readOwner(state, name),
+      remember: (files) => remember(state, files),
+      write: (name, value) => writeRequest(state, name, value),
+      inspectLineage: (...args) => inspectChildLineage(state, ...args),
+      inspectAccount: (enabled) => inspectOriginalHostedWindowsAccount(state, enabled),
+      recheck: () => recheck(state),
     });
-    const account = await readOwner(state, "account-created.json");
-    assert.ok(
-      typeof account.value.sid === "string" &&
-        /^S-1-5-21-[0-9-]+$/u.test(account.value.sid) &&
-        account.value.name === "PortcoveNativeQual" &&
-        account.value.description === `Portcove hosted native ${binding}` &&
-        account.value.enabled === false &&
-        account.value.owner_pid === pid &&
-        account.value.owner_created_filetime === state.owner.created,
-    );
-    state.account = {
-      sid: account.value.sid,
-      description: String(account.value.description),
-      profile: "",
-    };
-    await remember(state, [account.file]);
-    // Independent OS SID/disabled readback is required before this acknowledgment.
-    await inspectOriginalHostedWindowsAccount(state, false);
-    writeRequest(state, "account-ack.json", { account_sid: state.account.sid });
-    const established = await readOwner(state, "account-ready.json");
-    assert.equal(established.value.sid, state.account.sid);
-    assert.ok(typeof established.value.profile_root === "string");
-    state.account.profile = established.value.profile_root;
-    await remember(state, [established.file]);
-    await recheck(state);
     state.phase = "preparing";
     const receipt = Object.freeze({ kind: "original-hosted-windows-session", authority: "none" });
     sessions.set(receipt, state);
@@ -629,46 +548,8 @@ async function readWorkerRecord(
   stage: Stage,
   name: "worker-ready" | "worker-result",
 ) {
-  const marker = path.join(stage.directory, name + ".complete"),
-    file = path.join(stage.directory, name + ".json");
-  while (true) {
-    active(state);
-    try {
-      const failure = await readControllerToolFile(
-        path.join(stage.directory, "worker-failure.json"),
-        16384,
-      );
-      const observed: unknown = JSON.parse(failure.toString("utf8"));
-      assert.ok(
-        isRecord(observed) && observed.schema_version === 1 && observed.authority === "none",
-      );
-      throw new Error(
-        "Original B worker refused; retain bounded worker-failure streams and exit evidence",
-      );
-    } catch (error) {
-      if (!["ENOENT", "EBUSY", "EACCES"].includes(errorCode(error) ?? "")) throw error;
-    }
-    try {
-      const info = await lstat(marker);
-      assert.ok(info.isFile() && !info.isSymbolicLink() && info.nlink === 1 && info.size <= 64);
-      // A fixed-size commit marker is pending until its complete 64-byte write.
-      if (info.size === 64) {
-        const expected = (await readControllerToolFile(marker, 64)).toString("ascii");
-        assert.match(expected, /^[a-f0-9]{64}$/u);
-        const bytes = await readControllerToolFile(file, 16384);
-        assert.equal(hash(bytes), expected);
-        const value: unknown = JSON.parse(bytes.toString("utf8"));
-        assert.ok(isRecord(value) && value.schema_version === 1);
-        active(state);
-        return { value, files: [marker, file] };
-      }
-    } catch (error) {
-      if (!["ENOENT", "EBUSY", "EACCES"].includes(errorCode(error) ?? "")) throw error;
-    }
-    await delay(25);
-  }
+  return readWindowsOwnerWorkerRecord({ active: () => active(state) }, stage.directory, name);
 }
-
 async function inspectOriginalHostedWindowsAccount(state: State, enabled: boolean) {
   recheckWindowsSourceSystemCustody(state.prepared.system_custody);
   assert.ok(state.account);
@@ -753,23 +634,13 @@ async function copyStageFile(
   maximum: number,
   expected: string,
 ) {
-  active(state);
-  const bytes = await readControllerToolFile(source, maximum);
-  assert.equal(hash(bytes), expected);
-  const handle = await open(
+  return copyWindowsOwnerStageFile(
+    { active: () => active(state) },
+    source,
     destination,
-    constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_SYNC,
-    0o600,
+    maximum,
+    expected,
   );
-  try {
-    await handle.writeFile(bytes);
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-  assert.ok((await readControllerToolFile(destination, maximum)).equals(bytes));
-  active(state);
-  return destination;
 }
 async function prepareStage(
   session: object,
@@ -1021,94 +892,19 @@ export async function startActualHostedWindowsStage(stageReceipt: object) {
   assert.ok(state && state.account);
   stage.started = true;
   try {
-    await recheck(state);
-    recheckNativeRuntimeCustody(stage.files, stage.custody);
-    writeRequest(state, stage.kind + "-start.json", {
-      configuration_sha256: stage.binding.configuration_sha256,
-      invocation_id: stage.prepared.request.invocation_id,
-      worker_request_sha256: stage.workerRequestSha,
+    await startWindowsOwnerStageMechanism(state, stage, {
+      invocationId: stage.prepared.request.invocation_id,
+      active: () => active(state),
+      recheck: () => recheck(state),
+      recheckStage: () => recheckNativeRuntimeCustody(stage.files, stage.custody),
+      write: (name, value) => writeRequest(state, name, value),
+      read: (name) => readOwner(state, name),
+      workerRecord: (name) => readWorkerRecord(state, stage, name),
+      remember: (files) => remember(state, files),
+      inspectAccount: (enabled) => inspectOriginalHostedWindowsAccount(state, enabled),
+      inspectLineage: (...args) => inspectChildLineage(state, ...args),
+      frame: (file, value) => writeFramedFile(state, file, value),
     });
-    const record = await readOwner(state, stage.kind + "-station.json");
-    assert.equal(record.value.account_sid, state.account.sid);
-    assert.equal(record.value.enabled, false);
-    const before = await readControllerToolFile(
-        path.join(stage.directory, "station-dacl-before.bin"),
-        16384,
-      ),
-      proposed = await readControllerToolFile(
-        path.join(stage.directory, "station-dacl-proposed.bin"),
-        16384,
-      );
-    stage.station = { before, proposed };
-    await remember(state, [
-      record.file,
-      path.join(stage.directory, "station-dacl-before.bin"),
-      path.join(stage.directory, "station-dacl-proposed.bin"),
-    ]);
-    await inspectOriginalHostedWindowsAccount(state, false);
-    writeRequest(state, stage.kind + "-enable.json", { account_sid: state.account.sid });
-    const bridge = path.join(stage.directory, "bridge-state.json");
-    while (true) {
-      active(state);
-      try {
-        const raw: unknown = JSON.parse(
-          (await readControllerToolFile(bridge, 65536)).toString("utf8"),
-        );
-        assert.ok(
-          isRecord(raw) &&
-            raw.invocation_id === stage.prepared.request.invocation_id &&
-            raw.broker_pid === state.owner.pid &&
-            raw.broker_created_filetime === state.owner.created &&
-            raw.configuration_sha256 === stage.binding.configuration_sha256 &&
-            raw.phase === "prepared",
-        );
-        break;
-      } catch (error) {
-        if (!["ENOENT", "EBUSY", "EACCES"].includes(errorCode(error) ?? "")) throw error;
-      }
-      await delay(50);
-    }
-    const launched = await readOwner(state, stage.kind + "-worker.json");
-    assert.ok(
-      Number.isSafeInteger(launched.value.pid) &&
-        Number(launched.value.pid) > 0 &&
-        typeof launched.value.created_filetime === "string",
-    );
-    assert.equal(launched.value.owner_pid, state.owner.pid);
-    assert.equal(launched.value.owner_created_filetime, state.owner.created);
-    assert.equal(launched.value.image, state.tools.node);
-    assert.equal(launched.value.request_sha256, stage.workerRequestSha);
-    assert.ok(
-      Array.isArray(launched.value.supervisor_job_pids) &&
-        launched.value.supervisor_job_pids.includes(state.owner.pid) &&
-        launched.value.supervisor_job_pids.includes(launched.value.pid),
-    );
-    const ready = await readWorkerRecord(state, stage, "worker-ready");
-    const pid = Number(launched.value.pid),
-      created = launched.value.created_filetime;
-    assert.equal(ready.value.pid, pid);
-    assert.equal(ready.value.created_filetime, created);
-    assert.equal(ready.value.owner_pid, state.owner.pid);
-    assert.equal(ready.value.owner_created_filetime, state.owner.created);
-    assert.equal(ready.value.invocation_id, stage.prepared.request.invocation_id);
-    assert.equal(ready.value.stage, stage.kind);
-    assert.equal(ready.value.request_sha256, stage.workerRequestSha);
-    assert.equal(ready.value.binding_sha256, stage.bindingSha);
-    await inspectChildLineage(state, pid, created, state.owner.pid, state.tools.node);
-    await recheck(state);
-    await inspectOriginalHostedWindowsAccount(state, true);
-    writeFramedFile(state, path.join(stage.directory, "worker-start.json"), {
-      schema_version: 1,
-      pid,
-      created_filetime: created,
-      request_sha256: stage.workerRequestSha,
-      binding_sha256: stage.bindingSha,
-    });
-    assert.equal(filetime(readProcessIdentity(pid), pid), created);
-    stage.worker = { pid, created };
-    await remember(state, [launched.file, ...ready.files]);
-    await inspectOriginalHostedWindowsAccount(state, true);
-    await recheck(state);
     return Object.freeze({
       prepared: stage.prepared,
       directory: stage.directory,
@@ -1136,40 +932,20 @@ export async function settleActualHostedWindowsStage(stageReceipt: object) {
   const state = sessions.get(stage.session);
   assert.ok(state && state.account);
   try {
-    active(state);
-    assert.ok(stage.worker);
-    const result = await readWorkerRecord(state, stage, "worker-result");
-    assert.equal(result.value.pid, stage.worker.pid);
-    assert.equal(result.value.created_filetime, stage.worker.created);
-    assert.equal(result.value.request_sha256, stage.workerRequestSha);
-    assert.equal(result.value.invocation_id, stage.prepared.request.invocation_id);
-    assert.equal(result.value.status, 0);
-    assert.equal(result.value.authority, "none");
-    while (true) {
-      active(state);
-      const identity = readProcessIdentity(stage.worker.pid);
-      if (identity === null) break;
-      assert.equal(filetime(identity, stage.worker.pid), stage.worker.created);
-      await delay(25);
-    }
-    await remember(state, result.files);
-    const client = new NativeAccountClient(
-      stage.binding as unknown as ConstructorParameters<typeof NativeAccountClient>[0],
-    );
-    client.invoke("finish", "stage-finish");
-    const settled = await readOwner(state, stage.kind + "-settled.json");
-    assert.equal(settled.value.account_sid, state.account.sid);
-    assert.equal(settled.value.disabled, true);
-    assert.equal(settled.value.station_restored, true);
-    assert.equal(settled.value.group_empty, true);
-    assert.equal(settled.value.harness_exit_code, 0);
-    assert.equal(settled.value.harness_drained, true);
-    assert.deepEqual(settled.value.broker_job_remaining_pids, [state.owner.pid]);
-    await inspectOriginalHostedWindowsAccount(state, false);
-    assert.ok(stage.station);
-    await verifyStationRestored(state, stage.station.before);
-    await recheck(state);
-    await remember(state, [settled.file]);
+    await settleWindowsOwnerStageMechanism(state, stage, {
+      invocationId: stage.prepared.request.invocation_id,
+      active: () => active(state),
+      recheck: () => recheck(state),
+      recheckStage: () => recheckNativeRuntimeCustody(stage.files, stage.custody),
+      write: (name, value) => writeRequest(state, name, value),
+      read: (name) => readOwner(state, name),
+      workerRecord: (name) => readWorkerRecord(state, stage, name),
+      remember: (files) => remember(state, files),
+      inspectAccount: (enabled) => inspectOriginalHostedWindowsAccount(state, enabled),
+      inspectLineage: (...args) => inspectChildLineage(state, ...args),
+      frame: (file, value) => writeFramedFile(state, file, value),
+      station: (before) => verifyStationRestored(state, before),
+    });
     stage.settled = true;
     state.phase = stage.kind === "payload-signing" ? "await-post" : "finished";
     return Object.freeze({

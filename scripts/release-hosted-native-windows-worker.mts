@@ -33,6 +33,7 @@ import {
 const root = fileURLToPath(new URL("../", import.meta.url));
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export const hostedWindowsStageExecutionAuthorized = false;
+export const hostedWindowsDiagnosticStageExecutionAuthorized = false;
 export function readHostedWindowsWorkerAbi() {
   return {
     abi: hostedWindowsWorkerAbi,
@@ -84,6 +85,37 @@ export async function runHostedWindowsWorkerStage(file: string, expected: string
     hostedWindowsStageExecutionAuthorized,
     "held hosted worker execution awaits separate authority",
   );
+  return runWindowsWorkerStageMechanism(file, expected);
+}
+/** Fixed diagnostic observation lane only; creates no production stage receipt. */
+export function readHostedWindowsDiagnosticWorkerAbi() {
+  return {
+    ...readHostedWindowsWorkerAbi(),
+    execution_authorized: hostedWindowsDiagnosticStageExecutionAuthorized,
+    scope: "separately held connected diagnostic worker only; data only",
+  };
+}
+export async function runHostedWindowsDiagnosticWorkerStage(file: string, expected: string) {
+  assert.ok(
+    hostedWindowsDiagnosticStageExecutionAuthorized,
+    "Connected diagnostic worker awaits exact separate authority",
+  );
+  assert.ok(
+    ["payload-signing", "release-publication"].some(
+      (stage) =>
+        path.resolve(file) ===
+        path.join(
+          root,
+          "work/hosted-windows-connected-diagnostic/owner",
+          stage,
+          "capture/worker-input.json",
+        ),
+    ),
+    "Fixed same-job diagnostic worker input required",
+  );
+  return runWindowsWorkerStageMechanism(file, expected);
+}
+async function runWindowsWorkerStageMechanism(file: string, expected: string) {
   assert.ok(process.platform === "win32" && process.arch === "x64");
   assert.ok(/^[a-f0-9]{64}$/u.test(expected));
   const started = performance.now();

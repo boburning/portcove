@@ -84,6 +84,8 @@ const windowsAssets = Object.freeze([
   "scripts/native-qualification-account-client.ps1",
   "scripts/native-qualification-runtime-observation.psm1",
   "scripts/release-hosted-native-windows-owner.ps1",
+  "scripts/release-hosted-native-windows-owner-mechanism.ps1",
+  "scripts/release-hosted-native-windows-diagnostic-owner.ps1",
   "scripts/release-hosted-native-windows-recovery.ps1",
   "scripts/native-qualification-account-registry.ps1",
   "scripts/fixtures/native-account-gui-probe.ps1",
