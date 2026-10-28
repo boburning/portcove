@@ -1063,13 +1063,16 @@ function PortCardStatus({
   const canLaunch = cardCanLaunch(port, status, action, onLaunch);
   const overflowOrigin = `library:card-more:${port.id}`;
   const reviewOrigin = `${detailOrigin}:review`;
+  const reviewSetup = Boolean(
+    port.pendingSetup || hasPendingSetupAction(status) || installedCardInputPresentation(status),
+  );
   const reviewLabel =
     port.pendingSetup?.state === "attention-required"
       ? "Review download"
       : port.pendingSetup
         ? "Continue setup"
-        : hasPendingSetupAction(status)
-          ? "Finish setup"
+        : reviewSetup
+          ? "Review setup"
           : "Review game";
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
@@ -1099,7 +1102,11 @@ function PortCardStatus({
             aria-label={`${reviewLabel}: ${gameIdentityLabel(port)}`}
             aria-describedby={inputDescriptionId}
             data-detail-origin={reviewOrigin}
-            onClick={() => onSelect(port.id, reviewOrigin)}
+            onClick={() =>
+              reviewSetup
+                ? onSelect(port.id, reviewOrigin, "files")
+                : onSelect(port.id, reviewOrigin)
+            }
           >
             {reviewLabel}
           </Button>

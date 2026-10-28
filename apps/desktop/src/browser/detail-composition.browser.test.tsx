@@ -1,5 +1,6 @@
+import { filterChoice } from "../../test/filter-fields";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
 import App from "../App";
@@ -352,4 +353,22 @@ it.each(["Library", "Discover"])("names and restores the known %s origin", async
   expect(document.activeElement?.getAttribute("data-detail-origin")).toMatch(
     new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`),
   );
+});
+
+it("clears search inline, returns focus and retains the declared platform constraint", async () => {
+  await mount("dark");
+  await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
+  await userEvent.click(await filterChoice("Windows (12)"));
+  await userEvent.keyboard("{Escape}");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  const search = page.getByRole("textbox", { name: "Search your library", exact: true });
+  await search.fill("Harbor");
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
+  await page.getByRole("button", { name: "Clear search", exact: true }).click();
+  await expect.element(search).toHaveValue("");
+  await expect.element(search).toHaveFocus();
+  await expect
+    .element(page.getByRole("button", { name: "Remove Windows filter", exact: true }))
+    .toBeVisible();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
 });

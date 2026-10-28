@@ -101,6 +101,7 @@ function InterfaceSizeControl({ owner }: { owner: InterfaceSizeController }) {
       <p>Enlarge text, artwork and controls together.</p>
       <div className="flex flex-wrap items-end gap-2">
         <ChoiceSelect
+          inline
           label="Interface size"
           value={String(state.requested)}
           onChange={(value) => owner.request(Number(value))}

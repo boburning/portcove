@@ -37,7 +37,7 @@ export function initialDetailSection({
   needsFiles: boolean;
   hasUpdate: boolean;
 }): DetailSection {
-  if (destination) return destination === "updates" ? "versions" : "saves";
+  if (destination) return destination === "updates" ? "versions" : destination;
   if (needsFiles) return "files";
   return hasUpdate ? "versions" : "overview";
 }

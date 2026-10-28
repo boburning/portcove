@@ -486,3 +486,32 @@ it("keeps playable plus matching staged updates independent from attention with 
   await expectReadinessLabel("Readiness Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
 });
+
+it("composes quick views with declared filters and clears only quick-view scope from All games", async () => {
+  flushSync(() => root.render(<Fixture />));
+  const search = page.getByRole("textbox", { name: "Search library", exact: true });
+  await search.fill("game");
+  await openAdvancedFilters("Filters (0)");
+  await userEvent.click(await filterChoice("Windows (2)"));
+  await closeFilters();
+  await page.getByRole("button", { name: "Favorites (2)", exact: true }).click();
+  const quick = page.getByRole("group", { name: "Library quick views", exact: true });
+  await quick.getByRole("button", { name: "Updates", exact: true }).click();
+  await expect
+    .element(quick.getByRole("button", { name: "Updates", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect.element(button("Remove Windows filter")).toBeVisible();
+  await expect.element(button("Remove Available at last check filter")).toBeVisible();
+  await expect.element(button("Remove Matching update staged filter")).toBeVisible();
+  await quick.getByRole("button", { name: "All games", exact: true }).click();
+  await expect.element(search).toHaveValue("game");
+  await expect.element(button("Remove Windows filter")).toBeVisible();
+  await expect.element(button("Remove Available at last check filter")).not.toBeInTheDocument();
+  await expect.element(button("Remove Matching update staged filter")).not.toBeInTheDocument();
+  await expect.element(button("Favorites (2)")).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .element(quick.getByRole("button", { name: "Updates", exact: true }))
+    .toHaveAttribute("aria-pressed", "false");
+  expect(document.querySelectorAll(".collection-entry")).toHaveLength(2);
+  expect(invoke).not.toHaveBeenCalled();
+});
