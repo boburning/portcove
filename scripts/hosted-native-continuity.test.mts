@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm, realpath } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
@@ -651,9 +651,15 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
   );
   assert.ok(isRecord(steps[1]) && String(steps[1].uses).startsWith("actions/checkout@"));
   assert.equal(stop.if, "always()");
-  const root = await mkdtemp(path.join(os.tmpdir(), "pc-hosted-resource-")),
+  const allocated = await mkdtemp(path.join(os.tmpdir(), "pc-hosted-resource-"));
+  // PowerShell binds PSCommandPath to its resolved provider path. Bind this
+  // owned fixture's environment to the same physical root before startup.
+  const root = await realpath(allocated),
     temporary = path.join(root, "runner temp"),
     workspace = path.join(root, "workspace");
+  context.diagnostic(
+    JSON.stringify({ allocated_fixture_root: allocated, physical_fixture_root: root }),
+  );
   await mkdir(temporary);
   await mkdir(workspace);
   const startPath = path.join(root, "start.ps1"),

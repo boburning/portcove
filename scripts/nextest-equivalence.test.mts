@@ -257,6 +257,26 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^preparation_contract::lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay$/) | test(/^preparation_contract::reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
   const intelPreparationFilter =
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/))";
+  const intelObservedLifecycle = [
+    {
+      filter:
+        "package(portcove-core) & (test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/) | test(/^service::tests::backups::recovers_restore_version_synchronized$/) | test(/^service::tests::backups::restore_preserves_its_journal_when_a_retained_save_path_is_a_symlink$/))",
+      periods: 12,
+    },
+    {
+      filter:
+        "package(portcove-cli) & (test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))",
+      periods: 18,
+    },
+  ];
+  for (const { filter, periods } of intelObservedLifecycle) {
+    assert.deepEqual(overrideFor(filter, "x86_64-apple-darwin"), {
+      platform: "x86_64-apple-darwin",
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
+  }
   const intelCuratedRepinFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)";
   assert.deepEqual(overrideFor(intelCuratedRepinFilter, "x86_64-apple-darwin"), {
@@ -317,6 +337,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
       { platform: "x86_64-apple-darwin", filter: intelRecoveryFilter },
+      ...intelObservedLifecycle.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },

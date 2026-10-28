@@ -104,6 +104,25 @@ filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwor
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Qualification40694412355/a1 cut five Intel lifecycle cases off at30.013-
+# 30.024s. Authenticated retention verified its contracts at29.948s; restore
+# reopened at23.403s before its full launch/rollback checks; reviewed preparation
+# finished launch at26.460s; diagnostics began launch at28.851s. Preserve every
+# phase/assertion, cleanup, two slots and zero retries. Exact Core60s and CLI90s
+# harness room matches existing full lifecycle allowances, not product deadlines
+# or a performance improvement. The original failed receipts remain retained.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & (test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/) | test(/^service::tests::backups::recovers_restore_version_synchronized$/) | test(/^service::tests::backups::restore_preserves_its_journal_when_a_retained_save_path_is_a_symlink$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-cli) & (test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # The historical byte-only backup round trip passed in the preceding batch,
 # then hit the Windows30.126s outer cap in run3be9ce8b. Preserve the complete
 # create/review/restore/assertion flow, two workers and zero retries. Exact60s
