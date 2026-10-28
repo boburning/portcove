@@ -156,6 +156,8 @@ pub(crate) struct LifecycleOperation {
     /// Exact registration replaced only by a verified, separately published
     /// native runtime. Absent for ordinary installs and earlier journals.
     pub external_registration_sha256: Option<String>,
+    /// Exact installation identities retained through removal database deletion.
+    pub removal_installs: Option<Vec<InstallRecord>>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -189,6 +191,7 @@ impl LifecycleOperation {
             backup_deletion: None,
             preparation_process_quiesced: None,
             external_registration_sha256: None,
+            removal_installs: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -221,6 +224,12 @@ impl OperationStore {
             operation.backup_deletion.is_some(),
         )?;
         crate::service::game_update_acquisition::validate_journal(&self.library, operation)?;
+        if operation.removal_installs.is_some() && operation.kind != LifecycleOperationKind::Remove
+        {
+            return Err(PortcoveError::state(
+                "removal installation identities belong only to removal",
+            ));
+        }
         operation.updated_at = Library::now();
         for path in operation
             .paths
@@ -244,6 +253,11 @@ impl OperationStore {
             .transpose()?;
         let source_import_json = operation
             .source_import
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let removal_installs_json = operation
+            .removal_installs
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
@@ -283,8 +297,8 @@ impl OperationStore {
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
+               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -302,6 +316,7 @@ impl OperationStore {
                backup_deletion_json=excluded.backup_deletion_json,
                external_registration_sha256=excluded.external_registration_sha256,
                update_acquisition_json=excluded.update_acquisition_json,
+               removal_installs_json=excluded.removal_installs_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at",
@@ -327,6 +342,7 @@ impl OperationStore {
                 backup_deletion_json,
                 operation.external_registration_sha256,
                 update_acquisition_json,
+                removal_installs_json,
             ],
         )?;
         transaction.commit()?;
@@ -359,7 +375,7 @@ impl OperationStore {
         let mut statement = connection.prepare(&format!(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                     install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json
+                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json
              FROM lifecycle_operations
              {where_or_order}"
         ))?;
@@ -386,6 +402,7 @@ impl OperationStore {
                 row.get::<_, Option<String>>(18)?,
                 row.get::<_, Option<String>>(19)?,
                 row.get::<_, Option<String>>(20)?,
+                row.get::<_, Option<String>>(21)?,
             ))
         })?;
         rows.map(|row| {
@@ -411,6 +428,7 @@ impl OperationStore {
                 backup_deletion_json,
                 external_registration_sha256,
                 update_acquisition_json,
+                removal_installs_json,
             ) = row?;
             let kind = kind.parse()?;
             validate_external_replacement(
@@ -443,6 +461,9 @@ impl OperationStore {
                 source_import: source_import_json
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
+                removal_installs: removal_installs_json
+                    .map(|value| serde_json::from_str(&value))
+                    .transpose()?,
                 original_paths: serde_json::from_str(&original_paths_json)?,
                 preparation: preparation_json
                     .map(|value| serde_json::from_str(&value))
@@ -463,6 +484,13 @@ impl OperationStore {
                 created_at,
                 updated_at,
             };
+            if operation.removal_installs.is_some()
+                && operation.kind != LifecycleOperationKind::Remove
+            {
+                return Err(PortcoveError::state(
+                    "removal installation identities belong only to removal",
+                ));
+            }
             crate::service::game_update_acquisition::validate_journal(&self.library, &operation)?;
             Ok(operation)
         })
