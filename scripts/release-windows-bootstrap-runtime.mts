@@ -14,11 +14,14 @@ import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   admitProductionWindowsToolBootstrap,
+  admitProductionNativeParent,
   requireAdmittedProductionSource,
   readProductionControllerWorkflowBytes,
 } from "./production-controller-admission.mts";
 import {
   controllerToolBootstrapProfile,
+  hostedNativeJobProfile,
+  verifyHostedNativeJobIdentity,
   controllerOidcSubject,
   requestAssemblerToken,
   verifyControllerToolBootstrapJobIdentity,
@@ -30,6 +33,7 @@ import {
 } from "./release-native-runtime-custody.mts";
 import { inspectSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
 export const protectedWindowsRuntimePreparationExecutionAuthorized = false;
+export const protectedWindowsNativeRuntimePreparationExecutionAuthorized = false;
 // Sequential download60s + installer300s + disposal/receipt/settlement90s.
 export const protectedWindowsRuntimeHelperMilliseconds = 450000;
 export const protectedWindowsRuntimeFinalizerReserveMilliseconds = 30000;
@@ -77,8 +81,16 @@ export function remainingProtectedWindowsRuntimeWindow(input: {
   return remaining;
 }
 export async function prepareAdmittedWindowsBootstrapRuntime() {
+  return prepareAdmittedWindowsSourceRuntime("bootstrap");
+}
+export async function prepareAdmittedWindowsNativeRuntime() {
+  return prepareAdmittedWindowsSourceRuntime("native");
+}
+async function prepareAdmittedWindowsSourceRuntime(role: "bootstrap" | "native") {
   assert.ok(
-    protectedWindowsRuntimePreparationExecutionAuthorized,
+    role === "bootstrap"
+      ? protectedWindowsRuntimePreparationExecutionAuthorized
+      : protectedWindowsNativeRuntimePreparationExecutionAuthorized,
     "Protected Windows runtime preparation remains held until exact source/configuration/resource authority",
   );
   assert.ok(process.platform === "win32" && process.arch === "x64");
@@ -93,11 +105,21 @@ export async function prepareAdmittedWindowsBootstrapRuntime() {
     )
       throw Error("Role credentials cannot enter runtime source preparation");
   const workflow = await readProductionControllerWorkflowBytes(),
-    source = admitProductionWindowsToolBootstrap(
-      environment.PORTCOVE_CONTROLLER_ADMISSION,
-      environment,
-      workflow,
-    ),
+    jobKey = role === "bootstrap" ? "tool_bootstrap_windows" : "native_windows",
+    source =
+      role === "bootstrap"
+        ? admitProductionWindowsToolBootstrap(
+            environment.PORTCOVE_CONTROLLER_ADMISSION,
+            environment,
+            workflow,
+          )
+        : admitProductionNativeParent(
+            environment.PORTCOVE_CONTROLLER_ADMISSION,
+            environment,
+            workflow,
+            "windows-x86_64",
+            "payload-signing",
+          ),
     system = inspectWindowsSourceSystemCustody();
   const gitEnvironment = {
     PATH: environment.PATH,
@@ -125,7 +147,7 @@ export async function prepareAdmittedWindowsBootstrapRuntime() {
     floor = await readControllerToolFile(floorPath, 65536),
     mechanism = readSupportedRuntimeMechanism(helper);
   const recheck = async () => {
-    requireAdmittedProductionSource(source, "tool_bootstrap_windows", "application");
+    requireAdmittedProductionSource(source, jobKey, "application");
     assert.ok(
       Object.keys(process.env).length === Object.keys(environment).length &&
         Object.keys(environment).every((key) => process.env[key] === environment[key]),
@@ -139,33 +161,42 @@ export async function prepareAdmittedWindowsBootstrapRuntime() {
     recheckWindowsSourceSystemCustody(system);
   };
   await recheck();
-  const profile = controllerToolBootstrapProfile("windows-x86_64"),
+  const bootstrapProfile = controllerToolBootstrapProfile("windows-x86_64"),
+    nativeProfile = hostedNativeJobProfile("windows-x86_64"),
+    profile = role === "bootstrap" ? bootstrapProfile : nativeProfile,
     identityDeadline = performance.now() + 120000,
     token = await requestAssemblerToken(profile.audience, environment, fetch, identityDeadline),
-    identity = await verifyControllerToolBootstrapJobIdentity(
-      token,
-      {
-        audience: profile.audience,
-        subject: controllerOidcSubject(source.execution_ref),
-        controller_revision: source.revision,
-        controller_ref: source.execution_ref,
-        actor_id: source.actor_id,
-        run_id: source.run_id,
-        run_attempt: 1,
-      },
-      { transport: { cwd: project, deadline: identityDeadline } },
-      "windows-x86_64",
-    );
+    expected = {
+      audience: profile.audience,
+      subject:
+        role === "bootstrap"
+          ? controllerOidcSubject(source.execution_ref)
+          : controllerOidcSubject(source.execution_ref, nativeProfile.environment),
+      controller_revision: source.revision,
+      controller_ref: source.execution_ref,
+      actor_id: source.actor_id,
+      run_id: source.run_id,
+      run_attempt: 1,
+    },
+    identity =
+      role === "bootstrap"
+        ? await verifyControllerToolBootstrapJobIdentity(
+            token,
+            expected,
+            { transport: { cwd: project, deadline: identityDeadline } },
+            "windows-x86_64",
+          )
+        : await verifyHostedNativeJobIdentity("windows-x86_64", token, expected, {
+            transport: { cwd: project, deadline: identityDeadline },
+          });
   assert.equal(identity.evidence_scope, "github.com");
   assert.ok(Date.now() < Date.parse(identity.expires_at));
   await recheck();
   const parsed = parseDocument(workflow.toString("utf8"), { uniqueKeys: true });
   assert.equal(parsed.errors.length, 0);
   const document: unknown = parsed.toJS({ maxAliasCount: 100 });
-  assert.ok(
-    isRecord(document) && isRecord(document.jobs) && isRecord(document.jobs.tool_bootstrap_windows),
-  );
-  const minutes = document.jobs.tool_bootstrap_windows["timeout-minutes"];
+  assert.ok(isRecord(document) && isRecord(document.jobs) && isRecord(document.jobs[jobKey]));
+  const minutes = document.jobs[jobKey]["timeout-minutes"];
   assert.ok(Number.isSafeInteger(minutes) && Number(minutes) > 0 && Number(minutes) <= 360);
   const readStarted = performance.now();
   const runner = createGitHubRunner({ cwd: project, maxBuffer: 128 * 1024, timeoutMs: 15000 }),
@@ -281,6 +312,8 @@ export async function prepareAdmittedWindowsBootstrapRuntime() {
   const provenance = {
     schema_version: 1,
     source: source.revision,
+    role,
+    job_key: jobKey,
     tree,
     workflow_sha256: source.workflow_sha256,
     producer: identity,
