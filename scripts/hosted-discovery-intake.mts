@@ -28,6 +28,13 @@ import type { RoadmapInventory } from "./roadmap-inventory.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
 export const hostedRequestMarker = "<!-- portcove-hosted-intake:v1 -->";
+
+export class HostedRoadmapClient extends RoadmapClient {
+  // The bounded transport accepts API calls only; reuse the complete schema reader.
+  override fieldList(number: number) {
+    return { fields: this.completeProjectContext(number).fields };
+  }
+}
 const receiptMarker = (id: number) => `<!-- portcove-hosted-intake-receipt:${id} -->`;
 const object = (v: unknown) => {
   if (!isRecord(v)) throw new Error("Expected structured intake data");
@@ -721,7 +728,7 @@ async function main() {
       endpoint.startsWith(`repos/${config.repository}/issues`);
     return (repoMutation ? repository : project).runner(args, input);
   });
-  const client = new RoadmapClient(config, api);
+  const client = new HostedRoadmapClient(config, api);
   const head = runCheckedGit(["rev-parse", "HEAD"], { cwd: root }).trim();
   const resources = object(object(api.request("GET", "rate_limit").body).resources);
   for (const key of ["core", "graphql"]) {

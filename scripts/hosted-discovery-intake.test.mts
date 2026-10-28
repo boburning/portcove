@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
   HostedIntakeBridge,
+  HostedRoadmapClient,
   parseHostedRequest,
   assertHostedEvent,
   assertHostedReview,
@@ -12,7 +13,7 @@ import {
   assertHostedCatalogIdentity,
 } from "./hosted-discovery-intake.mts";
 import { RoadmapClient, portFieldInitialization, validateConfig } from "./roadmap.mts";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
 
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
@@ -35,6 +36,83 @@ const proposal = {
 };
 const encode = (data: unknown) =>
   `${hostedRequestMarker}\n\`\`\`json\n${JSON.stringify(data)}\n\`\`\``;
+void test("real Project field writes use the complete API schema without CLI commands", () => {
+  let pages = 0;
+  const mutations: unknown[] = [];
+  const project = {
+    id: "PVT_selected",
+    number: config.project.number,
+    title: config.project.title,
+    url: "https://github.com/users/boburning/projects/1",
+    public: true,
+    closed: false,
+  };
+  const client = new HostedRoadmapClient(
+    config,
+    new GitHubApiClient((args, input) => {
+      assert.equal(args[0], "api", "the bounded transport must not receive a CLI command");
+      assert.equal(args[1], "graphql");
+      const request = JSON.parse(input ?? "{}") as {
+        query: string;
+        variables: Record<string, unknown>;
+      };
+      let data: Record<string, unknown>;
+      if (request.query.startsWith("mutation")) {
+        assert.equal(pages, 2, "all schema pages must be read before mutation");
+        mutations.push(request.variables);
+        data = { f0: { projectV2Item: { id: "PVTI_selected" } } };
+      } else if (!request.query.includes("fields(first: 100")) {
+        data = { user: { projectV2: project } };
+      } else {
+        pages++;
+        const first = request.variables.after === null;
+        assert.equal(request.variables.after, first ? null : "next-field");
+        data = {
+          user: {
+            projectV2: {
+              ...project,
+              fields: {
+                totalCount: 2,
+                nodes: first
+                  ? [
+                      {
+                        id: "PVTF_title",
+                        name: "Title",
+                        __typename: "ProjectV2Field",
+                        dataType: "TITLE",
+                      },
+                    ]
+                  : [
+                      {
+                        id: "PVTSSF_priority",
+                        name: "Priority",
+                        __typename: "ProjectV2SingleSelectField",
+                        dataType: "SINGLE_SELECT",
+                        options: [{ id: "none-option", name: "None" }],
+                      },
+                    ],
+                pageInfo: { hasNextPage: first, endCursor: first ? "next-field" : null },
+              },
+            },
+          },
+        };
+      }
+      return `HTTP/2 200 OK\n\n${JSON.stringify({ data })}`;
+    }),
+  );
+  client._ownerType = "User";
+  client.setItemFields("PVTI_selected", { Priority: "None" });
+  assert.deepEqual(mutations, [
+    {
+      input0: {
+        projectId: "PVT_selected",
+        itemId: "PVTI_selected",
+        fieldId: "PVTSSF_priority",
+        value: { singleSelectOptionId: "none-option" },
+      },
+    },
+  ]);
+});
 function fixture() {
   const comments = new Map<
     number,
