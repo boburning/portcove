@@ -62,7 +62,7 @@ struct DelegatedPublicKeys {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct PublicKeyInput {
+pub(super) struct PublicKeyInput {
     path: String,
     sha256: String,
 }
@@ -157,8 +157,8 @@ pub(crate) fn read_input(
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
-        if held.file_attributes() & 0x400 != 0 {
-            return invalid("offline opened input is a reparse point");
+        if held.file_attributes() & 0x400 != 0 || windows_link_count(&file)? != 1 {
+            return invalid("offline opened input is a reparse point or has multiple links");
         }
     }
     #[cfg(unix)]
@@ -174,6 +174,10 @@ pub(crate) fn read_input(
         return invalid("offline opened input grew beyond its byte limit");
     }
     let final_held = file.metadata()?;
+    #[cfg(windows)]
+    if windows_link_count(&file)? != 1 {
+        return invalid("offline held input link count changed");
+    }
     if final_held.len() != held.len() || final_held.modified()? != held.modified()? {
         return invalid("offline held input changed during bounded read");
     }
@@ -199,6 +203,21 @@ pub(crate) fn read_input(
         }
     }
     Ok(bytes)
+}
+
+#[cfg(windows)]
+fn windows_link_count(file: &fs::File) -> Result<u32, TufRepositoryError> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+    };
+    // SAFETY: output is initialized, correctly sized, and the borrowed file
+    // handle remains open throughout the synchronous call.
+    let mut information: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    if unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, &mut information) } == 0 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    Ok(information.nNumberOfLinks)
 }
 
 fn parse<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, TufRepositoryError> {
@@ -262,7 +281,7 @@ fn expected(bytes: &[u8], digest: &str) -> Result<(), TufRepositoryError> {
     Ok(())
 }
 
-fn public_key(base: &Path, input: &PublicKeyInput) -> Result<Key, TufRepositoryError> {
+pub(super) fn public_key(base: &Path, input: &PublicKeyInput) -> Result<Key, TufRepositoryError> {
     let bytes = read_input(
         &resolve(base, &input.path, "public key")?,
         MAX_CONFIG_BYTES,
