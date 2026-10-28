@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  readWindowsUpdateProcessMarker as processMarker,
+  readWindowsUpdateProcessObservation as markedObservation,
+} from "./desktop-installed-update-harness.mts";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import path from "node:path";
@@ -25,8 +29,7 @@ const valid = {
 };
 
 void test("Windows updater marker readers reject malformed identity fields and retain opaque metadata", () => {
-  const read = (input: unknown): unknown =>
-    runInNewContext(`${readers} processMarker(input)`, { assert, path, input });
+  const read = (input: unknown): unknown => processMarker(input);
   assert.equal(JSON.stringify(read(valid)), JSON.stringify(valid));
   for (const input of [
     null,
@@ -39,8 +42,7 @@ void test("Windows updater marker readers reject malformed identity fields and r
     { ...valid, executable: 42 },
   ])
     assert.throws(() => read(input));
-  const observe = (input: unknown): unknown =>
-    runInNewContext(`${readers} markedObservation(input)`, { assert, path, input });
+  const observe = (input: unknown): unknown => markedObservation(input);
   for (const status of ["captured", "exited", "prior-process-exited", "stopped"])
     assert.equal(JSON.stringify(observe({ status, pid: 42 })), JSON.stringify({ status, pid: 42 }));
   for (const input of [
@@ -71,6 +73,8 @@ void test("Windows updater cleanup keeps marker/path validation before identity-
       `${readers} ${cleanup} cleanupMarkedProcess("marker.json", label)`,
       {
         assert,
+        processMarker,
+        markedObservation,
         path,
         staging,
         app,
@@ -110,6 +114,8 @@ void test("Windows updater cleanup keeps marker/path validation before identity-
       `${readers} ${cleanup} cleanupMarkedProcess("marker.json", "helper")`,
       {
         assert,
+        processMarker,
+        markedObservation,
         path,
         staging,
         app,

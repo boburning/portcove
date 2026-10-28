@@ -401,3 +401,81 @@ void test("native harness awaits imported phase observations before execution ad
     /Consume observed metadataPhases/u,
   );
 });
+
+void test("installed update entrypoints consume their imported observation owners", async () => {
+  const policies = [
+    {
+      file: "desktop-windows-update-test.mts",
+      exports: ["readWindowsUpdateProcessMarker", "readWindowsUpdateProcessObservation"],
+    },
+    { file: "desktop-macos-installed-update-test.mts", exports: ["readMacInstalledProcessField"] },
+  ];
+  for (const policy of policies) {
+    const source = stripTypeScriptTypes(
+      await readFile(new URL("../apps/desktop/scripts/" + policy.file, import.meta.url), "utf8"),
+      { mode: "strip" },
+    );
+    function route(code: string) {
+      const syntax = [...nodes(parseAst(code))];
+      const specifiers = syntax
+        .filter(
+          (node) =>
+            node.type === "ImportDeclaration" &&
+            literal(node.source) === "./desktop-installed-update-harness.mts",
+        )
+        .flatMap((node) => {
+          assert.ok(Array.isArray(node.specifiers));
+          return node.specifiers.filter(isRecord);
+        });
+      return policy.exports.map((name) => {
+        const imported = specifiers.find(
+          (node) => (identifier(node.imported) ?? literal(node.imported)) === name,
+        );
+        assert.ok(imported, "Import installed observation owner " + name);
+        const alias = identifier(imported.local);
+        assert.ok(alias);
+        const calls = syntax.filter(
+          (node) => node.type === "CallExpression" && identifier(node.callee) === alias,
+        );
+        assert.ok(calls.length > 0, "Consume imported installed observation owner " + name);
+        return { name, imported, calls };
+      });
+    }
+    for (const owner of route(source)) {
+      const alias = "$observedInstalledInput";
+      const aliased = edit(source, [
+        { ...range(owner.imported), text: JSON.stringify(owner.name) + " as " + alias },
+        ...owner.calls.map((node) => ({ ...range(node.callee), text: alias })),
+      ]);
+      route(aliased);
+      route(
+        'import {hashFile as unusedHash} from "./desktop-installed-update-harness.mts";\n' +
+          aliased,
+      );
+      const bypass = edit(
+        source,
+        owner.calls.map((node) => ({ ...range(node.callee), text: "unreviewedObservation" })),
+      );
+      assert.throws(() => route(bypass), /Consume imported installed observation owner/u);
+      assert.throws(
+        () =>
+          route(
+            bypass +
+              "\n/* " +
+              source.slice(range(owner.calls[0]).start, range(owner.calls[0]).end) +
+              " */",
+          ),
+        /Consume imported installed observation owner/u,
+      );
+      assert.throws(
+        () =>
+          route(
+            edit(source, [
+              { ...range(owner.imported), text: "hashFile as " + identifier(owner.imported.local) },
+            ]),
+          ),
+        /Import installed observation owner/u,
+      );
+    }
+  }
+});
