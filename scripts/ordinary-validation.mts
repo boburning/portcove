@@ -2551,6 +2551,16 @@ function classifyOnePath(
   }
 
   if (
+    ["aqua.yaml", "aqua-checksums.json", ".aqua-version", ".config/tool-bootstrap.json"].includes(
+      file,
+    )
+  ) {
+    selection.scopes.add("script-toolchain");
+    selection.pythonLint = true;
+    selection.pythonFiles.add("apps/desktop/assets/brand/models/v2");
+  }
+
+  if (
     file === ".editorconfig" ||
     file === ".oxfmtrc.json" ||
     file === ".oxlintrc.json" ||
@@ -2822,6 +2832,15 @@ export function buildPlan(
         "check",
         ...sorted(selection.pythonFiles),
       ]),
+    );
+  if (selection.scopes.has("script-toolchain"))
+    commands.push(
+      command(
+        "lint-tool-fixtures",
+        "script toolchain positive and negative controls",
+        process.execPath,
+        ["scripts/lint-tools.integration.mts", "ruff", "shellcheck", "actionlint"],
+      ),
     );
   if (selection.rustfmt || broad)
     commands.push(
