@@ -30,6 +30,40 @@
       "observed_attempt": 1,
       "observed_job": 122675086391,
       "observed_blocking_findings": 2
+    },
+    {
+      "file": "crates/portcove-core/src/install/tests/native_paths.rs",
+      "kind": "Exact Windows path-envelope fixtures in dedicated test-only modules",
+      "values": ["C:\\日本語"],
+      "denied_values": ["C:\\日本語unreviewed"],
+      "denied_files": ["crates/other/src/native_paths.rs"],
+      "source": "8d9d71b30392dc38020d8bfa99bcc43d0064fc6d",
+      "observed_run": 40679645916,
+      "observed_attempt": 1,
+      "observed_job": 122786900408,
+      "observed_blocking_findings": 1
+    },
+    {
+      "file": "crates/portcove-core/src/runtime_path_policy_tests.rs",
+      "kind": "Exact Windows path-envelope fixtures in dedicated test-only modules",
+      "values": [
+        "C:\\Games\\José",
+        "\\\\?\\C:\\Games\\日本語",
+        "\\\\?\\UNC\\server\\games",
+        "C:\\"
+      ],
+      "denied_values": [
+        "C:\\Games\\Joséunreviewed",
+        "\\\\?\\C:\\Games\\日本語unreviewed",
+        "\\\\?\\UNC\\server\\gamesunreviewed",
+        "C:\\unreviewed"
+      ],
+      "denied_files": ["crates/other/src/runtime_path_policy_tests.rs"],
+      "source": "8d9d71b30392dc38020d8bfa99bcc43d0064fc6d",
+      "observed_run": 40679645916,
+      "observed_attempt": 1,
+      "observed_job": 122786900408,
+      "observed_blocking_findings": 4
     }
   ],
   "global_inheritance_control": {

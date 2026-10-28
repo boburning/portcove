@@ -96,9 +96,35 @@ success-output = "immediate"
 # final Adopt/CleanupPending phase began at27.674s; relocation passed34.948s.
 # Extend the same finite60s Intel harness allowance to that exact full fixture.
 # Preserve all publication phases, assertions, slots, cleanup and zero retries.
+# Schedule40679645916/a1 cut source_import at30.019s after its final
+# Adopt/CleanupPending phase began at25.561s. Give this exact sibling the same
+# finite60s allowance; retain the original failed receipt and all eight phases.
 platform = 'x86_64-apple-darwin'
-filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))'
+filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|source_import|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Qualification40694412355/a1 cut five Intel lifecycle cases off at30.013-
+# 30.024s. Authenticated retention verified its contracts at29.948s; restore
+# reopened at23.403s before its full launch/rollback checks; reviewed preparation
+# finished launch at26.460s; diagnostics began launch at28.851s. Preserve every
+# phase/assertion, cleanup, two slots and zero retries. Exact Core60s and CLI90s
+# harness room matches existing full lifecycle allowances, not product deadlines
+# or a performance improvement. The original failed receipts remain retained.
+# Full qualification40722778038/a1 Intel hash1/2 job122942829026 stopped
+# restore_remains_authoritative_after_launch_rollback_and_staged_activation
+# at30.019s after publishing restore at25.440s and completing initial launch.
+# Give this exact progressing fixture the existing60s lifecycle safeguard.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & (test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/) | test(/^service::tests::backups::recovers_restore_version_synchronized$/) | test(/^service::tests::backups::restore_preserves_its_journal_when_a_retained_save_path_is_a_symlink$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-cli) & (test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
 # The historical byte-only backup round trip passed in the preceding batch,

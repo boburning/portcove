@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm, readdir } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm, realpath, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
@@ -653,9 +653,15 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
   );
   assert.ok(isRecord(steps[1]) && String(steps[1].uses).startsWith("actions/checkout@"));
   assert.equal(stop.if, "always()");
-  const root = await mkdtemp(path.join(os.tmpdir(), "pc-hosted-resource-")),
+  const allocated = await mkdtemp(path.join(os.tmpdir(), "pc-hosted-resource-"));
+  // PowerShell binds PSCommandPath to its resolved provider path. Bind this
+  // owned fixture's environment to the same physical root before startup.
+  const root = await realpath(allocated),
     temporary = path.join(root, "runner temp"),
     workspace = path.join(root, "workspace");
+  context.diagnostic(
+    JSON.stringify({ allocated_fixture_root: allocated, physical_fixture_root: root }),
+  );
   await mkdir(temporary);
   await mkdir(workspace);
   const startPath = path.join(root, "start.ps1"),
@@ -961,18 +967,35 @@ void test("instrumentation-only workflow shares the observer with a three-minute
 });
 
 void test("original observer heartbeat refuses stale samples while preserving the same bounded process", async (context) => {
-  const fixture = await hostedResourceObservationFixture(context),
-    started = fixture.invoke(fixture.startPath);
-  assert.equal(started.status, 0, started.stderr || started.stdout);
-  const samplesPath = path.join(fixture.evidence, "samples.jsonl"),
-    original = await readFile(samplesPath, "utf8");
+  const fixture = await hostedResourceObservationFixture(context);
+  const start = await readFile(fixture.startPath, "utf8");
+  const clock = "observed_at=[DateTime]::UtcNow.ToString('o')";
+  assert.equal(start.split(clock).length, 2, "one sampler timestamp boundary");
+  // The real sampler retains exclusive write access until it stops. Supply stale
+  // observations at its clock boundary rather than rewriting its open stream.
   await writeFile(
-    samplesPath,
-    original.replace(/"observed_at":"[0-9]{4}/gu, '"observed_at":"2000'),
+    fixture.startPath,
+    start.replace(clock, "observed_at='2000-01-01T00:00:00.0000000Z'"),
   );
+  const started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const ready = await fixture.read("observer-ready.json");
+  assert.ok(isRecord(ready));
+  const samples = await readFile(path.join(fixture.evidence, "samples.jsonl"), "utf8");
+  assert.match(samples, /"observed_at":"2000-01-01T00:00:00.0000000Z"/u);
   const stale = fixture.invoke(fixture.checkPath);
   assert.notEqual(stale.status, 0);
   assert.match(stale.stderr, /heartbeat stale/u);
+  const same = await fixture.read("observer-ready.json");
+  assert.deepEqual(same, ready, "a refused heartbeat preserves the original observer identity");
+  const inspect = path.join(fixture.root, "same-observer.ps1");
+  await writeFile(
+    inspect,
+    fixture.identityScript(ready.pid, ready.birth_ticks, "Write-Output 'same original observer'"),
+  );
+  const original = fixture.invoke(inspect);
+  assert.equal(original.status, 0, original.stderr || original.stdout);
+  assert.equal(original.stdout.trim(), "same original observer");
 });
 
 void test("connected diagnostic workflow stays source-held and writes exactly the four fixed public upload paths", async (t) => {

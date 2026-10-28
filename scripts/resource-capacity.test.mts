@@ -896,19 +896,47 @@ void test("pending handover queues new payloads without acquiring retirement gua
   );
   assert.equal((await observeCapacity({ root })).running.length, 0);
   assert.deepEqual(await readdir(path.join(root, "queue")), []);
+  const controller = new AbortController();
+  const observed = Promise.withResolvers<void>();
+  const transition = Promise.withResolvers<void>();
   const pending = acquireResourceCapacity(
     "rust",
     {},
-    isolated(root, { pollMs: 25, report: () => {} }),
+    isolated(root, {
+      pollMs: 25,
+      signal: controller.signal,
+      report: () => {},
+      legacyBlocker: async () => {
+        // The ordinary config reader has closed before this existing seam.
+        // Pause one poll so the fixture's atomic handover cannot race that
+        // Windows file handle. Admission still observes the real next config.
+        observed.resolve();
+        await transition.promise;
+        return null;
+      },
+    }),
   );
-  while (!(await readdir(path.join(root, "queue"))).length)
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  const nextConfig = path.join(root, "config-next.json");
-  await writeFile(nextConfig, JSON.stringify({ legacyMode: "coordinated" }), { flag: "wx" });
-  await rename(nextConfig, path.join(root, "config.json"));
-  const lease = await pending;
-  assert.equal(lease.inherited, false);
-  await lease.release();
+  try {
+    await Promise.race([
+      observed.promise,
+      pending.then(() => assert.fail("Pending handover must not admit payloads")),
+    ]);
+    assert.equal((await readdir(path.join(root, "queue"))).length, 1);
+    assert.equal((await observeCapacity({ root })).running.length, 0);
+    const nextConfig = path.join(root, "config-next.json");
+    await writeFile(nextConfig, JSON.stringify({ legacyMode: "coordinated" }), { flag: "wx" });
+    await rename(nextConfig, path.join(root, "config.json"));
+    transition.resolve();
+    const lease = await pending;
+    assert.equal(lease.inherited, false);
+  } finally {
+    // Even failed transition/assertions must drain this owned asynchronous
+    // admission before the fixture's registered directory cleanup.
+    transition.resolve();
+    controller.abort();
+    const [settled] = await Promise.allSettled([pending]);
+    if (settled?.status === "fulfilled") await settled.value.release();
+  }
 });
 
 void test("unavailable process identity waits conservatively and never becomes capacity", async (t) => {
