@@ -12,14 +12,14 @@ interface DesignCompatibilityOptions {
   By: typeof SeleniumBy;
   Key: typeof SeleniumKey;
   until: typeof seleniumUntil;
-  embeddedMacKeyboard?: boolean;
+  selectActivationKey?: string;
 }
 export async function assertDesignCompatibility({
   browser,
   By,
   Key,
   until,
-  embeddedMacKeyboard = false,
+  selectActivationKey = Key.ENTER,
 }: DesignCompatibilityOptions) {
   const fixtureLocator = By.css(".design-compatibility-fixture");
   await browser.wait(until.elementLocated(fixtureLocator), 15_000);
@@ -218,14 +218,7 @@ export async function assertDesignCompatibility({
   // Element sendKeys refocuses the trigger and dismisses an aligned open Select.
   // Deliver Escape to the current popup focus, as a keyboard user does.
   const sendEscape = () => browser.actions().sendKeys(Key.ESCAPE).perform();
-  if (embeddedMacKeyboard) {
-    // The qualification-only embedded driver focuses buttons for element sendKeys
-    // but dispatches key events through WebDriver actions.
-    await selectTrigger.sendKeys(Key.ARROW_DOWN);
-    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
-  } else {
-    await selectTrigger.sendKeys(Key.ENTER);
-  }
+  await selectTrigger.sendKeys(selectActivationKey);
   try {
     await browser.wait(
       async () => (await fixture.getAttribute("data-select-open")) === "true",
