@@ -221,6 +221,28 @@ Restore review and again before canonical publication. Actual restore separately
 checks mod conflicts at its existing mutation boundary. Closed legacy coordinate
 interpretations remain separate.
 
+Generated-cache maintenance verifies the complete runtime with the existing strict
+manifest traversal and its exact retained mutable scope before synchronization,
+replacement or removal. New catalog paths cannot enroll populated output from an
+older runtime. Unclaimed saves/recovery witnesses, changed immutable files,
+redirects, missing retained authority or unidentified roots hold the operation
+while preserving runtime and player data. Unlaunched and inactive copies are
+included in backup safety checks; absence of Core's launch marker proves no
+absence of output. These refusals do not qualify a newer writer or authorize
+populated-data adoption. Resume requires a separately supported data transition
+or preservation/review of the reported additions.
+
+Library schema 43 retains the existing installation records in removal journals,
+bound one-to-one to the original paths. Recovery verifies live or quarantined
+bytes against those same manifest identities before renames, database deletion
+and cleanup; relocation does not rewrite the manifest. Historical intents may
+recover this binding from authenticated database rows while they remain. Once
+those rows are gone, a historical journal without retained identities cannot
+classify its quarantine safely, even if today's catalog changed or removed the
+port. It preserves quarantine and journal for review instead of guessing cleanup
+authority. Contractless historical runtimes likewise require review. This is a
+conservative recovery hold, not a claim of observed loss or automatic migration.
+
 Forward empty-only expansion stays within the existing ready-archive transaction.
 It requires authenticated retained authority, compatible unchanged source/launch
 coordinates and patterns, an immutable-manifest/executable-companion check, and

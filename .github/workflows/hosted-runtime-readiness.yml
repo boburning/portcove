@@ -2,6 +2,10 @@ name: Hosted Windows runtime readiness
 on:
   workflow_dispatch:
     inputs:
+      use_standalone_installer:
+        description: Select the source-gated standalone proposal; this input grants no execution authority
+        type: boolean
+        default: false
       include_native_drivers:
         description: Also qualify the bounded cold and warm Windows driver setup
         type: boolean
@@ -22,7 +26,11 @@ jobs:
           persist-credentials: false
       - name: Prepare and read back the maintained shipping engine floor
         shell: pwsh
-        run: ./scripts/prepare-hosted-windows-runtime.ps1
+        env:
+          PORTCOVE_RUNTIME_STANDALONE: ${{ inputs.use_standalone_installer }}
+        run: |
+          $taskStandalone = $env:PORTCOVE_RUNTIME_STANDALONE -ceq 'true'
+          ./scripts/prepare-hosted-windows-runtime.ps1 -UseStandaloneInstaller:$taskStandalone
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: inputs.include_native_drivers
         with:

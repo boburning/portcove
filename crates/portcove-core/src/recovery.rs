@@ -357,9 +357,47 @@ pub(crate) fn recover_removal(
         &service.library.connection()?,
         &operation.port_id,
     )?;
+    // Preserve more specific recovery-data refusals before classifying legacy intent.
     for paths in removal.paths(&service.library)? {
         crate::managed_tfe::require_no_recovery_data(&paths.live)?;
         crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+    }
+    // Old journals can recover identities only while authenticated database rows remain.
+    // After deletion, unbound quarantine bytes cannot grant their own cleanup authority.
+    if operation.removal_installs.is_none() && !operation.original_paths.is_empty() {
+        let original = removal
+            .paths(&service.library)?
+            .into_iter()
+            .map(|paths| paths.live)
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut records = Vec::new();
+        for install in service.library.all_installs()? {
+            if install.port_id == operation.port_id
+                && original.contains(
+                    &crate::output_root::removal_paths(
+                        &service.library,
+                        &operation.port_id,
+                        &operation.id,
+                        &install.path,
+                    )?
+                    .live,
+                )
+            {
+                records.push(install);
+            }
+        }
+        if records.len() != operation.original_paths.len() {
+            return Err(PortcoveError::verification(
+                "Historical removal recovery lacks retained installation identities; preserve quarantine and journal for review",
+            ));
+        }
+        operation.removal_installs = Some(records);
+        removal = RemovalOperation::decode(&service.library, operation)?;
+        removal.require_retained_outputs(service, operation)?;
+        store.put(operation)?;
+    }
+    if !operation.original_paths.is_empty() {
+        removal.require_retained_outputs(service, operation)?;
     }
     if removal.phase == RemovalPhase::Quarantining {
         if operation.original_paths.is_empty() {
@@ -393,6 +431,7 @@ pub(crate) fn recover_removal(
         for paths in removal.paths(&service.library)? {
             crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
         }
+        removal.require_retained_outputs(service, operation)?;
         service.library.remove_port(&operation.port_id)?;
         removal.advance(RemovalPhase::Committed, operation, store)?;
     }
@@ -400,6 +439,7 @@ pub(crate) fn recover_removal(
         removal.phase,
         RemovalPhase::Committed | RemovalPhase::CleanupPending
     ) {
+        removal.require_retained_outputs(service, operation)?;
         let cleanup_roots = removal
             .paths(&service.library)?
             .into_iter()

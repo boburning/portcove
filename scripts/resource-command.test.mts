@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, readFile as readConfiguration } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { acquireResourceCapacity, frontendOutputResource } from "./resource-capacity.mts";
@@ -8,6 +8,252 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runResourceCommand, bootstrapOutputResources } from "./resource-command.mts";
 import { nativeBuildCommand } from "./native-build.mts";
+import {
+  hostTransitionConfiguration,
+  replaceResourceConfiguration,
+  commitConfigurationTransaction,
+  recoveryConfigurationChanges,
+} from "./resource-adoption.mts";
+import type { TransitionReceipt } from "./resource-adoption.mts";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { randomUUID } from "node:crypto";
+import { localNodeResourceProfile, parseNodeTestSuites } from "./node-test-suites.mts";
+
+async function transactionFixture(t: import("node:test").TestContext): Promise<TransitionReceipt> {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "resource-transaction-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const linuxRoot = path.join(directory, "linux"),
+    windowsRoot = path.join(directory, "windows");
+  await fs.promises.mkdir(linuxRoot);
+  await fs.promises.mkdir(windowsRoot);
+  const files = [
+    path.join(linuxRoot, "config.json"),
+    path.join(windowsRoot, "config.json"),
+    path.join(linuxRoot, "scratch.json"),
+    path.join(windowsRoot, "scratch.json"),
+  ];
+  const changes = files.map((file, index) => ({
+    file,
+    previous:
+      index < 2
+        ? '{"slots":2,"legacyMode":"coordinated"}\n'
+        : index === 2
+          ? null
+          : '{"profile":"previous"}\n',
+    next:
+      index < 2
+        ? '{"slots":1,"legacyMode":"coordinated","nodeSuites":true}\n'
+        : '{"profile":"next"}\n',
+  }));
+  for (const change of changes)
+    if (change.previous !== null) await writeFile(change.file, change.previous);
+  return {
+    format: 1,
+    operation: "adopt",
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    linuxRoot,
+    windowsRoot,
+    windowsNativeRoot: "Z:\\fixture\\resources",
+    changes,
+    bridge: {
+      closureSha256: "0".repeat(64),
+      executable: "/mnt/z/node.exe",
+      script: "Z:\\fixture\\scripts\\bridge.mts",
+      distribution: "FixtureLinux",
+      user: "developer",
+      node: "/usr/bin/node",
+      probe: "/fixture/scripts/bridge.mts",
+    },
+  };
+}
+
+async function assertPredecessor(receipt: TransitionReceipt) {
+  for (const change of receipt.changes) {
+    if (change.previous === null)
+      await assert.rejects(readConfiguration(change.file), { code: "ENOENT" });
+    else assert.equal(await readConfiguration(change.file, "utf8"), change.previous);
+  }
+}
+
+void test("host transaction applies, leaves repeated adoption unchanged, and restores settled preimages", async (t) => {
+  const receipt = await transactionFixture(t);
+  const file = commitConfigurationTransaction(receipt);
+  assert.ok(file);
+  for (const change of receipt.changes)
+    assert.equal(await readConfiguration(change.file, "utf8"), change.next);
+  const before = await fs.promises.readdir(path.dirname(file));
+  assert.equal(
+    commitConfigurationTransaction({
+      ...receipt,
+      id: randomUUID(),
+      changes: receipt.changes.map((change) => ({ ...change, previous: change.next })),
+    }),
+    null,
+  );
+  assert.deepEqual(await fs.promises.readdir(path.dirname(file)), before);
+  commitConfigurationTransaction({
+    ...receipt,
+    id: randomUUID(),
+    operation: "rollback",
+    changes: receipt.changes.map((change) => ({
+      file: change.file,
+      previous: change.next,
+      next: change.previous,
+    })),
+  });
+  await assertPredecessor(receipt);
+});
+
+void test("host transaction recovery restores every recognized interrupted phase", async (t) => {
+  const pending = '{\n  "slots": 2,\n  "legacyMode": "pending"\n}\n';
+  for (const phase of [
+    ["pending", "old", "old", "old"],
+    ["pending", "pending", "old", "old"],
+    ["pending", "pending", "next", "old"],
+    ["pending", "pending", "next", "next"],
+    ["next", "pending", "next", "next"],
+    ["next", "next", "next", "next"],
+  ]) {
+    const receipt = await transactionFixture(t);
+    for (let index = 0; index < phase.length; index++) {
+      const change = receipt.changes[index]!;
+      const value =
+        phase[index] === "pending"
+          ? pending
+          : phase[index] === "next"
+            ? change.next
+            : change.previous;
+      if (value !== null) await writeFile(change.file, value);
+    }
+    commitConfigurationTransaction({
+      ...receipt,
+      id: randomUUID(),
+      operation: "recover",
+      changes: recoveryConfigurationChanges(receipt.changes),
+    });
+    await assertPredecessor(receipt);
+  }
+});
+
+void test("original receipt recovers a recovery interrupted at either pending configuration", async (t) => {
+  for (const pendingCount of [1, 2]) {
+    const receipt = await transactionFixture(t);
+    commitConfigurationTransaction(receipt);
+    for (let index = 0; index < pendingCount; index++) {
+      const change = receipt.changes[index]!;
+      await writeFile(
+        change.file,
+        JSON.stringify(
+          {
+            ...JSON.parse(change.next!),
+            legacyMode: "pending",
+          },
+          null,
+          2,
+        ) + "\n",
+      );
+    }
+    commitConfigurationTransaction({
+      ...receipt,
+      id: randomUUID(),
+      operation: "recover",
+      changes: recoveryConfigurationChanges(receipt.changes),
+    });
+    await assertPredecessor(receipt);
+  }
+});
+
+void test("host transaction recovery preserves foreign edits without writing any other file", async (t) => {
+  const receipt = await transactionFixture(t);
+  await writeFile(receipt.changes[3]!.file, "foreign retained bytes");
+  const before = receipt.changes.map((change) =>
+    fs.existsSync(change.file) ? fs.readFileSync(change.file, "utf8") : null,
+  );
+  assert.throws(
+    () => recoveryConfigurationChanges(receipt.changes),
+    /Unknown interrupted-transition preimage/u,
+  );
+  assert.deepEqual(
+    receipt.changes.map((change) =>
+      fs.existsSync(change.file) ? fs.readFileSync(change.file, "utf8") : null,
+    ),
+    before,
+  );
+});
+
+void test("host transaction restores touched preimages after a real mid-publication failure", async (t) => {
+  const receipt = await transactionFixture(t),
+    original = fs.renameSync;
+  let injected = false;
+  const replacement: typeof fs.renameSync = (from, to) => {
+    if (!injected && to === receipt.changes[3]!.file) {
+      injected = true;
+      throw Object.assign(new Error("fixture publication failure"), { code: "EACCES" });
+    }
+    original(from, to);
+  };
+  const hook = t.mock.method(fs, "renameSync", replacement);
+  syncBuiltinESMExports();
+  try {
+    assert.throws(() => commitConfigurationTransaction(receipt), /fixture publication failure/u);
+  } finally {
+    hook.mock.restore();
+    syncBuiltinESMExports();
+  }
+  assert.equal(injected, true);
+  await assertPredecessor(receipt);
+});
+
+void test("host transition preserves predecessor policy and refuses changed configuration preimages", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "host-transition-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const file = path.join(root, "config.json"),
+    previous = '{"slots":2}';
+  await writeFile(file, previous);
+  replaceResourceConfiguration(file, previous, '{"slots":1}');
+  assert.equal(await readConfiguration(file, "utf8"), '{"slots":1}');
+  assert.throws(() => replaceResourceConfiguration(file, previous, null), /Configuration changed/u);
+  assert.equal(await readConfiguration(file, "utf8"), '{"slots":1}');
+  const policy = {
+    slots: 2,
+    waitMs: 1234,
+    legacyRoots: [root],
+    legacyMode: "coordinated" as const,
+  };
+  assert.deepEqual(hostTransitionConfiguration(policy), { ...policy, slots: 1, nodeSuites: true });
+  assert.throws(
+    () => hostTransitionConfiguration({ ...policy, legacyMode: "pending" }),
+    /pending transition/u,
+  );
+  replaceResourceConfiguration(file, '{"slots":1}', null);
+  await assert.rejects(readConfiguration(file), { code: "ENOENT" });
+});
+
+void test("local Node resource metadata preserves cheap known selections and covers heavy or unknown work", () => {
+  const registry = parseNodeTestSuites(
+    JSON.stringify({
+      format_version: 1,
+      suites: {
+        cheap: { arguments: ["--test"], files: ["scripts/report-summary.test.mts"] },
+        heavy: {
+          arguments: ["--test"],
+          files: ["scripts/resource-capacity.test.mts"],
+          localResourceProfile: "analysis",
+        },
+      },
+    }),
+  );
+  assert.equal(localNodeResourceProfile(["scripts/report-summary.test.mts"], registry), undefined);
+  for (const files of [
+    [],
+    ["scripts/unknown.test.mts"],
+    ["scripts/resource-capacity.test.mts"],
+    ["scripts/report-summary.test.mts", "scripts/resource-capacity.test.mts"],
+  ])
+    assert.equal(localNodeResourceProfile(files, registry), "analysis");
+});
 
 void test("resource command delegates unchanged payload/cwd and failure to the existing supervisor", async () => {
   const status = await runResourceCommand(

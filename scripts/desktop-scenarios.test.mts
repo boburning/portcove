@@ -36,6 +36,7 @@ function sourceFunction(value: unknown) {
   };
 }
 import { errorCode, isRecord } from "./runtime-values.mts";
+import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 import "../apps/desktop/scripts/desktop-completion-focus.native.test.mts";
 import { assertReviewFieldPresentation } from "../apps/desktop/scripts/desktop-review-presentation.mts";
 import assert from "node:assert/strict";
@@ -1062,115 +1063,141 @@ void test("external tree hash is ordered, byte-sensitive and refuses unsafe path
 
 void test("external picker observation leaves immutable Tauri internals untouched and preserves failures", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-unmodified-"));
+  // The parent retains cleanup ownership even when the controlled child times out.
   t.after(() => rm(root, { recursive: true, force: true }));
-  for (const refused of [false, true]) {
-    const output = path.join(root, refused ? "refused" : "cancelled");
-    await mkdir(output);
-    const fixture = await createExternalRuntimeFixture(output);
-    const original = () => assert.fail("Picker observation must not invoke Tauri internals");
-    const internals = Object.freeze({ invoke: original });
-    const failure = new Error("original owned helper failure");
-    let chosen = 0;
-    let selected = 0;
-    const document: { activeElement: unknown; elementFromPoint: () => unknown } = {
-      activeElement: undefined,
-      elementFromPoint: () => identity,
-    };
-    const identity = {
-      closest: () => null,
-      getAnimations: () => [],
-      focus: () => {
-        document.activeElement = identity;
-      },
-      scrollIntoView: () => {},
-      getBoundingClientRect: () => ({ x: 0, y: 0, width: 40, height: 40 }),
-      contains: () => false,
-      isDisplayed: async () => true,
-      isEnabled: async () => true,
-      click: async () => {
-        selected++;
-      },
-    };
-    const group = {
-      getAttribute: async (name: string) => {
-        assert.ok(["data-discover-port-ids", "data-discover-matching-port-ids"].includes(name));
-        return JSON.stringify([fixture.port.id]);
-      },
-      findElement: async (locator: { value: string }) => {
-        assert.equal(locator.value, ".discover-game-identity");
-        return identity;
-      },
-    };
-    const browser = {
-      executeScript: async (script: unknown, ...args: unknown[]) => {
-        assert.ok(typeof script === "string" || typeof script === "function");
-        const body =
-          typeof script === "string"
-            ? `(function () { ${script} }).apply(undefined, args)`
-            : `(${script.toString()})(...args)`;
-        return runInNewContext(body, {
-          args,
-          document,
-          window: Object.freeze({ __TAURI_INTERNALS__: internals }),
-        });
-      },
-      wait: async (condition: unknown) => {
-        if (typeof condition === "function") {
-          const value = await sourceFunction(condition)(browser);
-          assert.ok(value, "The real grouped selection wait must settle");
-          return value;
-        }
-        const observation = object(condition);
-        if (typeof observation.fn === "function") {
-          const value = await sourceFunction(observation.fn)(browser);
-          assert.ok(value, "The real native visibility/location wait must settle");
-          return value;
-        }
-        assert.equal(typeof observation.value, "string");
-        return true;
-      },
-      findElements: async (locator: { value: string }) => {
-        if (locator.value === ".discover-game[data-discover-port-ids]") return [group];
-        assert.equal(
-          locator.value,
-          `[data-detail-workspace][data-detail-port-id="${fixture.port.id}"]`,
-        );
-        assert.equal(selected, 1, "The exact Discover identity must open before details settle");
-        return [{}];
-      },
-      findElement: (locator: { value: string }) => ({
-        click: async () => {
-          if (locator.value.includes("Choose game folder")) {
-            assert.equal(selected, 1);
-            chosen++;
-          }
-        },
-        sendKeys: async () => {},
-        isEnabled: async () => true,
-      }),
-    };
-    const pickerContext = {
-      browser,
-      By: { xpath: (value: string) => ({ value }), id: (value: string) => ({ value }) },
-      Key: {
-        chord: (...keys: string[]) => keys.join(""),
-        CONTROL: "control",
-        BACK_SPACE: "backspace",
-      },
-      until: { elementLocated: (locator: unknown) => locator },
-      fixture,
-      observePicker: async () => {
-        assert.equal(chosen, 1);
-        if (refused) throw failure;
-        return { cancelled: true };
-      },
-    };
-    // @ts-expect-error This call-order fixture deliberately models only the used driver/locator capabilities.
-    const action = externalRuntimePickerObservation(pickerContext);
-    if (refused) await assert.rejects(action, (error) => error === failure);
-    else assert.equal((await action).cancelled, true);
-    assert.equal(internals.invoke, original);
+  async function observeOriginalPicker(root: string) {
+    try {
+      for (const refused of [false, true]) {
+        const output = path.join(root, refused ? "refused" : "cancelled");
+        await mkdir(output);
+        const fixture = await createExternalRuntimeFixture(output);
+        const original = () => assert.fail("Picker observation must not invoke Tauri internals");
+        const internals = Object.freeze({ invoke: original });
+        const failure = new Error("original owned helper failure");
+        let chosen = 0;
+        let selected = 0;
+        const document: { activeElement: unknown; elementFromPoint: () => unknown } = {
+          activeElement: undefined,
+          elementFromPoint: () => identity,
+        };
+        const identity = {
+          closest: () => null,
+          getAnimations: () => [],
+          focus: () => {
+            document.activeElement = identity;
+          },
+          scrollIntoView: () => {},
+          getBoundingClientRect: () => ({ x: 0, y: 0, width: 40, height: 40 }),
+          contains: () => false,
+          isDisplayed: async () => true,
+          isEnabled: async () => true,
+          click: async () => {
+            selected++;
+          },
+        };
+        const group = {
+          getAttribute: async (name: string) => {
+            assert.ok(["data-discover-port-ids", "data-discover-matching-port-ids"].includes(name));
+            return JSON.stringify([fixture.port.id]);
+          },
+          findElement: async (locator: { value: string }) => {
+            assert.equal(locator.value, ".discover-game-identity");
+            return identity;
+          },
+        };
+        const browser = {
+          executeScript: async (script: unknown, ...args: unknown[]) => {
+            assert.ok(typeof script === "string" || typeof script === "function");
+            const body =
+              typeof script === "string"
+                ? `(function () { ${script} }).apply(undefined, args)`
+                : `(${script.toString()})(...args)`;
+            return runInNewContext(body, {
+              args,
+              document,
+              window: Object.freeze({ __TAURI_INTERNALS__: internals }),
+            });
+          },
+          wait: async (condition: unknown) => {
+            if (typeof condition === "function") {
+              const value = await sourceFunction(condition)(browser);
+              assert.ok(value, "The real grouped selection wait must settle");
+              return value;
+            }
+            const observation = object(condition);
+            if (typeof observation.fn === "function") {
+              const value = await sourceFunction(observation.fn)(browser);
+              assert.ok(value, "The real native visibility/location wait must settle");
+              return value;
+            }
+            assert.equal(typeof observation.value, "string");
+            return true;
+          },
+          findElements: async (locator: { value: string }) => {
+            if (locator.value === ".discover-game[data-discover-port-ids]") return [group];
+            assert.equal(
+              locator.value,
+              `[data-detail-workspace][data-detail-port-id="${fixture.port.id}"]`,
+            );
+            assert.equal(
+              selected,
+              1,
+              "The exact Discover identity must open before details settle",
+            );
+            return [{}];
+          },
+          findElement: (locator: { value: string }) => ({
+            click: async () => {
+              if (locator.value.includes("Choose game folder")) {
+                assert.equal(selected, 1);
+                chosen++;
+              }
+            },
+            sendKeys: async () => {},
+            isEnabled: async () => true,
+          }),
+        };
+        const pickerContext = {
+          browser,
+          By: { xpath: (value: string) => ({ value }), id: (value: string) => ({ value }) },
+          Key: {
+            chord: (...keys: string[]) => keys.join(""),
+            CONTROL: "control",
+            BACK_SPACE: "backspace",
+          },
+          until: { elementLocated: (locator: unknown) => locator },
+          fixture,
+          observePicker: async () => {
+            assert.equal(chosen, 1);
+            if (refused) throw failure;
+            return { cancelled: true };
+          },
+        };
+        // @ts-expect-error This call-order fixture deliberately models only the used driver/locator capabilities.
+        const action = externalRuntimePickerObservation(pickerContext);
+        if (refused) await assert.rejects(action, (error) => error === failure);
+        else assert.equal((await action).cancelled, true);
+        assert.equal(internals.invoke, original);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   }
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-external-runtime-test.mts",
+    import.meta.url,
+  );
+  const program = `
+    import path from 'node:path';
+    import {mkdir,rm} from 'node:fs/promises';
+    import {runInNewContext} from 'node:vm';
+    const {isRecord} = await import(new URL('../../../scripts/runtime-values.mts',entry).href);
+    const {createExternalRuntimeFixture,externalRuntimePickerObservation} = await import(entry);
+    const object = ${object.toString()};
+    const sourceFunction = ${sourceFunction.toString()};
+    await (${observeOriginalPicker.toString()})(${JSON.stringify(root)});
+  `;
+  runDesktopModuleFixture(entry, program);
 });
 
 void test("external runtime journey retains a failed dispatcher picker phase before later actions", async (t) => {
