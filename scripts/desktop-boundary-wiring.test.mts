@@ -549,17 +549,16 @@ void test("preparation and artwork scenarios consume their tested owner seams", 
             ),
         );
         assert.ok(activityReader, "Retain actual Activity inventory reader");
-        const block = body.find(
-          (node) =>
-            node.type === "BlockStatement" &&
-            Array.isArray(node.body) &&
-            node.body.some((statement) =>
-              [...nodes(statement)].some((child) => awaited(child) === calls[0]),
-            ) &&
-            node.body.every(
-              (statement) => isRecord(statement) && statement.type !== "TryStatement",
-            ),
-        );
+        const block = body
+          .filter(
+            (node) =>
+              node.type === "BlockStatement" &&
+              [...nodes(node)].some((child) => awaited(child) === calls[0]),
+          )
+          .sort(
+            (left, right) =>
+              range(left).end - range(left).start - (range(right).end - range(right).start),
+          )[0];
         assert.ok(block && Array.isArray(block.body), "Locate recovery statement block");
         const statements = block.body.filter(isRecord);
         const settlement = statements.findIndex((statement) =>
