@@ -34,11 +34,6 @@ on:
         description: Exact qualified candidate revision.
         value: ${{ jobs.qualify.outputs.checkout }}
   workflow_dispatch:
-    inputs:
-      diagnostic_macos_contracts:
-        description: Temporary isolated Audit01 diagnostics; never full qualification.
-        type: boolean
-        default: false
   schedule:
     - cron: "17 5 * * *"
 
@@ -53,7 +48,6 @@ concurrency:
 
 jobs:
   qualify:
-    if: ${{ !inputs.diagnostic_macos_contracts }}
     permissions:
       contents: read
       actions: read
@@ -65,78 +59,3 @@ jobs:
       qualification_caller: ${{ inputs.qualification_caller || github.event_name }}
       caller_workflow: ${{ inputs.caller_workflow || 'qualification.yml' }}
       provenance_scope: ${{ inputs.provenance_scope || 'qualification' }}
-
-  diagnostic_macos_contracts:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_macos_contracts }}
-    runs-on: macos-26
-    timeout-minutes: 5
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        include:
-          - case: platform-default
-            file: macos-platform-contracts
-            pattern: registered-suite
-          - case: publisher-lookup
-            file: scripts/release-workflow.test.mts
-            pattern: ^mock publisher restores private lookup
-          - case: publisher-draft
-            file: scripts/release-workflow.test.mts
-            pattern: ^publisher retries and recovers
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
-        with:
-          package_json_file: package.json
-          run_install: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - run: pnpm install --frozen-lockfile
-        env:
-          VP_GIT_HOOKS: "0"
-      - name: Observe original failing contracts in an isolated runner
-        timeout-minutes: 3
-        shell: bash
-        env:
-          CASE_FILE: ${{ matrix.file }}
-          CASE_PATTERN: ${{ matrix.pattern }}
-        run: |
-          mkdir -p work/audit01-diagnostic
-          node --input-type=module - <<'JS'
-          import fs from 'node:fs';import os from 'node:os';
-          fs.writeFileSync('work/audit01-diagnostic/before.json',JSON.stringify(fs.readdirSync(os.tmpdir())));
-          JS
-          node --input-type=module - <<'JS' 2>&1 | tee work/audit01-diagnostic/original.log
-          import {spawnSync} from 'node:child_process';import fs from 'node:fs';import {parseNodeTestSuites} from './scripts/node-test-suites.mts';
-          let args;
-          if(process.env.CASE_PATTERN==='registered-suite') {
-            const suite=parseNodeTestSuites(fs.readFileSync('scripts/node-test-suites.json','utf8')).suites[process.env.CASE_FILE];
-            if(!suite)throw new Error('Unknown diagnostic suite');
-            args=[...suite.arguments.map(arg=>arg.startsWith('--test-reporter=')?'--test-reporter=tap':arg),...suite.files];
-          } else args=['--test','--test-timeout=120000','--test-reporter=tap','--test-name-pattern='+process.env.CASE_PATTERN,process.env.CASE_FILE];
-          const result=spawnSync('/usr/bin/time',['-l',process.execPath,...args],{stdio:'inherit',env:process.env});if(result.error)throw result.error;process.exit(result.status??1);
-          JS
-      - name: Retain only new owned control evidence
-        if: always()
-        shell: bash
-        run: |
-          node --input-type=module - <<'JS'
-          import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
-          const before=new Set(JSON.parse(fs.readFileSync('work/audit01-diagnostic/before.json','utf8')));
-          const root=fs.realpathSync(os.tmpdir());let bytes=0,files=0;
-          const prefixes=['portcove-analyzer-deadline-','portcove-mock-path-evidence-','portcove-draft-publication-evidence-'];
-          function check(file){const stat=fs.lstatSync(file);if(stat.isSymbolicLink())throw new Error('Refuse diagnostic symlink');if(stat.isDirectory()){for(const name of fs.readdirSync(file))check(path.join(file,name));}else{if(!stat.isFile()||++files>256||(bytes+=stat.size)>64*1024*1024)throw new Error('Diagnostic bound exceeded');}}
-          for(const name of fs.readdirSync(root)){if(before.has(name)||!prefixes.some(prefix=>name.startsWith(prefix)))continue;const source=path.join(root,name);check(source);fs.cpSync(source,path.join('work/audit01-diagnostic',name),{recursive:true,dereference:false});}
-          JS
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: always()
-        with:
-          name: audit01-macos-${{ matrix.case }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/audit01-diagnostic/
-          retention-days: 7
-          if-no-files-found: error

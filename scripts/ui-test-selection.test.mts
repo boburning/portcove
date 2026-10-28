@@ -213,7 +213,9 @@ void test("exact wrapper rejects a mixed valid/missing request before invoking i
 });
 
 function coverageFixture(t: TestContext) {
-  const root = realpathSync.native(disposableDirectory(t, path.join(os.tmpdir(), "coverage-control-")));
+  const root = realpathSync.native(
+    disposableDirectory(t, path.join(os.tmpdir(), "coverage-control-")),
+  );
   const files = {
     ".node-version": process.version.slice(1) + "\n",
     ".gitignore": "work/\n",
