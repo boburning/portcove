@@ -3,13 +3,42 @@
   "listing": {
     "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
     "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
-    "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Original Jedi Outcast game-data contract remains partially Unknown: this is the Outcast single-player OpenJO target, not Jedi Academy or OpenJKDF2. The retained README documents Academy installation but does not establish Outcast required asset files, supported retail patch or exact setup layout; resolve those Outcast-specific inputs before offering setup. Portcove setup/gameplay not verified.",
+    "summary": "Prepare Star Wars Jedi Knight II: Jedi Outcast (single player) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
     "project_url": "https://github.com/JACoders/OpenJK",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/JACoders/OpenJK",
-    "issue_number": 2611
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
+    "issue_number": 2611,
+    "release_url": "https://github.com/JACoders/OpenJK/releases/tag/latest",
+    "download_asset_hints": {
+      "windows-x86-64": ["OpenJO-windows-x86_64.zip"]
+    },
+    "recommended_download_channel": "beta",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original game",
+          "instruction": "This identity is Jedi Outcast single player through OpenJO. It is not Jedi Academy, OpenJKDF2 or an Outcast multiplayer route. The reviewed upstream README documents Academy preparation but does not establish Outcast-specific original files, retail patch or exact first-setup layout."
+        },
+        {
+          "title": "Prepare upstream and select the player",
+          "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
+        },
+        {
+          "title": "Preserve the actual player data",
+          "instruction": "Normal Windows OpenJO builds use Documents/My Games/OpenJO; portable builds and explicit settings can differ. Preserve the actual profile, original files and creating runtime. No existing save compatibility, first setup or gameplay was observed."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+        }
+      ],
+      "warnings": [
+        "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here."
+      ],
+      "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
