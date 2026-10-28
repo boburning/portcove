@@ -423,6 +423,35 @@ wrong-key refusal and public fingerprints still need setup evidence. This
 changes initial custody, not the maximum 365-day Root expiry or verification of
 existing trust. It does not require routine per-artifact owner stamps.
 
+The recovery-tool prerequisite has a separate opt-in Linux x64 path:
+
+```sh
+mkdir -m 700 work/recovery-tool-cache
+node scripts/prepare-recovery-tools.mts --prepare "$PWD/work/recovery-tool-cache"
+```
+
+It provisions only a private, fingerprinted public-tool cache. The separate
+`.config/recovery-tools/aqua.yaml` pins age 1.3.2 and its GitHub CLI verifier;
+ordinary frontend/native profiles do not install them. The Linux Aqua bootstrap
+is checksum/version pinned without changing global shims or persistent environment.
+Other hosts refuse before effects; Windows x64 archive checksums are prepared
+inputs, not Windows bootstrap qualification.
+
+Aqua's own attestation path can skip authentication errors and retry. This
+installer therefore uses Aqua only to stage checksum-pinned packages, then
+requires one successful direct GitHub CLI verification of the exact age archive,
+source commit, release tag and producer workflow before executing age. The
+verifier itself must match the exact archive checksum embedded in the pinned
+Aqua source. The installed age and age-keygen bytes must match that attested
+archive. Warm reuse rechecks original pinned archives, executable bytes and the
+retained verification result; a partial cache, alias or changed bytes refuses
+without reinstalling or overwriting the original attempt. Downloads and commands
+have finite bounds under the maintained process/resource supervisor.
+
+This supplies no encryption, key generation, vault restore, credential placement,
+production signing or publication authority. The complete appointed-key inventory
+and encrypted create/restore adapter remain separate implementation work.
+
 For that explicitly selected profile, `top_level_targets_profile:
 "online-unchanged-authority-v1"` permits separately isolated Targets signing only
 after a real authenticated prior repository exists. Its fixed body derivation

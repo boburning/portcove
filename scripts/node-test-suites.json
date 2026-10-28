@@ -1660,6 +1660,29 @@
       ]
     },
     {
+      "file": "scripts/recovery-tools.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11950],
+        ["release-check", 14150]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Linux ordinary UID and private filesystem ownership",
+          "reason": "The implemented recovery bootstrap is Linux x64 only; other platforms do not gain tool or custody acceptance from these fixtures.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": [
+            "warm recovery cache rechecks bounded fixture archives, binaries and proof rather than trusting receipt hashes"
+          ]
+        }
+      ]
+    },
+    {
       "file": "scripts/release-bootstrap-preparation.test.mts",
       "memberships": [
         ["catalog-full-2", 12000],
