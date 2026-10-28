@@ -104,3 +104,38 @@ identity. Those conditions require the existing owner's measured source/resource
 proposal and applicable authority, not an automatic limit increase here.
 Historical consumed audit attempts, failures and cleanup uncertainty remain
 preserved. No held production dispatch, key use, signing or publication occurred.
+
+### October 28 — held Windows Actions transport
+
+The source-only continuation extends the existing hosted native workflow/worker
+handoff with an unused Windows composite action. One attested original Node owner
+retains the existing connected private session across both pre-sign and post-sign
+uploads. The existing runner still authenticates signer prerequisites and actual
+provider artifact readback. Public routes bind the original source, process birth,
+session parent, stage and nonrenewable minimum deadline; they cannot reconstruct
+private capabilities. No external Windows post-start scheduler is introduced.
+
+Single-link routing data uses a bounded completion hint with byte/hash identity,
+preserving the existing stricter native custody checks and legacy Linux markers.
+Initial absent upload requests may wait while that same owner remains alive;
+missing completed data, clocks or proof bytes refuse as corruption. Interrupted
+publication retains partial records and requires recovery; no retry or success is
+inferred from a disappeared process. Bounded diagnostics collect fixed public rows
+only, with missing records explicitly unavailable.
+
+Controlled tests cover delayed readiness, changed platform/owner/stage/bytes,
+substitution and hardlinks, missing completed data, expired clocks, reused process
+identity, missing terminal settlement, session-parent drift and provider refusal.
+Original worker controls cover shorter/wider returned clocks, invalid caller
+windows, changed/restored intent and expiry during terminal publication. The actual
+bootstrap caller clamp is checked with shorter/longer provider windows, expired
+and over-bound input and changed intent. These tests replace admission, custody,
+provider and native peers; they establish no Windows native or production proof.
+
+All Windows bootstrap/session/proof execution holds remain false. No active
+production job, selected policy/configuration/resource digest, candidate grant,
+Root, key, credential, signing or publication authority is enabled. Actual supported
+runtime/driver/source preparation, measured connected Windows whole-job fit and
+ratification of the final exact protected source/configuration/resource identity
+remain required before any separately authorized bounded protected execution.
+The three-issue matrix above remains incomplete at its production/client boundary.

@@ -595,6 +595,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
   const consumers = [
     "apps/desktop/scripts/desktop-listener-lifetime.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
+    "scripts/desktop-boundary-wiring.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
     "scripts/node-platform-skips.test.mts",
@@ -612,6 +613,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/release-hosted-native-windows-capture.test.mts",
     "scripts/release-hosted-native-windows-runner.test.mts",
     "scripts/release-hosted-native-windows-source.test.mts",
+    "scripts/release-hosted-native-windows-workflow.test.mts",
     "scripts/release-hosted-native-windows-dependency-files.test.mts",
     "scripts/native-qualification-account.test.mts",
     "scripts/release-owned-windows-proof-store.test.mts",
@@ -691,6 +693,7 @@ void test("fixture module closure edits retain all independent policy and constr
   const helper = "scripts/fixtures/module-closure.mts";
   const consumers = [
     "scripts/daily-discovery.test.mts",
+    "scripts/desktop-boundary-wiring.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
@@ -3867,6 +3870,13 @@ void test("native transport producers retain their actual Node consumers across 
     await import("./windows-helper-checks.mts");
   const consumers: [string, string[]][] = [
     [
+      "apps/desktop/scripts/desktop-webview-boundary.mts",
+      [
+        "scripts/desktop-boundary-wiring.test.mts",
+        "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      ],
+    ],
+    [
       "apps/desktop/scripts/desktop-boundary-invoke.mts",
       ["apps/desktop/scripts/desktop-webview-boundary.native.test.mts"],
     ],
@@ -3891,6 +3901,8 @@ void test("native transport producers retain their actual Node consumers across 
         "apps/desktop/scripts/desktop-default-cover.native.test.mts",
         "apps/desktop/scripts/desktop-reload.native.test.mts",
         "scripts/desktop-scenarios.test.mts",
+        "scripts/desktop-real-runtime.test.mts",
+        "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       ],
     ],
   ];

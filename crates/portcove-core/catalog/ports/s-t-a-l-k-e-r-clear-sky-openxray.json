@@ -3,12 +3,12 @@
   "listing": {
     "id": "s-t-a-l-k-e-r-clear-sky-openxray",
     "name": "S.T.A.L.K.E.R.: Clear Sky (OpenXRay)",
-    "summary": "Upstream route: Official support includes Call of Pripyat and finishable Clear Sky; Windows nightly packages. Limits: Call of Pripyat and finishable Clear Sky current; Shadow of Chernobyl and Enhanced Edition unsupported. Upstream platforms: Windows nightly packages; Linux/macOS/BSD source routes. README documents ARM/ARM64/PPC64LE/E2K portability but selected Windows artifact CPUs unknown in frozen evidence. Original data: Use original S.T.A.L.K.E.R.: Clear Sky game resources at version 1.5.10 for this OpenXRay target. Shadow of Chernobyl and Enhanced Edition data are outside this recorded scope. Exact distribution/localization layout is not pinned in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "Prepare S.T.A.L.K.E.R.: Clear Sky through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "S.T.A.L.K.E.R.: Clear Sky",
     "project_url": "https://github.com/OpenXRay/xray-16",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OpenXRay/xray-16",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/OpenXRay/xray-16/blob/c62d9d343981d50f6ed176412b85d94c61b578b5/README.md",
     "artwork": {
       "game_id": 4840,
       "cover_id": 266949,
@@ -17,7 +17,36 @@
       "game_slug": "s-dot-t-a-dot-l-k-dot-e-r-dot-clear-sky",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2708
+    "issue_number": 2708,
+    "release_url": "https://github.com/OpenXRay/xray-16/releases/tag/latest-nightly",
+    "download_asset_hints": {
+      "windows-x86-64": ["OpenXRay.Release.Master.Gold.64-bit.7z"]
+    },
+    "recommended_download_channel": "beta",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original game",
+          "instruction": "Use your own complete Clear Sky 1.5.10 resources in a private working copy. Shadow of Chernobyl, Enhanced Edition and Legends of the Zone data are outside this route. Preserve the original installation and mod-specific files."
+        },
+        {
+          "title": "Prepare upstream and select the player",
+          "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
+        },
+        {
+          "title": "Preserve the actual player data",
+          "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+        }
+      ],
+      "warnings": [
+        "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
+      ],
+      "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

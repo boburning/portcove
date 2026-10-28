@@ -6,8 +6,6 @@ import {
 import type { WebDriver } from "selenium-webdriver";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
-import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
@@ -149,75 +147,3 @@ void test(
     await assert.rejects(invokeBoundary(malformed, "owned-command"));
   },
 );
-
-void test("native boundary entrypoint retains its imported parsed invocation route", async () => {
-  const source = stripTypeScriptTypes(
-    await readFile(new URL("./desktop-webview-boundary.mts", import.meta.url), "utf8"),
-    { mode: "strip" },
-  );
-  // Normative wiring only; imported-module and serialized-callback tests own behavior.
-  function assertRoute(code: string) {
-    const imports = [
-      ...code.matchAll(/import\s*\{([^}]+)\}\s*from\s*["']\.\/desktop-boundary-invoke\.mts["']/gu),
-    ];
-    const bindings = imports.flatMap((entry) => entry[1]!.split(","));
-    const imported = bindings
-      .map((entry) => /^\s*invokeBoundary(?:\s+as\s+(\w+))?\s*$/u.exec(entry))
-      .find(Boolean);
-    assert.ok(imported, "Native entrypoint must import the parsed invocation transport");
-    const alias = imported[1] ?? "invokeBoundary";
-    const owner = bindings
-      .map((entry) => /^\s*armBoundaryOwner(?:\s+as\s+(\w+))?\s*$/u.exec(entry))
-      .find(Boolean);
-    assert.ok(owner, "Native entrypoint must import the owner arming transport");
-    const ownerAlias = owner[1] ?? "armBoundaryOwner";
-    const armedQueues = [
-      ...code.matchAll(
-        new RegExp(
-          String.raw`await\s+[\w$]+\s*\(\s*await\s+${ownerAlias}\s*\(\s*[\w$.]+\s*\)\s*\)`,
-          "gu",
-        ),
-      ),
-    ];
-    assert.ok(
-      armedQueues.length >= 2,
-      "Delivered and abandoned owner queues must both await the imported arming transport",
-    );
-    const call = new RegExp(
-      String.raw`await\s+${alias}\s*\(\s*[\w$.]+\s*,\s*["']create_boundary_windows["']\s*\)`,
-      "u",
-    );
-    assert.ok(
-      call.test(code),
-      "Native boundary fixture creation must use the imported parsed transport",
-    );
-  }
-  assertRoute(source);
-  assertRoute(
-    source
-      .replace(/\barmBoundaryOwner(?=[,\s}])/u, "armBoundaryOwner as renamedOwner")
-      .replace(/\barmBoundaryOwner(?=\s*\()/gu, "renamedOwner"),
-  );
-  assert.throws(
-    () =>
-      assertRoute(source.replace("queueOwner(await armBoundaryOwner(browser))", "queueOwner(0)")),
-    /both await/u,
-  );
-  assertRoute(
-    source.replace("as invoke", "as renamedInvoke").replace(/\binvoke(?=\s*\()/gu, "renamedInvoke"),
-  );
-  assert.throws(
-    () => assertRoute(source.replace("./desktop-boundary-invoke.mts", "./wrong-transport.mts")),
-    /must import/u,
-  );
-  assert.throws(
-    () =>
-      assertRoute(
-        source.replace(
-          'await invoke(browser, "create_boundary_windows")',
-          'await wrongTransport(browser, "create_boundary_windows")',
-        ),
-      ),
-    /must use/u,
-  );
-});
