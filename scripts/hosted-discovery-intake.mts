@@ -74,46 +74,13 @@ interface Proposal {
   investigator: string;
   candidates: Candidate[];
 }
-interface Review {
-  schema_version: 1;
-  kind: "review";
-  proposal_comment: number;
-  plan_sha256: string;
-  reviewer: string;
-  model: "gpt-6.1-sol";
-  reasoning: "high";
-  verdict: "clear";
-}
-export function parseHostedRequest(body: unknown): Proposal | Review {
+export function parseHostedRequest(body: unknown): Proposal {
   if (typeof body !== "string" || Buffer.byteLength(body) > 64000)
     throw new Error("Hosted request exceeds its comment envelope");
   const match = /^<!-- portcove-hosted-intake:v1 -->\s*```json\n([\s\S]+)\n```\s*$/u.exec(body);
   if (!match) throw new Error("Expected exactly one structured hosted intake request");
   const v = object(JSON.parse(match[1]!));
   if (v.schema_version !== 1) throw new Error("Unsupported hosted intake schema");
-  if (v.kind === "review") {
-    exact(v, [
-      "schema_version",
-      "kind",
-      "proposal_comment",
-      "plan_sha256",
-      "reviewer",
-      "model",
-      "reasoning",
-      "verdict",
-    ]);
-    positive(v.proposal_comment);
-    line(v.reviewer);
-    if (
-      typeof v.plan_sha256 !== "string" ||
-      !/^[a-f0-9]{64}$/u.test(v.plan_sha256) ||
-      v.model !== "gpt-6.1-sol" ||
-      v.reasoning !== "high" ||
-      v.verdict !== "clear"
-    )
-      throw new Error("Separate review must bind the exact published plan");
-    return v as unknown as Review;
-  }
   exact(v, ["schema_version", "kind", "investigator", "candidates"]);
   if (v.kind !== "proposal" || !Array.isArray(v.candidates) || !v.candidates.length)
     throw new Error("Expected one nonempty logical candidate batch");
@@ -276,7 +243,6 @@ interface Receipt {
   attempt: string;
   plan_origin: { head: string; run: string; attempt: string };
   observed_at?: string;
-  review_comment?: number;
   doctor?: unknown;
   error?: unknown;
 }
@@ -298,18 +264,8 @@ export function hostedPlanHash(requestHash: string, plan: Planned[]) {
     })),
   });
 }
-export function assertHostedReview(review: Review, receipt: Receipt) {
-  if (
-    review.proposal_comment !== receipt.request_comment ||
-    review.plan_sha256 !== receipt.plan_sha256 ||
-    review.reviewer === receipt.investigator
-  )
-    throw new Error(
-      "Actual separate review must match this exact plan and distinct reviewer context",
-    );
-}
 function receiptBody(r: Receipt) {
-  const body = `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**. This is a deterministic executor receipt, not gameplay/support or external-source completeness. Review is a trusted caller attestation; it must correspond to an actual separate reviewer execution.\n\n\`\`\`json\n${JSON.stringify(r, null, 2)}\n\`\`\``;
+  const body = `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(r, null, 2)}\n\`\`\``;
   validateGitHubBody(body);
   if (Buffer.byteLength(body) > 60000)
     throw new Error("Hosted receipt exceeds its bounded comment envelope");
@@ -477,7 +433,6 @@ export class HostedIntakeBridge {
     trustedHostedComment(request, this.client.config.owner);
     this.fresh(request);
     const proposal = parseHostedRequest(request.body);
-    if (proposal.kind !== "proposal") return;
     const found = all.filter(
       (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(receiptMarker(request.id)),
     );
@@ -508,8 +463,8 @@ export class HostedIntakeBridge {
         investigator: proposal.investigator,
         plan_sha256: hostedPlanHash(observationHash(request.body), plan),
         plan,
-        delivery: plan.map(() => ({ status: "reviewed" })),
-        status: "needs-review",
+        delivery: plan.map(() => ({ status: "prepared" })),
+        status: "prepared",
         head: this.head,
         run: process.env.GITHUB_RUN_ID ?? "local",
         attempt: process.env.GITHUB_RUN_ATTEMPT ?? "1",
@@ -524,27 +479,9 @@ export class HostedIntakeBridge {
           "Logical batch cannot retain complete delivery receipts; reduce evidence text",
         );
       prior = this.persist(receipt);
-      return receipt;
     }
     if (receipt.plan_sha256 !== hostedPlanHash(observationHash(request.body), plan))
-      throw new Error("Primary evidence changed since review; a new proposal/review is required");
-    const approvals = all
-      .filter(
-        (c) => c.user.login === this.client.config.owner && c.body.startsWith(hostedRequestMarker),
-      )
-      .flatMap((c) => {
-        try {
-          const r = parseHostedRequest(c.body);
-          return r.kind === "review" && r.proposal_comment === request.id ? [{ c, r }] : [];
-        } catch {
-          return [];
-        }
-      });
-    const approved = approvals.findLast((a) => a.r.plan_sha256 === receipt.plan_sha256);
-    if (!approved) return receipt;
-    this.fresh(approved.c);
-    assertHostedReview(approved.r, receipt);
-    receipt.review_comment = approved.c.id;
+      throw new Error("Primary evidence changed since preparation; a fresh proposal is required");
     receipt.head = this.head;
     receipt.run = process.env.GITHUB_RUN_ID ?? "local";
     receipt.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
@@ -561,7 +498,6 @@ export class HostedIntakeBridge {
         const d = receipt.delivery[index];
         if (!d) throw new Error("Retained delivery coverage differs");
         this.fresh(request);
-        this.fresh(approved.c);
         const marker = `<!-- portcove-discovery-intake:hosted-${request.id}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
@@ -596,10 +532,9 @@ export class HostedIntakeBridge {
           try {
             inventory = this.inventory(inventory);
             this.fresh(request);
-            this.fresh(approved.c);
             this.duplicates(inventory, p);
           } catch (error) {
-            d.status = "reviewed"; // No POST has begun in this preflight.
+            d.status = "prepared"; // No POST has begun in this preflight.
             persist();
             throw error;
           }
@@ -780,7 +715,7 @@ async function main() {
     let failed = false;
     for (const c of requests) {
       try {
-        if (parseHostedRequest(c.body).kind === "proposal") await bridge.process(c, comments);
+        await bridge.process(c, comments);
       } catch (error) {
         save(`failure-${c.id}`, sanitizeOperationError(error));
         try {

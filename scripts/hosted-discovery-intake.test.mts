@@ -6,7 +6,6 @@ import {
   HostedRoadmapClient,
   parseHostedRequest,
   assertHostedEvent,
-  assertHostedReview,
   hostedRequestMarker,
   hostedBody,
   probeHostedProjectWrite,
@@ -276,28 +275,6 @@ function fixture() {
     };
   };
   const all = () => [...comments.values()].map((c) => structuredClone(c));
-  const approve = (
-    plan: Awaited<ReturnType<HostedIntakeBridge["process"]>>,
-    reviewer = "separate-review-context",
-  ) => {
-    assert(plan);
-    const c = {
-      id: 101,
-      body: encode({
-        schema_version: 1,
-        kind: "review",
-        proposal_comment: 100,
-        plan_sha256: plan.plan_sha256,
-        reviewer,
-        model: "gpt-6.1-sol",
-        reasoning: "high",
-        verdict: "clear",
-      }),
-      user: { login: "boburning" },
-      issue_url: issueUrl,
-    };
-    comments.set(c.id, c);
-  };
   return {
     get normalizations() {
       return normalizations;
@@ -305,7 +282,11 @@ function fixture() {
     request,
     bridge,
     all,
-    approve,
+    prepare: async () => {
+      denied = true;
+      await assert.rejects(bridge.process(request, all()), /denied/u);
+      denied = false;
+    },
     comments,
     issues,
     fields,
@@ -361,38 +342,25 @@ void test("generated body retains maintained research and exact identity markers
   assert.match(body, /portcove-discovery-intake:hosted-100-example-native-game/u);
   assert.match(body, /GitHub repository ID: 987654321/u);
 });
-void test("plan has no public issue mutation; unreviewed or same-context review cannot apply", async () => {
-  const f = fixture(),
-    plan = await f.bridge.process(f.request, f.all());
-  assert.equal(plan?.status, "needs-review");
-  assert.equal(f.creations, 0);
-  await f.bridge.process(f.request, f.all());
-  assert.equal(f.creations, 0);
-  f.approve(plan, proposal.investigator);
-  await assert.rejects(f.bridge.process(f.request, f.all()), /separate review/u);
-  assert.equal(f.creations, 0);
-  assert.throws(
-    () =>
-      assertHostedReview(
-        {
-          schema_version: 1,
-          kind: "review",
-          proposal_comment: 100,
-          plan_sha256: "0".repeat(64),
-          reviewer: "other",
-          model: "gpt-6.1-sol",
-          reasoning: "high",
-          verdict: "clear",
-        },
-        plan,
-      ),
-    /exact plan/u,
+void test("a legacy pending plan resumes without a reviewer or a duplicate proposal", async () => {
+  const f = fixture();
+  await f.prepare();
+  const comment = [...f.comments.values()].find((c) => c.user.login === "github-actions[bot]")!;
+  const plan = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    status: string;
+    delivery: { status: string }[];
+  };
+  plan.status = "needs-review";
+  plan.delivery[0]!.status = "reviewed";
+  comment.body = comment.body.replace(
+    /```json\n[\s\S]+\n```$/u,
+    `\`\`\`json\n${JSON.stringify(plan)}\n\`\`\``,
   );
+  assert.equal((await f.bridge.process(f.request, f.all()))?.status, "complete");
+  assert.equal(f.creations, 1);
 });
-void test("reviewed full flow creates once, verifies neutral fields and runs the real scoped evaluator", async () => {
-  const f = fixture(),
-    plan = await f.bridge.process(f.request, f.all());
-  f.approve(plan);
+void test("one proposal creates once without review, verifies neutral fields and runs the real scoped evaluator", async () => {
+  const f = fixture();
   const result = await f.bridge.process(f.request, f.all());
   assert.equal(result?.status, "complete");
   assert(result?.delivery[0]);
@@ -406,18 +374,14 @@ void test("reviewed full flow creates once, verifies neutral fields and runs the
   assert.equal(f.creations, 1);
 });
 void test("a lost issue POST response stays held when absence is ambiguous", async () => {
-  const f = fixture(),
-    plan = await f.bridge.process(f.request, f.all());
-  f.approve(plan);
+  const f = fixture();
   f.failPost();
   await assert.rejects(f.bridge.process(f.request, f.all()), /unknown/u);
   await assert.rejects(f.bridge.process(f.request, f.all()), /do not recapture/u);
   assert.equal(f.creations, 1);
 });
 void test("interrupted Project delivery recovers the same issue without another POST", async () => {
-  const f = fixture(),
-    plan = await f.bridge.process(f.request, f.all());
-  f.approve(plan);
+  const f = fixture();
   f.failProject(true);
   await assert.rejects(f.bridge.process(f.request, f.all()), /interrupted/u);
   f.failProject(false);
@@ -425,11 +389,10 @@ void test("interrupted Project delivery recovers the same issue without another 
   assert.equal(result?.status, "complete");
   assert.equal(f.creations, 1);
 });
-void test("changed primary, request or existing issue body refuses stale approval", async () => {
+void test("changed primary, request or existing issue body refuses stale preparation", async () => {
   for (const change of ["primary", "request", "issue"] as const) {
-    const f = fixture(),
-      plan = await f.bridge.process(f.request, f.all());
-    f.approve(plan);
+    const f = fixture();
+    if (change !== "issue") await f.prepare();
     if (change === "primary") f.changePrimary();
     if (change === "request") f.comments.get(100)!.body += "edited";
     if (change === "issue") {
@@ -443,9 +406,7 @@ void test("changed primary, request or existing issue body refuses stale approva
   }
 });
 void test("a non-neutral field prevents successful intake; permission probe really writes and refuses denied access", async () => {
-  const f = fixture(),
-    plan = await f.bridge.process(f.request, f.all());
-  f.approve(plan);
+  const f = fixture();
   f.fields.Priority = "High";
   await assert.rejects(f.bridge.process(f.request, f.all()), /Neutral intake field/u);
   f.fields.Priority = "None";
@@ -458,9 +419,7 @@ void test("a non-neutral field prevents successful intake; permission probe real
 
 void test("recovery refuses changed Work type and closed state before normalizer writes", async () => {
   for (const change of ["work", "closed"]) {
-    const f = fixture(),
-      plan = await f.bridge.process(f.request, f.all());
-    f.approve(plan);
+    const f = fixture();
     f.failProject(true);
     await assert.rejects(f.bridge.process(f.request, f.all()));
     f.failProject(false);
@@ -471,10 +430,8 @@ void test("recovery refuses changed Work type and closed state before normalizer
     assert.equal(f.creations, 1);
   }
 });
-void test("an unrelated malformed owner request cannot block a reviewed candidate", async () => {
-  const f = fixture(),
-    plan = await f.bridge.process(f.request, f.all());
-  f.approve(plan);
+void test("an unrelated malformed owner request cannot block a valid candidate", async () => {
+  const f = fixture();
   f.comments.set(102, { ...f.request, id: 102, body: hostedRequestMarker + " malformed" });
   assert.equal((await f.bridge.process(f.request, f.all()))?.status, "complete");
 });
@@ -516,9 +473,7 @@ void test("oversized complete receipts refuse before any canonical write", async
   assert.equal(f.creations, 0);
 });
 void test("denied hosted Project write access prevents issue creation", async () => {
-  const f = fixture(),
-    plan = await f.bridge.process(f.request, f.all());
-  f.approve(plan);
+  const f = fixture();
   f.deny();
   await assert.rejects(f.bridge.process(f.request, f.all()), /denied/u);
   assert.equal(f.creations, 0);

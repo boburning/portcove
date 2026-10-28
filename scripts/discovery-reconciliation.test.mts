@@ -333,7 +333,7 @@ void test("maintained session guard blocks a relocated closed owner and helpers 
   );
   assert.throws(
     () => session.assertIntakeIdentity({ ...scoped("Game A"), game: "Game B" }, []),
-    /Reviewed body/u,
+    /Prepared body/u,
   );
 });
 void test("frozen replay merges source observations, preserves separate games and refuses key conflicts", () => {

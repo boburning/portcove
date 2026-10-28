@@ -223,7 +223,62 @@ async function temporarySession(
     session,
   };
 }
-void test("reviewed external intake reconciliation preserves owner text and fields, refuses drift and releases recovery reserve", async (t) => {
+void test("prepared metadata needs no reviewer but stale primary evidence stays pending across restart", async (t) => {
+  const { session, state, run } = await temporarySession(t);
+  session.inventory = collectRoadmapInventory(fixture(1).client);
+  session.checkProviderCapacity = () => {
+    for (const resource of ["core", "graphql"])
+      session.budget.observeProvider({
+        resource,
+        remaining: 10000,
+        resetAt: new Date(Date.now() + 3600000).toISOString(),
+      });
+  };
+  const file = path.join(run, "primary.json");
+  writeFileSync(file, JSON.stringify({ text: "original" }));
+  session.journal.evidence.primary = {
+    repository: "example/fixture",
+    material: observationHash("original"),
+    file,
+    requests: 1,
+    bytes: 8,
+    url: "https://github.com/example/fixture/blob/main/README.md",
+  };
+  const candidate = session.propose({
+    kind: "comment",
+    title: "Fixture",
+    upstream: "https://github.com/example/fixture",
+    portKey: "fixture",
+    issue: 1,
+    body: "Dated primary observation",
+    evidence_ids: ["primary"],
+  });
+  assert.equal(candidate.status, "prepared");
+  assert.equal(candidate.review, undefined);
+  let reads = 0;
+  session.source.http.request = () => {
+    reads++;
+    return { requests: 1, bytes: 7, status: 200, headers: {}, text: "changed" };
+  };
+  await assert.rejects(session.apply(), /Primary evidence changed/u);
+  assert.equal(reads, 1);
+  assert.equal(candidate.status, "needs-research");
+  assert.equal(candidate.created_comment, undefined);
+  assert.equal((await session.apply()).pending, 1);
+  assert.equal(reads, 1, "stale facts cannot silently retry without new research");
+  const resumedRun = path.join(state, "runs", "resumed");
+  await mkdir(resumedRun);
+  const resumed = new DiscoverySession(
+    state,
+    resumedRun,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
+  assert.equal(resumed.journal.candidates[candidate.id]?.status, "needs-research");
+});
+void test("exact-snapshot intake reconciliation preserves owner text and fields, refuses drift and releases recovery reserve without review", async (t) => {
   const { session, state, run } = await temporarySession(t);
   const f = fixture(1);
   const original =
@@ -300,7 +355,7 @@ void test("reviewed external intake reconciliation preserves owner text and fiel
   };
   await assert.rejects(
     session.reconcile({ candidate_id: "fixture", review: { ...review, model: "wrong" } }),
-    /separate/,
+    /snapshot binding/,
   );
   const savedIssue = structuredClone(f.rows[0]!);
   const savedItems = structuredClone(f.project);
@@ -341,13 +396,16 @@ void test("reviewed external intake reconciliation preserves owner text and fiel
   f.rows[0]!.body += "Later concurrent edit";
   f.rows[0]!.updatedAt = "2026-10-24T00:00:00Z";
   f.project[0]!.content = { ...f.rows[0]!, body: undefined };
-  await assert.rejects(session.reconcile({ candidate_id: "fixture", review }), /snapshot changed/);
+  await assert.rejects(
+    session.reconcile({ candidate_id: "fixture", snapshot_sha256: prepared.snapshot_sha256 }),
+    /snapshot changed/,
+  );
   assert.equal(candidate.status, "doctor-pending");
   f.rows[0]!.body = savedBody;
   f.rows[0]!.updatedAt = "2026-10-17T00:00:00Z";
   f.project[0]!.content = { ...f.rows[0]!, body: undefined };
   const before = JSON.stringify(f.project);
-  await session.reconcile({ candidate_id: "fixture", review });
+  await session.reconcile({ candidate_id: "fixture", snapshot_sha256: prepared.snapshot_sha256 });
   assert.equal(candidate.status, "delivered");
   assert.equal(candidate.body, original, "original body and review remain historical evidence");
   assert.equal(f.rows[0]!.body, savedBody);
@@ -432,7 +490,7 @@ void test("startup inventory refusal retains the original failure receipt withou
     { status: "failed" },
   );
 });
-void test("retained intake amendment preserves issue identity, all reserves and separate review across restart", async (t) => {
+void test("retained intake amendment prepares without review and preserves identity and reserves across restart", async (t) => {
   const { session, state, run } = await temporarySession(t);
   session.inventory = collectRoadmapInventory(fixture(1).client);
   const body =
@@ -491,7 +549,7 @@ void test("retained intake amendment preserves issue identity, all reserves and 
     reason: "metadata",
   });
   assert.equal(c.created_issue, 42);
-  assert.equal(c.status, "needs-review");
+  assert.equal(c.status, "prepared");
   assert.equal(c.review, undefined);
   const expected = discoveryDeliveryCost(
     session.inventory,
@@ -511,7 +569,7 @@ void test("retained intake amendment preserves issue identity, all reserves and 
     "fixture-head",
   );
   assert.equal(resumed.journal.candidates.fixture?.created_issue, 42);
-  assert.equal(resumed.journal.candidates.fixture?.status, "needs-review");
+  assert.equal(resumed.journal.candidates.fixture?.status, "prepared");
   assert.equal(resumed.journal.candidates.fixture?.amendment?.status, "prepared");
   assert.ok(readdirSync(run).some((name) => name.startsWith("amend-history-fixture-")));
   assert.throws(
