@@ -786,12 +786,11 @@ function ContinueCard({
         )}
         {catalogMedia && <MediaCredit media={catalogMedia} />}
       </div>
-      <div className="continue-actions flex min-w-0 flex-wrap gap-2">
+      <div className="continue-actions min-w-0">
         <Button
           data-focusable
           variant="outline"
-          size="lg"
-          className="max-[42rem]:min-h-9"
+          size="sm"
           data-detail-origin={`library:continue-details:${port.id}`}
           onClick={() => details(port.id, `library:continue-details:${port.id}`)}
         >
@@ -800,8 +799,7 @@ function ContinueCard({
         <Button
           data-focusable
           variant="primary"
-          size="lg"
-          className="max-[42rem]:min-h-9"
+          size="sm"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
           disabled={launchable && Boolean(action.busy)}
           focusableWhenDisabled={launchable && Boolean(action.busy)}

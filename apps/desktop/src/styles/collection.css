@@ -79,6 +79,11 @@
     grid-template-columns: minmax(0, 1fr) auto;
     min-block-size: 7rem;
   }
+  .continue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
   .continue-art {
     position: absolute;
     z-index: -2;
@@ -206,10 +211,19 @@
     }
   }
   @container library-query (max-width: 40em) {
+    .continue-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      max-inline-size: 9rem;
+    }
+  }
+  @container library-query (max-width: 14em) {
     .continue-card {
       grid-template-columns: minmax(0, 1fr);
     }
     .continue-actions {
+      display: flex;
+      max-inline-size: none;
       grid-column: 1 / -1;
     }
   }
