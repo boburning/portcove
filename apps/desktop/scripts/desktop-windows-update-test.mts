@@ -24,6 +24,8 @@ import {
   readWindowsUpdateProcessObservation as markedObservation,
   type WindowsUpdateProcessMarker as ProcessMarker,
   type WindowsUpdateProcessObservation as MarkedObservation,
+  type WindowsUpdateExitCapture,
+  startWindowsUpdateExitObservation,
   awaitInstalledUpdateDriver,
   connectInstalledUpdateDriver,
   hashFile,
@@ -125,6 +127,7 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
     installed_executable_sha256: string;
   };
   helper_result?: Record<string, unknown>;
+  helper_os_exit?: WindowsUpdateExitCapture;
   natural_process_exit?: Record<ProcessLabel, MarkedExit>;
   restart_command?: unknown;
   failure_capture?: string;
@@ -173,6 +176,7 @@ let snapshot: NativeProcessSnapshot | undefined;
 let activeSnapshotPath = snapshotPath;
 let restartStarted: string | undefined;
 let embeddedSession: EmbeddedSession | undefined;
+let helperExitObserver: ReturnType<typeof startWindowsUpdateExitObservation> | undefined;
 
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
@@ -399,6 +403,18 @@ try {
   );
   assert.equal((await hashFile(helper.executable)).sha256, report.initial_executable_sha256);
   report.helper_process_marker = helper;
+  assert.ok(restartStarted);
+  helperExitObserver = startWindowsUpdateExitObservation(markedProcess, [
+    "-MarkerPath",
+    helperMarker,
+    "-IdentityPath",
+    path.join(output, "helper-os-exit-identity.json"),
+    "-ExpectedPath",
+    helper.executable,
+    "-EarliestStart",
+    restartStarted,
+    "-Helper",
+  ]);
   const relaunch = processMarker(
     await waitFor(() => readJson(relaunchMarker), "helper-owned candidate process marker", 90_000),
   );
@@ -436,6 +452,16 @@ try {
   assert.equal(helperResult.process_id, helper.process_id);
   assert.equal(helperResult.exit_code, 0);
   report.helper_result = helperResult;
+  report.helper_os_exit = await helperExitObserver.result;
+  assert.equal(report.helper_os_exit.kind, "observation", "Helper OS exit observation failed");
+  assert.ok(report.helper_os_exit.kind === "observation");
+  assert.equal(report.helper_os_exit.observation.pid, helper.process_id);
+  assert.equal(
+    report.helper_os_exit.observation.status,
+    "exit-observed",
+    "Helper OS exit was not captured",
+  );
+  assert.equal(report.helper_os_exit.observation.exit_code, 0);
   report.natural_process_exit = {
     candidate: await awaitMarkedProcessExit(relaunchMarker, "candidate"),
     helper: await awaitMarkedProcessExit(helperMarker, "helper"),
@@ -471,6 +497,12 @@ try {
   await recordInstalledUpdateFailure(report, error, helperMarker);
   process.exitCode = 1;
 } finally {
+  if (helperExitObserver) {
+    // Settle this read-only child before existing cleanup can stop the helper;
+    // forced cleanup must never become a claimed natural OS exit observation.
+    if (!report.helper_os_exit) helperExitObserver.cancel();
+    report.helper_os_exit ??= await helperExitObserver.result;
+  }
   if (!snapshot && driver?.exitCode === null) {
     try {
       snapshot = nativeSessionCommand("Snapshot");
