@@ -50,6 +50,62 @@ import { spawnCommand } from "../../../scripts/dev-storage.mts";
 
 const digest = (bytes: BinaryLike) => createHash("sha256").update(bytes).digest("hex");
 
+export async function renderCorrectedArtwork({
+  browser,
+  originalName,
+  portId,
+  source,
+  click,
+}: {
+  browser: WebDriver;
+  originalName: string;
+  portId: string;
+  source: string;
+  click: (locator: Locator) => Promise<unknown>;
+}) {
+  await click(By.xpath('//nav//button[contains(., "Discover")]'));
+  const search = await browser.wait(until.elementLocated(By.id("port-search")), 10000);
+  await search.sendKeys(Key.CONTROL, "a", Key.NULL, originalName);
+  const selector = `[data-detail-origin="catalog:card:${portId}"] .collection-art`;
+  await browser.wait(
+    () =>
+      executeBrowserScript(
+        browser,
+        (selector, source) => {
+          const frame = document.querySelector<HTMLElement>(selector);
+          const image = frame?.querySelector("img");
+          return (
+            frame?.dataset.artworkSource === source &&
+            (source === "generated_fallback" ? !image : image?.complete && image.naturalWidth > 0)
+          );
+        },
+        selector,
+        source,
+      ),
+    15000,
+    `Corrected artwork did not render: ${source}`,
+  );
+  return executeBrowserScript(
+    browser,
+    (selector) => {
+      const frame = document.querySelector<HTMLElement>(selector);
+      if (!frame) throw new Error("Artwork frame unavailable");
+      const image = frame.querySelector("img");
+      let pixel: number[] | null = null;
+      if (image) {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Canvas context unavailable");
+        context.drawImage(image, 0, 0, 1, 1);
+        pixel = [...context.getImageData(0, 0, 1, 1).data];
+      }
+      return { source: frame.dataset.artworkSource, image: image?.src ?? null, pixel };
+    },
+    selector,
+  );
+}
+
 export async function artworkCorrectionScenario({
   browser,
   invoke,
@@ -191,51 +247,8 @@ export async function artworkCorrectionScenario({
       await browser.wait(async () => (await status()).provenance.sequence === sequence, 10000);
       await close();
     };
-    const render = async (source: string) => {
-      await click(By.xpath('//nav//button[contains(., "Discover")]'));
-      const search = await browser.wait(until.elementLocated(By.id("port-search")), 10000);
-      await search.sendKeys(Key.CONTROL, "a", Key.NULL, originalName);
-      const selector = `[data-detail-origin="catalog:card:${portId}"] .collection-art`;
-      await browser.wait(
-        () =>
-          executeBrowserScript(
-            browser,
-            (selector, source) => {
-              const frame = document.querySelector<HTMLElement>(selector);
-              const image = frame?.querySelector("img");
-              return (
-                frame?.dataset.artworkSource === source &&
-                (source === "generated_fallback"
-                  ? !image
-                  : image?.complete && image.naturalWidth > 0)
-              );
-            },
-            selector,
-            source,
-          ),
-        15000,
-        `Corrected artwork did not render: ${source}`,
-      );
-      return executeBrowserScript(
-        browser,
-        (selector) => {
-          const frame = document.querySelector<HTMLElement>(selector);
-          if (!frame) throw new Error("Artwork frame unavailable");
-          const image = frame.querySelector("img");
-          let pixel: number[] | null = null;
-          if (image) {
-            const canvas = document.createElement("canvas");
-            canvas.width = canvas.height = 1;
-            const context = canvas.getContext("2d");
-            if (!context) throw new Error("Canvas context unavailable");
-            context.drawImage(image, 0, 0, 1, 1);
-            pixel = [...context.getImageData(0, 0, 1, 1).data];
-          }
-          return { source: frame.dataset.artworkSource, image: image?.src ?? null, pixel };
-        },
-        selector,
-      );
-    };
+    const render = (source: string) =>
+      renderCorrectedArtwork({ browser, originalName, portId, source, click });
     const capture = async (name: string) => {
       const filename = path.join(output, `${name}.png`);
       await writeFile(filename, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
