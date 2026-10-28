@@ -48,12 +48,29 @@ jobs:
         shell: bash
         run: |
           tar -czf "$RUNNER_TEMP/recommendation-feedback-packages.tar.gz" node_modules apps/desktop/node_modules
+          tar -C "$RUNNER_TEMP" -cf "$RUNNER_TEMP/feedback-bundle.tar" recommendation-feedback-tools.tar.gz recommendation-feedback-packages.tar.gz
+          split --numeric-suffixes --bytes=350M "$RUNNER_TEMP/feedback-bundle.tar" "$RUNNER_TEMP/feedback-part-"
+          sha256sum "$RUNNER_TEMP/feedback-bundle.tar" "$RUNNER_TEMP"/feedback-part-* > "$RUNNER_TEMP/feedback-sha256.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: recommendation-feedback-tools-${{ github.sha }}
+          name: recommendation-feedback-part-00-${{ github.sha }}
           path: |
-            ${{ runner.temp }}/recommendation-feedback-tools.tar.gz
-            ${{ runner.temp }}/recommendation-feedback-packages.tar.gz
+            ${{ runner.temp }}/feedback-part-00
+            ${{ runner.temp }}/feedback-sha256.txt
           retention-days: 1
           compression-level: 0
           if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: recommendation-feedback-part-01-${{ github.sha }}
+          path: ${{ runner.temp }}/feedback-part-01
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: recommendation-feedback-part-02-${{ github.sha }}
+          path: ${{ runner.temp }}/feedback-part-02
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: ignore
