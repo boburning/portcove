@@ -41,7 +41,8 @@
         "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute."
       ],
       "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"
-    }
+    },
+    "original_game_title": "Super Mario World"
   },
   "integration": {
     "support_tier": "beta",

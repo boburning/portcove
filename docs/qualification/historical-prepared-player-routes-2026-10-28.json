@@ -89,7 +89,7 @@
           "sha256": "fb42bdb3dcc7b7e831e9aec0b8153eb7e75695f74adfb0e6a58f5c36ac0a773b"
         }
       ],
-      "record_sha256": "2bb874ff36c1beda6c38c8bbe3fe8ba03bdb6d59d691a589f945874875314725"
+      "record_sha256": "7a8ad6ff48e97f9047943253b40a16fc46631dfac5f680183de919bcf7be1ec5"
     },
     {
       "id": "super-mario-world-snesrev-smw",
@@ -172,7 +172,7 @@
           "sha256": "47aab1cbfb231429341dff2d348512441ef41e31dcf61cda5913a5673a017e4e"
         }
       ],
-      "record_sha256": "2326422613a3fb23a44565dabcde55692dbbe53050c0a98b6b4527ab1fabf1ef"
+      "record_sha256": "5a628fa32ad3572168aa51a04232d868eb9e52e98812fcac07433ad581fb9d45"
     },
     {
       "id": "sonic-3-knuckles-sonic-3-a-i-r",
@@ -243,7 +243,7 @@
           "sha256": "148db55af6f736bd5cb7f09eb9756ffee7f7364ab97cfeec86f7b43240932b05"
         }
       ],
-      "record_sha256": "a8d535fe3bfcd57233d55bb47c38adf66e3ee958946837134ba55b8b185249b2"
+      "record_sha256": "7a9435ac3d1107b9659abf1892c839adad05b6688bfa272220f022f3ee9f797a"
     },
     {
       "id": "super-mario-64-sm64-co-op-dx",
@@ -338,7 +338,7 @@
           "sha256": "d86e2bca318b84eeaffe0c946381ae379b53de837c98642f1d3ed625a2640bb0"
         }
       ],
-      "record_sha256": "7d48564e154b7be408d531ba331cacd18a6b5d2e911d1db2f14e5a53c506b146"
+      "record_sha256": "26c90849e8965f1cb1beffedf9df16634d9e49c443a2ee60df2174b607316aee"
     },
     {
       "id": "wipeout-phantom-edition",
@@ -379,7 +379,7 @@
           "sha256": "f91f6a4b792e223fa1926683687d4f0648c6ae85d17014c87781b27c6b1e4ca2"
         }
       ],
-      "record_sha256": "b063ed4a055cc231a827dd4bacda8f20ba8ec5e154ebc941e24b7a179b378298"
+      "record_sha256": "2c00467ed093ac8374a91a2d2618c568429ab5b87e27ab89c3594aabdf3c1d2e"
     }
   ],
   "held_sixth": {

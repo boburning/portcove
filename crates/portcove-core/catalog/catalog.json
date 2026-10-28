@@ -24804,6 +24804,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Open the linked official v0.1.3 release and extract its complete EmeraldRecomp-windows-x64-v0.1.3.zip package into a separate writable folder for this exact game. Keep EmeraldRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working EmeraldRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon Emerald",
         "manual_setup": {
           "steps": [
             {
@@ -24875,6 +24876,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon FireRed",
         "manual_setup": {
           "steps": [
             {
@@ -24946,6 +24948,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon LeafGreen",
         "manual_setup": {
           "steps": [
             {
@@ -25017,6 +25020,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon Ruby",
         "manual_setup": {
           "steps": [
             {
@@ -25088,6 +25092,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon Sapphire",
         "manual_setup": {
           "steps": [
             {
@@ -25440,6 +25445,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "Sonic 3 & Knuckles",
         "manual_setup": {
           "steps": [
             {
@@ -25767,6 +25773,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "Super Mario 64",
         "original_game": {
           "format_version": 1,
           "id": "super-mario-64",
@@ -25846,6 +25853,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "Super Mario World",
         "manual_setup": {
           "steps": [
             {
@@ -25981,6 +25989,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use the official v1.2.256 Windows x64 ZIP and keep its complete wipeout folder. Follow the packaged README: provide matching original image copies in diskimages for upstream extraction, or the matching complete loose set in wipeoutgame with optional correctly named music in music. Finish normal upstream setup successfully before registration. The upstream player performs extraction during startup; this is not Portcove disc preparation or source authentication. Register wipeout.exe from the wipeout folder, not an extraction helper. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "WipeOut",
         "manual_setup": {
           "steps": [
             {
@@ -26052,6 +26061,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use only an already working upstream Windows zelda3.exe with its matching generated zelda3_assets.dat, SDL2.dll, zelda3.ini and companions. If setup is incomplete, follow the linked upstream source-build and asset-extraction instructions with your matching USA original before registration. The selected v0.3 release has a BPS asset, while its tagged source loader requires DAT; these instructions do not claim that placing a ROM beside that package completes setup. Do not mix generated assets between source revisions or select a launcher, extraction batch file or compiler as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "The Legend of Zelda: A Link to the Past",
         "manual_setup": {
           "steps": [
             {

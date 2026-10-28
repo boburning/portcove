@@ -41,7 +41,8 @@
         "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
       ],
       "help_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3"
-    }
+    },
+    "original_game_title": "Pokémon Emerald"
   },
   "integration": {
     "support_tier": "beta",

@@ -29627,6 +29627,7 @@
         ],
         "help_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3"
       },
+      "original_game_title": "Pokémon Emerald",
       "platforms": [
         "windows-x86-64"
       ]
@@ -29726,6 +29727,7 @@
         ],
         "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
       },
+      "original_game_title": "Pokémon FireRed",
       "platforms": [
         "windows-x86-64"
       ]
@@ -29844,6 +29846,7 @@
         ],
         "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
       },
+      "original_game_title": "Pokémon LeafGreen",
       "platforms": [
         "windows-x86-64"
       ]
@@ -30071,6 +30074,7 @@
         ],
         "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
       },
+      "original_game_title": "Pokémon Ruby",
       "platforms": [
         "windows-x86-64"
       ]
@@ -30170,6 +30174,7 @@
         ],
         "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
       },
+      "original_game_title": "Pokémon Sapphire",
       "platforms": [
         "windows-x86-64"
       ]
@@ -34266,6 +34271,7 @@
         ],
         "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
       },
+      "original_game_title": "Sonic 3 & Knuckles",
       "platforms": [
         "windows-x86-64"
       ]
@@ -36124,6 +36130,7 @@
         ],
         "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1"
       },
+      "original_game_title": "Super Mario 64",
       "platforms": [
         "windows-x86-64"
       ]
@@ -36479,6 +36486,7 @@
         ],
         "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"
       },
+      "original_game_title": "Super Mario World",
       "platforms": [
         "windows-x86-64"
       ]
@@ -42348,6 +42356,7 @@
         ],
         "help_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256"
       },
+      "original_game_title": "WipeOut",
       "platforms": [
         "windows-x86-64"
       ]
@@ -43785,6 +43794,7 @@
         ],
         "help_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3"
       },
+      "original_game_title": "The Legend of Zelda: A Link to the Past",
       "platforms": [
         "windows-x86-64"
       ]

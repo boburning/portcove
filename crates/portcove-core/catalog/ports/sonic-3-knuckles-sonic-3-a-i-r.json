@@ -41,7 +41,8 @@
         "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration."
       ],
       "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
-    }
+    },
+    "original_game_title": "Sonic 3 & Knuckles"
   },
   "integration": {
     "support_tier": "beta",

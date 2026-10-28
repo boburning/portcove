@@ -49,7 +49,8 @@
         "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested."
       ],
       "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1"
-    }
+    },
+    "original_game_title": "Super Mario 64"
   },
   "integration": {
     "support_tier": "beta",

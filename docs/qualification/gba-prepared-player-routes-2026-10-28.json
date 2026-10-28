@@ -299,7 +299,7 @@
           "sha256": "3ad04fde448fa2ce4650b43ddd1d0d5317e7323a51d9b29c6b42a2e7daa11595"
         }
       ],
-      "record_sha256": "f89c111a8e98c50f3348ef96e587e92ddae2818c4f255b78226b3d7fd54b7caf"
+      "record_sha256": "3587131581909008f271cd20250d4ad29a05c253dc96f08147a66b4a9604a589"
     },
     {
       "id": "pokemon-firered-fireredleafgreenrecomp",
@@ -387,7 +387,7 @@
           "sha256": "b616632b0149aa0e4055de978b8a60623bc849b901a0ae1fd66fd71c402d1890"
         }
       ],
-      "record_sha256": "5dd42e6aa4edf1c53c527b0a2e830fc39364bafb88625e67ad42f1673541724e"
+      "record_sha256": "13b9fc4a8a5e242b84bba11d763f8fe505b92fe87007db929179692ac2d9bf64"
     },
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
@@ -475,7 +475,7 @@
           "sha256": "b616632b0149aa0e4055de978b8a60623bc849b901a0ae1fd66fd71c402d1890"
         }
       ],
-      "record_sha256": "7677290f710cb0699daa2d94410119d2ba2da03121a2c886db88155bacaf2744"
+      "record_sha256": "e48ecabae28022a45c4c2b49add5a4538bd240cf801f32e7a75a228d755af742"
     },
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
@@ -569,7 +569,7 @@
           "sha256": "64f61d3fdfee4be6557e319a4eaf95e1f81d0de380d50bfbe1bafebe1f621a63"
         }
       ],
-      "record_sha256": "644da6731efc8a6ed01d4c22a636ac46cf0d0509cca5b534750b69553107ee68"
+      "record_sha256": "2cb7d5f657ccf77f34763af9ef554c756aec54b52198e36d7368852c98a1ab2e"
     },
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
@@ -663,7 +663,7 @@
           "sha256": "64f61d3fdfee4be6557e319a4eaf95e1f81d0de380d50bfbe1bafebe1f621a63"
         }
       ],
-      "record_sha256": "585b66083ca42880ac52aee2f4322dc669f9c069d47f48a2216c1357d8e3dd5e"
+      "record_sha256": "d7d751ef32865fa6c3bafdee94594cb22262baed056f6992082700f841fcf9a6"
     }
   ],
   "definition_contract": "Existing DKR-R UserPrepared/UserSelected contract, Windows x86-64, user-managed runtime, no immutable package/source/persistence authority; declaration offers explicit registration/Play and registration-only removal.",
