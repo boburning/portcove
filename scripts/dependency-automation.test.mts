@@ -13,6 +13,7 @@ import { parseDocument } from "yaml";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { validateRootPnpmToolchain } from "./pnpm-lock-inventory.mts";
 
 function required<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined);
@@ -24,6 +25,14 @@ function record(value: unknown) {
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+void test("root lock maintenance retains provider-owned pnpm platform integrity", async () => {
+  const result = validateRootPnpmToolchain(
+    await readFile(path.join(root, "pnpm-lock.yaml"), "utf8"),
+    rootPackage.packageManager,
+    await readFile(path.join(root, "pnpm-workspace.yaml"), "utf8"),
+  );
+  assert.ok(result.artifacts > 1);
+});
 const read = (name: string) => readFile(path.join(root, name), "utf8");
 
 void test("Rust Node and pnpm authorities and isolated runtime representations stay coordinated", async () => {

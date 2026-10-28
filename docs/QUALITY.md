@@ -280,8 +280,10 @@ The payload replaces its shell with `exec` so runner cancellation reaches the
 supervised controller. GitHub may report the deadline as `cancelled`; the verifier
 requires its exact timeout annotation as well as the owned-process drain receipt.
 Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
-45 minutes, and exhaustive producers at 120 minutes; the existing 10-minute
-Windows helpers and 15-minute portability limits remain. These generous outer
+45 minutes, and exhaustive producers at 120 minutes. Windows helpers retain
+10 minutes. The macOS no-global frontend route allows
+25 minutes for cold provider setup, its full browser stages and evidence retention;
+other portability probes retain 15 minutes. These generous outer
 envelopes include cold setup and evidence upload above the audit's sampled
 ordinary jobs and failed qualification producers. They are hang
 limits, not latency targets or evidence that cleanup can survive a whole-job kill.
