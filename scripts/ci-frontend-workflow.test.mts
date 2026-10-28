@@ -722,6 +722,34 @@ void test("native recovery and Unix custody changes retain macOS no-global porta
   );
 });
 
+const frontendToolInputs = [
+  ["frontend:static", ["node", "apps/desktop/scripts/browser-package-compatibility.mts"]],
+  ["frontend:static", ["vp", "-C", "apps/desktop", "run", "lint:style"]],
+  ["frontend:content", ["node", "apps/desktop/scripts/generate-transport-types.mts"]],
+  ["frontend:content", ["node", "scripts/check-transport-contract.mts", "--ipc-only"]],
+] as const;
+
+function assertFrontendToolInputs(tasks: unknown) {
+  assert.ok(isRecord(tasks));
+  for (const [name, input] of frontendToolInputs) {
+    const task = tasks[name];
+    assert.ok(isRecord(task));
+    const commands: unknown[] = Array.isArray(task.command) ? task.command : [task.command];
+    const invocations = commands.flatMap((command) => {
+      assert.equal(typeof command, "string");
+      const body = literalStepCommands({ run: command });
+      return body.length === 1 ? body : [];
+    });
+    assert.ok(
+      invocations.some(
+        (args) =>
+          args.length === input.length && args.every((value, index) => value === input[index]),
+      ),
+      `${name} must execute ${input.join(" ")}`,
+    );
+  }
+}
+
 void test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -731,12 +759,77 @@ void test("frontend tools resolve through the pinned Vite+ bundle", async () => 
   for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
     assert.equal(manifest.devDependencies[superseded], undefined);
   assert.equal(manifest.scripts.check, "vp run frontend:static");
-  const configuration = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
-  assert.match(configuration, /browser-package-compatibility.mts/);
-  assert.match(configuration, /vp -C apps\/desktop run lint:style/);
-  assert.match(configuration, /generate-transport-types.mts/);
-  assert.match(configuration, /check-transport-contract.mts --ipc-only/);
+  const { default: configuration } = await import("../vite.config.ts");
+  assertFrontendToolInputs(configuration.run?.tasks);
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mts");
+});
+
+void test("actual frontend task inputs tolerate declaration layout and reject missing or unreachable tool dependencies", async (t) => {
+  const { default: configuration } = await import("../vite.config.ts");
+  const tasks: unknown = configuration.run?.tasks;
+  assert.ok(isRecord(tasks));
+  const copyTasks = (): Record<string, unknown> =>
+    Object.fromEntries(
+      [...new Set(frontendToolInputs.map(([name]) => name))].map((name) => {
+        const task = tasks[name];
+        assert.ok(isRecord(task));
+        return [
+          name,
+          {
+            ...task,
+            command: Array.isArray(task.command)
+              ? task.command.map((value: unknown) => value)
+              : task.command,
+          },
+        ];
+      }),
+    );
+  const harmless: Record<string, unknown> = Object.fromEntries(
+    Object.entries(copyTasks()).reverse(),
+  );
+  for (const name of ["frontend:static", "frontend:content"]) {
+    const task = harmless[name];
+    assert.ok(isRecord(task) && Array.isArray(task.command));
+    task.command = task.command.map((command: unknown) => {
+      assert.equal(typeof command, "string");
+      const [args] = literalStepCommands({ run: command });
+      assert.ok(args);
+      return "# harmless task comment\n" + args.map((arg) => JSON.stringify(arg)).join("   ");
+    });
+  }
+  assert.doesNotThrow(() => assertFrontendToolInputs(harmless));
+  for (const [name, input] of frontendToolInputs) {
+    for (const mode of ["missing", "unreachable", "foreign-owner"] as const) {
+      const changed = copyTasks();
+      const task = changed[name];
+      assert.ok(isRecord(task) && Array.isArray(task.command));
+      const commands: unknown[] = task.command;
+      const selected = commands.findIndex((command) => {
+        if (typeof command !== "string") return false;
+        const body = literalStepCommands({ run: command });
+        const args = body[0];
+        return (
+          body.length === 1 &&
+          args?.length === input.length &&
+          args.every((arg, index) => arg === input[index])
+        );
+      });
+      assert.ok(selected >= 0);
+      if (mode === "unreachable") task.command[selected] = "exit 0\n" + input.join(" ");
+      else task.command.splice(selected, 1);
+      if (mode === "foreign-owner") changed["unused:foreign-owner"] = { command: input.join(" ") };
+      const oracle = `${name} must execute ${input.join(" ")}`;
+      assert.throws(
+        () => assertFrontendToolInputs(changed),
+        (error: unknown) => {
+          assert.ok(error instanceof assert.AssertionError);
+          assert.ok(error.message.includes(oracle), error.message);
+          return true;
+        },
+      );
+      t.diagnostic(JSON.stringify({ name, input, mode, oracle }));
+    }
+  }
 });
 
 void test("full frontend tests retain fresh unit and browser stages", async () => {
