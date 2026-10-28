@@ -257,6 +257,10 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^preparation_contract::lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay$/) | test(/^preparation_contract::reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
   const intelPreparationFilter =
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/))";
+  const windowsPreparationAndDriftFilter =
+    "(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/))";
+  const windowsDiagnosticsFilter =
+    "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)";
   const intelCuratedRepinFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)";
   assert.deepEqual(overrideFor(intelCuratedRepinFilter, "x86_64-apple-darwin"), {
@@ -280,6 +284,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)",
     "package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)",
+    "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))",
+    "package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/))",
   ];
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
@@ -323,6 +329,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsPreparationAndDriftFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsDiagnosticsFilter },
     ]
       .map(outputIdentity)
       .sort(),
@@ -424,7 +432,13 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     for (const field of ["retries", "threads-required", "priority"])
       assert.equal(override[field], undefined);
   }
-  for (const filter of [replacementDownloadFilter, namedSaveRestoreFilter, psxProgressionFilter]) {
+  for (const filter of [
+    replacementDownloadFilter,
+    namedSaveRestoreFilter,
+    psxProgressionFilter,
+    windowsPreparationAndDriftFilter,
+    windowsDiagnosticsFilter,
+  ]) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override["success-output"], "immediate");
     assert.deepEqual(override["slow-timeout"], {

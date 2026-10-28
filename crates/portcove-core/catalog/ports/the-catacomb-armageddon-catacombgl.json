@@ -6,7 +6,6 @@
     "summary": "Use The Catacomb Armageddon with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "The Catacomb Armageddon",
     "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
     "issue_number": 2645,
@@ -51,5 +50,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "ArnoAnsems/CatacombGL",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your own The Catacomb Armageddon data from the Catacombs Pack. Abyss shareware does not supply this game. Keep the complete original folder and its companion files. CatacombGL can find a GOG Windows installation; otherwise use its own folder picker. Original data is separate from the player and remains yours. Choose Preview for the official Windows 64-bit beta ZIP, extract it and keep CatacombGL.exe and SDL2.dll together. Register CatacombGL.exe with that folder as its working directory. Leave arguments empty for the game picker, or use the single documented argument --armageddon after the original folder is recognized. Registration does not start it; choose Play deliberately. The Linux tar.xz needs upstream/system extraction and a prepared native player; the Windows recommendation does not promise managed tar.xz handling. Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+    }
   }
 }

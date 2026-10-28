@@ -6,7 +6,6 @@
     "summary": "Use Doom / The Ultimate Doom with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "Doom / The Ultimate Doom",
     "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
     "issue_number": 2654,
@@ -49,5 +48,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "fabiangreffrath/crispy-doom",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Supply DOOM.WAD from your original PC retail/Ultimate Doom copy. DOOM1.WAD provides only the separate shareware episode, not the full game. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls. Extract the official Windows 64-bit crispy-doom ZIP, retaining its DLLs and support files. Use crispy-doom-setup.exe for upstream configuration when needed, then select crispy-doom.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen doom.wad. Registration does not run setup or start the game; Play is separate. The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+    }
   }
 }
