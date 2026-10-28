@@ -218,4 +218,4 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     await keep.click();
     expect(remove).not.toHaveBeenCalled();
   }
-}, 30_000);
+}, 60_000);

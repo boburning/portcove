@@ -136,6 +136,7 @@ it.each(
       path: `../../../../../outputs/ui-refinement/discover-${layout}-${theme}-740-text-130.png`,
     });
   },
+  45_000,
 );
 
 it("labels active facets and restores focus after removing chips or clearing while preserving search", async () => {

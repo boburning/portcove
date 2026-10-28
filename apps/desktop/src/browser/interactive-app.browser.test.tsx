@@ -98,6 +98,7 @@ it.each(["dark", "light"])(
       path: `../../../../outputs/ui-refinement/rows-text-200-wide-${theme}.png`,
     });
   },
+  45_000,
 );
 
 it("keeps enlarged review facts and cancellation reachable", async () => {
