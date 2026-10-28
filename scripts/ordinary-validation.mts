@@ -335,6 +335,7 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-default-cover.native.test.mts",
       "apps/desktop/scripts/desktop-reload.native.test.mts",
       "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-real-runtime.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
     ],
   ],
