@@ -71,6 +71,10 @@ afterEach(async () => {
   document.documentElement.style.removeProperty("font-size");
 });
 
+// CI40745384613/a1 macOS producer123018113028 reached the15s case
+// deadline while these complete multi-step observations were progressing.
+// Preserve every interaction, assertion, matrix row and cleanup; calibrate only
+// this test-family safeguard to45s, without changing product deadlines.
 it.for([
   ["library", "dark"],
   ["library", "light"],
@@ -78,6 +82,7 @@ it.for([
   ["catalog", "light"],
 ] as const)(
   "measures actual mixed artwork and metadata in %s/%s",
+  { timeout: 45_000 },
   async ([view, theme], context) => {
     vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
       artworkState(id, slot, 0, id !== "portrait-4"),

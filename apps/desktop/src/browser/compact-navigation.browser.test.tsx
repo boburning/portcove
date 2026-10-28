@@ -68,7 +68,23 @@ for (const width of [320, 576]) {
           active.matches("[data-base-ui-focus-guard]") &&
           [popup.previousElementSibling, popup.nextElementSibling].includes(active);
         expect(popup.contains(active) || ownedGuard).toBe(true);
-        await expect.poll(() => popup.contains(document.activeElement)).toBe(true);
+        try {
+          await expect.poll(() => popup.contains(document.activeElement)).toBe(true);
+        } catch (error) {
+          const settled = document.activeElement;
+          console.error("Navigation focus settlement failure", {
+            index,
+            width,
+            theme,
+            document_focused: document.hasFocus(),
+            visibility: document.visibilityState,
+            dialog_connected: popup.isConnected,
+            active: settled?.outerHTML ?? null,
+            immediate_active: active?.outerHTML ?? null,
+            dialog: popup.outerHTML,
+          });
+          throw error;
+        }
       }
       expect((await axe.run(dialog.element())).violations).toEqual([]);
       await userEvent.keyboard("{Escape}");
