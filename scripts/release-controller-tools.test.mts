@@ -878,7 +878,7 @@ function fixture(
     source_tree: "b".repeat(40),
     platform,
     node_version: controllerNodeVersion,
-    bundler: "vite-plus@1.3.0",
+    bundler: "vite-plus@1.4.0",
     tauri_cli_version: "2.12.2",
     files: [...bytes].map(([name, content]) => ({
       path: name,

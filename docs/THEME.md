@@ -139,7 +139,7 @@ queries respond to available component space; viewport queries own shell changes
 Artwork fitting/lettering has a local layered CSS Module beside Artwork.tsx.
 Do not recreate a global feature stylesheet through imported fragments.
 
-Vite+ 1.3.0 owns the toolchain. Tailwind 4.3.3 generates utilities with optimization
+Vite+ 1.4.0 owns the toolchain. Tailwind 4.3.3 generates utilities with optimization
 disabled; Vite performs full Lightning CSS transformation and minification.
 Processing CSS, minifier CSS and JavaScript targets explicitly match Chrome 111
 and Safari 16.4. Production scan exclusions are independent of module tree shaking.

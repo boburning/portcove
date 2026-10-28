@@ -164,7 +164,7 @@ The React/Vite/Tauri desktop is migrating incrementally under [#917](https://git
 
 `apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`), React Server Components off, Lucide, the Tailwind entry, and the app-local aliases. The initial checked-in controls are Button, Dialog, and Select. They exist to prove the difficult installation-review nesting; they do not authorize broad screen migration by themselves. Portcove retained the generated internal implementations but removed the unused generated helper and unused public exports after static analysis; future regeneration must preserve that deliberately smaller maintained surface.
 
-The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.3.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
+The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.4.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
 
 | Input                             | Version | License    | Demonstrated purpose                                              |
 | --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
