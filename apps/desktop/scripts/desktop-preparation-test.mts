@@ -1809,7 +1809,18 @@ export async function preparationScenarios({
           "Both owned local artwork images must load before the resize journey",
         );
         for (const layout of ["Covers", "Compact rows"]) {
-          await clickVisible(browser, await browser.findElement(button(layout)));
+          const viewControls = await browser.findElement(
+            By.css('[role="group"][aria-label="Collection view"]'),
+          );
+          const layoutControl = await viewControls.findElement(
+            layout === "Covers" ? button(layout) : By.css('button[aria-label="Compact rows"]'),
+          );
+          await clickVisible(browser, layoutControl);
+          await browser.wait(
+            async () => (await layoutControl.getAttribute("aria-pressed")) === "true",
+            5_000,
+            "The requested Library view must be selected before measuring",
+          );
           for (const { width, height } of [
             { width: 960, height: 640 },
             { width: 1280, height: 800 },
