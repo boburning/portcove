@@ -32,8 +32,10 @@ void test("storage setup policy distinguishes executable setup from harmless tes
 
 void test(
   "actual workflow policies accept equivalent YAML and reject removed gates, tests, budgets and evidence",
-  // Includes the toolchain reader's existing180s native harness plus policy controls.
-  { timeout: 240_000 },
+  // The first cold reader retains 240s; its serial positive cohort also owns
+  // the existing frontend fixtures. Give that child 300s and this five-control
+  // parent 420s, preserving assertions, retained child output and zero retries.
+  { timeout: 420_000 },
   async (t) => {
     const directory = await mkdtemp(join(tmpdir(), "portcove-workflow-policies-"));
     const preload = join(directory, "workflow-inputs.mjs");
@@ -120,7 +122,7 @@ mock.module("node:fs/promises", { namedExports: { ...originalNamed, readFile }, 
             cwd: fileURLToPath(new URL("..", import.meta.url)),
             env,
             encoding: "utf8",
-            timeout: 200_000,
+            timeout: 300_000,
             maxBuffer: 4 * 1024 * 1024,
           },
         );
