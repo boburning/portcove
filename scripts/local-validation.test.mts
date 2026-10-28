@@ -410,6 +410,7 @@ void test("opt-in Rust coverage inputs retain contracts across lifecycle and ren
     "scripts/quality-tools.mts",
     "scripts/resource-command.mts",
     "scripts/resource-capacity.mts",
+    "scripts/prepared-file-replacement.mts",
     "scripts/runtime-values.mts",
   ]) {
     for (const change of [
@@ -697,6 +698,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
+    "scripts/renovate-engine-probe.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = readdirSync(path.join(root, "scripts"))

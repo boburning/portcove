@@ -302,6 +302,7 @@ void test("native receipts include the admission runtime and containment reprodu
     "desktop-test-cli.mts",
     "resource-command.mts",
     "resource-capacity.mts",
+    "prepared-file-replacement.mts",
     "resource-paths.mts",
     "fallow-source.mts",
     "run-rust-tests.mts",

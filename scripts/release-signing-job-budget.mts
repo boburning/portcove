@@ -1,6 +1,11 @@
 /** Fixed role budget derivation only; provider metadata does not authenticate a
  * signer. The actual role still requires its signed OIDC identity and controls. */
 import { performance } from "node:perf_hooks";
+import { createHash } from "node:crypto";
+import {
+  requireAdmittedProductionSource,
+  maximumProductionControllerWorkflowBytes,
+} from "./production-controller-admission.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
@@ -41,6 +46,7 @@ function signingOriginalJobDeadline(
   identity: { run_id: string; controller_revision: string },
   now = Date.now(),
   monotonic = performance.now(),
+  admittedNativeMaximum?: number,
 ) {
   if (
     ![
@@ -68,20 +74,22 @@ function signingOriginalJobDeadline(
     throw new Error("fixed online signing role required");
   const role = rawRole as ClockRole;
   const maximum =
-    role === "payload" ||
-    role === "native-windows" ||
-    role === "native-linux" ||
-    role === "application-protection"
-      ? 570000
-      : role === "candidate-building"
-        ? 525000
-        : role === "coordinator"
-          ? 170000
-          : role === "release-publication"
-            ? 350000
-            : role === "site-publication"
-              ? 290000
-              : 115000;
+    (role === "native-windows" || role === "native-linux") && admittedNativeMaximum !== undefined
+      ? admittedNativeMaximum
+      : role === "payload" ||
+          role === "native-windows" ||
+          role === "native-linux" ||
+          role === "application-protection"
+        ? 570000
+        : role === "candidate-building"
+          ? 525000
+          : role === "coordinator"
+            ? 170000
+            : role === "release-publication"
+              ? 350000
+              : role === "site-publication"
+                ? 290000
+                : 115000;
   if (
     !isRecord(raw) ||
     !Array.isArray(raw.jobs) ||
@@ -158,6 +166,7 @@ function currentSigningJobDeadline(
   },
   root: string,
   processDeadline: number,
+  admittedNativeMaximum?: number,
 ) {
   if (
     !/^[1-9][0-9]{0,15}$/u.test(identity.run_id) ||
@@ -187,7 +196,17 @@ function currentSigningJobDeadline(
   );
   remaining();
   if (response.status !== 200) throw new Error("original TUF job budget unavailable");
-  return Math.min(processDeadline, signingOriginalJobDeadline(role, response.body, identity));
+  return Math.min(
+    processDeadline,
+    signingOriginalJobDeadline(
+      role,
+      response.body,
+      identity,
+      Date.now(),
+      performance.now(),
+      admittedNativeMaximum,
+    ),
+  );
 }
 export function tufOriginalJobDeadline(role: unknown, ...args: BudgetArguments) {
   if (!["releases", "preview", "stable", "snapshot", "timestamp"].includes(String(role)))
@@ -211,13 +230,105 @@ function nativeClockRole(platform: unknown): "native-windows" | "native-linux" {
   if (platform === "linux-x86_64") return "native-linux";
   throw new Error("fixed native clock platform required");
 }
-/** The existing ten-minute native allocation includes both stages and waiting.
- * Provider timestamps are clock metadata, never native/source authority. */
-export function nativeOriginalJobDeadline(platform: unknown, ...args: BudgetArguments) {
-  return signingOriginalJobDeadline(nativeClockRole(platform), ...args);
+/** A fixed native job declaration from the SAME admitted immutable source.
+ * This is clock metadata, not resource ratification or execution authority.
+ * Keep this pre-tool path dependency-free: recognize only the selected job's
+ * direct canonical literal, refusing other YAML spellings/merges/expressions. */
+export function admittedNativeProviderMaximumMilliseconds(
+  platform: unknown,
+  source: unknown,
+  workflowBytes: Uint8Array,
+  identity: JobIdentity,
+) {
+  const role = nativeClockRole(platform),
+    job = role === "native-linux" ? "native_linux" : "native_windows";
+  requireAdmittedProductionSource(source, job, "application");
+  if (
+    source.mode !== "bounded-application-release" ||
+    source.revision !== identity.controller_revision ||
+    source.execution_ref !== identity.controller_ref ||
+    source.run_id !== identity.run_id ||
+    source.run_attempt !== identity.run_attempt ||
+    identity.run_attempt !== 1
+  )
+    throw Error("Original native source/clock identity differs");
+  if (
+    !(workflowBytes instanceof Uint8Array) ||
+    workflowBytes.byteLength < 1 ||
+    workflowBytes.byteLength > maximumProductionControllerWorkflowBytes
+  )
+    throw Error("Bounded original workflow bytes required");
+  const bytes = Buffer.from(workflowBytes);
+  if (createHash("sha256").update(bytes).digest("hex") !== source.workflow_sha256)
+    throw Error("Original admitted native workflow bytes differ");
+  const text = bytes.toString("utf8");
+  if (!Buffer.from(text).equals(bytes)) throw Error("Original workflow UTF8 required");
+  const lines = text.split(/\r?\n/u),
+    roots = lines.flatMap((line, index) => (line === "jobs:" ? [index] : []));
+  if (roots.length !== 1) throw Error("One canonical jobs mapping required");
+  const from = roots[0]! + 1;
+  let end = lines.length;
+  for (let i = from; i < lines.length; i++)
+    if (/^\S/u.test(lines[i]!) && !lines[i]!.startsWith("#")) {
+      end = i;
+      break;
+    }
+  const header = new RegExp("^  (?:" + job + "|'" + job + "'|\"" + job + '"):', "u"),
+    selected = [];
+  for (let i = from; i < end; i++) if (header.test(lines[i]!)) selected.push(i);
+  if (selected.length !== 1 || lines[selected[0]!] !== "  " + job + ":")
+    throw Error("One canonical fixed native job header required");
+  const start = selected[0]! + 1;
+  let stop = end;
+  for (let i = start; i < end; i++)
+    if (/^ {0,2}\S/u.test(lines[i]!) && !/^\s*#/u.test(lines[i]!)) {
+      stop = i;
+      break;
+    }
+  const body = lines.slice(start, stop);
+  if (body.some((line) => /^    ["']?<<["']?\s*:/u.test(line)))
+    throw Error("Selected native job merge refused");
+  const timeouts = body.filter((line) =>
+    /^    (?:timeout-minutes|"timeout-minutes"|'timeout-minutes')\s*:/u.test(line),
+  );
+  const literal =
+    timeouts.length === 1
+      ? /^    timeout-minutes: ([1-9][0-9]{0,2})\s*$/u.exec(timeouts[0]!)
+      : null;
+  const minutes = literal ? Number(literal[1]) : NaN;
+  if (!Number.isSafeInteger(minutes) || minutes < 1 || minutes > 360)
+    throw Error("One direct literal native timeout1..360 required");
+  requireAdmittedProductionSource(source, job, "application");
+  return minutes * 60000 - 30000;
 }
-export function currentNativeJobDeadline(platform: unknown, ...args: CurrentArguments) {
-  return currentSigningJobDeadline(nativeClockRole(platform), ...args);
+/** Legacy pure fixture clock remains ten minutes minus its30-second reserve.
+ * Extra caller arguments cannot inject an extended provider allocation. */
+export function nativeOriginalJobDeadline(platform: unknown, ...args: BudgetArguments) {
+  return signingOriginalJobDeadline(nativeClockRole(platform), args[0], args[1], args[2], args[3]);
+}
+/** The actual admitted declared job starts once at provider.started_at. The
+ * caller's existing earlier process/owner clock can only shorten that window. */
+export function currentNativeJobDeadline(
+  platform: unknown,
+  identity: JobIdentity,
+  root: string,
+  processDeadline: number,
+  source: unknown,
+  workflowBytes: Uint8Array,
+) {
+  const maximum = admittedNativeProviderMaximumMilliseconds(
+    platform,
+    source,
+    workflowBytes,
+    identity,
+  );
+  return currentSigningJobDeadline(
+    nativeClockRole(platform),
+    identity,
+    root,
+    processDeadline,
+    maximum,
+  );
 }
 /** One original shared observer allocation; individual phases cannot renew it. */
 export function sharedProtectionOriginalJobDeadline(...args: BudgetArguments) {

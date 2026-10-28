@@ -286,7 +286,7 @@ void test("assembler reconciles the full matrix then generates and checksums the
   const finalize = assembleSection.indexOf("finalize-release-assets.mts");
   const upload = assembleSection.indexOf("name: release-final");
   assert(reconcile >= 0 && sbom > reconcile && finalize > sbom && upload > finalize);
-  assert.match(assembleSection, /syft-version: v1\.54\.1/);
+  assert.match(assembleSection, /syft-version: v1\.55\.0/);
   assert.match(assembleSection, /upload-release-assets: false/);
   assert.match(
     assembleSection,

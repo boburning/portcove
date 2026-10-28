@@ -7,8 +7,115 @@ namespace Portcove.NativeQualification {
         [System.Runtime.InteropServices.DllImport("user32")] static extern System.IntPtr GetThreadDesktop(uint thread);
         [System.Runtime.InteropServices.DllImport("user32", CharSet=System.Runtime.InteropServices.CharSet.Unicode, SetLastError=true)]
         static extern bool GetUserObjectInformationW(System.IntPtr handle, int index, System.Text.StringBuilder value, uint length, out uint needed);
+        [System.Runtime.InteropServices.DllImport("kernel32", SetLastError=true)]
+        static extern bool ProcessIdToSessionId(uint pid, out uint session);
+        [System.Runtime.InteropServices.DllImport("kernel32", SetLastError=true)]
+        static extern bool GetThreadTimes(System.IntPtr thread, out long created, out long exited, out long kernel, out long user);
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        struct UserObjectFlags { public int inherit,reserved; public uint flags; }
+        [System.Runtime.InteropServices.DllImport("user32", EntryPoint="GetUserObjectInformationW", SetLastError=true)]
+        static extern bool GetUserObjectFlagsInformation(System.IntPtr handle, int index, out UserObjectFlags value, uint length, out uint needed);
+        static string DiagnosticError(System.Exception error) {
+            return error.GetType().Name + ":0x" + error.HResult.ToString("X8");
+        }
+        static void ObserveFixedImage(System.Collections.Generic.Dictionary<string,object> result, string filename) {
+            try {
+                const int maximum=8*1024*1024;
+                using (var image=new System.IO.FileStream(filename,System.IO.FileMode.Open,System.IO.FileAccess.Read,System.IO.FileShare.Read))
+                using (var digest=System.Security.Cryptography.SHA256.Create()) {
+                    long expected=image.Length; if(expected<1||expected>maximum) throw new System.IO.IOException("Fixed image exceeds diagnostic bound");
+                    int total=0,count; var bytes=new byte[65536];
+                    while((count=image.Read(bytes,0,System.Math.Min(bytes.Length,maximum+1-total)))!=0) {
+                        total+=count; if(total>maximum) throw new System.IO.IOException("Fixed image grew beyond diagnostic bound");
+                        digest.TransformBlock(bytes,0,count,bytes,0);
+                    }
+                    if(total!=expected||image.Length!=expected) throw new System.IO.IOException("Fixed image changed during diagnostic read");
+                    digest.TransformFinalBlock(new byte[0],0,0);
+                    result["image_observed_bytes"]=total; result["image_observed_sha256"]=System.BitConverter.ToString(digest.Hash).Replace("-","").ToLowerInvariant();
+                    result["image_hash_scope"]="fixed OS file bytes after original teardown; not loaded-image equivalence or signing authority";
+                }
+            } catch(System.Exception error) { result["image_observation_unknown"]=DiagnosticError(error); }
+        }
+        // Read only the original child while its process and primary-thread
+        // handles remain retained by this probe. Unknown metadata never turns
+        // into visibility/response/cleanup evidence or replaces their failure.
+        static System.Collections.Generic.Dictionary<string,object> StartupSnapshot(AccountProcess child, System.IntPtr primaryThread, uint primaryTid, string stage, long elapsed) {
+            var data = new System.Collections.Generic.Dictionary<string,object>();
+            data["stage"]=stage; data["observation_elapsed_ms"]=elapsed;
+            data["original_pid"]=child.Pid; data["original_created_filetime"]=child.CreatedFileTime.ToString(); data["original_primary_tid"]=primaryTid;
+            data["identity_status"]="unknown";
+            System.IntPtr process = System.IntPtr.Zero;
+            try {
+                process = Native.OpenProcess(0x1000, false, child.Pid); // QUERY_LIMITED_INFORMATION only.
+                if (process == System.IntPtr.Zero) throw Native.Error("Observe original inert child");
+                long created, exited, kernel, user;
+                if (!Native.GetProcessTimes(process,out created,out exited,out kernel,out user)) throw Native.Error("Observe original inert child generation");
+                if (created != child.CreatedFileTime) { data["identity_reason"]="generation differs; no further metadata read"; return data; }
+                uint length=32768; var image=new System.Text.StringBuilder((int)length);
+                if (!Native.QueryFullProcessImageNameW(process,0,image,ref length)) throw Native.Error("Observe original inert image");
+                if (!System.String.Equals(image.ToString(),child.Path,System.StringComparison.OrdinalIgnoreCase)) { data["identity_reason"]="image differs; no further metadata read"; return data; }
+                data["identity_status"]="matched"; data["image"]=image.ToString();
+                data["process_kernel_ticks"]=kernel; data["process_user_ticks"]=user;
+                // HasExited reads the retained original SYNCHRONIZE handle.
+                // The separate query-only metadata handle cannot be waited on.
+                data["original_process_has_exited"]=child.HasExited;
+                if (child.HasExited) { data["live_metadata_status"]="unknown:original process exited"; return data; }
+                uint session;
+                if (ProcessIdToSessionId(child.Pid,out session)) data["process_session_id"]=session;
+                else data["process_session_unknown_win32"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                long threadCreated,threadExited,threadKernel,threadUser;
+                if (GetThreadTimes(primaryThread,out threadCreated,out threadExited,out threadKernel,out threadUser)) {
+                    data["primary_thread_created_filetime"]=threadCreated.ToString(); data["primary_thread_kernel_ticks"]=threadKernel; data["primary_thread_user_ticks"]=threadUser;
+                } else data["primary_thread_times_unknown_win32"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                uint originalThreadWait=Native.WaitForSingleObject(primaryThread,0); int threadWaitError=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                data["original_primary_thread_wait"]=originalThreadWait;
+                if (originalThreadWait!=258) { data["primary_thread_state"]="unknown:original thread not observed live"; if(originalThreadWait==0xffffffff) data["primary_thread_wait_unknown_win32"]=threadWaitError; return data; }
+                System.IntPtr primaryDesktop=GetThreadDesktop(primaryTid);
+                if (primaryDesktop == System.IntPtr.Zero) data["primary_desktop_unknown_win32"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                else {
+                    // GetThreadDesktop lends a handle; never close it or change
+                    // that thread's desktop while taking this read-only snapshot.
+                    var desktopName=new System.Text.StringBuilder(256); uint needed;
+                    if (GetUserObjectInformationW(primaryDesktop,2,desktopName,512,out needed)) data["primary_desktop_name"]=desktopName.ToString();
+                    else data["primary_desktop_unknown_win32"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                }
+                try {
+                    using (var observed=System.Diagnostics.Process.GetProcessById((int)child.Pid)) {
+                        var threads=observed.Threads;
+                        data["thread_count"]=threads.Count; data["primary_thread_state"]="unknown";
+                        // This is the owned original process, never a system
+                        // process inventory. Bound inspection to 128 entries.
+                        if (threads.Count<=128) {
+                            foreach (System.Diagnostics.ProcessThread thread in threads) {
+                                try {
+                                    if ((uint)thread.Id != primaryTid) continue;
+                                    var state=thread.ThreadState; data["primary_thread_state"]=state.ToString();
+                                    if (state==System.Diagnostics.ThreadState.Wait) data["primary_thread_wait_reason"]=thread.WaitReason.ToString();
+                                } finally { thread.Dispose(); }
+                            }
+                        } else data["primary_thread_state"]="unknown:thread inventory exceeds bound";
+                    }
+                } catch (System.Exception error) { data["primary_thread_state"]="unknown:"+DiagnosticError(error); }
+                // ID-based metadata is accepted only while both original
+                // retained handles remain live across the bounded read.
+                uint threadWaitAfter=Native.WaitForSingleObject(primaryThread,0); int threadWaitAfterError=System.Runtime.InteropServices.Marshal.GetLastWin32Error(); bool exitedAfter=child.HasExited;
+                data["original_primary_thread_wait_after"]=threadWaitAfter; data["original_process_has_exited_after"]=exitedAfter;
+                if(threadWaitAfter==0xffffffff) data["primary_thread_wait_after_unknown_win32"]=threadWaitAfterError;
+                if (threadWaitAfter!=258 || exitedAfter) {
+                    data.Remove("primary_desktop_name"); data.Remove("process_session_id"); data.Remove("thread_count"); data.Remove("primary_thread_wait_reason");
+                    data["live_metadata_status"]="unknown:original process/thread exited during read";
+                    data["primary_thread_state"]="unknown:original process/thread exited during read";
+                }
+            } catch (System.Exception error) { data["metadata_unknown"]=DiagnosticError(error); }
+            finally { if (process!=System.IntPtr.Zero && !Native.CloseHandle(process)) data["metadata_handle_close_unknown_win32"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error(); }
+            return data;
+        }
         public static System.Collections.Generic.Dictionary<string,object> Run(string root) {
             var result = new System.Collections.Generic.Dictionary<string,object>();
+            var snapshots = new System.Collections.Generic.List<System.Collections.Generic.Dictionary<string,object>>();
+            result["startup_snapshots"]=snapshots;
+            System.Diagnostics.Stopwatch observationClock=null;
+            string fixedImage=null;
             string sid = System.Security.Principal.WindowsIdentity.GetCurrent().User.Value;
             string name = "PortcoveObserver_" + System.Guid.NewGuid().ToString("N");
             System.IntPtr original = GetThreadDesktop(GetCurrentThreadId()), desktop = System.IntPtr.Zero, job = System.IntPtr.Zero;
@@ -17,6 +124,17 @@ namespace Portcove.NativeQualification {
             try {
                 var stationName = new System.Text.StringBuilder(64); uint needed;
                 if (!GetUserObjectInformationW(Native.GetProcessWindowStation(), 2, stationName, 128, out needed) || stationName.ToString() != "WinSta0") throw new System.InvalidOperationException("Observer regression requires the existing WinSta0");
+                result["owner_window_station"]=stationName.ToString();
+                try {
+                    uint ownerSession;
+                    using (var owner=System.Diagnostics.Process.GetCurrentProcess()) {
+                        if (ProcessIdToSessionId((uint)owner.Id,out ownerSession)) result["owner_session_id"]=ownerSession;
+                        else result["owner_session_unknown_win32"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                    }
+                    UserObjectFlags stationFlags;
+                    if (GetUserObjectFlagsInformation(Native.GetProcessWindowStation(),1,out stationFlags,12,out needed)) result["owner_window_station_visible"]=(stationFlags.flags&1)!=0;
+                    else result["owner_window_station_flags_unknown_win32"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                } catch (System.Exception error) { result["owner_metadata_unknown"]=DiagnosticError(error); }
                 System.IntPtr sd; uint size;
                 if (!Native.ConvertStringSecurityDescriptorToSecurityDescriptorW("O:"+sid+"D:P(A;;GA;;;"+sid+")(A;;GA;;;SY)", 1, out sd, out size)) throw Native.Error("Observer desktop descriptor");
                 try {
@@ -33,24 +151,30 @@ namespace Portcove.NativeQualification {
                 if (input == new System.IntPtr(-1)) throw Native.Error("Observer null stdin");
                 string system = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Windows);
                 string exe = System.IO.Path.Combine(system, "System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+                fixedImage=exe;
                 // Avoid PowerShell cmdlet/module discovery on the new private desktop.
                 string script = "[Console]::Error.WriteLine('inert-observer:entered');[void][Reflection.Assembly]::Load('System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089');[Console]::Error.WriteLine('inert-observer:forms-loaded');$f=[Windows.Forms.Form]::new();$t=[Windows.Forms.Timer]::new();try{$f.Text='Portcove observer regression';$t.Interval=20000;$t.Add_Tick({$f.Close()});$t.Start();[Console]::Error.WriteLine('inert-observer:before-show');$f.Show();[Console]::Error.WriteLine('inert-observer:shown');[Windows.Forms.Application]::Run($f)}finally{[Console]::Error.WriteLine('inert-observer:closing');$t.Dispose();$f.Dispose()}";
                 string command = AccountLauncher.Quote(exe)+" -NoLogo -NoProfile -NonInteractive -EncodedCommand "+System.Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
                 block = System.Runtime.InteropServices.Marshal.StringToHGlobalUni("SystemRoot="+system+"\0WINDIR="+system+"\0PATH="+System.IO.Path.Combine(system,"System32")+"\0TEMP="+root+"\0TMP="+root+"\0\0");
                 var startup = new Native.StartupInfo { cb=(uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.StartupInfo)), desktop="WinSta0\\"+name, flags=0x100, input=input, output=outputWrite, error=errorWrite };
+                result["requested_desktop"]=startup.desktop; result["creation_flags"]="0x08000404";
                 if (!CreateProcessW(exe, new System.Text.StringBuilder(command), System.IntPtr.Zero, System.IntPtr.Zero, true, 0x08000404, block, root, ref startup, out info)) throw Native.Error("Create fixed observer regression form");
                 if (!Native.AssignProcessToJobObject(job, info.process)) throw Native.Error("Admit observer regression to its original job");
                 child = new AccountProcess(job, info.process, info.pid, System.IntPtr.Zero, desktop, exe, outputRead, errorRead);
                 job=desktop=info.process=outputRead=errorRead=System.IntPtr.Zero;
-                result["pid"]=child.Pid; result["created_filetime"]=child.CreatedFileTime.ToString(); result["image"]=child.Path;
-                if (Native.ResumeThread(info.thread) != 1) throw new System.InvalidOperationException("Unexpected observer regression suspend count");
+                result["pid"]=child.Pid; result["created_filetime"]=child.CreatedFileTime.ToString(); result["image"]=child.Path; result["primary_tid"]=info.tid;
+                uint resumed=Native.ResumeThread(info.thread); result["resume_previous_suspend_count"]=resumed;
+                if (resumed != 1) throw new System.InvalidOperationException("Unexpected observer regression suspend count");
                 Native.CloseHandle(outputWrite); outputWrite=System.IntPtr.Zero; Native.CloseHandle(errorWrite); errorWrite=System.IntPtr.Zero;
-                bool observed=false; int polls=0; var clock=System.Diagnostics.Stopwatch.StartNew();
-                while (!child.HasExited && clock.ElapsedMilliseconds < 60000) { polls++; child.RequireAliveGeneration(); child.RefuseFaultedCapture(); if (child.HostedResponding) { observed=true; break; } System.Threading.Thread.Sleep(100); }
+                bool observed=false; int polls=0; var clock=System.Diagnostics.Stopwatch.StartNew(); observationClock=clock;
+                snapshots.Add(StartupSnapshot(child,info.thread,info.tid,"resumed",clock.ElapsedMilliseconds));
+                bool sampled=false;
+                while (!child.HasExited && clock.ElapsedMilliseconds < 60000) { polls++; child.RequireAliveGeneration(); child.RefuseFaultedCapture(); if (!sampled && clock.ElapsedMilliseconds>=5000) { sampled=true; snapshots.Add(StartupSnapshot(child,info.thread,info.tid,"five-seconds",clock.ElapsedMilliseconds)); } if (child.HostedResponding) { observed=true; break; } System.Threading.Thread.Sleep(100); }
                 result["observation_polls"]=polls; result["observation_elapsed_ms"]=clock.ElapsedMilliseconds; result["owned_visible_responsive"]=observed; result["window_inspection"]=child.LastWindowInspection; result["response_inspection"]=child.LastResponseInspection;
             } catch (System.Exception error) { result["failure"]=error.ToString(); }
             finally {
                 if (child != null) {
+                    if (snapshots.Count<3) snapshots.Add(StartupSnapshot(child,info.thread,info.tid,"before-original-stop",observationClock==null?0:observationClock.ElapsedMilliseconds));
                     try { var stop=child.StopAndObserve(5000); result["root_exited"]=stop.RootExited; result["job_empty"]=stop.JobEmpty; result["exit_code"]=stop.ExitCode; }
                     catch (System.Exception error) { result["cleanup_failure"]=error.ToString(); }
                     try { result["observer_drained"]=child.DrainHostedObserver(5000); }
@@ -73,6 +197,9 @@ namespace Portcove.NativeQualification {
                 foreach (var handle in new[]{outputRead,outputWrite,errorRead,errorWrite,input}) if(handle != System.IntPtr.Zero && handle != new System.IntPtr(-1)) Native.CloseHandle(handle);
                 if (desktop != System.IntPtr.Zero && !Native.CloseDesktop(desktop)) result["desktop_close_failure"]=System.Runtime.InteropServices.Marshal.GetLastWin32Error();
                 if (block != System.IntPtr.Zero) System.Runtime.InteropServices.Marshal.FreeHGlobal(block);
+                // Hash only after the original teardown, so diagnostic file IO
+                // cannot warm the child executable before its startup control.
+                if(fixedImage!=null) ObserveFixedImage(result,fixedImage);
             }
             return result;
         }

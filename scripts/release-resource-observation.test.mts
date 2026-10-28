@@ -187,3 +187,78 @@ void test("measured resource amendment remains concrete, complete and unratified
       .digest("hex"),
   );
 });
+
+void test("complete source amendment projects application163/catalog40 without activating policy or native execution", async () => {
+  const { prepareReleaseResourceAmendmentProposal: prepare } =
+      await import("./release-resource-amendment-proposal.mts"),
+    {
+      protectedWindowsNativeRuntimePreparationExecutionAuthorized,
+      prepareAdmittedWindowsNativeRuntime,
+    } = await import("./release-windows-bootstrap-runtime.mts");
+  const [production, wake, candidate] = await Promise.all(
+    ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
+      (name) => readFile(new URL("../.github/workflows/" + name, import.meta.url)),
+    ),
+  );
+  assert.ok(production && wake && candidate);
+  const original = Buffer.from(production),
+    result = prepare(production, wake, candidate);
+  assert.ok(production.equals(original));
+  assert.equal(result.proposal.authority, "none");
+  assert.equal(result.proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
+  assert.equal(result.proposal.observation.accounting.application, 163);
+  assert.equal(result.proposal.observation.accounting.catalog_alternative, 40);
+  assert.equal(result.proposal.observation.accounting.policy_envelope, 100);
+  assert.equal(slice4CapacityResources.total_job_minutes, 100);
+  assert.equal(result.proposal.proposed_resources.total_job_minutes, 163);
+  assert.equal(
+    result.proposal.proposed_resource_digest,
+    capacityDigest(result.proposal.proposed_resources),
+  );
+  assert.equal(result.proposal.proposed_resources.paid_fallback, false);
+  assert.equal(result.proposal.proposed_resources.shared_cache, false);
+  const proposed: unknown = parse(result.proposedWorkflow.toString());
+  assert.ok(
+    isRecord(proposed) &&
+      isRecord(proposed.jobs) &&
+      isRecord(proposed.jobs.native_windows) &&
+      isRecord(proposed.jobs.tool_bootstrap),
+  );
+  assert.equal(
+    proposed.jobs.tool_bootstrap["timeout-minutes"],
+    "${{ inputs.publication_purpose == 'application' && 12 || 4 }}",
+  );
+  const native = proposed.jobs.native_windows;
+  assert.equal(native["timeout-minutes"], 35);
+  assert.equal(native["runs-on"], "windows-2022");
+  assert.equal(native.environment, "production-native-windows");
+  assert.match(String(native.if), /^\$\{\{ false &&/u);
+  assert.ok(Array.isArray(native.needs) && native.needs.includes("tool_bootstrap_windows"));
+  assert.ok(Array.isArray(native.steps));
+  const runtime = native.steps.findIndex(
+      (step: unknown) =>
+        isRecord(step) &&
+        step.run ===
+          "node scripts/release-controller-tool-bootstrap.mts prepare-windows-native-runtime",
+    ),
+    pre = native.steps.findIndex(
+      (step: unknown) => isRecord(step) && isRecord(step.with) && step.with.stage === "pre-sign",
+    );
+  assert.ok(runtime > 0 && pre > runtime);
+  const stages = native.steps.filter(
+    (step: unknown) => isRecord(step) && step.uses === "./.github/actions/release-native-windows",
+  );
+  assert.equal(stages.length, 2);
+  assert.equal(protectedWindowsNativeRuntimePreparationExecutionAuthorized, false);
+  await assert.rejects(
+    prepareAdmittedWindowsNativeRuntime(),
+    /Protected Windows runtime preparation remains held/u,
+  );
+  const changed: unknown = parse(production.toString());
+  assert.ok(isRecord(changed) && isRecord(changed.jobs) && isRecord(changed.jobs.tool_bootstrap));
+  changed.jobs.tool_bootstrap["timeout-minutes"] = 5;
+  assert.throws(() => prepare(Buffer.from(stringify(changed)), wake, candidate));
+  changed.jobs.tool_bootstrap["timeout-minutes"] = 4;
+  changed.jobs.native_windows = {};
+  assert.throws(() => prepare(Buffer.from(stringify(changed)), wake, candidate), /Do not replace/u);
+});

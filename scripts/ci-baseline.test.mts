@@ -889,3 +889,47 @@ void test("measured coverage helpers retain their controls and shared frontend c
     assert.ok(local.nodeTests.has("scripts/ui-test-selection.test.mts"), file);
   }
 });
+
+void test("Aqua authorities execute real owned lint and rejecting tool controls in hosted and local plans", () => {
+  for (const file of [
+    "aqua.yaml",
+    "aqua-checksums.json",
+    ".aqua-version",
+    ".config/tool-bootstrap.json",
+  ]) {
+    const changes = [{ status: "M", path: file }];
+    const selection = classifyChanges(changes);
+    const plan = buildValidationPlan({
+      changes: changes.map(({ status, path }) => ({
+        status,
+        oldPath: path,
+        newPath: path,
+        oldMode: "100644",
+        newMode: "100644",
+      })),
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.equal(selection.pythonLint, true, file);
+    for (const commands of [buildPlan(selection), baselineLintPlan(plan)]) {
+      assert.deepEqual(
+        commands.find((entry) => entry.id === "python-lint")?.args,
+        ["exec", "--", "ruff", "check", "apps/desktop/assets/brand/models/v2"],
+        file,
+      );
+      assert.deepEqual(
+        commands.find((entry) => entry.id === "lint-tool-fixtures")?.args,
+        ["scripts/lint-tools.integration.mts", "ruff", "shellcheck", "actionlint"],
+        file,
+      );
+    }
+  }
+  const unrelated = buildPlan(classifyChanges([{ status: "M", path: "docs/QUALITY.md" }]));
+  assert.equal(
+    unrelated.some((entry) => entry.id === "lint-tool-fixtures" || entry.id === "python-lint"),
+    false,
+  );
+});

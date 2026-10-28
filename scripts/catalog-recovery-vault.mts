@@ -5,6 +5,8 @@
 import { createHash, createPrivateKey, createPublicKey } from "node:crypto";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
+import { constants } from "node:fs";
+import { isatty } from "node:tty";
 import { chmod, lstat, mkdir, mkdtemp, open, realpath, rm } from "node:fs/promises";
 import path from "node:path";
 import { inspectSelectedPublicationAuthorityConfiguration } from "./release-authority-configuration-contract.mts";
@@ -357,15 +359,35 @@ async function syncDirectory(directory: string) {
     await file.close();
   }
 }
-async function publishCompletion(directory: string, parent: string, result: unknown) {
+async function publishCompletion(
+  directory: string,
+  parent: string,
+  result: unknown,
+  signal?: AbortSignal,
+) {
   // Payload data is already fsynced. Persist its directory entries before a
   // completion marker can exist, then durably publish that marker and its parent.
   await syncDirectory(directory);
+  signal?.throwIfAborted();
   await durableFile(path.join(directory, "complete.json"), JSON.stringify(result));
   await syncDirectory(directory);
   await syncDirectory(parent);
 }
-async function readRecoveryFile(filename: string, bound: number, privateFile: boolean) {
+async function readRecoveryFile(
+  filename: string,
+  bound: number,
+  privateFile: boolean,
+  expected?: {
+    dev: number;
+    ino: number;
+    uid: number;
+    nlink: number;
+    size: number;
+    mode: number;
+    mtimeMs: number;
+    ctimeMs: number;
+  },
+) {
   const before = await lstat(filename);
   if (
     !before.isFile() ||
@@ -375,7 +397,16 @@ async function readRecoveryFile(filename: string, bound: number, privateFile: bo
     (await realpath(filename)) !== filename
   )
     throw new Error("bounded canonical single-link recovery file required");
-  const bytes = await readControllerToolFile(filename, bound, before);
+  if (
+    expected &&
+    (["dev", "ino", "uid", "nlink", "size", "mode", "mtimeMs", "ctimeMs"] as const).some(
+      (key) => !Number.isFinite(expected[key]) || before[key] !== expected[key],
+    )
+  )
+    throw new Error("reviewed custody metadata differs before content read");
+  // A caller's approved appointment remains the authority across pathname
+  // checks. The held reader compares it to fstat BEFORE any content read.
+  const bytes = await readControllerToolFile(filename, bound, expected ?? before);
   const after = await lstat(filename);
   if (
     after.dev !== before.dev ||
@@ -396,18 +427,182 @@ async function readPrivate(filename: string, bound: number) {
 /** Bounded ordinary-owner custody file acquisition for the authorized read
  * callback. Calling this function requires the separate custody grant; neither
  * its path nor a prepared public plan grants access or selects a private file. */
-export async function readCatalogCustodyMaterial(filename: string) {
+export async function readCatalogCustodyMaterial(
+  filename: string,
+  expected?: {
+    dev: number;
+    ino: number;
+    uid: number;
+    nlink: number;
+    size: number;
+    mode: number;
+    mtimeMs: number;
+    ctimeMs: number;
+  },
+) {
   offlineOwner();
-  return await readPrivate(filename, keyMaximum);
+  return await readRecoveryFile(filename, keyMaximum, true, expected);
 }
-/** Pinned age only. No inherited credentials, shell, plugins, proxy, hooks,
- * terminal/passphrase prompt or private material in command arguments. The
- * identity is sent over a private fd; stdout is accepted only after exit0. */
+/** Native age identity is retained for separately appointed fixture/identity
+ * profiles. The owner passphrase profile reads its secret only inside age's
+ * controlling terminal; Node never receives a passphrase value. */
+type AgeOperation =
+  | { kind: "recipient-encrypt"; recipient: string }
+  | { kind: "identity-decrypt"; identity: Buffer }
+  | { kind: "passphrase-encrypt-tty" }
+  | { kind: "passphrase-decrypt-tty" };
+/** Resource fence for this pinned age1.3.2 binary, single-scrypt, logN18
+ * profile (256MiB principal scrypt memory). This neither authenticates the
+ * ciphertext nor replaces age's parser/MAC or the independently retained SHA. */
+export function inspectPassphraseRecoveryHeader(bytes: Buffer) {
+  if (
+    !Buffer.isBuffer(bytes) ||
+    !/^age-encryption\.org\/v1\n-> scrypt [A-Za-z0-9+/]{22} 18\n[A-Za-z0-9+/]{43}\n--- [A-Za-z0-9+/]{43}\n/u.test(
+      bytes.subarray(0, 1024).toString("utf8"),
+    )
+  )
+    throw new Error(
+      "bounded pinned single-scrypt logN18 recovery profile required before secret prompt",
+    );
+  return {
+    profile: "age-v1.3.2-single-scrypt-logN18",
+    principal_scrypt_memory_bytes: 256 * 1024 ** 2,
+    authority: "none",
+  };
+}
+export function requireOwnerRecoveryTty() {
+  offlineOwner();
+  if (
+    !process.stdin.isTTY ||
+    !process.stdout.isTTY ||
+    !process.stderr.isTTY ||
+    typeof process.stdin.setRawMode !== "function" ||
+    Object.hasOwn(process.env, "AGE_PASSPHRASE")
+  )
+    throw new Error(
+      "direct ordinary-owner terminal required; no passphrase environment/input/capture channel",
+    );
+}
+function encryptOperation(options: { recipient?: string; passphraseTTY?: true }): AgeOperation {
+  if (options.passphraseTTY === true) {
+    if (options.recipient !== undefined)
+      throw new Error("one recovery encryption profile required");
+    requireOwnerRecoveryTty();
+    return { kind: "passphrase-encrypt-tty" };
+  }
+  if (
+    typeof options.recipient !== "string" ||
+    !/^age1[023456789acdefghjklmnpqrstuvwxyz]{58}$/u.test(options.recipient)
+  )
+    throw new Error("native age recipient or direct owner passphrase terminal required");
+  return { kind: "recipient-encrypt", recipient: options.recipient };
+}
+function decryptOperation(options: { identity?: Buffer; passphraseTTY?: true }): AgeOperation {
+  if (options.passphraseTTY === true) {
+    if (options.identity !== undefined) throw new Error("one recovery decryption profile required");
+    requireOwnerRecoveryTty();
+    return { kind: "passphrase-decrypt-tty" };
+  }
+  if (
+    !Buffer.isBuffer(options.identity) ||
+    !options.identity.length ||
+    options.identity.length > 4096 ||
+    !/^AGE-SECRET-KEY-1[0-9A-Z]+\n?$/u.test(options.identity.toString("ascii"))
+  )
+    throw new Error("bounded native age identity or direct owner passphrase terminal required");
+  return { kind: "identity-decrypt", identity: options.identity };
+}
+/** Existing root-maintained OS terminal utility, not a crypto or signing tool.
+ * No PATH/shell fallback, user-writable executable or secret-bearing IO. The
+ * held /dev/tty fd addresses the same controlling terminal used by age. */
+export function inspectOwnerTerminalUtility(stat: {
+  isFile: () => boolean;
+  isSymbolicLink: () => boolean;
+  uid: number;
+  mode: number;
+  size: number;
+}) {
+  if (
+    !stat.isFile() ||
+    stat.isSymbolicLink() ||
+    stat.uid !== 0 ||
+    (stat.mode & 0o6022) !== 0 ||
+    !(stat.mode & 0o111) ||
+    stat.size < 1 ||
+    stat.size > 64 * 1024 ** 2
+  )
+    throw new Error("root-maintained canonical OS terminal utility required");
+}
+async function ownerTerminal() {
+  const executable = await realpath("/usr/bin/stty"),
+    stat = await lstat(executable);
+  inspectOwnerTerminalUtility(stat);
+  const expectedHash = hash(await readControllerToolFile(executable, 64 * 1024 ** 2, stat));
+  const terminal = await open(
+    "/dev/tty",
+    constants.O_RDWR | constants.O_NOFOLLOW | constants.O_NOCTTY,
+  );
+  const command = async (args: string[]) => {
+    if (hash(await readControllerToolFile(executable, 64 * 1024 ** 2, stat)) !== expectedHash)
+      throw new Error("OS terminal utility changed during operation");
+    return await new Promise<string>((resolve, reject) => {
+      const child = spawn(executable, args, {
+        env: { PATH: "/usr/bin:/bin", LC_ALL: "C" },
+        stdio: [terminal.fd, "pipe", "ignore"],
+      });
+      let value = "",
+        failed = false;
+      const timer = setTimeout(() => {
+        failed = true;
+        child.kill("SIGKILL");
+      }, 5000);
+      child.stdout!.on("data", (chunk: Buffer) => {
+        value += chunk.toString("ascii");
+        if (value.length > 4096) {
+          failed = true;
+          child.kill("SIGKILL");
+        }
+      });
+      child.on("error", () => {
+        failed = true;
+      });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        if (failed || code !== 0)
+          reject(new Error("bounded terminal state operation refused; completion held"));
+        else resolve(value.trim());
+      });
+    });
+  };
+  try {
+    if (!(await terminal.stat()).isCharacterDevice() || !isatty(terminal.fd))
+      throw new Error("held controlling terminal required");
+    const state = await command(["-g"]);
+    if (!/^[0-9a-f:]{1,2048}$/u.test(state))
+      throw new Error("bounded nonsecret OS terminal state required");
+    return {
+      restore: async () => {
+        try {
+          await command([state]);
+          if ((await command(["-g"])) !== state)
+            throw new Error("terminal state restoration unknown; completion held");
+        } finally {
+          await terminal.close();
+        }
+      },
+    };
+  } catch (error) {
+    await terminal.close();
+    throw error;
+  }
+}
+/** Pinned age only. No inherited credentials, shell, plugin/proxy/hook or secret
+ * in arguments/environment. Native identity uses stdin; passphrase uses age's
+ * terminal directly. Accept bounded stdout only after settled exit0. */
 async function age(
   toolParent: string,
   input: Buffer,
-  recipient: string | undefined,
-  identity: Buffer | undefined,
+  operation: AgeOperation,
   directory: string,
   signal?: AbortSignal,
 ) {
@@ -426,39 +621,58 @@ async function age(
     hash(await readControllerToolFile(entry.path, 64 * 1024 ** 2)) !== entry.sha256
   )
     throw new Error("verified age executable changed");
-  if (recipient !== undefined && !/^age1[023456789acdefghjklmnpqrstuvwxyz]{58}$/u.test(recipient))
-    throw new Error("native age recipient required; no plugin or arbitrary recipient file");
-  if (
-    identity !== undefined &&
-    (!identity.length ||
-      identity.length > 4096 ||
-      !/^AGE-SECRET-KEY-1[0-9A-Z]+\n?$/u.test(identity.toString("ascii")))
-  )
-    throw new Error("bounded native age identity required");
+  const encrypt =
+    operation.kind === "recipient-encrypt" || operation.kind === "passphrase-encrypt-tty";
+  const tty =
+    operation.kind === "passphrase-encrypt-tty" || operation.kind === "passphrase-decrypt-tty";
+  if (tty) requireOwnerRecoveryTty();
+  if (tty && !encrypt) inspectPassphraseRecoveryHeader(input);
   signal?.throwIfAborted();
   // A regular held ciphertext fd avoids reopening the input pathname. Native
   // identity travels on stdin: Node's extra pipe descriptors are sockets and
   // cannot safely stand in for an age identity filename on Linux.
-  const ciphertext = identity
+  const ciphertext = !encrypt
     ? await open(path.join(directory, "ciphertext.age"), "wx+", 0o600)
     : undefined;
+  let terminal: Awaited<ReturnType<typeof ownerTerminal>> | undefined;
+  let accepted: Buffer | undefined;
+  const settleBoundary = async () => {
+    try {
+      try {
+        await ciphertext?.close();
+      } finally {
+        await terminal?.restore();
+      } // After age settled, before API settlement.
+    } catch (error) {
+      accepted?.fill(0); // A restoration/close refusal cannot strand accepted plaintext.
+      throw error;
+    }
+  };
   try {
+    if (tty) terminal = await ownerTerminal();
     if (ciphertext) {
       await ciphertext.writeFile(input);
       await ciphertext.sync();
     }
     signal?.throwIfAborted();
-    return await new Promise<Buffer>((resolve, reject) => {
-      const child = spawn(
-        entry.path as string,
-        recipient
-          ? ["--encrypt", "--recipient", recipient]
-          : ["--decrypt", "--identity", "-", "/dev/fd/3"],
-        {
-          env: { PATH: "/usr/bin:/bin", LC_ALL: "C" },
-          stdio: ["pipe", "pipe", "pipe", ciphertext?.fd ?? "ignore"],
-        },
-      );
+    accepted = await new Promise<Buffer>((resolve, reject) => {
+      const args =
+        operation.kind === "recipient-encrypt"
+          ? ["--encrypt", "--recipient", operation.recipient]
+          : operation.kind === "identity-decrypt"
+            ? ["--decrypt", "--identity", "-", "/dev/fd/3"]
+            : encrypt
+              ? ["--encrypt", "--passphrase"]
+              : ["--decrypt", "/dev/fd/3"];
+      const child = spawn(entry.path as string, args, {
+        env: { PATH: "/usr/bin:/bin", LC_ALL: "C" },
+        stdio: [
+          !encrypt && tty ? "ignore" : "pipe",
+          "pipe",
+          tty ? "inherit" : "pipe",
+          ciphertext?.fd ?? "ignore",
+        ],
+      });
       const chunks: Buffer[] = [];
       let total = 0,
         failed = false;
@@ -466,7 +680,7 @@ async function age(
         failed = true;
         child.kill("SIGKILL");
       };
-      const timer = setTimeout(fail, 30_000);
+      const timer = setTimeout(fail, tty ? 120_000 : 30_000);
       signal?.addEventListener("abort", fail, { once: true });
       child.stdout!.on("data", (chunk: Buffer) => {
         total += chunk.length;
@@ -476,12 +690,12 @@ async function age(
         }
         chunks.push(chunk);
       });
-      child.stderr!.resume(); // Never retain diagnostics that might expose private inputs.
-      child.stdin!.on("error", fail);
+      child.stderr?.resume(); // Native profile diagnostics are not retained.
+      child.stdin?.on("error", fail);
       child.on("error", () => {
         failed = true;
       });
-      child.stdin!.end(identity ?? input);
+      child.stdin?.end(operation.kind === "identity-decrypt" ? operation.identity : input);
       child.on("close", (code) => {
         clearTimeout(timer);
         signal?.removeEventListener("abort", fail);
@@ -491,12 +705,22 @@ async function age(
         } else {
           const result = Buffer.concat(chunks);
           for (const chunk of chunks) chunk.fill(0);
+          if (tty && encrypt) {
+            try {
+              inspectPassphraseRecoveryHeader(result);
+            } catch (error) {
+              result.fill(0);
+              reject(error);
+              return;
+            }
+          }
           resolve(result);
         }
       });
     });
+    return accepted;
   } finally {
-    await ciphertext?.close();
+    await settleBoundary();
   }
 }
 function name(value: string) {
@@ -505,16 +729,18 @@ function name(value: string) {
   return value;
 }
 
-export async function createCatalogRecoveryVault(options: {
-  plan: Plan;
-  owner: CatalogRecoveryOwner;
-  toolParent: string;
-  parent: string;
-  name: string;
-  recipient: string;
-  signal?: AbortSignal;
-}) {
+export async function createCatalogRecoveryVault(
+  options: {
+    plan: Plan;
+    owner: CatalogRecoveryOwner;
+    toolParent: string;
+    parent: string;
+    name: string;
+    signal?: AbortSignal;
+  } & ({ recipient: string; passphraseTTY?: never } | { passphraseTTY: true; recipient?: never }),
+) {
   plan(options.plan);
+  const operation = encryptOperation(options);
   await privateParent(options.parent);
   name(options.name);
   await prepareRecoveryTools(options.toolParent);
@@ -552,8 +778,7 @@ export async function createCatalogRecoveryVault(options: {
     const encrypted = await age(
       options.toolParent,
       plaintext,
-      options.recipient,
-      undefined,
+      operation,
       directory,
       options.signal,
     );
@@ -563,6 +788,7 @@ export async function createCatalogRecoveryVault(options: {
     const result = {
       schema_version: 1,
       operation: "create-catalog-recovery",
+      encryption_profile: operation.kind,
       context_sha256: options.plan.context_sha256,
       encrypted_sha256: hash(encrypted),
       encrypted_bytes: encrypted.length,
@@ -576,7 +802,7 @@ export async function createCatalogRecoveryVault(options: {
       activation: "not-performed",
       completion: "encrypted-only",
     };
-    await publishCompletion(directory, options.parent, result);
+    await publishCompletion(directory, options.parent, result, options.signal);
     return result;
   } finally {
     plaintext?.fill(0);
@@ -584,17 +810,19 @@ export async function createCatalogRecoveryVault(options: {
   }
 }
 
-export async function restoreCatalogRecoveryVault(options: {
-  plan: Plan;
-  toolParent: string;
-  parent: string;
-  name: string;
-  ciphertext: string;
-  expectedCiphertextSha256: string;
-  identity: Buffer;
-  signal?: AbortSignal;
-}) {
+export async function restoreCatalogRecoveryVault(
+  options: {
+    plan: Plan;
+    toolParent: string;
+    parent: string;
+    name: string;
+    ciphertext: string;
+    expectedCiphertextSha256: string;
+    signal?: AbortSignal;
+  } & ({ identity: Buffer; passphraseTTY?: never } | { passphraseTTY: true; identity?: never }),
+) {
   plan(options.plan);
+  const operation = decryptOperation(options);
   digest(options.expectedCiphertextSha256);
   await privateParent(options.parent);
   name(options.name);
@@ -609,14 +837,7 @@ export async function restoreCatalogRecoveryVault(options: {
   let plaintext: Buffer | undefined;
   const material: Buffer[] = [];
   try {
-    plaintext = await age(
-      options.toolParent,
-      encrypted,
-      undefined,
-      options.identity,
-      directory,
-      options.signal,
-    );
+    plaintext = await age(options.toolParent, encrypted, operation, directory, options.signal);
     let bundle: unknown;
     try {
       bundle = JSON.parse(plaintext.toString("utf8"));
@@ -663,6 +884,7 @@ export async function restoreCatalogRecoveryVault(options: {
     const result = {
       schema_version: 1,
       operation: "restore-catalog-recovery",
+      encryption_profile: operation.kind,
       context_sha256: options.plan.context_sha256,
       encrypted_sha256: hash(encrypted),
       inspector: {
@@ -675,7 +897,7 @@ export async function restoreCatalogRecoveryVault(options: {
       activation: "not-performed",
       completion: "quarantined-reprojected-only",
     };
-    await publishCompletion(directory, options.parent, result);
+    await publishCompletion(directory, options.parent, result, options.signal);
     return result;
   } finally {
     plaintext?.fill(0);

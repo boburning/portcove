@@ -81,6 +81,8 @@ export async function prepareFixedHostedLinuxLaunch(operation: unknown) {
     identity,
     fileURLToPath(new URL("..", import.meta.url)),
     performance.now() + 570000,
+    scope.source,
+    scope.workflow,
   );
   const active = () => {
     scope.unchanged();
