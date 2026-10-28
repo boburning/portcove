@@ -288,6 +288,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     filter: intelCuratedRepinFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
   });
+  const windowsWholeMatrixFilter =
+    "package(portcove-core) & (test(/^service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route$/) | test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/))";
   const curatedInstalledWithdrawalFilter =
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
   const historicalByteOnlyBackupFilter =
@@ -349,6 +351,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       ...intelObservedLifecycle.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsWholeMatrixFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
@@ -359,12 +362,13 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       .map(outputIdentity)
       .sort(),
   );
-  assert.deepEqual(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc"), {
-    platform: "x86_64-pc-windows-msvc",
-    filter: curatedInstalledWithdrawalFilter,
-    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
-    "success-output": "immediate",
-  });
+  for (const filter of [curatedInstalledWithdrawalFilter, windowsWholeMatrixFilter])
+    assert.deepEqual(overrideFor(filter, "x86_64-pc-windows-msvc"), {
+      platform: "x86_64-pc-windows-msvc",
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
   assert.deepEqual(overrideFor(intelRecoveryFilter, "x86_64-apple-darwin"), {
     platform: "x86_64-apple-darwin",
     filter: intelRecoveryFilter,
