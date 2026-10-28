@@ -6,6 +6,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import path from "node:path";
 import os from "node:os";
+import { isRecord } from "./runtime-values.mts";
 import { capacityDigest as digest } from "./release-capacity.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
@@ -227,7 +228,23 @@ async function catalogContinuationBehavior(
   entry: string,
   parent: string,
   packet: ReturnType<typeof fixture>[],
+  sourceOverride?: string,
 ) {
+  if (sourceOverride !== undefined) {
+    const { registerHooks, stripTypeScriptTypes } = await import("node:module");
+    registerHooks({
+      load(url, context, next) {
+        const original = next(url, context);
+        return url === entry
+          ? {
+              ...original,
+              format: "module",
+              source: stripTypeScriptTypes(sourceOverride, { mode: "strip" }),
+            }
+          : original;
+      },
+    });
+  }
   const { mock } = await import("node:test");
   const childProcess = await import("node:child_process");
   const forbidden = () => {
@@ -458,8 +475,12 @@ async function catalogContinuationBehavior(
       ) => {
         assert.equal(context, contextReceipt);
         assert.equal(tools, toolsReceipt);
-        assert.equal(roles.length, 4);
-        assert.equal(receivedRoles.length, 4);
+        assert.equal(roles.length, 4, "catalog verifier must consume four original role receipts");
+        assert.equal(
+          receivedRoles.length,
+          4,
+          "catalog verifier must consume four original role receipts",
+        );
         for (const [index, receipt] of roles.entries()) assert.equal(receipt, receivedRoles[index]);
         calls.push("read-only-verifier");
         return {};
@@ -564,7 +585,11 @@ async function catalogContinuationBehavior(
       parent,
       performance.now() + 30000,
     );
-    assert.equal(result.decision, "catalog-publication-recovered");
+    assert.equal(
+      result.decision,
+      "catalog-publication-recovered",
+      "catalog continuation entry must reach the exact recovered decision",
+    );
     assert.deepEqual(calls, [
       "original-context",
       "original-definitions",
@@ -591,6 +616,7 @@ async function catalogContinuationBehavior(
         performance.now() + 30000,
       ),
       heldFor("original complete catalog output set missing or ambiguous; retain HOLD"),
+      "missing catalog output must reach the original completeness refusal",
     );
     assert.deepEqual(calls, []);
     input.controller.capacity_attempt.prior_operations = prior;
@@ -616,6 +642,7 @@ async function catalogContinuationBehavior(
         performance.now() + 30000,
       ),
       heldFor("catalog protected mutation configuration changed"),
+      "changed protected environment must refuse the final handoff",
     );
     assert.equal(calls.join(",").includes("read-only-verifier"), true);
     assert.equal(
@@ -654,6 +681,211 @@ void test(
     );
     assert.ifError(result.error);
     assert.equal(result.status, 0, result.stderr || result.stdout);
+  },
+);
+
+function* catalogControlNodes(value: unknown): Generator<Record<string, unknown>> {
+  if (Array.isArray(value)) for (const child of value) yield* catalogControlNodes(child);
+  else if (isRecord(value)) {
+    if (typeof value.type === "string") yield value;
+    for (const child of Object.values(value)) yield* catalogControlNodes(child);
+  }
+}
+function catalogControlName(value: unknown) {
+  return isRecord(value)
+    ? value.type === "Identifier" && typeof value.name === "string"
+      ? value.name
+      : typeof value.value === "string"
+        ? value.value
+        : undefined
+    : undefined;
+}
+function catalogControlRange(node: unknown) {
+  assert.ok(isRecord(node) && typeof node.start === "number" && typeof node.end === "number");
+  assert.ok(node.start >= 0 && node.end > node.start);
+  return { start: node.start, end: node.end };
+}
+function catalogControlEdit(source: string, node: unknown, text: string) {
+  const range = catalogControlRange(node);
+  return source.slice(0, range.start) + text + source.slice(range.end);
+}
+
+void test(
+  "catalog continuation behavior tolerates real source refactors and kills removed guards, dependency and receipt inputs",
+  { timeout: 360_000 },
+  async (t) => {
+    const { parseAst } = await import("vite-plus");
+    const { createHash } = await import("node:crypto");
+    const { spawnSync } = await import("node:child_process");
+    const source = await readFile(
+      new URL("./release-catalog-recovery.mts", import.meta.url),
+      "utf8",
+    );
+    const tree: unknown = parseAst(stripTypeScriptTypes(source, { mode: "strip" }));
+    const nodes = [...catalogControlNodes(tree)];
+    const exported = nodes.filter((node) => node.type === "ExportNamedDeclaration");
+    let binding = "continueActualCatalogPublication";
+    for (const node of exported)
+      if (Array.isArray(node.specifiers))
+        for (const item of node.specifiers) {
+          if (
+            isRecord(item) &&
+            catalogControlName(item.exported) === "continueActualCatalogPublication"
+          ) {
+            const local = catalogControlName(item.local);
+            assert.ok(local);
+            binding = local;
+          }
+        }
+    const entry = nodes.find(
+      (node) => node.type === "FunctionDeclaration" && catalogControlName(node.id) === binding,
+    );
+    assert.ok(entry && isRecord(entry.body));
+    const declaration = exported.find((node) => node.declaration === entry) ?? entry;
+    const declarationRange = catalogControlRange(declaration);
+    const entryNodes = [...catalogControlNodes(entry.body)];
+    const imported = (module: string, name: string) => {
+      const matches: unknown[] = nodes
+        .filter(
+          (node) =>
+            node.type === "ImportDeclaration" &&
+            isRecord(node.source) &&
+            node.source.value === module,
+        )
+        .flatMap((node) => (Array.isArray(node.specifiers) ? (node.specifiers as unknown[]) : []));
+      const selected = matches.find(
+        (item) => isRecord(item) && catalogControlName(item.imported) === name,
+      );
+      assert.ok(isRecord(selected));
+      const local = catalogControlName(selected.local);
+      assert.ok(local);
+      return local;
+    };
+    const call = (name: string) => {
+      const selected = entryNodes.find(
+        (node) => node.type === "CallExpression" && catalogControlName(node.callee) === name,
+      );
+      assert.ok(selected && Array.isArray(selected.arguments));
+      return selected;
+    };
+    const role = call(imported("./release-tuf-role-artifact.mts", "receiveCatalogRoleArtifact"));
+    const assemble = call(
+      imported("./release-catalog-signing.mts", "assembleActualCatalogRepositoryForRecovery"),
+    );
+    assert.ok(Array.isArray(assemble.arguments));
+    const handoff = call(
+      imported("./release-catalog-site-controller.mts", "recoverActualCatalogSitePublication"),
+    );
+    assert.ok(Array.isArray(handoff.arguments));
+    const finalizers: unknown = handoff.arguments[3];
+    assert.ok(isRecord(finalizers) && Array.isArray(finalizers.properties));
+    const beforeProperty: unknown = finalizers.properties.find(
+      (item: unknown) => isRecord(item) && catalogControlName(item.key) === "beforeMutation",
+    );
+    assert.ok(isRecord(beforeProperty));
+    const beforeBinding = catalogControlName(beforeProperty.value);
+    assert.ok(beforeBinding);
+    const before = entryNodes.find(
+      (node) => node.type === "VariableDeclarator" && catalogControlName(node.id) === beforeBinding,
+    );
+    assert.ok(before && isRecord(before.init) && before.init.type === "ArrowFunctionExpression");
+    const missingThrow = nodes.find(
+      (node) =>
+        node.type === "ThrowStatement" &&
+        [...catalogControlNodes(node.argument)].some(
+          (child) =>
+            child.type === "Literal" &&
+            child.value ===
+              "original complete catalog output set missing or ambiguous; retain HOLD",
+        ),
+    );
+    assert.ok(missingThrow);
+    const missingGate = nodes.find(
+      (node) =>
+        node.type === "IfStatement" &&
+        [...catalogControlNodes(node.consequent)].includes(missingThrow),
+    );
+    assert.ok(missingGate);
+    const variants = [
+      {
+        name: "declaration-order",
+        source:
+          source.slice(declarationRange.start, declarationRange.end) +
+          "\n" +
+          catalogControlEdit(source, declaration, ""),
+      },
+      {
+        name: "private-name-layout",
+        source: source
+          .replace(/\bsettled\b/gu, "observedSettledUpload")
+          .replace(/\bconst /gu, "const /* harmless layout */ "),
+      },
+      {
+        name: "entry-no-op",
+        source: catalogControlEdit(source, entry.body, '{ return { decision: "bypassed" }; }'),
+        marker: "catalog continuation entry must reach the exact recovered decision",
+      },
+      {
+        name: "removed-completeness-guard",
+        source: catalogControlEdit(source, missingGate.test, "false"),
+        marker: "missing catalog output must reach the original completeness refusal",
+      },
+      {
+        name: "wrong-receiver-dependency",
+        source: catalogControlEdit(
+          source,
+          role.callee,
+          imported(
+            "./release-signing-context-artifact.mts",
+            "receiveCatalogSigningContextArtifact",
+          ),
+        ),
+        marker: "catalog verifier must consume four original role receipts",
+      },
+      {
+        name: "dropped-artifact-inputs",
+        source: catalogControlEdit(source, assemble.arguments[2], "[]"),
+        marker: "catalog verifier must consume four original role receipts",
+      },
+      {
+        name: "removed-protected-guard",
+        source: catalogControlEdit(source, before.init.body, "{}"),
+        marker: "changed protected environment must refuse the final handoff",
+      },
+    ];
+    const environment = { ...process.env };
+    delete environment.NODE_TEST_CONTEXT;
+    const packet = outputs.map((output, index) => fixture(output, index));
+    for (const variant of variants)
+      await t.test(variant.name, { timeout: 60_000 }, async (control) => {
+        const parent = await mkdtemp(path.join(os.tmpdir(), "catalog-entry-control-"));
+        control.after(() => rm(parent, { recursive: true, force: true }));
+        const result = spawnSync(
+          process.execPath,
+          [
+            "--experimental-test-module-mocks",
+            "--input-type=module",
+            "--eval",
+            `import assert from 'node:assert/strict';await (${catalogContinuationBehavior.toString()})(${JSON.stringify(new URL("./release-catalog-recovery.mts", import.meta.url).href)},${JSON.stringify(parent)},${JSON.stringify(packet)},${JSON.stringify(variant.source)});`,
+          ],
+          { env: environment, encoding: "utf8", timeout: 45_000, maxBuffer: 65536 },
+        );
+        assert.ifError(result.error);
+        assert.equal(result.signal, null, result.stderr);
+        if (variant.marker) {
+          assert.equal(result.status, 1, result.stdout + result.stderr);
+          assert.ok(result.stderr.includes(variant.marker), result.stderr);
+        } else assert.equal(result.status, 0, result.stderr || result.stdout);
+        control.diagnostic(
+          JSON.stringify({
+            variant: variant.name,
+            source_sha256: createHash("sha256").update(variant.source).digest("hex"),
+            status: result.status,
+            expected: variant.marker ?? "all original behavior observations pass",
+            witness: variant.marker ? result.stderr.slice(-8192) : null,
+          }),
+        );
+      });
   },
 );
 
