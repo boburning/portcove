@@ -377,6 +377,11 @@ namespace Portcove.HistoricalBootstrap {
     $parentCreated = $Process.StartTime.ToUniversalTime()
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($Process.Id) AND Name = 'msedgewebview2.exe'" -OperationTimeoutSec 3)
     $profiles = @()
+    $configured = (Get-ComparableWindowsPath $ExpectedDirectory).TrimEnd('\')
+    # WebView2 Runtime normally adds exactly this browser-data child to the
+    # configured UDF. Do not accept arbitrary descendants or reparse ancestry.
+    # https://learn.microsoft.com/en-us/microsoft-edge/web-platform/devtools-mcp-server
+    $sdkDirectory = Join-Path $configured 'EBWebView'
     foreach ($child in $children) {
         if ($child.CreationDate.ToUniversalTime() -lt $parentCreated) { throw 'Historical WebView child predates held application identity' }
         $arguments = @([Portcove.HistoricalBootstrap.Arguments]::Parse([string]$child.CommandLine))
@@ -388,10 +393,27 @@ namespace Portcove.HistoricalBootstrap {
                 $values += $arguments[++$index]
             }
         }
+        $attempt = [ordered]@{
+            pid=[int]$child.ProcessId; parent_pid=$Process.Id
+            created_utc=$child.CreationDate.ToUniversalTime().ToString('o')
+            image=([string]$child.ExecutablePath).Substring(0,[Math]::Min(4096,([string]$child.ExecutablePath).Length))
+            configured_user_data_directory=$configured; argument_count=$values.Count
+            diagnostic_arguments=@($values|Select-Object -First 4|ForEach-Object{$_.Substring(0,[Math]::Min(4096,$_.Length))})
+            diagnostic_arguments_truncated=($values.Count -gt 4 -or @($values|Where-Object{$_.Length -gt 4096}).Count -gt 0)
+            identity_verified=$false; accepted=$false
+        }
+        if ($evidence -and $evidence.historical_bootstrap) {
+            $evidence.historical_bootstrap.webview_profile_observations += $attempt
+            Write-InstallerEvidence $evidence.phase
+        }
         if ($values.Count -eq 0) { continue }
-        if ($values.Count -ne 1 -or -not [string]::Equals((Get-ComparableWindowsPath $values[0]).TrimEnd('\'),[IO.Path]::GetFullPath($ExpectedDirectory).TrimEnd('\'),[StringComparison]::OrdinalIgnoreCase)) {
+        if ($values.Count -ne 1) { throw 'Historical WebView profile argument is ambiguous; no isolation claim' }
+        $observedDirectory=(Get-ComparableWindowsPath $values[0]).TrimEnd('\')
+        if (-not [string]::Equals($observedDirectory,$configured,[StringComparison]::OrdinalIgnoreCase) -and
+            -not [string]::Equals($observedDirectory,$sdkDirectory,[StringComparison]::OrdinalIgnoreCase)) {
             throw 'Historical WebView used a different profile; no isolation claim'
         }
+        Assert-NoReparseAncestry $observedDirectory
         $observed = [Diagnostics.Process]::GetProcessById([int]$child.ProcessId)
         try {
             $null=$observed.Handle
@@ -399,7 +421,9 @@ namespace Portcove.HistoricalBootstrap {
                 -not [string]::Equals($observed.Path,[string]$child.ExecutablePath,[StringComparison]::OrdinalIgnoreCase)) {
                 throw 'Historical WebView creation/image identity changed'
             }
-            $profiles += [ordered]@{ pid=$child.ProcessId; parent_pid=$Process.Id; created_utc=$child.CreationDate.ToUniversalTime().ToString('o'); image=$observed.Path; user_data_directory=$values[0]; observation='held live application plus exact CIM/browser creation and image identity' }
+            $attempt.identity_verified=$true; $attempt.accepted=$true
+            if ($evidence -and $evidence.historical_bootstrap) { Write-InstallerEvidence $evidence.phase }
+            $profiles += [ordered]@{ pid=$child.ProcessId; parent_pid=$Process.Id; created_utc=$child.CreationDate.ToUniversalTime().ToString('o'); image=$observed.Path; user_data_directory=$values[0]; configured_user_data_directory=$configured; sdk_browser_subdirectory=([string]::Equals($observedDirectory,$sdkDirectory,[StringComparison]::OrdinalIgnoreCase)); observation='held live application plus exact CIM/browser creation and image identity' }
         } finally { $observed.Dispose() }
     }
     $Process.Refresh()
@@ -1192,7 +1216,7 @@ try {
         $sentinel = Join-Path $sentinelRoot 'preserve.txt'
         [IO.File]::WriteAllText($sentinel,[Guid]::NewGuid().ToString('N'))
         $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
-        $historicalBoundary = [ordered]@{ declared_package=$historicalBootstrap; source_scope='published updater-less manual bootstrap into one existing installed chain'; library_root=$libraryRoot; preferences_path=$historicalPreferences; expected_webview_directory=$historicalWebView; credential_scope='fixed historical namespace; startup/close only, no authentication-changing actions; neither isolated credential store nor credential preservation proven'; before_install=Get-PreservationManifest $libraryRoot }
+        $historicalBoundary = [ordered]@{ webview_profile_observations=@(); declared_package=$historicalBootstrap; source_scope='published updater-less manual bootstrap into one existing installed chain'; library_root=$libraryRoot; preferences_path=$historicalPreferences; expected_webview_directory=$historicalWebView; credential_scope='fixed historical namespace; startup/close only, no authentication-changing actions; neither isolated credential store nor credential preservation proven'; before_install=Get-PreservationManifest $libraryRoot }
         $historicalBoundary.existing_desktop_processes_before_install=$historicalProcessPreflight
         $evidence.historical_bootstrap=$historicalBoundary
         Write-InstallerEvidence 'historical_bootstrap_installing'

@@ -68,6 +68,17 @@ $observed=@(Get-HistoricalWebViewProfile $parent $profile)
 if($observed.Count -ne 1 -or $observed[0].user_data_directory -cne $profile){throw 'Quoted private profile was not decoded'}
 Set-Reply ('browser.exe --user-data-dir "'+$profile+'"')
 $null=Get-HistoricalWebViewProfile $parent $profile
+$sdk=Join-Path $profile 'EBWebView';[IO.Directory]::CreateDirectory($sdk)|Out-Null
+Set-Reply ('browser.exe --user-data-dir="'+$sdk+'"')
+$sdkObserved=@(Get-HistoricalWebViewProfile $parent $profile)
+if($sdkObserved.Count -ne 1 -or -not $sdkObserved[0].sdk_browser_subdirectory){throw 'Documented SDK browser-data child rejected'}
+Set-Reply ('browser.exe --user-data-dir="'+(Join-Path $sdk 'nested')+'"')
+try{$null=Get-HistoricalWebViewProfile $parent $profile;throw 'arbitrary descendant accepted'}catch{if($_.Exception.Message -eq 'arbitrary descendant accepted'){throw}}
+[IO.Directory]::Delete($sdk)
+$other=Join-Path $Root 'other-owned-fixture';[IO.Directory]::CreateDirectory($other)|Out-Null
+$null=New-Item -ItemType Junction -Path $sdk -Target $other
+Set-Reply ('browser.exe --user-data-dir="'+$sdk+'"')
+try{$null=Get-HistoricalWebViewProfile $parent $profile;throw 'reparse browser-data child accepted'}catch{if($_.Exception.Message -eq 'reparse browser-data child accepted'){throw}}
 foreach($command in @('browser.exe','browser.exe --user-data-dir','browser.exe --user-data-dir=C:\shared',('browser.exe --user-data-dir="'+$profile+'" --user-data-dir="'+$profile+'"'))) {
  Set-Reply $command
  $rejected=$false;try{$null=Get-HistoricalWebViewProfile $parent $profile}catch{$rejected=$true}
