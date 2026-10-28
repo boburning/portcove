@@ -14,7 +14,7 @@ Other destructive reviews retain their own consent contracts.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library offers Title A–Z, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library retains Catalog order by default and offers Title A–Z, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter

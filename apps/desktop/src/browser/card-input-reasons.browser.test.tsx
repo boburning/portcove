@@ -198,7 +198,9 @@ it.each([
     await expect.element(gameCard("Unknown")).toHaveAccessibleName(/Readiness unavailable/);
     for (const name of ["Ready", "Staged ready"]) {
       const card = gameCard(name);
-      expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe("Ready to play");
+      expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(
+        name === "Staged ready" ? undefined : "Ready to play",
+      );
       await expect.element(card).not.toHaveAccessibleDescription();
       const play = card.getByRole("button", { name: "Play", exact: true });
       await expect
@@ -207,13 +209,7 @@ it.each([
       if (view === "library") await userEvent.click(play);
       await expect
         .element(card)
-        .toMatchTextContent(
-          name === "Staged ready"
-            ? view === "library"
-              ? "Update prepared"
-              : "Update prepared"
-            : "Ready to play",
-        );
+        .toMatchTextContent(name === "Staged ready" ? "Update prepared" : "Ready to play");
     }
     expect(launch).toHaveBeenCalledTimes(view === "library" ? 2 : 0);
     expect(invoke).not.toHaveBeenCalled();

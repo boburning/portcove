@@ -60,7 +60,7 @@ function storedSectionValid(
     (inputs.readiness !== undefined && typeof inputs.readiness !== "string") ||
     (inputs.sort !== undefined &&
       (typeof inputs.sort !== "string" ||
-        !["name", "name-desc", "recent"].includes(inputs.sort))) ||
+        !["catalog", "name", "name-desc", "recent"].includes(inputs.sort))) ||
     typeof inputs.query !== "string" ||
     !(typeof inputs.filter === "string" || object(inputs.filter))
   )

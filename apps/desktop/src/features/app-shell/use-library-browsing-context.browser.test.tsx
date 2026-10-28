@@ -582,6 +582,6 @@ it.each([{ sort: ["recent"] }, { sort: { value: "recent" } }, { sort: 1 }])(
     await remount();
     expect(browsing.preferenceFailure).toBe("read");
     expect(localStorage.getItem(key)).toBe(serialized);
-    expect(browsing.ui.librarySort).toBe("name");
+    expect(browsing.ui.librarySort).toBe("catalog");
   },
 );

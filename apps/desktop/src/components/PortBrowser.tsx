@@ -1379,6 +1379,7 @@ function renderSortPortBrowserView(
           options={
             model.view === "library"
               ? [
+                  { value: "catalog", label: "Catalog order" },
                   ...catalogSortOptions.filter(
                     (option) => option.value === "name" || option.value === "name-desc",
                   ),

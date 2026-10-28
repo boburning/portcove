@@ -1446,7 +1446,9 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
   await click("Review game update");
   await click("Download archive for later");
   expect(container.textContent).toContain("Last command: Archive downloaded");
-  expect(container.textContent).toContain("Current library state still needs a successful refresh");
+  expect(container.textContent).toContain(
+    "The operation finished, but library status could not be refreshed",
+  );
   expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
   expect(
     [...container.querySelectorAll("button")].some(
@@ -1457,7 +1459,7 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
   // current absence even when the optional field is absent in both snapshots.
   await show({ ...original });
   expect(container.textContent).not.toContain(
-    "Current library state still needs a successful refresh",
+    "The operation finished, but library status could not be refreshed",
   );
   await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
   await expect
