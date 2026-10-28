@@ -38,21 +38,24 @@
         "--test-reporter=./scripts/required-node-test-reporter.mts",
         "--test-skip-pattern",
         "pnpm uses|direct just recipes"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-2": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-3": {
       "arguments": [
         "--test",
         "--test-timeout=60000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "windows-storage-4": {
       "arguments": [
@@ -60,7 +63,8 @@
         "--test-concurrency=1",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "rust-quality-full": {
       "arguments": [
@@ -148,7 +152,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "process-policy": {
       "arguments": [
@@ -177,7 +182,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "repository-tools-2": {
       "arguments": [
@@ -185,7 +191,8 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "release-check": {
       "arguments": [
@@ -193,14 +200,16 @@
         "--experimental-test-module-mocks",
         "--test-timeout=60000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "roadmap-check": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "mutex-owned-payload": {
       "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
@@ -210,21 +219,24 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "posix-tooling-contracts": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     },
     "macos-platform-contracts": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
+      ],
+      "localResourceProfile": "analysis"
     }
   },
   "tests": [

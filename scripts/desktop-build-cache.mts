@@ -44,6 +44,9 @@ const FRONTEND_INPUTS = [
   "apps/desktop/scripts/production-css.mts",
   "scripts/viteplus-cli.mts",
   "scripts/dev-storage.mts",
+  "scripts/development-scratch.mts",
+  "scripts/node-test-suites.mts",
+  "scripts/node-test-suites.json",
   "scripts/tool-cache.mts",
 ];
 const FRONTEND_OPTIONAL_INPUTS = [

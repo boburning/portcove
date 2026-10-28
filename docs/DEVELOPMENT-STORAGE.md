@@ -23,11 +23,10 @@ Reuse the verified owned checkout and its healthy dependencies; the examples bel
 are conditional new-workspace setup, not a per-task startup checklist.
 
 An additional Git worktree provides an SSD development path without replacing a
-dirty checkout when actual isolation is needed. On the primary Windows development host, keep the canonical
-checkout at `E:\Portcove-Development` and additional worktrees below
-`E:\Portcove-Worktrees` (or the configured `E:\Codex-Worktrees` root for
-Codex-managed worktrees). Inspect existing worktrees and the proposed
-destination first, then choose an unused path and branch name:
+dirty checkout when actual isolation is needed. Choose contributor-owned paths
+for the canonical checkout and additional worktrees. Drive letters and directories
+below are examples; substitute paths on your machine. Inspect existing worktrees
+and the proposed destination first, then choose an unused path and branch name:
 
 ```powershell
 git worktree list
@@ -270,7 +269,9 @@ Before replacing an existing workspace, record `git status --short --branch --un
 
 After verification, remove the old Cargo target with the cleanup command from the old workspace. Do not delete ignored `work` content, imported media, source images, credentials, or `outputs` merely because Git does not track them. If an active editor prevents replacement of the old workspace, leave its small source checkout as a temporary rollback copy; open the new workspace after restarting the editor and remove the rollback only after another Git/status/preflight check.
 
-From WSL, the same E: workspace must resolve below `/mnt/e`. For example:
+From WSL, resolve the selected Windows checkout with `wslpath -u` and use its
+actual mount path. The example below assumes the example drive uses WSL's default
+automount location; other drive letters or mount roots need their own paths:
 
 ```bash
 cd /mnt/e/Portcove-Development
@@ -279,3 +280,46 @@ node scripts/dev-storage.mts preflight
 ```
 
 If the new checkout fails, stop new builds, preserve its logs and outputs, and return to the untouched old source checkout. Do not restore an old `target`; recreate dependencies and build output from the lockfiles after correcting the storage path.
+
+## Machine scratch profiles
+
+An optional ~/.config/portcove/development-scratch.json selects task-owned scratch
+defaults without moving sources, installed dependencies or the existing Linux
+disk. Each platform has its own profile: format 1, an absolute root, a UUID identity
+matching its ordinary .portcove-scratch.json marker, and optional exact workspaces
+scopes. Machine adoption uses explicit scopes so generated fixture repositories
+retain portable defaults.
+
+The optional Windows-backed WSL profile additionally requires distribution, filesystemUuid, backingDirectory,
+backingVhd and an absolute windowsNode path. Provision a separate checksum-verified
+WSL scratch distribution on the intended SSD. Its private /data directory belongs
+to the development UID with mode 0700. Install scripts/fixtures/portcove-scratch-mount.sh
+as /usr/local/sbin/portcove-scratch-mount inside that distribution. The fixed helper
+exposes only /data at /mnt/wsl/portcove-scratch and refuses a foreign or nonempty
+mountpoint, checking UUID and source-directory identity.
+
+Operational launch prepares that mount through the appointed distribution's root
+command without sudo or changing the main distribution. Read-only preflight never
+mounts or creates directories. Verification binds the actual ext4 mount/UUID,
+marker, permissions and registered physical Windows VHD path. A moved distribution
+or missing mount refuses execution rather than writing beneath the HDD-backed
+parent. Capacity checks include both ext4 and its real Windows backing directory.
+
+Stable physical-workspace/platform allocations supply temporary paths and otherwise
+ordinary Cargo targets. Explicit environment overrides and custom Cargo targets
+retain precedence; the selected target reaches the child before build execution.
+An entirely overridden, unused scratch profile does not require its mount. The
+existing free-space floor remains unchanged.
+Without a profile, every existing checkout-relative default remains unchanged.
+Contributor drive letters and paths belong only in their private profile;
+native Linux contributors can continue using the existing path overrides.
+
+Stage development-scratch.prepared.json beside each eventual active profile, then
+use [guarded host adoption](DEVELOPMENT-TOOLS.md#windows-host-coordination-for-wsl).
+Windows workspace scopes use absolute Windows paths. Add new real worktrees through
+another drained adoption; arbitrary directories are never implicitly adopted.
+
+Keep retained verification evidence outside these allocations. Existing custom
+target cleanup refusals remain. Scratch selection grants no automatic deletion,
+migration of old targets or eviction of failed evidence; preserve originals until
+the actual replacement consumer and interrupted-recovery checks pass.
