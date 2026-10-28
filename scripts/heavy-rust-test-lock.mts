@@ -127,10 +127,11 @@ function runIdentityProbe(
   args: readonly string[],
   pid: number,
   platform: string,
+  timeoutMilliseconds = identityProbeTimeoutMilliseconds,
 ) {
   const inspected = run(command, args, {
     encoding: "utf8",
-    timeout: identityProbeTimeoutMilliseconds,
+    timeout: timeoutMilliseconds,
     windowsHide: true,
   });
   if (inspected.error) {
@@ -186,6 +187,7 @@ export function readProcessIdentity(
       ],
       pid,
       "Windows",
+      15_000,
     );
     if (inspected.status !== 0)
       throw Object.assign(

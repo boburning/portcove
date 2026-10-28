@@ -14,8 +14,8 @@
   "minimumReleaseAge": "1 day",
   "minimumReleaseAgeBehaviour": "timestamp-required",
   "internalChecksFilter": "strict",
-  "prConcurrentLimit": 4,
-  "branchConcurrentLimit": 4,
+  "prConcurrentLimit": 6,
+  "branchConcurrentLimit": 6,
   "prHourlyLimit": 0,
   "commitHourlyLimit": 0,
   "rangeStrategy": "bump",
@@ -81,10 +81,10 @@
       "schedule": ["at any time"]
     },
     {
-      "description": "Exclude CLI 2.12.3 RPM prerelease regression until requalified under #2014",
+      "description": "Exclude CLI 2.12.3 and 2.12.4 canonical RPM regressions under #2014",
       "matchManagers": ["npm"],
       "matchPackageNames": ["@tauri-apps/cli"],
-      "allowedVersions": "!/^2\\.12\\.3$/"
+      "allowedVersions": "!/^2\\.12\\.(?:3|4)$/"
     },
     {
       "description": "Qualify Tailwind and its Vite integration together",

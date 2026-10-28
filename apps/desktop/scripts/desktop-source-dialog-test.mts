@@ -3,7 +3,7 @@ import {
   fixtureObject as object,
 } from "./desktop-scenario-state.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
-import type { WebDriver } from "selenium-webdriver";
+import type { WebDriver, Locator } from "selenium-webdriver";
 import type { FixtureCommand, OwnedFixtureContext } from "./desktop-scenario-state.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type {
@@ -47,6 +47,18 @@ export function sourceProfileLabel(value: unknown, profile: string): string {
   );
   return identity.label;
 }
+export async function waitForDisabledSourceReview(browser: WebDriver, candidate: () => Locator) {
+  await browser.wait(
+    async () =>
+      !(await browser
+        .findElement(candidate())
+        .findElement(By.css("[data-candidate-review]"))
+        .isEnabled()),
+    5_000,
+    "Selected setup: stale review disabled after unavailable-root refresh",
+  );
+}
+
 function gameFileRoot(value: unknown): GameFileRoot {
   return required(transportValue("game_file_roots", [value])[0]);
 }
@@ -2436,15 +2448,7 @@ export async function selectedSetupScenario({
       rootMoved = true;
       await click(button("Refresh folders"));
       report.checkpoint = "unavailable-root-disabled-review";
-      await browser.wait(
-        async () =>
-          !(await browser
-            .findElement(row(owned.profiles[0]))
-            .findElement(By.css("[data-candidate-review]"))
-            .isEnabled()),
-        5_000,
-        "Selected setup: stale review disabled after unavailable-root refresh",
-      );
+      await waitForDisabledSourceReview(browser, () => row(owned.profiles[0]));
       report.checkpoint = "unavailable-root-observations";
       const snapshot = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(snapshot.freshness, "inputs_changed");

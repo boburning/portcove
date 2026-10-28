@@ -84,7 +84,10 @@ export function inspectReleaseSpdx(value: unknown) {
     !Number.isFinite(Date.parse(value.creationInfo.created)) ||
     !Array.isArray(value.creationInfo.creators) ||
     value.creationInfo.creators.length > 32 ||
-    !value.creationInfo.creators.some((creator) => creator === "Tool: syft-1.54.1") ||
+    // Retain previously admitted evidence alongside the current workflow producer.
+    !value.creationInfo.creators.some(
+      (creator) => creator === "Tool: syft-1.54.1" || creator === "Tool: syft-1.55.0",
+    ) ||
     !Array.isArray(value.packages) ||
     value.packages.length < 1 ||
     value.packages.length > 20000 ||

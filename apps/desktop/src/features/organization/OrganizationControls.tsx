@@ -1,4 +1,4 @@
-import { useId, useState, useRef } from "react";
+import { useId, useState, useRef, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Bookmark, EyeOff, Eye, Check } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -46,7 +46,9 @@ export function OrganizationControls({
   selected,
   onSelect,
   discover,
+  children,
 }: {
+  children?: ReactNode;
   organization: Organization;
   selected: string;
   onSelect: (id: string) => void;
@@ -157,6 +159,7 @@ export function OrganizationControls({
           </p>
         </details>
       )}
+      {children}
       {organization.failure && (
         <p role="alert" className="basis-full text-sm text-pc-warning-foreground">
           {organization.failure === "read"

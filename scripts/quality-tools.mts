@@ -261,6 +261,6 @@ Example:
 }
 
 const invoked = process.argv[1] ? await realpath(process.argv[1]).catch(() => null) : null;
-if (invoked === scriptPath) {
+if (invoked !== null && invoked === (await realpath(scriptPath))) {
   await main(process.argv.slice(2));
 }

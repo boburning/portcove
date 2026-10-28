@@ -105,8 +105,50 @@ interface HistoryInventory {
   driver: HistoryProcess;
   processes: HistoryProcess[];
 }
-async function historyProcess(pid: string | number): Promise<HistoryProcess | null> {
-  const raw = await readFile(`/proc/${pid}/stat`, "utf8").catch((error) => {
+export function assertHistoryRestoration(
+  restored: unknown,
+  nativeRaw: unknown,
+  { scenarioFailed, windowError }: { scenarioFailed: boolean; windowError?: unknown },
+) {
+  const rawRestoration = object(restored);
+  assert.ok(typeof rawRestoration.restored === "boolean");
+  const restoration: HistoryRestoration = {
+    ...rawRestoration,
+    restored: rawRestoration.restored,
+  };
+  if (rawRestoration.installed !== undefined) {
+    assert.ok(typeof rawRestoration.installed === "boolean");
+    restoration.installed = rawRestoration.installed;
+  }
+  for (const key of ["snapshots", "reports"] as const) {
+    const count = rawRestoration[key];
+    if (count !== undefined) {
+      assert.ok(typeof count === "number" && Number.isSafeInteger(count) && count >= 0);
+      restoration[key] = count;
+    }
+  }
+  assert.equal(restoration.restored, true);
+  if (!scenarioFailed && restoration.installed !== false)
+    assert.ok(required(restoration.snapshots) > 0 && required(restoration.reports) > 0);
+  assert.equal(restoration.error, undefined);
+  assert.equal(windowError, undefined);
+  const nativeReply = object(nativeRaw);
+  assert.equal(nativeReply.ok, true);
+  assert.ok(Array.isArray(nativeReply.value));
+  assert.equal(nativeReply.value.length, 0, "Synthetic responses must not register source data");
+}
+
+export async function readHistoryProcess(
+  pid: string | number,
+  {
+    read = readFile,
+    link = readlink,
+  }: {
+    read?: (file: string, encoding: "utf8") => Promise<string>;
+    link?: (file: string) => Promise<string>;
+  } = {},
+): Promise<HistoryProcess | null> {
+  const raw = await read(`/proc/${pid}/stat`, "utf8").catch((error) => {
     // A process can exit after procfs opens stat but before its contents are read.
     if (["ENOENT", "ESRCH"].includes(errorCode(error) ?? "")) return null;
     throw error;
@@ -117,7 +159,7 @@ async function historyProcess(pid: string | number): Promise<HistoryProcess | nu
   const startTicks = fields[19];
   assert.ok(typeof state === "string" && typeof startTicks === "string");
   assert.match(startTicks, /^\d+$/u);
-  const executable = await readlink(`/proc/${pid}/exe`).catch((error) => {
+  const executable = await link(`/proc/${pid}/exe`).catch((error) => {
     if (["ENOENT", "EACCES", "EPERM"].includes(errorCode(error) ?? "")) return null;
     throw error;
   });
@@ -139,8 +181,8 @@ function sameHistoryIdentity(expected: HistoryProcess, actual: HistoryProcess | 
 
 export async function captureHistoryDriver(driverPid: number, driverPath: string) {
   assert.equal(process.platform, "linux");
-  const owner = await historyProcess(process.pid);
-  const driver = await historyProcess(driverPid);
+  const owner = await readHistoryProcess(process.pid);
+  const driver = await readHistoryProcess(driverPid);
   assert.ok(driver && owner, "Owned history driver is not running");
   assert.equal(driver.parent, owner.pid);
   assert.equal(driver.group, driver.pid, "History driver must retain its owned detached group");
@@ -159,7 +201,9 @@ export async function captureHistorySession(
   const { owner, driver } = await captureHistoryDriver(driverPid, driverPath);
   const all = (
     await Promise.all(
-      (await readdir("/proc")).filter((name) => /^\d+$/.test(name)).map(historyProcess),
+      (await readdir("/proc"))
+        .filter((name) => /^\d+$/.test(name))
+        .map((pid) => readHistoryProcess(pid)),
     )
   ).filter((entry) => entry !== null);
   const processes = [driver];
@@ -185,12 +229,12 @@ export async function captureHistorySession(
     assert.ok(application, "Exact history application is not an observed driver descendant");
     assert.ok(webviews.length, "Actual WebKit WebProcess identity is required before interaction");
   }
-  for (const entry of processes) sameHistoryIdentity(entry, await historyProcess(entry.pid));
+  for (const entry of processes) sameHistoryIdentity(entry, await readHistoryProcess(entry.pid));
   return { owner, driver, application, webviews, processes, captured_at: new Date().toISOString() };
 }
 
 export async function historyDriverStillOwned(inventory: Pick<HistoryInventory, "driver">) {
-  const current = await historyProcess(inventory.driver.pid);
+  const current = await readHistoryProcess(inventory.driver.pid);
   if (!current || current.state === "Z") return false;
   sameHistoryIdentity(inventory.driver, current);
   return true;
@@ -202,7 +246,7 @@ export async function waitHistorySessionExit(inventory: Pick<HistoryInventory, "
   do {
     remaining = [];
     for (const entry of inventory.processes) {
-      const current = await historyProcess(entry.pid);
+      const current = await readHistoryProcess(entry.pid);
       if (current?.start_ticks === entry.start_ticks) remaining.push(entry.pid);
     }
     if (!remaining.length)
@@ -740,38 +784,6 @@ export async function qualificationHistoryScenario({
         .catch((error: unknown) => ({ restored: false, error: errorMessage(error) }));
       // Keep raw replies before checking them: malformed transport results must
       // not prevent the independent window/source cleanup or its evidence.
-      function validateRestoration(restored: unknown, nativeRaw: unknown) {
-        const rawRestoration = object(restored);
-        assert.ok(typeof rawRestoration.restored === "boolean");
-        const restoration: HistoryRestoration = {
-          ...rawRestoration,
-          restored: rawRestoration.restored,
-        };
-        if (rawRestoration.installed !== undefined) {
-          assert.ok(typeof rawRestoration.installed === "boolean");
-          restoration.installed = rawRestoration.installed;
-        }
-        for (const key of ["snapshots", "reports"] as const) {
-          const count = rawRestoration[key];
-          if (count !== undefined) {
-            assert.ok(typeof count === "number" && Number.isSafeInteger(count) && count >= 0);
-            restoration[key] = count;
-          }
-        }
-        assert.equal(restoration.restored, true);
-        if (!observation.failure && restoration.installed !== false)
-          assert.ok(required(restoration.snapshots) > 0 && required(restoration.reports) > 0);
-        assert.equal(restoration.error, undefined);
-        assert.equal(observation.window_restoration_error, undefined);
-        const nativeReply = object(nativeRaw);
-        assert.equal(nativeReply.ok, true);
-        assert.ok(Array.isArray(nativeReply.value));
-        assert.equal(
-          nativeReply.value.length,
-          0,
-          "Synthetic responses must not register source data",
-        );
-      }
       observation.restoration = restored;
       await browser
         .manage()
@@ -796,7 +808,10 @@ export async function qualificationHistoryScenario({
           }
         : { raw_reply: nativeRaw };
       try {
-        validateRestoration(restored, nativeRaw);
+        assertHistoryRestoration(restored, nativeRaw, {
+          scenarioFailed: Boolean(observation.failure),
+          windowError: observation.window_restoration_error,
+        });
       } catch (error) {
         validationFailure = { error };
         observation.restoration_validation_failure = { message: errorMessage(error) };

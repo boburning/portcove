@@ -315,6 +315,13 @@ for (const [file, tests] of [
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
   [
+    "apps/desktop/scripts/desktop-webview-boundary.mts",
+    [
+      "scripts/desktop-boundary-wiring.test.mts",
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+    ],
+  ],
+  [
     "apps/desktop/scripts/desktop-boundary-invoke.mts",
     [
       "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
@@ -327,6 +334,13 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
       "apps/desktop/scripts/desktop-default-cover.native.test.mts",
       "apps/desktop/scripts/desktop-reload.native.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-real-runtime.test.mts",
+      "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
+      "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+      "scripts/capture-target.test.mts",
     ],
   ],
   [
@@ -1181,7 +1195,6 @@ for (const [file, tests] of [
   ]),
   ...[
     "apps/desktop/scripts/desktop-application-update-journey.mts",
-    "apps/desktop/scripts/desktop-installed-update-harness.mts",
     "apps/desktop/scripts/desktop-windows-public-update.mts",
     "apps/desktop/scripts/desktop-windows-public-update-files.mts",
   ].map((file): [string, string[]] => [file, ["scripts/desktop-scenarios.test.mts"]]),
@@ -1190,10 +1203,31 @@ for (const [file, tests] of [
     "scripts/validation-plan.test.mts",
     "scripts/local-validation.test.mts",
   ].map((file): [string, string[]] => [file, selectionContractTests]),
+  ...[
+    "apps/desktop/scripts/desktop-installed-update-harness.mts",
+    "apps/desktop/scripts/desktop-windows-update-test.mts",
+    "apps/desktop/scripts/desktop-macos-installed-update-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ]),
+  [
+    "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    ["scripts/desktop-scenarios.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-host-publication-test.mts",
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+    ],
+  ],
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
   [
     "scripts/fixtures/disposable-directory.mts",
     [
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/node-platform-skips.test.mts",
@@ -1215,6 +1249,7 @@ for (const [file, tests] of [
       "scripts/release-hosted-native-windows-capture.test.mts",
       "scripts/release-hosted-native-windows-runner.test.mts",
       "scripts/release-hosted-native-windows-source.test.mts",
+      "scripts/release-hosted-native-windows-workflow.test.mts",
       "scripts/release-hosted-native-windows-dependency-files.test.mts",
       "scripts/native-qualification-account.test.mts",
       "scripts/release-owned-windows-proof-store.test.mts",
@@ -1229,6 +1264,7 @@ for (const [file, tests] of [
   [
     "scripts/fixtures/module-closure.mts",
     [
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/daily-discovery.test.mts",
@@ -1549,7 +1585,19 @@ for (const [file, tests] of [
       "scripts/native-session-lock.test.mts",
     ],
   ],
-  ["apps/desktop/scripts/desktop-preparation-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  ...[
+    "apps/desktop/scripts/desktop-preparation-test.mts",
+    "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      ...(file === "apps/desktop/scripts/desktop-preparation-test.mts"
+        ? ["scripts/capture-target.test.mts"]
+        : []),
+    ],
+  ]),
   [
     "apps/desktop/scripts/desktop-scenario-outcomes.mts",
     ["scripts/desktop-scenarios.test.mts", "scripts/native-helper-dependencies.test.mts"],
@@ -1570,7 +1618,10 @@ for (const [file, tests] of [
     file,
     ["scripts/desktop-scenarios.test.mts", "scripts/fixture-module-closure.test.mts"],
   ]),
-  ["apps/desktop/scripts/desktop-source-dialog-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  [
+    "apps/desktop/scripts/desktop-source-dialog-test.mts",
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
   ...[
     "apps/desktop/scripts/desktop-review-controls.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",
@@ -1630,6 +1681,8 @@ for (const [file, tests] of [
       "scripts/dev-doctor.test.mts",
     ],
   ],
+  [".config/recovery-tools/aqua.yaml", ["scripts/recovery-tools.test.mts"]],
+  [".config/recovery-tools/aqua-checksums.json", ["scripts/recovery-tools.test.mts"]],
   [
     "scripts/roadmap-issue.mts",
     [
@@ -1768,6 +1821,7 @@ for (const file of [
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/production-aggregate-steps.test.mts",
+  "scripts/renovate-engine-probe.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",
@@ -1903,6 +1957,7 @@ for (const file of [
   "scripts/quality-tools.mts",
   "scripts/resource-command.mts",
   "scripts/resource-capacity.mts",
+  "scripts/prepared-file-replacement.mts",
   "scripts/runtime-values.mts",
 ]) {
   explicitNodeTests.set(file, [
@@ -2498,6 +2553,16 @@ function classifyOnePath(
   }
 
   if (
+    ["aqua.yaml", "aqua-checksums.json", ".aqua-version", ".config/tool-bootstrap.json"].includes(
+      file,
+    )
+  ) {
+    selection.scopes.add("script-toolchain");
+    selection.pythonLint = true;
+    selection.pythonFiles.add("apps/desktop/assets/brand/models/v2");
+  }
+
+  if (
     file === ".editorconfig" ||
     file === ".oxfmtrc.json" ||
     file === ".oxlintrc.json" ||
@@ -2769,6 +2834,15 @@ export function buildPlan(
         "check",
         ...sorted(selection.pythonFiles),
       ]),
+    );
+  if (selection.scopes.has("script-toolchain"))
+    commands.push(
+      command(
+        "lint-tool-fixtures",
+        "script toolchain positive and negative controls",
+        process.execPath,
+        ["scripts/lint-tools.integration.mts", "ruff", "shellcheck", "actionlint"],
+      ),
     );
   if (selection.rustfmt || broad)
     commands.push(

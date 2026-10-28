@@ -173,6 +173,16 @@ impl DefinitionContentIndex {
                 "versioned mod packages require staged-source capability version 24",
             ));
         }
+        if port.adapter == crate::AdapterKind::NativePortable
+            && port.release.provider == crate::ReleaseSource::DirectManifest
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 3
+            })
+        {
+            return Err(PortcoveError::verification(
+                "exactly pinned native archives require capability version 3",
+            ));
+        }
         if crate::preparation::has_manual_marker(&port)
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= 2
@@ -274,13 +284,23 @@ impl DefinitionContentIndex {
         }
         if port.windows_runtime_path_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable"
+                requirement.template
+                    == if port.adapter == crate::AdapterKind::NativePortable {
+                        "native-portable"
+                    } else {
+                        "staged-source-portable"
+                    }
                     && requirement.minimum_version
                         >= crate::runtime_path_policy::minimum_capability(&port)
             })
         {
             return Err(PortcoveError::verification(format!(
-                "Windows runtime paths require staged-source capability version {}",
+                "Windows runtime paths require {} capability version {}",
+                if port.adapter == crate::AdapterKind::NativePortable {
+                    "native-portable"
+                } else {
+                    "staged-source-portable"
+                },
                 crate::runtime_path_policy::minimum_capability(&port)
             )));
         }

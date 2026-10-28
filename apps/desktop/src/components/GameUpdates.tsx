@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { desktopApi } from "../api";
 import type { GameUpdateAcquisition, GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
 import type { Perform } from "../features/operations/use-operation-state";
@@ -92,6 +92,125 @@ type UpdateExecution =
   | { kind: "apply" | "acquire"; plan: GameUpdatePlan }
   | { kind: "discard"; acquisition: GameUpdateAcquisition };
 
+function updateExecutionAvailable(
+  perform: Perform | undefined,
+  pending: boolean,
+  execution: symbol | undefined,
+  busy: boolean,
+  current: () => boolean,
+): perform is Perform {
+  return !(pending || execution || busy || !perform || !current());
+}
+function currentGameUpdateSelection(
+  selection: UpdateExecution,
+  portId: string,
+  acquisition: GameUpdateAcquisition | null | undefined,
+  hasRetainedArchive: boolean,
+  current: () => boolean,
+) {
+  if (
+    selection.kind !== "discard" &&
+    (!current() ||
+      !gameUpdateActionLabel(selection.plan, selection.kind === "acquire", hasRetainedArchive))
+  )
+    return false;
+  if (
+    selection.kind === "discard" &&
+    (selection.acquisition.port_id !== portId ||
+      !["acquired", "attention_required"].includes(selection.acquisition.phase) ||
+      selection.acquisition.id !== acquisition?.id)
+  )
+    return false;
+  return true;
+}
+
+function gameUpdateCompletionMessage(
+  selection: UpdateExecution,
+  result: unknown,
+  acquired: GameUpdateAcquisition | undefined,
+) {
+  if (result && acquired)
+    return acquired.phase === "acquired"
+      ? "Last command: Archive downloaded. Review again to prepare or install it. Your current version is unchanged."
+      : "Archive state recorded. Review its current state before continuing.";
+  if (result && selection.kind === "discard")
+    return "Last command: Archive discarded. Installed versions and saved data are unchanged.";
+  if (result && selection.kind === "apply")
+    return selection.plan.activate
+      ? "Update installed. Your previous version remains available."
+      : "Update saved for later. Your current version is unchanged.";
+  return "The operation was not confirmed complete. Review the current state before retrying.";
+}
+
+async function executeReviewedGameUpdate(
+  selection: UpdateExecution,
+  portId: string,
+  generation: number,
+  receive: Parameters<typeof desktopApi.applyGameUpdate>[4],
+) {
+  if (selection.kind === "discard") {
+    await desktopApi.discardGameUpdateAcquisition(portId, selection.acquisition.id, generation);
+    return { value: true, acquired: undefined };
+  }
+  if (selection.kind === "acquire") {
+    const acquired = await desktopApi.acquireGameUpdate(
+      portId,
+      selection.plan.plan_sha256,
+      generation,
+      receive,
+    );
+    return { value: acquired, acquired };
+  }
+  return {
+    value: await desktopApi.applyGameUpdate(
+      portId,
+      selection.plan.activate,
+      selection.plan.plan_sha256,
+      generation,
+      receive,
+    ),
+    acquired: undefined,
+  };
+}
+
+type AcquisitionReceipt = { value: GameUpdateAcquisition; status: PortStatus | undefined };
+type DiscardReceipt = { id: string; status: PortStatus | undefined };
+
+function retainedUpdateArchiveState(
+  status: PortStatus | undefined,
+  acquisitionReceipt: AcquisitionReceipt | undefined,
+  discardReceipt: DiscardReceipt | undefined,
+  plan: GameUpdatePlan | undefined,
+) {
+  const lastAcquisition =
+    acquisitionReceipt?.status === status ? acquisitionReceipt?.value : undefined;
+  const discardedId = discardReceipt?.status === status ? discardReceipt?.id : undefined;
+  const observedAcquisition = status?.acquisition;
+  const acquisition = observedAcquisition?.id === discardedId ? undefined : observedAcquisition;
+  return {
+    acquisition,
+    hasRetainedArchive: Boolean(acquisition || lastAcquisition || plan?.acquisition),
+    completionNeedsRefresh: Boolean(
+      lastAcquisition || (discardReceipt && discardReceipt.status === status),
+    ),
+  };
+}
+function selectedGameUpdateIntent(
+  plan: GameUpdatePlan | undefined,
+  pending: boolean,
+  hasRetainedArchive: boolean,
+  intent: UpdateIntent,
+): UpdateIntent {
+  return !plan && !pending && hasRetainedArchive && intent === "download" ? "prepare" : intent;
+}
+function updateInvocationBusy(
+  owner: ReturnType<typeof useOperationPresentation>,
+  context: Parameters<typeof pendingInvocationConflict>[1],
+  fallbackBusy: boolean,
+) {
+  return owner ? Boolean(pendingInvocationConflict(owner.pending, context)) : fallbackBusy;
+}
+
 function useGameUpdateControl({
   portId,
   generation,
@@ -125,12 +244,8 @@ function useGameUpdateControl({
     operation: "acquire_game_update" as const,
   };
   const discardContext = targetInvocationContext("Discard update archive", target, generation);
-  const exclusiveBusy = owner
-    ? Boolean(pendingInvocationConflict(owner.pending, applyContext))
-    : fallbackBusy;
-  const acquireBusy = owner
-    ? Boolean(pendingInvocationConflict(owner.pending, acquireContext))
-    : fallbackBusy;
+  const exclusiveBusy = updateInvocationBusy(owner, applyContext, fallbackBusy);
+  const acquireBusy = updateInvocationBusy(owner, acquireContext, fallbackBusy);
   const [intent, setIntent] = useState<UpdateIntent>("install");
   // A returned plan and its reviewed intent are one snapshot. Changing the
   // requested intent cannot reinterpret the previous preview during a read.
@@ -146,26 +261,16 @@ function useGameUpdateControl({
   const [operation, setOperation] = useState<string>();
   // Receipts explain confirmed commands through failed refreshes. Only an
   // observed Core status or a fresh plan supplies current action authority.
-  const [acquisitionReceipt, setAcquisitionReceipt] = useState<{
-    value: GameUpdateAcquisition;
-    status: PortStatus | undefined;
-  }>();
-  const [discardReceipt, setDiscardReceipt] = useState<{
-    id: string;
-    status: PortStatus | undefined;
-  }>();
-  const lastAcquisition =
-    acquisitionReceipt?.status === status ? acquisitionReceipt?.value : undefined;
-  const discardedId = discardReceipt?.status === status ? discardReceipt?.id : undefined;
-  const observedAcquisition = status?.acquisition;
-  const acquisition = observedAcquisition?.id === discardedId ? undefined : observedAcquisition;
-  const hasRetainedArchive = Boolean(acquisition || lastAcquisition || plan?.acquisition);
-  const completionNeedsRefresh = Boolean(
-    lastAcquisition || (discardReceipt && discardReceipt.status === status),
+  const [acquisitionReceipt, setAcquisitionReceipt] = useState<AcquisitionReceipt>();
+  const [discardReceipt, setDiscardReceipt] = useState<DiscardReceipt>();
+  const { acquisition, hasRetainedArchive, completionNeedsRefresh } = retainedUpdateArchiveState(
+    status,
+    acquisitionReceipt,
+    discardReceipt,
+    plan,
   );
   const [discardReview, setDiscardReview] = useState<GameUpdateAcquisition>();
-  const selectedIntent =
-    !plan && !pending && hasRetainedArchive && intent === "download" ? "prepare" : intent;
+  const selectedIntent = selectedGameUpdateIntent(plan, pending, hasRetainedArchive, intent);
   const downloadOnly = (reviewSnapshot?.intent ?? intent) === "download";
   const busy = downloadOnly ? acquireBusy : exclusiveBusy;
   const requests = useRef(new LatestRequestGeneration());
@@ -233,29 +338,41 @@ function useGameUpdateControl({
       }
     }
   };
+  const retainCompletion = (
+    selection: UpdateExecution,
+    result: unknown,
+    acquired: GameUpdateAcquisition | undefined,
+  ) => {
+    if (result && acquired) {
+      setAcquisitionReceipt({ value: acquired, status });
+    } else if (result && selection.kind === "discard") {
+      setDiscardReceipt({ id: selection.acquisition.id, status });
+      setAcquisitionReceipt(undefined);
+    }
+    setMessage(gameUpdateCompletionMessage(selection, result, acquired));
+  };
   const execute = async (selection: UpdateExecution) => {
     if (archiveOnly && selection.kind !== "discard") return;
     const acquiring = selection.kind === "acquire";
     const executionBusy = acquiring ? acquireBusy : exclusiveBusy;
     if (
-      pendingRequest.current ||
-      executionRequest.current ||
-      executionBusy ||
-      !perform ||
-      !(reviewScope?.current() ?? true)
+      !updateExecutionAvailable(
+        perform,
+        pendingRequest.current,
+        executionRequest.current,
+        executionBusy,
+        () => reviewScope?.current() ?? true,
+      )
     )
       return;
     if (
-      selection.kind !== "discard" &&
-      (!(reviewScope?.current() ?? true) ||
-        !gameUpdateActionLabel(selection.plan, acquiring, hasRetainedArchive))
-    )
-      return;
-    if (
-      selection.kind === "discard" &&
-      (selection.acquisition.port_id !== portId ||
-        !["acquired", "attention_required"].includes(selection.acquisition.phase) ||
-        selection.acquisition.id !== acquisition?.id)
+      !currentGameUpdateSelection(
+        selection,
+        portId,
+        acquisition,
+        hasRetainedArchive,
+        () => reviewScope?.current() ?? true,
+      )
     )
       return;
     if (selection.kind === "discard") reviewScope?.claim();
@@ -285,30 +402,9 @@ function useGameUpdateControl({
             if (event.type === "message") setMessage(event.message);
           };
           try {
-            if (selection.kind === "discard") {
-              await desktopApi.discardGameUpdateAcquisition(
-                portId,
-                selection.acquisition.id,
-                generation,
-              );
-              return true;
-            }
-            if (selection.kind === "acquire") {
-              acquired = await desktopApi.acquireGameUpdate(
-                portId,
-                selection.plan.plan_sha256,
-                generation,
-                receive,
-              );
-              return acquired;
-            }
-            return await desktopApi.applyGameUpdate(
-              portId,
-              selection.plan.activate,
-              selection.plan.plan_sha256,
-              generation,
-              receive,
-            );
+            const command = await executeReviewedGameUpdate(selection, portId, generation, receive);
+            acquired = command.acquired;
+            return command.value;
           } catch (value) {
             failed = true;
             if (requests.current.isCurrent(current)) {
@@ -336,28 +432,7 @@ function useGameUpdateControl({
         },
       );
       if (requests.current.isCurrent(current) && !failed) {
-        if (result && acquired) {
-          setAcquisitionReceipt({ value: acquired, status });
-          setMessage(
-            acquired.phase === "acquired"
-              ? "Last command: Archive downloaded. Review again to prepare or install it. Your current version is unchanged."
-              : "Archive state recorded. Review its current state before continuing.",
-          );
-        } else if (result && selection.kind === "discard") {
-          setDiscardReceipt({ id: selection.acquisition.id, status });
-          setAcquisitionReceipt(undefined);
-          setMessage(
-            "Last command: Archive discarded. Installed versions and saved data are unchanged.",
-          );
-        } else {
-          setMessage(
-            result && selection.kind === "apply"
-              ? selection.plan.activate
-                ? "Update installed. Your previous version remains available."
-                : "Update saved for later. Your current version is unchanged."
-              : "The operation was not confirmed complete. Review the current state before retrying.",
-          );
-        }
+        retainCompletion(selection, result, acquired);
       }
     } catch (value) {
       if (requests.current.isCurrent(current)) {
@@ -430,136 +505,37 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
   const heading = useRef<HTMLHeadingElement>(null);
   const discardHeading = useRef<HTMLHeadingElement>(null);
   const actionRegion = useRef<HTMLElement>(null);
+  const control = useGameUpdateControl(props);
   const {
     archiveOnly,
     plan,
     pending,
     applying,
     downloadOnly,
-    hasRetainedArchive,
+    hasRetainedArchive: existingArchive,
     reviewButton,
-    dismissReview,
-    busy,
     perform,
-    apply,
     review,
     exclusiveBusy,
     acquireBusy,
     compact,
     completionNeedsRefresh,
-    discardButton,
-    reviewDiscard,
     selectedIntent,
     setIntent,
     reviewScope,
-    descriptionId,
-    titleId,
     gameName,
     operation,
     message,
     error,
     discardReview,
-    setDiscardReview,
-    discard,
     failure,
-    acquisition: observedAcquisition,
-  } = useGameUpdateControl(props);
-  const acquisition = observedAcquisition ?? undefined;
-  const existingArchive = hasRetainedArchive;
-  const actionLabel =
-    plan && gameUpdateActionLabel(plan, downloadOnly, existingArchive && !applying);
+  } = control;
   const finalFocus = () => {
-    if (applying && actionRegion.current?.isConnected) return actionRegion.current;
+    if ((applying || pending) && actionRegion.current?.isConnected) return actionRegion.current;
     if (reviewButton.current?.isConnected && !reviewButton.current.disabled)
       return reviewButton.current;
     return false;
   };
-  const renderReviewActions = (reviewed: GameUpdatePlan) => (
-    <DialogFooter className="mt-4">
-      {applying && (
-        <Button data-focusable variant="outline" onClick={dismissReview}>
-          Continue browsing
-        </Button>
-      )}
-      {installPlanActionLabel(reviewed.plan.action) ? (
-        actionLabel ? (
-          <Button
-            data-focusable
-            variant="primary"
-            disabled={busy || pending || !perform}
-            onClick={() => void apply()}
-          >
-            {pending
-              ? applying
-                ? downloadOnly
-                  ? "Downloading archive…"
-                  : "Updating…"
-                : "Checking update…"
-              : actionLabel}
-          </Button>
-        ) : null
-      ) : (
-        <Button
-          data-focusable
-          variant="primary"
-          disabled={busy || pending}
-          onClick={() => void review()}
-        >
-          Review game update again
-        </Button>
-      )}
-      {installPlanActionLabel(reviewed.plan.action) && (
-        <>
-          {!reviewed.activate && (
-            <Button
-              data-focusable
-              variant="outline"
-              disabled={exclusiveBusy || pending}
-              onClick={() => void review("install")}
-            >
-              Review install now
-            </Button>
-          )}
-          {reviewed.activate && reviewed.plan.action !== "download" && (
-            <Button
-              data-focusable
-              variant="outline"
-              disabled={exclusiveBusy || pending}
-              onClick={() => void review("prepare")}
-            >
-              Review keeping for later
-            </Button>
-          )}
-          {reviewed.plan.action === "download" && (downloadOnly || reviewed.activate) && (
-            <Button
-              data-focusable
-              variant="outline"
-              disabled={exclusiveBusy || pending}
-              onClick={() => void review("prepare")}
-            >
-              Review prepare for later
-            </Button>
-          )}
-          {reviewed.plan.action === "download" &&
-            !downloadOnly &&
-            !existingArchive &&
-            !reviewed.acquisition && (
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={acquireBusy || pending}
-                onClick={() => void review("download")}
-              >
-                Review download for later
-              </Button>
-            )}
-        </>
-      )}
-      <Button data-focusable variant="outline" disabled={busy || pending} onClick={dismissReview}>
-        Cancel review
-      </Button>
-    </DialogFooter>
-  );
   return (
     <section
       ref={actionRegion}
@@ -571,79 +547,44 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       {!compact && <h3>{archiveOnly ? "Update archive" : "Game update"}</h3>}
       {completionNeedsRefresh && (
         <p role="status" className="my-3 text-xs text-pc-muted-foreground">
-          The last command completed. Current library state still needs a successful refresh. A
-          command receipt does not authorize preparing, installing or discarding an archive.
+          The operation finished, but library status could not be refreshed. Refresh status before
+          continuing.
         </p>
       )}
-      {acquisition && (
-        <section
-          className="my-3 rounded-pc-md border border-pc-border p-3"
-          aria-label="Retained update archive"
-        >
-          <h4 className="text-sm">
-            {acquisition.port_id === props.portId
-              ? gameUpdateAcquisitionLabel(acquisition.phase)
-              : "Archive identity unavailable"}
-          </h4>
-          <p className="mt-2 text-sm">
-            {acquisition.release.version} ·{" "}
-            {releaseChannelPresentation(acquisition.release.channel).label}
-          </p>
-          <p className="mt-2 text-xs text-pc-muted-foreground">
-            An archive is separate from a prepared update. Downloading it does not prepare game
-            files, write saved data or change the current version.
-          </p>
-          <details className="mt-2 text-xs">
-            <summary data-focusable className="cursor-pointer py-1">
-              Archive details
-            </summary>
-            <dl className="mt-2 grid gap-2 [overflow-wrap:anywhere]">
-              <div>
-                <dt>Acquisition ID</dt>
-                <dd>{acquisition.id}</dd>
-              </div>
-              <div>
-                <dt>Archive</dt>
-                <dd>{acquisition.release.asset.name}</dd>
-              </div>
-              <div>
-                <dt>SHA-256</dt>
-                <dd>
-                  <code>{acquisition.release.asset.sha256}</code>
-                </dd>
-              </div>
-            </dl>
-          </details>
-          {acquisition.port_id === props.portId &&
-            ["acquired", "attention_required"].includes(acquisition.phase) && (
-              <Button
-                ref={discardButton}
-                data-focusable
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                disabled={exclusiveBusy || pending}
-                onClick={() => reviewDiscard(acquisition)}
-              >
-                Discard archive…
-              </Button>
-            )}
-        </section>
-      )}
+      <RetainedUpdateArchive control={control} portId={props.portId} />
       {!archiveOnly && !plan && (
-        <ChoiceSelect<UpdateIntent>
-          label="What would you like to do?"
-          value={selectedIntent}
-          disabled={pending || (exclusiveBusy && acquireBusy)}
-          onChange={setIntent}
-          options={[
-            { value: "install", label: "Install update" },
-            ...(!existingArchive
-              ? [{ value: "download" as const, label: "Download for later" }]
-              : []),
-            { value: "prepare", label: "Prepare for later" },
-          ]}
-        />
+        <div className="grid gap-2">
+          <ChoiceSelect<UpdateIntent>
+            label="What would you like to do?"
+            value={selectedIntent}
+            disabled={pending || (exclusiveBusy && acquireBusy)}
+            onChange={setIntent}
+            options={[
+              { value: "install", label: "Update now" },
+              ...(selectedIntent === "prepare"
+                ? [{ value: "prepare" as const, label: "Prepare for later" }]
+                : []),
+              ...(!existingArchive
+                ? [{ value: "download" as const, label: "Download for later" }]
+                : []),
+            ]}
+          />
+          <details inert={pending || applying}>
+            <summary data-focusable>Advanced update choice</summary>
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={pending || (exclusiveBusy && acquireBusy)}
+              onClick={() => setIntent("prepare")}
+            >
+              Prepare for later
+            </Button>
+            <p>
+              Prepare verified staged content without activating it. A downloaded archive still
+              needs preparation.
+            </p>
+          </details>
+        </div>
       )}
       {!archiveOnly && (
         <Button
@@ -661,126 +602,20 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         </Button>
       )}
       {!archiveOnly && plan && reviewScope?.active !== false && (
-        <Dialog
-          open
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen && !busy && !pending) dismissReview();
-          }}
-        >
-          <DialogContent
-            initialFocus={heading}
-            className="@container/update-review"
-            showCloseButton={false}
-            finalFocus={finalFocus}
-            reviewSize="standard"
-            data-game-update-review
-            aria-describedby={descriptionId}
-          >
-            <DialogTitle ref={heading} tabIndex={-1} id={titleId} className="mb-2 text-xl">
-              {gameName ? `${gameName} update` : "Review game update"}
-            </DialogTitle>
-            <DialogDescription id={descriptionId} className="mb-4 leading-relaxed">
-              {downloadOnly
-                ? "Review the exact archive to download. Preparation and activation require another review."
-                : "Confirm the release and what happens to your active version before updating."}
-            </DialogDescription>
-            <GameUpdateReview
-              plan={plan}
-              downloadOnly={downloadOnly}
-              existingArchive={existingArchive && !applying}
-              currentVersion={props.currentVersion}
-            />
-            {operation && (
-              <OperationCancellation
-                key={operation}
-                operationId={operation}
-                label={downloadOnly ? "Cancel archive download" : "Cancel game update"}
-              />
-            )}
-            {message && <p role="status">{message}</p>}
-            {error && <p role="alert">{error}</p>}
-            {renderReviewActions(plan)}
-          </DialogContent>
-        </Dialog>
+        <GameUpdatePlanDialog
+          control={control}
+          currentVersion={props.currentVersion}
+          heading={heading}
+          finalFocus={finalFocus}
+        />
       )}
       {discardReview && reviewScope?.active !== false && (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open && !pending) setDiscardReview(undefined);
-          }}
-        >
-          <DialogContent
-            initialFocus={discardHeading}
-            showCloseButton={false}
-            reviewSize="standard"
-            data-game-update-discard-review
-            finalFocus={() => {
-              if (applying) return actionRegion.current;
-              if (discardButton.current?.isConnected && !discardButton.current.disabled)
-                return discardButton.current;
-              if (reviewButton.current?.isConnected && !reviewButton.current.disabled)
-                return reviewButton.current;
-              return actionRegion.current;
-            }}
-          >
-            <DialogTitle ref={discardHeading} tabIndex={-1}>
-              Discard update archive?
-            </DialogTitle>
-            <DialogDescription>
-              Discard only this retained archive. Installed versions, prepared updates and saved
-              data are unchanged.
-            </DialogDescription>
-            <dl className="my-4 grid gap-3 [overflow-wrap:anywhere]">
-              <div>
-                <dt>Game</dt>
-                <dd>{gameName ?? props.portId}</dd>
-              </div>
-              <div>
-                <dt>Version</dt>
-                <dd>{discardReview.release.version}</dd>
-              </div>
-              <div>
-                <dt>Acquisition ID</dt>
-                <dd>
-                  <code>{discardReview.id}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Archive SHA-256</dt>
-                <dd>
-                  <code>{discardReview.release.asset.sha256}</code>
-                </dd>
-              </div>
-            </dl>
-            {discardReview.id !== acquisition?.id && (
-              <p role="status">
-                The retained archive changed. Keep this review closed and review the current archive
-                before discarding it.
-              </p>
-            )}
-            <DialogFooter>
-              <Button
-                data-focusable
-                variant="destructive"
-                disabled={
-                  exclusiveBusy || pending || !perform || discardReview.id !== acquisition?.id
-                }
-                onClick={() => void discard()}
-              >
-                {pending ? "Discarding archive…" : "Discard archive"}
-              </Button>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={pending}
-                onClick={() => setDiscardReview(undefined)}
-              >
-                Keep archive
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <GameUpdateDiscardDialog
+          control={control}
+          portId={props.portId}
+          discardHeading={discardHeading}
+          actionRegion={actionRegion}
+        />
       )}
       {!plan && operation && (
         <OperationCancellation
@@ -794,6 +629,372 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       {!plan && failure && <GameUpdateFailure value={failure.value} />}
     </section>
   );
+}
+
+function GameUpdateReviewActions({
+  control,
+  reviewed,
+  actionLabel,
+}: {
+  control: ReturnType<typeof useGameUpdateControl>;
+  reviewed: GameUpdatePlan;
+  actionLabel: string | undefined;
+}) {
+  const { applying, dismissReview, busy, pending, perform, apply, downloadOnly, review } = control;
+  return (
+    <DialogFooter className="mt-4">
+      {applying && (
+        <Button data-focusable variant="outline" onClick={dismissReview}>
+          Continue browsing
+        </Button>
+      )}
+      {installPlanActionLabel(reviewed.plan.action) ? (
+        actionLabel ? (
+          <Button
+            data-focusable
+            variant="primary"
+            disabled={busy || pending || !perform}
+            onClick={() => void apply()}
+          >
+            {updateActionProgressLabel(pending, applying, downloadOnly, actionLabel)}
+          </Button>
+        ) : null
+      ) : (
+        <Button
+          data-focusable
+          variant="primary"
+          disabled={busy || pending}
+          onClick={() => void review()}
+        >
+          Review game update again
+        </Button>
+      )}
+      {installPlanActionLabel(reviewed.plan.action) && (
+        <GameUpdateAlternativeActions control={control} reviewed={reviewed} />
+      )}
+      <Button data-focusable variant="outline" disabled={busy || pending} onClick={dismissReview}>
+        Cancel review
+      </Button>
+    </DialogFooter>
+  );
+}
+
+function GameUpdateAlternativeActions({
+  control,
+  reviewed,
+}: {
+  control: ReturnType<typeof useGameUpdateControl>;
+  reviewed: GameUpdatePlan;
+}) {
+  const {
+    exclusiveBusy,
+    pending,
+    review,
+    downloadOnly,
+    hasRetainedArchive: existingArchive,
+    acquireBusy,
+  } = control;
+  return (
+    <>
+      {!reviewed.activate && (
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={exclusiveBusy || pending}
+          onClick={() => void review("install")}
+        >
+          Update now
+        </Button>
+      )}
+      {reviewed.activate && reviewed.plan.action !== "download" && (
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={exclusiveBusy || pending}
+          onClick={() => void review("prepare")}
+        >
+          Keep for later
+        </Button>
+      )}
+      {reviewed.plan.action === "download" && (downloadOnly || reviewed.activate) && (
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={exclusiveBusy || pending}
+          onClick={() => void review("prepare")}
+        >
+          Prepare for later
+        </Button>
+      )}
+      {reviewed.plan.action === "download" &&
+        !downloadOnly &&
+        !existingArchive &&
+        !reviewed.acquisition && (
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={acquireBusy || pending}
+            onClick={() => void review("download")}
+          >
+            Download for later
+          </Button>
+        )}
+    </>
+  );
+}
+
+function RetainedUpdateArchive({
+  control,
+  portId,
+}: {
+  control: ReturnType<typeof useGameUpdateControl>;
+  portId: string;
+}) {
+  const { acquisition, exclusiveBusy, pending, discardButton, reviewDiscard } = control;
+  if (!acquisition) return null;
+  return (
+    <section
+      className="my-3 rounded-pc-md border border-pc-border p-3"
+      aria-label="Retained update archive"
+    >
+      <h4 className="text-sm">
+        {acquisition.port_id === portId
+          ? gameUpdateAcquisitionLabel(acquisition.phase)
+          : "Archive identity unavailable"}
+      </h4>
+      <p className="mt-2 text-sm">
+        {acquisition.release.version} ·{" "}
+        {releaseChannelPresentation(acquisition.release.channel).label}
+      </p>
+      <p className="mt-2 text-xs text-pc-muted-foreground">
+        An archive is separate from a prepared update. Downloading it does not prepare game files,
+        write saved data or change the current version.
+      </p>
+      <details className="mt-2 text-xs">
+        <summary data-focusable className="cursor-pointer py-1">
+          Archive details
+        </summary>
+        <dl className="mt-2 grid gap-2 [overflow-wrap:anywhere]">
+          <div>
+            <dt>Acquisition ID</dt>
+            <dd>{acquisition.id}</dd>
+          </div>
+          <div>
+            <dt>Archive</dt>
+            <dd>{acquisition.release.asset.name}</dd>
+          </div>
+          <div>
+            <dt>SHA-256</dt>
+            <dd>
+              <code>{acquisition.release.asset.sha256}</code>
+            </dd>
+          </div>
+        </dl>
+      </details>
+      {acquisition.port_id === portId &&
+        ["acquired", "attention_required"].includes(acquisition.phase) && (
+          <Button
+            ref={discardButton}
+            data-focusable
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            disabled={exclusiveBusy || pending}
+            onClick={() => reviewDiscard(acquisition)}
+          >
+            Discard archive…
+          </Button>
+        )}
+    </section>
+  );
+}
+
+function GameUpdatePlanDialog({
+  control,
+  currentVersion,
+  heading,
+  finalFocus,
+}: {
+  control: ReturnType<typeof useGameUpdateControl>;
+  currentVersion: string | undefined;
+  heading: RefObject<HTMLHeadingElement | null>;
+  finalFocus: () => HTMLElement | false;
+}) {
+  const {
+    plan,
+    downloadOnly,
+    hasRetainedArchive: existingArchive,
+    applying,
+    busy,
+    pending,
+    dismissReview,
+    descriptionId,
+    titleId,
+    gameName,
+    operation,
+    message,
+    error,
+  } = control;
+  if (!plan) return null;
+  const actionLabel = gameUpdateActionLabel(plan, downloadOnly, existingArchive && !applying);
+  return (
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !busy && !pending) dismissReview();
+      }}
+    >
+      <DialogContent
+        initialFocus={heading}
+        className="@container/update-review"
+        showCloseButton={false}
+        finalFocus={finalFocus}
+        reviewSize="standard"
+        data-game-update-review
+        aria-describedby={descriptionId}
+      >
+        <DialogTitle ref={heading} tabIndex={-1} id={titleId} className="mb-2 text-xl">
+          {gameName ? `${gameName} update` : "Review game update"}
+        </DialogTitle>
+        <DialogDescription id={descriptionId} className="mb-4 leading-relaxed">
+          {downloadOnly
+            ? "Review the exact archive to download. Preparation and activation require another review."
+            : "Confirm the release and what happens to your active version before updating."}
+        </DialogDescription>
+        <GameUpdateReview
+          plan={plan}
+          downloadOnly={downloadOnly}
+          existingArchive={existingArchive && !applying}
+          currentVersion={currentVersion}
+        />
+        {operation && (
+          <OperationCancellation
+            key={operation}
+            operationId={operation}
+            label={downloadOnly ? "Cancel archive download" : "Cancel game update"}
+          />
+        )}
+        {message && <p role="status">{message}</p>}
+        {error && <p role="alert">{error}</p>}
+        <GameUpdateReviewActions control={control} reviewed={plan} actionLabel={actionLabel} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GameUpdateDiscardDialog({
+  control,
+  portId,
+  discardHeading,
+  actionRegion,
+}: {
+  control: ReturnType<typeof useGameUpdateControl>;
+  portId: string;
+  discardHeading: RefObject<HTMLHeadingElement | null>;
+  actionRegion: RefObject<HTMLElement | null>;
+}) {
+  const {
+    discardReview,
+    setDiscardReview,
+    pending,
+    applying,
+    discardButton,
+    reviewButton,
+    gameName,
+    acquisition,
+    exclusiveBusy,
+    perform,
+    discard,
+  } = control;
+  if (!discardReview) return null;
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !pending) setDiscardReview(undefined);
+      }}
+    >
+      <DialogContent
+        initialFocus={discardHeading}
+        showCloseButton={false}
+        reviewSize="standard"
+        data-game-update-discard-review
+        finalFocus={() => {
+          if (applying) return actionRegion.current;
+          if (discardButton.current?.isConnected && !discardButton.current.disabled)
+            return discardButton.current;
+          if (reviewButton.current?.isConnected && !reviewButton.current.disabled)
+            return reviewButton.current;
+          return actionRegion.current;
+        }}
+      >
+        <DialogTitle ref={discardHeading} tabIndex={-1}>
+          Discard update archive?
+        </DialogTitle>
+        <DialogDescription>
+          Discard only this retained archive. Installed versions, prepared updates and saved data
+          are unchanged.
+        </DialogDescription>
+        <dl className="my-4 grid gap-3 [overflow-wrap:anywhere]">
+          <div>
+            <dt>Game</dt>
+            <dd>{gameName ?? portId}</dd>
+          </div>
+          <div>
+            <dt>Version</dt>
+            <dd>{discardReview.release.version}</dd>
+          </div>
+          <div>
+            <dt>Acquisition ID</dt>
+            <dd>
+              <code>{discardReview.id}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Archive SHA-256</dt>
+            <dd>
+              <code>{discardReview.release.asset.sha256}</code>
+            </dd>
+          </div>
+        </dl>
+        {discardReview.id !== acquisition?.id && (
+          <p role="status">
+            The retained archive changed. Keep this review closed and review the current archive
+            before discarding it.
+          </p>
+        )}
+        <DialogFooter>
+          <Button
+            data-focusable
+            variant="destructive"
+            disabled={exclusiveBusy || pending || !perform || discardReview.id !== acquisition?.id}
+            onClick={() => void discard()}
+          >
+            {pending ? "Discarding archive…" : "Discard archive"}
+          </Button>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={pending}
+            onClick={() => setDiscardReview(undefined)}
+          >
+            Keep archive
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function updateActionProgressLabel(
+  pending: boolean,
+  applying: boolean,
+  downloadOnly: boolean,
+  actionLabel: string | undefined,
+) {
+  if (!pending) return actionLabel;
+  if (!applying) return "Checking update…";
+  return downloadOnly ? "Downloading archive…" : "Updating…";
 }
 
 function GameUpdateFailure({ value }: { value: unknown }) {

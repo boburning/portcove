@@ -36,6 +36,7 @@ function sourceFunction(value: unknown) {
   };
 }
 import { errorCode, isRecord } from "./runtime-values.mts";
+import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 import "../apps/desktop/scripts/desktop-completion-focus.native.test.mts";
 import { assertReviewFieldPresentation } from "../apps/desktop/scripts/desktop-review-presentation.mts";
 import assert from "node:assert/strict";
@@ -484,67 +485,92 @@ import { fileIdentity, writeEvidence } from "./development-evidence.mts";
 import { toolCachePaths } from "./tool-cache.mts";
 import { pathToFileURL } from "node:url";
 import {
+  readHistoryProcess,
   captureHistorySession,
   historyDriverStillOwned,
   waitHistorySessionExit,
   qualificationHistoryScenario,
 } from "../apps/desktop/scripts/desktop-qualification-history-test.mts";
 
-void test("history opens populated details before waiting for requested inspections", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
-    "utf8",
+void test("history opens populated details before waiting for requested inspections", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "pcv-history-caller-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-qualification-history-test.mts",
+    import.meta.url,
   );
-  const start = source.indexOf("      await installFixture();");
-  const end = source.indexOf("      for (const [name, theme, width, height, font]", start);
-  assert.ok(start >= 0 && end > start);
-  const driverImport = '({ By, Key } = await import("selenium-webdriver"));';
-  assert.ok(source.slice(start, end).includes(driverImport));
-  const startup = source.slice(start, end).replace(driverImport, "");
-  const window = { __portcoveHistoryProbe: { snapshots: 0, reports: 0 } };
-  const calls: string[] = [];
-  await runInNewContext(`(async () => { let technicalSummary; ${startup} })()`, {
-    window,
-    By: { xpath: () => ({}) },
-    installFixture: async () => {
-      window.__portcoveHistoryProbe.snapshots++;
-      calls.push("fixture");
-    },
-    openDetails: async () => {
-      assert.equal(window.__portcoveHistoryProbe.snapshots, 1);
-      assert.equal(window.__portcoveHistoryProbe.reports, 0);
-      calls.push("details");
-      window.__portcoveHistoryProbe.reports++;
-    },
-    browser: {
-      executeScript: async (callback: unknown) => sourceFunction(callback)(),
-      wait: async (predicate: () => unknown, timeout: number) => {
-        assert.equal(timeout, 15_000);
-        assert.equal(await predicate(), true, "Reports require an ordinary detail selection");
-        calls.push("settled");
+  const program = `
+    import {runInNewContext} from 'node:vm';import {readFile} from 'node:fs/promises';import path from 'node:path';
+    // Controlled module execution preserves the original platform-neutral case.
+    // Native processes are forbidden by the surrounding fixture, including on Windows.
+    Object.defineProperty(process,'platform',{value:'linux'});
+    const output=${JSON.stringify(output)},events=[],artifacts=[];
+    const sentinel=Error('History startup reached its first presentation branch');
+    const window={__portcoveHistoryProbe:undefined};
+    const document={documentElement:{style:{fontSize:''}}};
+    let fixture,asyncCalls=0,waits=0,sourceReads=0;
+    const browser={
+      manage:()=>({window:()=>({getRect:async()=>({width:800,height:600}),setRect:async()=>{}})}),
+      executeScript:async(callback,...args)=>runInNewContext('('+String(callback)+')(...args)',{window,document,args,getComputedStyle:()=>({fontSize:'16px'})}),
+      executeAsyncScript:async(callback,...args)=>{
+        assert.equal(typeof callback,'function');
+        if(++asyncCalls===1){
+          [fixture]=args;assert.ok(fixture.port_id&&fixture.profile_id);
+          window.__portcoveHistoryProbe={snapshots:1,reports:0};events.push('fixture');return {ok:true};
+        }
+        assert.equal(asyncCalls,2);return {restored:true,snapshots:1,reports:1};
       },
-    },
+      findElement:(locator)=>{
+        if(locator.value==='//nav//button[contains(., "Settings")]')throw sentinel;
+        if(locator.value==='//nav//button[contains(., "Discover")]')return {click:async()=>events.push('discover')};
+        assert.deepEqual(locator,{using:'css selector',value:'.detail-panel'});
+        return {getText:async()=>'165 Hz host'};
+      },
+      wait:async(predicate,budget,message)=>{
+        assert.equal(budget,15000);assert.equal(await predicate(),true);
+        if(++waits===2)assert.equal(message,'Populated production history did not settle; A16 component composition is required');
+        else assert.equal(message,undefined);
+        events.push('settled');
+      },
+    };
+    mock.module(new URL('./desktop-review-controls.mts',entry).href,{namedExports:{selectCatalogPort:async(actual,port)=>{
+      assert.equal(actual,browser);assert.equal(port,fixture.port_id);events.push('details');window.__portcoveHistoryProbe.reports++;
+    }}});
+    const {qualificationHistoryScenario}=await import(entry);
+    await assert.rejects(qualificationHistoryScenario({browser,output,artifacts,
+      invoke:async(command)=>{assert.equal(command,'get_sources');sourceReads++;return {ok:true,value:[]};},
+      scenario:async(name,action)=>{assert.equal(name,'native-qualification-history');await action();},
+      captureScreenshot:async()=>assert.fail('Startup control may not reach screenshot work'),
+    }),error=>error===sentinel);
+    assert.deepEqual(events,['fixture','settled','discover','details','settled','settled']);
+    assert.equal(asyncCalls,2);assert.equal(sourceReads,1);
+    assert.equal(artifacts.length,1);assert.equal(artifacts[0],path.join(output,'qualification-history.json'));
+    const report=JSON.parse(await readFile(artifacts[0],'utf8'));
+    assert.equal(report.failure.message,sentinel.message);assert.equal(report.restoration.restored,true);assert.equal(report.native_source_restoration.count,0);
+  `;
+  runDesktopModuleFixture(entry, program);
+  await rm(path.join(output, "qualification-history.json"));
+  runDesktopModuleFixture(entry, program, {
+    exportName: "qualificationHistoryScenario",
+    variant: "aliased",
   });
-  assert.deepEqual(calls, ["fixture", "settled", "details", "settled"]);
+  await rm(path.join(output, "qualification-history.json"));
+  assert.throws(() =>
+    runDesktopModuleFixture(entry, program, {
+      exportName: "qualificationHistoryScenario",
+      variant: "wrong-export",
+    }),
+  );
 });
 
 void test("history procfs disappearance retains narrow errors and live identities", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("async function historyProcess(");
-  const end = source.indexOf("function sameHistoryIdentity", start);
-  assert.ok(start >= 0 && end > start);
   for (const code of ["ENOENT", "ESRCH", "EACCES", "EIO"]) {
     const error = Object.assign(new Error(code), { code });
-    const action = runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
-      assert,
-      errorCode,
-      readFile: async () => {
+    const action = readHistoryProcess(123, {
+      read: async () => {
         throw error;
       },
-      readlink: async () => {
+      link: async () => {
         assert.fail("Disappeared stat must not read executable");
       },
     });
@@ -552,11 +578,16 @@ void test("history procfs disappearance retains narrow errors and live identitie
     else await assert.rejects(Promise.resolve(action), (actual: unknown) => actual === error);
   }
   const fields = ["S", "10", "123", ...Array<string>(16).fill("0"), "456"];
-  const live = await runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
-    assert,
-    errorCode,
-    readFile: async () => `123 (owned child) ${fields.join(" ")}`,
-    readlink: async () => "/owned/driver",
+  const live = await readHistoryProcess(123, {
+    read: async (file, encoding) => {
+      assert.equal(file, "/proc/123/stat");
+      assert.equal(encoding, "utf8");
+      return `123 (owned child) ${fields.join(" ")}`;
+    },
+    link: async (file) => {
+      assert.equal(file, "/proc/123/exe");
+      return "/owned/driver";
+    },
   });
   assert.deepEqual(
     { ...object(live) },
@@ -569,14 +600,40 @@ void test("history procfs disappearance retains narrow errors and live identitie
       executable: "/owned/driver",
     },
   );
+  for (const startTicks of ["untrusted", "-1", "0.5"]) {
+    const invalid = [...fields];
+    invalid[19] = startTicks;
+    let executableReads = 0;
+    await assert.rejects(
+      readHistoryProcess(123, {
+        read: async () => `123 (owned child) ${invalid.join(" ")}`,
+        link: async () => {
+          executableReads++;
+          return "/owned/driver";
+        },
+      }),
+      { code: "ERR_ASSERTION" },
+    );
+    assert.equal(executableReads, 0, "Malformed stat must fail before reading executable");
+  }
+  for (const code of ["ENOENT", "EACCES", "EPERM"]) {
+    const failure = Object.assign(new Error(code), { code });
+    const actual = await readHistoryProcess(123, {
+      read: async () => `123 (owned child) ${fields.join(" ")}`,
+      link: async () => {
+        throw failure;
+      },
+    });
+    assert.ok(actual);
+    assert.equal(actual.executable, null);
+    assert.equal(actual.start_ticks, "456");
+  }
   const error = Object.assign(new Error("exe disappearance"), { code: "ESRCH" });
   await assert.rejects(
     Promise.resolve(
-      runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
-        assert,
-        errorCode,
-        readFile: async () => `123 (owned child) ${fields.join(" ")}`,
-        readlink: async () => {
+      readHistoryProcess(123, {
+        read: async () => `123 (owned child) ${fields.join(" ")}`,
+        link: async () => {
           throw error;
         },
       }),
@@ -588,7 +645,7 @@ void test("history procfs disappearance retains narrow errors and live identitie
 void test("history fixture helpers import without installed desktop packages", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const module = path.join(root, "apps/desktop/scripts/history.mts");
+  const module = path.join(root, "apps/desktop/scripts/desktop-qualification-history-test.mts");
   await mkdir(path.dirname(module), { recursive: true });
   await mkdir(path.join(root, "scripts"));
   await copyFile(
@@ -609,6 +666,33 @@ void test("history fixture helpers import without installed desktop packages", a
     { cwd: root, encoding: "utf8" },
   );
   assert.equal(result.status, 0, result.stderr);
+  const native = path.join(
+    root,
+    "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+  );
+  await copyFile(
+    new URL(
+      "../apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+      import.meta.url,
+    ),
+    native,
+  );
+  const guard = path.join(root, "no-packages.mjs");
+  await writeFile(
+    guard,
+    `import {registerHooks,isBuiltin} from 'node:module';registerHooks({resolve(specifier,context,next){if(!isBuiltin(specifier)&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))throw Error('Optional package forbidden: '+specifier);return next(specifier,context);}});`,
+  );
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const execution = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(guard).href, "--test", "--test-reporter=tap", native],
+    { cwd: root, env: environment, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
+  );
+  assert.ifError(execution.error);
+  assert.equal(execution.status, 0, execution.stderr + execution.stdout);
+  assert.match(execution.stdout, /^# pass 3$/mu);
+  assert.match(execution.stdout, /^# skipped 0$/mu);
 });
 
 void test(
@@ -1062,115 +1146,141 @@ void test("external tree hash is ordered, byte-sensitive and refuses unsafe path
 
 void test("external picker observation leaves immutable Tauri internals untouched and preserves failures", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-unmodified-"));
+  // The parent retains cleanup ownership even when the controlled child times out.
   t.after(() => rm(root, { recursive: true, force: true }));
-  for (const refused of [false, true]) {
-    const output = path.join(root, refused ? "refused" : "cancelled");
-    await mkdir(output);
-    const fixture = await createExternalRuntimeFixture(output);
-    const original = () => assert.fail("Picker observation must not invoke Tauri internals");
-    const internals = Object.freeze({ invoke: original });
-    const failure = new Error("original owned helper failure");
-    let chosen = 0;
-    let selected = 0;
-    const document: { activeElement: unknown; elementFromPoint: () => unknown } = {
-      activeElement: undefined,
-      elementFromPoint: () => identity,
-    };
-    const identity = {
-      closest: () => null,
-      getAnimations: () => [],
-      focus: () => {
-        document.activeElement = identity;
-      },
-      scrollIntoView: () => {},
-      getBoundingClientRect: () => ({ x: 0, y: 0, width: 40, height: 40 }),
-      contains: () => false,
-      isDisplayed: async () => true,
-      isEnabled: async () => true,
-      click: async () => {
-        selected++;
-      },
-    };
-    const group = {
-      getAttribute: async (name: string) => {
-        assert.ok(["data-discover-port-ids", "data-discover-matching-port-ids"].includes(name));
-        return JSON.stringify([fixture.port.id]);
-      },
-      findElement: async (locator: { value: string }) => {
-        assert.equal(locator.value, ".discover-game-identity");
-        return identity;
-      },
-    };
-    const browser = {
-      executeScript: async (script: unknown, ...args: unknown[]) => {
-        assert.ok(typeof script === "string" || typeof script === "function");
-        const body =
-          typeof script === "string"
-            ? `(function () { ${script} }).apply(undefined, args)`
-            : `(${script.toString()})(...args)`;
-        return runInNewContext(body, {
-          args,
-          document,
-          window: Object.freeze({ __TAURI_INTERNALS__: internals }),
-        });
-      },
-      wait: async (condition: unknown) => {
-        if (typeof condition === "function") {
-          const value = await sourceFunction(condition)(browser);
-          assert.ok(value, "The real grouped selection wait must settle");
-          return value;
-        }
-        const observation = object(condition);
-        if (typeof observation.fn === "function") {
-          const value = await sourceFunction(observation.fn)(browser);
-          assert.ok(value, "The real native visibility/location wait must settle");
-          return value;
-        }
-        assert.equal(typeof observation.value, "string");
-        return true;
-      },
-      findElements: async (locator: { value: string }) => {
-        if (locator.value === ".discover-game[data-discover-port-ids]") return [group];
-        assert.equal(
-          locator.value,
-          `[data-detail-workspace][data-detail-port-id="${fixture.port.id}"]`,
-        );
-        assert.equal(selected, 1, "The exact Discover identity must open before details settle");
-        return [{}];
-      },
-      findElement: (locator: { value: string }) => ({
-        click: async () => {
-          if (locator.value.includes("Choose game folder")) {
-            assert.equal(selected, 1);
-            chosen++;
-          }
-        },
-        sendKeys: async () => {},
-        isEnabled: async () => true,
-      }),
-    };
-    const pickerContext = {
-      browser,
-      By: { xpath: (value: string) => ({ value }), id: (value: string) => ({ value }) },
-      Key: {
-        chord: (...keys: string[]) => keys.join(""),
-        CONTROL: "control",
-        BACK_SPACE: "backspace",
-      },
-      until: { elementLocated: (locator: unknown) => locator },
-      fixture,
-      observePicker: async () => {
-        assert.equal(chosen, 1);
-        if (refused) throw failure;
-        return { cancelled: true };
-      },
-    };
-    // @ts-expect-error This call-order fixture deliberately models only the used driver/locator capabilities.
-    const action = externalRuntimePickerObservation(pickerContext);
-    if (refused) await assert.rejects(action, (error) => error === failure);
-    else assert.equal((await action).cancelled, true);
-    assert.equal(internals.invoke, original);
+  async function observeOriginalPicker(root: string) {
+    try {
+      for (const refused of [false, true]) {
+        const output = path.join(root, refused ? "refused" : "cancelled");
+        await mkdir(output);
+        const fixture = await createExternalRuntimeFixture(output);
+        const original = () => assert.fail("Picker observation must not invoke Tauri internals");
+        const internals = Object.freeze({ invoke: original });
+        const failure = new Error("original owned helper failure");
+        let chosen = 0;
+        let selected = 0;
+        const document: { activeElement: unknown; elementFromPoint: () => unknown } = {
+          activeElement: undefined,
+          elementFromPoint: () => identity,
+        };
+        const identity = {
+          closest: () => null,
+          getAnimations: () => [],
+          focus: () => {
+            document.activeElement = identity;
+          },
+          scrollIntoView: () => {},
+          getBoundingClientRect: () => ({ x: 0, y: 0, width: 40, height: 40 }),
+          contains: () => false,
+          isDisplayed: async () => true,
+          isEnabled: async () => true,
+          click: async () => {
+            selected++;
+          },
+        };
+        const group = {
+          getAttribute: async (name: string) => {
+            assert.ok(["data-discover-port-ids", "data-discover-matching-port-ids"].includes(name));
+            return JSON.stringify([fixture.port.id]);
+          },
+          findElement: async (locator: { value: string }) => {
+            assert.equal(locator.value, ".discover-game-identity");
+            return identity;
+          },
+        };
+        const browser = {
+          executeScript: async (script: unknown, ...args: unknown[]) => {
+            assert.ok(typeof script === "string" || typeof script === "function");
+            const body =
+              typeof script === "string"
+                ? `(function () { ${script} }).apply(undefined, args)`
+                : `(${script.toString()})(...args)`;
+            return runInNewContext(body, {
+              args,
+              document,
+              window: Object.freeze({ __TAURI_INTERNALS__: internals }),
+            });
+          },
+          wait: async (condition: unknown) => {
+            if (typeof condition === "function") {
+              const value = await sourceFunction(condition)(browser);
+              assert.ok(value, "The real grouped selection wait must settle");
+              return value;
+            }
+            const observation = object(condition);
+            if (typeof observation.fn === "function") {
+              const value = await sourceFunction(observation.fn)(browser);
+              assert.ok(value, "The real native visibility/location wait must settle");
+              return value;
+            }
+            assert.equal(typeof observation.value, "string");
+            return true;
+          },
+          findElements: async (locator: { value: string }) => {
+            if (locator.value === ".discover-game[data-discover-port-ids]") return [group];
+            assert.equal(
+              locator.value,
+              `[data-detail-workspace][data-detail-port-id="${fixture.port.id}"]`,
+            );
+            assert.equal(
+              selected,
+              1,
+              "The exact Discover identity must open before details settle",
+            );
+            return [{}];
+          },
+          findElement: (locator: { value: string }) => ({
+            click: async () => {
+              if (locator.value.includes("Choose game folder")) {
+                assert.equal(selected, 1);
+                chosen++;
+              }
+            },
+            sendKeys: async () => {},
+            isEnabled: async () => true,
+          }),
+        };
+        const pickerContext = {
+          browser,
+          By: { xpath: (value: string) => ({ value }), id: (value: string) => ({ value }) },
+          Key: {
+            chord: (...keys: string[]) => keys.join(""),
+            CONTROL: "control",
+            BACK_SPACE: "backspace",
+          },
+          until: { elementLocated: (locator: unknown) => locator },
+          fixture,
+          observePicker: async () => {
+            assert.equal(chosen, 1);
+            if (refused) throw failure;
+            return { cancelled: true };
+          },
+        };
+        // @ts-expect-error This call-order fixture deliberately models only the used driver/locator capabilities.
+        const action = externalRuntimePickerObservation(pickerContext);
+        if (refused) await assert.rejects(action, (error) => error === failure);
+        else assert.equal((await action).cancelled, true);
+        assert.equal(internals.invoke, original);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   }
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-external-runtime-test.mts",
+    import.meta.url,
+  );
+  const program = `
+    import path from 'node:path';
+    import {mkdir,rm} from 'node:fs/promises';
+    import {runInNewContext} from 'node:vm';
+    const {isRecord} = await import(new URL('../../../scripts/runtime-values.mts',entry).href);
+    const {createExternalRuntimeFixture,externalRuntimePickerObservation} = await import(entry);
+    const object = ${object.toString()};
+    const sourceFunction = ${sourceFunction.toString()};
+    await (${observeOriginalPicker.toString()})(${JSON.stringify(root)});
+  `;
+  runDesktopModuleFixture(entry, program);
 });
 
 void test("external runtime journey retains a failed dispatcher picker phase before later actions", async (t) => {
@@ -2842,24 +2952,14 @@ void test("selected setup completion remains a separate Windows/Linux opt-in wit
   );
 });
 
-void test("unavailable-root wait observes enabled state and preserves read rejection", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-source-dialog-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf('report.checkpoint = "unavailable-root-disabled-review";');
-  const end = source.indexOf('report.checkpoint = "unavailable-root-observations";', start);
-  assert.ok(start >= 0 && end > start, "Execute the actual bounded harness wait");
-  const wait = source.slice(start, end);
+async function disabledSourceReviewBehavior(
+  subject: (browser: unknown, candidate: () => unknown) => Promise<unknown>,
+) {
   const rejection = new Error("Original enabled-state read failed");
   for (const enabled of [true, false, rejection]) {
     let reads = 0;
-    const action = runInNewContext(`(async () => { ${wait} })()`, {
-      report: {},
-      owned: { profiles: ["inert-profile"] },
-      row: (profile: string) => profile,
-      By: { css: (selector: string) => selector },
-      browser: {
+    const action = subject(
+      {
         findElement(profile: string) {
           assert.equal(profile, "inert-profile");
           return {
@@ -2884,12 +2984,33 @@ void test("unavailable-root wait observes enabled state and preserves read rejec
           assert.equal(await predicate(), !enabled);
         },
       },
-    });
+      () => "inert-profile",
+    );
     if (enabled === rejection)
       await assert.rejects(Promise.resolve(action), (error: unknown) => error === rejection);
     else await action;
     assert.equal(reads, 1);
   }
+}
+
+void test("unavailable-root wait observes enabled state and preserves read rejection", () => {
+  const entry = new URL("../apps/desktop/scripts/desktop-source-dialog-test.mts", import.meta.url);
+  const program = `
+    mock.module('selenium-webdriver', {namedExports:{By:{css:value=>value},Key:{},until:{elementLocated:value=>value}}});
+    const {waitForDisabledSourceReview}=await import(entry);
+    await (${String(disabledSourceReviewBehavior)})(waitForDisabledSourceReview);
+  `;
+  runDesktopModuleFixture(entry, program);
+  runDesktopModuleFixture(entry, program, {
+    exportName: "waitForDisabledSourceReview",
+    variant: "aliased",
+  });
+  assert.throws(() =>
+    runDesktopModuleFixture(entry, program, {
+      exportName: "waitForDisabledSourceReview",
+      variant: "wrong-export",
+    }),
+  );
 });
 
 void test("selected setup identities admit both replacements only in the opt-in catalog", async (t) => {

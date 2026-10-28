@@ -1,3 +1,4 @@
+import { replacePreparedFile } from "./prepared-file-replacement.mts";
 import type { TestContext } from "node:test";
 import type { ResourceCapacityOptions } from "./resource-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -18,19 +19,201 @@ interface WorkerEvent {
 }
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
-import {
-  mkdtemp,
-  mkdir,
-  writeFile,
-  readFile,
-  rm,
-  readdir,
-  copyFile,
-  rename,
-} from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, readdir, copyFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { PassThrough } from "node:stream";
+import { randomUUID, createHash } from "node:crypto";
+import {
+  bridgeMessages,
+  serveHostBridge,
+  probeLinuxCustody,
+  verifyBridgedCapacity,
+  verifyHostReference,
+  acquireBridgedCapacity,
+  bridgeLaunchArguments,
+} from "./resource-host-bridge.mts";
+import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
+import { verifyResourceRecoveryReference } from "./resource-paths.mts";
+
+void test("maintenance admission owns every supported predecessor slot count", async (t) => {
+  for (const slots of [1, 2, 4, 8]) {
+    const root = await fixture(t);
+    await writeFile(
+      path.join(root, "config.json"),
+      JSON.stringify({ slots, legacyMode: "coordinated" }),
+    );
+    const lease = await acquireResourceCapacity("maintenance", {}, isolated(root));
+    try {
+      assert.equal(lease.reference?.slots.length, slots);
+      await assert.rejects(acquireResourceCapacity("analysis", {}, isolated(root, { waitMs: 0 })), {
+        code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT",
+      });
+    } finally {
+      await lease.release();
+    }
+  }
+});
+
+void test("pending recovery admits only a bound all-slot request and never overrides a live reservation", async (t) => {
+  const root = await fixture(t),
+    id = randomUUID();
+  await mkdir(path.join(root, "migrations"));
+  const file = path.join(root, "migrations", id + "-host-domain.json");
+  const content = JSON.stringify({
+    format: 1,
+    id,
+    linuxRoot: root,
+    windowsNativeRoot: root,
+    changes: Array.from({ length: 4 }, () => ({
+      previous: JSON.stringify({ slots: 4 }),
+      next: JSON.stringify({ slots: 1 }),
+    })),
+  });
+  await writeFile(file, content);
+  const reference = { file, sha256: createHash("sha256").update(content).digest("hex") };
+  await writeFile(
+    path.join(root, "config.json"),
+    JSON.stringify({ slots: 4, legacyMode: "pending" }),
+  );
+  await assert.rejects(acquireResourceCapacity("analysis", {}, isolated(root, { waitMs: 0 })), {
+    code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT",
+  });
+  await assert.rejects(
+    acquireResourceCapacity("analysis", {}, isolated(root, { recoveryReceipt: reference })),
+    /all-slot maintenance/u,
+  );
+  const controller = new AbortController();
+  let ordinaryStarted = false;
+  const ordinary = acquireResourceCapacity(
+    "analysis",
+    {},
+    isolated(root, {
+      waitMs: 5000,
+      signal: controller.signal,
+    }),
+  ).then(async (lease) => {
+    ordinaryStarted = true;
+    await lease.release();
+  });
+  const cancelled = assert.rejects(ordinary, { name: "AbortError" });
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if ((await readdir(path.join(root, "queue"))).length) break;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  const lease = await acquireResourceCapacity(
+    "maintenance",
+    {},
+    isolated(root, { recoveryReceipt: reference }),
+  );
+  try {
+    assert.equal(lease.reference?.slots.length, 4);
+    await assert.rejects(
+      acquireResourceCapacity(
+        "maintenance",
+        {},
+        isolated(root, { recoveryReceipt: reference, waitMs: 0 }),
+      ),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+  } finally {
+    await lease.release();
+  }
+  assert.equal(ordinaryStarted, false);
+  controller.abort();
+  await cancelled;
+  await writeFile(file, content + " ");
+  await assert.rejects(verifyResourceRecoveryReference(root, reference), /identity changed/u);
+  await assert.rejects(
+    verifyResourceRecoveryReference(root, { ...reference, file: path.join(root, "foreign.json") }),
+    /outside this resource domain/u,
+  );
+});
+void test("receipt-bound recovery verifies surplus predecessor slots after a partial reduction", async (t) => {
+  for (const mode of ["pending", "coordinated"]) {
+    const root = await fixture(t),
+      id = randomUUID();
+    await mkdir(path.join(root, "migrations"));
+    const file = path.join(root, "migrations", id + "-host-domain.json");
+    const content = JSON.stringify({
+      format: 1,
+      id,
+      linuxRoot: root,
+      windowsNativeRoot: root,
+      changes: Array.from({ length: 4 }, () => ({
+        previous: JSON.stringify({ slots: 2 }),
+        next: JSON.stringify({ slots: 1 }),
+      })),
+    });
+    await writeFile(file, content);
+    await writeFile(path.join(root, "config.json"), JSON.stringify({ slots: 1, legacyMode: mode }));
+    const settings = isolated(root, {
+      waitMs: 0,
+      recoveryReceipt: { file, sha256: createHash("sha256").update(content).digest("hex") },
+    });
+    const cleanup = path.join(root, "cleanup.json"),
+      slot = path.join(root, "slot-1");
+    const dead = { pid: 2147483647, identity: "absent-fixture-process" };
+    const owner = {
+      format_version: 1,
+      token: randomUUID(),
+      created_at: new Date().toISOString(),
+      process: dead,
+      child: { ...dead, containment: "unix-watchdog", cleanup_receipt: cleanup },
+    };
+    await writeFile(slot, JSON.stringify(owner));
+    await assert.rejects(acquireResourceCapacity("maintenance", {}, settings), {
+      code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT",
+    });
+    assert.equal(record(JSON.parse(await readFile(slot, "utf8"))).token, owner.token);
+    await writeFile(cleanup, JSON.stringify({ outcome: "quiescent" }));
+    await writeFile(
+      slot,
+      JSON.stringify({
+        ...owner,
+        process: { pid: process.pid, identity: readProcessIdentity(process.pid)! },
+      }),
+    );
+    await assert.rejects(acquireResourceCapacity("maintenance", {}, settings), {
+      code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT",
+    });
+    await writeFile(slot, JSON.stringify(owner));
+    const controller = new AbortController();
+    let ordinaryStarted = false;
+    const ordinary = acquireResourceCapacity(
+      "analysis",
+      {},
+      isolated(root, {
+        waitMs: 5000,
+        pollMs: 5,
+        report: () => {},
+        signal: controller.signal,
+      }),
+    ).then(async (lease) => {
+      ordinaryStarted = true;
+      await lease.release();
+    });
+    const cancelled = assert.rejects(ordinary, { name: "AbortError" });
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (
+        (await readdir(path.join(root, "queue"))).some((name) =>
+          /^\d{13}-[a-f0-9-]{36}$/u.test(name),
+        )
+      )
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    const lease = await acquireResourceCapacity("maintenance", {}, settings);
+    assert.equal(ordinaryStarted, false);
+    controller.abort();
+    await cancelled;
+    assert.equal(lease.reference?.slots.length, 2);
+    await lease.release();
+    await assert.rejects(readFile(slot), { code: "ENOENT" });
+  }
+});
+
 import {
   acquireResourceCapacity,
   acquireSourceBoundCapacity,
@@ -57,6 +240,345 @@ const isolated = (
   ...extra,
 });
 
+const bridgeConfig = {
+  closureSha256: "0".repeat(64),
+  executable: "/mnt/z/tools/node.exe",
+  script: "Z:\\owned\\resource-host-bridge.mts",
+  distribution: "FixtureLinux",
+  user: "developer",
+  node: "/usr/bin/node",
+  probe: "/owned/resource-host-bridge.mts",
+};
+function bridgeWrite(stream: PassThrough, value: object) {
+  stream.write(JSON.stringify({ version: 1, ...value }) + "\n");
+}
+
+void test("host bridge shares the real FIFO engine and releases only on explicit prelaunch completion", async (t) => {
+  const root = await fixture(t);
+  await writeFile(
+    path.join(root, "config.json"),
+    JSON.stringify({ slots: 1, legacyMode: "coordinated" }),
+  );
+  const session = () => {
+    const input = new PassThrough(),
+      output = new PassThrough();
+    const result = serveHostBridge(input, output, {
+      root,
+      probe: () => ({
+        invocation: randomUUID(),
+        owner: { pid: 1, identity: "linux:fixture" },
+        child: null,
+      }),
+      acquire: (profile, metadata, options) =>
+        acquireResourceCapacity(
+          profile,
+          metadata,
+          isolated(root, { ...options, environment: {}, pollMs: 10, report: () => {} }),
+        ),
+    });
+    const messages = bridgeMessages(output);
+    const invocation = randomUUID();
+    bridgeWrite(input, {
+      action: "acquire",
+      bridge: bridgeConfig,
+      invocation,
+      custodyFile: "/owned/custody.json",
+      profile: "analysis",
+      waitMs: 5000,
+    });
+    return { input, output, result, messages, invocation };
+  };
+  const first = session();
+  assert.equal((await first.messages.next()).value?.action, "admitted");
+  const second = session();
+  let admitted = false;
+  const next = second.messages.next().then((result) => {
+    admitted = true;
+    return result;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(admitted, false);
+  bridgeWrite(first.input, { action: "release" });
+  assert.equal((await first.messages.next()).value?.action, "released");
+  await first.result;
+  assert.equal((await next).value?.action, "admitted");
+  bridgeWrite(second.input, { action: "release" });
+  assert.equal((await second.messages.next()).value?.action, "released");
+  await second.result;
+  first.input.end();
+  first.output.end();
+  second.input.end();
+  second.output.end();
+  assert.equal((await observeCapacity({ root })).running.length, 0);
+});
+
+void test("host bridge retains external reservations on lost connection and failed cleanup", async (t) => {
+  const root = await fixture(t);
+  for (const failure of ["connection", "cleanup"]) {
+    const input = new PassThrough(),
+      output = new PassThrough();
+    let releases = 0,
+      probes = 0,
+      external: unknown;
+    const invocation = randomUUID();
+    const result = serveHostBridge(input, output, {
+      root,
+      acquire: async () => ({
+        inherited: false,
+        queueMs: 0,
+        childEnvironment: {},
+        reference: { root, slots: [{ name: "slot-0", token: invocation }] },
+        registerChild: async () => undefined,
+        registerExternal: async (value) => {
+          external = value;
+        },
+        release: async () => {
+          releases++;
+        },
+      }),
+      probe: () => {
+        if (++probes > 1) throw new Error("cleanup receipt missing");
+        return { invocation, owner: { pid: 1, identity: "linux:original" }, child: null };
+      },
+    }).catch((error: unknown) => error);
+    const messages = bridgeMessages(output);
+    bridgeWrite(input, {
+      action: "acquire",
+      bridge: bridgeConfig,
+      invocation,
+      custodyFile: "/owned/custody.json",
+      profile: "analysis",
+      waitMs: 5000,
+    });
+    assert.equal((await messages.next()).value?.action, "admitted");
+    if (failure === "cleanup") {
+      bridgeWrite(input, { action: "register" });
+      assert.equal((await messages.next()).value?.action, "registered");
+      bridgeWrite(input, { action: "release" });
+    } else input.end();
+    assert.ok((await result) instanceof Error);
+    assert.ok(external);
+    assert.equal(releases, 0);
+    input.end();
+    output.end();
+  }
+});
+
+void test("host bridge bounds wire input and refuses missing or foreign nested delegation", async () => {
+  const input = new PassThrough();
+  const result = bridgeMessages(input).next();
+  input.end("x".repeat(32769));
+  await assert.rejects(result, /exceeds bound/u);
+  await assert.rejects(verifyBridgedCapacity(bridgeConfig, {}), /lacks host resource delegation/u);
+  await assert.rejects(
+    verifyHostReference({ reference: { root: "/foreign", slots: [] } }),
+    /Invalid host resource delegation/u,
+  );
+});
+
+void test(
+  "host bridge Linux probe refuses changed custody, live children and missing cleanup",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await fixture(t);
+    const file = path.join(root, "custody.json"),
+      receipt = path.join(root, "cleanup.json");
+    const stat = await import("node:fs/promises").then((fs) => fs.stat(root));
+    const { chmod } = await import("node:fs/promises");
+    await chmod(root, 0o700);
+    const custody = {
+      invocation: randomUUID(),
+      owner: { pid: process.pid, identity: readProcessIdentity(process.pid)! },
+      child: {
+        pid: process.pid,
+        identity: readProcessIdentity(process.pid)!,
+        containment: "unix-watchdog",
+        cleanup_receipt: receipt,
+      },
+      cleanupParent: { dev: stat.dev, ino: stat.ino },
+    };
+    await writeFile(file, JSON.stringify(custody));
+    assert.equal(probeLinuxCustody(file, custody.invocation, "register").child?.pid, process.pid);
+    assert.throws(() => probeLinuxCustody(file, randomUUID(), "register"), /invocation differs/u);
+    assert.throws(() => probeLinuxCustody(file, custody.invocation, "release"), /ENOENT/u);
+    await writeFile(receipt, JSON.stringify({ outcome: "quiescent" }));
+    assert.throws(
+      () => probeLinuxCustody(file, custody.invocation, "release"),
+      /cleanup is not proven/u,
+    );
+    assert.throws(
+      () =>
+        probeLinuxCustody(file, custody.invocation, "release", {
+          ...custody,
+          invocation: randomUUID(),
+        }),
+      /evidence changed/u,
+    );
+    await writeFile(
+      file,
+      JSON.stringify({
+        ...custody,
+        child: { ...custody.child, pid: 2147483647, identity: "linux:absent" },
+      }),
+    );
+    const stopped = probeLinuxCustody(file, custody.invocation, "release");
+    assert.equal(stopped.child?.pid, 2147483647);
+    await writeFile(file, JSON.stringify({ ...stopped, cleanupParent: { dev: 0, ino: 0 } }));
+    assert.throws(
+      () => probeLinuxCustody(file, custody.invocation, "release"),
+      /directory identity changed/u,
+    );
+    await writeFile(file, JSON.stringify({ ...custody, child: null }));
+    assert.throws(
+      () => probeLinuxCustody(file, custody.invocation, "prelaunch-release"),
+      /ENOENT/u,
+    );
+    await writeFile(
+      path.join(root, "prelaunch-complete.json"),
+      JSON.stringify({
+        invocation: custody.invocation,
+        owner: custody.owner.identity,
+        outcome: "prelaunch-complete",
+      }),
+    );
+    assert.equal(probeLinuxCustody(file, custody.invocation, "prelaunch-release").child, null);
+  },
+);
+
+async function mockHost(t: TestContext, failure: string) {
+  const root = await fixture(t);
+  await mkdir(path.join(root, "scripts"));
+  const entry = path.join(root, "scripts/mock.mjs"),
+    closed = path.join(root, "closed.json");
+  const source = [
+    'import {writeFileSync} from "node:fs";',
+    'const messages=[];let pending="";',
+    "const timer=setTimeout(()=>process.exit(97),5000);",
+    'process.stdin.setEncoding("utf8");',
+    'for await (const chunk of process.stdin){pending+=chunk;let at;while((at=pending.indexOf("\\n"))!==-1){',
+    "const m=JSON.parse(pending.slice(0,at));pending=pending.slice(at+1);messages.push(m);let action;",
+    'if(m.action==="acquire")action=' +
+      JSON.stringify(failure === "queue" ? "error" : "admitted") +
+      ";",
+    'else if(m.action==="register")action=' +
+      JSON.stringify(failure === "register" ? "error" : "registered") +
+      ";",
+    'else if(m.action==="release")action="released";',
+    'process.stdout.write(JSON.stringify({version:1,action,code:"PORTCOVE_RESOURCE_QUEUE_TIMEOUT",message:"fixture refusal",reference:{root:"fixture",slots:[{name:"slot-0",token:"fixture"}]}})+"\\n");',
+    "}}clearTimeout(timer);writeFileSync(" + JSON.stringify(closed) + ",JSON.stringify(messages));",
+  ].join("\n");
+  await writeFile(entry, source);
+  const manifest = JSON.stringify({
+    format: 1,
+    runtime: process.version,
+    files: [
+      {
+        path: "scripts/mock.mjs",
+        sha256: createHash("sha256").update(source).digest("hex"),
+      },
+    ],
+  });
+  await writeFile(path.join(root, "bridge-manifest.json"), manifest);
+  const config = {
+    ...bridgeConfig,
+    executable: process.execPath,
+    script: entry,
+    closureSha256: createHash("sha256").update(manifest).digest("hex"),
+  };
+  return {
+    config,
+    root,
+    entry,
+    closed,
+    close: async () => {
+      const end = performance.now() + 3000;
+      while (performance.now() < end) {
+        try {
+          const events: unknown = JSON.parse(await readFile(closed, "utf8"));
+          assert.ok(Array.isArray(events));
+          const acquire: unknown = events[0];
+          assert.ok(isRecord(acquire) && typeof acquire.custodyFile === "string");
+          t.after(() =>
+            rm(path.dirname(acquire.custodyFile as string), { recursive: true, force: true }),
+          );
+          const observations: unknown[] = events;
+          return observations;
+        } catch (error) {
+          if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT")
+            throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      assert.fail("the actual host helper did not exit after client failure");
+    },
+  };
+}
+
+void test("host bridge actual client preserves queue refusal and rejects changed verifier bytes", async (t) => {
+  const host = await mockHost(t, "queue");
+  let localAcquisitions = 0;
+  await assert.rejects(
+    acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
+      localAcquisitions++;
+      throw new Error("must not acquire locally");
+    }),
+    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+  );
+  assert.equal(localAcquisitions, 0);
+  await host.close();
+  await writeFile(host.entry, "throw Error('unbound replacement executed');");
+  assert.throws(
+    () =>
+      execFileSync(
+        process.execPath,
+        bridgeLaunchArguments(host.entry, host.config.closureSha256, "--host"),
+        { encoding: "utf8", timeout: 5000, stdio: "pipe" },
+      ),
+    /Bridge module identity differs/u,
+  );
+});
+
+void test(
+  "host bridge actual client closes its helper on register ACK loss and release-probe failure",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    for (const failure of ["register", "release"]) {
+      const host = await mockHost(t, failure);
+      let released = 0;
+      const lease = await acquireBridgedCapacity(
+        host.config,
+        "analysis",
+        {},
+        { waitMs: 1000 },
+        async () => ({
+          inherited: false,
+          queueMs: 0,
+          childEnvironment: {},
+          registerChild: async () => ({
+            pid: process.pid,
+            identity: readProcessIdentity(process.pid)!,
+            containment: "unix-watchdog",
+            cleanup_receipt: path.join(host.root, "missing-cleanup.json"),
+          }),
+          release: async () => {
+            released++;
+          },
+        }),
+      );
+      if (failure === "register")
+        await assert.rejects(lease.registerChild({ pid: process.pid }), /fixture refusal/u);
+      else {
+        await lease.registerChild({ pid: process.pid });
+        const first = lease.release();
+        assert.equal(lease.release(), first);
+        await assert.rejects(first, /ENOENT/u);
+      }
+      await host.close();
+      assert.equal(released, 0);
+    }
+  },
+);
+
 void test("host identity ignores worktree and writable tool-cache overrides", async (t) => {
   const root = await fixture(t);
   const domains = [];
@@ -66,12 +588,15 @@ void test("host identity ignores worktree and writable tool-cache overrides", as
     for (const file of [
       "runtime-values.mts",
       "resource-capacity.mts",
+      "prepared-file-replacement.mts",
       "resource-paths.mts",
       "heavy-rust-test-lock.mts",
       "process-lock.mts",
       "tool-cache.mts",
       "fallow-source.mts",
       "dev-storage.mts",
+      "development-scratch.mts",
+      "node-test-suites.mts",
     ])
       await copyFile(new URL(`./${file}`, import.meta.url), path.join(checkout, "scripts", file));
     domains.push(
@@ -356,27 +881,67 @@ void test("external recovery is proof-bound and resumes partial release without 
 });
 
 void test("pending handover queues new payloads without acquiring retirement guards", async (t) => {
-  const root = await fixture(t);
-  await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "pending" }));
-  await assert.rejects(
-    acquireResourceCapacity("browser", {}, isolated(root, { waitMs: 0, report: () => {} })),
-    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
-  );
-  assert.equal((await observeCapacity({ root })).running.length, 0);
-  assert.deepEqual(await readdir(path.join(root, "queue")), []);
-  const pending = acquireResourceCapacity(
-    "rust",
-    {},
-    isolated(root, { pollMs: 25, report: () => {} }),
-  );
-  while (!(await readdir(path.join(root, "queue"))).length)
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  const nextConfig = path.join(root, "config-next.json");
-  await writeFile(nextConfig, JSON.stringify({ legacyMode: "coordinated" }), { flag: "wx" });
-  await rename(nextConfig, path.join(root, "config.json"));
-  const lease = await pending;
-  assert.equal(lease.inherited, false);
-  await lease.release();
+  for (const failedReplacement of [false, true]) {
+    const root = await fixture(t);
+    await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "pending" }));
+    await assert.rejects(
+      acquireResourceCapacity("browser", {}, isolated(root, { waitMs: 0, report: () => {} })),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.equal((await observeCapacity({ root })).running.length, 0);
+    assert.deepEqual(await readdir(path.join(root, "queue")), []);
+    const controller = new AbortController();
+    const pending = acquireResourceCapacity(
+      "rust",
+      {},
+      isolated(root, { signal: controller.signal, pollMs: 25, report: () => {} }),
+    );
+    // Attach immediately: replacement failure must still drain the original worker
+    // before the fixture root is removed, without an unhandled rejection.
+    const settled = pending.then(
+      (lease) => ({ lease, error: undefined }),
+      (error: unknown) => ({ lease: undefined, error }),
+    );
+    try {
+      while (!(await readdir(path.join(root, "queue"))).length)
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      const nextConfig = path.join(root, "config-next.json");
+      await writeFile(nextConfig, JSON.stringify({ legacyMode: "coordinated" }), { flag: "wx" });
+      if (failedReplacement) {
+        await assert.rejects(
+          replacePreparedFile(nextConfig + ".absent", path.join(root, "config.json")),
+          {
+            code: "ENOENT",
+          },
+        );
+        assert.equal((await resourceConfiguration(root)).legacyMode, "pending");
+        assert.equal(
+          await readFile(nextConfig, "utf8"),
+          JSON.stringify({ legacyMode: "coordinated" }),
+        );
+      } else {
+        await replacePreparedFile(nextConfig, path.join(root, "config.json"));
+        const lease = await pending;
+        assert.equal(lease.inherited, false);
+      }
+    } finally {
+      controller.abort();
+      const outcome = await settled;
+      await outcome.lease?.release();
+      if (failedReplacement) {
+        assert.equal(outcome.lease, undefined);
+        assert.ok(
+          outcome.error === controller.signal.reason ||
+            (outcome.error instanceof Error &&
+              outcome.error.name === "AbortError" &&
+              outcome.error.cause === controller.signal.reason),
+          "the original worker must settle with its cancellation reason",
+        );
+      }
+    }
+    assert.deepEqual(await readdir(path.join(root, "queue")), []);
+    assert.equal((await observeCapacity({ root })).running.length, 0);
+  }
 });
 
 void test("unavailable process identity waits conservatively and never becomes capacity", async (t) => {

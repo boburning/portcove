@@ -43,17 +43,52 @@ void test("reviewed portability literals apply only to exact files and exact val
     JSON.stringify(value).replace(/\\u([a-f0-9]{4})/gu, "\\u{$1}");
   const expected: { file: string; value: string }[] = [];
   const allowed: { file: string; value: string }[] = [];
-  const scopes: { file: string; values: string[]; inherited_global_values?: string[] }[] = [
-    ...portabilityBaseline.scopes,
-    ...qualificationLiterals.scopes,
-  ];
+  interface LiteralScope {
+    file: string;
+    values: string[];
+    inherited_global_values?: string[];
+    denied_values?: string[];
+    denied_files?: string[];
+  }
+  // Retain the frozen original inventory when later regression receipts extend
+  // the same owner. Writing separate fragments would overwrite its fixture.
+  const owners = new Map<string, LiteralScope>();
+  for (const scope of [...portabilityBaseline.scopes, ...qualificationLiterals.scopes]) {
+    const prior = owners.get(scope.file);
+    owners.set(scope.file, {
+      file: scope.file,
+      values: [...new Set([...(prior?.values ?? []), ...scope.values])],
+      inherited_global_values: [
+        ...new Set([
+          ...(prior?.inherited_global_values ?? []),
+          ...("inherited_global_values" in scope ? scope.inherited_global_values : []),
+        ]),
+      ],
+      denied_values: [
+        ...new Set([
+          ...(prior?.denied_values ?? []),
+          ...("denied_values" in scope ? scope.denied_values : []),
+        ]),
+      ],
+      denied_files: [
+        ...new Set([
+          ...(prior?.denied_files ?? []),
+          ...("denied_files" in scope ? scope.denied_files : []),
+        ]),
+      ],
+    });
+  }
+  const scopes = [...owners.values()];
   for (const [index, scope] of scopes.entries()) {
     const deniedValue = `/portcove-unreviewed-${index}`;
-    const neighbor = scope.file.replace(/\.rs$/u, "_unreviewed.rs");
+    const neighbors = [
+      scope.file.replace(/\.rs$/u, "_unreviewed.rs"),
+      ...(scope.denied_files ?? []),
+    ];
     const inherited = scope.inherited_global_values ?? [];
     for (const [file, values] of [
-      [scope.file, [...scope.values, ...inherited, deniedValue]],
-      [neighbor, [...scope.values, ...inherited]],
+      [scope.file, [...scope.values, ...inherited, deniedValue, ...(scope.denied_values ?? [])]],
+      ...neighbors.map((file) => [file, [...scope.values, ...inherited]] as const),
     ] as const) {
       const filename = path.join(directory, file);
       await mkdir(path.dirname(filename), { recursive: true });
@@ -63,25 +98,32 @@ void test("reviewed portability literals apply only to exact files and exact val
       );
     }
     expected.push(
-      { file: scope.file, value: deniedValue },
-      ...scope.values.map((value) => ({ file: neighbor, value })),
+      ...[deniedValue, ...(scope.denied_values ?? [])].map((value) => ({
+        file: scope.file,
+        value,
+      })),
+      ...neighbors.flatMap((file) => scope.values.map((value) => ({ file, value }))),
     );
     allowed.push(...scope.values.map((value) => ({ file: scope.file, value })));
     allowed.push(
-      ...inherited.flatMap((value) => [scope.file, neighbor].map((file) => ({ file, value }))),
+      ...inherited.flatMap((value) => [scope.file, ...neighbors].map((file) => ({ file, value }))),
     );
   }
-  const production = qualificationLiterals.global_inheritance_control;
-  const productionFile = path.join(directory, production.file);
-  await mkdir(path.dirname(productionFile), { recursive: true });
-  await writeFile(
-    productionFile,
-    [...production.allowed_values, production.denied_value]
-      .map((value, index) => `const INHERITED_${index}: &str = ${rustString(value)};`)
-      .join("\n"),
-  );
-  allowed.push(...production.allowed_values.map((value) => ({ file: production.file, value })));
-  expected.push({ file: production.file, value: production.denied_value });
+  for (const production of [
+    qualificationLiterals.global_inheritance_control,
+    ...(qualificationLiterals.additional_inheritance_controls ?? []),
+  ]) {
+    const productionFile = path.join(directory, production.file);
+    await mkdir(path.dirname(productionFile), { recursive: true });
+    await writeFile(
+      productionFile,
+      [...production.allowed_values, production.denied_value]
+        .map((value, index) => `const INHERITED_${index}: &str = ${rustString(value)};`)
+        .join("\n"),
+    );
+    allowed.push(...production.allowed_values.map((value) => ({ file: production.file, value })));
+    expected.push({ file: production.file, value: production.denied_value });
+  }
   const result = spawnSync(command, ["check", "--format", "json"], {
     cwd: directory,
     encoding: "utf8",

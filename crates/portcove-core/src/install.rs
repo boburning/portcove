@@ -40,6 +40,15 @@ struct AssetAcquisition<'a> {
     curated: bool,
 }
 
+/// Inputs for one asset's acquisition and extraction within the owned operation.
+struct AssetPreparation<'a> {
+    asset: &'a ReleaseAsset,
+    download_path: &'a Path,
+    payload_root: &'a Path,
+    acquisition: Option<AssetAcquisition<'a>>,
+    acquired: Option<&'a Path>,
+}
+
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
     strict_staged_source: bool,
@@ -189,7 +198,9 @@ impl InstallQualification {
             source_preparation: None,
             strict_staged_source: matches!(
                 port.adapter,
-                AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
+                AdapterKind::StagedSourcePortable
+                    | AdapterKind::NativePortable
+                    | AdapterKind::GeneratedCache
             ) || port.n64_runtime_at_executable_parent,
             restore_receipt_metadata: crate::persistence::requires_restore_receipt(port),
             runtime_data_policy: port.runtime_data_policy,
@@ -1106,15 +1117,17 @@ impl Installer {
         fs::create_dir_all(&payload_root)?;
         let artifact = self
             .prepare_asset(
-                &request.release.asset,
-                &lifecycle.operation_root.join("artifact.download"),
-                &payload_root,
+                AssetPreparation {
+                    asset: &request.release.asset,
+                    download_path: &lifecycle.operation_root.join("artifact.download"),
+                    payload_root: &payload_root,
+                    acquisition,
+                    acquired: acquired
+                        .map(|inputs| inputs.path(&request.release.asset))
+                        .transpose()?,
+                },
                 operation,
                 emit,
-                acquisition,
-                acquired
-                    .map(|inputs| inputs.path(&request.release.asset))
-                    .transpose()?,
             )
             .await?;
         if request.qualification.managed_shared_preferences.is_some() {
@@ -1136,15 +1149,17 @@ impl Installer {
             let unpacked = lifecycle.operation_root.join("runtime");
             fs::create_dir_all(&unpacked)?;
             self.prepare_asset(
-                &runtime.asset,
-                &lifecycle.operation_root.join("runtime.download"),
-                &unpacked,
+                AssetPreparation {
+                    asset: &runtime.asset,
+                    download_path: &lifecycle.operation_root.join("runtime.download"),
+                    payload_root: &unpacked,
+                    acquisition: None,
+                    acquired: acquired
+                        .map(|inputs| inputs.path(&runtime.asset))
+                        .transpose()?,
+                },
                 operation,
                 emit,
-                None,
-                acquired
-                    .map(|inputs| inputs.path(&runtime.asset))
-                    .transpose()?,
             )
             .await?;
             let source = unpacked.join(&runtime.archive_root);
@@ -1218,6 +1233,13 @@ impl Installer {
             manifest_sha256,
             selected_executable,
         };
+        check_retained_runtime_paths(
+            &InstallRecord {
+                path: payload_root.clone(),
+                ..install.clone()
+            },
+            &install.path,
+        )?;
         lifecycle.record.install = Some(install.clone());
         self.faults
             .check(LifecycleFaultPoint::InstallReadyToPublish)?;
@@ -1381,17 +1403,20 @@ impl Installer {
 
     async fn prepare_asset<F>(
         &self,
-        asset: &ReleaseAsset,
-        download_path: &Path,
-        payload_root: &Path,
+        input: AssetPreparation<'_>,
         operation: &OperationCoordinator,
         emit: &mut F,
-        acquisition: Option<AssetAcquisition<'_>>,
-        acquired: Option<&Path>,
     ) -> Result<ArtifactIdentity>
     where
         F: FnMut(OperationEvent),
     {
+        let AssetPreparation {
+            asset,
+            download_path,
+            payload_root,
+            acquisition,
+            acquired,
+        } = input;
         let (artifact, cache_worker) = self
             .acquire_asset_bytes(asset, download_path, operation, emit, acquisition, acquired)
             .await?;
@@ -1881,6 +1906,7 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<PathBuf> {
+        check_retained_runtime_paths(install, &install.path)?;
         let manifest = verified_manifest(install)?;
         // Mutable verification projections may intentionally omit the retained
         // contract. Artifact authority comes from the authenticated manifest,
@@ -2023,6 +2049,7 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<()> {
+        check_retained_runtime_paths(install, &install.path)?;
         let manifest = verified_manifest(install)?;
         let mut qualification = qualification.clone();
         if manifest.retained_contract.as_ref().is_some_and(|contract| {
@@ -2984,6 +3011,44 @@ pub(crate) fn verified_launch_subject(install: &InstallRecord) -> Result<[u8; 32
     )
 }
 
+/// Inspect the authenticated creating contract and immutable members at their
+/// proposed final coordinates. Does not synchronize data or change the record.
+pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Path) -> Result<()> {
+    let manifest = verified_manifest(install)?;
+    let Some(contract) = &manifest.retained_contract else {
+        return Ok(());
+    };
+    let catalog = contract.catalog(&install.port_id)?;
+    let port = catalog.port(&install.port_id)?;
+    if port.windows_runtime_path_policy
+        != Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+    {
+        return Ok(());
+    }
+    let platform = manifest.platform.ok_or_else(|| {
+        PortcoveError::verification("runtime path policy requires the retained platform")
+    })?;
+    crate::runtime_path_policy::check_package_paths(
+        port,
+        platform,
+        target,
+        manifest.files.iter().map(|member| member.path.as_str()),
+    )?;
+    let executable = target.join(&manifest.selected_executable);
+    crate::runtime_path_policy::check_executable(port, platform, &executable)?;
+    let observed_executable = install.path.join(&manifest.selected_executable);
+    let observed_working = crate::adapter::launch_working_directory(
+        port.adapter,
+        port,
+        &install.path,
+        &observed_executable,
+    )?;
+    let relative = observed_working.strip_prefix(&install.path).map_err(|_| {
+        PortcoveError::verification("runtime working directory escaped its installation")
+    })?;
+    crate::runtime_path_policy::check(port, platform, &target.join(relative))
+}
+
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
     verified_manifest_with_limit(install, None)
 }
@@ -3458,7 +3523,9 @@ fn full_immutable_integrity(
             let port = catalog.port(&install.port_id)?;
             matches!(
                 port.adapter,
-                AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
+                AdapterKind::StagedSourcePortable
+                    | AdapterKind::NativePortable
+                    | AdapterKind::GeneratedCache
             ) || port.n64_runtime_at_executable_parent
         }
         None => fallback,
@@ -3783,6 +3850,7 @@ fn normalize_standalone_appimage(
 #[cfg(test)]
 mod tests {
     mod dynamic_policy;
+    mod native_paths;
     use std::{
         fs::File,
         sync::{

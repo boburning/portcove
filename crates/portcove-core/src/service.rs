@@ -54,6 +54,8 @@ pub use setup_discovery::{SetupLaunchTarget, SetupLaunchTargets};
 mod external_relink;
 mod installation_route_change;
 pub use installation_route_change::{ManagedRouteChangePreview, ManagedRouteChangeResult};
+#[cfg(test)]
+mod generated_cache_tests;
 mod ghostship_compatibility;
 #[cfg(test)]
 mod ghostship_persistence_tests;
@@ -3625,6 +3627,9 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
+        crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
+        self.require_portable_runtime_unchanged(previous)
+            .map_err(invalid)?;
         if let Some(active) = active {
             self.require_portable_rollback_transition(active, previous)
                 .map_err(|error| RollbackTargetFailure {
@@ -4029,6 +4034,7 @@ impl PortcoveService {
                 path: payload_root.clone(),
                 ..install.clone()
             };
+            crate::install::check_retained_runtime_paths(&staged_install, &install.path)?;
             if !installer.verify(&staged_install)?.valid {
                 return Err(PortcoveError::verification(
                     "adopted payload failed its post-copy manifest verification",
@@ -4199,7 +4205,8 @@ impl PortcoveService {
             LifecycleOperation::new(&activity.id, LifecycleOperationKind::Remove, port_id);
         let quarantine = self.library.recovery_dir().join(&activity.id);
         lifecycle.paths.quarantine = Some(quarantine.clone());
-        let result: Result<Vec<PathBuf>> = (|| {
+        let mut intent_persisted = false;
+        let mut result: Result<Vec<PathBuf>> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "remove")?;
             let locked_preview = self.preview_removal(port_id)?;
@@ -4221,8 +4228,17 @@ impl PortcoveService {
                 .iter()
                 .map(|removal| removal.live.clone())
                 .collect();
+            lifecycle.removal_installs = Some(
+                self.library
+                    .all_installs()?
+                    .into_iter()
+                    .filter(|install| install.port_id == port_id)
+                    .collect(),
+            );
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
+            removal.require_retained_outputs(self, &lifecycle)?;
             store.put(&mut lifecycle)?;
+            intent_persisted = true;
             for removal in &removals {
                 if let Some(parent) = removal.quarantined.parent() {
                     fs::create_dir_all(parent)?;
@@ -4234,6 +4250,7 @@ impl PortcoveService {
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
+            removal.require_retained_outputs(self, &lifecycle)?;
             self.library.remove_port(port_id)?;
             removal.advance(RemovalPhase::Committed, &mut lifecycle, &store)?;
             self.faults
@@ -4243,6 +4260,7 @@ impl PortcoveService {
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
+            removal.require_retained_outputs(self, &lifecycle)?;
             for cleanup_root in removal
                 .paths(&self.library)?
                 .iter()
@@ -4259,9 +4277,12 @@ impl PortcoveService {
             store.remove(&lifecycle.id)?;
             Ok(paths)
         })();
-        if let Err(error) = &result
-            && !lifecycle.original_paths.is_empty()
+        if let Err(error) = &mut result
+            && intent_persisted
         {
+            if error.failure.mutation_state == crate::MutationState::Unknown {
+                error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+            }
             lifecycle.last_error = Some(error.message.clone());
             let _ = store.put(&mut lifecycle);
         }
@@ -5553,6 +5574,7 @@ impl PortcoveService {
         let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
             return Ok(None);
         };
+        self.require_generated_cache_install_unchanged(&active)?;
         if !active.path.join(LAUNCH_MARKER).is_file() {
             // Preserve the historical unlaunched path for deeper integrations.
             // Only verified retained ready-archive/PS1 contracts collect before launch;
@@ -5618,6 +5640,10 @@ impl PortcoveService {
         platform: Platform,
     ) -> Result<PortDefinition> {
         let retained = self.installed_port(install)?;
+        // New declarations cannot enroll populated generated output from an older runtime.
+        if retained.adapter == AdapterKind::GeneratedCache {
+            return Ok(retained);
+        }
         let Ok(current) = self.catalog.port(&install.port_id) else {
             return Ok(retained);
         };
@@ -5673,6 +5699,9 @@ impl PortcoveService {
     ) -> Result<PersistenceContract> {
         let retained_catalog = Installer::new(self.library.clone())?.retained_catalog(install)?;
         let retained = self.installed_port(install)?;
+        if retained.adapter == AdapterKind::GeneratedCache {
+            self.require_portable_runtime_unchanged(install)?;
+        }
         let port = self.installed_mutability_port(install)?;
         if crate::persistence::requires_restore_receipt(&retained)
             && (retained_catalog.is_none()
@@ -5746,6 +5775,11 @@ impl PortcoveService {
             if registered == root {
                 return self.persistence_contract_for_install(&install);
             }
+        }
+        if fallback.adapter == AdapterKind::GeneratedCache {
+            return Err(PortcoveError::verification(
+                "Generated-cache synchronization requires an identified retained installation; preserve its runtime and data for review",
+            ));
         }
         // An unpublished payload has no library record yet. Its caller owns
         // the qualification captured for that installation operation.
@@ -5999,6 +6033,21 @@ impl PortcoveService {
     ) -> Result<()> {
         self.library.require_no_ghostship_recovery(&port.id)?;
         let contract = self.persistence_contract(port, install_root)?;
+        self.restore_user_data_with_contract(&contract, install_root)
+    }
+
+    fn restore_retained_user_data_to(&self, install: &InstallRecord) -> Result<()> {
+        self.library
+            .require_no_ghostship_recovery(&install.port_id)?;
+        let contract = self.persistence_contract_for_install(install)?;
+        self.restore_user_data_with_contract(&contract, &install.path)
+    }
+
+    fn restore_user_data_with_contract(
+        &self,
+        contract: &PersistenceContract,
+        install_root: &Path,
+    ) -> Result<()> {
         let port = &contract.port;
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
@@ -9228,6 +9277,7 @@ mod tests {
             );
             operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
             operation.original_paths.push(install.clone());
+            operation.removal_installs = Some(library.all_installs().unwrap());
             operation.phase = phase;
             let paths = crate::output_root::removal_paths(
                 &library,
@@ -15813,6 +15863,8 @@ fn main() {
         let phase = |name: &str| {
             if retained_format == 3 {
                 eprintln!("[authenticated-retention] {name}: {:?}", started.elapsed());
+            } else if retained_format == 2 {
+                eprintln!("[indexed-retention] {name}: {:?}", started.elapsed());
             }
         };
         phase("start");

@@ -1,18 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import test from "node:test";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { runTypeScriptInNewContext as runInNewContext } from "../../../scripts/test-source.mts";
-
-async function source(name: string, start: string, end?: string) {
-  const text = await readFile(new URL(name, import.meta.url), "utf8");
-  const first = text.indexOf(start);
-  assert.ok(first >= 0, start);
-  const last = end ? text.indexOf(end, first + start.length) : text.length;
-  assert.ok(last > first, end);
-  return text.slice(first, last).replace("export async function", "async function");
-}
 
 function callable(value: unknown) {
   assert.equal(typeof value, "function");
@@ -22,7 +12,7 @@ function callable(value: unknown) {
 
 // Exercise the actual serialized probe with a deterministic frame consumer. The
 // consumer models layout receivers, not production controller functionality.
-async function controllerObservation() {
+async function controllerObservation(probeSource: string) {
   const document = {
     activeElement: undefined as HTMLElement | undefined,
     documentElement: { dataset: { inputMode: "keyboard" } as Record<string, string> },
@@ -75,39 +65,36 @@ async function controllerObservation() {
   const outside = new HTMLElement();
   let ticks = 0;
   const probe = callable(
-    runInNewContext(
-      `${await source("./desktop-controller-test.mts", "export async function observeInjectedController(")}\nobserveInjectedController;`,
-      {
-        HTMLElement,
-        document,
-        navigator,
-        performance: { now: () => ++ticks },
-        queueMicrotask,
-        requestAnimationFrame: (callback: (tick: number) => void) =>
-          queueMicrotask(() => {
-            const [pad] = navigator.getGamepads();
-            assert.ok(pad && dialog);
-            const active = pad.buttons[0]?.pressed;
-            if (active && !wasActive) {
-              dialog.getClientRects();
-              dialog.children[0]?.getClientRects();
-              dialog.children[0]?.onclick?.();
+    runInNewContext(`(${probeSource})`, {
+      HTMLElement,
+      document,
+      navigator,
+      performance: { now: () => ++ticks },
+      queueMicrotask,
+      requestAnimationFrame: (callback: (tick: number) => void) =>
+        queueMicrotask(() => {
+          const [pad] = navigator.getGamepads();
+          assert.ok(pad && dialog);
+          const active = pad.buttons[0]?.pressed;
+          if (active && !wasActive) {
+            dialog.getClientRects();
+            dialog.children[0]?.getClientRects();
+            dialog.children[0]?.onclick?.();
+          }
+          wasActive = Boolean(active);
+          if (pad.buttons[13]?.pressed) {
+            dialog.getClientRects();
+            for (const control of dialog.children) {
+              control.getClientRects();
+              control.getBoundingClientRect();
             }
-            wasActive = Boolean(active);
-            if (pad.buttons[13]?.pressed) {
-              dialog.getClientRects();
-              for (const control of dialog.children) {
-                control.getClientRects();
-                control.getBoundingClientRect();
-              }
-              // Shell focus/reflow work remains in the global profile and gets its
-              // own attribution; it must not turn 1000 controls into 1003 controls.
-              for (let index = 0; index < 3; index++) outside.getBoundingClientRect();
-            }
-            callback(++ticks);
-          }),
-      },
-    ),
+            // Shell focus/reflow work remains in the global profile and gets its
+            // own attribution; it must not turn 1000 controls into 1003 controls.
+            for (let index = 0; index < 3; index++) outside.getBoundingClientRect();
+          }
+          callback(++ticks);
+        }),
+    }),
   );
   let calls = 0;
   let report: unknown;
@@ -134,8 +121,24 @@ async function controllerObservation() {
   return JSON.parse(JSON.stringify(report)) as Record<string, unknown>;
 }
 
+function actualControllerObservation() {
+  const output = runDesktopModuleFixture(
+    new URL("./desktop-controller-test.mts", import.meta.url),
+    `
+      import {runInNewContext} from 'node:vm';
+      import {isRecord} from ${JSON.stringify(new URL("../../../scripts/runtime-values.mts", import.meta.url).href)};
+      const {observeInjectedController}=await import(entry);
+      const callable=${callable.toString()};
+      console.log(JSON.stringify(await (${controllerObservation.toString()})(observeInjectedController.toString())));
+    `,
+  );
+  const report: unknown = JSON.parse(output);
+  assert.ok(isRecord(report));
+  return report;
+}
+
 void test("native remainder controller attributes unrelated layout reads and restores injected methods", async () => {
-  const report = await controllerObservation();
+  const report = actualControllerObservation();
   assert.ok(Array.isArray(report.samples));
   const direction: unknown = report.samples[3];
   assert.ok(isRecord(direction));
@@ -149,68 +152,62 @@ void test("native remainder controller attributes unrelated layout reads and res
 });
 
 void test("native remainder controller retains exact control count and rejects unattributed reads", async () => {
-  const original = await controllerObservation();
-  const navigation: WebDriver[] = [];
-  class WebDriver {
-    executeScript() {
-      return { outcome: "api-present-no-controller" };
-    }
-    executeAsyncScript() {
-      assert.equal(navigation.at(-1), this, "Navigate before injecting the controller probe");
-      return profile;
-    }
-  }
-  let profile: unknown = original;
-  const run = callable(
-    runInNewContext(
-      `${await source("./desktop-controller-test.mts", "export async function controllerScenario(", "export async function observeInjectedController(")}\ncontrollerScenario;`,
-      {
-        assert,
-        isRecord,
-        path,
-        writeFile: async () => undefined,
-        WebDriver,
-        selectPrimaryNavigation: async (browser: WebDriver, label: string) => {
-          assert.ok(browser instanceof WebDriver);
-          assert.equal(label, "Library");
-          navigation.push(browser);
+  const original = actualControllerObservation();
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        new URL("./desktop-controller-test.mts", import.meta.url),
+        `
+      import path from 'node:path';
+      const {WebDriver}=await import('selenium-webdriver');
+      const navigation=[],reports=[];
+      const fileSystem=await import('node:fs/promises');
+      mock.module('node:fs/promises',{namedExports:{...Object.fromEntries(Object.entries(fileSystem).filter(([name])=>name!=='default')),writeFile:async(file,bytes,options)=>{
+        assert.ok(['controller-capability.json','controller-layout-profile.json'].includes(path.basename(file)));
+        assert.equal(path.dirname(file),'owned-output');
+        assert.deepEqual(options,{flag:'wx'});reports.push({file,value:JSON.parse(bytes)});
+      }}});
+      mock.module(new URL('./desktop-review-controls.mts',entry).href,{namedExports:{
+        selectPrimaryNavigation:async(browser,label)=>{
+          assert.ok(browser instanceof WebDriver);assert.equal(label,'Library');navigation.push(browser);
         },
-        observeGamepadCapability: () => undefined,
-        observeInjectedController: () => undefined,
-      },
-    ),
-  );
-  const context = {
-    browser: new WebDriver(),
-    output: "owned-output",
-    artifacts: [],
-    scenario: async (name: string, work: () => Promise<void>) => {
-      if (name === "native-controller-large-list") await work();
-    },
-  };
-  await run(context);
-  assert.deepEqual(navigation, [context.browser]);
-  const damaged: unknown = JSON.parse(JSON.stringify(original));
-  assert.ok(isRecord(damaged) && Array.isArray(damaged.samples));
-  const direction: unknown = damaged.samples[3];
-  assert.ok(isRecord(direction) && isRecord(direction.fixture_controls));
-  direction.fixture_controls.getBoundingClientRect = 1003;
-  direction.getBoundingClientRect = 1006;
-  profile = damaged;
-  await assert.rejects(async () => run(context), /1003 !== 1000/);
-  direction.fixture_controls.getBoundingClientRect = 1000;
-  await assert.rejects(
-    async () => run(context),
-    /Every layout read must retain its receiver attribution/,
-  );
-  assert.deepEqual(navigation, [context.browser, context.browser, context.browser]);
+      }});
+      const {controllerScenario}=await import(entry);
+      let profile=${JSON.stringify(original)};
+      const original=profile;
+      class ControlledBrowser extends WebDriver{
+        executeScript(){return {outcome:'api-present-no-controller'};}
+        executeAsyncScript(){
+          assert.equal(navigation.at(-1),this,'Navigate before injecting the controller probe');return profile;
+        }
+      }
+      const context={browser:new ControlledBrowser(),output:'owned-output',artifacts:[],
+        scenario:async(name,work)=>{if(name==='native-controller-large-list')await work();}};
+      await controllerScenario(context);
+      assert.deepEqual(navigation,[context.browser]);
+      const damaged=structuredClone(original),direction=damaged.samples[3];
+      direction.fixture_controls.getBoundingClientRect=1003;
+      direction.getBoundingClientRect=1006;profile=damaged;
+      await assert.rejects(()=>controllerScenario(context),/1003 !== 1000/);
+      direction.fixture_controls.getBoundingClientRect=1000;
+      await assert.rejects(()=>controllerScenario(context),/Every layout read must retain its receiver attribution/);
+      assert.deepEqual(navigation,[context.browser,context.browser,context.browser]);
+      assert.deepEqual(context.artifacts,Array.from({length:3},()=>[
+        path.join('owned-output','controller-capability.json'),
+        path.join('owned-output','controller-layout-profile.json')]).flat());
+      assert.equal(reports.length,6);
+      `,
+        variant === "original" ? undefined : { exportName: "controllerScenario", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
 });
 
-void test("native remainder palette walks explicit commands and restores renderer after a failed assertion", async () => {
-  const body = await source(
-    "./desktop-accessibility-test.mts",
-    "export async function accessibleNavigationScenario(",
-  );
+async function paletteBehavior(
+  run: (context: unknown) => Promise<unknown>,
+  prepare: (events: string[]) => void,
+) {
   for (const escapeFails of [false, true]) {
     const events: string[] = [];
     const ids = [
@@ -348,32 +345,7 @@ void test("native remainder palette walks explicit commands and restores rendere
         },
       }),
     };
-    const run = callable(
-      runInNewContext(`${body}\naccessibleNavigationScenario;`, {
-        assert: {
-          ...assert,
-          deepEqual: (actual: unknown, expected: unknown, message?: string) =>
-            assert.deepEqual(
-              JSON.parse(JSON.stringify(actual)),
-              JSON.parse(JSON.stringify(expected)),
-              message,
-            ),
-        },
-        path,
-        process: { platform: "win32" },
-        console,
-        By: { css: (value: string) => value },
-        Key: { CONTROL: "Control", COMMAND: "Command", ARROW_DOWN: "ArrowDown", ESCAPE: "Escape" },
-        until: { elementLocated: (value: unknown) => value },
-        writeFile: async () => {
-          events.push("write");
-        },
-        assertCompactReview: async () => {
-          events.push("expanded");
-          throw new Error("retained expanded-layout assertion");
-        },
-      }),
-    );
+    prepare(events);
     let failure: unknown;
     try {
       await run({
@@ -406,32 +378,45 @@ void test("native remainder palette walks explicit commands and restores rendere
       assert.match(errorMessage(failure.errors[1]), /retained Escape transport failure/);
     }
   }
-});
-
-// Execute the real direct-recovery observer and its surrounding caller order.
-// The fake driver controls modal settlement, not preparation or Core authority.
-async function directRecoveryNavigationSubject(browser: unknown) {
-  const body = await source(
-    "./desktop-preparation-test.mts",
-    'await scenario("native-direct-preparation-recovery", async () => {',
-    "  const livePreparationCancellation =",
-  );
-  const startMarker = "const action = By.css('[data-detail-origin=\"error:preparation-review\"]');";
-  const first = body.indexOf(startMarker);
-  assert.ok(first >= 0, "actual direct preparation recovery action");
-  assert.equal(body.indexOf(startMarker, first + startMarker.length), -1);
-  const last = body.indexOf("const inventory = await activities();", first);
-  assert.ok(last > first, "actual navigation must precede the activity inventory");
-  return callable(
-    runInNewContext(`(async () => {\n${body.slice(first, last)}\n});`, {
-      browser,
-      By: { css: (value: string) => value, xpath: (value: string) => value },
-      until: { elementLocated: (value: string) => value },
-    }),
-  );
 }
 
-void test("direct preparation recovery waits for modal settlement before its ordinary Activity click", async () => {
+void test("native remainder palette walks explicit commands and restores renderer after a failed assertion", () => {
+  const entry = new URL("./desktop-accessibility-test.mts", import.meta.url);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        entry,
+        `
+      import path from 'node:path';import {runInNewContext} from 'node:vm';
+      const {isRecord,errorMessage}=await import(new URL('../../../scripts/runtime-values.mts',entry));
+      const callable=${String(callable)};
+      let events=[];
+      const files=await import('node:fs/promises');
+      mock.module('node:fs/promises',{namedExports:{...Object.fromEntries(Object.entries(files).filter(([name])=>name!=='default')),writeFile:async(file,bytes,options)=>{
+        assert.equal(path.dirname(file),'owned-output');assert.ok(path.basename(file).includes('expanded-navigation'));events.push('write');
+      }}});
+      mock.module('selenium-webdriver',{namedExports:{
+        By:{css:value=>value},Key:{CONTROL:'Control',COMMAND:'Command',ARROW_DOWN:'ArrowDown',ESCAPE:'Escape'},until:{elementLocated:value=>value},
+      }});
+      mock.module(new URL('./desktop-review-controls.mts',entry).href,{namedExports:{
+        assertCompactReview:async()=>{events.push('expanded');throw Error('retained expanded-layout assertion');},
+        captureAccessibilityReport:()=>assert.fail('The failed layout must precede accessibility capture'),
+        observeAccessibility:()=>assert.fail('The failed layout must precede accessibility observation'),
+        assertNoAccessibilityViolations:()=>assert.fail('The failed layout must precede accessibility checks'),
+      }});
+      const {accessibleNavigationScenario}=await import(entry);
+      await (${String(paletteBehavior)})(accessibleNavigationScenario,value=>events=value);
+    `,
+        variant === "original"
+          ? undefined
+          : { exportName: "accessibleNavigationScenario", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
+});
+
+async function settledRecoveryBehavior(subject: (browser: unknown) => Promise<unknown>) {
   const events: string[] = [];
   let overlayPresent = true;
   let activityClicks = 0;
@@ -443,48 +428,49 @@ void test("direct preparation recovery waits for modal settlement before its ord
   const maySettle = new Promise<void>((resolve) => {
     releaseOverlay = resolve;
   });
-  const run = await directRecoveryNavigationSubject({
-    findElements: async (selector: string) => {
-      if (selector === '[data-slot="dialog-overlay"]') {
-        events.push(overlayPresent ? "overlay present" : "overlay absent");
-        return overlayPresent ? [{}] : [];
-      }
-      assert.equal(selector, "section[data-detail-workspace]");
-      assert.equal(activityClicks, 1);
-      events.push("detail absent");
-      return [];
-    },
-    findElement: (selector: string) => {
-      assert.equal(selector, '//nav//button[./span[normalize-space(.)="Activity"]]');
-      return {
-        click: async () => {
-          activityClicks += 1;
-          assert.equal(overlayPresent, false, "ordinary navigation remains blocked by the modal");
-          events.push("Activity click");
-        },
-      };
-    },
-    wait: async (condition: unknown, timeout: number, message?: string) => {
-      assert.equal(timeout, 15_000);
-      if (typeof condition !== "function") {
-        assert.equal(condition, '[data-detail-origin="error:preparation-review"]');
-        events.push("recovery action located");
-        return;
-      }
-      if (message !== undefined) {
-        assert.equal(
-          message,
-          "The settled preparation review must release its modal overlay before navigation",
-        );
-        assert.equal(await callable(condition)(), false);
-        observeOverlay();
-        await maySettle;
+  const run = () =>
+    subject({
+      findElements: async (selector: string) => {
+        if (selector === '[data-slot="dialog-overlay"]') {
+          events.push(overlayPresent ? "overlay present" : "overlay absent");
+          return overlayPresent ? [{}] : [];
+        }
+        assert.equal(selector, "section[data-detail-workspace]");
+        assert.equal(activityClicks, 1);
+        events.push("detail absent");
+        return [];
+      },
+      findElement: (selector: string) => {
+        assert.equal(selector, '//nav//button[./span[normalize-space(.)="Activity"]]');
+        return {
+          click: async () => {
+            activityClicks += 1;
+            assert.equal(overlayPresent, false, "ordinary navigation remains blocked by the modal");
+            events.push("Activity click");
+          },
+        };
+      },
+      wait: async (condition: unknown, timeout: number, message?: string) => {
+        assert.equal(timeout, 15_000);
+        if (typeof condition !== "function") {
+          assert.equal(condition, '[data-detail-origin="error:preparation-review"]');
+          events.push("recovery action located");
+          return;
+        }
+        if (message !== undefined) {
+          assert.equal(
+            message,
+            "The settled preparation review must release its modal overlay before navigation",
+          );
+          assert.equal(await callable(condition)(), false);
+          observeOverlay();
+          await maySettle;
+          assert.equal(await callable(condition)(), true);
+          return;
+        }
         assert.equal(await callable(condition)(), true);
-        return;
-      }
-      assert.equal(await callable(condition)(), true);
-    },
-  });
+      },
+    });
   const completion = Promise.resolve(run());
   try {
     await Promise.race([
@@ -497,7 +483,7 @@ void test("direct preparation recovery waits for modal settlement before its ord
     overlayPresent = false;
     releaseOverlay();
   }
-  await completion;
+  assert.equal(await completion, '[data-detail-origin="error:preparation-review"]');
   assert.equal(activityClicks, 1);
   assert.deepEqual(events, [
     "recovery action located",
@@ -506,48 +492,93 @@ void test("direct preparation recovery waits for modal settlement before its ord
     "Activity click",
     "detail absent",
   ]);
+}
+
+void test("direct preparation recovery waits for modal settlement before its ordinary Activity click", () => {
+  const entry = new URL("./desktop-preparation-test.mts", import.meta.url);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        entry,
+        `
+      const callable=${String(callable)};
+      const forbiddenConstructor=class{constructor(){throw Error('Unexpected native driver construction');}};
+      mock.module('selenium-webdriver',{namedExports:{By:{css:value=>value,xpath:value=>value},Key:{},until:{elementLocated:value=>value},WebDriver:forbiddenConstructor,Session:forbiddenConstructor,Capabilities:forbiddenConstructor}});
+      const {settleDirectPreparationRecovery}=await import(entry);
+      await (${String(settledRecoveryBehavior)})(settleDirectPreparationRecovery);
+    `,
+        variant === "original"
+          ? undefined
+          : { exportName: "settleDirectPreparationRecovery", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
 });
 
-void test("direct preparation recovery propagates a stuck modal timeout without clicking Activity", async () => {
+async function stuckRecoveryBehavior(subject: (browser: unknown) => Promise<unknown>) {
   const timeoutFailure = new Error("retained modal-settlement timeout");
   let recoveryLocated = false;
   let overlayReads = 0;
   let activityClicks = 0;
-  const run = await directRecoveryNavigationSubject({
-    findElements: async (selector: string) => {
-      assert.equal(selector, '[data-slot="dialog-overlay"]');
-      overlayReads += 1;
-      return [{}];
-    },
-    findElement: (selector: string) => {
-      assert.equal(selector, '//nav//button[./span[normalize-space(.)="Activity"]]');
-      return {
-        click: async () => {
-          activityClicks += 1;
-        },
-      };
-    },
-    wait: async (condition: unknown, timeout: number, message?: string) => {
-      assert.equal(timeout, 15_000);
-      if (typeof condition !== "function") {
-        assert.equal(condition, '[data-detail-origin="error:preparation-review"]');
-        recoveryLocated = true;
-        return;
-      }
-      assert.equal(recoveryLocated, true);
-      assert.equal(
-        message,
-        "The settled preparation review must release its modal overlay before navigation",
-      );
-      // Model finite WebDriver deadline exhaustion after two unsuccessful polls;
-      // no wall-clock wait, retrying click or test-owned dialog dismissal occurs.
-      assert.equal(await callable(condition)(), false);
-      assert.equal(await callable(condition)(), false);
-      throw timeoutFailure;
-    },
-  });
+  const run = () =>
+    subject({
+      findElements: async (selector: string) => {
+        assert.equal(selector, '[data-slot="dialog-overlay"]');
+        overlayReads += 1;
+        return [{}];
+      },
+      findElement: (selector: string) => {
+        assert.equal(selector, '//nav//button[./span[normalize-space(.)="Activity"]]');
+        return {
+          click: async () => {
+            activityClicks += 1;
+          },
+        };
+      },
+      wait: async (condition: unknown, timeout: number, message?: string) => {
+        assert.equal(timeout, 15_000);
+        if (typeof condition !== "function") {
+          assert.equal(condition, '[data-detail-origin="error:preparation-review"]');
+          recoveryLocated = true;
+          return;
+        }
+        assert.equal(recoveryLocated, true);
+        assert.equal(
+          message,
+          "The settled preparation review must release its modal overlay before navigation",
+        );
+        // Model finite WebDriver deadline exhaustion after two unsuccessful polls;
+        // no wall-clock wait, retrying click or test-owned dialog dismissal occurs.
+        assert.equal(await callable(condition)(), false);
+        assert.equal(await callable(condition)(), false);
+        throw timeoutFailure;
+      },
+    });
   await assert.rejects(Promise.resolve(run()), (error: unknown) => error === timeoutFailure);
   assert.equal(recoveryLocated, true);
   assert.equal(overlayReads, 2);
   assert.equal(activityClicks, 0);
+}
+
+void test("direct preparation recovery propagates a stuck modal timeout without clicking Activity", () => {
+  const entry = new URL("./desktop-preparation-test.mts", import.meta.url);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        entry,
+        `
+      const callable=${String(callable)};
+      const forbiddenConstructor=class{constructor(){throw Error('Unexpected native driver construction');}};
+      mock.module('selenium-webdriver',{namedExports:{By:{css:value=>value,xpath:value=>value},Key:{},until:{elementLocated:value=>value},WebDriver:forbiddenConstructor,Session:forbiddenConstructor,Capabilities:forbiddenConstructor}});
+      const {settleDirectPreparationRecovery}=await import(entry);
+      await (${String(stuckRecoveryBehavior)})(settleDirectPreparationRecovery);
+    `,
+        variant === "original"
+          ? undefined
+          : { exportName: "settleDirectPreparationRecovery", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
 });

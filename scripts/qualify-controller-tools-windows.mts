@@ -52,6 +52,7 @@ import {
   verifyWindowsNativeSourceFiles,
 } from "./release-hosted-native-windows-source.mts";
 import { observeWindowsAccountCommand } from "./release-hosted-native-windows-observation.mts";
+import { inspectSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
 
 // The single dedicated-account qualification was consumed in 40366111230/1.
 // Ordinary tool builds cannot renew that execution grant.
@@ -94,6 +95,149 @@ function assertHostedWindowsSource(source: string, expected: { commit: string; t
     "",
     "Original primitive source has tracked changes",
   );
+}
+
+/** Same-job prerequisite observations only. These public data cannot authorize
+ * a candidate, reconstruct a native session or establish a loaded engine. */
+export async function prepareHostedWindowsFixtureRuntime(
+  source: string,
+  sourceIdentity: { commit: string; tree: string },
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  const expected = Object.freeze({ ...sourceIdentity });
+  const context = {
+    source: environment.FIXTURE_SOURCE_SHA,
+    event: environment.GITHUB_EVENT_NAME,
+    job: environment.GITHUB_JOB,
+    workflow: environment.GITHUB_WORKFLOW_REF,
+    run_id: environment.GITHUB_RUN_ID,
+    attempt: environment.GITHUB_RUN_ATTEMPT,
+  };
+  assert.equal(context.source, expected.commit);
+  assert.match(expected.commit, /^[a-f0-9]{40}$/u);
+  assert.match(expected.tree, /^[a-f0-9]{40}$/u);
+  assert.equal(context.job, "windows-tools");
+  assert.ok(
+    (context.event === "push" &&
+      context.workflow ===
+        "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/heads/main") ||
+      (context.event === "pull_request" &&
+        typeof context.workflow === "string" &&
+        /^boburning\/portcove\/\.github\/workflows\/controller-tool-build-fixture\.yml@refs\/pull\/[1-9][0-9]*\/merge$/u.test(
+          context.workflow,
+        )),
+    "original Windows fixture workflow required",
+  );
+  assert.ok(context.run_id && /^[1-9][0-9]{0,15}$/u.test(context.run_id));
+  assert.ok(context.attempt && /^[1-9][0-9]{0,5}$/u.test(context.attempt));
+  const unchanged = () => {
+    assert.deepEqual(
+      {
+        source: environment.FIXTURE_SOURCE_SHA,
+        event: environment.GITHUB_EVENT_NAME,
+        job: environment.GITHUB_JOB,
+        workflow: environment.GITHUB_WORKFLOW_REF,
+        run_id: environment.GITHUB_RUN_ID,
+        attempt: environment.GITHUB_RUN_ATTEMPT,
+      },
+      context,
+      "original Windows runtime context changed",
+    );
+    assertHostedWindowsSource(source, expected);
+  };
+  const read = async (relative: string) => {
+    const filename = await assertOwnedUnlinkedPath(
+        source,
+        path.join(source, relative),
+        "Windows fixture runtime input",
+      ),
+      before = await lstat(filename, { bigint: true });
+    assert.ok(before.isFile() && !before.isSymbolicLink() && before.nlink === 1n);
+    const bytes = await readControllerToolFile(filename, 65536);
+    const after = await lstat(filename, { bigint: true });
+    for (const key of ["dev", "ino", "mode", "size", "nlink", "mtimeNs", "ctimeNs"] as const)
+      assert.equal(after[key], before[key], "Windows fixture runtime input changed during read");
+    await assertOwnedUnlinkedPath(source, filename, "Windows fixture runtime input");
+    return { relative, bytes, identity: before };
+  };
+  unchanged();
+  const floor = await read("apps/desktop/src-tauri/src/runtime_support.rs"),
+    input = await read("work/hosted-continuity-evidence/windows-runtime.json");
+  unchanged();
+  const { raw, minimum, observed, before, installed, observation, phases } =
+    inspectSupportedHostedWindowsRuntimeInput(floor.bytes, input.bytes, context);
+  const identity = (file: typeof input) => ({
+    path: file.relative,
+    bytes: file.bytes.length,
+    sha256: createHash("sha256").update(file.bytes).digest("hex"),
+  });
+  const report = {
+    source: expected,
+    workflow: context.workflow,
+    event: context.event,
+    job: context.job,
+    run_id: context.run_id,
+    attempt: context.attempt,
+    input: identity(input),
+    floor_source: identity(floor),
+    minimum,
+    version: observed,
+    before,
+    installed,
+    exit_code: installed ? 0 : null,
+    ...(installed
+      ? { installer_sha256: raw.installer_sha256, signer_thumbprint: raw.signer_thumbprint }
+      : {}),
+    observation: { elapsed_milliseconds: Number(observation.elapsed_milliseconds), phases },
+    scope: "same-job Windows runtime prerequisite; no loaded engine or native acceptance",
+    authority: "none",
+  };
+  let stopped = false;
+  const recheck = async () => {
+    assert.ok(!stopped, "original Windows fixture runtime input stopped; retain original attempt");
+    try {
+      unchanged();
+      for (const original of [floor, input]) {
+        const current = await read(original.relative);
+        assert.ok(
+          current.bytes.equals(original.bytes),
+          "original Windows runtime input bytes changed",
+        );
+        for (const key of ["dev", "ino", "mode", "size", "nlink", "mtimeNs", "ctimeNs"] as const)
+          assert.equal(
+            current.identity[key],
+            original.identity[key],
+            "original Windows runtime input identity changed",
+          );
+      }
+      unchanged();
+    } catch (error) {
+      stopped = true;
+      throw error;
+    }
+  };
+  await recheck();
+  return Object.freeze({ version: observed, minimum, report, recheck });
+}
+
+export async function joinHostedWindowsFixtureRuntime(
+  runtime: Awaited<ReturnType<typeof prepareHostedWindowsFixtureRuntime>>,
+  driverVersion: string,
+) {
+  await runtime.recheck();
+  assert.equal(
+    driverVersion,
+    runtime.version,
+    "authenticated Windows driver differs from original runtime input",
+  );
+  return {
+    runtime_input: runtime.report.input,
+    runtime_version: runtime.version,
+    minimum_version: runtime.minimum,
+    driver_version: driverVersion,
+    scope: "exact runtime/driver prerequisite version join; candidate engine not observed",
+    authority: "none",
+  };
 }
 
 export const hostedWindowsAccountSourcePaths = Object.freeze([
@@ -221,6 +365,10 @@ async function main() {
       scope: "ordinary-hosted-Windows-tool-build",
       authority: "none",
     });
+    phase = "supported-Windows-runtime-input";
+    const runtime = await prepareHostedWindowsFixtureRuntime(source, expected);
+    await record("windows-runtime.json", runtime.report);
+    await runtime.recheck();
     phase = "source-only-Windows-account-primitives";
     const primitiveTools = await mkdtemp(path.join(buildParent, "gui-"));
     const primitiveSource = await stageHostedWindowsAccountSource(source, primitiveTools, expected);
@@ -463,7 +611,9 @@ async function main() {
       });
     }
     phase = "actual-Windows-build";
+    await runtime.recheck();
     const built = await buildControllerTools(source, buildParent, expected);
+    await runtime.recheck();
     assert.equal(built.manifest.platform, "windows-x86_64");
     await record("manifest.json", built.manifest);
     for (const file of [
@@ -576,12 +726,14 @@ async function main() {
       edge = invoke("msedgedriver.exe", ["--version"]);
     assert.equal(edge.status, 0, edge.stderr);
     assert.ok(edge.stdout.trim().startsWith(`Microsoft Edge WebDriver ${edgeFacts.version} (`));
+    const runtimeJoin = await joinHostedWindowsFixtureRuntime(runtime, edgeFacts.version);
     recheckNativeRuntimeCustody(files, custody);
     await record("windows-webview-driver.json", {
       source: expected,
       proof: edgeProof,
       observed_version: edge.stdout.trim(),
       executable: edgeFacts.executable,
+      runtime_join: runtimeJoin,
       account_execution: "not_requested",
       scope:
         "source-builder signature-before-version and independent same-byte tool observation only",
@@ -926,10 +1078,12 @@ async function main() {
       });
     }
     recheckNativeRuntimeCustody(files, custody);
+    await runtime.recheck();
     await record("result.json", {
       status: "pass",
       phase,
       source: expected,
+      runtime_join: runtimeJoin,
       tool_build_observation: {
         scope: "builder entry through complete inventory; cold workflow setup excluded",
         elapsed_milliseconds: built.elapsed_milliseconds,

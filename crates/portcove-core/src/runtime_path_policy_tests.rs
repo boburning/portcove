@@ -241,3 +241,75 @@ fn move_previews_check_retained_policy_before_creating_destinations() {
         );
     }
 }
+
+#[test]
+fn relative_file_envelope_counts_utf16_and_dot_prefix_without_ascii_restriction() {
+    for name in [
+        "C:\\Games\\日本語",
+        "C:\\Games\\José",
+        "\\\\?\\C:\\Games\\日本語",
+        "\\\\?\\UNC\\server\\games",
+    ] {
+        require_relative_windows_path(Path::new(name)).unwrap();
+    }
+    require_relative_windows_path(Path::new(&"x".repeat(257))).unwrap();
+    let refused = require_relative_windows_path(Path::new(&"x".repeat(258)))
+        .unwrap_err()
+        .report();
+    assert_eq!(
+        refused.presentation.presentation_key,
+        "runtime_path_requirement"
+    );
+    assert!(refused.presentation.summary.contains("shorter Windows"));
+    assert!(!refused.presentation.summary.contains("Latin"));
+    // Astral characters occupy two UTF-16 code units, regardless of UTF-8 bytes.
+    require_relative_windows_path(Path::new(&("x".repeat(255) + "🎮"))).unwrap();
+    assert!(require_relative_windows_path(Path::new(&("x".repeat(256) + "🎮"))).is_err());
+    require_relative_windows_path(Path::new(&("\\\\?\\".to_owned() + &"x".repeat(257)))).unwrap();
+}
+
+#[test]
+fn native_policy_checks_packaged_data_beyond_selected_executable() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("marathon-infinity-aleph-one").unwrap();
+    validate(port).unwrap();
+    assert_eq!(minimum_capability(port), 4);
+    let root = "C:\\".to_owned() + &"a".repeat(205);
+    check_executable(
+        port,
+        Platform::WindowsX86_64,
+        Path::new(&(root.clone() + "\\game.exe")),
+    )
+    .unwrap();
+    assert!(
+        check_package_paths(
+            port,
+            Platform::WindowsX86_64,
+            Path::new(&root),
+            ["Scripts/a-much-longer-packaged-data-file-name-than-the-player.mml"]
+        )
+        .is_err()
+    );
+    check_package_paths(
+        port,
+        Platform::LinuxX86_64,
+        Path::new(&root),
+        [&*"a".repeat(300)],
+    )
+    .unwrap();
+    let mut unconstrained = port.clone();
+    unconstrained.windows_runtime_path_policy = None;
+    check_package_paths(
+        &unconstrained,
+        Platform::WindowsX86_64,
+        Path::new(&root),
+        [&*"a".repeat(300)],
+    )
+    .unwrap();
+    let mut bad = port.clone();
+    bad.platforms.push(Platform::LinuxX86_64);
+    assert!(validate(&bad).is_err());
+    bad = port.clone();
+    bad.windows_runtime_path_policy = Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
+    assert!(validate(&bad).is_err());
+}

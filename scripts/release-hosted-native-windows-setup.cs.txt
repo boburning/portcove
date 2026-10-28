@@ -74,6 +74,20 @@ namespace Portcove.HostedNative {
         }
         public static bool RecoverOriginalStation(byte[] original, byte[] proposed, string owner, string candidate) {
             if (!HostedCandidateRecoveryAuthorized) throw new InvalidOperationException("Hosted candidate recovery awaits separate owner authority");
+            return RecoverOriginalStationCore(original, proposed, owner, candidate);
+        }
+        public static bool HostedDiagnosticRecoveryAuthorized { get { return false; } }
+        public static bool RecoverOriginalDiagnosticStation(byte[] original, byte[] proposed, string owner, string candidate) {
+            if (!HostedDiagnosticRecoveryAuthorized) throw new InvalidOperationException("Hosted diagnostic recovery awaits exact separate authority");
+            string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");
+            if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
+                Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" || Environment.GetEnvironmentVariable("GITHUB_JOB") != "installed-prerequisite" ||
+                Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") != "workflow_dispatch" || Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT") != "1" || workflow == null ||
+                !System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$"))
+                throw new InvalidOperationException("Fixed separately held diagnostic recovery boundary required");
+            return RecoverOriginalStationCore(original, proposed, owner, candidate);
+        }
+        static bool RecoverOriginalStationCore(byte[] original, byte[] proposed, string owner, string candidate) {
             if (original == null || proposed == null || original.Length < 20 || original.Length > 16384 || proposed.Length > 16384 ||
                 WindowsIdentity.GetCurrent().User.Value != owner || owner == candidate ||
                 !System.Linq.Enumerable.SequenceEqual(StationProposal(original, candidate), proposed))

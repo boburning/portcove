@@ -85,24 +85,28 @@ fn unknown_archive_owner_remains_readable_and_update_all_keeps_independent_refus
     let invoke = |arguments: &[&str]| {
         eprintln!("compiled CLI inventory phase: {arguments:?}");
         let started = Instant::now();
-        let mut child = std::process::Command::new(super::cli_binary())
-            .env(
-                "PORTCOVE_PREFERENCES",
-                temporary.path().join("preferences.json"),
-            )
-            .env_remove("PORTCOVE_LIBRARY")
-            .env_remove("PORTCOVE_GITHUB_TOKEN")
-            .env_remove("GH_TOKEN")
-            .env_remove("GITHUB_TOKEN")
-            .arg("--technical-details")
-            .arg("--library")
-            .arg(&library_path)
-            .args(arguments)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
+        let mut child = portcove_core::ChildProcessPolicy::native_command(
+            portcove_core::ChildProcessClass::HostIntegration,
+            super::cli_binary(),
+        )
+        .unwrap()
+        .env(
+            "PORTCOVE_PREFERENCES",
+            temporary.path().join("preferences.json"),
+        )
+        .env_remove("PORTCOVE_LIBRARY")
+        .env_remove("PORTCOVE_GITHUB_TOKEN")
+        .env_remove("GH_TOKEN")
+        .env_remove("GITHUB_TOKEN")
+        .arg("--technical-details")
+        .arg("--library")
+        .arg(&library_path)
+        .args(arguments)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
         // Preserve bounded live child progress even if the outer harness expires.
         // Keep complete stderr in Output for the existing exact result assertions.
         let stderr = child.stderr.take().unwrap();

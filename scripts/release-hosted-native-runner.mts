@@ -76,7 +76,12 @@ export async function readHostedWindowsNativeUploadRequest(root: string) {
 export async function readHostedWindowsNativePostSignUploadRequest(root: string) {
   return readUploadRequest(root, "release-publication", "windows-x86_64");
 }
-async function readUploadRequest(root: string, stage: Stage, platform: Platform = "linux-x86_64") {
+async function readUploadRequest(
+  root: string,
+  stage: Stage,
+  platform: Platform = "linux-x86_64",
+  diagnostic = false,
+) {
   await ownedRoot(root);
   const bytes = await readControllerToolFile(path.join(root, requestName), 4096);
   const request = inspectRequest(JSON.parse(bytes.toString("utf8")), root);
@@ -96,7 +101,10 @@ async function readUploadRequest(root: string, stage: Stage, platform: Platform 
   assert.equal(ready.compression_level, 0);
   assert.ok(
     typeof ready.name === "string" &&
-      new RegExp(`^hosted-native-${stage}-${platform}-[1-9][0-9]*-1$`, "u").test(ready.name),
+      new RegExp(
+        `^hosted-native-${diagnostic ? "diagnostic-" : ""}${stage}-${platform}-[1-9][0-9]*-1$`,
+        "u",
+      ).test(ready.name),
   );
   assert.ok(Array.isArray(ready.files) && ready.files.length === 4);
   const files: string[] = [];
@@ -182,11 +190,12 @@ async function acknowledgeUpload(
   sha256: string,
   stage: Stage,
   platform: Platform = "linux-x86_64",
+  diagnostic = false,
 ) {
   assert.ok(/^[a-f0-9]{64}$/u.test(requestSha256));
   assert.ok(Number.isSafeInteger(artifactId) && artifactId > 0);
   assert.ok(/^[a-f0-9]{64}$/u.test(sha256));
-  const request = await readUploadRequest(root, stage, platform);
+  const request = await readUploadRequest(root, stage, platform, diagnostic);
   assert.equal(request.request_sha256, requestSha256);
   await retainReleaseRoutingMarker(path.join(root, ackName), {
     schema_version: 1,
@@ -197,6 +206,83 @@ async function acknowledgeUpload(
     authority: "none",
   });
   active(BigInt(request.deadline_ns));
+}
+
+/** Public diagnostic routing correlation only; never a production receipt. */
+export async function readHostedWindowsDiagnosticUploadRequest(root: string, stage: Stage) {
+  assert.ok(stage === "payload-signing" || stage === "release-publication");
+  return readUploadRequest(root, stage, "windows-x86_64", true);
+}
+export async function acknowledgeHostedWindowsDiagnosticUpload(
+  root: string,
+  stage: Stage,
+  requestSha256: string,
+  artifactId: number,
+  sha256: string,
+) {
+  assert.ok(stage === "payload-signing" || stage === "release-publication");
+  return acknowledgeUpload(root, requestSha256, artifactId, sha256, stage, "windows-x86_64", true);
+}
+/** Shared original-process request/ack wait. Its returned provider IDs are data
+ * only; each caller retains original origin, custody and provider readback. */
+export async function awaitOriginalNativeUploadAcknowledgment(options: {
+  root: string;
+  originalDeadline: number;
+  uploadDeadline: number;
+  readyFile: string;
+  stage: Stage;
+  platform: Platform;
+  diagnostic?: boolean;
+  recheck: () => Promise<void>;
+  phase: (value: string) => void;
+}) {
+  const { root, originalDeadline, stage, platform } = options;
+  await options.recheck();
+  await ownedRoot(root);
+  options.phase("upload-request");
+  const monotonicOrigin = process.hrtime.bigint();
+  const remaining = Math.min(
+    120000,
+    originalDeadline - performance.now(),
+    options.uploadDeadline - performance.now(),
+  );
+  assert.ok(remaining > 0);
+  const deadline = monotonicOrigin + BigInt(Math.floor(remaining * 1e6));
+  const request = {
+    schema_version: 1,
+    nonce: randomBytes(16).toString("hex"),
+    ready_file: options.readyFile,
+    ready_sha256: hash(await readControllerToolFile(options.readyFile, 8192)),
+    deadline_ns: String(deadline),
+    authority: "none",
+  };
+  inspectRequest(request, root);
+  await retainReleaseRoutingMarker(path.join(root, requestName), request);
+  active(deadline);
+  const expected = await readUploadRequest(root, stage, platform, options.diagnostic ?? false);
+  options.phase("upload-acknowledgement");
+  let acknowledgement: unknown;
+  while (acknowledgement === undefined) {
+    await options.recheck();
+    active(deadline);
+    try {
+      acknowledgement = JSON.parse(
+        (await readControllerToolFile(path.join(root, ackName), 2048)).toString("utf8"),
+      );
+    } catch (error) {
+      if (!isRecord(error) || error.code !== "ENOENT") throw error;
+      await delay(100);
+    }
+  }
+  active(deadline);
+  assert.ok(
+    exact(acknowledgement, "artifact_id,authority,nonce,request_sha256,schema_version,sha256"),
+  );
+  assert.equal(acknowledgement.schema_version, 1);
+  assert.equal(acknowledgement.authority, "none");
+  assert.equal(acknowledgement.nonce, expected.nonce);
+  assert.equal(acknowledgement.request_sha256, expected.request_sha256);
+  return { acknowledgement, deadline };
 }
 
 /** The original private receipt stays in this process across the Actions upload
@@ -280,51 +366,18 @@ async function runNativeJob(
       : stage === "payload-signing"
         ? await prepareActualHostedLinuxPreSignJob(root, originalDeadline, runtimeInput)
         : await prepareActualHostedLinuxPostSignJob(root, originalDeadline, runtimeInput!);
-    phase = "upload-request";
-    // Anchor before any awaited readiness read. The private proof's captured
-    // deadline can be earlier; neither a read nor a new Actions step renews it.
-    const monotonicOrigin = process.hrtime.bigint();
-    const remaining = Math.min(
-      120000,
-      originalDeadline - performance.now(),
-      upload.deadline - performance.now(),
-    );
-    assert.ok(remaining > 0);
-    const deadline = monotonicOrigin + BigInt(Math.floor(remaining * 1e6));
-    const request = {
-      schema_version: 1,
-      nonce: randomBytes(16).toString("hex"),
-      ready_file: upload.ready_file,
-      ready_sha256: hash(await readControllerToolFile(upload.ready_file, 8192)),
-      deadline_ns: String(deadline),
-      authority: "none",
-    };
-    inspectRequest(request, root);
-    await retainReleaseRoutingMarker(path.join(root, requestName), request);
-    active(deadline);
-    const expected = await readUploadRequest(root, stage, platform);
-    phase = "upload-acknowledgement";
-    let acknowledgement: unknown;
-    while (acknowledgement === undefined) {
-      await recheckStage();
-      active(deadline);
-      try {
-        acknowledgement = JSON.parse(
-          (await readControllerToolFile(path.join(root, ackName), 2048)).toString("utf8"),
-        );
-      } catch (error) {
-        if (!isRecord(error) || error.code !== "ENOENT") throw error;
-        await delay(100);
-      }
-    }
-    active(deadline);
-    assert.ok(
-      exact(acknowledgement, "artifact_id,authority,nonce,request_sha256,schema_version,sha256"),
-    );
-    assert.equal(acknowledgement.schema_version, 1);
-    assert.equal(acknowledgement.authority, "none");
-    assert.equal(acknowledgement.nonce, expected.nonce);
-    assert.equal(acknowledgement.request_sha256, expected.request_sha256);
+    const { acknowledgement, deadline } = await awaitOriginalNativeUploadAcknowledgment({
+      root,
+      originalDeadline,
+      uploadDeadline: upload.deadline,
+      readyFile: upload.ready_file,
+      stage,
+      platform,
+      recheck: recheckStage,
+      phase: (value) => {
+        phase = value;
+      },
+    });
     phase = "provider-readback";
     const readBack =
       platform === "windows-x86_64"
@@ -531,6 +584,38 @@ export async function prepareConfiguredHostedWindowsSource(
 }
 
 export const hostedWindowsNativeJobExecutionAuthorized = false;
+async function retainWindowsStageRoute(
+  root: string,
+  stage: "pre-sign" | "post-sign",
+  directory: string,
+  producer: { run_id: string; run_attempt: number; controller_revision: string },
+) {
+  const phase = stage === "pre-sign" ? "payload-signing" : "release-publication";
+  const relative = path.relative(root, directory).split(path.sep).join("/");
+  assert.match(
+    relative,
+    new RegExp(`^hosted-native-parent-[A-Za-z0-9]{6}/windows-session/${phase}/capture$`, "u"),
+  );
+  assert.match(producer.run_id, /^[1-9][0-9]{0,15}$/u);
+  assert.equal(producer.run_attempt, 1);
+  assert.match(producer.controller_revision, /^[a-f0-9]{40}$/u);
+  const identity = (await import("./heavy-rust-test-lock.mts")).readProcessIdentity(process.pid);
+  assert.ok(identity, "original Windows runner birth identity unavailable");
+  await (
+    await import("./release-routing-marker.mts")
+  ).retainCompletedReleaseRoutingRecord(path.join(root, `windows-native-${stage}-stage.json`), {
+    schema_version: 1,
+    platform: "windows-x86_64",
+    stage,
+    directory: relative,
+    owner_pid: process.pid,
+    owner_identity: identity,
+    run_id: producer.run_id,
+    run_attempt: producer.run_attempt,
+    revision: producer.controller_revision,
+    authority: "none",
+  });
+}
 /** One original realm retains both stages and proofs across the fixed Actions upload rendezvous. */
 export async function runConfiguredHostedWindowsNativeJob(
   raw: unknown,
@@ -558,12 +643,14 @@ export async function runConfiguredHostedWindowsNativeJob(
   } = await import("./release-hosted-native-windows-session.mts");
   const session = await startActualHostedWindowsSession(prepared.installation);
   try {
-    const pre = await prepareActualHostedWindowsPreSignStage(session);
-    const preRoot = (await requireActualHostedWindowsStage(pre)).directory;
-    await runActualHostedWindowsStageUpload(preRoot, prepared.deadline, pre);
     const { requireActualHostedNativeParentSource } =
       await import("./release-hosted-native-parent.mts");
     const parent = await requireActualHostedNativeParentSource(prepared.parent);
+    const pre = await prepareActualHostedWindowsPreSignStage(session);
+    const preRoot = (await requireActualHostedWindowsStage(pre)).directory;
+    await retainWindowsStageRoute(root, "pre-sign", preRoot, parent.producer);
+    await requireActualHostedWindowsStage(pre);
+    await runActualHostedWindowsStageUpload(preRoot, prepared.deadline, pre);
     const { GitHubApiClient, createGitHubRunner } = await import("./github-api.mts");
     const { waitForNativePostSignReadiness } =
       await import("./release-native-postsign-readiness.mts");
@@ -617,6 +704,8 @@ export async function runConfiguredHostedWindowsNativeJob(
     }
     const post = await prepareActualHostedWindowsPostSignStage(session);
     const postRoot = (await requireActualHostedWindowsStage(post)).directory;
+    await retainWindowsStageRoute(root, "post-sign", postRoot, parent.producer);
+    await requireActualHostedWindowsStage(post);
     await runActualHostedWindowsStageUpload(postRoot, prepared.deadline, post);
     const settlement = await finishActualHostedWindowsSession(session);
     const terminalDeadline = Math.min(prepared.deadline, settlement.deadline);

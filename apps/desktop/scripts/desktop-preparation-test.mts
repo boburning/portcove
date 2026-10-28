@@ -960,6 +960,91 @@ export function assertPreparedLibrarySummary(
   );
 }
 
+/** Observe one owned Library action and retain its exact visual evidence. */
+export async function captureLibraryAction(
+  browser: WebDriver,
+  more: WebElement,
+  output: string,
+  theme: string,
+  layout: string,
+  artifacts: string[],
+) {
+  const exactTarget = await more.getAttribute("data-detail-origin");
+  assert.ok(exactTarget, "The focused menu must have a stable Library return identity");
+  const selector = `button[data-detail-origin=${JSON.stringify(exactTarget)}]`;
+  // Resize/focus recovery can leave a fractional edge at the viewport
+  // boundary. Prepare the exact target inside its real scroll owner;
+  // screenshot completeness remains stricter than usability checks.
+  const preparedTarget = await prepareCaptureTarget({
+    target: selector,
+    label: `200% Library ${theme} ${layout} action`,
+    scroll: () =>
+      executeBrowserScript(
+        browser,
+        (element) =>
+          element.scrollIntoView({
+            block: "center",
+            inline: "nearest",
+            behavior: "instant",
+          }),
+        more,
+      ),
+    observe: () => executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
+  });
+  const capture = await captureSettledVisual({
+    browser,
+    output,
+    name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200`,
+    scenario: "native-library-layout",
+    target: selector,
+    observeTarget: async () => {
+      const state = await executeBrowserScript(
+        browser,
+        observeVisibleTarget,
+        selector,
+        "visual" as const,
+      );
+      requireUnchangedCaptureTarget(preparedTarget.observation, state);
+      return { ...state, capture_target_preflight: preparedTarget };
+    },
+    readiness: () =>
+      executeBrowserScript(
+        browser,
+        (element) => ({
+          ready:
+            document.fonts.status === "loaded" &&
+            Array.from(document.images).every((image) => image.complete) &&
+            document.activeElement === element &&
+            localStorage.getItem("portcove.appearance.interface-size") === "200",
+          feedbackFixture: "Owned DOM-only artwork feedback; imported artwork remains available",
+        }),
+        more,
+      ),
+  });
+  artifacts.push(capture.image.path, capture.receipt);
+}
+
+export async function settleDirectPreparationRecovery(browser: WebDriver) {
+  const action = By.css('[data-detail-origin="error:preparation-review"]');
+  await browser.wait(until.elementLocated(action), 15_000);
+  // The failure notice can render before the completed review's modal layer
+  // unmounts. Wait for actual dismissal before exercising ordinary navigation;
+  // never click through the overlay or dismiss it on the test's behalf.
+  await browser.wait(
+    async () => (await browser.findElements(By.css('[data-slot="dialog-overlay"]'))).length === 0,
+    15_000,
+    "The settled preparation review must release its modal overlay before navigation",
+  );
+  await browser
+    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
+    .click();
+  await browser.wait(
+    async () => (await browser.findElements(By.css("section[data-detail-workspace]"))).length === 0,
+    15_000,
+  );
+  return action;
+}
+
 export async function preparationScenarios({
   browser,
   invoke: invokeRaw,
@@ -1996,69 +2081,7 @@ export async function preparationScenarios({
                 }
                 // One scoped target avoids claiming that the whole scrollable collection
                 // fits above the fold. The screenshot still retains the native viewport.
-                const exactTarget = await more.getAttribute("data-detail-origin");
-                assert.ok(
-                  exactTarget,
-                  "The focused menu must have a stable Library return identity",
-                );
-                const selector = `button[data-detail-origin=${JSON.stringify(exactTarget)}]`;
-                // Resize/focus recovery can leave a fractional edge at the viewport
-                // boundary. Prepare the exact target inside its real scroll owner;
-                // screenshot completeness remains stricter than usability checks.
-                const preparedTarget = await prepareCaptureTarget({
-                  target: selector,
-                  label: `200% Library ${theme} ${layout} action`,
-                  scroll: () =>
-                    executeBrowserScript(
-                      browser,
-                      (element) =>
-                        element.scrollIntoView({
-                          block: "center",
-                          inline: "nearest",
-                          behavior: "instant",
-                        }),
-                      more,
-                    ),
-                  observe: () =>
-                    executeBrowserScript(
-                      browser,
-                      observeVisibleTarget,
-                      selector,
-                      "visual" as const,
-                    ),
-                });
-                const capture = await captureSettledVisual({
-                  browser,
-                  output,
-                  name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200`,
-                  scenario: "native-library-layout",
-                  target: selector,
-                  observeTarget: async () => {
-                    const state = await executeBrowserScript(
-                      browser,
-                      observeVisibleTarget,
-                      selector,
-                      "visual" as const,
-                    );
-                    requireUnchangedCaptureTarget(preparedTarget.observation, state);
-                    return { ...state, capture_target_preflight: preparedTarget };
-                  },
-                  readiness: () =>
-                    executeBrowserScript(
-                      browser,
-                      (element) => ({
-                        ready:
-                          document.fonts.status === "loaded" &&
-                          Array.from(document.images).every((image) => image.complete) &&
-                          document.activeElement === element &&
-                          localStorage.getItem("portcove.appearance.interface-size") === "200",
-                        feedbackFixture:
-                          "Owned DOM-only artwork feedback; imported artwork remains available",
-                      }),
-                      more,
-                    ),
-                });
-                artifacts.push(capture.image.path, capture.receipt);
+                await captureLibraryAction(browser, more, output, theme, layout, artifacts);
                 await executeBrowserScript(
                   browser,
                   (element) => {
@@ -3019,25 +3042,7 @@ export async function preparationScenarios({
       });
       assert.ok(failure.presentation.recovery_actions.includes("review_preparation"));
       observations.failed_activity = failed;
-      const action = By.css('[data-detail-origin="error:preparation-review"]');
-      await browser.wait(until.elementLocated(action), 15_000);
-      // The failure notice can render before the completed review's modal layer
-      // unmounts. Wait for actual dismissal before exercising ordinary navigation;
-      // never click through the overlay or dismiss it on the test's behalf.
-      await browser.wait(
-        async () =>
-          (await browser.findElements(By.css('[data-slot="dialog-overlay"]'))).length === 0,
-        15_000,
-        "The settled preparation review must release its modal overlay before navigation",
-      );
-      await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
-        .click();
-      await browser.wait(
-        async () =>
-          (await browser.findElements(By.css("section[data-detail-workspace]"))).length === 0,
-        15_000,
-      );
+      const action = await settleDirectPreparationRecovery(browser);
       const inventory = await activities();
       const readOnlyReview = By.xpath(
         '//div[contains(@class,"error-actions")]//button[normalize-space(.)="Review current state"]',

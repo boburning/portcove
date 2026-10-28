@@ -74,6 +74,31 @@ upstream profile may still be read on the next explicit Play. A saved Core data
 store or richer preparation/account contract requires its own compatible
 transition rather than guessing at migration or rewriting retained definitions.
 
+When complete game and engine-only packages cannot be distinguished by stable
+literal hints, an exact `direct-manifest` archive can use this same adapter.
+The existing Direct contract requires one Stable version/URL/size/SHA-256 per
+declared platform; it does not discover newer upstream versions. The native
+route still rejects installers, raw executables, custom build/setup commands,
+mutable runtimes and downstream source preparation. A pin does not inherit
+another artifact's qualification. A later reviewed catalog pin remains a new
+artifact/compatibility decision, and runtime rollback does not rewind external
+profiles or certify their older-version compatibility.
+
+Native template version 3 represents exact archive pins. Version 4 additionally
+consumes `windows_runtime_path_policy: relative-file-max-path` for Windows-only
+native archives. Core checks every authenticated immutable package member and
+the selected executable/working directory at their final coordinates before
+publication and before launch or retained-data synchronization. Recovery,
+adoption, relocation and library import repeat the applicable destination check.
+The conservative envelope counts Windows UTF-16 units, the terminating NUL and
+the runtime's `.\` relative spelling within MAX_PATH; it imposes no ASCII-only
+rule. A shorter executable alone does not establish fitting data-file paths.
+Choose a shorter output folder when held. This is a supported coordinate
+envelope, not a general Windows long-path fix or a claim about the exact upstream
+failure threshold. External profiles and arbitrary future save filenames are
+outside the immutable-package check. New and retained independent entries using
+this policy require Native4; Direct-only Native3 retains its meaning.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route
@@ -2104,6 +2129,11 @@ collection nor an accounted condition establishes installability.
 DirectManifest entries retain their exact version/platform/digest/size and
 acquisition URL. Declared project and acquisition roles are inventoried
 separately, so a project URL change does not erase an older release repository.
+A user-prepared runtime may name its repository with a hosted slug or a complete
+HTTPS GitHub/GitLab repository URL. The health collector applies its existing
+upstream URL validation and retains the acquisition role independently of the
+project role; this observes repository metadata without inferring a delivered
+runtime or accepted artifact. Other hosted providers retain their slug contract.
 Hosted endpoints use bounded metadata requests; direct artifact and other project
 endpoints use credential-free HEAD without following redirects. Matching
 Content-Length establishes endpoint reachability only. Accepted bytes remain

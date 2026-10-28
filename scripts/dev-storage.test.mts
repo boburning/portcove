@@ -18,6 +18,14 @@ import {
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { randomUUID } from "node:crypto";
+import {
+  readScratchProfile,
+  scratchAllocation,
+  scratchCargoTarget,
+  verifyScratchProfile,
+  validateScratchBacking,
+} from "./development-scratch.mts";
 import {
   type CompilerRunner,
   prepareRustSupportArtifact,
@@ -28,6 +36,7 @@ import {
   childEnvironment,
   canonicalCheckoutCommand,
   getPaths,
+  nodeSuiteAdmissionEnabled,
   isSideEffectFreeHelpCommand,
   isWindowsSystemDrivePath,
   minimumFreeGiB,
@@ -42,6 +51,99 @@ import {
 } from "./dev-storage.mts";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
+
+void test("portable contributors keep Node defaults until their own machine explicitly opts in", (t) => {
+  const root = fixture(t),
+    config = path.join(root, "resources.json");
+  assert.equal(nodeSuiteAdmissionEnabled(config), false);
+  for (const value of [{}, { slots: 2 }, { nodeSuites: false }]) {
+    writeFileSync(config, JSON.stringify(value));
+    assert.equal(nodeSuiteAdmissionEnabled(config), false);
+  }
+  writeFileSync(config, JSON.stringify({ nodeSuites: true }));
+  assert.equal(nodeSuiteAdmissionEnabled(config), true);
+  writeFileSync(config, JSON.stringify({ nodeSuites: "yes" }));
+  assert.throws(() => nodeSuiteAdmissionEnabled(config), /Invalid Node-suite/u);
+});
+
+void test("machine scratch allocations are stable and separate by workspace and platform", (t) => {
+  const root = fixture(t);
+  const profile = { format: 1 as const, identity: randomUUID(), root };
+  const first = scratchAllocation(profile, projectRoot);
+  assert.deepEqual(scratchAllocation(profile, projectRoot), first);
+  assert.notDeepEqual(scratchAllocation(profile, root), first);
+  assert.notDeepEqual(
+    scratchAllocation(profile, projectRoot, process.platform === "win32" ? "linux" : "win32"),
+    first,
+  );
+  assert.equal(
+    scratchCargoTarget(path.join(projectRoot, "target"), projectRoot, first.target, {}),
+    first.target,
+  );
+  assert.equal(
+    scratchCargoTarget(path.join(root, "custom"), projectRoot, first.target, {}),
+    path.join(root, "custom"),
+  );
+  assert.equal(
+    scratchCargoTarget(path.join(projectRoot, "target"), projectRoot, first.target, {
+      CARGO_TARGET_DIR: path.join(projectRoot, "target"),
+    }),
+    path.join(projectRoot, "target"),
+  );
+});
+
+void test("machine scratch refuses unknown profiles, foreign markers and missing ext4 mounts", (t) => {
+  const root = fixture(t),
+    file = path.join(root, "profile.json");
+  assert.equal(readScratchProfile(file), undefined);
+  writeFileSync(file, "{}");
+  assert.throws(() => readScratchProfile(file), /Invalid machine scratch profile/u);
+  const profile = {
+    format: 1 as const,
+    root,
+    identity: randomUUID(),
+    distribution: "FixtureLinux",
+    backingDirectory: root,
+    filesystemUuid: randomUUID(),
+    windowsNode: "/mnt/z/node.exe",
+    backingVhd: "Z:\\fixture\\scratch\\ext4.vhdx",
+  };
+  writeFileSync(file, JSON.stringify(profile));
+  assert.deepEqual(readScratchProfile(file), profile);
+  writeFileSync(
+    path.join(root, ".portcove-scratch.json"),
+    JSON.stringify({ format: 1, identity: randomUUID() }),
+  );
+  assert.throws(() => verifyScratchProfile(profile), /marker differs/u);
+  writeFileSync(path.join(root, ".portcove-scratch.json"), JSON.stringify(profile));
+  if (process.platform === "linux")
+    assert.throws(() => verifyScratchProfile(profile), /scratch ownership|mount identity/u);
+});
+
+void test("machine scratch backing checks reject a moved distro even when its UUID is unchanged", () => {
+  const directory = "Z:\\fixture\\scratch",
+    vhd = directory + "\\ext4.vhdx";
+  assert.deepEqual(validateScratchBacking(directory, vhd, { basePath: directory, vhdPath: vhd }), {
+    basePath: directory,
+    vhdPath: vhd,
+  });
+  assert.throws(
+    () =>
+      validateScratchBacking(directory, vhd, {
+        basePath: "E:\\moved-scratch",
+        vhdPath: "E:\\moved-scratch\\ext4.vhdx",
+      }),
+    /backing VHD differs/u,
+  );
+  assert.throws(
+    () =>
+      validateScratchBacking(directory, vhd, {
+        basePath: directory,
+        vhdPath: "C:\\other\\ext4.vhdx",
+      }),
+    /backing VHD differs/u,
+  );
+});
 function fixtureRecord(text: string) {
   const value: unknown = JSON.parse(text);
   assert.ok(isRecord(value), "fixture output must be an object");
@@ -132,6 +234,55 @@ foreach ($call in $calls) {
   },
 );
 
+void test("CLI smoke decodes native UTF-8 paths and restores the caller encoding", (t) => {
+  const root = fixture(t);
+  const script = path.join(root, "smoke-encoding.ps1");
+  const emitter = path.join(root, "emit.cjs");
+  writeFileSync(emitter, "process.stdout.write(JSON.stringify({root:process.argv[2]}));");
+  const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+  writeFileSync(
+    script,
+    `
+$ErrorActionPreference = 'Stop'
+$ast = [Management.Automation.Language.Parser]::ParseFile(${quote(path.join(projectRoot, "scripts/smoke-test-cli-archive.ps1"))}, [ref]$null, [ref]$null)
+$helper = $ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Invoke-IsolatedCliSmoke'}, $false)
+if ($null -eq $helper) { throw 'Actual isolated smoke helper missing' }
+. ([scriptblock]::Create($helper.Extent.Text))
+$node = ${quote(process.execPath)}
+$emitter = ${quote(emitter)}
+$library = Join-Path $PSScriptRoot ('Library ' + [char]0x03A9 + ' space')
+[IO.Directory]::CreateDirectory($library) | Out-Null
+$original = [Console]::OutputEncoding
+try {
+ [Console]::OutputEncoding = [Text.Encoding]::GetEncoding(437)
+ $control = (& $node $emitter $library | Out-String).Trim() | ConvertFrom-Json
+ if ($LASTEXITCODE -ne 0 -or $control.root -ceq $library) { throw 'OEM decoding negative control did not reproduce' }
+ foreach ($fail in @($false, $true)) {
+  $observed = $null
+  try {
+   Invoke-IsolatedCliSmoke -LibraryPath $library -PreferencePath (Join-Path $PSScriptRoot 'preferences.json') -Operation {
+    $data = (& $node $emitter $library | Out-String).Trim() | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $data.root -cne $library -or -not (Test-Path -LiteralPath $data.root)) { throw 'UTF-8 path identity lost' }
+    if ($fail) { throw 'intentional-encoding-smoke-failure' }
+   }
+  } catch { $observed = $_.Exception.Message }
+  if ($fail -and $observed -cne 'intentional-encoding-smoke-failure') { throw 'Original failure lost' }
+  if (-not $fail -and $null -ne $observed) { throw $observed }
+  if ([Console]::OutputEncoding.CodePage -ne 437) { throw 'Caller encoding not restored' }
+ }
+} finally { [Console]::OutputEncoding = $original }
+'native-utf8-paths-and-encoding-restoration-passed'
+`,
+  );
+  const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 15_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /native-utf8-paths-and-encoding-restoration-passed/u);
+});
+
 void test(
   "CLI smoke restores absent empty and conflicting bindings after success and failure",
   { skip: process.platform !== "win32" },
@@ -221,6 +372,8 @@ if ($observedFailure -cne 'original-command-failure') { throw "Restoration warni
 function workspace(t: TestContext, retain?: () => boolean) {
   const root = fixture(t, retain);
   mkdirSync(path.join(root, "scripts"));
+  for (const file of ["development-scratch.mts", "node-test-suites.mts"])
+    copyFileSync(new URL("./" + file, import.meta.url), path.join(root, "scripts", file));
   copyFileSync(
     new URL("./runtime-values.mts", import.meta.url),
     path.join(root, "scripts/runtime-values.mts"),
@@ -539,6 +692,12 @@ void test("Rust support cache on a separate parent volume retains the 20 GiB adm
       syncBuiltinESMExports();
       assert.throws(
         () => preflight({ target_directory: target, rust_support_cache: target + '.portcove-rust-support' }, 20, { blockSystemDrive: false }),
+        /needs at least 20\\.0 GiB free;.*19\\.00 GiB/,
+      );
+      assert.deepEqual(probes, [target, path.dirname(target)]);
+      probes.length = 0;
+      assert.throws(
+        () => preflight({ temporary_directory: target, scratch_backing_volume: path.dirname(target) }, 20, { blockSystemDrive: false }),
         /needs at least 20\\.0 GiB free;.*19\\.00 GiB/,
       );
       assert.deepEqual(probes, [target, path.dirname(target)]);

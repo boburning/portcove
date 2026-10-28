@@ -1,3 +1,4 @@
+import { gameUpdateAcquisitionLabel } from "../port-updates/acquisition-presentation";
 import type { PortStatus } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { listingAvailabilityLabel } from "../browsing/catalog-entry";
@@ -12,6 +13,7 @@ import {
   hasPendingSetupAction,
   installedCardInputPresentation,
   portActionPresentation,
+  concurrentReadinessReasons,
 } from "./port-action-presentation";
 
 /** Shared cached observations only; no setup, launch or installation authority. */
@@ -32,7 +34,7 @@ export function browsePortPresentation(
     Boolean(port.release)
       ? catalogSetupPresentation(status)
       : undefined;
-  return { input, state, setup };
+  return { input, state, setup, concurrentBlockers: concurrentReadinessReasons(status) };
 }
 
 export function readinessPresentation(
@@ -119,4 +121,20 @@ function pendingSetupPresentation(port: CatalogEntry | undefined, status: PortSt
       action: "View setup options",
       tone: "available",
     } as const;
+}
+
+/** Visual precedence only; does not grant launch or update eligibility. */
+export function browseStatusSummary(
+  state: { tone: string },
+  status: PortStatus | undefined,
+  updateAvailable: boolean,
+) {
+  const update = status?.acquisition
+    ? gameUpdateAcquisitionLabel(status.acquisition.phase)
+    : status?.staged
+      ? "Update prepared"
+      : updateAvailable
+        ? "Update available at last check"
+        : undefined;
+  return { showReadiness: state.tone !== "ready" || !update, update };
 }

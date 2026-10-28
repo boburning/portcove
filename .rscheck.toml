@@ -250,6 +250,10 @@ allow_regex = [
   "^C:\\\\Originals\\\\日本語\\.sfc$",
   "^C:\\\\日本語$",
   "^/home/日本語$",
+  "^C:\\\\Games\\\\José$",
+  "^\\\\\\\\\\?\\\\C:\\\\Games\\\\日本語$",
+  "^\\\\\\\\\\?\\\\UNC\\\\server\\\\games$",
+  "^C:\\\\$",
 ]
 
 # exact Windows extended UNC prefix; values are exact and apply only to this file.
@@ -282,3 +286,17 @@ include = ["**/crates/portcove-core/src/adapter_unix_failure_tests.rs"]
 
 [scope.rules."portability.absolute_literal_paths"]
 allow_regex = ["^/usr/bin/false$"]
+
+# Catalog media URL path prefixes; exact values in their URL comparison owner.
+[[scope]]
+include = ["**/crates/portcove-core/src/catalog_media.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^/igdb/image/upload/$", "^/wikipedia/commons/$"]
+
+# Exact Windows path-envelope fixture values; no production-file allowance.
+[[scope]]
+include = ["**/crates/portcove-core/src/install/tests/native_paths.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^C:\\\\日本語$"]

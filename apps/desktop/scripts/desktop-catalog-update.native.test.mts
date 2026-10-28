@@ -1,16 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { readReviewFieldStyles } from "./desktop-review-presentation.mts";
 import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 
 void test("catalog field presentation reaches the browser as executable JavaScript with both element arguments", async () => {
-  const caller = readFileSync(
-    new URL("./desktop-catalog-update-test.mts", import.meta.url),
-    "utf8",
-  );
-  assert.match(caller, /\bawait\s+readReviewFieldStyles\s*\(/u);
   const fields = [
     {
       width: "240px",
@@ -49,6 +43,64 @@ void test("catalog field presentation reaches the browser as executable JavaScri
   ]);
   assert.equal(calls, 1);
   assert.deepEqual(result, fields);
+  for (const variant of [
+    "original",
+    "aliased",
+    "wrong-export",
+    "copied-reply",
+    "wrong-command",
+    "no-reply",
+  ] as const) {
+    const run = () =>
+      runDesktopModuleFixture(
+        new URL("./desktop-catalog-update-test.mts", import.meta.url),
+        `
+      const {WebDriver}=await import('selenium-webdriver');
+      const failure={code:'owned style observation refused'};
+      const fields=[{id:'public-key'},{id:'location'}];let reads=0,invocations=0,navigation=0;
+      const forbiddenEffect=()=>{throw Error('Unexpected native or later presentation effect');};
+      const fileSystem=await import('node:fs/promises');
+      mock.module('node:fs/promises',{namedExports:{...Object.fromEntries(Object.entries(fileSystem).filter(([name])=>name!=='default')),writeFile:forbiddenEffect}});
+      mock.module(new URL('./desktop-review-controls.mts',entry).href,{namedExports:{
+        reviewControls:()=>({button:value=>value,click:async()=>{navigation++;}}),
+        assertCompactReview:forbiddenEffect,assertPrimaryReviewAction:forbiddenEffect,captureAccessibilityReport:forbiddenEffect,
+      }});
+      let browser;
+      mock.module(new URL('./desktop-review-presentation.mts',entry).href,{namedExports:{readReviewFieldStyles:async(observed,...selected)=>{
+        assert.equal(observed,browser);assert.deepEqual(selected,fields);reads++;throw failure;
+      }}});
+      class ControlledBrowser extends WebDriver{
+        wait(){return {};}
+        findElement(locator){assert.ok(['catalog-public-key','catalog-update-location'].includes(locator.value));return fields[locator.value==='catalog-public-key'?0:1];}
+      }
+      browser=new ControlledBrowser();const artifacts=[];
+      const {catalogUpdateScenario}=await import(entry);
+      const variant=${JSON.stringify(variant)};
+      const execute=()=>catalogUpdateScenario({browser,artifacts,output:'owned-output',
+        scenario:async(name,action)=>{assert.equal(name,'native-catalog-update-dialog');return action();},
+        invoke:async(command)=>{assert.equal(command,'get_catalog_status');invocations++;
+          return {ok:true,value:variant==='copied-reply'?structuredClone(inertTransportReply.value):inertTransportReply?.value};},
+      });
+      if(['copied-reply','wrong-command','no-reply'].includes(variant)){
+        await assert.rejects(execute,error=>error!==failure);assert.equal(reads,0);assert.equal(navigation,0);
+      }else{
+        await assert.rejects(execute,error=>error===failure);assert.equal(reads,1);assert.equal(navigation,3);
+      }
+      assert.equal(invocations,1);assert.deepEqual(artifacts,[]);
+      `,
+        variant === "aliased" || variant === "wrong-export"
+          ? { exportName: "catalogUpdateScenario", variant }
+          : undefined,
+        variant === "no-reply"
+          ? undefined
+          : {
+              command: variant === "wrong-command" ? "other-command" : "catalog_status",
+              value: {},
+            },
+      );
+    if (variant === "wrong-export") assert.throws(run);
+    else run();
+  }
 });
 
 void test("catalog transport is required only after its scenario is selected", () => {

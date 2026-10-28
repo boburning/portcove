@@ -1,0 +1,401 @@
+{
+  "format_version": 1,
+  "kind": "dated five-identity upstream-prepared/existing-player evidence; not a live status registry",
+  "owners": [1422, 2510, 2926],
+  "pickup_main": "8d9d71b30392dc38020d8bfa99bcc43d0064fc6d",
+  "historical_identities": 5,
+  "new_listings": 0,
+  "new_operational_definitions": 5,
+  "new_source_profiles": 0,
+  "routes": [
+    {
+      "id": "zelda3",
+      "issue": 127,
+      "repo": "snesrev/zelda3",
+      "player": "zelda3.exe",
+      "original": "Use your own unchanged USA The Legend of Zelda: A Link to the Past original. The upstream extraction tools identify the US original by SHA-1 6d4f10a8b10e10dbe624cb23cf03b88bb8252973. Preserve the original outside the player folder; do not substitute a headered, translated, patched or other-region file.",
+      "prepare": "Use only an already working upstream Windows zelda3.exe with its matching generated zelda3_assets.dat, SDL2.dll, zelda3.ini and companions. If setup is incomplete, follow the linked upstream source-build and asset-extraction instructions with your matching USA original before registration. The selected v0.3 release has a BPS asset, while its tagged source loader requires DAT; these instructions do not claim that placing a ROM beside that package completes setup. Do not mix generated assets between source revisions or select a launcher, extraction batch file or compiler as the player.",
+      "data": "Preserve the entire working player folder and its actual data, including zelda3.ini, saves/sram.dat and its backup, snapshots, replays, shaders and any optional audio. Keep the creating runtime for retained SRAM, snapshots and replays; do not copy them to another runtime or infer compatibility from a matching title or RAM-comparison feature.",
+      "remaining": "Managed asset preparation and retained state compatibility remain separate #136 work. The v0.3 release asset includes a BPS file although the tag main.c asset loader uses DAT inputs; source-to-binary build provenance/complete output ownership is not established. Keep this a non-owning prepared-player route until those facts and exact runtime data coordinates are qualified.",
+      "package": {
+        "selected_release": "v0.3",
+        "release_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3",
+        "sha256": "0d8709a4a2731920f44f1ea662d665c8c5c223c40f18865692bd6b1602250fb6",
+        "asset": {
+          "id": 121826179,
+          "name": "zelda3_v0.3.zip",
+          "size": 1847661,
+          "browser_download_url": "https://github.com/snesrev/zelda3/releases/download/v0.3/zelda3_v0.3.zip",
+          "digest": null
+        },
+        "executables": [
+          {
+            "path": "zelda3.exe",
+            "bytes": 2864128,
+            "pe_machine": "0x8664",
+            "sha256": "49f18db222e25ac7b736b0c829af030e8475af1a396fd91d2ee991d60526a847"
+          }
+        ]
+      },
+      "source_commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+      "repository_id": 523544748,
+      "source_files": [
+        {
+          "path": "src/main.c",
+          "commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+          "blob": "65ca7646ff8ef0e7ad60a3969379e7f8d14e05e3",
+          "sha256": "f86257496f38081129ae18f782b7b71be57eec04bf3ccd7215c23a8e06e2c546"
+        },
+        {
+          "path": "src/config.c",
+          "commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+          "blob": "5ba0f5c248ae016e4aecdeedad0e4bd8b4d6c184",
+          "sha256": "d7c4f90eb30050919c329b1aba21f07c122ffa5220edeb059c3d9e3e7364b111"
+        },
+        {
+          "path": "src/util.c",
+          "commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+          "blob": "133a35712d8b7c609096504248aace43e4e3439a",
+          "sha256": "c3e10f83b3144618c5794d83bb9f104143104fad0d14036a95ff6f08d325174a"
+        },
+        {
+          "path": "assets/util.py",
+          "commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+          "blob": "6a8ad82521609c3dfa260d3247f269458b61d488",
+          "sha256": "dea90dbe8c2641b830c435e73a7371b17a8da5ce9f2237843d2a8024376f80da"
+        },
+        {
+          "path": "assets/restool.py",
+          "commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+          "blob": "4937c412b0e99dbc52de7d15bd13233c37ace685",
+          "sha256": "0289e7ba0969d8c34f1f7120497cb430d69c4d9544cef68a7452a33ca14682f7"
+        },
+        {
+          "path": "LICENSE.txt",
+          "commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+          "blob": "c58f6c8621360a8398598b0d199ed2eaec288ccb",
+          "sha256": "78b243fa858f4bcb49f8ccca14fec262f62fcee4e44a1ce7565840bdb4ca2217"
+        },
+        {
+          "path": "README.md",
+          "commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+          "blob": "14c8366fccbdf7fd4d0f0d13361d169e4fe75874",
+          "sha256": "bd0da33c1d697cffdfd9c51043f332bfcae2970453913b92cb2e6e8fbab7e49e"
+        },
+        {
+          "path": "src/zelda_rtl.c",
+          "commit": "43db8cc0f529a2b8004a684526d91582d0d6d5d7",
+          "blob": "1c74116b63f752e6dce3694f53b487bafe0d6b1d",
+          "sha256": "fb42bdb3dcc7b7e831e9aec0b8153eb7e75695f74adfb0e6a58f5c36ac0a773b"
+        }
+      ],
+      "record_sha256": "7a8ad6ff48e97f9047943253b40a16fc46631dfac5f680183de919bcf7be1ec5"
+    },
+    {
+      "id": "super-mario-world-snesrev-smw",
+      "issue": 339,
+      "repo": "snesrev/smw",
+      "player": "smw.exe",
+      "original": "Use your own unchanged USA Super Mario World original. The selected upstream runtime requires a 524288-byte unheadered smw.sfc for its matching packaged smw_assets.bps; BPS validation can reject a different original. Preserve the original unchanged outside the player folder. Super Mario All-Stars, translations, patched files and other editions are different inputs.",
+      "prepare": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player.",
+      "data": "Preserve the complete working player folder, smw.ini and saves tree, including title-specific SRAM, backup, snapshots, playthrough and mismatch evidence. Keep the creating runtime with every existing state. The upstream RAM comparison and replay features do not prove compatibility between builds or with another SNES runtime; do not transplant retained state.",
+      "remaining": "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute.",
+      "package": {
+        "selected_release": "v0.1",
+        "release_url": "https://github.com/snesrev/smw/releases/tag/v0.1",
+        "sha256": "f2086306d1e93617569ffca4fe010d43578ab41625dab456c3d63b2492b30db3",
+        "asset": {
+          "id": 121810952,
+          "name": "smw_0.1.zip",
+          "size": 1742607,
+          "browser_download_url": "https://github.com/snesrev/smw/releases/download/v0.1/smw_0.1.zip",
+          "digest": null
+        },
+        "executables": [
+          {
+            "path": "smw.exe",
+            "bytes": 2358272,
+            "pe_machine": "0x8664",
+            "sha256": "4eda7a60aa473bd53fd2ea928cf667fcb362c5b80882e09a00340f449f679afc"
+          }
+        ]
+      },
+      "source_commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+      "repository_id": 643020453,
+      "source_files": [
+        {
+          "path": "src/main.c",
+          "commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+          "blob": "da046dd58da31ae6fa15eeca8be3a57604be1f99",
+          "sha256": "0322d79221108e24561827498d6b55097e41f3a97bedf772035bc980d538ba92"
+        },
+        {
+          "path": "src/config.c",
+          "commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+          "blob": "a63d286d84033914233bcd3e3bd307a44a433d6b",
+          "sha256": "03b856b1b694e9f361467dad62f2790b32865eb4fb1bde8cebae37fe518a9268"
+        },
+        {
+          "path": "src/util.c",
+          "commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+          "blob": "83a0203fb8ad4c67659505a00156685e9ea7c822",
+          "sha256": "6c9f1085ad0b6762ca316b5a97072508b7f196ccf71d8adc98cb5ce973f84069"
+        },
+        {
+          "path": "other/extract.py",
+          "commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+          "blob": "9b180108fd699c7c6ca2169d00173fc15260b874",
+          "sha256": "5a056bbb5b1b3e04e630b32888cada4011547fc4e66ef81304303b4cee471557"
+        },
+        {
+          "path": "LICENSE.txt",
+          "commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+          "blob": "67f5eb132c0e44ad24a4615c5a52b90f9953e397",
+          "sha256": "ab4b1f8e8929ba4dc65f58679451157e25b005296e15d41ff61cbceaefbcac8a"
+        },
+        {
+          "path": "README.md",
+          "commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+          "blob": "8a8c97bbd01dbc206ec6bced9cbba3f38539a348",
+          "sha256": "115150070980d7a612eb85d4a4deee45bc753565a0eb9f5b7d930830c73665bd"
+        },
+        {
+          "path": "src/common_rtl.c",
+          "commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+          "blob": "4556a34f567fa9788f2bdd619874f33ae04aadec",
+          "sha256": "200ee85552912125c188f52e9fb1efa3fe5c3ac2b67767b80c2fe887694114b6"
+        },
+        {
+          "path": "src/smw_rtl.c",
+          "commit": "eae20c65c58930c8b62c76188d259579ad4130f1",
+          "blob": "fa4741fa47fb86a04a8931fed9232c43b5811af4",
+          "sha256": "47aab1cbfb231429341dff2d348512441ef41e31dcf61cda5913a5673a017e4e"
+        }
+      ],
+      "record_sha256": "5a628fa32ad3572168aa51a04232d868eb9e52e98812fcac07433ad581fb9d45"
+    },
+    {
+      "id": "sonic-3-knuckles-sonic-3-a-i-r",
+      "issue": 323,
+      "repo": "Eukaryot/sonic3air",
+      "player": "Sonic3AIR.exe",
+      "original": "Use your own compatible original combined Sonic 3 & Knuckles ROM, such as Sonic_Knuckles_wSonic3.bin from an existing lawful Steam copy. The separate Sonic 3 or Sonic & Knuckles games and unrelated collections are different inputs. Upstream can discover an existing Steam copy or ask for the ROM on first startup; it does not provide the original. The old Steam product is no longer sold.",
+      "prepare": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game.",
+      "data": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices.",
+      "remaining": "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration.",
+      "package": {
+        "selected_release": "v26.03.28.0-stable",
+        "release_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable",
+        "sha256": "f9b2151aafaa167b95f5f27c4bb5c7b53e694c54df3055369aad7f21f4538fbf",
+        "asset": {
+          "id": 382340705,
+          "name": "sonic3air_game.zip",
+          "size": 16318469,
+          "browser_download_url": "https://github.com/Eukaryot/sonic3air/releases/download/v26.03.28.0-stable/sonic3air_game.zip",
+          "digest": "sha256:f9b2151aafaa167b95f5f27c4bb5c7b53e694c54df3055369aad7f21f4538fbf"
+        },
+        "executables": [
+          {
+            "path": "sonic3air_game/bonus/oxygenengine/OxygenApp.exe",
+            "bytes": 5579776,
+            "pe_machine": "0x14c",
+            "sha256": "ae2a83d4c9d222b69a5a192cd82492963111398ae7581f7cbb4e9fd46f4c5875"
+          },
+          {
+            "path": "sonic3air_game/Sonic3AIR.exe",
+            "bytes": 6662144,
+            "pe_machine": "0x14c",
+            "sha256": "badb9174147d04bf2ca3506fd4f6ecd4b1de7cd0ca53f435a3a23ef110e29ebf"
+          }
+        ]
+      },
+      "source_commit": "29cf83c9dcc22c949e9a3e4cafda3f76b945981a",
+      "repository_id": 419820751,
+      "source_files": [
+        {
+          "path": "Oxygen/sonic3air/source/sonic3air/ConfigurationImpl.cpp",
+          "commit": "29cf83c9dcc22c949e9a3e4cafda3f76b945981a",
+          "blob": "60b08bc7d117e8cb74c7441c338b16da58124fbc",
+          "sha256": "c82b6f302dc2d1fa7d795043cb88b454d7e43633627071de7d264a64018c6dbf"
+        },
+        {
+          "path": "Oxygen/sonic3air/_master_image_template/doc/license.txt",
+          "commit": "29cf83c9dcc22c949e9a3e4cafda3f76b945981a",
+          "blob": "3877ae0a7ff6f94ac222fd704e112723db776114",
+          "sha256": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809"
+        },
+        {
+          "path": "README.md",
+          "commit": "29cf83c9dcc22c949e9a3e4cafda3f76b945981a",
+          "blob": "44374463499d56dabd7b39878909b5034d7ffc23",
+          "sha256": "f6fc2bec12b0e2ae8ae2583ec52c9fddc27827e63cf22a468d3d96797af9a550"
+        },
+        {
+          "path": "Oxygen/oxygenengine/source/oxygen/application/Configuration.cpp",
+          "commit": "29cf83c9dcc22c949e9a3e4cafda3f76b945981a",
+          "blob": "d4ed941f0c0be09d211564a352b39c8c50cc3926",
+          "sha256": "fab93a78f453ee4467db594d116a1530d7dc5c83b9eeee1805faff087f57e3b3"
+        },
+        {
+          "path": "Oxygen/oxygenengine/source/oxygen/platform/PlatformFunctions.cpp",
+          "commit": "29cf83c9dcc22c949e9a3e4cafda3f76b945981a",
+          "blob": "34b40642092a111e367101cfcab1c27675499495",
+          "sha256": "148db55af6f736bd5cb7f09eb9756ffee7f7364ab97cfeec86f7b43240932b05"
+        }
+      ],
+      "record_sha256": "7a9435ac3d1107b9659abf1892c839adad05b6688bfa272220f022f3ee9f797a"
+    },
+    {
+      "id": "super-mario-64-sm64-co-op-dx",
+      "issue": 322,
+      "repo": "coop-deluxe/sm64coopdx",
+      "player": "sm64coopdx.exe",
+      "original": "Use your own unchanged US Super Mario 64 big-endian .z64 original. The selected v1.5.1 runtime accepts MD5 20b854b239203baf6c961b850a4a51a2; its other regional table entries are disabled. Upstream scans the player/user folders or accepts a deliberate ROM drop, and may copy the accepted original to its user profile as baserom.us.z64. Preserve the original independently; byte-swapped, modified and other-region files are different inputs. An already existing cached baserom.us.z64 is not overwritten by a newly selected ROM; preserve and check the actual upstream copy rather than assuming selection replaced it.",
+      "prepare": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player.",
+      "data": "Before explicit Play, preserve the actual existing user profile and creating runtime. On Windows the upstream default checks %APPDATA%/sm64coopdx and can instead reuse a populated %APPDATA%/sm64ex-coop folder; an existing --savepath override changes that selection. Preserve both relevant roots and the actual selected path, copied ROM, saves, configuration, mods and caches. A new executable folder does not isolate these profiles. Do not change the path, adopt populated legacy data, add mods or migrate profiles through this guide. Upstream can start its own updater and successor process; close all game/updater windows and confirm they stopped before copying or replacing files.",
+      "remaining": "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested.",
+      "package": {
+        "selected_release": "v1.5.1",
+        "release_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1",
+        "sha256": "2a98c40acb2a46d30cde89f3072c039b641dbdf977985f9e82a040615f1b2381",
+        "asset": {
+          "id": 434835411,
+          "name": "sm64coopdx_Windows.zip",
+          "size": 41801915,
+          "browser_download_url": "https://github.com/coop-deluxe/sm64coopdx/releases/download/v1.5.1/sm64coopdx_Windows.zip",
+          "digest": "sha256:2a98c40acb2a46d30cde89f3072c039b641dbdf977985f9e82a040615f1b2381"
+        },
+        "executables": [
+          {
+            "path": "sm64coopdx.exe",
+            "bytes": 55941737,
+            "pe_machine": "0x8664",
+            "sha256": "80e934fdf113ab7ba1ec3cc1d1fde07fc0e618b6c61f48727289d31c66216be7"
+          },
+          {
+            "path": "coopdx_updater.exe",
+            "bytes": 5299200,
+            "pe_machine": "0x8664",
+            "sha256": "711a51b7c1c3ed354737d5e3b6eaae4ed7543e3e8555a1a919362c8ef95db48d"
+          }
+        ]
+      },
+      "source_commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+      "repository_id": 711719783,
+      "source_files": [
+        {
+          "path": "src/pc/rom_checker.cpp",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "345bd099dd5d483802c57546ad5f47bf83adf8a5",
+          "sha256": "81c745418502bb3a2094f6efe1b5fb768ca4cd0f8330f649a8c16db87bdba8c6"
+        },
+        {
+          "path": "src/pc/fs/fs.c",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "0b4b5849d1c80ea9074fedc421e93558307ac02f",
+          "sha256": "47bbe5c7585335729c1fc1468d88a4c3d56a38d73006ca343910c3fecb89d82a"
+        },
+        {
+          "path": "src/pc/configfile.c",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "20889135bdb0ce8e523edb8496cc7bb749068e52",
+          "sha256": "8ea17da6776af94f2a400748190780d932ce84bd127572eba316ca0e63d830bb"
+        },
+        {
+          "path": "src/pc/update_checker.c",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "0cefcb6a7bea14f7030599aff798e13130c75871",
+          "sha256": "34af2ba4174f17efc942ab66489f1d04896ba757ca2e9f6a964f258e097e3665"
+        },
+        {
+          "path": "sm64.us.sha1",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "e0903e84f5e4293c9975b0d1d8fd1c1860f7dee8",
+          "sha256": "b7b7664afe5061e430e10ac70c1764b9c742c8a1fcef204133c58fa048ac80a4"
+        },
+        {
+          "path": "README.md",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "16ae934acf3c2b5628b4339d9adb16d3e589dacf",
+          "sha256": "6cfb9e982762f80e8db31d5043ddc83e96d4042ed686fd04e36a4c29201e97d0"
+        },
+        {
+          "path": "src/pc/pc_main.c",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "0d4f9f7fb11a12ec16325ca2f547cf6b2ef8abfc",
+          "sha256": "97d56819c6835f531c2aecdb4000d1d9f26c9b921f3fe0d38bd924ac2b76dfb8"
+        },
+        {
+          "path": "src/pc/platform.c",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "2eba403947873805856a48ed49ad824e7dfec6ca",
+          "sha256": "30f092e16b5c4e729860bade400cdc7a5c2997c2d1c3539810e862c7faf3010d"
+        },
+        {
+          "path": "src/pc/cliopts.c",
+          "commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+          "blob": "07cc041c2c2150a9a506f4164a3775cc6315f9ec",
+          "sha256": "d86e2bca318b84eeaffe0c946381ae379b53de837c98642f1d3ed625a2640bb0"
+        }
+      ],
+      "record_sha256": "26c90849e8965f1cb1beffedf9df16634d9e49c443a2ee60df2174b607316aee"
+    },
+    {
+      "id": "wipeout-phantom-edition",
+      "issue": 119,
+      "repo": "wipeout-phantom-edition/wipeout-phantom-edition",
+      "player": "wipeout.exe",
+      "original": "Use data from your own PlayStation USA-region WipeOut disc; the official PC version is incompatible. Upstream supports the matching multi-bin/cue image with nine BIN tracks and one CUE, first data track MODE2/2352 and other tracks AUDIO, or its complete 517-file loose game set. Preserve every original image/track and cue outside the player folder. A generic ISO, another region or another game is a different input.",
+      "prepare": "Use the official v1.2.256 Windows x64 ZIP and keep its complete wipeout folder. Follow the packaged README: provide matching original image copies in diskimages for upstream extraction, or the matching complete loose set in wipeoutgame with optional correctly named music in music. Finish normal upstream setup successfully before registration. The upstream player performs extraction during startup; this is not Portcove disc preparation or source authentication. Register wipeout.exe from the wipeout folder, not an extraction helper.",
+      "data": "Preserve the whole working wipeout folder, generated game/music data, configuration and progress files, plus the actual existing external profile if this installation uses one. The published source repository provides documentation and images rather than the player implementation, so a complete writer map is not established here. Keep the creating runtime and originals; do not delete source tracks just because upstream no longer needs them after extraction, transplant progress, or assume that replacing an executable preserves compatibility.",
+      "remaining": "Managed disc preparation and exact writer/retained-data coordinates remain unqualified; missing PS1 family primitives belong to #135. This safe existing prepared-player guide does not substitute a per-title parser or claim complete loose-file authentication.",
+      "package": {
+        "selected_release": "v1.2.256",
+        "release_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256",
+        "sha256": "f63eca6d14ca4995083b2127fb8912d94a58437791da843e0899522c8664fb23",
+        "asset": {
+          "id": 152052242,
+          "name": "wipeout-x64-release.zip",
+          "size": 3619822,
+          "browser_download_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/download/v1.2.256/wipeout-x64-release.zip",
+          "digest": null
+        },
+        "executables": [
+          {
+            "path": "wipeout/wipeout.exe",
+            "bytes": 968192,
+            "pe_machine": "0x8664",
+            "sha256": "6c201d04b4361b09dd2be4e907011914d11c73738a544a28b7815b4cb67e8229"
+          }
+        ]
+      },
+      "source_commit": "1d0141ebc6594902c7de176d034529a763079ed2",
+      "repository_id": 663795157,
+      "source_files": [
+        {
+          "path": "README.md",
+          "commit": "1d0141ebc6594902c7de176d034529a763079ed2",
+          "blob": "01dd1d496a5c7e7da30c4881960d16336673bd67",
+          "sha256": "f91f6a4b792e223fa1926683687d4f0648c6ae85d17014c87781b27c6b1e4ca2"
+        }
+      ],
+      "record_sha256": "2c00467ed093ac8374a91a2d2618c568429ab5b87e27ab89c3594aabdf3c1d2e"
+    }
+  ],
+  "held_sixth": {
+    "issue": 368,
+    "id": "sonic-the-hedgehog-2013-derived-sonic-1-forever",
+    "reason": "Official package contains SonicForever.exe (PE32 x86), but fetched README and release text do not establish a sufficient original-data/setup/profile contract. Do not guess a matching Data.rsdk identity or infer automatic managed permission. Obtain exact official setup/data revision and profile evidence, or qualify a precise already-working player route separately."
+  },
+  "evidence_limits": [
+    "Downloaded package hashes are observed bytes, not publisher authentication unless separately published and verified. No strict managed package operation is added.",
+    "Package/source/manual inspection is not successful original-game preparation, native execution, gameplay, saves, input or Supported evidence.",
+    "Source tag and release binary build provenance are not proven equivalent. In particular zelda3 v0.3 tag main.c uses DAT while released package includes BPS.",
+    "Existing support arrays, integrations, source profiles and retained Direct/legacy decisions remain unchanged.",
+    "Frozen historical membership remains317rows/316identities; the5 are existing members, zero additions. Accepted useful routes and supported-operation totals remain not_evaluated."
+  ],
+  "offered_operation_contract": "Existing user-selected executable/working-directory/literal-argument registration, explicit supervised Play, retained restart and registration-only removal; no managed runtime or gameplay acceptance.",
+  "operation_binding_regression": "service::user_selected::tests::historical_route_* (ten independently bounded cases sharing assert_historical_prepared_player_route)",
+  "operation_probe_scope": "Ten individually bounded real-ID cases. Windows exercises the declared selected-runtime definition and retained platform contract; Linux exercises generic user-selected fallback. Existing generic adversarial guards and a pre-declaration registration continuation control retain their distinct authority.",
+  "definition_contract": "Existing DKR-R UserPrepared/UserSelected contract, Windows x86-64, user-managed runtime, no immutable package/source/persistence authority; declaration offers explicit registration/Play and registration-only removal."
+}

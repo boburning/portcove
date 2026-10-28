@@ -638,6 +638,14 @@ release checksums by architecture, and desktop-driver pins.
 `.config/powershell-resources.psd1` owns the exact PSScriptAnalyzer module version
 downloaded from PSGallery through PSResourceGet on Windows.
 
+The provider-selected pnpm must match `package.json`. `pmOnFail: error` refuses a
+mismatched provider without downloading a replacement and keeps pnpm 12's
+toolchain integrity document when lock maintenance regenerates `pnpm-lock.yaml`.
+`pmOnFail: ignore` suppresses generation of that document. The required dependency
+automation contracts validate the root pin, maintained platform artifacts and
+complete recorded dependency closure separately from application dependencies.
+Keep `runtimeOnFail: ignore`; the active environment continues to own Node.
+
 The Windows bootstrap verifies and atomically promotes these payloads beneath the
 shared local application-data cache, then writes ignored checkout shims. Aqua
 roots are content-keyed from every applicable repository pin. Repository command
@@ -675,9 +683,13 @@ optional deep tools remain outside required PR CI.
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
-Routine Renovate traffic is bounded to four concurrent branches and pull requests.
+Routine Renovate traffic is bounded to six concurrent branches and pull requests.
 This provides proposal headroom for blocked updates while the maintenance route
 retains one local implementer; proposal capacity is not execution concurrency.
+The October 28 maintenance cycle observed all four previous slots occupied by
+retained failures or service/acceptance holds, blocking sixteen independent
+updates. Two additional proposal slots provide finite intake headroom; existing
+CI execution, resource admission and spending limits remain unchanged.
 Hourly PR and commit caps are disabled (`prHourlyLimit: 0` and
 `commitHourlyLimit: 0`), so eligible proposals and conflict repairs can replenish
 available slots without waiting for the next hour. This does not change the
@@ -1231,7 +1243,7 @@ a newer version must pass the original reproducer and affected-consumer assessme
 Do not repeatedly rebase unchanged blockers, disable a whole dependency or close
 a genuine failure to free capacity. Verify a linked replacement's delivery before
 closing its superseded original; an explicit owner decision may reject an update.
-The four-proposal limit does not increase automatically when all slots are occupied.
+The six-proposal limit does not increase automatically when all slots are occupied.
 
 Frontend resolution uses pnpm 12.11.2's native `minimumReleaseAge: 1440`
 and `minimumReleaseAgeStrict: false`. It prefers eligible versions within a

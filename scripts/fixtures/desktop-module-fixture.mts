@@ -9,7 +9,14 @@ export function runDesktopModuleFixture(
   entry: URL,
   program: string,
   control?: { exportName: string; variant: "aliased" | "wrong-export" },
+  reply?: { command: string; value: Record<string, unknown> },
 ) {
+  if (reply !== undefined) {
+    assert.ok(typeof reply.command === "string" && reply.command.length > 0);
+    assert.ok(
+      reply.value !== null && typeof reply.value === "object" && !Array.isArray(reply.value),
+    );
+  }
   const environment = { ...process.env };
   delete environment.NODE_TEST_CONTEXT;
   const result = spawnSync(
@@ -25,19 +32,24 @@ export function runDesktopModuleFixture(
         import * as childProcess from 'node:child_process';
         const entry=${JSON.stringify(entry.href)};
         const control=${JSON.stringify(control ?? null)};
+        const inertTransportReply=${JSON.stringify(reply ?? null)};
         const forbidden=()=>{throw Error('Native process execution is forbidden in this fixture');};
         process.kill=forbidden;
         mock.module('node:child_process',{namedExports:Object.fromEntries(
           Object.entries(childProcess).filter(([name])=>name!=='default').map(([name,value])=>
             [name,typeof value==='function'?forbidden:value])
         )});
-        // These scenarios must stop before accepting any native IPC reply.
+        // Actual IPC replies remain forbidden. One explicitly declared inert
+        // producer object may cross by identity for a selected caller contract.
         mock.module(new URL('./transport-values.mts',entry).href,{namedExports:{
-          transportValue:forbidden,transportValues:forbidden,
+          transportValue:(command,value)=>{
+            if(!inertTransportReply||command!==inertTransportReply.command||value!==inertTransportReply.value)return forbidden();
+            return value;
+          },transportValues:forbidden,
         }});
         registerHooks({resolve(specifier,context,next){
           if(specifier==='selenium-webdriver')return {url:'data:text/javascript,'+encodeURIComponent(
-            'export class WebDriver{};export const By={css:value=>value,xpath:value=>value,id:value=>value};export const Key={};export const until={elementLocated:value=>value};'
+            'export class WebDriver{};export const By={css:value=>({using:"css selector",value}),xpath:value=>({using:"xpath",value}),id:value=>({using:"id",value})};export const Key={};export const until={elementLocated:value=>value,elementIsVisible:element=>({fn:()=>element.isDisplayed()}),elementIsEnabled:element=>({fn:()=>element.isEnabled()})};'
           ),shortCircuit:true};
           if(specifier==='axe-core')return {url:'data:text/javascript,export default {}',shortCircuit:true};
           if(!isBuiltin(specifier)&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))
@@ -47,9 +59,11 @@ export function runDesktopModuleFixture(
           const loaded=next(url,context);if(url!==entry||!control)return loaded;
           if(control.variant==='wrong-export')
             return {...loaded,source:'export async function '+control.exportName+'(){}'};
-          const renamed='$actualScenario';
-          return {...loaded,source:String(loaded.source).replaceAll(control.exportName,renamed)+
-            '\\nexport {'+renamed+' as '+control.exportName+'};\\n'};
+          // Native ESM aliases also support implementation-local export aliases.
+          const actual=new URL(entry);actual.searchParams.set('portcove-module-fixture','actual');
+          const from=JSON.stringify(actual.href),name=JSON.stringify(control.exportName);
+          return {...loaded,source:'import {'+name+' as $actualScenario} from '+from+';\\n'+
+            'export * from '+from+';\\nexport {$actualScenario as '+name+'};\\n'};
         }});
         ${program}
       `,

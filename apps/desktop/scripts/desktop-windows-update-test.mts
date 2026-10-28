@@ -20,6 +20,12 @@ import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mts";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
 import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mts";
 import {
+  readWindowsUpdateProcessMarker as processMarker,
+  readWindowsUpdateProcessObservation as markedObservation,
+  type WindowsUpdateProcessMarker as ProcessMarker,
+  type WindowsUpdateProcessObservation as MarkedObservation,
+  type WindowsUpdateExitCapture,
+  startWindowsUpdateExitObservation,
   awaitInstalledUpdateDriver,
   connectInstalledUpdateDriver,
   hashFile,
@@ -86,16 +92,6 @@ assert.ok(
 const drivers = embedded ? null : cachedDesktopDrivers();
 assert.ok(embedded || drivers, "Pinned Tauri and WebView2 drivers are unavailable");
 await mkdir(output, { recursive: false });
-interface ProcessMarker {
-  schema_version: 1;
-  process_id: number;
-  executable: string;
-}
-interface MarkedObservation {
-  status: "captured" | "exited" | "prior-process-exited" | "stopped";
-  pid: number;
-  path?: string;
-}
 interface MarkedExit {
   capture: MarkedObservation;
   exit: MarkedObservation;
@@ -131,6 +127,7 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
     installed_executable_sha256: string;
   };
   helper_result?: Record<string, unknown>;
+  helper_os_exit?: WindowsUpdateExitCapture;
   natural_process_exit?: Record<ProcessLabel, MarkedExit>;
   restart_command?: unknown;
   failure_capture?: string;
@@ -152,33 +149,6 @@ function object(value: unknown): Record<string, unknown> {
 function positivePid(value: unknown): number {
   assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
   return value;
-}
-function processMarker(value: unknown): ProcessMarker {
-  const marker = object(value);
-  assert.equal(marker.schema_version, 1);
-  assert.ok(typeof marker.executable === "string" && path.win32.isAbsolute(marker.executable));
-  return {
-    ...marker,
-    schema_version: 1,
-    process_id: positivePid(marker.process_id),
-    executable: marker.executable,
-  };
-}
-function markedObservation(value: unknown): MarkedObservation {
-  const observation = object(value);
-  const status = observation.status;
-  assert.ok(
-    status === "captured" ||
-      status === "exited" ||
-      status === "prior-process-exited" ||
-      status === "stopped",
-  );
-  const result: MarkedObservation = { ...observation, status, pid: positivePid(observation.pid) };
-  if (observation.path !== undefined) {
-    assert.ok(typeof observation.path === "string" && path.win32.isAbsolute(observation.path));
-    result.path = observation.path;
-  }
-  return result;
 }
 const report: WindowsUpdateReport = {
   schema_version: 1,
@@ -206,6 +176,7 @@ let snapshot: NativeProcessSnapshot | undefined;
 let activeSnapshotPath = snapshotPath;
 let restartStarted: string | undefined;
 let embeddedSession: EmbeddedSession | undefined;
+let helperExitObserver: ReturnType<typeof startWindowsUpdateExitObservation> | undefined;
 
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
@@ -432,6 +403,18 @@ try {
   );
   assert.equal((await hashFile(helper.executable)).sha256, report.initial_executable_sha256);
   report.helper_process_marker = helper;
+  assert.ok(restartStarted);
+  helperExitObserver = startWindowsUpdateExitObservation(markedProcess, [
+    "-MarkerPath",
+    helperMarker,
+    "-IdentityPath",
+    path.join(output, "helper-os-exit-identity.json"),
+    "-ExpectedPath",
+    helper.executable,
+    "-EarliestStart",
+    restartStarted,
+    "-Helper",
+  ]);
   const relaunch = processMarker(
     await waitFor(() => readJson(relaunchMarker), "helper-owned candidate process marker", 90_000),
   );
@@ -469,6 +452,16 @@ try {
   assert.equal(helperResult.process_id, helper.process_id);
   assert.equal(helperResult.exit_code, 0);
   report.helper_result = helperResult;
+  report.helper_os_exit = await helperExitObserver.result;
+  assert.equal(report.helper_os_exit.kind, "observation", "Helper OS exit observation failed");
+  assert.ok(report.helper_os_exit.kind === "observation");
+  assert.equal(report.helper_os_exit.observation.pid, helper.process_id);
+  assert.equal(
+    report.helper_os_exit.observation.status,
+    "exit-observed",
+    "Helper OS exit was not captured",
+  );
+  assert.equal(report.helper_os_exit.observation.exit_code, 0);
   report.natural_process_exit = {
     candidate: await awaitMarkedProcessExit(relaunchMarker, "candidate"),
     helper: await awaitMarkedProcessExit(helperMarker, "helper"),
@@ -504,6 +497,12 @@ try {
   await recordInstalledUpdateFailure(report, error, helperMarker);
   process.exitCode = 1;
 } finally {
+  if (helperExitObserver) {
+    // Settle this read-only child before existing cleanup can stop the helper;
+    // forced cleanup must never become a claimed natural OS exit observation.
+    if (!report.helper_os_exit) helperExitObserver.cancel();
+    report.helper_os_exit ??= await helperExitObserver.result;
+  }
   if (!snapshot && driver?.exitCode === null) {
     try {
       snapshot = nativeSessionCommand("Snapshot");

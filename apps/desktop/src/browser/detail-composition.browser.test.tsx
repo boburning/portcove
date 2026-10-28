@@ -180,12 +180,16 @@ it("keeps whole-image portrait, landscape, square and missing artwork at a fixed
   await capture("artwork-4-dark");
 });
 
+// CI40745384613/a1 macOS producer123018113028 reached the15s case
+// deadline while these complete multi-step observations were progressing.
+// Preserve every interaction, assertion, matrix row and cleanup; calibrate only
+// this test-family safeguard to45s, without changing product deadlines.
 it.each(["dark", "light"])(
   "renders staged, external, downloaded and backup-failure panels in %s",
   async (theme) => {
     await page.viewport(960, 640);
     await mount(theme, "details");
-    await page.getByRole("button", { name: "Review prepared update", exact: true }).click();
+    await page.getByRole("button", { name: "Update prepared", exact: true }).click();
     await expect
       .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
       .toHaveFocus();
@@ -268,6 +272,7 @@ it.each(["dark", "light"])(
     contained();
     await capture(`backup-error-${theme}-960`, false);
   },
+  45_000,
 );
 
 it.each(["dark", "light"])("renders the production preparation owner in %s", async (theme) => {

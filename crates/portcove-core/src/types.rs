@@ -607,6 +607,8 @@ pub struct PersistentFilePattern {
 #[serde(rename_all = "kebab-case")]
 pub enum WindowsRuntimePathPolicy {
     PrintableAsciiMaxPath,
+    /// Legacy relative file access; no restriction on the character repertoire.
+    RelativeFileMaxPath,
 }
 
 /// Closed initialization recipes, never catalog-supplied scripts or file contents.

@@ -157,11 +157,21 @@ fn observe(source: &Path, destination: &Path, transfer_id: &str, plan_sha256: &s
 }
 
 fn sequence(fault: TransferPhase, initial: Model, script: u8) {
+    let started = std::time::Instant::now();
+    let phase = |name: &str| {
+        eprintln!(
+            "move sequence fault={fault:?} script={script} phase={name} elapsed={:?}",
+            started.elapsed()
+        );
+    };
+    phase("fixture begin");
     let temporary = tempfile::tempdir().unwrap();
     let source = temporary.path().join("source");
     let destination = temporary.path().join("destination");
     let service = super::tests::fixture(&source);
+    phase("fixture complete; plan begin");
     let plan = service.plan_library_move(&destination).unwrap();
+    phase("plan complete");
     drop(service);
     let error = start_move(&source, &destination, &plan.plan_sha256, &|phase| {
         if phase == fault {
@@ -171,6 +181,7 @@ fn sequence(fault: TransferPhase, initial: Model, script: u8) {
         }
     })
     .unwrap_err();
+    phase("interrupted move complete");
     assert_eq!(error.message, "sequence model interruption");
     let source = fs::canonicalize(source).unwrap();
     let destination = fs::canonicalize(destination).unwrap();
@@ -178,12 +189,14 @@ fn sequence(fault: TransferPhase, initial: Model, script: u8) {
     let mut model = initial;
     let mut payload = b"save".to_vec();
     let check = |step, model: Model, payload: &[u8]| {
+        phase(&format!("observation {step} begin"));
         let actual = observe(&source, &destination, &id, &plan.plan_sha256);
         assert_eq!(
             compare_step(step, &model.observation(payload), &actual),
             Ok(()),
             "fault={fault:?}, script={script}, actual={actual:?}"
         );
+        phase(&format!("observation {step} complete"));
     };
     check(0, model, &payload);
     if matches!(model, Model::Activated) {
@@ -199,10 +212,12 @@ fn sequence(fault: TransferPhase, initial: Model, script: u8) {
             Command::Abort
         };
         let (next, accepted) = model.transition(command);
+        phase(&format!("command {step} {command:?} begin"));
         let result = match command {
             Command::Resume => PortcoveService::resume_library_move(&source),
             Command::Abort => PortcoveService::abort_library_move(&source),
         };
+        phase(&format!("command {step} {command:?} complete"));
         assert_eq!(
             result.is_ok(),
             accepted,

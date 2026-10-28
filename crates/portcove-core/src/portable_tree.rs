@@ -134,6 +134,20 @@ mod tests {
     }
 
     #[test]
+    fn unicode_18_casefold_aliases_preserve_original_paths() {
+        // Unicode 18 assigns A7DD and folds it to the existing U+0277.
+        // Keys are collision checks; the filesystem spelling must stay intact.
+        let upper = "assets/\u{a7dd}.bin";
+        let lower = "assets/\u{0277}.bin";
+        let (upper_path, upper_key) = validate_relative_path(upper, false).unwrap();
+        let (lower_path, lower_key) = validate_relative_path(lower, false).unwrap();
+        assert_eq!(upper_path.to_str(), Some(upper));
+        assert_eq!(lower_path.to_str(), Some(lower));
+        assert_eq!(upper_key, lower_key);
+        assert_eq!(upper_key, lower);
+    }
+
+    #[test]
     fn collision_keys_reorder_unicode_18_combining_marks() {
         // Unicode 18 assigns U+1AEE combining class 220, before U+0301 (230).
         // Preserve the actual names while recognizing their canonical alias.
