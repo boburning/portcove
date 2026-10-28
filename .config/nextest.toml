@@ -659,3 +659,24 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
+
+# CI40734477018/a1 reached preparation completion at27.579s, then launch
+# before this exact Windows diagnostics fixture hit the30.052s harness cap.
+# Match its existing Linux90s lifecycle allowance. Preserve every phase,
+# flush/child deadlines, assertions, cleanup, concurrency and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# CI40734477018/a1 retained30.127s/30.088s cutoffs in these two complete
+# move-recovery command-pair fixtures, without internal phase output. Give only
+# those Windows identities finite60s diagnostic room; do not infer the cause.
+# Preserve the full command sequence, each intermediate ownership observation,
+# assertions, worker slots, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
