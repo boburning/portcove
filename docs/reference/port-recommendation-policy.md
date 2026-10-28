@@ -37,14 +37,14 @@ not applicable. Ratings below are scoped assertions supported by attributable
 facts, not per-port numeric catalog fields. The collector-to-rubric interpretation
 is not implemented by this foundation and remains part of #251 integration.
 
-| Dimension | Weight | 0 | 1 | 2 | 3 | 4 | 5 |
-| --- | ---: | --- | --- | --- | --- | --- | --- |
-| Gameplay | 30% | Cannot perform the assessed gameplay | Major required content unavailable | Material progression/mechanics defects | Main assessed loop works with stated limitations | Assessed progression works with minor defects | Complete assessed scope works without a known material defect |
-| Stability/save reliability | 20% | Confirmed destructive or unusable behavior | Frequent assessed crashes/save failures | Material reliability gaps | Repeatable assessed play and save/load with stated limitations | Repeated reliable sessions and recovery | Repeated assessed lifecycle and recovery without a known material failure |
-| Performance | 15% | Unusable in the assessed environment | Severe sustained interruption | Material pacing/resource problems | Playable within stated measured limits | Consistent measured performance | Consistent measured performance meeting the stated target throughout the assessed scope |
-| Controls/capabilities | 15% | Required interaction unusable | Major interaction gaps | Material control limitations | Assessed interaction works with stated limitations | Useful assessed controls/accessibility work | Relevant assessed interaction/capability goals all work |
-| Setup/update | 15% | Assessed route cannot complete | Major unrecoverable setup problems | Significant manual/recovery limitations | Repeatable assessed setup with stated limitations | Repeatable setup, verification and updates | Assessed setup/update/recovery goals all work |
-| Maintenance outlook | 5% | Explicit abandonment of required continuity | Known unresolved continuity failure | Material stated continuity limits | Attributable continuity with stated limitations | Demonstrated relevant regression handling | Demonstrated relevant continuity and succession handling |
+| Dimension                  | Weight | 0                                           | 1                                       | 2                                       | 3                                                              | 4                                             | 5                                                                                       |
+| -------------------------- | -----: | ------------------------------------------- | --------------------------------------- | --------------------------------------- | -------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Gameplay                   |    30% | Cannot perform the assessed gameplay        | Major required content unavailable      | Material progression/mechanics defects  | Main assessed loop works with stated limitations               | Assessed progression works with minor defects | Complete assessed scope works without a known material defect                           |
+| Stability/save reliability |    20% | Confirmed destructive or unusable behavior  | Frequent assessed crashes/save failures | Material reliability gaps               | Repeatable assessed play and save/load with stated limitations | Repeated reliable sessions and recovery       | Repeated assessed lifecycle and recovery without a known material failure               |
+| Performance                |    15% | Unusable in the assessed environment        | Severe sustained interruption           | Material pacing/resource problems       | Playable within stated measured limits                         | Consistent measured performance               | Consistent measured performance meeting the stated target throughout the assessed scope |
+| Controls/capabilities      |    15% | Required interaction unusable               | Major interaction gaps                  | Material control limitations            | Assessed interaction works with stated limitations             | Useful assessed controls/accessibility work   | Relevant assessed interaction/capability goals all work                                 |
+| Setup/update               |    15% | Assessed route cannot complete              | Major unrecoverable setup problems      | Significant manual/recovery limitations | Repeatable assessed setup with stated limitations              | Repeatable setup, verification and updates    | Assessed setup/update/recovery goals all work                                           |
+| Maintenance outlook        |     5% | Explicit abandonment of required continuity | Known unresolved continuity failure     | Material stated continuity limits       | Attributable continuity with stated limitations                | Demonstrated relevant regression handling     | Demonstrated relevant continuity and succession handling                                |
 
 These are bounded rubrics, not claims of universal completeness. A rating of five
 covers only its recorded scope. An old, quiet but working project receives no
@@ -55,15 +55,15 @@ size, language and recompilation technique are not inputs.
 
 Strength is a reproducible coefficient, not probability of successful play:
 
-| Evidence kind | Applicable dimensions | Strength |
-| --- | --- | ---: |
-| Upstream declared | Any, as an attributable claim only | 250/1000 |
-| Artifact inspected | Controls and setup | 500/1000 |
-| Setup observed | Setup | 1000/1000 |
-| Launch observed | Setup only; not gameplay or save reliability | 750/1000 |
-| Gameplay observed | Gameplay, stability and controls | 1000/1000 |
-| Performance observed | Performance | 1000/1000 |
-| Maintenance observed | Maintenance | 1000/1000 |
+| Evidence kind        | Applicable dimensions                        |  Strength |
+| -------------------- | -------------------------------------------- | --------: |
+| Upstream declared    | Any, as an attributable claim only           |  250/1000 |
+| Artifact inspected   | Controls and setup                           |  500/1000 |
+| Setup observed       | Setup                                        | 1000/1000 |
+| Launch observed      | Setup only; not gameplay or save reliability |  750/1000 |
+| Gameplay observed    | Gameplay, stability and controls             | 1000/1000 |
+| Performance observed | Performance                                  | 1000/1000 |
+| Maintenance observed | Maintenance                                  | 1000/1000 |
 
 Unsupported observation-kind/dimension combinations supply no strength. Future
 observations supply no present strength. Unchanged exact-artifact observations do
