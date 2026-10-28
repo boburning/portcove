@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
 
 void test("design assertions execute erased serialized callbacks and refuse missing required controls", async () => {
-  for (const mode of ["ordinary", "embedded", "missing-root", "missing-select"]) {
+  for (const mode of ["ordinary", "missing-root", "missing-select"]) {
     let theme = "dark",
       direction = "ltr",
       dialog = false,
@@ -146,7 +146,6 @@ void test("design assertions execute erased serialized callbacks and refuse miss
       By: { css: (selector: string) => ({ selector }), id: (selector: string) => ({ selector }) },
       Key: { ESCAPE: "ESCAPE", ENTER: "ENTER", ARROW_DOWN: "ARROW_DOWN" },
       until: { elementLocated: (locator: unknown) => locator },
-      embeddedMacKeyboard: mode === "embedded",
     };
     if (mode.startsWith("missing-")) {
       await assert.rejects(async () => {

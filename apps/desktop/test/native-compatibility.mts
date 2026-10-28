@@ -105,7 +105,6 @@ try {
     By,
     Key,
     until,
-    embeddedMacKeyboard: true,
   });
   await writeFile(
     path.join(evidenceDirectory, "design-compatibility-environment.json"),
