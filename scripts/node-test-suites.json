@@ -1323,6 +1323,7 @@
           "prerequisite": "Windows current-token process/job/pipe APIs and PowerShell7 compilation; no separate account logon",
           "reason": "These bounded current-token controls require Windows APIs; the complete Windows owner runs them without account, GUI or protected acceptance.",
           "cases": [
+            "diagnostic controller resolves the PATH-first Node and refuses a wrong first version before effects",
             "hosted candidate launcher and memory bridge refuse before effects under separate source holds",
             "closed credential purpose keeps primary default and separately names public proof without reading credentials",
             "bridge state retains actual root image and startup identity for partial or complete capture",

@@ -721,3 +721,14 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
+
+# CI40751890477/a1 Windows partitions3/4 retained30.075/30.024s cutoffs
+# in complete generated-output and all-port projection matrices. The same
+# cases passed at29.733/28.959s in40748328568/a1. Keep every route/port and
+# assertion, add phase evidence, and allow only these exact cases finite60s
+# diagnostic headroom. No product deadline, worker count or retry changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route$/) | test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"

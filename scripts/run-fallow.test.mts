@@ -41,7 +41,8 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
     const spawn: FallowSpawn = (command, args, options) => {
       const nativeArgs = [...args];
       nativeArgs[nativeArgs.indexOf("--root") + 1] = directory;
-      if (readFileSync(path.join(directory, "entry.ts"), "utf8").includes("broken")) {
+      const source = readFileSync(path.join(directory, "entry.ts"), "utf8");
+      if (source.includes("broken") || source.includes("nested")) {
         const unarmed = spawnSync(
           command,
           nativeArgs.filter((arg) => arg !== "--fail-on-parse-error"),
@@ -62,14 +63,16 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
       }
       return spawnSync(command, nativeArgs, { ...options, cwd: directory, timeout: 30_000 });
     };
-    for (const state of ["parse-degraded", "unreadable", "valid"]) {
+    for (const state of ["parse-degraded", "nesting-too-deep", "unreadable", "valid"]) {
       writeFileSync(
         path.join(directory, "entry.ts"),
         state === "parse-degraded"
           ? "export const broken = ;"
-          : state === "unreadable"
-            ? Buffer.from([0xff, 0xfe, 0xfd])
-            : 'console.log("valid");',
+          : state === "nesting-too-deep"
+            ? `export const nested = ${"(".repeat(1034)}0${")".repeat(1034)};`
+            : state === "unreadable"
+              ? Buffer.from([0xff, 0xfe, 0xfd])
+              : 'console.log("valid");',
       );
       const result = await runFallow({
         spawn,
@@ -77,9 +80,10 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
         evidenceDirectory: path.join(directory, state),
       });
       assert.equal(result.exitCode, state === "valid" ? 0 : 1, result.text);
-      if (state === "parse-degraded")
+      if (state === "parse-degraded" || state === "nesting-too-deep") {
         assert.match(result.text, /enforced Fallow gate failed: parse-error/);
-      else if (state === "unreadable")
+        if (state === "nesting-too-deep") assert.match(result.text, /source-nesting-too-deep/);
+      } else if (state === "unreadable")
         assert.match(result.text, /required source analysis incomplete: source-read-failure/);
       else assert.match(result.text, /gate passed/);
     }
@@ -281,7 +285,7 @@ void test("analyzer status and advisory review verdict never become a quality pa
         stdout: JSON.stringify({
           kind: "audit-brief",
           schema_version: 13,
-          version: "3.34.1",
+          version: "3.37.0",
           verdict: "fail",
           changed_files_count: 3,
           base_ref: "base",
@@ -303,11 +307,11 @@ void test("CSS and review routes accept only their reviewed report contracts", a
     for (const mode of ["css", "review"] as const) {
       const value =
         mode === "css"
-          ? { kind: "health", schema_version: 12, version: "3.34.1", summary: {}, findings: [] }
+          ? { kind: "health", schema_version: 12, version: "3.37.0", summary: {}, findings: [] }
           : {
               kind: "audit-brief",
               schema_version: 13,
-              version: "3.34.1",
+              version: "3.37.0",
               verdict: "warn",
               changed_files_count: 1,
               base_ref: "base",

@@ -1,0 +1,276 @@
+{
+  "source": "c54067f939d6ea37f89eab19614893968e831806",
+  "tree": "b3bfda78ca7b33723050b93d4aba603898e1de65",
+  "run_id": 40757208872,
+  "attempt": 1,
+  "job_id": 123059209017,
+  "conclusion": "failure",
+  "provider_job_seconds": 3995,
+  "provider_job_timeout_minutes": 90,
+  "actual_source_ci": {
+    "run_id": 40753465129,
+    "attempt": 1,
+    "all_five_required_contexts": "passed",
+    "windows_account_file_cases_passed": 12
+  },
+  "failure": {
+    "step": "Start the separately held original connected diagnostic controller",
+    "source_line": 33,
+    "cause": "Application command discovery returned two Node paths; array was invoked as one space-joined executable",
+    "node_paths": [
+      "C:\\hostedtoolcache\\windows\\node\\24.22.1\\x64\\node.exe",
+      "C:\\Program Files\\nodejs\\node.exe"
+    ],
+    "effects_before_failure": [
+      "shared Setup assembly loaded",
+      "original controller control directory/ACL created"
+    ],
+    "private_controller_start": "not reached; later source line81",
+    "private_account_station_candidate_path": "not reached by this start according to frozen source control flow",
+    "independent_post_vm_account_inventory": "not performed",
+    "private_account_sid": null,
+    "private_controller_pid": null,
+    "private_stage_uploads": 0,
+    "recovery_step": "skipped",
+    "terminal_controller_readback": "skipped",
+    "settlement_artifact": "not created; explicit no-files warning"
+  },
+  "phases": [
+    {
+      "name": "Provision pinned Windows native driver",
+      "conclusion": "success",
+      "started_at": "2026-10-28T19:50:00Z",
+      "completed_at": "2026-10-28T19:51:49Z",
+      "seconds": 109
+    },
+    {
+      "name": "Compile the actual qualification feature boundary before packaging",
+      "conclusion": "success",
+      "started_at": "2026-10-28T19:51:49Z",
+      "completed_at": "2026-10-28T19:56:01Z",
+      "seconds": 252
+    },
+    {
+      "name": "Exercise the maintained installed updater on this one machine",
+      "conclusion": "success",
+      "started_at": "2026-10-28T19:56:01Z",
+      "completed_at": "2026-10-28T20:55:17Z",
+      "seconds": 3556
+    },
+    {
+      "name": "Start the separately held original connected diagnostic controller",
+      "conclusion": "failure",
+      "started_at": "2026-10-28T20:55:18Z",
+      "completed_at": "2026-10-28T20:55:20Z",
+      "seconds": 2
+    }
+  ],
+  "resource": {
+    "context": {
+      "source": "c54067f939d6ea37f89eab19614893968e831806",
+      "run_id": "40757208872",
+      "attempt": "1",
+      "workflow": "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028",
+      "job": "installed-prerequisite",
+      "platform": "windows-x86_64",
+      "mode": "false"
+    },
+    "pid": 8072,
+    "birth_ticks": "windows-start-ticks:639288137413583564",
+    "raw_bytes": 424733,
+    "raw_sha256": "2f41434016416bcff652e34ca995b745d2370204d2c31e247e0f106fd06ba1bc",
+    "rows": 796,
+    "first_observed_at": "2026-10-28T19:49:01.8656946Z",
+    "last_observed_at": "2026-10-28T20:55:16.8621649Z",
+    "first_elapsed_milliseconds": 15,
+    "last_elapsed_milliseconds": 3975030,
+    "sampled_span_milliseconds": 3975015,
+    "maximum_gap_milliseconds": 5123,
+    "terminal_elapsed_milliseconds": 3979373,
+    "counter_error_rows": 0,
+    "missed_intervals": 0,
+    "maximum_sampled_machine_used_bytes": 6604443648,
+    "volumes": [
+      {
+        "root": "D:\\",
+        "available_samples": 796,
+        "minimum_free_bytes": 146111258624,
+        "minimum_available_to_caller_bytes": 146111258624
+      },
+      {
+        "root": "C:\\",
+        "available_samples": 796,
+        "minimum_free_bytes": 84738412544,
+        "minimum_available_to_caller_bytes": 84738412544
+      }
+    ],
+    "scope": "Raw-byte/count/terminal/context/observer-identity closure and sampled machine counters only; no continuous peaks, job attribution, provider setup or post-last-sample observation"
+  },
+  "runtime": {
+    "source": "c54067f939d6ea37f89eab19614893968e831806",
+    "run_id": "40757208872",
+    "attempt": "1",
+    "workflow": "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028",
+    "scope": "hosted runtime prerequisite only; not native acceptance",
+    "minimum": "155.0.4283.62",
+    "before": ["131.0.2903.86"],
+    "after": ["156.0.4314.50"],
+    "stage": "ready-installed",
+    "installed": true,
+    "automatic_retry": false,
+    "runtime_preparation_observation": {
+      "scope": "reviewed diagnostic after workflow gate through terminal readback/disposal; cold setup and final receipt write excluded",
+      "elapsed_milliseconds": 55113,
+      "phases": [
+        {
+          "phase": "entry",
+          "elapsed_milliseconds": 2
+        },
+        {
+          "phase": "initial-runtime-readback",
+          "elapsed_milliseconds": 121
+        },
+        {
+          "phase": "download-starting",
+          "elapsed_milliseconds": 129
+        },
+        {
+          "phase": "download-disposed",
+          "elapsed_milliseconds": 392
+        },
+        {
+          "phase": "signature-hash-verified",
+          "elapsed_milliseconds": 547
+        },
+        {
+          "phase": "installer-starting",
+          "elapsed_milliseconds": 559
+        },
+        {
+          "phase": "installer-process-disposed",
+          "elapsed_milliseconds": 55035
+        },
+        {
+          "phase": "post-install-runtime-readback",
+          "elapsed_milliseconds": 55109
+        },
+        {
+          "phase": "terminal-receipt-ready",
+          "elapsed_milliseconds": 55113
+        }
+      ]
+    },
+    "installer_sha256": "13f6d9cdc8c3e7186e4b180db7f48e199ee97d631480e8391fb3106f338fb21a",
+    "signer_thumbprint": "4028CAD637509D4744B17EC5B42AED8D7A31E6AF",
+    "exit_code": 0,
+    "observed_at": "2026-10-28T19:50:55.4765226Z"
+  },
+  "fixture_derivation": {
+    "record_bytes": 8128,
+    "record_sha256": "0b037890f3b8e3ed02a96d0da125b0d6b45fee8ff9f27f2edc90c48742f4988a",
+    "producer": {
+      "path": "scripts/rehearse-updater-artifacts.ps1",
+      "bytes": 64928,
+      "sha256": "caf797398e1e7ace473331f4a8d83c23e2fe44817eb7bd21f875d4caa729099a"
+    },
+    "versions": [
+      {
+        "version": "1.0.0-rc.2",
+        "artifacts": [
+          {
+            "path": "work/updater-rehearsal/1.0.0-rc.2-windows-x86_64/Portcove_1.0.0-rc.2_x64-setup.exe",
+            "bytes": 13744285,
+            "sha256": "df27f5ef602d50929cbb5fa6ebe0d4e49e14e47a6d9cead180bd2d265f2dc133"
+          },
+          {
+            "path": "work/updater-rehearsal/1.0.0-rc.2-windows-x86_64/portcove-cli-1.0.0-rc.2-windows-x86_64.zip",
+            "bytes": 12676327,
+            "sha256": "6c1e29eb91aca0876a1bf60d3d5d8d8442c368cafb520199a63b29fb468e965f"
+          },
+          {
+            "path": "work/updater-rehearsal/1.0.0-rc.2-windows-x86_64/Portcove_1.0.0-rc.2_x64-setup.exe.sig",
+            "bytes": 452,
+            "sha256": "9391028953fa35def1bebda1ffc31a8a3be5f608ba7414dc14bf1232b2790129"
+          }
+        ],
+        "commands_successful": true
+      },
+      {
+        "version": "1.0.0",
+        "artifacts": [
+          {
+            "path": "work/updater-rehearsal/1.0.0-windows-x86_64/Portcove_1.0.0_x64-setup.exe",
+            "bytes": 13748487,
+            "sha256": "6446f589ad9b9b9c4bd8c81acf78417e917e6430abed1a11f66a7296a29230ae"
+          },
+          {
+            "path": "work/updater-rehearsal/1.0.0-windows-x86_64/portcove-cli-1.0.0-windows-x86_64.zip",
+            "bytes": 12675788,
+            "sha256": "612dab9390e4e903da794ed572cd0bb4b9b131c07fdfe5bcc6b4219c9ef37a7b"
+          },
+          {
+            "path": "work/updater-rehearsal/1.0.0-windows-x86_64/Portcove_1.0.0_x64-setup.exe.sig",
+            "bytes": 436,
+            "sha256": "2939c17ff87b0971a0fda376063833d144ff8b7c9f8b76b0be0e6a82618aea21"
+          }
+        ],
+        "commands_successful": true
+      }
+    ],
+    "native_rehearsal_passed": true,
+    "private_inputs_absent": true,
+    "scope": "Source-observed same-job build derivation; not independently recomputed private binaries, reproducible build, publisher authentication, or protected acceptance"
+  },
+  "ordinary_driver": {
+    "source": "public updater-rehearsal/windows-installed-update.json -> driver_host_baseline.drivers",
+    "native_driver": {
+      "reported": "Microsoft Edge WebDriver 156.0.4314.50 (af2ba23ae0ecf7084d900446fc59d5119dd5fd5e)",
+      "exit_code": 0,
+      "sha256": "dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3"
+    },
+    "tauri_driver": {
+      "reported": "Error: unused arguments left: [\"--version\"]\r\nUSAGE: tauri-driver [FLAGS] [OPTIONS]\r\n\r\nFLAGS:\r\n  -h, --help              Prints help information\r\n\r\nOPTIONS:\r\n  --port NUMBER           Sets the tauri-driver intermediary port\r\n  --native-port NUMBER    Sets the port of the underlying WebDriver\r\n  --native-host HOST      Sets the host of the underlying WebDriver (Linux only)\r\n  --native-driver PATH    Sets the path to the native WebDriver binary",
+      "exit_code": 1,
+      "sha256": "244ba01e84673215658a3870db21d2145c991b0092a0e373b14ad6ece6688077",
+      "configured_version": "2.0.6",
+      "observed_version": "not-established; --version unsupported"
+    },
+    "webview2_runtime_versions": ["156.0.4314.50"],
+    "cached_webview2_version": "156.0.4314.50",
+    "scope": "Actual ordinary administrator-token public driver baseline hashes/version output; source-observed, no independent binary recomputation, private-session proof or publisher authentication inferred"
+  },
+  "artifacts": [
+    {
+      "kind": "native",
+      "id": 12849999562,
+      "bytes": 98664,
+      "sha256": "75ceacc125a88fdd80bc9867f0f5a53602e5b4c2446da38775d0537e98cf4ced",
+      "members": 14
+    },
+    {
+      "kind": "resource",
+      "id": 12849999554,
+      "bytes": 429162,
+      "sha256": "2b5b24599b0908c7cd48e8724b415699a9e05d80ff2295aa5da358666960f2cd",
+      "members": 6
+    }
+  ],
+  "durable_retention": "work/qualification-534/windows-connected-native-c54067f9-40757208872-1",
+  "original_retention_files": 299,
+  "original_retention_bytes": 3865348,
+  "retirement": {
+    "remote_branch": "feature/534-connected-native-s2-20261028",
+    "expected_sha_lease": "c54067f939d6ea37f89eab19614893968e831806",
+    "remote_ref": "deleted only after terminal status and independently verified evidence; API404 and exact gitlsremote empty",
+    "local_source_ref": "preserved",
+    "temporary_pr": 3913,
+    "temporary_pr_state": "closed",
+    "merged": false
+  },
+  "scope": "Actual ordinary native prerequisite/build/renderer observations plus failed diagnostic launch and sampled machine resources; no connected private-session acceptance, protected production signing/publication, #315 managed acquisition, or #246 unchanged-client journey",
+  "production_authority": "held",
+  "standalone_S1": "held; not used",
+  "effective_repository_policy_aggregate_job_minutes": 100,
+  "paid_fallback": false,
+  "automatic_retry": false
+}
