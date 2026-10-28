@@ -407,7 +407,7 @@ $waitFunctions = @($ast.FindAll({ param($node)
 }, $false))
 if ($waitFunctions.Count -ne 1) { throw 'Expected one production child ownership waiter' }
 $waitSource = $waitFunctions[0].Extent.Text
-$filter = @($waitFunctions[0].FindAll({ param($node)
+$filter = @($waitFunctions[0].Body.FindAll({ param($node)
     $node -is [Management.Automation.Language.IfStatementAst] -and
     $node.Extent.Text.Contains('$exact.StartsWith($prefix') -and
     $node.Extent.Text.Contains('$exact.Equals($cimPath')
