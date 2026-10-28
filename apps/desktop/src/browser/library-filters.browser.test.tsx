@@ -348,6 +348,8 @@ it.each(["dark", "light"])(
     await expect.element(button("Filters (0)")).toBeInTheDocument();
     expect(invoke).not.toHaveBeenCalled();
   },
+  // The repeated popover/context journey exhausted 15s in CI with only 14ms left for a click.
+  45_000,
 );
 it("distinguishes missing snapshot and Favorites from known empty while preserving removable selections", async () => {
   flushSync(() => root.render(<Fixture />));
