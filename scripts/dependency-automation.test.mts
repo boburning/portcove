@@ -179,8 +179,8 @@ void test("Renovate is the sole conservative routine update authority", async ()
   assert.equal(renovate.minimumReleaseAge, "1 day");
   assert.equal(renovate.minimumReleaseAgeBehaviour, "timestamp-required");
   assert.equal(renovate.internalChecksFilter, "strict");
-  assert.equal(renovate.prConcurrentLimit, 4);
-  assert.equal(renovate.branchConcurrentLimit, 4);
+  assert.equal(renovate.prConcurrentLimit, 6);
+  assert.equal(renovate.branchConcurrentLimit, 6);
   assert.equal(renovate.prHourlyLimit, 0);
   assert.equal(renovate.commitHourlyLimit, 0);
   assert.equal(renovate.rebaseWhen, "conflicted");
