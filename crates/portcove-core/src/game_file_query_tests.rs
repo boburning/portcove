@@ -824,7 +824,13 @@ fn empty_internal_observations_never_assert_required_files_missing_or_available(
 #[test]
 fn late_channel_or_instance_drift_discards_the_private_refresh_result() {
     for change in ["channel", "instance"] {
+        let fixture_started = std::time::Instant::now();
+        eprintln!("late query {change}: fixture begin");
         let (_temporary, service, _batch) = service_fixture();
+        eprintln!(
+            "late query {change}: fixture ready after {:?}",
+            fixture_started.elapsed()
+        );
         let mut request = managed_request(&service);
         let install = if change == "instance" {
             request.route = GameFileRouteKind::ManagedLaunch;
@@ -835,6 +841,10 @@ fn late_channel_or_instance_drift_discards_the_private_refresh_result() {
         let operation = crate::OperationCoordinator::new("drift-refresh", None);
         let started = std::time::Instant::now();
         let elapsed = || started.elapsed();
+        eprintln!(
+            "late query {change}: refresh begin after {:?}",
+            fixture_started.elapsed()
+        );
         let error = service
             .refresh_game_file_query_with_fence(
                 &[request.clone()],
@@ -858,6 +868,10 @@ fn late_channel_or_instance_drift_discards_the_private_refresh_result() {
                 },
             )
             .unwrap_err();
+        eprintln!(
+            "late query {change}: refresh refused after {:?}",
+            fixture_started.elapsed()
+        );
         assert_eq!(
             error.code,
             crate::ErrorCode::Conflict,

@@ -100,6 +100,7 @@ export const nativeHelperSharedSources = Object.freeze([
   "scripts/desktop-test-cli.mts",
   "scripts/resource-command.mts",
   "scripts/resource-capacity.mts",
+  "scripts/prepared-file-replacement.mts",
   "scripts/resource-paths.mts",
   "scripts/fallow-source.mts",
   "scripts/run-rust-tests.mts",

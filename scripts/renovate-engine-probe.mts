@@ -247,6 +247,37 @@ const otherEntries = (text: string) =>
     .filter((block) => !/^name = "serde_json"$/mu.test(block))
     .join("");
 
+/** Retain one probe outcome and drain its original logger without replacing
+ * frozen or primitive failures with best-effort evidence metadata. */
+export async function retainProbeEvidence(
+  report: Pick<ProbeReport, "state" | "failure">,
+  reference: string,
+  observe: () => Promise<void>,
+  finalizers: {
+    restoreClock: () => void;
+    save: () => void;
+    loggerStream: () => Writable | undefined;
+  },
+) {
+  try {
+    await observe();
+  } catch (error) {
+    report.state = "failed";
+    report.failure = errorMessage(error);
+    try {
+      if (isRecord(error)) error.reportReference = reference;
+    } catch {
+      // Evidence metadata is best effort; it must never replace the primary failure.
+    }
+    throw error;
+  } finally {
+    finalizers.restoreClock();
+    finalizers.save();
+    const stream = finalizers.loggerStream();
+    if (stream) await new Promise<void>((resolve) => stream.end(resolve));
+  }
+}
+
 async function runEngineProbe({
   engine,
   workspace,
@@ -302,309 +333,321 @@ async function runEngineProbe({
   const load = async (source: string, name: string) => callable((await mod(source))[name]);
   let restoreClock = () => {};
   let loggerStream: Writable | undefined;
-  try {
-    process.env.LOG_LEVEL = "fatal";
-    const init = await load("logger/index.js", "init"),
-      addStream = await load("logger/index.js", "addStream");
-    await init();
-    const records: unknown[] = [];
-    let pending = "";
-    loggerStream = new Writable({
-      write(
-        chunk: Buffer | string,
-        _encoding: BufferEncoding,
-        done: (error?: Error | null) => void,
-      ) {
-        writeFileSync(path.join(directory, "execution.jsonl"), chunk, { flag: "a" });
-        pending += chunk.toString();
-        const lines = pending.split("\n");
-        pending = lines.pop() ?? "";
-        for (const line of lines.filter(Boolean)) {
-          const record: unknown = JSON.parse(line);
-          records.push(record);
-        }
-        done();
-      },
-    });
-    addStream({ name: "portcove-probe", level: "debug", stream: loggerStream });
-    const GlobalConfig = validateGlobalConfig((await mod("config/global.js")).GlobalConfig);
-    const setUserEnv = await load("util/env.js", "setUserEnv");
-    const names = ["PATH", "USERPROFILE", "CARGO_HOME", "RUSTUP_HOME", "TEMP", "TMP", "SYSTEMROOT"];
-    GlobalConfig.set({
-      localDir: localDir.replaceAll("\\", "/"),
-      cacheDir: path.join(directory, "cache").replaceAll("\\", "/"),
-      binarySource: "global",
-      executionTimeout: 5,
-      allowScripts: false,
-      platform: "github",
-      allowedEnv: names,
-      userAgent: "Portcove-version-bound-policy-probe",
-    });
-    setUserEnv(
-      Object.fromEntries(
-        names.filter((key) => process.env[key]).map((key) => [key, process.env[key]]),
-      ),
-    );
-    const resolveConfigPresets = await load("config/presets/index.js", "resolveConfigPresets"),
-      applyPackageRules = await load("util/package-rules/index.js", "applyPackageRules"),
-      extractPackageFile = await load("modules/manager/cargo/extract.js", "extractPackageFile"),
-      lookupUpdates = await load("workers/repository/process/lookup/index.js", "lookupUpdates"),
-      filterInternalChecks = await load(
-        "workers/repository/process/lookup/filter-checks.js",
-        "filterInternalChecks",
-      ),
-      resolveUpdateTypeConfig = await load(
-        "workers/repository/process/lookup/filter-checks.js",
-        "resolveUpdateTypeConfig",
-      ),
-      generateUpdate = await load(
-        "workers/repository/process/lookup/generate.js",
-        "generateUpdate",
-      ),
-      get = await load("modules/versioning/index.js", "get");
-    const deps = normalizeExtraction(await extractPackageFile(manifest, "Cargo.toml", {}));
-    report.extraction = deps;
-    const resolved = validatePresetResult(await resolveConfigPresets(config));
-    const effective = await Promise.all(
-      deps.map(async (dep) =>
-        dependency(await applyPackageRules({ ...resolved, ...dep }, "pre-lookup")),
-      ),
-    );
-    const serde = required(effective.find((dep) => dep.depName === "serde_json")),
-      control = required(effective.find((dep) => dep.depName === "semver"));
-    assert.equal(serde.rangeStrategy, "update-lockfile");
-    assert.equal(control.rangeStrategy, "bump");
-    for (const dep of effective) {
-      assert.equal(dep.minimumReleaseAge, "1 day");
-      assert.equal(dep.minimumReleaseAgeBehaviour, "timestamp-required");
-      assert.equal(dep.internalChecksFilter, "strict");
-      assert.equal(dep.automerge, false);
-    }
-    report.preLookup = effective.map((dep) => ({
-      depName: dep.depName,
-      rangeStrategy: dep.rangeStrategy,
-      minimumReleaseAge: dep.minimumReleaseAge,
-      minimumReleaseAgeBehaviour: dep.minimumReleaseAgeBehaviour,
-      internalChecksFilter: dep.internalChecksFilter,
-      automerge: dep.automerge,
-    }));
-    save();
-    const response = await fetch("https://crates.io/api/v1/crates/serde_json", {
-      headers: { "User-Agent": "Portcove-policy-validation" },
-      signal: AbortSignal.timeout(20000),
-    });
-    assert.ok(response.ok, "Crates registry unavailable");
-    const registry: unknown = await response.json();
-    writeFileSync(path.join(directory, "registry.json"), JSON.stringify(registry));
-    const rawApi = object(get("cargo"));
-    const booleanMethod =
-      (name: string) =>
-      (...args: string[]) => {
-        const result = callable(rawApi[name], rawApi)(...args);
-        assert.ok(typeof result === "boolean");
-        return result;
-      };
-    const api = {
-      ...rawApi,
-      matches: booleanMethod("matches"),
-      isGreaterThan: booleanMethod("isGreaterThan"),
-      sortVersions: (left: string, right: string) => {
-        const result = callable(rawApi.sortVersions, rawApi)(left, right);
-        assert.ok(typeof result === "number");
-        return result;
-      },
-    };
-    const releases = array(object(registry).versions)
-      .map(object)
-      .filter(
-        (v) =>
-          !v.yanked &&
-          api.matches(text(v.num), serde.currentValue) &&
-          api.isGreaterThan(text(v.num), serde.lockedVersion),
-      )
-      .map((v) => ({ version: text(v.num), releaseTimestamp: text(v.created_at) }))
-      .sort((a, b) => api.sortVersions(a.version, b.version));
-    restoreClock = freezeProbeClock(observedAt);
-    const selection = object(
-      await filterInternalChecks(serde, rawApi, "latest", structuredClone(releases)),
-    );
-    assert.ok(
-      selection.release && !selection.pendingChecks,
-      "Selected release must satisfy strict age checks",
-    );
-    const selectedVersion = text(object(selection.release).version);
-    const newer = releases.filter((release) => api.isGreaterThan(release.version, selectedVersion));
-    assert.ok(
-      newer.some((release) => Date.parse(release.releaseTimestamp) + 3 * 86400000 > Date.now()),
-      "Probe needs a newer ineligible compatible release",
-    );
-    const lookup = await lookupUpdates(serde);
-    writeFileSync(path.join(directory, "lookup.json"), JSON.stringify(lookup));
-    const updates = validateLookupResult(lookup),
-      update = updates.find((item) => item.newVersion === selectedVersion);
-    assert.ok(update && !update.pendingChecks, "Eligible generated lookup update missing");
-    assert.equal(update.newValue, serde.currentValue);
-    assert.equal(update.isLockfileUpdate, true);
-    report.selection = { releases, selection, update };
-    const unknown = object(
-      await filterInternalChecks(serde, rawApi, "latest", [{ version: "1.0.999" }]),
-    );
-    assert.equal(unknown.pendingChecks, true);
-    const minor = object(
-      await generateUpdate(
-        serde,
-        serde.currentValue,
-        rawApi,
-        serde.rangeStrategy,
-        serde.lockedVersion,
-        "minor",
-        { version: "1.1.0", releaseTimestamp: "2026-01-01T00:00:00Z" },
-        [serde.lockedVersion, "1.1.0"],
-      ),
-    );
-    assert.equal(minor.newValue, serde.currentValue);
-    assert.equal(minor.isLockfileUpdate, true);
-    const major = object(await resolveUpdateTypeConfig(serde, "major"));
-    assert.equal(major.dependencyDashboardApproval, true);
-    const security = dependency(
-      await applyPackageRules(
-        {
-          ...resolved,
-          ...deps.find((d) => d.depName === "serde_json"),
-          isVulnerabilityAlert: true,
-          force: {
-            ...(config.vulnerabilityAlerts == null ? {} : object(config.vulnerabilityAlerts)),
-          },
+  await retainProbeEvidence(
+    report,
+    reportPath,
+    async () => {
+      process.env.LOG_LEVEL = "fatal";
+      const init = await load("logger/index.js", "init"),
+        addStream = await load("logger/index.js", "addStream");
+      await init();
+      const records: unknown[] = [];
+      let pending = "";
+      loggerStream = new Writable({
+        write(
+          chunk: Buffer | string,
+          _encoding: BufferEncoding,
+          done: (error?: Error | null) => void,
+        ) {
+          writeFileSync(path.join(directory, "execution.jsonl"), chunk, { flag: "a" });
+          pending += chunk.toString();
+          const lines = pending.split("\n");
+          pending = lines.pop() ?? "";
+          for (const line of lines.filter(Boolean)) {
+            const record: unknown = JSON.parse(line);
+            records.push(record);
+          }
+          done();
         },
-        "security",
-      ),
-    );
-    assert.equal(security.minimumReleaseAge, null);
-    assert.equal(security.automerge, false);
-    assert.equal(
-      object(await resolveUpdateTypeConfig(security, "major")).dependencyDashboardApproval,
-      false,
-    );
-    const securitySelection = object(
-      await filterInternalChecks(security, rawApi, "latest", structuredClone(releases)),
-    );
-    assert.ok(api.isGreaterThan(text(object(securitySelection.release).version), selectedVersion));
-    const negativeControls = [];
-    for (const override of [
-      { manager: "npm" },
-      { datasource: "npm" },
-      { packageName: "semver", depName: "semver" },
-      { packageName: "serde_json_extra", depName: "serde_json_extra" },
-    ]) {
-      const effectiveControl = object(
-        await applyPackageRules(
-          { ...resolved, ...deps.find((d) => d.depName === "serde_json"), ...override },
-          "pre-lookup",
+      });
+      addStream({ name: "portcove-probe", level: "debug", stream: loggerStream });
+      const GlobalConfig = validateGlobalConfig((await mod("config/global.js")).GlobalConfig);
+      const setUserEnv = await load("util/env.js", "setUserEnv");
+      const names = [
+        "PATH",
+        "USERPROFILE",
+        "CARGO_HOME",
+        "RUSTUP_HOME",
+        "TEMP",
+        "TMP",
+        "SYSTEMROOT",
+      ];
+      GlobalConfig.set({
+        localDir: localDir.replaceAll("\\", "/"),
+        cacheDir: path.join(directory, "cache").replaceAll("\\", "/"),
+        binarySource: "global",
+        executionTimeout: 5,
+        allowScripts: false,
+        platform: "github",
+        allowedEnv: names,
+        userAgent: "Portcove-version-bound-policy-probe",
+      });
+      setUserEnv(
+        Object.fromEntries(
+          names.filter((key) => process.env[key]).map((key) => [key, process.env[key]]),
         ),
       );
-      assert.equal(effectiveControl.rangeStrategy, "bump");
-      negativeControls.push({ ...override, rangeStrategy: effectiveControl.rangeStrategy });
-    }
-    report.syntheticBoundaries = {
-      unknownTimestampPending: unknown.pendingChecks,
-      minor,
-      majorApproval: major.dependencyDashboardApproval,
-      negativeControls,
-      security: {
-        minimumReleaseAge: security.minimumReleaseAge,
-        automerge: security.automerge,
-        selected: text(object(securitySelection.release).version),
-      },
-    };
-    save();
-    restoreClock();
-    const updateArtifacts = await load("modules/manager/cargo/artifacts.js", "updateArtifacts");
-    const artifacts = await updateArtifacts({
-      packageFileName: "Cargo.toml",
-      updatedDeps: [{ ...serde, ...update }],
-      newPackageFileContent: manifest,
-      config: { constraints: { rust: "1.98.0" }, isLockFileMaintenance: false },
-    });
-    writeFileSync(path.join(directory, "artifacts.json"), JSON.stringify(artifacts));
-    const generatedLock = validateArtifactResult(artifacts);
-    const after = readFileSync(path.join(localDir, "Cargo.lock"), "utf8");
-    assert.equal(generatedLock, after, "Returned artifact differs from actual Cargo output");
-    assert.equal(locked(after, "serde_json"), update.newVersion);
-    assert.equal(locked(after, "semver"), locked(before, "semver"));
-    assert.equal(otherEntries(after), otherEntries(before));
-    assert.equal(readFileSync(path.join(localDir, "Cargo.toml"), "utf8"), manifest);
-    const commands = validateCommandRecords(records);
-    assert.ok(
-      commands.some((command) => command.includes(`--precise ${text(update.newVersion)}`)),
-      "Selected precise artifact command missing",
-    );
-    assert.ok(
-      commands.some((command) => command.includes("--workspace")),
-      "Workspace artifact command missing",
-    );
-    report.artifact = {
-      locked: text(update.newVersion),
-      nearby: locked(after, "semver"),
-      commands,
-      manifestUnchanged: true,
-      otherLockEntriesUnchanged: true,
-      afterLockSha256: hash(after),
-    };
-    save();
-    const maintenanceDir = path.join(directory, "maintenance");
-    cpSync(localDir, maintenanceDir, {
-      recursive: true,
-      filter: (file: string) => !path.relative(localDir, file).split(path.sep).includes("target"),
-    });
-    writeFileSync(path.join(maintenanceDir, "Cargo.lock"), before);
-    GlobalConfig.set({
-      ...object(GlobalConfig.get()),
-      localDir: maintenanceDir.replaceAll("\\", "/"),
-    });
-    const start = records.length;
-    const maintenance = await updateArtifacts({
-      packageFileName: "Cargo.toml",
-      updatedDeps: [{ ...serde, ...update }],
-      newPackageFileContent: manifest,
-      config: { constraints: { rust: "1.98.0" }, isLockFileMaintenance: true },
-    });
-    writeFileSync(path.join(directory, "maintenance-artifacts.json"), JSON.stringify(maintenance));
-    const maintenanceEntries = array(maintenance).map(object);
-    assert.ok(maintenanceEntries.length && maintenanceEntries.every((item) => !item.artifactError));
-    const maintenanceLock = readFileSync(path.join(maintenanceDir, "Cargo.lock"), "utf8"),
-      maintenanceCommands = validateCommandRecords(records.slice(start));
-    assert.ok(
-      maintenanceCommands.every(
-        (command) => !command.includes("--precise") && !command.includes("--workspace"),
-      ),
-      "Full maintenance must use the general artifact path",
-    );
-    assert.ok(
-      api.isGreaterThan(required(locked(maintenanceLock, "serde_json")), text(update.newVersion)),
-      "Maintenance boundary needs the newer compatible artifact",
-    );
-    report.fullLockfileMaintenance = {
-      locked: locked(maintenanceLock, "serde_json"),
-      nearby: locked(maintenanceLock, "semver"),
-      commands: maintenanceCommands,
-      universalTransitiveAgeGuarantee: false,
-    };
-    report.state = "complete";
-  } catch (error) {
-    report.state = "failed";
-    report.failure = errorMessage(error);
-    try {
-      if (isRecord(error)) error.reportReference = reportPath;
-    } catch {
-      // Evidence metadata is best effort; it must never replace the primary failure.
-    }
-    throw error;
-  } finally {
-    restoreClock();
-    save();
-    const stream = loggerStream;
-    if (stream) await new Promise<void>((resolve) => stream.end(resolve));
-  }
+      const resolveConfigPresets = await load("config/presets/index.js", "resolveConfigPresets"),
+        applyPackageRules = await load("util/package-rules/index.js", "applyPackageRules"),
+        extractPackageFile = await load("modules/manager/cargo/extract.js", "extractPackageFile"),
+        lookupUpdates = await load("workers/repository/process/lookup/index.js", "lookupUpdates"),
+        filterInternalChecks = await load(
+          "workers/repository/process/lookup/filter-checks.js",
+          "filterInternalChecks",
+        ),
+        resolveUpdateTypeConfig = await load(
+          "workers/repository/process/lookup/filter-checks.js",
+          "resolveUpdateTypeConfig",
+        ),
+        generateUpdate = await load(
+          "workers/repository/process/lookup/generate.js",
+          "generateUpdate",
+        ),
+        get = await load("modules/versioning/index.js", "get");
+      const deps = normalizeExtraction(await extractPackageFile(manifest, "Cargo.toml", {}));
+      report.extraction = deps;
+      const resolved = validatePresetResult(await resolveConfigPresets(config));
+      const effective = await Promise.all(
+        deps.map(async (dep) =>
+          dependency(await applyPackageRules({ ...resolved, ...dep }, "pre-lookup")),
+        ),
+      );
+      const serde = required(effective.find((dep) => dep.depName === "serde_json")),
+        control = required(effective.find((dep) => dep.depName === "semver"));
+      assert.equal(serde.rangeStrategy, "update-lockfile");
+      assert.equal(control.rangeStrategy, "bump");
+      for (const dep of effective) {
+        assert.equal(dep.minimumReleaseAge, "1 day");
+        assert.equal(dep.minimumReleaseAgeBehaviour, "timestamp-required");
+        assert.equal(dep.internalChecksFilter, "strict");
+        assert.equal(dep.automerge, false);
+      }
+      report.preLookup = effective.map((dep) => ({
+        depName: dep.depName,
+        rangeStrategy: dep.rangeStrategy,
+        minimumReleaseAge: dep.minimumReleaseAge,
+        minimumReleaseAgeBehaviour: dep.minimumReleaseAgeBehaviour,
+        internalChecksFilter: dep.internalChecksFilter,
+        automerge: dep.automerge,
+      }));
+      save();
+      const response = await fetch("https://crates.io/api/v1/crates/serde_json", {
+        headers: { "User-Agent": "Portcove-policy-validation" },
+        signal: AbortSignal.timeout(20000),
+      });
+      assert.ok(response.ok, "Crates registry unavailable");
+      const registry: unknown = await response.json();
+      writeFileSync(path.join(directory, "registry.json"), JSON.stringify(registry));
+      const rawApi = object(get("cargo"));
+      const booleanMethod =
+        (name: string) =>
+        (...args: string[]) => {
+          const result = callable(rawApi[name], rawApi)(...args);
+          assert.ok(typeof result === "boolean");
+          return result;
+        };
+      const api = {
+        ...rawApi,
+        matches: booleanMethod("matches"),
+        isGreaterThan: booleanMethod("isGreaterThan"),
+        sortVersions: (left: string, right: string) => {
+          const result = callable(rawApi.sortVersions, rawApi)(left, right);
+          assert.ok(typeof result === "number");
+          return result;
+        },
+      };
+      const releases = array(object(registry).versions)
+        .map(object)
+        .filter(
+          (v) =>
+            !v.yanked &&
+            api.matches(text(v.num), serde.currentValue) &&
+            api.isGreaterThan(text(v.num), serde.lockedVersion),
+        )
+        .map((v) => ({ version: text(v.num), releaseTimestamp: text(v.created_at) }))
+        .sort((a, b) => api.sortVersions(a.version, b.version));
+      restoreClock = freezeProbeClock(observedAt);
+      const selection = object(
+        await filterInternalChecks(serde, rawApi, "latest", structuredClone(releases)),
+      );
+      assert.ok(
+        selection.release && !selection.pendingChecks,
+        "Selected release must satisfy strict age checks",
+      );
+      const selectedVersion = text(object(selection.release).version);
+      const newer = releases.filter((release) =>
+        api.isGreaterThan(release.version, selectedVersion),
+      );
+      assert.ok(
+        newer.some((release) => Date.parse(release.releaseTimestamp) + 3 * 86400000 > Date.now()),
+        "Probe needs a newer ineligible compatible release",
+      );
+      const lookup = await lookupUpdates(serde);
+      writeFileSync(path.join(directory, "lookup.json"), JSON.stringify(lookup));
+      const updates = validateLookupResult(lookup),
+        update = updates.find((item) => item.newVersion === selectedVersion);
+      assert.ok(update && !update.pendingChecks, "Eligible generated lookup update missing");
+      assert.equal(update.newValue, serde.currentValue);
+      assert.equal(update.isLockfileUpdate, true);
+      report.selection = { releases, selection, update };
+      const unknown = object(
+        await filterInternalChecks(serde, rawApi, "latest", [{ version: "1.0.999" }]),
+      );
+      assert.equal(unknown.pendingChecks, true);
+      const minor = object(
+        await generateUpdate(
+          serde,
+          serde.currentValue,
+          rawApi,
+          serde.rangeStrategy,
+          serde.lockedVersion,
+          "minor",
+          { version: "1.1.0", releaseTimestamp: "2026-01-01T00:00:00Z" },
+          [serde.lockedVersion, "1.1.0"],
+        ),
+      );
+      assert.equal(minor.newValue, serde.currentValue);
+      assert.equal(minor.isLockfileUpdate, true);
+      const major = object(await resolveUpdateTypeConfig(serde, "major"));
+      assert.equal(major.dependencyDashboardApproval, true);
+      const security = dependency(
+        await applyPackageRules(
+          {
+            ...resolved,
+            ...deps.find((d) => d.depName === "serde_json"),
+            isVulnerabilityAlert: true,
+            force: {
+              ...(config.vulnerabilityAlerts == null ? {} : object(config.vulnerabilityAlerts)),
+            },
+          },
+          "security",
+        ),
+      );
+      assert.equal(security.minimumReleaseAge, null);
+      assert.equal(security.automerge, false);
+      assert.equal(
+        object(await resolveUpdateTypeConfig(security, "major")).dependencyDashboardApproval,
+        false,
+      );
+      const securitySelection = object(
+        await filterInternalChecks(security, rawApi, "latest", structuredClone(releases)),
+      );
+      assert.ok(
+        api.isGreaterThan(text(object(securitySelection.release).version), selectedVersion),
+      );
+      const negativeControls = [];
+      for (const override of [
+        { manager: "npm" },
+        { datasource: "npm" },
+        { packageName: "semver", depName: "semver" },
+        { packageName: "serde_json_extra", depName: "serde_json_extra" },
+      ]) {
+        const effectiveControl = object(
+          await applyPackageRules(
+            { ...resolved, ...deps.find((d) => d.depName === "serde_json"), ...override },
+            "pre-lookup",
+          ),
+        );
+        assert.equal(effectiveControl.rangeStrategy, "bump");
+        negativeControls.push({ ...override, rangeStrategy: effectiveControl.rangeStrategy });
+      }
+      report.syntheticBoundaries = {
+        unknownTimestampPending: unknown.pendingChecks,
+        minor,
+        majorApproval: major.dependencyDashboardApproval,
+        negativeControls,
+        security: {
+          minimumReleaseAge: security.minimumReleaseAge,
+          automerge: security.automerge,
+          selected: text(object(securitySelection.release).version),
+        },
+      };
+      save();
+      restoreClock();
+      const updateArtifacts = await load("modules/manager/cargo/artifacts.js", "updateArtifacts");
+      const artifacts = await updateArtifacts({
+        packageFileName: "Cargo.toml",
+        updatedDeps: [{ ...serde, ...update }],
+        newPackageFileContent: manifest,
+        config: { constraints: { rust: "1.98.0" }, isLockFileMaintenance: false },
+      });
+      writeFileSync(path.join(directory, "artifacts.json"), JSON.stringify(artifacts));
+      const generatedLock = validateArtifactResult(artifacts);
+      const after = readFileSync(path.join(localDir, "Cargo.lock"), "utf8");
+      assert.equal(generatedLock, after, "Returned artifact differs from actual Cargo output");
+      assert.equal(locked(after, "serde_json"), update.newVersion);
+      assert.equal(locked(after, "semver"), locked(before, "semver"));
+      assert.equal(otherEntries(after), otherEntries(before));
+      assert.equal(readFileSync(path.join(localDir, "Cargo.toml"), "utf8"), manifest);
+      const commands = validateCommandRecords(records);
+      assert.ok(
+        commands.some((command) => command.includes(`--precise ${text(update.newVersion)}`)),
+        "Selected precise artifact command missing",
+      );
+      assert.ok(
+        commands.some((command) => command.includes("--workspace")),
+        "Workspace artifact command missing",
+      );
+      report.artifact = {
+        locked: text(update.newVersion),
+        nearby: locked(after, "semver"),
+        commands,
+        manifestUnchanged: true,
+        otherLockEntriesUnchanged: true,
+        afterLockSha256: hash(after),
+      };
+      save();
+      const maintenanceDir = path.join(directory, "maintenance");
+      cpSync(localDir, maintenanceDir, {
+        recursive: true,
+        filter: (file: string) => !path.relative(localDir, file).split(path.sep).includes("target"),
+      });
+      writeFileSync(path.join(maintenanceDir, "Cargo.lock"), before);
+      GlobalConfig.set({
+        ...object(GlobalConfig.get()),
+        localDir: maintenanceDir.replaceAll("\\", "/"),
+      });
+      const start = records.length;
+      const maintenance = await updateArtifacts({
+        packageFileName: "Cargo.toml",
+        updatedDeps: [{ ...serde, ...update }],
+        newPackageFileContent: manifest,
+        config: { constraints: { rust: "1.98.0" }, isLockFileMaintenance: true },
+      });
+      writeFileSync(
+        path.join(directory, "maintenance-artifacts.json"),
+        JSON.stringify(maintenance),
+      );
+      const maintenanceEntries = array(maintenance).map(object);
+      assert.ok(
+        maintenanceEntries.length && maintenanceEntries.every((item) => !item.artifactError),
+      );
+      const maintenanceLock = readFileSync(path.join(maintenanceDir, "Cargo.lock"), "utf8"),
+        maintenanceCommands = validateCommandRecords(records.slice(start));
+      assert.ok(
+        maintenanceCommands.every(
+          (command) => !command.includes("--precise") && !command.includes("--workspace"),
+        ),
+        "Full maintenance must use the general artifact path",
+      );
+      assert.ok(
+        api.isGreaterThan(required(locked(maintenanceLock, "serde_json")), text(update.newVersion)),
+        "Maintenance boundary needs the newer compatible artifact",
+      );
+      report.fullLockfileMaintenance = {
+        locked: locked(maintenanceLock, "serde_json"),
+        nearby: locked(maintenanceLock, "semver"),
+        commands: maintenanceCommands,
+        universalTransitiveAgeGuarantee: false,
+      };
+      report.state = "complete";
+    },
+    {
+      restoreClock: () => restoreClock(),
+      save,
+      loggerStream: () => loggerStream,
+    },
+  );
   return { report, reference: reportPath };
 }
 

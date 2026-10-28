@@ -1821,6 +1821,7 @@ for (const file of [
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/production-aggregate-steps.test.mts",
+  "scripts/renovate-engine-probe.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",
@@ -1956,6 +1957,7 @@ for (const file of [
   "scripts/quality-tools.mts",
   "scripts/resource-command.mts",
   "scripts/resource-capacity.mts",
+  "scripts/prepared-file-replacement.mts",
   "scripts/runtime-values.mts",
 ]) {
   explicitNodeTests.set(file, [
