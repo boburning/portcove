@@ -85,8 +85,12 @@ success-output = "immediate"
 # product deadlines, two workers, cleanup and zero retries stay unchanged.
 # Manual40344060360/a1 also cut the complete catalog maintenance matrix at30.031s.
 [[profile.default.overrides]]
+# Qualification40618013765/a1 retained original_paths at30.020s after its
+# final Adopt/CleanupPending phase began at27.674s; relocation passed34.948s.
+# Extend the same finite60s Intel harness allowance to that exact full fixture.
+# Preserve all publication phases, assertions, slots, cleanup and zero retries.
 platform = 'x86_64-apple-darwin'
-filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))'
+filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|original_paths)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
