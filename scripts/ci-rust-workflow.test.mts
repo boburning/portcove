@@ -149,7 +149,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
   assert.ok(isRecord(installer));
   assert.equal(installer.if, linuxFixture.if);
-  assert.equal(installer.uses, "taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91");
+  assert.equal(installer.uses, "taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037");
   assert.deepEqual(installer.with, {
     tool: "${{ steps.linux-diagnostic-test-runner.outputs.spec }}",
   });

@@ -65,7 +65,7 @@ describe("desktop components", () => {
         ...base,
         staged: installRecord({ id: "prepared", staged: true, version: "2" }),
       });
-      expect(prepared).toContain(view === "library" ? "Review prepared update" : "Update prepared");
+      expect(prepared).toContain(view === "library" ? "Update prepared" : "Update prepared");
       expect(prepared).not.toContain("Archive downloaded");
     },
   );
@@ -211,9 +211,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(
-      view === "library" ? "Review prepared update" : "Update prepared</span>",
-    );
+    expect(html).toContain(view === "library" ? "Update prepared" : "Update prepared</span>");
     const expectedAvailable =
       difference !== "same target" &&
       difference !== "unspecified asset size" &&
@@ -223,7 +221,7 @@ describe("desktop components", () => {
       html.includes(
         view === "library"
           ? "Another update available at last check"
-          : "Update available at last check</span>",
+          : ">Update available at last check<",
       ),
     ).toBe(expectedAvailable);
   });
@@ -395,7 +393,7 @@ describe("desktop components", () => {
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
     expect(html).toContain("Ready to play");
     expect(html).not.toContain("updates downloaded");
-    expect(html).toContain("Review update seen at last check");
+    expect(html).toContain("Update available at last check");
     expect(html).not.toContain("need attention");
     expect(html).not.toContain("Launch ready");
     expect(html).not.toContain("Play options");
@@ -406,7 +404,7 @@ describe("desktop components", () => {
     )?.[0];
     expect(card).toBeDefined();
     expect(card).toMatch(
-      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update (available at last check|prepared)/u,
     );
     expect(card).not.toContain(port.summary);
     expect(card).not.toContain(">Windows</span>");
@@ -443,9 +441,9 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Review prepared update");
+    expect(html).toContain("Update prepared");
     expect(html).toMatch(
-      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update (available at last check|prepared)/u,
     );
     expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
@@ -477,7 +475,7 @@ describe("desktop components", () => {
     },
     { readiness: null, label: "Readiness unavailable", action: "View installation" },
   ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
-    "keeps prepared update attention beside $label and its exact installation review in Discover",
+    "prioritizes a prepared update while retaining $label eligibility and exact installation review in Discover",
     ({ readiness, label, action }) => {
       const install = installRecord();
       const status: PortStatus = {
@@ -504,7 +502,7 @@ describe("desktop components", () => {
       )?.[0];
       expect(card).toBeDefined();
       expect(card).toContain("Sample Port");
-      expect(card).toContain(`${label}</span>`);
+      expect(card?.includes(`${label}</span>`)).toBe(label !== "Ready to play");
       expect(card).toContain("Update prepared</span>");
       expect(card).toContain(`${action}<`);
       expect(card).toContain(`data-detail-origin="catalog:card:${port.id}:details"`);

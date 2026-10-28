@@ -22664,6 +22664,132 @@
       }
     },
     {
+      "id": "doom-3-classic-dude-doom-3-unified-development-engine",
+      "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
+      "summary": "Prepare Doom 3 (classic) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/Inkub0/dude",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/Inkub0/dude",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Renderer and hardware requirements differ by mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. This is an upstream copy, not a move, Core adoption or proof of save compatibility; decide whether to continue with that behavior before Play. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Doom 3 (classic)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use original classic Doom 3 base PK4 data. BFG Edition is a different product. Keep the complete matching original-data installation unchanged and use a private working copy or the explicit upstream data-root option."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Renderer and hardware requirements differ by mode; this fork does not inherit dhewm3 qualification."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. This is an upstream copy, not a move, Core adoption or proof of save compatibility; decide whether to continue with that behavior before Play."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
+          ],
+          "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
+        }
+      }
+    },
+    {
+      "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+      "name": "Doom 3: Resurrection of Evil (classic) (DUDE — Doom 3 Unified Development Engine)",
+      "summary": "Prepare Doom 3: Resurrection of Evil (classic) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/Inkub0/dude",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/Inkub0/dude",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base and d3xp with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Add three more literal lines: +set, fs_game, d3xp. Optional baked-AO downloads are separate from the player. Renderer and hardware requirements differ by mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. This is an upstream copy, not a move, Core adoption or proof of save compatibility; decide whether to continue with that behavior before Play. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Doom 3: Resurrection of Evil (classic)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use original classic Doom 3 base PK4 data plus the original Resurrection of Evil d3xp PK4 data. BFG Edition is a different product. Keep the complete matching original-data installation unchanged and use a private working copy or the explicit upstream data-root option."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base and d3xp with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Add three more literal lines: +set, fs_game, d3xp. Optional baked-AO downloads are separate from the player. Renderer and hardware requirements differ by mode; this fork does not inherit dhewm3 qualification."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. This is an upstream copy, not a move, Core adoption or proof of save compatibility; decide whether to continue with that behavior before Play."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
+          ],
+          "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
+        }
+      }
+    },
+    {
       "id": "elliotttate-dkc2recomp",
       "name": "Donkey Kong Country 2: Diddy's Kong Quest / DKC2Recomp (elliotttate)",
       "summary": "Explore Donkey Kong Country 2: Diddy's Kong Quest / DKC2Recomp (elliotttate) and follow the upstream project for requirements, downloads and setup.",
@@ -23763,6 +23889,197 @@
       }
     },
     {
+      "id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+      "name": "Medal of Honor: Allied Assault Breakthrough (OpenMoHAA)",
+      "summary": "Prepare Medal of Honor: Allied Assault Breakthrough through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/openmoh/openmohaa",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/openmoh/openmohaa",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your complete original Medal of Honor: Allied Assault base data plus the Breakthrough expansion data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching maintt resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+        }
+      }
+    },
+    {
+      "id": "medal-of-honor-allied-assault-openmohaa",
+      "name": "Medal of Honor: Allied Assault (OpenMoHAA)",
+      "summary": "Prepare Medal of Honor: Allied Assault through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/openmoh/openmohaa",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/openmoh/openmohaa",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Medal of Honor: Allied Assault",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your complete original Medal of Honor: Allied Assault base data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching main resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+        },
+        "artwork": {
+          "game_id": 326,
+          "cover_id": 357183,
+          "image_id": "co7nlr",
+          "image_sha256": "052827fc80c55b23cb67b5de03a90495347f03018f7901702d47bafaffdbfdbb",
+          "game_slug": "medal-of-honor-allied-assault",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
+      "name": "Medal of Honor: Allied Assault Spearhead (OpenMoHAA)",
+      "summary": "Prepare Medal of Honor: Allied Assault Spearhead through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/openmoh/openmohaa",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/openmoh/openmohaa",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Medal of Honor: Allied Assault Spearhead",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your complete original Medal of Honor: Allied Assault base data plus the Spearhead expansion data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching mainta resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+        }
+      }
+    },
+    {
       "id": "mr-finster-stunts-hd",
       "name": "Stunts HD",
       "summary": "Play Stunts 1.1 using your own original files in the desktop player.",
@@ -24769,6 +25086,713 @@
       }
     },
     {
+      "id": "perimeter-emperor-s-testament-perimeter-community-engine",
+      "name": "Perimeter: Emperor's Testament (Perimeter community engine)",
+      "summary": "Prepare Perimeter: Emperor's Testament through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/KD-lab-Open-Source/Perimeter",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns. Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Perimeter: Emperor's Testament",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own complete Perimeter: Emperor’s Testament resources (models, textures, sounds, text, Resource and Scripts). The other title does not automatically supply this game. Exact retail patch/localization and shared-base requirements remain unpinned; preserve the complete matching original installation."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit."
+          ],
+          "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md"
+        },
+        "artwork": {
+          "game_id": 10692,
+          "cover_id": 95179,
+          "image_id": "co21fv",
+          "image_sha256": "5334cd9ade8fe1471f9af4c5a6c83b95b044b6d21aaed774ee21d53276f6f913",
+          "game_slug": "perimeter-emperors-testament",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "perimeter-perimeter-community-engine",
+      "name": "Perimeter (Perimeter community engine)",
+      "summary": "Prepare Perimeter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/KD-lab-Open-Source/Perimeter",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns. Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Perimeter",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own complete Perimeter resources (models, textures, sounds, text, Resource and Scripts). The other title does not automatically supply this game. Exact retail patch/localization and shared-base requirements remain unpinned; preserve the complete matching original installation."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit."
+          ],
+          "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md"
+        }
+      }
+    },
+    {
+      "id": "pokemon-emerald-emeraldrecomp",
+      "name": "Pokémon Emerald / EmeraldRecomp",
+      "summary": "Use the upstream EmeraldRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "project_url": "https://github.com/mstan/EmeraldRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/EmeraldRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Open the linked official v0.1.3 release and extract its complete EmeraldRecomp-windows-x64-v0.1.3.zip package into a separate writable folder for this exact game. Keep EmeraldRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working EmeraldRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon Emerald",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Preserve the exact game original and separate BIOS",
+              "instruction": "Use your own unchanged Pokémon Emerald USA GBA original, SHA-1 f3ae088181bf583e55daf962a92bb46f4f1d07b7, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+            },
+            {
+              "title": "Finish upstream setup and select this game player",
+              "instruction": "Open the linked official v0.1.3 release and extract its complete EmeraldRecomp-windows-x64-v0.1.3.zip package into a separate writable folder for this exact game. Keep EmeraldRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working EmeraldRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            },
+            {
+              "title": "Preserve the actual data and compiler coordinates",
+              "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+            },
+            {
+              "title": "Register the prepared player and use explicit Play",
+              "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+            }
+          ],
+          "warnings": [
+            "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+            "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+          ],
+          "help_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3"
+        },
+        "artwork": {
+          "game_id": 1517,
+          "cover_id": 92655,
+          "image_id": "co1zhr",
+          "image_sha256": "f044cb533d5abbe24cca261e4785ce37a957bb2507aeb1a6c0dc541005c73d51",
+          "game_slug": "pokemon-emerald-version",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "pokemon-firered-fireredleafgreenrecomp",
+      "name": "Pokémon FireRed / FireRedLeafGreenRecomp",
+      "summary": "Use the upstream FireRedRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/FireRedLeafGreenRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon FireRed",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Preserve the exact game original and separate BIOS",
+              "instruction": "Use your own unchanged Pokémon FireRed USA v1.0/rev0 GBA original, SHA-1 41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+            },
+            {
+              "title": "Finish upstream setup and select this game player",
+              "instruction": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            },
+            {
+              "title": "Preserve the actual data and compiler coordinates",
+              "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+            },
+            {
+              "title": "Register the prepared player and use explicit Play",
+              "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+            }
+          ],
+          "warnings": [
+            "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+            "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+          ],
+          "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+        },
+        "artwork": {
+          "game_id": 1559,
+          "cover_id": 92690,
+          "image_id": "co1ziq",
+          "image_sha256": "118a2c3a72c7fd65b0d71dd804c31f6cfb3d674004593f455c00bd1e6a78b808",
+          "game_slug": "pokemon-firered-version",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "pokemon-leafgreen-fireredleafgreenrecomp",
+      "name": "Pokémon LeafGreen / FireRedLeafGreenRecomp",
+      "summary": "Use the upstream LeafGreenRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/FireRedLeafGreenRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon LeafGreen",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Preserve the exact game original and separate BIOS",
+              "instruction": "Use your own unchanged Pokémon LeafGreen USA v1.0/rev0 GBA original, SHA-1 574fa542ffebb14be69902d1d36f1ec0a4afd71e, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+            },
+            {
+              "title": "Finish upstream setup and select this game player",
+              "instruction": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            },
+            {
+              "title": "Preserve the actual data and compiler coordinates",
+              "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+            },
+            {
+              "title": "Register the prepared player and use explicit Play",
+              "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+            }
+          ],
+          "warnings": [
+            "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+            "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+          ],
+          "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+        },
+        "artwork": {
+          "game_id": 1516,
+          "cover_id": 92689,
+          "image_id": "co1zip",
+          "image_sha256": "0d1252f456aa2893afbfe1dfb54884c984966c49aa9acc3219f8933e069d04d0",
+          "game_slug": "pokemon-leafgreen-version",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "pokemon-ruby-rubysapphirerecomp",
+      "name": "Pokémon Ruby / RubySapphireRecomp",
+      "summary": "Use the upstream RubyRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "project_url": "https://github.com/mstan/RubySapphireRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/RubySapphireRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon Ruby",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Preserve the exact game original and separate BIOS",
+              "instruction": "Use your own unchanged Pokémon Ruby USA rev1 GBA original, SHA-1 610b96a9c9a7d03d2bafb655e7560ccff1a6d894, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+            },
+            {
+              "title": "Finish upstream setup and select this game player",
+              "instruction": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            },
+            {
+              "title": "Preserve the actual data and compiler coordinates",
+              "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_ruby.ini, keybinds_ruby.ini, rom_ruby.cfg and bios_ruby.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+            },
+            {
+              "title": "Register the prepared player and use explicit Play",
+              "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+            }
+          ],
+          "warnings": [
+            "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+            "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+          ],
+          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+        },
+        "artwork": {
+          "game_id": 1557,
+          "cover_id": 92654,
+          "image_id": "co1zhq",
+          "image_sha256": "ea548cc345d8a4abd1f98ec519e5be484431cef94bf340735cf82cacfa358dfe",
+          "game_slug": "pokemon-ruby-version",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "pokemon-sapphire-rubysapphirerecomp",
+      "name": "Pokémon Sapphire / RubySapphireRecomp",
+      "summary": "Use the upstream SapphireRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "project_url": "https://github.com/mstan/RubySapphireRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/RubySapphireRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification. You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions.",
+        "original_game_title": "Pokémon Sapphire",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Preserve the exact game original and separate BIOS",
+              "instruction": "Use your own unchanged Pokémon Sapphire USA rev1 GBA original, SHA-1 4722efb8cd45772ca32555b98fd3b9719f8e60a9, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+            },
+            {
+              "title": "Finish upstream setup and select this game player",
+              "instruction": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            },
+            {
+              "title": "Preserve the actual data and compiler coordinates",
+              "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_sapphire.ini, keybinds_sapphire.ini, rom_sapphire.cfg and bios_sapphire.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+            },
+            {
+              "title": "Register the prepared player and use explicit Play",
+              "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+            }
+          ],
+          "warnings": [
+            "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+            "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+          ],
+          "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+        },
+        "artwork": {
+          "game_id": 1515,
+          "cover_id": 92653,
+          "image_id": "co1zhp",
+          "image_sha256": "0d2217a9ea352407dbc491b55a004f8aaf07b46ad7173e784acab1be41dcf073",
+          "game_slug": "pokemon-sapphire-version",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "poseidon-master-of-atlantis-ezeus",
+      "name": "Poseidon: Master of Atlantis (eZeus)",
+      "summary": "Prepare Poseidon: Master of Atlantis through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/MaurycyLiebner/eZeus",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/MaurycyLiebner/eZeus",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed. The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Poseidon: Master of Atlantis",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Both Zeus: Master of Olympus and the Poseidon expansion original files are required, including for the base-game identity. Upstream currently supports English and Polish. Preserve the original installation and work in a separate complete copy; eZeus differs from the original and does not promise exact parity."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified."
+          ],
+          "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta"
+        },
+        "artwork": {
+          "game_id": 9542,
+          "cover_id": 413550,
+          "image_id": "co8v3i",
+          "image_sha256": "eb1fde5bbfeffc88a8102fe032128c3843479f597a140c104a59b3a0b39ad51c",
+          "game_slug": "poseidon-master-of-atlantis",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "quake-iii-arena-ioquake3",
+      "name": "Quake III Arena (ioquake3)",
+      "summary": "Prepare Quake III Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/ioquake/ioq3",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/ioquake/ioq3",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403. Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Quake III Arena",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own Quake III Arena baseq3/pak0.pk3 and the matching official patch PK3s (pak1 through pak8). Preserve the original installation; prepare a separate working data copy."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
+          ],
+          "help_url": "https://ioquake3.org/help/players-guide/"
+        },
+        "artwork": {
+          "game_id": 355,
+          "cover_id": 91135,
+          "image_id": "co1ybj",
+          "image_sha256": "f094b2e1ec1f592270f0b301127ad750f19f843c61bf9d5c36e16133343304f5",
+          "game_slug": "quake-iii-arena",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "quake-iii-team-arena-ioquake3",
+      "name": "Quake III: Team Arena (ioquake3)",
+      "summary": "Prepare Quake III: Team Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/ioquake/ioq3",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/ioquake/ioq3",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 and missionpack as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. Select the expansion with three separate argument lines: +set, fs_game, missionpack. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403. Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Quake III: Team Arena",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own Quake III Arena baseq3/pak0.pk3 and the matching official patch PK3s (pak1 through pak8). Team Arena additionally requires your own missionpack/pak0.pk3 and matching missionpack patch files; Arena alone is not the expansion. Preserve the original installation; prepare a separate working data copy."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 and missionpack as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. Select the expansion with three separate argument lines: +set, fs_game, missionpack. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
+          ],
+          "help_url": "https://ioquake3.org/help/players-guide/"
+        },
+        "artwork": {
+          "game_id": 6634,
+          "cover_id": 91490,
+          "image_id": "co1yle",
+          "image_sha256": "18c3b357d364248d79d2d3e9e94471161b27537eaee0777f4e9d8bec1e398fbf",
+          "game_slug": "quake-iii-team-arena",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "re-rac-rerac",
       "name": "Ratchet & Clank (2002) / ReRAC (re-rac)",
       "summary": "Explore Ratchet & Clank (2002) / ReRAC (re-rac) and follow the upstream project for requirements, downloads and setup.",
@@ -24991,6 +26015,148 @@
       }
     },
     {
+      "id": "s-t-a-l-k-e-r-call-of-pripyat-openxray",
+      "name": "S.T.A.L.K.E.R.: Call of Pripyat (OpenXRay)",
+      "summary": "Prepare S.T.A.L.K.E.R.: Call of Pripyat through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/OpenXRay/xray-16",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/OpenXRay/xray-16",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Preserve the old bin and extract the complete matching archive into the working game root. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation. Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "S.T.A.L.K.E.R.: Call of Pripyat",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own complete Call of Pripyat 1.6.02 resources in a private working copy. Shadow of Chernobyl, Enhanced Edition and Legends of the Zone data are outside this route. Preserve the original installation and mod-specific files."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Preserve the old bin and extract the complete matching archive into the working game root. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
+          ],
+          "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
+        },
+        "artwork": {
+          "game_id": 7605,
+          "cover_id": 472725,
+          "image_id": "coa4r9",
+          "image_sha256": "15e9a6bd5f6fb360f192db696a86f83838835c3d98d5e7aadefa5987b3bbd0d8",
+          "game_slug": "s-dot-t-a-dot-l-k-dot-e-r-dot-call-of-pripyat",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "s-t-a-l-k-e-r-clear-sky-openxray",
+      "name": "S.T.A.L.K.E.R.: Clear Sky (OpenXRay)",
+      "summary": "Prepare S.T.A.L.K.E.R.: Clear Sky through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/OpenXRay/xray-16",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/OpenXRay/xray-16",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation. Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "S.T.A.L.K.E.R.: Clear Sky",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own complete Clear Sky 1.5.10 resources in a private working copy. Shadow of Chernobyl, Enhanced Edition and Legends of the Zone data are outside this route. Preserve the original installation and mod-specific files."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
+          ],
+          "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
+        },
+        "artwork": {
+          "game_id": 4840,
+          "cover_id": 266949,
+          "image_id": "co5pz9",
+          "image_sha256": "5cbcf8273961e347e04f7cd767fea59a54ab36a01f4790c612484996d00f0e52",
+          "game_slug": "s-dot-t-a-dot-l-k-dot-e-r-dot-clear-sky",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "sdw-community-sheep-dog-n-wolf-rewooled",
       "name": "Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community)",
       "summary": "Explore Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community) and follow the upstream project for requirements, downloads and setup.",
@@ -25045,6 +26211,216 @@
           "image_id": "co2hjq",
           "image_sha256": "ec3e1a158432cdef557e2121b58c6375444f8fe7056c10e096ed48ec49a91e43",
           "game_slug": "looney-tunes-sheep-raider",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "serious-sam-the-first-encounter-serioussamclassic",
+      "name": "Serious Sam: The First Encounter (SeriousSamClassic)",
+      "summary": "Prepare Serious Sam: The First Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/tx00100xt/SeriousSamClassic",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Serious Sam: The First Encounter",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own classic Serious Sam The First Encounter data, including matching *.gro files and original companion data. HD and Revolution editions are different products. Preserve the original installation and use a complete private working copy; the other encounter is a separate data scope."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
+        },
+        "artwork": {
+          "game_id": 857,
+          "cover_id": 357176,
+          "image_id": "co7nlk",
+          "image_sha256": "05f1023e2025fadb5dd10531a82868a279b23b5ef254d54c1ffd32badf61af61",
+          "game_slug": "serious-sam-the-first-encounter",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "serious-sam-the-second-encounter-serioussamclassic",
+      "name": "Serious Sam: The Second Encounter (SeriousSamClassic)",
+      "summary": "Prepare Serious Sam: The Second Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/tx00100xt/SeriousSamClassic",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Serious Sam: The Second Encounter",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own classic Serious Sam The Second Encounter data, including matching *.gro files and original companion data. HD and Revolution editions are different products. Preserve the original installation and use a complete private working copy; the other encounter is a separate data scope."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
+        },
+        "artwork": {
+          "game_id": 858,
+          "cover_id": 111569,
+          "image_id": "co2e35",
+          "image_sha256": "e0f8da06451881e6ab88eda8ec00cdb1ad1491485abf6ed1a0ec336a2686c9ee",
+          "game_slug": "serious-sam-the-second-encounter",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "sonic-3-knuckles-sonic-3-a-i-r",
+      "name": "Sonic 3 & Knuckles / Sonic 3 A.I.R.",
+      "summary": "Use an upstream-prepared Sonic 3 & Knuckles / Sonic 3 A.I.R. player with matching originals; runtime maintenance and player data stay upstream-owned.",
+      "project_url": "https://github.com/Eukaryot/sonic3air",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "Eukaryot/sonic3air",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "Sonic 3 & Knuckles",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep the matching original",
+              "instruction": "Use your own compatible original combined Sonic 3 & Knuckles ROM, such as Sonic_Knuckles_wSonic3.bin from an existing lawful Steam copy. The separate Sonic 3 or Sonic & Knuckles games and unrelated collections are different inputs. Upstream can discover an existing Steam copy or ask for the ROM on first startup; it does not provide the original. The old Steam product is no longer sold."
+            },
+            {
+              "title": "Finish upstream setup and select the real player",
+              "instruction": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+            },
+            {
+              "title": "Preserve the actual runtime and player data",
+              "instruction": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices."
+            },
+            {
+              "title": "Register the existing player and use explicit Play",
+              "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+            }
+          ],
+          "warnings": [
+            "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+            "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration."
+          ],
+          "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
+        },
+        "artwork": {
+          "game_id": 11219,
+          "cover_id": 342176,
+          "image_id": "co7c0w",
+          "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
+          "game_slug": "sonic-the-hedgehog-3-and-knuckles",
           "match_kind": "underlying-game"
         }
       }
@@ -25242,6 +26618,130 @@
       }
     },
     {
+      "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+      "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
+      "summary": "Prepare Star Wars Jedi Knight II: Jedi Outcast (single player) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/JACoders/OpenJK",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/JACoders/OpenJK",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance. Normal Windows OpenJO builds use Documents/My Games/OpenJO; portable builds and explicit settings can differ. Preserve the actual profile, original files and creating runtime. No existing save compatibility, first setup or gameplay was observed. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "This identity is Jedi Outcast single player through OpenJO. It is not Jedi Academy, OpenJKDF2 or an Outcast multiplayer route. The reviewed upstream README documents Academy preparation but does not establish Outcast-specific original files, retail patch or exact first-setup layout."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Normal Windows OpenJO builds use Documents/My Games/OpenJO; portable builds and explicit settings can differ. Preserve the actual profile, original files and creating runtime. No existing save compatibility, first setup or gameplay was observed."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here."
+          ],
+          "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+        }
+      }
+    },
+    {
+      "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+      "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
+      "summary": "Prepare Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/JACoders/OpenJK",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/JACoders/OpenJK",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources. Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Use your own complete Jedi Academy PC GameData/base resources. Jedi Outcast and OpenJKDF2 are different games. Keep the original installation unchanged and prepare a separate complete working GameData copy; the reviewed README does not pin a retail patch/revision."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+        }
+      }
+    },
+    {
       "id": "starlancer-openreliant",
       "name": "StarLancer / OpenReliant",
       "summary": "Explore StarLancer / OpenReliant and follow the upstream project for requirements, downloads and setup.",
@@ -25306,6 +26806,158 @@
       }
     },
     {
+      "id": "super-mario-64-sm64-co-op-dx",
+      "name": "Super Mario 64 / SM64 Co-op DX",
+      "summary": "Use an upstream-prepared Super Mario 64 / SM64 Co-op DX player with matching originals; runtime maintenance and player data stay upstream-owned.",
+      "project_url": "https://github.com/coop-deluxe/sm64coopdx",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "coop-deluxe/sm64coopdx",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "Super Mario 64",
+        "original_game": {
+          "format_version": 1,
+          "id": "super-mario-64",
+          "evidence_urls": [
+            "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md"
+          ],
+          "source_editions": []
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep the matching original",
+              "instruction": "Use your own unchanged US Super Mario 64 big-endian .z64 original. The selected v1.5.1 runtime accepts MD5 20b854b239203baf6c961b850a4a51a2; its other regional table entries are disabled. Upstream scans the player/user folders or accepts a deliberate ROM drop, and may copy the accepted original to its user profile as baserom.us.z64. Preserve the original independently; byte-swapped, modified and other-region files are different inputs. An already existing cached baserom.us.z64 is not overwritten by a newly selected ROM; preserve and check the actual upstream copy rather than assuming selection replaced it."
+            },
+            {
+              "title": "Finish upstream setup and select the real player",
+              "instruction": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+            },
+            {
+              "title": "Preserve the actual runtime and player data",
+              "instruction": "Before explicit Play, preserve the actual existing user profile and creating runtime. On Windows the upstream default checks %APPDATA%/sm64coopdx and can instead reuse a populated %APPDATA%/sm64ex-coop folder; an existing --savepath override changes that selection. Preserve both relevant roots and the actual selected path, copied ROM, saves, configuration, mods and caches. A new executable folder does not isolate these profiles. Do not change the path, adopt populated legacy data, add mods or migrate profiles through this guide. Upstream can start its own updater and successor process; close all game/updater windows and confirm they stopped before copying or replacing files."
+            },
+            {
+              "title": "Register the existing player and use explicit Play",
+              "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+            }
+          ],
+          "warnings": [
+            "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+            "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested."
+          ],
+          "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1"
+        },
+        "artwork": {
+          "game_id": 1074,
+          "cover_id": 329251,
+          "image_id": "co721v",
+          "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+          "game_slug": "super-mario-64",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "super-mario-world-snesrev-smw",
+      "name": "Super Mario World / snesrev smw",
+      "summary": "Use an upstream-prepared Super Mario World / snesrev smw player with matching originals; runtime maintenance and player data stay upstream-owned.",
+      "project_url": "https://github.com/snesrev/smw",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "snesrev/smw",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "Super Mario World",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep the matching original",
+              "instruction": "Use your own unchanged USA Super Mario World original. The selected upstream runtime requires a 524288-byte unheadered smw.sfc for its matching packaged smw_assets.bps; BPS validation can reject a different original. Preserve the original unchanged outside the player folder. Super Mario All-Stars, translations, patched files and other editions are different inputs."
+            },
+            {
+              "title": "Finish upstream setup and select the real player",
+              "instruction": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+            },
+            {
+              "title": "Preserve the actual runtime and player data",
+              "instruction": "Preserve the complete working player folder, smw.ini and saves tree, including title-specific SRAM, backup, snapshots, playthrough and mismatch evidence. Keep the creating runtime with every existing state. The upstream RAM comparison and replay features do not prove compatibility between builds or with another SNES runtime; do not transplant retained state."
+            },
+            {
+              "title": "Register the existing player and use explicit Play",
+              "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+            }
+          ],
+          "warnings": [
+            "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+            "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute."
+          ],
+          "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"
+        },
+        "artwork": {
+          "game_id": 1070,
+          "cover_id": 401336,
+          "image_id": "co8lo8",
+          "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
+          "game_slug": "super-mario-world",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "thatguymcd-glover-r",
       "name": "Glover / Glover-R (ThatGuyMcd)",
       "summary": "Explore Glover / Glover-R (ThatGuyMcd) and follow the upstream project for requirements, downloads and setup.",
@@ -25365,6 +27017,221 @@
           "image_id": "co3whq",
           "image_sha256": "a0742a26cb550661366365fee043c0b2be423de9c2e2928aa1aa63455f98da77",
           "game_slug": "glover",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "wipeout-phantom-edition",
+      "name": "WipeOut Phantom Edition",
+      "summary": "Use an upstream-prepared WipeOut Phantom Edition player with matching originals; runtime maintenance and player data stay upstream-owned.",
+      "project_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "wipeout-phantom-edition/wipeout-phantom-edition",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the official v1.2.256 Windows x64 ZIP and keep its complete wipeout folder. Follow the packaged README: provide matching original image copies in diskimages for upstream extraction, or the matching complete loose set in wipeoutgame with optional correctly named music in music. Finish normal upstream setup successfully before registration. The upstream player performs extraction during startup; this is not Portcove disc preparation or source authentication. Register wipeout.exe from the wipeout folder, not an extraction helper. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "WipeOut",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep the matching original",
+              "instruction": "Use data from your own PlayStation USA-region WipeOut disc; the official PC version is incompatible. Upstream supports the matching multi-bin/cue image with nine BIN tracks and one CUE, first data track MODE2/2352 and other tracks AUDIO, or its complete 517-file loose game set. Preserve every original image/track and cue outside the player folder. A generic ISO, another region or another game is a different input."
+            },
+            {
+              "title": "Finish upstream setup and select the real player",
+              "instruction": "Use the official v1.2.256 Windows x64 ZIP and keep its complete wipeout folder. Follow the packaged README: provide matching original image copies in diskimages for upstream extraction, or the matching complete loose set in wipeoutgame with optional correctly named music in music. Finish normal upstream setup successfully before registration. The upstream player performs extraction during startup; this is not Portcove disc preparation or source authentication. Register wipeout.exe from the wipeout folder, not an extraction helper. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+            },
+            {
+              "title": "Preserve the actual runtime and player data",
+              "instruction": "Preserve the whole working wipeout folder, generated game/music data, configuration and progress files, plus the actual existing external profile if this installation uses one. The published source repository provides documentation and images rather than the player implementation, so a complete writer map is not established here. Keep the creating runtime and originals; do not delete source tracks just because upstream no longer needs them after extraction, transplant progress, or assume that replacing an executable preserves compatibility."
+            },
+            {
+              "title": "Register the existing player and use explicit Play",
+              "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+            }
+          ],
+          "warnings": [
+            "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+            "Managed disc preparation and exact writer/retained-data coordinates remain unqualified; missing PS1 family primitives belong to #135. This safe existing prepared-player guide does not substitute a per-title parser or claim complete loose-file authentication."
+          ],
+          "help_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256"
+        },
+        "artwork": {
+          "game_id": 1083,
+          "cover_id": 200827,
+          "image_id": "co4ayj",
+          "image_sha256": "5d3fb7f3e64b5b51edd29df22c7c15d5f8abdc6849443f284a5bbed6453360c3",
+          "game_slug": "wipeout",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "zelda3",
+      "name": "Zelda3",
+      "summary": "Use an upstream-prepared Zelda3 player with matching originals; runtime maintenance and player data stay upstream-owned.",
+      "project_url": "https://github.com/snesrev/zelda3",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "snesrev/zelda3",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use only an already working upstream Windows zelda3.exe with its matching generated zelda3_assets.dat, SDL2.dll, zelda3.ini and companions. If setup is incomplete, follow the linked upstream source-build and asset-extraction instructions with your matching USA original before registration. The selected v0.3 release has a BPS asset, while its tagged source loader requires DAT; these instructions do not claim that placing a ROM beside that package completes setup. Do not mix generated assets between source revisions or select a launcher, extraction batch file or compiler as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
+        "original_game_title": "The Legend of Zelda: A Link to the Past",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep the matching original",
+              "instruction": "Use your own unchanged USA The Legend of Zelda: A Link to the Past original. The upstream extraction tools identify the US original by SHA-1 6d4f10a8b10e10dbe624cb23cf03b88bb8252973. Preserve the original outside the player folder; do not substitute a headered, translated, patched or other-region file."
+            },
+            {
+              "title": "Finish upstream setup and select the real player",
+              "instruction": "Use only an already working upstream Windows zelda3.exe with its matching generated zelda3_assets.dat, SDL2.dll, zelda3.ini and companions. If setup is incomplete, follow the linked upstream source-build and asset-extraction instructions with your matching USA original before registration. The selected v0.3 release has a BPS asset, while its tagged source loader requires DAT; these instructions do not claim that placing a ROM beside that package completes setup. Do not mix generated assets between source revisions or select a launcher, extraction batch file or compiler as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+            },
+            {
+              "title": "Preserve the actual runtime and player data",
+              "instruction": "Preserve the entire working player folder and its actual data, including zelda3.ini, saves/sram.dat and its backup, snapshots, replays, shaders and any optional audio. Keep the creating runtime for retained SRAM, snapshots and replays; do not copy them to another runtime or infer compatibility from a matching title or RAM-comparison feature."
+            },
+            {
+              "title": "Register the existing player and use explicit Play",
+              "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+            }
+          ],
+          "warnings": [
+            "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+            "Managed asset preparation and retained state compatibility remain separate #136 work. The v0.3 release asset includes a BPS file although the tag main.c asset loader uses DAT inputs; source-to-binary build provenance/complete output ownership is not established. Keep this a non-owning prepared-player route until those facts and exact runtime data coordinates are qualified."
+          ],
+          "help_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3"
+        },
+        "artwork": {
+          "game_id": 237542,
+          "cover_id": 287380,
+          "image_id": "co65qs",
+          "image_sha256": "e9221854a846773e843fd5d6c8d1fd9f2a9e426a20786f8ebe6acbfb01a2713f",
+          "game_slug": "zelda3",
+          "match_kind": "port"
+        }
+      }
+    },
+    {
+      "id": "zeus-master-of-olympus-ezeus",
+      "name": "Zeus: Master of Olympus (eZeus)",
+      "summary": "Prepare Zeus: Master of Olympus through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/MaurycyLiebner/eZeus",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "https://github.com/MaurycyLiebner/eZeus",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed. The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "original_game_title": "Zeus: Master of Olympus",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original game",
+              "instruction": "Both Zeus: Master of Olympus and the Poseidon expansion original files are required, including for the base-game identity. Upstream currently supports English and Polish. Preserve the original installation and work in a separate complete copy; eZeus differs from the original and does not promise exact parity."
+            },
+            {
+              "title": "Prepare upstream and select the player",
+              "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
+            },
+            {
+              "title": "Preserve the actual player data",
+              "instruction": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+            }
+          ],
+          "warnings": [
+            "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified."
+          ],
+          "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta"
+        },
+        "artwork": {
+          "game_id": 958,
+          "cover_id": 129520,
+          "image_id": "co2rxs",
+          "image_sha256": "417d7278890f399ffe4ef68b6d6d638993600579a23777ad3b74fb258d6156d6",
+          "game_slug": "zeus-master-of-olympus",
           "match_kind": "underlying-game"
         }
       }

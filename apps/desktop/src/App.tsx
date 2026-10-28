@@ -1052,7 +1052,7 @@ function useAppModel(
         ui.view,
         ui.filter,
         ui.query,
-        ui.catalogSort,
+        ui.view === "library" ? ui.librarySort : ui.catalogSort,
         queryContext,
       ),
     [
@@ -1063,6 +1063,7 @@ function useAppModel(
       ui.libraryReadiness,
       ui.query,
       ui.catalogSort,
+      ui.librarySort,
       queryContext,
     ],
   );
@@ -1390,8 +1391,8 @@ function CurrentView({
       filter={ui.filter}
       query={ui.query}
       setQuery={ui.setQuery}
-      catalogSort={ui.catalogSort}
-      setCatalogSort={ui.setCatalogSort}
+      catalogSort={ui.view === "library" ? ui.librarySort : ui.catalogSort}
+      setCatalogSort={ui.view === "library" ? ui.setLibrarySort : ui.setCatalogSort}
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
@@ -1410,6 +1411,12 @@ function CurrentView({
               },
             },
           );
+      }}
+      onTask={(activityId) => {
+        ui.setReviewedActivityId(activityId);
+        ui.setView("updates");
+        ui.setActivitySection("tasks");
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
       }}
       onBrowseCatalog={onAddGames}
       onConnectGameFiles={() => {
@@ -1762,7 +1769,6 @@ function useWorkspaceLibrary({
   returnToSelection,
 }: WorkspaceProps) {
   const data = usePortcoveData(bootstrap.generation);
-  const collection = useCollectionLayout(bootstrap.library_root);
   const favorites = useFavorites(bootstrap.generation);
   const organization = useOrganization(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
@@ -1810,6 +1816,10 @@ function useWorkspaceLibrary({
         ]).size
       : undefined,
   });
+  const collection = useCollectionLayout(
+    bootstrap.library_root,
+    ui.view === "catalog" ? "catalog" : "library",
+  );
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
     if (

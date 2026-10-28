@@ -1,3 +1,5 @@
+import { presentPortAction, useOperationPresentation } from "../operations/operation-presentation";
+import type { CollectionLayout } from "./use-collection-layout";
 import type { useFavorites } from "../favorites/use-favorites";
 import { SaveGameButton, type Organization } from "../organization/OrganizationControls";
 import { useId, useRef, useState, type ReactNode } from "react";
@@ -11,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../com
 import { gameIdentityLabel, gameProjectLabel, gameTitle } from "../../port-identity";
 import {
   platformLabel,
+  installationMethodLabel,
   releaseChannelPresentation,
   type DetailDestination,
 } from "../../view-model";
@@ -21,7 +24,7 @@ import type { CatalogEntry } from "./catalog-entry";
 import type { NativeSourceDragState } from "../../native-source-drop";
 import { browsePortPresentation } from "../port-actions/browse-presentation";
 import { BrowsePortObservations } from "../port-actions/BrowsePortObservations";
-import { groupCatalog, groupCountLabel, originalSystems, type GameGroup } from "./original-game";
+import { groupCatalog, originalSystems, type GameGroup } from "./original-game";
 
 export function IdentityChips({ port }: { port: CatalogEntry }) {
   return (
@@ -49,7 +52,9 @@ export function IdentityChips({ port }: { port: CatalogEntry }) {
 }
 
 export function GroupedDiscover({
+  layout = "covers",
   all,
+  onTask,
   matching,
   statuses,
   onSelect,
@@ -58,10 +63,12 @@ export function GroupedDiscover({
   onFavoriteToggle,
   nativeSourceDrag = { active: false, pathCount: 0 },
 }: {
+  layout?: CollectionLayout;
   organization?: Organization | undefined;
   favorites?: ReturnType<typeof useFavorites> | undefined;
   onFavoriteToggle: (portId: string, button: HTMLElement) => void;
   nativeSourceDrag?: NativeSourceDragState | undefined;
+  onTask?: ((activityId?: string) => void) | undefined;
   all: readonly CatalogEntry[];
   matching: readonly CatalogEntry[];
   statuses: ReadonlyMap<string, PortStatus>;
@@ -99,17 +106,14 @@ export function GroupedDiscover({
     );
   return (
     <>
-      <p className="mb-4 text-sm text-pc-muted-foreground">
-        {groupCountLabel(groups)} · {matching.length} matching{" "}
-        {matching.length === 1 ? "port" : "ports"}
-      </p>
       <section
         aria-label="Discover games"
-        className="port-grid discover-grid collection-covers @container/collection grid w-full"
+        className={`port-grid discover-grid discover-${layout} collection-${layout} @container/collection grid w-full`}
         data-focus-group
       >
         {groups.map((group) => (
           <DiscoverGameCard
+            onTask={onTask}
             key={group.id}
             group={group}
             statuses={statuses}
@@ -129,6 +133,8 @@ export function GroupedDiscover({
         }}
       >
         <DialogContent
+          reviewSize="large"
+          className="port-comparison-dialog"
           initialFocus={heading}
           finalFocus={() => (leaving.current ? false : origin.current)}
         >
@@ -145,65 +151,96 @@ export function GroupedDiscover({
                 These are catalog declarations and current library observations. Gameplay
                 comparisons have not been established for every project.
               </p>
-              {comparison.ports.map((port) => {
-                const status = statuses.get(port.id);
-                const observation = browsePortPresentation(port, status, "catalog");
-                const descriptionId = `${descriptionPrefix}:comparison:${encodeURIComponent(port.id)}`;
-                const describedBy =
-                  observation.input || observation.setup ? descriptionId : undefined;
-                const dropEligible = sourceDropEligible(port, status, nativeSourceDrag);
-                return (
-                  <article
-                    key={port.id}
-                    className="border-t border-pc-border py-4"
-                    aria-label={`${gameIdentityLabel(port)}. ${observation.state.label}.`}
-                    aria-describedby={describedBy}
-                    data-source-drop-port-id={dropEligible ? port.id : undefined}
-                    data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
-                  >
-                    <h3>{gameProjectLabel(port) || port.name}</h3>
-                    <p>{port.summary}</p>
-                    <IdentityChips port={port} />
-                    <BrowsePortObservations
-                      port={port}
-                      status={status}
-                      observation={observation}
-                      descriptionId={descriptionId}
-                      noticeChoice={organization?.snapshot?.update_notices[port.id]}
-                    />
-                    {port.presentation?.source_requirements?.length ? (
-                      <ul>
-                        {port.presentation.source_requirements.map((requirement) => (
-                          <li key={requirement.profile_id}>{requirement.label}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    {!comparison.matchingPorts.some((candidate) => candidate.id === port.id) && (
-                      <p className="text-sm text-pc-muted-foreground">
-                        Outside the current filters.
-                      </p>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-3">
-                      {favorite(port)}
-                      <Button
-                        data-focusable
-                        variant="outline"
-                        onClick={() =>
-                          open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)
-                        }
-                        data-discover-port-id={port.id}
-                        aria-label={`${memberLabel(port, status)}: ${gameIdentityLabel(port)}`}
-                        aria-describedby={describedBy}
-                      >
-                        {memberLabel(port, statuses.get(port.id))}
-                      </Button>
-                      {port.project_url && (
-                        <ExternalLink href={port.project_url}>Project instructions</ExternalLink>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+              <div className="port-comparison-grid">
+                {comparison.ports.map((port) => {
+                  const status = statuses.get(port.id);
+                  const observation = browsePortPresentation(port, status, "catalog");
+                  const descriptionId = `${descriptionPrefix}:comparison:${encodeURIComponent(port.id)}`;
+                  const describedBy =
+                    observation.input || observation.setup ? descriptionId : undefined;
+                  const dropEligible = sourceDropEligible(port, status, nativeSourceDrag);
+                  return (
+                    <article
+                      key={port.id}
+                      className="port-comparison-project min-w-0 rounded-pc-md border border-pc-border p-4 wrap-anywhere"
+                      aria-label={`${gameIdentityLabel(port)}. ${observation.state.label}.`}
+                      aria-describedby={describedBy}
+                      data-source-drop-port-id={dropEligible ? port.id : undefined}
+                      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
+                    >
+                      <header>
+                        <h3>{gameProjectLabel(port) || port.name}</h3>
+                        <p>{port.summary}</p>
+                        {!comparison.matchingPorts.some(
+                          (candidate) => candidate.id === port.id,
+                        ) && (
+                          <p className="text-sm text-pc-muted-foreground">
+                            Outside the current filters.
+                          </p>
+                        )}
+                      </header>
+                      <div>
+                        <h4>Setup route</h4>
+                        <p>{installationMethodLabel(port)}</p>
+                      </div>
+                      <div>
+                        <h4>Required files</h4>
+                        {port.presentation?.source_requirements?.length ? (
+                          <ul>
+                            {port.presentation.source_requirements.map((requirement) => (
+                              <li key={requirement.profile_id}>{requirement.label}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p>
+                            File requirements have not been described here. Check this project’s
+                            setup instructions.
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <h4>Platform targets</h4>
+                        <IdentityChips port={port} />
+                      </div>
+                      <div>
+                        <h4>Ownership</h4>
+                        <p>
+                          Separate installation, files and saved data. This project’s setup
+                          instructions describe who prepares and updates its runtime.
+                        </p>
+                      </div>
+                      <div>
+                        <h4>Current observations</h4>
+                        <BrowsePortObservations
+                          port={port}
+                          status={status}
+                          observation={observation}
+                          descriptionId={descriptionId}
+                          noticeChoice={organization?.snapshot?.update_notices[port.id]}
+                        />
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        {favorite(port)}
+                        <Button
+                          data-focusable
+                          variant="outline"
+                          onClick={() =>
+                            open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)
+                          }
+                          data-discover-port-id={port.id}
+                          aria-label={`${memberLabel(port, status)}: ${gameIdentityLabel(port)}`}
+                          aria-describedby={describedBy}
+                        >
+                          {memberLabel(port, statuses.get(port.id))}
+                        </Button>
+                        {port.project_url && (
+                          <ExternalLink href={port.project_url}>Project instructions</ExternalLink>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </>
           )}
         </DialogContent>
@@ -214,6 +251,7 @@ export function GroupedDiscover({
 
 function DiscoverGameCard({
   group,
+  onTask,
   statuses,
   descriptionPrefix,
   nativeSourceDrag,
@@ -223,6 +261,7 @@ function DiscoverGameCard({
   compare,
 }: {
   group: GameGroup;
+  onTask?: ((activityId?: string) => void) | undefined;
   statuses: ReadonlyMap<string, PortStatus>;
   descriptionPrefix: string;
   nativeSourceDrag: NativeSourceDragState;
@@ -264,7 +303,7 @@ function DiscoverGameCard({
     >
       <Button
         variant="ghost"
-        className="discover-game-identity grid w-full min-w-0 grid-cols-1 justify-start justify-items-stretch gap-0 p-0 text-start"
+        className="discover-game-identity grid w-full min-w-0 justify-start justify-items-stretch gap-x-3 gap-y-0 p-0 text-start"
         data-focusable
         data-detail-origin={detailOrigin}
         aria-label={
@@ -304,6 +343,7 @@ function DiscoverGameCard({
         organization={organization}
       />
       <DiscoverGameActions
+        onTask={onTask}
         group={group}
         statuses={statuses}
         favorite={favorite}
@@ -370,6 +410,7 @@ function DiscoverGameObservation({
 
 function DiscoverGameActions({
   group,
+  onTask,
   statuses,
   favorite,
   first,
@@ -380,12 +421,19 @@ function DiscoverGameActions({
   compare,
 }: Pick<
   Parameters<typeof DiscoverGameCard>[0],
-  "group" | "statuses" | "favorite" | "organization" | "open" | "compare"
+  "group" | "onTask" | "statuses" | "favorite" | "organization" | "open" | "compare"
 > & {
   first: CatalogEntry;
   detailOrigin: string;
   describedBy: string | undefined;
 }) {
+  const action = presentPortAction(
+    useOperationPresentation(),
+    first.id,
+    statuses.get(first.id),
+    "launch",
+  );
+  const task = group.matchingPorts.length === 1 && action.pending && onTask;
   return (
     <div className="discover-game-actions grid content-start justify-items-start gap-2">
       <div className="discover-game-personal-actions flex flex-wrap items-start gap-2">
@@ -399,14 +447,18 @@ function DiscoverGameActions({
         data-detail-origin={`${detailOrigin}:details`}
         aria-describedby={describedBy}
         onClick={(event) =>
-          group.matchingPorts.length === 1
-            ? open(first, `${detailOrigin}:details`)
-            : compare(group, event.currentTarget)
+          task
+            ? onTask?.(action.pending?.context.activityId)
+            : group.matchingPorts.length === 1
+              ? open(first, `${detailOrigin}:details`)
+              : compare(group, event.currentTarget)
         }
       >
-        {group.matchingPorts.length === 1
-          ? memberLabel(first, statuses.get(first.id))
-          : "Compare ports"}
+        {task
+          ? "View task"
+          : group.matchingPorts.length === 1
+            ? memberLabel(first, statuses.get(first.id))
+            : "Compare ports"}
         <ArrowRight aria-hidden="true" />
       </Button>
       {group.ports.length > 1 && group.matchingPorts.length === 1 && (

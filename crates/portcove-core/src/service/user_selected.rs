@@ -774,6 +774,286 @@ mod tests {
         );
     }
 
+    // Bind the real embedded identities to Core's offered operations with an
+    // owned native probe. These are not game/ROM observations. Separate cases
+    // keep each complete consent/restart/launch/removal sequence independently
+    // bounded by the ordinary harness; no case or assertion is sampled away.
+    fn assert_prepared_player_route(id: &str) {
+        let (_temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        let declared = service.catalog.port(id).unwrap();
+        assert_eq!(declared.release.provider, ReleaseSource::UserPrepared);
+        assert_eq!(
+            declared.release.user_prepared[&Platform::WindowsX86_64].trust,
+            crate::ExternalRuntimeTrust::UserSelected
+        );
+        assert!(declared.source_profile.is_none());
+        assert!(declared.persistent_paths.is_empty());
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        #[cfg(windows)]
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_some()
+        );
+        let executable_before = fs::read(&executable).unwrap();
+        let arguments = vec![
+            "--record".into(),
+            "route-binding".into(),
+            id.into(),
+            "literal argument with spaces".into(),
+        ];
+        let preview = service
+            .preview_user_selected_runtime(id, &executable, &working, &arguments)
+            .unwrap();
+        assert!(
+            service
+                .register_user_selected_runtime(id, &executable, &working, &arguments, "")
+                .is_err()
+        );
+        assert!(
+            service
+                .authorize_user_selected_runtime(
+                    id,
+                    &executable,
+                    &working,
+                    &[],
+                    &preview.preview_sha256,
+                )
+                .is_err()
+        );
+        let authorization = service
+            .authorize_user_selected_runtime(
+                id,
+                &executable,
+                &working,
+                &arguments,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let record = service
+            .register_user_selected_runtime(
+                id,
+                &executable,
+                &working,
+                &arguments,
+                &authorization.token,
+            )
+            .unwrap();
+        assert_eq!(record.executable, preview.executable);
+        assert_eq!(record.path, preview.path);
+        assert_eq!(record.user_selected.unwrap().arguments, arguments);
+        #[cfg(windows)]
+        {
+            let (_, retained) = service
+                .library
+                .external_runtime_with_port(id)
+                .unwrap()
+                .unwrap();
+            let selected =
+                &retained.port(id).unwrap().release.user_prepared[&Platform::WindowsX86_64];
+            let expected =
+                &service.catalog.port(id).unwrap().release.user_prepared[&Platform::WindowsX86_64];
+            assert_eq!(
+                serde_json::to_value(selected).unwrap(),
+                serde_json::to_value(expected).unwrap()
+            );
+        }
+        assert!(
+            service
+                .preview_user_selected_runtime(id, &executable, &working, &arguments)
+                .is_err()
+        );
+
+        let root = service.library.root().to_path_buf();
+        drop(service);
+        let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+        let status = service.listing_status(id).unwrap();
+        assert!(
+            status
+                .actions
+                .iter()
+                .any(|action| { action.action == crate::ListingAction::Launch && action.allowed })
+        );
+        for action in [
+            PortAction::Install,
+            PortAction::Update,
+            PortAction::RemoveManaged,
+        ] {
+            assert!(status.status.port_actions.iter().any(|assessment| {
+                assessment.action == action
+                    && assessment.availability == PortActionAvailability::NotOffered
+            }));
+        }
+        assert!(service.rollback(id).is_err());
+        let launch = service
+            .supervise_launch(id, None, &[], LaunchStdio::Null, |_| {})
+            .unwrap();
+        assert!(launch.successful);
+        assert_eq!(
+            fs::read_to_string(working.join("route-binding")).unwrap(),
+            format!("{id}\nliteral argument with spaces")
+        );
+        let removal = service.preview_external_removal(id).unwrap();
+        let consent = service
+            .authorize_external_removal(id, &removal.preview_sha256)
+            .unwrap();
+        service.remove_external_runtime(id, &consent.token).unwrap();
+        assert_eq!(fs::read(&executable).unwrap(), executable_before);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+        assert_eq!(
+            fs::read_to_string(working.join("route-binding")).unwrap(),
+            format!("{id}\nliteral argument with spaces")
+        );
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(id)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    macro_rules! prepared_player_case {
+        ($name:ident, $id:literal) => {
+            #[test]
+            fn $name() {
+                assert_prepared_player_route($id);
+            }
+        };
+    }
+
+    prepared_player_case!(historical_route_zelda3, "zelda3");
+    prepared_player_case!(historical_route_smw, "super-mario-world-snesrev-smw");
+    prepared_player_case!(historical_route_sonic3air, "sonic-3-knuckles-sonic-3-a-i-r");
+    prepared_player_case!(historical_route_sm64coopdx, "super-mario-64-sm64-co-op-dx");
+    prepared_player_case!(historical_route_wipeout, "wipeout-phantom-edition");
+    prepared_player_case!(historical_route_emerald, "pokemon-emerald-emeraldrecomp");
+    prepared_player_case!(
+        historical_route_firered,
+        "pokemon-firered-fireredleafgreenrecomp"
+    );
+    prepared_player_case!(
+        historical_route_leafgreen,
+        "pokemon-leafgreen-fireredleafgreenrecomp"
+    );
+    prepared_player_case!(historical_route_ruby, "pokemon-ruby-rubysapphirerecomp");
+    prepared_player_case!(
+        historical_route_sapphire,
+        "pokemon-sapphire-rubysapphirerecomp"
+    );
+
+    prepared_player_case!(
+        native_engine_route_2592,
+        "medal-of-honor-allied-assault-openmohaa"
+    );
+    prepared_player_case!(
+        native_engine_route_2593,
+        "medal-of-honor-allied-assault-spearhead-openmohaa"
+    );
+    prepared_player_case!(
+        native_engine_route_2594,
+        "medal-of-honor-allied-assault-breakthrough-openmohaa"
+    );
+    prepared_player_case!(
+        native_engine_route_2565,
+        "doom-3-classic-dude-doom-3-unified-development-engine"
+    );
+    prepared_player_case!(
+        native_engine_route_2566,
+        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine"
+    );
+    prepared_player_case!(
+        native_engine_route_2612,
+        "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo"
+    );
+    prepared_player_case!(
+        native_engine_route_2611,
+        "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo"
+    );
+    prepared_player_case!(
+        native_engine_route_2889,
+        "perimeter-perimeter-community-engine"
+    );
+    prepared_player_case!(
+        native_engine_route_2890,
+        "perimeter-emperor-s-testament-perimeter-community-engine"
+    );
+    prepared_player_case!(native_engine_route_2910, "zeus-master-of-olympus-ezeus");
+    prepared_player_case!(
+        native_engine_route_2911,
+        "poseidon-master-of-atlantis-ezeus"
+    );
+    prepared_player_case!(
+        native_engine_route_2707,
+        "s-t-a-l-k-e-r-call-of-pripyat-openxray"
+    );
+    prepared_player_case!(native_engine_route_2708, "s-t-a-l-k-e-r-clear-sky-openxray");
+    prepared_player_case!(native_engine_route_2701, "quake-iii-arena-ioquake3");
+    prepared_player_case!(native_engine_route_2702, "quake-iii-team-arena-ioquake3");
+    prepared_player_case!(
+        native_engine_route_2605,
+        "serious-sam-the-first-encounter-serioussamclassic"
+    );
+    prepared_player_case!(
+        native_engine_route_2606,
+        "serious-sam-the-second-encounter-serioussamclassic"
+    );
+
+    #[test]
+    fn pre_declaration_selected_registration_keeps_its_creating_listing_contract() {
+        let id = "super-mario-64-sm64-co-op-dx";
+        let (_temporary, mut service, executable, working) = fixture(id);
+        let embedded = Catalog::embedded().unwrap();
+        service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(embedded.listing_document().clone())
+            .unwrap();
+        let record = register(&service, id, &executable, &working);
+        let read_contract = |service: &PortcoveService| -> String {
+            service.library.connection().unwrap().query_row(
+                "SELECT retained_catalog_json FROM external_runtime_registrations WHERE port_id=?1",
+                [id],
+                |row| row.get(0),
+            ).unwrap()
+        };
+        let before = read_contract(&service);
+        let root = service.library.root().to_path_buf();
+        drop(service);
+        let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+        assert!(service.catalog.port(id).is_ok());
+        let (retained_record, retained) = service
+            .library
+            .external_runtime_with_port(id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained_record.id, record.id);
+        assert!(retained.port(id).is_err());
+        assert_eq!(read_contract(&service), before);
+        assert!(service.status(id).unwrap().readiness.unwrap().launchable);
+        assert!(
+            service
+                .supervise_launch(id, None, &[], LaunchStdio::Null, |_| {})
+                .unwrap()
+                .successful
+        );
+        assert_eq!(read_contract(&service), before);
+        let removal = service.preview_external_removal(id).unwrap();
+        let consent = service
+            .authorize_external_removal(id, &removal.preview_sha256)
+            .unwrap();
+        service.remove_external_runtime(id, &consent.token).unwrap();
+        assert!(executable.is_file());
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+    }
+
     #[test]
     fn generic_route_beside_managed_definition_does_not_change_the_managed_contract() {
         let (_temporary, mut service, executable, working) = fixture("generic-alternative");

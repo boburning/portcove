@@ -15,7 +15,7 @@ import {
   type PortIdentity,
 } from "../port-identity";
 import { ArtworkImage } from "./Artwork";
-import { useArtwork, useArtworkVisibility, useCatalogMedia } from "../artwork";
+import { useHeaderArtwork, useArtworkVisibility } from "../artwork";
 import { CatalogMediaGallery, MediaCredit } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
@@ -84,19 +84,7 @@ export function DetailLayout({
   const selected = selection.identity === identity ? selection.section : initialSection;
   const root = useRef<HTMLElement>(null);
   const { element: hero, visible: heroVisible } = useArtworkVisibility();
-  const { display: headerArtwork } = useArtwork(port.id, "detail", heroVisible);
-  const catalogHeader = port.presentation?.media?.find((asset) => asset.role === "header");
-  // An unavailable selected local image keeps its precedence and its recovery path.
-  const allowCatalogHeader = Boolean(
-    headerArtwork.state && !headerArtwork.state.choice.asset_sha256,
-  );
-  const { display: catalogHeaderArtwork } = useCatalogMedia(
-    port.id,
-    catalogHeader,
-    heroVisible && allowCatalogHeader,
-  );
-  const usingCatalogHeader = Boolean(allowCatalogHeader && catalogHeaderArtwork.image);
-  const heroArtwork = usingCatalogHeader ? catalogHeaderArtwork : headerArtwork;
+  const { display: heroArtwork, catalogMedia } = useHeaderArtwork(port, heroVisible);
   const heroImage = heroArtwork.image;
   const [pending, setPending] = useState<{
     section: DetailSection;
@@ -299,9 +287,9 @@ export function DetailLayout({
           </p>
         </div>
       </div>
-      {usingCatalogHeader && catalogHeaderArtwork.media && (
+      {catalogMedia && (
         <div className="mt-2">
-          <MediaCredit media={catalogHeaderArtwork.media} />
+          <MediaCredit media={catalogMedia} />
         </div>
       )}
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
