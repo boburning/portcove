@@ -37,6 +37,47 @@ export function declaredUiSkip(file: string, desktopRoot: string): UiSkipContrac
   };
 }
 
+export type FrontendCaseSkipContract =
+  | UiSkipContract
+  | (Omit<UiSkipContract, "category"> & {
+      category: "platform";
+      platform: "win32";
+    });
+
+/** Case-level observations do not authorize wholly skipped UI selections. */
+export function declaredFrontendCaseSkip(
+  file: string,
+  desktopRoot: string,
+): FrontendCaseSkipContract | null {
+  const diagnostic = declaredUiSkip(file, desktopRoot);
+  if (diagnostic) return diagnostic;
+  if (
+    identity(path.resolve(file)) !==
+    identity(path.resolve(desktopRoot, "scripts/desktop-install-fixture.test.mts"))
+  )
+    return null;
+  return {
+    category: "platform",
+    platform: "win32",
+    reason:
+      "The original Windows process-tree lifecycle timeout guard is skipped on non-Windows hosts.",
+    prerequisite: "Actual win32 process semantics and the supported frontend unit environment",
+    intended_route: "Windows: node scripts/run-viteplus.mts test --project unit (frontend:unit)",
+    cases: ["lifecycle timeout terminates a ready descendant process tree within a second bound"],
+  };
+}
+
+export function frontendCaseSkipAllowed(
+  contract: FrontendCaseSkipContract | null,
+  environment: Readonly<NodeJS.ProcessEnv> = process.env,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  if (!contract) return false;
+  return contract.category === "platform"
+    ? platform !== contract.platform
+    : environment[browserTraceProbe.environment] !== "1";
+}
+
 const identity = (file: string): string =>
   process.platform === "win32" ? file.toLowerCase() : file;
 

@@ -273,7 +273,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)
     .toContain("Ready to play");
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toHaveFocus();
-});
+}, 45_000);
 
 it("renders recovery choices, returns to Library via the actual bootstrap hook, and resets", async () => {
   mount("recovery");

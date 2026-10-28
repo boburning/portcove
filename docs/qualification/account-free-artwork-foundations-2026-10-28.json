@@ -1,0 +1,30 @@
+{
+  "observed_at": "2026-10-28T21:10:41.085889+00:00",
+  "scope": "two mapped CDN HTTP/content-integrity observations; no decoded/native/installed/protected proof",
+  "samples": [
+    {
+      "port_id": "2ship2harkinian",
+      "match_kind": "port",
+      "url": "https://images.igdb.com/igdb/image/upload/t_cover_big/co89hc.jpg",
+      "expected_sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365",
+      "status": 200,
+      "content_type": "image/jpeg",
+      "bytes": 7080,
+      "sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365",
+      "within_bound": true,
+      "digest_matches": true
+    },
+    {
+      "port_id": "2xtreme-recomp-catsandsoup-2xtreme",
+      "match_kind": "underlying-game",
+      "url": "https://images.igdb.com/igdb/image/upload/t_cover_big/coaapw.jpg",
+      "expected_sha256": "d29de48d7dae223ef1c6798d3c0ab5dec5cfc3285f3aa5c95438231ae7fd6ebb",
+      "status": 200,
+      "content_type": "image/jpeg",
+      "bytes": 20769,
+      "sha256": "d29de48d7dae223ef1c6798d3c0ab5dec5cfc3285f3aa5c95438231ae7fd6ebb",
+      "within_bound": true,
+      "digest_matches": true
+    }
+  ]
+}

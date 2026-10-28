@@ -87,6 +87,97 @@ export async function driveInstalledUpdateRecovery(
   };
 }
 
+/** Observe a fresh ordinary Stable check with no eligible Stable fixture release.
+ * This is an opt-in qualification assertion, never a production eligibility rule. */
+export async function driveInstalledStableWaiting(browser: WebDriver, actions: string[]) {
+  await browser.manage().setTimeouts({ script: 15_000 });
+  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30_000);
+  const before = await readInstalledUpdateStatus(browser);
+  assert.equal(before.install_eligibility, "eligible");
+  assert.equal(before.staged, null);
+  assert.equal(before.apply, null);
+  assert.equal(before.recovery_required.length, 0);
+  await openInstalledUpdateSettings(browser);
+  for (const [label, value] of [
+    ["Application update channel", "Stable"],
+    ["Application update mode", "Manual"],
+  ])
+    await browser
+      .findElement(By.xpath(`//*[@aria-label="${label}"]//button[normalize-space(.)="${value}"]`))
+      .click();
+  await browser
+    .findElement(By.xpath('//button[normalize-space(.)="Save application update settings"]'))
+    .click();
+  await browser.wait(
+    until.elementLocated(
+      By.xpath('//button[normalize-space(.)="Check for updates" and not(@disabled)]'),
+    ),
+    15_000,
+  );
+  // Changing the one-time channel invalidates an earlier bound result. The
+  // resulting caption distinguishes this manual check from saved automatic activity.
+  for (const channel of ["Preview", "Stable"])
+    await browser
+      .findElement(
+        By.xpath(
+          `//*[@aria-label="One-time update channel"]//button[normalize-space(.)="${channel}"]`,
+        ),
+      )
+      .click();
+  const caption = By.xpath(
+    '//section[@aria-labelledby="application-check-title"]//p[normalize-space(.)="One-time check · Stable"]',
+  );
+  await browser.wait(async () => (await browser.findElements(caption)).length === 0, 15_000);
+  actions.push("stable-manual-settings-saved");
+  const checkedAt = new Date().toISOString();
+  await browser.findElement(By.xpath('//button[normalize-space(.)="Check for updates"]')).click();
+  await browser.wait(until.elementLocated(caption), 45_000);
+  const waiting = await browser.wait(
+    until.elementLocated(
+      By.xpath(
+        '//section[@aria-labelledby="application-check-title"]//p[normalize-space(.)="No update can be offered on this channel." or normalize-space(.)="No eligible release is published for the selected channel."]',
+      ),
+    ),
+    15_000,
+  );
+  const message = await waiting.getText();
+  assert.ok(
+    [
+      "No update can be offered on this channel.",
+      "No eligible release is published for the selected channel.",
+    ].includes(message),
+  );
+  for (const text of ["Download and verify update", "Restart to update", "Retry restart to update"])
+    assert.equal(
+      (await browser.findElements(By.xpath(`//button[normalize-space(.)="${text}"]`))).length,
+      0,
+    );
+  assert.equal(
+    (
+      await browser.findElements(
+        By.xpath(
+          '//section[@aria-labelledby="application-check-title"]//p[contains(.,"Portcove is current")]',
+        ),
+      )
+    ).length,
+    0,
+  );
+  const after = await readInstalledUpdateStatus(browser);
+  assert.equal(after.install_eligibility, "eligible");
+  assert.equal(after.staged, null);
+  assert.equal(after.apply, null);
+  assert.equal(after.recovery_required.length, 0);
+  actions.push("stable-waiting-without-staging-or-current-claim");
+  return {
+    before,
+    after,
+    checked_at: checkedAt,
+    message,
+    authority: "none" as const,
+    scope: "ordinary Stable waiting UI only" as const,
+  };
+}
+
 /** Drive the installed application's ordinary controls up to a verified staged candidate. */
 export async function driveInstalledUpdateToRestart(
   browser: WebDriver,
@@ -169,6 +260,11 @@ async function stageInstalledUpdate(
     ),
     15_000,
   );
+  await browser
+    .findElement(
+      By.xpath('//*[@aria-label="One-time update channel"]//button[normalize-space(.)="Preview"]'),
+    )
+    .click();
   actions.push("preview-manual-settings-saved");
   await browser.findElement(By.xpath('//button[normalize-space(.)="Check for updates"]')).click();
   await browser.wait(

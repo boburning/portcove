@@ -44,8 +44,8 @@ fn broad_listing_inspection_is_inert_and_does_not_accept_operational_fields() {
 #[test]
 fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_removal() {
     let root = tempfile::tempdir().unwrap();
-    let library = root.path().join("library");
-    let runtime = root.path().join("user-owned-game");
+    let library = root.path().join("Selected library ü 日本語");
+    let runtime = root.path().join("User owned game ü 日本語");
     std::fs::create_dir(&runtime).unwrap();
     let executable = compile_native_fixture(&runtime);
     let replacement = runtime.join(if cfg!(windows) {
@@ -122,7 +122,40 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
         registration["id"]
     );
 
+    // Steam's static manual entry uses the public argument array, without a
+    // fixed request UUID or a version-specific game executable.
+    let launch = portcove(&library, &["--non-interactive", "exec", port, "--"]);
+    assert!(launch.status.success(), "{launch:?}");
+
+    // Moving the standalone CLI requires manual target/Start In repair. The
+    // repaired target still selects the same library and runtime registration.
+    let cli_directory = root.path().join("Relocated CLI ü 日本語");
+    std::fs::create_dir(&cli_directory).unwrap();
+    let relocated_cli = cli_directory.join(if cfg!(windows) {
+        "portcove.exe"
+    } else {
+        "portcove"
+    });
+    std::fs::copy(super::cli_binary(), &relocated_cli).unwrap();
+    let launch_relocated = || {
+        std::process::Command::new(&relocated_cli)
+            .current_dir(&cli_directory)
+            .arg("--library")
+            .arg(&library)
+            .args(["--non-interactive", "exec", port, "--"])
+            .output()
+            .unwrap()
+    };
+    let launch = launch_relocated();
+    assert!(launch.status.success(), "{launch:?}");
+
     std::fs::remove_file(&executable).unwrap();
+    let unavailable = launch_relocated();
+    assert!(!unavailable.status.success(), "{unavailable:?}");
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "status", port]))["data"]["external_runtime"]["id"],
+        registration["id"]
+    );
     let review = portcove(
         &library,
         &[
@@ -164,6 +197,8 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
         json_stdout(&relinked)["data"]["registered_at"],
         registration["registered_at"]
     );
+    let repaired = launch_relocated();
+    assert!(repaired.status.success(), "{repaired:?}");
     let removal = portcove(&library, &["--json", "external", "removal-preview", port]);
     assert!(removal.status.success(), "{removal:?}");
     let hash = json_stdout(&removal)["data"]["preview_sha256"]

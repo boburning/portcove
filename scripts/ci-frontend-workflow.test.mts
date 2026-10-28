@@ -722,6 +722,34 @@ void test("native recovery and Unix custody changes retain macOS no-global porta
   );
 });
 
+const frontendToolInputs = [
+  ["frontend:static", ["node", "apps/desktop/scripts/browser-package-compatibility.mts"]],
+  ["frontend:static", ["vp", "-C", "apps/desktop", "run", "lint:style"]],
+  ["frontend:content", ["node", "apps/desktop/scripts/generate-transport-types.mts"]],
+  ["frontend:content", ["node", "scripts/check-transport-contract.mts", "--ipc-only"]],
+] as const;
+
+function assertFrontendToolInputs(tasks: unknown) {
+  assert.ok(isRecord(tasks));
+  for (const [name, input] of frontendToolInputs) {
+    const task = tasks[name];
+    assert.ok(isRecord(task));
+    const commands: unknown[] = Array.isArray(task.command) ? task.command : [task.command];
+    const invocations = commands.flatMap((command) => {
+      assert.equal(typeof command, "string");
+      const body = literalStepCommands({ run: command });
+      return body.length === 1 ? body : [];
+    });
+    assert.ok(
+      invocations.some(
+        (args) =>
+          args.length === input.length && args.every((value, index) => value === input[index]),
+      ),
+      `${name} must execute ${input.join(" ")}`,
+    );
+  }
+}
+
 void test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -731,12 +759,77 @@ void test("frontend tools resolve through the pinned Vite+ bundle", async () => 
   for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
     assert.equal(manifest.devDependencies[superseded], undefined);
   assert.equal(manifest.scripts.check, "vp run frontend:static");
-  const configuration = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
-  assert.match(configuration, /browser-package-compatibility.mts/);
-  assert.match(configuration, /vp -C apps\/desktop run lint:style/);
-  assert.match(configuration, /generate-transport-types.mts/);
-  assert.match(configuration, /check-transport-contract.mts --ipc-only/);
+  const { default: configuration } = await import("../vite.config.ts");
+  assertFrontendToolInputs(configuration.run?.tasks);
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mts");
+});
+
+void test("actual frontend task inputs tolerate declaration layout and reject missing or unreachable tool dependencies", async (t) => {
+  const { default: configuration } = await import("../vite.config.ts");
+  const tasks: unknown = configuration.run?.tasks;
+  assert.ok(isRecord(tasks));
+  const copyTasks = (): Record<string, unknown> =>
+    Object.fromEntries(
+      [...new Set(frontendToolInputs.map(([name]) => name))].map((name) => {
+        const task = tasks[name];
+        assert.ok(isRecord(task));
+        return [
+          name,
+          {
+            ...task,
+            command: Array.isArray(task.command)
+              ? task.command.map((value: unknown) => value)
+              : task.command,
+          },
+        ];
+      }),
+    );
+  const harmless: Record<string, unknown> = Object.fromEntries(
+    Object.entries(copyTasks()).reverse(),
+  );
+  for (const name of ["frontend:static", "frontend:content"]) {
+    const task = harmless[name];
+    assert.ok(isRecord(task) && Array.isArray(task.command));
+    task.command = task.command.map((command: unknown) => {
+      assert.equal(typeof command, "string");
+      const [args] = literalStepCommands({ run: command });
+      assert.ok(args);
+      return "# harmless task comment\n" + args.map((arg) => JSON.stringify(arg)).join("   ");
+    });
+  }
+  assert.doesNotThrow(() => assertFrontendToolInputs(harmless));
+  for (const [name, input] of frontendToolInputs) {
+    for (const mode of ["missing", "unreachable", "foreign-owner"] as const) {
+      const changed = copyTasks();
+      const task = changed[name];
+      assert.ok(isRecord(task) && Array.isArray(task.command));
+      const commands: unknown[] = task.command;
+      const selected = commands.findIndex((command) => {
+        if (typeof command !== "string") return false;
+        const body = literalStepCommands({ run: command });
+        const args = body[0];
+        return (
+          body.length === 1 &&
+          args?.length === input.length &&
+          args.every((arg, index) => arg === input[index])
+        );
+      });
+      assert.ok(selected >= 0);
+      if (mode === "unreachable") task.command[selected] = "exit 0\n" + input.join(" ");
+      else task.command.splice(selected, 1);
+      if (mode === "foreign-owner") changed["unused:foreign-owner"] = { command: input.join(" ") };
+      const oracle = `${name} must execute ${input.join(" ")}`;
+      assert.throws(
+        () => assertFrontendToolInputs(changed),
+        (error: unknown) => {
+          assert.ok(error instanceof assert.AssertionError);
+          assert.ok(error.message.includes(oracle), error.message);
+          return true;
+        },
+      );
+      t.diagnostic(JSON.stringify({ name, input, mode, oracle }));
+    }
+  }
 });
 
 void test("full frontend tests retain fresh unit and browser stages", async () => {
@@ -767,64 +860,82 @@ void test("routine checks retain architecture enforcement but make cycles option
   assert.match(recipes, /^cycles:\r?\n.*cargo modules/m);
 });
 
-void test("full frontend tasks stop after a failed unit stage and propagate browser failures", async (t) => {
-  const { default: configuration } = await import("../vite.config.ts");
-  const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
-  t.after(() => rm(parent, { recursive: true, force: true }));
-  // A synthetic parent catches accidental execution of a contributor's real tasks.
-  await writeFile(path.join(parent, "package.json"), '{"private":true,"type":"module"}');
-  await writeFile(path.join(parent, "pnpm-workspace.yaml"), "packages: []\n");
-  await writeFile(path.join(parent, "foreign.mjs"), "process.exit(97);\n");
-  const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
-  await writeFile(
-    path.join(parent, "vite.config.ts"),
-    `export default ${JSON.stringify({
-      run: { tasks: { "frontend:tests": { command: `${executable} foreign.mjs`, cache: false } } },
-    })}`,
-  );
-  const root = path.join(parent, "fixture");
-  await mkdir(root);
-  await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
-  await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
-  await writeFile(
-    path.join(root, "leaf.mjs"),
-    `
+void test(
+  "full frontend tasks stop after a failed unit stage and propagate browser failures",
+  { timeout: 240_000 },
+  async (t) => {
+    const { default: configuration } = await import("../vite.config.ts");
+    const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    // A synthetic parent catches accidental execution of a contributor's real tasks.
+    await writeFile(path.join(parent, "package.json"), '{"private":true,"type":"module"}');
+    await writeFile(path.join(parent, "pnpm-workspace.yaml"), "packages: []\n");
+    await writeFile(path.join(parent, "foreign.mjs"), "process.exit(97);\n");
+    const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
+    await writeFile(
+      path.join(parent, "vite.config.ts"),
+      `export default ${JSON.stringify({
+        run: {
+          tasks: { "frontend:tests": { command: `${executable} foreign.mjs`, cache: false } },
+        },
+      })}`,
+    );
+    const root = path.join(parent, "fixture");
+    await mkdir(root);
+    await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
+    await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
+    await writeFile(
+      path.join(root, "leaf.mjs"),
+      `
     import { appendFileSync, readFileSync } from "node:fs";
     const stage = process.argv[2];
     appendFileSync("events.txt", stage + "\\n");
     process.exit(readFileSync("failure.txt", "utf8") === stage ? 17 : 0);
   `,
-  );
-  await writeFile(
-    path.join(root, "vite.config.ts"),
-    `export default ${JSON.stringify({
-      run: {
-        tasks: {
-          "frontend:tests": requiredFixture(configuration.run?.tasks)["frontend:tests"],
-          "frontend:unit": { command: `${executable} leaf.mjs unit`, cache: false },
-          "frontend:browser": { command: `${executable} leaf.mjs browser`, cache: false },
-        },
-      },
-    })}`,
-  );
-  const cli = vitePlusCommand(fileURLToPath(new URL("../", import.meta.url)));
-  for (const failure of ["none", "unit", "browser"]) {
-    await writeFile(path.join(root, "failure.txt"), failure);
-    await writeFile(path.join(root, "events.txt"), "");
-    const result = spawnSync(cli.command, [...cli.args, "-C", root, "run", "frontend:tests"], {
-      encoding: "utf8",
-      // This outer fixture starts Vite+ and its unit/browser leaf processes in
-      // a cold synthetic workspace. Hosted parallel contracts reached the old
-      // 15s harness ceiling; retain finite startup headroom and all gate checks.
-      timeout: 60_000,
-      windowsHide: true,
-    });
-    assert.ifError(result.error);
-    assert.equal(result.signal, null, result.stderr);
-    assert.equal(result.status === 0, failure === "none", result.stdout + result.stderr);
-    assert.equal(
-      await readFile(path.join(root, "events.txt"), "utf8"),
-      failure === "unit" ? "unit\n" : "unit\nbrowser\n",
     );
-  }
-});
+    await writeFile(
+      path.join(root, "vite.config.ts"),
+      `export default ${JSON.stringify({
+        run: {
+          tasks: {
+            "frontend:tests": requiredFixture(configuration.run?.tasks)["frontend:tests"],
+            "frontend:unit": { command: `${executable} leaf.mjs unit`, cache: false },
+            "frontend:browser": { command: `${executable} leaf.mjs browser`, cache: false },
+          },
+        },
+      })}`,
+    );
+    const cli = vitePlusCommand(fileURLToPath(new URL("../", import.meta.url)));
+    for (const failure of ["none", "unit", "browser"]) {
+      await writeFile(path.join(root, "failure.txt"), failure);
+      await writeFile(path.join(root, "events.txt"), "");
+      const began = performance.now();
+      const result = spawnSync(cli.command, [...cli.args, "-C", root, "run", "frontend:tests"], {
+        encoding: "utf8",
+        // Retain the already delivered cold-workspace startup calibration.
+        timeout: 60_000,
+        windowsHide: true,
+      });
+      if (result.error || result.signal !== null)
+        t.diagnostic(
+          JSON.stringify({
+            failure,
+            elapsedMilliseconds: performance.now() - began,
+            status: result.status,
+            signal: result.signal,
+            error: result.error ? String(result.error) : null,
+            events: await readFile(path.join(root, "events.txt"), "utf8"),
+            stdout: result.stdout?.slice(-8192),
+            stderr: result.stderr?.slice(-8192),
+          }),
+        );
+      assert.ifError(result.error);
+      assert.equal(result.signal, null, result.stderr);
+      assert.equal(result.status === 0, failure === "none", result.stdout + result.stderr);
+      assert.equal(
+        await readFile(path.join(root, "events.txt"), "utf8"),
+        failure === "unit" ? "unit\n" : "unit\nbrowser\n",
+      );
+    }
+  },
+);

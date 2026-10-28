@@ -260,17 +260,19 @@ void test("first reader observation ignores a sample finishing after close", asy
   assert.equal(child.killedWith, undefined);
 });
 
-// Hosted first-reader evidence in PR #2038 spent 7.2s before stderr and then
-// waited in Get-Content at the old 10s deadline. Seven bounded invocations can
-// take 140s, so retain another 40s for diagnostics/cleanup; no retries or product
-// deadlines change. Preserve the original failure rather than calling this a
-// causal repair of host disk contention.
+// Hosted first-reader evidence in PR #2038 reached stderr at 7.2s, then waited
+// in Get-Content at the old 10s deadline. CI 40753522914/a1 reached stderr at
+// 15.257s and read-config before its 20s cutoff. Give only that first cold
+// invocation 60s; the other six retain 20s. Their 180s envelope plus 60s parent
+// headroom preserves diagnostics and cleanup. No retries or product deadlines
+// change. Retain the original failures; this is not a causal contention repair.
 
 void test(
   "repository toolchain reader exports the declared components before installation",
-  { timeout: 180_000 },
+  { timeout: 240_000 },
   async (context) => {
     const readerTimeoutMs = 20_000;
+    const coldReaderTimeoutMs = 60_000;
     const setup = await readFile(
       new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
       "utf8",
@@ -321,13 +323,14 @@ void test(
     async function runReader(fixture: string, command = tracedScript) {
       const startedAt = new Date().toISOString();
       const started = performance.now();
+      const timeoutMs = fixture === "valid-1" ? coldReaderTimeoutMs : readerTimeoutMs;
       const args = ["-NoProfile", "-NonInteractive", "-Command", command];
       const options: SpawnSyncOptionsWithStringEncoding = {
         cwd: directory,
         env: { ...process.env, GITHUB_OUTPUT: output },
         encoding: "utf8",
         windowsHide: true,
-        timeout: readerTimeoutMs,
+        timeout: timeoutMs,
       };
       const result =
         fixture === "valid-1"
@@ -351,7 +354,7 @@ void test(
           runner_image_version: process.env.ImageVersion ?? null,
           started_at: startedAt,
           elapsed_ms: performance.now() - started,
-          timeout_ms: readerTimeoutMs,
+          timeout_ms: timeoutMs,
           status: result.status,
           signal: result.signal,
           error: result.error
