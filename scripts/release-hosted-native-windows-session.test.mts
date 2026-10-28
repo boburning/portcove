@@ -1424,7 +1424,7 @@ void test("actual diagnostic first-stage failure preserves recovery success or U
     const nativeFailure = new Error("controlled first-stage failure"),
       retained: unknown[] = [];
     let recoveryCalls = 0;
-    const result = runInNewContext(program, {
+    const result: unknown = runInNewContext(program, {
       state: {},
       built: { tools: "unused" },
       inputs: { source: "a".repeat(40), run_id: "123" },
@@ -1452,7 +1452,7 @@ void test("actual diagnostic first-stage failure preserves recovery success or U
       },
       Error,
     });
-    await assert.rejects(result, (error: unknown) => error === nativeFailure);
+    await assert.rejects(result as Promise<unknown>, (error: unknown) => error === nativeFailure);
     assert.equal(recoveryCalls, 1);
     const final = retained.at(-1) as {
       outcome: string;
