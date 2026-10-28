@@ -15085,9 +15085,6 @@
       "original_game_title": "Doom 3 (classic)",
       "project_url": "https://github.com/Inkub0/dude",
       "issue_number": 2565,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md",
       "release_url": "https://github.com/Inkub0/dude/releases/tag/v0.9.6",
@@ -15121,7 +15118,10 @@
           "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
         ],
         "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dhewm3",
@@ -15173,9 +15173,6 @@
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
       "project_url": "https://github.com/Inkub0/dude",
       "issue_number": 2566,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md",
       "release_url": "https://github.com/Inkub0/dude/releases/tag/v0.9.6",
@@ -15209,7 +15206,10 @@
           "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
         ],
         "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-ii-crispy-doom-family",
@@ -24155,9 +24155,6 @@
       "summary": "Prepare Medal of Honor: Allied Assault Breakthrough through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
       "project_url": "https://github.com/openmoh/openmohaa",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
       "issue_number": 2594,
@@ -24190,7 +24187,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "medal-of-honor-allied-assault-openmohaa",
@@ -24198,9 +24198,6 @@
       "summary": "Prepare Medal of Honor: Allied Assault through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Medal of Honor: Allied Assault",
       "project_url": "https://github.com/openmoh/openmohaa",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
       "artwork": {
@@ -24241,7 +24238,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
@@ -24249,9 +24249,6 @@
       "summary": "Prepare Medal of Honor: Allied Assault Spearhead through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Medal of Honor: Allied Assault Spearhead",
       "project_url": "https://github.com/openmoh/openmohaa",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
       "issue_number": 2593,
@@ -24284,7 +24281,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "medievil-ps4-native-runtime-bc160201983-medievil-2019",
@@ -28978,7 +28978,6 @@
       "summary": "Prepare Perimeter: Emperor's Testament through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Perimeter: Emperor's Testament",
       "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/README.md",
       "artwork": {
@@ -29014,7 +29013,10 @@
           "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit."
         ],
         "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "perimeter-perimeter-community-engine",
@@ -29022,7 +29024,6 @@
       "summary": "Prepare Perimeter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Perimeter",
       "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/README.md",
       "issue_number": 2889,
@@ -29050,7 +29051,10 @@
           "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit."
         ],
         "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "persona2recomp-jermspeaks-persona-2-innocent-sin",
@@ -30401,9 +30405,6 @@
       "summary": "Prepare Poseidon: Master of Atlantis through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Poseidon: Master of Atlantis",
       "project_url": "https://github.com/MaurycyLiebner/eZeus",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md",
       "artwork": {
@@ -30445,7 +30446,10 @@
           "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified."
         ],
         "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "potiondweller-azure-dreams-hd-recompilation",
@@ -31326,7 +31330,6 @@
       "summary": "Prepare Quake III Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Quake III Arena",
       "project_url": "https://github.com/ioquake/ioq3",
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md",
       "artwork": {
@@ -31362,7 +31365,10 @@
           "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
         ],
         "help_url": "https://ioquake3.org/help/players-guide/"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "quake-iii-team-arena-ioquake3",
@@ -31370,7 +31376,6 @@
       "summary": "Prepare Quake III: Team Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Quake III: Team Arena",
       "project_url": "https://github.com/ioquake/ioq3",
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md",
       "artwork": {
@@ -31406,7 +31411,10 @@
           "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
         ],
         "help_url": "https://ioquake3.org/help/players-guide/"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "quake-ironwail",
@@ -33260,9 +33268,6 @@
       "summary": "Prepare S.T.A.L.K.E.R.: Call of Pripyat through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "S.T.A.L.K.E.R.: Call of Pripyat",
       "project_url": "https://github.com/OpenXRay/xray-16",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenXRay/xray-16/blob/c62d9d343981d50f6ed176412b85d94c61b578b5/README.md",
       "artwork": {
@@ -33304,7 +33309,10 @@
           "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
         ],
         "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "s-t-a-l-k-e-r-clear-sky-openxray",
@@ -33312,9 +33320,6 @@
       "summary": "Prepare S.T.A.L.K.E.R.: Clear Sky through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "S.T.A.L.K.E.R.: Clear Sky",
       "project_url": "https://github.com/OpenXRay/xray-16",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenXRay/xray-16/blob/c62d9d343981d50f6ed176412b85d94c61b578b5/README.md",
       "artwork": {
@@ -33356,7 +33361,10 @@
           "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
         ],
         "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "saints-row-xbox-360-2006-static-recompilation-sp00nznet-saints-row-2006",
@@ -33565,9 +33573,6 @@
       "summary": "Prepare Serious Sam: The First Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Serious Sam: The First Encounter",
       "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
       "artwork": {
@@ -33608,7 +33613,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "serious-sam-the-second-encounter-serioussamclassic",
@@ -33616,9 +33624,6 @@
       "summary": "Prepare Serious Sam: The Second Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Serious Sam: The Second Encounter",
       "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
       "artwork": {
@@ -33659,7 +33664,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sexy-parodius-sexyparorecomp",
@@ -35401,9 +35409,6 @@
       "summary": "Prepare Star Wars Jedi Knight II: Jedi Outcast (single player) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
       "project_url": "https://github.com/JACoders/OpenJK",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
       "issue_number": 2611,
@@ -35437,7 +35442,10 @@
           "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here."
         ],
         "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
@@ -35445,9 +35453,6 @@
       "summary": "Prepare Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
       "project_url": "https://github.com/JACoders/OpenJK",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
       "issue_number": 2612,
@@ -35479,7 +35484,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "star-wars-rogue-squadron-64-recompiled",
@@ -43834,9 +43842,6 @@
       "summary": "Prepare Zeus: Master of Olympus through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Zeus: Master of Olympus",
       "project_url": "https://github.com/MaurycyLiebner/eZeus",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md",
       "artwork": {
@@ -43878,7 +43883,10 @@
           "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified."
         ],
         "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "zinexda-sonic-r-android",
