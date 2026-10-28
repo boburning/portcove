@@ -12,6 +12,7 @@ import test from "node:test";
 import { parse } from "yaml";
 import {
   admitProductionController,
+  admitProductionWindowsToolBootstrap,
   maximumProductionControllerWorkflowBytes,
   readProductionControllerWorkflowBytes,
   admitProductionInputReader,
@@ -1980,4 +1981,35 @@ void test("workflow reader and admission share a finite 96KiB bound, including a
     t.mock.restoreAll();
     syncBuiltinESMExports();
   }
+});
+
+void test("Windows source bootstrap retains the existing bounded source authority without appointing a runtime caller from raw data", () => {
+  const bounded = {
+      ...policy,
+      schema_version: 2,
+      mode: "bounded-application-release",
+      authority_configuration_sha256: "b".repeat(64),
+      grant_sha256: "c".repeat(64),
+    },
+    env = { ...environment, GITHUB_JOB: "tool_bootstrap_windows" };
+  const admitted = admitProductionWindowsToolBootstrap(JSON.stringify(bounded), env, source);
+  requireAdmittedProductionSource(admitted, "tool_bootstrap_windows", "application");
+  assert.match(admitted.qualification, /no candidate acceptance/u);
+  assert.throws(
+    () => requireAdmittedProductionSource({ ...admitted }, "tool_bootstrap_windows", "application"),
+    /original unchanged/u,
+  );
+  for (const changed of [
+    { ...env, GITHUB_JOB: "windows-tools" },
+    { ...env, GITHUB_RUN_ATTEMPT: "2" },
+    { ...env, GITHUB_REF_PROTECTED: "false" },
+    { ...env, GITHUB_SHA: "d".repeat(40) },
+  ])
+    assert.throws(() =>
+      admitProductionWindowsToolBootstrap(JSON.stringify(bounded), changed, source),
+    );
+  assert.throws(
+    () => admitProductionWindowsToolBootstrap(raw, env, source),
+    /bounded application bootstrap/u,
+  );
 });
