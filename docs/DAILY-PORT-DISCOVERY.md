@@ -462,6 +462,13 @@ without writing issue text or Project fields. Original draft and any historical
 review records, plus the new snapshot/doctor, stay in the journal; only then is its
 delivery reservation released. Drift, ambiguity and incomplete collection still refuse.
 
+If primary drift leaves an unattempted amendment in `needs-research`, fresh
+canonical metadata authored through the maintained Roadmap route can use the same
+read-only reconciliation. Its snapshot also binds the unapplied amendment; only
+passing snapshot/identity/doctor checks can retire that draft. The existing issue
+and current owner text/fields remain unchanged. Attempted amendments keep their
+existing recovery guards.
+
 Intake proposals must satisfy the same non-catalog research/watchlist metadata
 and support disclaimer checked by the scoped doctor before delivery.
 If a retained created intake fails that check, `op: amend` accepts

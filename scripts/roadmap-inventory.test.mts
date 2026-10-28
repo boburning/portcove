@@ -586,6 +586,120 @@ void test("retained intake amendment prepares without review and preserves ident
     /does not match/,
   );
 });
+void test("a stale unattempted amendment reconciles fresh owner metadata after restart without a public write", async (t) => {
+  const { session, state, run } = await temporarySession(t);
+  const f = fixture(1);
+  const original =
+    "<!-- portcove-discovery-intake:fixture -->\n\n" +
+    renderPortIssueBody({
+      title: "Fixture",
+      upstream: "https://github.com/example/fixture",
+      portKey: "fixture",
+    });
+  f.rows[0]!.body = original;
+  f.rows[0]!.title = "[Port] Fixture";
+  f.project[0]!.content = { ...f.rows[0]!, body: undefined };
+  f.project[0]!.fieldValues = [{ name: "Port", field: { name: "Work type" } }];
+  const wire = (target: DiscoverySession) => {
+    target.client.api.request = () => {
+      throw new Error("No public write is permitted in this recovery fixture");
+    };
+    target.client.graphql = f.client.graphql;
+    target.client.completeProjectContext = f.client.completeProjectContext;
+    target.client.itemList = f.client.itemList;
+    target.checkProviderCapacity = () => {
+      for (const resource of ["core", "graphql"])
+        target.budget.observeProvider({
+          resource,
+          remaining: 10000,
+          resetAt: new Date(Date.now() + 3600000).toISOString(),
+        });
+    };
+    target.source.http.request = () => ({
+      requests: 1,
+      bytes: 5,
+      status: 200,
+      headers: {},
+      text: "fresh",
+    });
+    target.refresh();
+  };
+  wire(session);
+  const file = path.join(run, "old-primary.json");
+  writeFileSync(file, JSON.stringify({ text: "old" }));
+  session.journal.evidence.primary = {
+    repository: "example/fixture",
+    material: observationHash("old"),
+    file,
+    requests: 1,
+    bytes: 3,
+    url: "https://github.com/example/fixture/blob/main/README.md",
+  };
+  session.journal.candidates.fixture = {
+    id: "fixture",
+    kind: "intake",
+    title: "Fixture",
+    upstream: "https://github.com/example/fixture",
+    portKey: "fixture",
+    body: original,
+    body_sha256: observationHash(original),
+    evidence_ids: ["primary"],
+    evidence_sha256: observationHash([observationHash("old")]),
+    status: "doctor-pending",
+    created_issue: 1,
+    itemId: "P0",
+  };
+  const draft = original.replace(
+    "<!-- portcove-port -->",
+    "Unpublished amendment based on old primary evidence.\n\n<!-- portcove-port -->",
+  );
+  session.amend({
+    candidate_id: "fixture",
+    expected_body_sha256: observationHash(original),
+    body: draft,
+    reason: "fresh metadata",
+  });
+  await assert.rejects(session.apply(), /Primary evidence changed/u);
+  assert.equal(session.journal.candidates.fixture.status, "needs-research");
+  const resumedRun = path.join(state, "runs", "resumed");
+  await mkdir(resumedRun);
+  const resumed = new DiscoverySession(
+    state,
+    resumedRun,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
+  f.rows[0]!.body =
+    original + "\n## Dated owner research\nFresh primary findings; research/watch only.";
+  f.rows[0]!.updatedAt = "2026-10-28T21:00:00Z";
+  f.project[0]!.content = { ...f.rows[0]!, body: undefined };
+  wire(resumed);
+  const before = JSON.stringify([f.rows, f.project]);
+  const amendment = resumed.journal.candidates.fixture!.amendment!;
+  for (const status of ["attempted", "applied"] as const) {
+    amendment.status = status;
+    await assert.rejects(resumed.reconcile({ candidate_id: "fixture" }), /unamended pending/u);
+  }
+  amendment.status = "prepared";
+  const snapshot = await resumed.reconcile({ candidate_id: "fixture" });
+  assert.ok("snapshot_sha256" in snapshot && "file" in snapshot);
+  const saved = JSON.parse(readFileSync(snapshot.file, "utf8")) as {
+    unapplied_amendment: { expected_body_sha256: string };
+  };
+  assert.equal(saved.unapplied_amendment.expected_body_sha256, observationHash(original));
+  await resumed.reconcile({ candidate_id: "fixture", snapshot_sha256: snapshot.snapshot_sha256 });
+  assert.equal(resumed.journal.candidates.fixture?.created_issue, 1);
+  assert.equal(resumed.journal.candidates.fixture?.status, "delivered");
+  assert.equal(
+    resumed.journal.candidates.fixture?.body,
+    draft,
+    "unpublished draft remains historical evidence",
+  );
+  assert.equal(resumed.journal.candidates.fixture?.amendment, undefined);
+  assert.equal(JSON.stringify([f.rows, f.project]), before);
+});
 void test("interrupted state preserves checkpoint work, matching review and the original created issue", async (t) => {
   const { state, run, session } = await temporarySession(t);
   const f = fixture(1);

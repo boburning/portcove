@@ -1149,9 +1149,15 @@ export class DiscoverySession {
       throw new Error("Reconciliation requires a retained created intake");
     if (c.status === "delivered" && c.reconciliation)
       return { reconciled: c.id, already_completed: true };
-    if (!["created", "doctor-pending"].includes(c.status) || c.amendment)
+    const unappliedAmendment = c.status === "needs-research" && c.amendment?.status === "prepared";
+    if (!unappliedAmendment && (!["created", "doctor-pending"].includes(c.status) || c.amendment))
       throw new Error("Reconciliation requires an unamended pending intake");
     const snapshot = () => {
+      if (
+        unappliedAmendment &&
+        (c.status !== "needs-research" || c.amendment?.status !== "prepared")
+      )
+        throw new Error("Unapplied amendment state changed; preserve mutation evidence");
       requireRoadmapInventory(this.inventory, this.client.config.repository, this.client);
       const issue = this.inventory.issues.find((row) => row.number === c.created_issue);
       const matches = findPortIssueDuplicates(this.inventory.issues, c);
@@ -1184,6 +1190,7 @@ export class DiscoverySession {
         candidate_id: c.id,
         original_body_sha256: c.body_sha256,
         original_evidence_sha256: c.evidence_sha256,
+        ...(unappliedAmendment ? { unapplied_amendment: c.amendment } : {}),
         issue,
         item,
       };
@@ -1230,6 +1237,7 @@ export class DiscoverySession {
         doctor: path.join(this.runDir, `reconcile-doctor-${hash}.json`),
         ...(review === undefined ? {} : { review }),
       };
+      if (unappliedAmendment) delete c.amendment;
       c.status = "delivered";
       c.readback = String(observed.issue.url);
       for (const pending of c.pending_ids ?? [])
