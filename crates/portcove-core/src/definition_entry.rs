@@ -284,13 +284,23 @@ impl DefinitionContentIndex {
         }
         if port.windows_runtime_path_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable"
+                requirement.template
+                    == if port.adapter == crate::AdapterKind::NativePortable {
+                        "native-portable"
+                    } else {
+                        "staged-source-portable"
+                    }
                     && requirement.minimum_version
                         >= crate::runtime_path_policy::minimum_capability(&port)
             })
         {
             return Err(PortcoveError::verification(format!(
-                "Windows runtime paths require staged-source capability version {}",
+                "Windows runtime paths require {} capability version {}",
+                if port.adapter == crate::AdapterKind::NativePortable {
+                    "native-portable"
+                } else {
+                    "staged-source-portable"
+                },
                 crate::runtime_path_policy::minimum_capability(&port)
             )));
         }

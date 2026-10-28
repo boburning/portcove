@@ -25,9 +25,7 @@ compatibility decision; unknown future compatibility is not accepted now.
 The existing native lifecycle gains this exact archive combination, retaining
 its source/helper/mutable-runtime exclusions and Direct's Stable/platform/
 version/URL/size/hash rules. Installers and bare executables remain ineligible.
-NativePortable template version 3 identifies this new combination; versions 1/2
-remain supported with their earlier meanings. Independent new and retained
-entries need minimum version 3. API envelope 82, operation events 3 and definition
+NativePortable template version 3 identifies exact archive pins. Version4 additionally consumes the packaged-file Windows path policy, so these three new and retained independent entries require4. Versions1/2/3 retain their earlier meanings. API envelope 82, operation events 3 and definition
 capability schema 1 retain their meanings; there are no new transport fields or
 commands. Compiled CLI readback accepts Native versions 1/2/3 and reports 4 as
 incompatible. Negotiation is separate from admission and operation authority;
@@ -73,8 +71,7 @@ files were the shared `Aleph One Log.txt` and distinct `Marathon Preferences`,
 These are actual Windows process/version/startup/restart/write observations.
 Window titles and timed sessions do not establish rendered menu content,
 gameplay, save/load, physical input, minimum hardware or backwards compatibility.
-No actual Core-managed Windows installation/Play/removal session is credited in
-this source receipt. Existing synthetic lifecycle coverage remains distinct.
+A later private Core probe using the exact CI-produced prior candidate CLI completed install/verify/explicit Play/reverify/removal for Marathon and Durandal. Infinity installed and verified but Play failed opening its packaged MML file at long coordinates. Ordinary and Core working-directory controls both failed; a shorter alias to the same physical runtime succeeded. These observations establish a coordinate restriction, not its exact threshold or a general long-path repair. Missing exit-code harness attempts and the failed Infinity launch remain retained. Repaired Native4 Core validation remains pending on the PR.
 Qualification flags remain empty; no Project Supported promotion is inferred.
 
 Thirty-three native-related Core contracts and 43 authoring/preparation/proposal
@@ -88,3 +85,20 @@ original scope; the final exact-map receipt supplies the observations above.
 The companion JSON records source and package identities, per-record hashes,
 protocol readback, native receipt hashes, limits and next evidence. No signing,
 protected execution, publication, credentials or retained-data authority changes.
+
+## Shared packaged-file path repair
+
+The existing runtime-path authority gains a Native4 policy for a conservative
+Windows UTF-16/MAX_PATH envelope, including the terminating NUL and relative
+`.\` spelling. It checks every authenticated immutable member, the selected
+player and working directory at final coordinates. Fresh/adopted publication,
+retained reuse/rollback, pre-sync launch, interrupted publication and portability
+apply the same creating contract. It imposes no ASCII-only rule, claims no exact
+upstream threshold, and grants no external-profile or future save-path ownership.
+A fitting EXE cannot hide a longer scenario data filename. Select a shorter output
+folder when held; a short diagnostic alias is not a Core managed-path guarantee.
+
+Earlier oracle-only source bbc0 passed all five contexts in40643429882/a1; Native4
+changes invalidate that qualification. The companion JSON preserves its scope and
+exact native failure/control hashes. Final review, exact-head CI and repaired
+Windows Core observations belong to the PR before delivery.

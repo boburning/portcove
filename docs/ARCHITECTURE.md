@@ -206,6 +206,14 @@ can happen in the upstream game's first launch when its output follows that
 contract; this does not certify gameplay. External setup reminders/registrations
 retain their non-owning interpretation. See [portable authoring](CATALOG.md#managed-native-portable-packages).
 
+Declared native Windows packaged-file limits use the existing runtime-path
+authority and authenticated manifest. The destination check includes data members,
+not only the player, and runs before publication or player-data synchronization.
+Retained reuse, rollback, interrupted publication and portability consume the
+creating contract. Native capability4 fences these path semantics independently
+of version3's Direct pin. No external-profile or arbitrary save-path ownership is
+inferred from the immutable-package envelope.
+
 Ready `staged-source-portable` archives with no original-file, build, setup-helper,
 initialization or shared-account preparation use the same stage-before-activation
 and retained-coordinate guard. Core collects declared edits made before first Play;

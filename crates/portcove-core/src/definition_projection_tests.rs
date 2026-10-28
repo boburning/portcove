@@ -83,7 +83,11 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let version = if typed.adapter == crate::AdapterKind::NativePortable
         && typed.release.provider == crate::ReleaseSource::DirectManifest
     {
-        3
+        if typed.windows_runtime_path_policy.is_some() {
+            4
+        } else {
+            3
+        }
     } else if crate::preparation::has_manual_marker(&typed)
         || typed.adapter == crate::AdapterKind::PsxRecompManaged
     {

@@ -139,6 +139,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("psx-recomp-managed", 2),
         ("native-portable", 2),
         ("native-portable", 3),
+        ("native-portable", 4),
     ] {
         assert!(expected.insert(capability));
     }

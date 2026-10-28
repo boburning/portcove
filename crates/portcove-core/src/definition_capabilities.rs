@@ -35,6 +35,10 @@ impl EngineTemplateCapability {
             contract_version: 3,
         });
         supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 4,
+        });
+        supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });
@@ -277,6 +281,31 @@ fn check_with_inventory(
 mod tests {
     use super::*;
 
+    #[test]
+    fn native_packaged_paths_exclude_the_previous_direct_only_inventory() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 4
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 4, 4), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 4, 4))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("native-portable", 3, 3), &previous)
+                .unwrap()
+                .compatible
+        );
+    }
+
     fn request(
         template: &str,
         minimum_version: u32,
@@ -323,7 +352,7 @@ mod tests {
                 .compatible
         );
         assert!(
-            !check_definition_capabilities(&request("native-portable", 4, 4))
+            !check_definition_capabilities(&request("native-portable", 5, 5))
                 .unwrap()
                 .compatible
         );

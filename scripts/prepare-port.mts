@@ -86,7 +86,7 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
       potential_version_restrictions: [],
       scope:
         "Exact declared pins; changing pinned version, URL, size or hash requires a reviewed declaration change and separate artifact/compatibility evidence. These observations establish no trust, qualification or publication.",
-      next: "This exact Direct pin does not discover newer upstream releases. Verify its version, URL, size and independently expected SHA-256; a later pin is a separate artifact/compatibility decision. Independent native entries require capability version 3. Declared pins and unrelated release observations establish no authentication or executable acceptance.",
+      next: "This exact Direct pin does not discover newer upstream releases. Verify its version, URL, size and independently expected SHA-256; a later pin is a separate artifact/compatibility decision. Independent Direct-native entries require capability version 3; a declared packaged-file Windows path policy additionally requires Native version 4. Declared pins and unrelated release observations establish no authentication or executable acceptance.",
     };
     selection.platforms = selection.platforms.map((platform) => ({
       ...platform,
@@ -643,7 +643,7 @@ export async function preparePort(options: PrepareOptions) {
         record.integration?.adapter === "native-portable" &&
         isRecord(record.integration.release) &&
         record.integration.release.provider === "direct-manifest"
-          ? "Review the exact declared archive pin and independent artifact/native evidence; no hosted-release hint selection or newer-version discovery is offered. Complete Core validation, capability version 3 negotiation and ordinary delivery checks."
+          ? "Review the exact declared archive pin and independent artifact/native evidence; no hosted-release hint selection or newer-version discovery is offered. Complete Core validation, capability version 3 negotiation (version 4 when the packaged-file Windows path policy is declared) and ordinary delivery checks."
           : options.route === "download" && !facts.assets_complete
             ? "Select an exact release or resolve the incomplete asset observation before package selection."
             : "Review the proposed record files, copy accepted records into catalog/ports, regenerate, and complete the applicable review and delivery checks.",

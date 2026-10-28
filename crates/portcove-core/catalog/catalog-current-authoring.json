@@ -23549,7 +23549,8 @@
             }
           ],
           "warnings": [
-            "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates."
+            "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
+            "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
           ],
           "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
         }
@@ -23560,7 +23561,8 @@
       "launch_environment": {
         "ALEPHONE_DATA": ";",
         "ALEPHONE_DEFAULT_DATA": "."
-      }
+      },
+      "windows_runtime_path_policy": "relative-file-max-path"
     },
     {
       "id": "marathon-aleph-one",
@@ -23610,7 +23612,8 @@
             }
           ],
           "warnings": [
-            "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates."
+            "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
+            "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
           ],
           "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
         }
@@ -23621,7 +23624,8 @@
       "launch_environment": {
         "ALEPHONE_DATA": ";",
         "ALEPHONE_DEFAULT_DATA": "."
-      }
+      },
+      "windows_runtime_path_policy": "relative-file-max-path"
     },
     {
       "id": "marathon-infinity-aleph-one",
@@ -23671,7 +23675,8 @@
             }
           ],
           "warnings": [
-            "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates."
+            "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
+            "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
           ],
           "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
         },
@@ -23690,7 +23695,8 @@
       "launch_environment": {
         "ALEPHONE_DATA": ";",
         "ALEPHONE_DEFAULT_DATA": "."
-      }
+      },
+      "windows_runtime_path_policy": "relative-file-max-path"
     },
     {
       "id": "mdk-sdl-nemo22",

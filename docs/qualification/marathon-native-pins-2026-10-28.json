@@ -88,7 +88,7 @@
       "working_directory": "Marathon-20260930",
       "selected_executable": "Marathon-20260930/Classic Marathon.exe",
       "before_sha256": "518d947d8a80a3f5cb81ce0f8042c4e5ee7857fd4f8f05226a99a4520f1cf0bd",
-      "authored_sha256": "aa84efe591752cb2dced4c02d922df1a45ae409475cb257b07b4f13d50487c26",
+      "authored_sha256": "6f684fdd86f83edec6f9ea6c7758e0ed79f07e885ddd68a59639c07a3a18ee3c",
       "native_evidence": "actual Windows version + two timed startup/normal-close sessions, no regular-file mutation; no visual/gameplay/save or Core lifecycle claim",
       "automatic_updates": "not offered",
       "core_backup_of_external_profiles": "not offered",
@@ -115,7 +115,7 @@
       "working_directory": "Marathon2-20260930",
       "selected_executable": "Marathon2-20260930/Classic Marathon 2.exe",
       "before_sha256": "20e9df8282300f69593b61a1aaa798dadaccbff708e28dd33a5aa06546640147",
-      "authored_sha256": "916b10bff05a60e4c0b7f024748c3b5d2332744eb0404c25f08814784e68dd74",
+      "authored_sha256": "859f18ff08bf6add948ef6e380b8e455dbb6e0947cca4cc6452a61870e980b66",
       "native_evidence": "actual Windows version + two timed startup/normal-close sessions, no regular-file mutation; no visual/gameplay/save or Core lifecycle claim",
       "automatic_updates": "not offered",
       "core_backup_of_external_profiles": "not offered",
@@ -142,7 +142,7 @@
       "working_directory": "MarathonInfinity-20260930",
       "selected_executable": "MarathonInfinity-20260930/Classic Marathon Infinity.exe",
       "before_sha256": "d9217237a6c0804618b7c3b7488521deebc630471579a79a1df33a7d1cae6ff9",
-      "authored_sha256": "ec31f5c6edc446cb2dc68fa04fd969b65e577e791465fbb21e69f4b58901e3f7",
+      "authored_sha256": "aa365e07d83b5f33278d7bcbf98e26d0aa090e3dda56a411a735b8aabdb8af18",
       "native_evidence": "actual Windows version + two timed startup/normal-close sessions, no regular-file mutation; no visual/gameplay/save or Core lifecycle claim",
       "automatic_updates": "not offered",
       "core_backup_of_external_profiles": "not offered",
@@ -208,26 +208,29 @@
   "runtime_replacement_owner": "Core for separate managed runtime; inspected upstream update worker only reads version metadata using HTTP/SDL thread and does not replace runtime",
   "capability_contract": {
     "native_versions_before": [1, 2],
-    "native_versions_after": [1, 2, 3],
+    "native_versions_after": [1, 2, 3, 4],
     "independent_direct_entry_minimum": 3,
     "API_envelope": 82,
     "operation_events": 3,
     "definition_capability_schema": 1,
     "new_transport_fields_or_commands": false,
-    "compiled_current_negotiation": {
+    "scope": "negotiation and parsing do not grant publisher/admission/protected operations; Direct scoped provider acquisition remains separately unavailable where existing authority does not implement it",
+    "packaged_path_entry_minimum": 4,
+    "compiled_current_negotiation_scope": "Earlier candidate Native1/2/3 readback retained; Native4 compiled/Windows readback pending for the repaired source.",
+    "compiled_before_path_repair_negotiation": {
       "v1": true,
       "v2": true,
       "v3": true,
       "v4": false
-    },
-    "scope": "negotiation and parsing do not grant publisher/admission/protected operations; Direct scoped provider acquisition remains separately unavailable where existing authority does not implement it"
+    }
   },
   "checks": {
-    "rust_local": "33 native-related contracts passed, zero skipped",
+    "rust_local": "39 native-related contracts passed, zero skipped, including retained pre-sync and prepared/published recovery guards; later Unicode-envelope and Windows import controls remain separate",
     "authoring_local": "43 authoring/preparation/proposal contracts passed, zero skipped; final prose/feedback checks repeated only after changed source",
     "Core_catalog_inspection": "compiled CLI accepted complete170-port proposal",
     "native": "actual Windows exact bytes and controlled environment; timed startup, version, close and observed regular files only",
-    "hosted_exact_head": "pending"
+    "hosted_exact_head": "pending after Native4 source repair; earlier bbc0 oracle-only source run40643429882/a1 passed all five but does not qualify Native4",
+    "additional_regression": "Six path-envelope contracts and39 Native contracts pass locally. Broad definition_ run:257pass/7cache-fixture setup-latch failures/1ignored; all9 curated_cache_ controls pass with unchanged latches/assertions under one test thread. Broad failure retained, not a whole-suite pass. Windows-only short/long import control awaits hosted execution."
   },
   "failure_history": [
     "Initial generator refused three unreviewed additions; reviewed current additions fixture updated only, historical schema fixtures preserved.",
@@ -236,13 +239,18 @@
     "Next focused native tests refused empty environment overrides; existing guard preserved, exact upstream Windows empty-list representation used instead.",
     "Initial PowerShell File invocation was refused before execution; process-scoped existing scripting invocation used, no machine policy changed.",
     "Initial preparation command used another checkout; receipt is not candidate validation.",
-    "Prior default/blank-environment native observations retained separately; final exact-map observations are qualification scope."
+    "Prior default/blank-environment native observations retained separately; final exact-map observations are qualification scope.",
+    "Initial exact-head CI40640523793/a1 failed three stale contract oracles; repaired only fixture capability declarations;34 Core tests and all five contexts pass on bbc0, independently reviewed, before Native4 product repair.",
+    "Initial Windows Core harness observations lost process exit codes; no qualification from those missing fields.",
+    "Infinity Core Play failed opening a present packaged MML file at long coordinates. Ordinary/Core working-directory controls failed; shorter alias to same physical runtime succeeded. Failure remains retained, exact threshold not inferred.",
+    "Native4 focused test first retained an obsolete future-version4 assertion, repaired to future5; initial manifest fixture referenced an absent constant, repaired literal. Proposed-destination fixture exposed an attempted filesystem lookup at an uncreated destination; helper now derives authenticated observed working-directory-relative coordinates and checks the proposed target without creating it.",
+    "Broad parallel libtest definition_ run missed seven existing five-second cache setup latches before actual copy. All nine cache controls pass unchanged under one test thread; no timeout/assertion/product-code change was made for this result. Existing nextest scheduling remains authoritative."
   ],
   "limits": [
     "No graphical rendering/menu content, gameplay, controller, save/load, current profile backwards compatibility or physical-device acceptance inferred.",
-    "No actual Core-managed Windows installation/launch/removal session yet; remains a separate observation until executed.",
     "No automatic upstream release discovery; later catalog pins need their own artifact and compatibility review.",
-    "Protected publication/unchanged-client Desktop acceptance remains separately owned; no authority widened."
+    "Protected publication/unchanged-client Desktop acceptance remains separately owned; no authority widened.",
+    "Earlier source completed two Windows Core lifecycle probes; Infinity long-coordinate failure and shorter-alias control are retained. Repaired Native4 Core session remains pending."
   ],
   "acceptance_totals": {
     "new_operational_definitions": 3,
@@ -252,5 +260,30 @@
     "supported_operations_total": "not_evaluated"
   },
   "compiled_CLI_sha256": "7833faf96419a7b439ba1392feafffd6e8b079c7b3c9689daa96888edabdcba6",
-  "compiled_CLI_scope": "candidate Core rules and public protocol inventory; explicit catalog inspection supplies proposed bytes; no Windows Core lifecycle yet"
+  "compiled_CLI_scope": "Earlier candidate protocol/proposal readback; Native4 compiled inventory and repaired Windows lifecycle still pending.",
+  "native_core_before_path_guard": {
+    "source": "ccfe4c22ab684eb5af1ec8072beffd4177266bd0",
+    "checkout": "f7cd167716a2572b54d8af76b9f1911cc7b4c45f",
+    "run": 40640523793,
+    "attempt": 1,
+    "artifact_id": 12796135888,
+    "artifact_sha256": "2c0939d5d3fea7fffc2f2ce78068bad5993d4e16d618b2a9f8b3d2ad18063247",
+    "cli_sha256": "68a259e5ee1c6fb81db445bb66311054cc849437889a90f8efbb1de297112575",
+    "manifest_archive_identity_verified": true,
+    "complete_lifecycle": ["marathon-aleph-one", "marathon-2-durandal-aleph-one"],
+    "scope": "private Core plan/install/verify/explicit Play/normal close/reverify/remove/status, game and CLI exits0; no gameplay or save compatibility",
+    "infinity": "install/verify succeeded; Play failed opening Scripts/Marathon Infinity.mml at long coordinates. Same physical runtime failed under ordinary and Core working directories, succeeded through short alias. No repaired Core lifecycle yet.",
+    "raw_failure_sha256": "8f43f245cbe328d52f350df52289fcf83b82de1a8cc128cdef2f171c0e645253",
+    "coordinate_control_sha256": "b0d201729b8be2f244b221026cae4d462a27af0370e29054635660f68d060026",
+    "short_alias_sha256": "cb609ce9c3e183a43b384c2bd1f16ff1401b6a6f227f4fa11f26bc4a9aabbf75",
+    "drain": "complete activity readback and bounded Windows process snapshot established zero active owned processes; exact abandoned native lease drained using expected-owner helper"
+  },
+  "packaged_path_policy": {
+    "policy": "relative-file-max-path",
+    "native_capability": 4,
+    "supported_envelope": "ordinary Windows UTF-16 path units plus two relative-spelling units must remain below260, including room for NUL",
+    "scope": "all authenticated immutable package members plus selected executable and working directory; final destination, pre-sync launch/reuse/rollback and publication/recovery/adoption/portability",
+    "not_inferred": "exact upstream threshold/root cause, general long-path support, non-ASCII gameplay, future arbitrary save filenames or external profile paths",
+    "native_after_repair": "pending"
+  }
 }

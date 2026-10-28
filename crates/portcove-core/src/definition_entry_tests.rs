@@ -390,7 +390,11 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         let version = if port.adapter == crate::AdapterKind::NativePortable
             && port.release.provider == crate::ReleaseSource::DirectManifest
         {
-            3
+            if port.windows_runtime_path_policy.is_some() {
+                4
+            } else {
+                3
+            }
         } else if port.adapter == crate::AdapterKind::PsxRecompManaged {
             2
         } else if port
@@ -925,8 +929,9 @@ fn prepared_required_mutable_files_require_version_four_and_complete_projection(
 #[test]
 fn pinned_native_entries_require_v3_for_new_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("marathon-aleph-one").unwrap();
-    let mut entry = entry_for_port(port);
+    let mut port = catalog.port("marathon-aleph-one").unwrap().clone();
+    port.windows_runtime_path_policy = None;
+    let mut entry = entry_for_port(&port);
     entry["required_capabilities"][0]["maximum_version"] = json!(3);
     for minimum in [1, 2] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -952,4 +957,32 @@ fn pinned_native_entries_require_v3_for_new_and_retained_readers() {
     );
     let ordinary = entry_for_port(catalog.port("openrct2-openrct2").unwrap());
     assert!(inspect(&ordinary).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn native_packaged_path_policy_requires_v4_for_new_and_retained_entries() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("marathon-aleph-one").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(4);
+    for minimum in [1, 2, 3] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        assert!(inspect(&entry).unwrap_err().message.contains("version"));
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        assert!(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .is_err()
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(4);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
 }

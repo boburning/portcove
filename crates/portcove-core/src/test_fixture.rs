@@ -205,7 +205,15 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+        let capability_version = if port.adapter == crate::AdapterKind::NativePortable
+            && port.windows_runtime_path_policy.is_some()
+        {
+            4
+        } else if port.adapter == crate::AdapterKind::NativePortable
+            && port.release.provider == crate::ReleaseSource::DirectManifest
+        {
+            3
+        } else if port.adapter == crate::AdapterKind::PsxRecompManaged {
             2
         } else if port
             .release

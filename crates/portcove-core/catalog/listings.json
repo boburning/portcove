@@ -23563,7 +23563,8 @@
           }
         ],
         "warnings": [
-          "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates."
+          "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
+          "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
         ],
         "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
       },
@@ -23589,7 +23590,8 @@
           }
         ],
         "warnings": [
-          "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates."
+          "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
+          "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
         ],
         "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
       },
@@ -23623,7 +23625,8 @@
           }
         ],
         "warnings": [
-          "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates."
+          "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
+          "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
         ],
         "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
       },
