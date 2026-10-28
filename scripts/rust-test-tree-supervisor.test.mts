@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
 import { runInNewContext } from "node:vm";
-import { errorCode } from "./runtime-values.mts";
+import { errorCode, errorMessage } from "./runtime-values.mts";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -52,9 +52,23 @@ void test(
         timeoutMilliseconds: 5000,
         identity: { fixture: "owned-hanging-analyzer" },
       },
-    ).finally(() => {
-      observedExit = true;
-    });
+    )
+      .then((result) => {
+        context.diagnostic(
+          JSON.stringify({
+            scope: "controlled-analyzer-timeout",
+            status: result.status,
+            error: result.error
+              ? { code: errorCode(result.error), message: errorMessage(result.error) }
+              : null,
+            evidenceFailure: result.evidenceFailure ?? null,
+          }),
+        );
+        return result;
+      })
+      .finally(() => {
+        observedExit = true;
+      });
     let complete = false;
     try {
       const capture = path.join(

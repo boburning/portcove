@@ -75,9 +75,9 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - case: analyzer
-            file: scripts/rust-test-tree-supervisor.test.mts
-            pattern: ^analyzer deadline retains live partial streams
+          - case: platform-default
+            file: macos-platform-contracts
+            pattern: registered-suite
           - case: publisher-lookup
             file: scripts/release-workflow.test.mts
             pattern: ^mock publisher restores private lookup
@@ -99,18 +99,44 @@ jobs:
       - run: pnpm install --frozen-lockfile
         env:
           VP_GIT_HOOKS: "0"
-      - name: Observe one original failing contract in an isolated runner
+      - name: Observe original failing contracts in an isolated runner
+        timeout-minutes: 3
         shell: bash
         env:
           CASE_FILE: ${{ matrix.file }}
           CASE_PATTERN: ${{ matrix.pattern }}
         run: |
           mkdir -p work/audit01-diagnostic
-          node --test --test-timeout=120000 --test-reporter=tap --test-name-pattern="$CASE_PATTERN" "$CASE_FILE" 2>&1 | tee work/audit01-diagnostic/original.log
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';import os from 'node:os';
+          fs.writeFileSync('work/audit01-diagnostic/before.json',JSON.stringify(fs.readdirSync(os.tmpdir())));
+          JS
+          node --input-type=module - <<'JS' 2>&1 | tee work/audit01-diagnostic/original.log
+          import {spawnSync} from 'node:child_process';import fs from 'node:fs';import {parseNodeTestSuites} from './scripts/node-test-suites.mts';
+          let args;
+          if(process.env.CASE_PATTERN==='registered-suite') {
+            const suite=parseNodeTestSuites(fs.readFileSync('scripts/node-test-suites.json','utf8')).suites[process.env.CASE_FILE];
+            if(!suite)throw new Error('Unknown diagnostic suite');
+            args=[...suite.arguments.map(arg=>arg.startsWith('--test-reporter=')?'--test-reporter=tap':arg),...suite.files];
+          } else args=['--test','--test-timeout=120000','--test-reporter=tap','--test-name-pattern='+process.env.CASE_PATTERN,process.env.CASE_FILE];
+          const result=spawnSync(process.execPath,args,{stdio:'inherit',env:process.env});if(result.error)throw result.error;process.exit(result.status??1);
+          JS
+      - name: Retain only new owned control evidence
+        if: always()
+        shell: bash
+        run: |
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
+          const before=new Set(JSON.parse(fs.readFileSync('work/audit01-diagnostic/before.json','utf8')));
+          const root=fs.realpathSync(os.tmpdir());let bytes=0,files=0;
+          const prefixes=['portcove-analyzer-deadline-','portcove-mock-path-evidence-','portcove-draft-publication-evidence-'];
+          function check(file){const stat=fs.lstatSync(file);if(stat.isSymbolicLink())throw new Error('Refuse diagnostic symlink');if(stat.isDirectory()){for(const name of fs.readdirSync(file))check(path.join(file,name));}else{if(!stat.isFile()||++files>256||(bytes+=stat.size)>64*1024*1024)throw new Error('Diagnostic bound exceeded');}}
+          for(const name of fs.readdirSync(root)){if(before.has(name)||!prefixes.some(prefix=>name.startsWith(prefix)))continue;const source=path.join(root,name);check(source);fs.cpSync(source,path.join('work/audit01-diagnostic',name),{recursive:true,dereference:false});}
+          JS
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: audit01-macos-${{ matrix.case }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/audit01-diagnostic/original.log
+          path: work/audit01-diagnostic/
           retention-days: 7
           if-no-files-found: error

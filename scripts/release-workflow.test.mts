@@ -362,7 +362,7 @@ void test(
   { skip: !bashExecutable },
   async (t) => {
     assert.ok(bashExecutable);
-    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path ' $ ; "));
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path ' $ ; ")));
     const evidence = await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path-evidence-"));
     console.log(`Retained synthetic mock lookup evidence: ${evidence}`);
     t.after(async () => {
