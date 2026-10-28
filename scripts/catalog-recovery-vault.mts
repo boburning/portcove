@@ -357,6 +357,14 @@ async function syncDirectory(directory: string) {
     await file.close();
   }
 }
+async function publishCompletion(directory: string, parent: string, result: unknown) {
+  // Payload data is already fsynced. Persist its directory entries before a
+  // completion marker can exist, then durably publish that marker and its parent.
+  await syncDirectory(directory);
+  await durableFile(path.join(directory, "complete.json"), JSON.stringify(result));
+  await syncDirectory(directory);
+  await syncDirectory(parent);
+}
 async function readRecoveryFile(filename: string, bound: number, privateFile: boolean) {
   const before = await lstat(filename);
   if (
@@ -568,9 +576,7 @@ export async function createCatalogRecoveryVault(options: {
       activation: "not-performed",
       completion: "encrypted-only",
     };
-    await durableFile(path.join(directory, "complete.json"), JSON.stringify(result));
-    await syncDirectory(directory);
-    await syncDirectory(options.parent);
+    await publishCompletion(directory, options.parent, result);
     return result;
   } finally {
     plaintext?.fill(0);
@@ -669,9 +675,7 @@ export async function restoreCatalogRecoveryVault(options: {
       activation: "not-performed",
       completion: "quarantined-reprojected-only",
     };
-    await durableFile(path.join(directory, "complete.json"), JSON.stringify(result));
-    await syncDirectory(directory);
-    await syncDirectory(options.parent);
+    await publishCompletion(directory, options.parent, result);
     return result;
   } finally {
     plaintext?.fill(0);

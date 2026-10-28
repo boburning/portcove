@@ -3,7 +3,19 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, readdir, rm, writeFile, symlink, link, chmod } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+  symlink,
+  link,
+  chmod,
+  open,
+  readlink,
+} from "node:fs/promises";
+import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { prepareRecoveryTools } from "./prepare-recovery-tools.mts";
@@ -163,7 +175,7 @@ void test(
       !process.env.PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT,
     timeout: 360_000,
   },
-  async () => {
+  async (t) => {
     const tool = process.env.PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL!;
     const expectedTool = process.env.PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_SHA256;
     assert.ok(path.isAbsolute(tool) && expectedTool && /^[a-f0-9]{64}$/u.test(expectedTool));
@@ -174,6 +186,36 @@ void test(
     const command = async (executable: string, args: string[]) =>
       await run(executable, args, { env, timeout: 30_000, maxBuffer: 1024 * 1024 });
     try {
+      const probe = await open(path.join(root, "sync-probe"), "wx", 0o600);
+      const prototype = Object.getPrototypeOf(probe) as FileHandle,
+        originalSync = prototype.sync;
+      await probe.close();
+      const syncs: string[] = [];
+      let failDirectory: string | undefined;
+      t.mock.method(prototype, "sync", async function (this: FileHandle) {
+        const filename = await readlink(`/proc/self/fd/${this.fd}`);
+        if (filename === failDirectory) throw new Error("injected payload-directory flush failure");
+        await originalSync.call(this);
+        syncs.push(filename);
+      });
+      const publicationOrder = (start: number, directory: string, payload: string[]) =>
+        assert.deepEqual(
+          syncs
+            .slice(start)
+            .filter(
+              (filename) =>
+                filename === root ||
+                filename === directory ||
+                filename.startsWith(directory + path.sep),
+            ),
+          [
+            ...payload.map((name) => path.join(directory, name)),
+            directory,
+            path.join(directory, "complete.json"),
+            directory,
+            root,
+          ],
+        );
       const fixture = await disposableCatalogRecoveryFixture(path.join(root, "fixture"));
       const inventory = JSON.parse(
         (await command(tool, ["inspect-catalog-key-inventory", fixture.inventoryConfig])).stdout,
@@ -282,6 +324,21 @@ void test(
         }),
       );
       assert.deepEqual(await readdir(path.join(root, "changed-private-key")), []);
+      failDirectory = path.join(root, "create-flush-failure");
+      await assert.rejects(
+        createCatalogRecoveryVault({
+          plan,
+          toolParent,
+          parent: root,
+          name: "create-flush-failure",
+          recipient: publicRecipient,
+          owner: { read: async (binding) => Buffer.from(fixture.material.get(binding.role)!) },
+        }),
+        /injected payload-directory flush/u,
+      );
+      assert.deepEqual(await readdir(failDirectory), ["catalog.age"]);
+      failDirectory = undefined;
+      const createStart = syncs.length;
       const created = await createCatalogRecoveryVault({
         plan,
         owner,
@@ -292,6 +349,7 @@ void test(
       });
       assert.equal(reads, plan.bindings.length);
       assert.equal(created.authority, "none");
+      publicationOrder(createStart, path.join(root, "primary-backup"), ["catalog.age"]);
       const cipher = path.join(root, "primary-backup", "catalog.age");
       await chmod(cipher, 0o644); // Ciphertext transport is separate from private plaintext custody.
       const restore = {
@@ -318,12 +376,27 @@ void test(
       );
       for (const bytes of fixture.material.values()) bytes.fill(0);
       fixture.material.clear(); // Lost primary, recovery is still possible.
+      failDirectory = path.join(root, "restore-flush-failure");
+      await assert.rejects(
+        restoreCatalogRecoveryVault({ ...restore, name: "restore-flush-failure" }),
+        /injected payload-directory flush/u,
+      );
+      assert.deepEqual(
+        (await readdir(failDirectory)).sort(),
+        ["ciphertext.age", ...plan.bindings.map((binding) => `${binding.role}.key`)].sort(),
+      );
+      failDirectory = undefined;
+      const restoreStart = syncs.length;
       const recovered = await restoreCatalogRecoveryVault({
         ...restore,
         name: "recovered-quarantine",
       });
       assert.equal(recovered.completion, "quarantined-reprojected-only");
       assert.equal(recovered.authority, "none");
+      publicationOrder(restoreStart, path.join(root, "recovered-quarantine"), [
+        "ciphertext.age",
+        ...plan.bindings.map((binding) => `${binding.role}.key`),
+      ]);
       assert.equal(reads, plan.bindings.length); // Restore never reopens primary custody.
       for (const [role, digest] of expectedPrivate)
         assert.equal(
