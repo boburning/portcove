@@ -161,26 +161,22 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   }
   const bootstrapStep = qualitySteps[bootstrap];
   assert.ok(bootstrapStep && typeof bootstrapStep.run === "string");
-  // Normalize the maintained direct-call recipe, preserving statement order,
-  // exit guards and inputs while allowing layout and diagnostic wording changes.
-  const normalizeBootstrap = (value: string) =>
-    executableLines(value.replace(/`\r?\n/gu, " "))
-      .join(" ")
-      .replace(/throw\s+(?:'(?:[^']|'')*'|"(?:[^"`]|`.)*")/gu, "throw '<failure>'")
-      .replace(/(["'])Stop\1/gu, "'Stop'")
-      .replace(/\s+/gu, " ")
-      .replace(/\s*([{}();])\s*/gu, "$1")
-      .replace(/;(?=pnpm\b|if\b|\.\/scripts|\}|$)/gu, "")
-      .trim();
-  assert.equal(
-    normalizeBootstrap(bootstrapStep.run),
-    normalizeBootstrap(`
-    $ErrorActionPreference = 'Stop'
-    pnpm install --frozen-lockfile
-    if ($LASTEXITCODE -ne 0) { throw '<failure>' }
-    ./scripts/bootstrap-quality-tools.ps1 -Desktop
-    if ($LASTEXITCODE -ne 0) { throw '<failure>' }
-  `),
+  // Keep the maintained statement boundaries and guard syntax. Only explicit
+  // PowerShell continuations and whitespace within a statement are equivalent.
+  const separator = String.raw`[ \t]*(?:;[ \t]*|\r?\n[ \t]*)+`;
+  const message = String.raw`(?:'(?:[^']|'')*'|"(?:[^"\x60]|\x60.)*")`;
+  const failureGuard = String.raw`if\s*\(\s*\$LASTEXITCODE\s+-ne\s+0\s*\)\s*\{\s*throw\s+${message}\s*;?\s*\}`;
+  const bootstrapRecipe = new RegExp(
+    String.raw`^\s*\$ErrorActionPreference[ \t]*=[ \t]*(?:'Stop'|"Stop")${separator}` +
+      String.raw`pnpm[ \t]+install[ \t]+--frozen-lockfile${separator}${failureGuard}${separator}` +
+      String.raw`\./scripts/bootstrap-quality-tools\.ps1[ \t]+-Desktop${separator}${failureGuard}\s*;?\s*$`,
+    "u",
+  );
+  const bootstrapScript = executableLines(bootstrapStep.run.replace(/`\r?\n/gu, " ")).join("\n");
+  assert.match(
+    bootstrapScript,
+    bootstrapRecipe,
+    "Required setup must execute its maintained statements and failure guards",
   );
 
   assert.match(source, /if: always\(\)[\s\S]*native-backup-evidence.mts emit/);
@@ -226,15 +222,14 @@ void test("native design compatibility remains explicit, isolated, and non-publi
   );
   assert.equal(desktop.length, 1, "One real Linux native Desktop harness must execute");
   const normalizeLinux = (value: string) =>
-    executableLines(value.replace(/\\\r?\n/gu, " "))
-      .join(" ")
-      .replace(/\s+/gu, " ")
-      .trim();
+    executableLines(value.replace(/\\\r?\n/gu, " ")).map((statement) =>
+      statement.replace(/[ \t]+/gu, " ").trim(),
+    );
   assert.equal(harness.length, 1);
   const linux = harness[0];
   assert.ok(linux && typeof linux.run === "string");
   assert.ok(!("continue-on-error" in linux));
-  assert.equal(
+  assert.deepEqual(
     normalizeLinux(linux.run),
     normalizeLinux(String.raw`
     pnpm --dir apps/desktop build
