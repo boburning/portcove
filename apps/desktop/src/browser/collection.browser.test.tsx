@@ -305,8 +305,8 @@ for (const theme of ["dark", "light"]) {
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
     expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
-    expect(entries[3]!.querySelector(".collection-actions")?.textContent).toContain("Play");
-    expect(entries[4]!.querySelector(".collection-actions")?.textContent).toContain("Review game");
+    expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");
     await page
       .getByRole("textbox", { name: "Search your library", exact: true })
       .fill("Super Mario 64");
