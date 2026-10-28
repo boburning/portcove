@@ -4,7 +4,17 @@ import { runInNewContext } from "node:vm";
 import { errorCode, errorMessage } from "./runtime-values.mts";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  open,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+  mkdir,
+  copyFile,
+  symlink,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -24,6 +34,31 @@ interface ProcessExit {
   code: number | null;
   signal: NodeJS.Signals | null;
 }
+
+void test("supervisor aliased entry refuses missing arguments before native side effects", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-supervisor-entry-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const scripts = path.join(root, "scripts");
+  await mkdir(scripts);
+  for (const file of ["rust-test-tree-supervisor.mts", "runtime-values.mts"])
+    await copyFile(new URL(file, import.meta.url), path.join(scripts, file));
+  const alias = path.join(root, "aliased-scripts");
+  await symlink(scripts, alias, process.platform === "win32" ? "junction" : "dir");
+  const result = spawnSync(
+    process.execPath,
+    ["--preserve-symlinks-main", path.join(alias, "rust-test-tree-supervisor.mts")],
+    {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+      cwd: root,
+    },
+  );
+  assert.equal(result.status, 2, result.stderr);
+  assert.match(result.stderr, /^usage: rust-test-tree-supervisor/u);
+  assert.equal(result.stdout, "");
+  assert.deepEqual((await readdir(root)).sort(), ["aliased-scripts", "scripts"]);
+});
 
 void test("serialized Unix watchdog requires actual absence after transient permission observations", async () => {
   for (const mode of [

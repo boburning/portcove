@@ -451,7 +451,7 @@ export async function importCapturedDesktop(
 // Preparation owns separate build and native phases; finalization is file-only.
 // Neither may inherit the normal launcher's blanket browser admission.
 const invoked = process.argv[1] ? await realpath(process.argv[1]).catch(() => null) : null;
-if (invoked === fileURLToPath(import.meta.url)) {
+if (invoked !== null && invoked === (await realpath(fileURLToPath(import.meta.url)))) {
   process.exitCode = args.includes("--help")
     ? await executeDesktopTest()
     : args.includes("--prepare-retained-package") || args.includes("--finalize-retained-package")
