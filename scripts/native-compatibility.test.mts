@@ -21,6 +21,7 @@ void test("native compatibility retains exact primary and cleanup failures while
   for (const phase of ["primary", "cleanup"] as const) {
     for (const failure of failures) {
       const writes = new Map<string, string>();
+      const logs: string[] = [];
       let quits = 0,
         kills = 0;
       const secondary = new Error("secondary cleanup failure");
@@ -79,7 +80,7 @@ void test("native compatibility retains exact primary and cleanup failures while
         writeFile: async (file: string, value: string) => {
           writes.set(file, value);
         },
-        console: { log: () => {} },
+        console: { log: (value: string) => logs.push(value) },
       });
       await assert.rejects(
         async () => {
@@ -100,6 +101,10 @@ void test("native compatibility retains exact primary and cleanup failures while
           "applicationExit" in evidence,
       );
       assert.equal(evidence.status, "failed");
+      const prefix = "Native compatibility result: ";
+      const records = logs.filter((value) => value.startsWith(prefix));
+      assert.equal(records.length, 1);
+      assert.deepEqual(JSON.parse(records[0]!.slice(prefix.length)), evidence);
       assert.equal(
         JSON.stringify(evidence.applicationExit),
         JSON.stringify({ code: 0, signal: null }),

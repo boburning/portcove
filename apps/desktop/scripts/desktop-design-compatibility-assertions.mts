@@ -12,12 +12,14 @@ interface DesignCompatibilityOptions {
   By: typeof SeleniumBy;
   Key: typeof SeleniumKey;
   until: typeof seleniumUntil;
+  selectActivationKey?: string;
 }
 export async function assertDesignCompatibility({
   browser,
   By,
   Key,
   until,
+  selectActivationKey = Key.ENTER,
 }: DesignCompatibilityOptions) {
   const fixtureLocator = By.css(".design-compatibility-fixture");
   await browser.wait(until.elementLocated(fixtureLocator), 15_000);
@@ -216,7 +218,7 @@ export async function assertDesignCompatibility({
   // Element sendKeys refocuses the trigger and dismisses an aligned open Select.
   // Deliver Escape to the current popup focus, as a keyboard user does.
   const sendEscape = () => browser.actions().sendKeys(Key.ESCAPE).perform();
-  await selectTrigger.sendKeys(Key.ENTER);
+  await selectTrigger.sendKeys(selectActivationKey);
   try {
     await browser.wait(
       async () => (await fixture.getAttribute("data-select-open")) === "true",
