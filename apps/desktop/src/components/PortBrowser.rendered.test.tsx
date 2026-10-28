@@ -65,7 +65,7 @@ describe("desktop components", () => {
         ...base,
         staged: installRecord({ id: "prepared", staged: true, version: "2" }),
       });
-      expect(prepared).toContain(view === "library" ? "Review prepared update" : "Update prepared");
+      expect(prepared).toContain(view === "library" ? "Update prepared" : "Update prepared");
       expect(prepared).not.toContain("Archive downloaded");
     },
   );
@@ -211,9 +211,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(
-      view === "library" ? "Review prepared update" : "Update prepared</span>",
-    );
+    expect(html).toContain(view === "library" ? "Update prepared" : "Update prepared</span>");
     const expectedAvailable =
       difference !== "same target" &&
       difference !== "unspecified asset size" &&
@@ -395,7 +393,7 @@ describe("desktop components", () => {
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
     expect(html).toContain("Ready to play");
     expect(html).not.toContain("updates downloaded");
-    expect(html).toContain("Review update seen at last check");
+    expect(html).toContain("Update available at last check");
     expect(html).not.toContain("need attention");
     expect(html).not.toContain("Launch ready");
     expect(html).not.toContain("Play options");
@@ -443,7 +441,7 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Review prepared update");
+    expect(html).toContain("Update prepared");
     expect(html).toMatch(
       /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
     );

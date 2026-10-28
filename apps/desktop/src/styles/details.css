@@ -11,7 +11,7 @@
     grid-template-columns: 128px minmax(0, 1fr);
     gap: 28px;
     align-items: center;
-    min-height: 300px;
+    min-height: 16rem;
     padding: 34px;
     border-radius: 1rem;
     background: var(--color-bg-elevated);
@@ -30,13 +30,13 @@
   .detail-identity {
     width: fit-content;
     padding-block: 0.25rem;
-    background: var(--color-bg-elevated);
+    background: transparent;
   }
   .detail-header-artwork {
     position: absolute;
     z-index: 0;
     inset: 0 0 0 auto;
-    width: 85%;
+    width: 100%;
     opacity: 0.9;
   }
   .detail-header-artwork img {
@@ -66,8 +66,13 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: var(--color-bg-elevated);
-    opacity: 0.55;
+    background: linear-gradient(
+      to right,
+      var(--color-bg-elevated) 0%,
+      color-mix(in srgb, var(--color-bg-elevated) 96%, transparent) 30%,
+      color-mix(in srgb, var(--color-bg-elevated) 78%, transparent) 65%,
+      color-mix(in srgb, var(--color-bg-elevated) 35%, transparent) 100%
+    );
   }
   :root[data-theme="light"] .detail-header-artwork {
     opacity: 0.38;

@@ -82,6 +82,7 @@ it("restores independent section query/search/sort on restart without transient 
   expect(window.localStorage.getItem(libraryBrowsingPreferenceKey(libraryRoot))).toBeNull();
   await act(async () => {
     browsing.ui.setQuery("installed search");
+    browsing.ui.setLibrarySort("recent");
     browsing.ui.setFilter("ready");
     browsing.ui.setSourcePath("private-game-path");
     browsing.ui.setBiosPath("private-bios-path");
@@ -107,6 +108,7 @@ it("restores independent section query/search/sort on restart without transient 
     view: "library",
     filter: "all",
     libraryReadiness: "ready",
+    librarySort: "recent",
     query: "installed search",
     catalogSort: "name",
     selectedId: undefined,
@@ -560,3 +562,26 @@ it("persists version1 update choices by section/library and retains unknown cand
   await act(async () => browsing.ui.setFilter("all"));
   expect(browsing.ui.filter).toBe("all");
 });
+
+it.each([["recent"], { value: "recent" }, 1])(
+  "preserves malformed Library sort preferences for explicit recovery (%#)",
+  async (sort) => {
+    const key = libraryBrowsingPreferenceKey(libraryRoot);
+    const serialized = JSON.stringify({
+      version: 2,
+      library: libraryRoot,
+      inputs: {
+        ...browsing.ui.browsingInputs,
+        sections: {
+          ...browsing.ui.browsingInputs.sections,
+          library: { query: "retained search", filter: "all", sort },
+        },
+      },
+    });
+    localStorage.setItem(key, serialized);
+    await remount();
+    expect(browsing.preferenceFailure).toBe("read");
+    expect(localStorage.getItem(key)).toBe(serialized);
+    expect(browsing.ui.librarySort).toBe("name");
+  },
+);

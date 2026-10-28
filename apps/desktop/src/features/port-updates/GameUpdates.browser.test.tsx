@@ -347,7 +347,7 @@ it("reviews an immediate update in place and obtains new consent before keeping 
   expect(dialog()?.textContent).toContain("Original Game · Sample Project update");
   expect(dialog()?.textContent).toContain("current version remains available for rollback");
   expect(apply).not.toHaveBeenCalled();
-  await click("Review download for later");
+  await click("Download for later");
   expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
   expect(dialog()?.textContent).toContain("Download only the immutable archive");
   await click("Download archive for later");
@@ -397,7 +397,7 @@ it("does not submit duplicate reviews or apply a stale plan after a failed chang
   });
   expect(review).toHaveBeenCalledTimes(1);
   await act(async () => release({ ...plan, activate: true }));
-  await click("Review download for later");
+  await click("Download for later");
   expect(dialog()?.textContent).toContain("Checking update…");
   expect(dialog()?.textContent).not.toContain("Updating…");
   expect(dialog()?.textContent).toContain("current version remains available for rollback");
@@ -565,13 +565,13 @@ it("requires another review when the chosen action changes and binds activation 
     />,
   );
   expect(container.textContent).not.toContain("This update");
-  expect(document.body.textContent).not.toContain("Review install now");
+  expect(document.body.textContent).not.toContain("Update now");
   await page.getByRole("combobox", { name: /^What would you like to do\?/ }).click();
   await click("Download for later");
   await click("Review game update");
   expect(dialog()?.textContent).toContain("2.0");
   expect(dialog()?.textContent).toContain("active version stay unchanged");
-  await click("Review install now");
+  await click("Update now");
   expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
   expect(review).toHaveBeenCalledExactlyOnceWith("sample", true, 9);
   expect(apply).not.toHaveBeenCalled();
@@ -1088,8 +1088,8 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
   );
   expect(dialog()?.textContent).toContain(notice);
   expect(dialog()?.textContent).toContain("No download; use the verified local release");
-  expect(dialog()?.textContent).not.toContain("Review download for later");
-  await click("Review keeping for later");
+  expect(dialog()?.textContent).not.toContain("Download for later");
+  await click("Keep for later");
   expect(review.mock.calls.map((call) => call.slice(0, 3))).toEqual([
     ["sample", true, 9],
     ["sample", false, 9],
@@ -1262,9 +1262,11 @@ it.each([false, true])(
     expect(
       [...document.querySelectorAll('[role="option"]')].map((option) => option.textContent),
     ).not.toContain("Download for later");
-    await page
-      .getByRole("option", { name: activate ? "Install update" : "Prepare for later", exact: true })
-      .click();
+    await page.getByRole("option", { name: "Update now", exact: true }).click();
+    if (!activate) {
+      await page.getByText("Advanced update choice", { exact: true }).click();
+      await page.getByRole("button", { name: "Prepare for later", exact: true }).click();
+    }
     await click("Review game update");
     expect(review).toHaveBeenCalledExactlyOnceWith("sample", activate, 9);
     expect(dialog()?.textContent).toContain("No new archive download is planned");
@@ -1536,8 +1538,8 @@ it.each([
       expect(actions.map((button) => button.textContent?.trim())).toEqual([
         "Continue browsing",
         "Downloading archive…",
-        "Review install now",
-        "Review prepare for later",
+        "Update now",
+        "Prepare for later",
         "Cancel review",
       ]);
       expect(

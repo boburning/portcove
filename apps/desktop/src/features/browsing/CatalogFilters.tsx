@@ -6,6 +6,7 @@ import {
   useCallback,
   type Dispatch,
   type SetStateAction,
+  type ReactNode,
 } from "react";
 import { ListFilter, X } from "lucide-react";
 import type { CatalogEntry } from "./catalog-entry";
@@ -116,7 +117,13 @@ export function CatalogFilters({
   setFilter,
   gameFileQuery,
   view = "catalog",
+  before,
+  after,
+  summary,
 }: {
+  before?: ReactNode;
+  after?: ReactNode;
+  summary?: ReactNode;
   candidates?: readonly CatalogEntry[] | undefined;
   context?: CatalogQueryContext | undefined;
   view?: "catalog" | "library";
@@ -207,21 +214,25 @@ export function CatalogFilters({
       };
     });
   return (
-    <div className="flex flex-wrap items-center gap-2" data-focus-group>
-      <Button
-        ref={trigger}
-        data-focusable
-        variant="outline"
-        size="sm"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => {
-          setAdvancedOpen((current) => current || hasAdvancedSelection);
-          setOpen((current) => !current);
-        }}
-      >
-        <ListFilter /> Filters ({activeCount})
-      </Button>
+    <div className="catalog-query w-full min-w-0" data-focus-group>
+      <div className="browse-toolbar flex flex-wrap items-center gap-2">
+        {before}
+        <Button
+          ref={trigger}
+          data-focusable
+          variant="outline"
+          size="sm"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => {
+            setAdvancedOpen((current) => current || hasAdvancedSelection);
+            setOpen((current) => !current);
+          }}
+        >
+          <ListFilter /> Filters ({activeCount})
+        </Button>
+        {after}
+      </div>
       {open && (
         <section
           ref={panel}
@@ -233,8 +244,7 @@ export function CatalogFilters({
             {view === "library" ? "Library" : "Discover"} filters
           </h2>
           <p className="text-sm text-pc-muted-foreground">
-            Choose any matching option within a group. A game must match every selected group for
-            the same setup or installation to appear.
+            Choose one or more options. Results match at least one option in each selected group.
           </p>
           {!editable && (
             <p role="alert">
@@ -263,6 +273,10 @@ export function CatalogFilters({
             onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
           >
             <summary className="cursor-pointer py-2 font-medium">Advanced filters</summary>
+            <p className="text-sm text-pc-muted-foreground">
+              Route-dependent filters must match the same setup or installation. Unknown facts
+              remain unknown.
+            </p>
             <div className="catalog-filter-groups items-start pt-3">
               {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
               {groups
@@ -280,7 +294,14 @@ export function CatalogFilters({
             </div>
           </details>
           <div className="flex flex-wrap justify-end gap-2">
-            <Button data-focusable variant="ghost" onClick={() => setFilter("all")}>
+            <Button
+              data-focusable
+              variant="ghost"
+              onClick={() => {
+                setFilter("all");
+                trigger.current?.focus();
+              }}
+            >
               Clear filters
             </Button>
             <Button data-focusable variant="outline" onClick={close}>
@@ -289,40 +310,66 @@ export function CatalogFilters({
           </div>
         </section>
       )}
-      {Boolean(result.unavailablePortIds?.length) && (
-        <p role="status" className="basis-full text-xs text-pc-muted-foreground">
-          {result.unavailablePortIds?.length} projects have unknown facts for these filters. Choose
-          All ports or clear these filters to find them.
-        </p>
-      )}
-      {supported &&
-        selected.map(({ group, value }) => (
-          <ChipButton
-            style={identityStyle(value, group === "channels")}
-            key={`${group}:${value}`}
+      <div className="browse-filter-summary mt-3 flex flex-wrap items-center gap-2 text-xs text-pc-muted-foreground">
+        {summary}
+        {Boolean(result.unavailablePortIds?.length) && (
+          <p role="status" className="basis-full text-xs text-pc-muted-foreground">
+            {result.unavailablePortIds?.length} projects have unknown facts for these filters.
+            Choose All ports or clear these filters to find them.
+          </p>
+        )}
+        {supported &&
+          selected.map(({ group, value }) => (
+            <ChipButton
+              style={identityStyle(
+                group === "platforms" ? (value.split("-")[0] ?? value) : value,
+                group === "channels",
+              )}
+              key={`${group}:${value}`}
+              data-focusable
+              size="sm"
+              variant="selected"
+              aria-label={`Remove ${label(group, value)} filter`}
+              onClick={(event) => {
+                const ownedFocus = document.activeElement === event.currentTarget;
+                remove(group, value);
+                if (ownedFocus) trigger.current?.focus();
+              }}
+            >
+              {["originalSystems", "platforms", "channels"].includes(group) && (
+                <IdentityIcon
+                  name={group === "platforms" ? (value.split("-")[0] ?? value) : value}
+                  channel={group === "channels"}
+                />
+              )}
+              {groups.find((item) => item.key === group)?.label}: {label(group, value)}{" "}
+              <X aria-hidden="true" />
+            </ChipButton>
+          ))}
+        {activeCount > 0 && (
+          <Button
             data-focusable
             size="sm"
-            variant="selected"
-            aria-label={`Remove ${label(group, value)} filter`}
-            onClick={(event) => {
-              const ownedFocus = document.activeElement === event.currentTarget;
-              remove(group, value);
-              if (ownedFocus) trigger.current?.focus();
+            variant="ghost"
+            onClick={() => {
+              setFilter("all");
+              trigger.current?.focus();
             }}
           >
-            {label(group, value)} <X aria-hidden="true" />
-          </ChipButton>
-        ))}
-      {!editable && (
-        <p role="status" className="text-sm text-pc-muted-foreground">
-          Open Filters to review or reset the restored query.
-        </p>
-      )}
-      {additional && (
-        <p role="status" className="text-sm text-pc-muted-foreground">
-          Additional restored filters are active; open Filters to review or reset them.
-        </p>
-      )}
+            Clear filters
+          </Button>
+        )}
+        {!editable && (
+          <p role="status" className="text-sm text-pc-muted-foreground">
+            Open Filters to review or reset the restored query.
+          </p>
+        )}
+        {additional && (
+          <p role="status" className="text-sm text-pc-muted-foreground">
+            Additional restored filters are active; open Filters to review or reset them.
+          </p>
+        )}
+      </div>
     </div>
   );
 

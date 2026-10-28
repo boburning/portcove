@@ -3,7 +3,12 @@ import { type CatalogSort, type Filter, type View } from "../../view-model";
 import type { CatalogQuery } from "../browsing/catalog-query";
 import type { SettingsCategory } from "./settings-categories";
 
-type BrowserState = { filter: Filter | CatalogQuery; query: string; readiness?: string };
+type BrowserState = {
+  filter: Filter | CatalogQuery;
+  query: string;
+  readiness?: string;
+  sort?: CatalogSort;
+};
 export type BrowsingInputs = {
   sections: Record<View, BrowserState>;
   catalogSort: CatalogSort;
@@ -107,6 +112,18 @@ export function useAppShellState(
       })),
     [],
   );
+  const setLibrarySort = useCallback(
+    (sort: SetStateAction<CatalogSort>) =>
+      setBrowserState((current) => ({
+        ...current,
+        library: {
+          ...current.library,
+          sort: typeof sort === "function" ? sort(current.library.sort ?? "name") : sort,
+        },
+      })),
+    [],
+  );
+  const librarySort = browserState.library.sort ?? "name";
   const libraryReadiness = browserState.library.readiness ?? "all";
   const { filter, query } = browserState[view];
   return {
@@ -121,6 +138,8 @@ export function useAppShellState(
     setQuery,
     catalogSort,
     setCatalogSort,
+    librarySort,
+    setLibrarySort,
     selectedId,
     setSelectedId,
     reviewedActivityId,
