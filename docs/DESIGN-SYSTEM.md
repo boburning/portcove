@@ -14,7 +14,7 @@ Other destructive reviews retain their own consent contracts.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library retains Catalog order by default and offers Title A–Z, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter
@@ -505,7 +505,9 @@ the artwork frame. Search matches the game, project, variant and stable port ID;
 name sorting uses the game title. Matching game titles never combine cards.
 
 Library uses Title A–Z only when no sort preference exists; explicit legacy Catalog
-order and saved sorts remain available. Discover retains Suggested order. Everyday
+order and saved sorts remain available. Unreadable stored preferences retain Catalog
+order for explicit recovery and are not replaced without an explicit save. Discover
+retains Suggested order. Everyday
 Library quick views compose existing query and favorites state; collection editing
 and Hidden stay in the collection menu. Clear filters retains search; Reset view
 states that it also clears search, quick views and collection selection. At compact
@@ -517,7 +519,9 @@ must still match the same observed route. Advanced filters and per-field help re
 technical semantics. Escape closes the active popover before the containing panel.
 
 Repeated collection Play controls use neutral secondary emphasis. The selected-game
-hero and Continue keep primary emphasis. Card metadata supports two lines without
+hero and Continue keep primary emphasis. Detail Back labels follow the captured
+Library, Discover or active Add games origin; unknown origins use generic wording.
+Card metadata supports two lines without
 reserving blank lines on every short title. Detail uses current-state summaries and
 compact management rows around existing operation/review owners. File paths never
 establish file validation. Saves & backups distinguishes unknown/error history from

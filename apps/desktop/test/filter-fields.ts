@@ -29,7 +29,14 @@ export function filterFieldForChoice(name: string) {
   if (/^(Available at last check|Matching update staged) \(/.test(name)) return "Observed updates";
   if (/^(Missing game files|Missing BIOS|Missing runtime|Repair needed|Finish setup) \(/.test(name))
     return "Installation attention";
-  if (/^Portable upstream package \(/.test(name)) return "Setup methods";
+  if (/^(Portable upstream package|Original disc referenced at launch) \(/.test(name))
+    return "Setup methods";
+  if (
+    /^(Compatible complete files available|Files missing|Needs checking|No files to add in Portcove|Unavailable context) \(/.test(
+      name,
+    )
+  )
+    return "Game files for the observed route";
   throw new Error(`No test fixture field registered for ${name}`);
 }
 
@@ -56,4 +63,26 @@ async function closeOpenFilterField() {
   await page.getByRole("button", { name: `Close ${label} choices`, exact: true }).click();
   await expect.element(trigger).toHaveAttribute("aria-expanded", "false");
   await expect.element(trigger).toHaveFocus();
+}
+
+export async function closeFilterPanel() {
+  const field = globalThis.document.querySelector<HTMLButtonElement>(
+    '.catalog-filter-panel button[aria-haspopup="dialog"][aria-expanded="true"]',
+  );
+  if (field) await userEvent.keyboard("{Escape}");
+  await expect
+    .poll(() =>
+      globalThis.document.querySelector(
+        '.catalog-filter-panel button[aria-haspopup="dialog"][aria-expanded="true"]',
+      ),
+    )
+    .toBeNull();
+  await expect.poll(() => field === null || globalThis.document.activeElement === field).toBe(true);
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("region", { name: "Filter options", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
+    .toHaveFocus();
 }

@@ -431,7 +431,7 @@ describe("core-owned failure presentation", () => {
         const button = [...host.querySelectorAll("button")].find(
           (item) => item.textContent === "Review setup",
         )!;
-        expect(button.dataset.variant).toBe("outline");
+        expect(button.dataset.variant).toBe("link");
         await act(async () => button.click());
         expect(onSelect).toHaveBeenLastCalledWith(port.id, "updates:activity:recorded:review");
         expect(host.textContent).not.toMatch(

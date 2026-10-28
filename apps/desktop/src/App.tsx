@@ -485,6 +485,14 @@ function useWorkspace(props: WorkspaceProps) {
   const [pendingToolId, setPendingToolId] = useState<string>();
   const [addGamesOpen, setAddGamesOpen] = useState(false);
   const [addGamesStarted, setAddGamesStarted] = useState(false);
+  const detailBackLabel =
+    addGamesOpen && detailOpening?.originKey?.startsWith("add-games:")
+      ? "Back to Add games"
+      : detailOpening?.originKey?.startsWith("library:")
+        ? "Back to Library"
+        : detailOpening?.originKey?.startsWith("catalog:")
+          ? "Back to Discover"
+          : undefined;
   const addGamesReturn = useRef(0);
   const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
@@ -655,13 +663,7 @@ function useWorkspace(props: WorkspaceProps) {
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
-        backLabel={
-          ui.view === "library"
-            ? "Back to Library"
-            : ui.view === "catalog"
-              ? "Back to Discover"
-              : undefined
-        }
+        backLabel={detailBackLabel}
         libraryRoot={bootstrap.library_root ?? undefined}
         organization={organization}
         openSupport={() => {
@@ -682,6 +684,7 @@ function useWorkspace(props: WorkspaceProps) {
     ) : model.port ? (
       <>
         <SelectedPortPanel
+          backLabel={detailBackLabel}
           favorites={favorites}
           extraFiles={
             model.entry?.listing &&
@@ -1512,6 +1515,7 @@ function SelectedPortPanel({
   extraFiles,
   openActivity,
   opening,
+  backLabel,
   model,
   ui,
   operations,
@@ -1532,6 +1536,7 @@ function SelectedPortPanel({
   extraFiles?: ReactNode;
   openActivity: () => void;
   opening?: DetailOpening | undefined;
+  backLabel?: string | undefined;
   model: ReturnType<typeof useAppModel>;
   ui: UiState;
   operations: OperationState;
@@ -1578,13 +1583,7 @@ function SelectedPortPanel({
     : undefined;
   return (
     <DetailPanel
-      backLabel={
-        ui.view === "library"
-          ? "Back to Library"
-          : ui.view === "catalog"
-            ? "Back to Discover"
-            : undefined
-      }
+      backLabel={backLabel}
       favoriteControl={
         <>
           <Button

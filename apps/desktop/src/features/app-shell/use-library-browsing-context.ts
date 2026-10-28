@@ -163,6 +163,8 @@ export function useLibraryBrowsingContext({
     returnToSelection ? "settings" : "library",
     restored.inputs,
     returnToSelection ? "library-storage" : "appearance",
+    // Unreadable explicit preferences are a recovery state, not an unset sort.
+    !restored.inputs && restored.failure === "read" ? "catalog" : undefined,
   );
   const serializedInputs = JSON.stringify(ui.browsingInputs);
   const [initialInputs] = useState(serializedInputs);
