@@ -295,7 +295,7 @@ pub(super) fn public_key(base: &Path, input: &PublicKeyInput) -> Result<Key, Tuf
         .map_err(|_| TufRepositoryError::Invalid("public TUF key encoding is invalid".into()))
 }
 
-fn inspect_public_key(value: &serde_json::Value) -> Result<(), TufRepositoryError> {
+pub(crate) fn inspect_public_key(value: &serde_json::Value) -> Result<(), TufRepositoryError> {
     if value["keytype"] != "ed25519"
         || value["scheme"] != "ed25519"
         || value["keyval"]["public"].as_str().is_none_or(|public| {

@@ -1660,6 +1660,33 @@
       ]
     },
     {
+      "file": "scripts/catalog-recovery-vault.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11940],
+        ["release-check", 14140]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Independently pinned local release-tools binary and qualified public age tool cache; disposable fixture only",
+          "reason": "The opt-in actual age/Tough recovery observation remains distinct from ordinary public-plan fixtures and production custody acceptance.",
+          "intended_route": "scripts/catalog-recovery-vault.test.mts; bounded local disposable recovery qualification",
+          "cases": [
+            "actual age and Tough recover the complete disposable appointed catalog set with refusal controls"
+          ],
+          "required_environment": [
+            "PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL",
+            "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
+          ]
+        }
+      ]
+    },
+    {
       "file": "scripts/recovery-tools.test.mts",
       "memberships": [
         ["catalog-full-2", 11950],
