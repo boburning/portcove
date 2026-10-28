@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-catacomb-armageddon-reflectionhle",
     "name": "The Catacomb Armageddon (ReflectionHLE)",
-    "summary": "Use The Catacomb Armageddon with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+    "summary": "Play The Catacomb Armageddon through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "The Catacomb Armageddon",
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
     "availability": "packages",
@@ -38,10 +38,7 @@
       "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
     },
     "download_asset_hints": {
-      "windows-x86-64": [
-        "reflectionhle-win64-",
-        ".zip"
-      ]
+      "windows-x86-64": ["reflectionhle-win64-", ".zip"]
     }
   },
   "upstream_lineage": {
@@ -58,12 +55,8 @@
   },
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -71,23 +64,13 @@
     "release": {
       "repository": "ReflectionHLE/ReflectionHLE",
       "asset_hints": {
-        "windows-x86-64": [
-          "reflectionhle-win64-",
-          ".zip"
-        ]
+        "windows-x86-64": ["reflectionhle-win64-", ".zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": [
-        "reflectionhle.exe"
-      ]
+      "windows-x86-64": ["reflectionhle.exe"]
     },
-    "launch_arguments": [
-      "-datadir",
-      ".",
-      "-cfgdir",
-      "."
-    ],
+    "launch_arguments": ["-datadir", ".", "-cfgdir", "."],
     "persistent_paths": [
       "bh071592",
       "bh071592.txt",

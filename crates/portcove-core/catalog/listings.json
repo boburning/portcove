@@ -9201,7 +9201,7 @@
     {
       "id": "bio-menace-reflectionhle",
       "name": "Bio Menace (ReflectionHLE)",
-      "summary": "Use Bio Menace with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Bio Menace through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Bio Menace",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -11241,7 +11241,7 @@
     {
       "id": "catacomb-3-d-the-descent-reflectionhle",
       "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
-      "summary": "Use Catacomb 3-D: The Descent with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Catacomb 3-D: The Descent through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Catacomb 3-D: The Descent",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -22112,7 +22112,7 @@
     {
       "id": "keen-dreams-reflectionhle",
       "name": "Keen Dreams (ReflectionHLE)",
-      "summary": "Use Keen Dreams with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Keen Dreams through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Keen Dreams",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -34938,7 +34938,7 @@
     {
       "id": "spear-of-destiny-reflectionhle",
       "name": "Spear of Destiny (ReflectionHLE)",
-      "summary": "Use Spear of Destiny with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Spear of Destiny through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Spear of Destiny",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -36085,7 +36085,7 @@
     {
       "id": "super-3-d-noah-s-ark-dos-reflectionhle",
       "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
-      "summary": "Use Super 3-D Noah's Ark (DOS) with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Super 3-D Noah's Ark (DOS) through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Super 3-D Noah's Ark (DOS)",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -37654,7 +37654,7 @@
     {
       "id": "the-catacomb-abyss-reflectionhle",
       "name": "The Catacomb Abyss (ReflectionHLE)",
-      "summary": "Use The Catacomb Abyss with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Abyss through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Abyss",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -37754,7 +37754,7 @@
     {
       "id": "the-catacomb-apocalypse-reflectionhle",
       "name": "The Catacomb Apocalypse (ReflectionHLE)",
-      "summary": "Use The Catacomb Apocalypse with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Apocalypse through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Apocalypse",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -37846,7 +37846,7 @@
     {
       "id": "the-catacomb-armageddon-reflectionhle",
       "name": "The Catacomb Armageddon (ReflectionHLE)",
-      "summary": "Use The Catacomb Armageddon with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Armageddon through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Armageddon",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -42451,7 +42451,7 @@
     {
       "id": "wolfenstein-3d-reflectionhle",
       "name": "Wolfenstein 3D (ReflectionHLE)",
-      "summary": "Use Wolfenstein 3D with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Wolfenstein 3D through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Wolfenstein 3D",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",

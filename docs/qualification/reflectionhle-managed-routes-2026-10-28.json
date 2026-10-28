@@ -2,8 +2,8 @@
   "format_version": 1,
   "kind": "Dated ReflectionHLE managed-fit candidate evidence, not a live planning authority",
   "owners": [2510, 2926],
-  "status": "CANDIDATE; actual managed Core lifecycle and final exact-head delivery pending",
-  "scope": "Nine existing affected-312 identities. No new listing, original source profile or historical1422 credit. After prepared-route delivery these replace nine definitions rather than add nine more.",
+  "status": "CANDIDATE; initial nineteen controls passed with one preserved summary-guard failure. New same-definition lifecycle controls and actual managed Core qualification/final delivery pending.",
+  "scope": "Nine existing affected-312 identities. PR3888 merged0a55f1917b8397ce7b190ba68570f9d60796fea9 with247definitions; this candidate replaces exactly9 and preserves the other238/sourcecatalog. No new listing, original source profile or historical1422 credit.",
   "upstream": {
     "repository": "ReflectionHLE/ReflectionHLE",
     "repository_id": "24228275",
@@ -3072,8 +3072,8 @@
   "core_proposal_inspector": {
     "source_commit": "e38ca666bcec0fb52a1593a8d8088e1445fe6261",
     "cli_sha256": "bbb576b9f2ea71cb73690502250695c453107b801ff0017c89f0a4f92372a872",
-    "input_sha256": "ca66f205fa49bdb841e2b011e273edf47515ed2ae8ce99f6b90dfc19f4621a7e",
-    "result": "Accepted candidate declarations; no library created. Read-only inspection is not runtime admission.",
+    "input_sha256": "d1fe5ec0ef353b8b835dc3dee27483135f1a0536ca1ee49f9a5cb66585be8e15",
+    "result": "Accepted all247candidate declarations after3888 composition, without creating a library. Read-only inspection does not admit a runtime.",
     "prior_attempt": "Older validator7833faf9 only knew printable-ascii-max-path and refused the newer relative-file-max-path enum. Its refusal is retained, never treated as candidate rejection or passing validation."
   },
   "independent_design_review": {
@@ -3082,10 +3082,9 @@
     "scope": "Exact nine draft declarations, complete52+52+6 persistence namespace, source coordinates/lifetime and preserved native classifier failure"
   },
   "qualification_pending": [
-    "Run final candidate Core lifecycle and adversarial fixtures",
-    "Use exact candidate Core Windows artifact for managed install/verify/explicit launcher close/restart/preservation and offered maintenance",
-    "Prove old user-selected registrations retain their creating contracts after managed offer replaces current declaration",
-    "Finish complete non-writing review, all required exact-head CI, guarded merge/readback and individual canonical reconciliation"
+    "Execute9new fullCore synthetic maintenance cases and final composed controls",
+    "Use exact final candidate Core Windows artifact for actual managed install/verify/explicit launcher close/restart/preservation and available maintenance",
+    "Finish complete non-writing review, all required exact-head CI, guarded merge/readback and each canonical managed-fitting reconciliation"
   ],
   "not_claimed": [
     "Original admission by Core",
@@ -3101,122 +3100,263 @@
       "canonical_issue": 2683,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "d8ee633510b7ec839a10c38d23b90a8d4060186a91aa4eecbab1321d6a2a7400",
-      "canonical_body_sha256": "66e685c9bdb3fbc3a96b3e6c466ca1449525cf85e8c8d3bc693fb4c21c755fb4",
+      "authored_sha256": "47d68da2ce8929956a67d9842917569ec71a7a26641d6d2ffce2d732bfdb99e2",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Keep the complete matching DOS edition, including KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and its EGA or CGA graphics. The exact executable and data revision must match one launcher entry; the modern Keen Dreams remaster and Keen 4/5/6 data are separate products. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "66e685c9bdb3fbc3a96b3e6c466ca1449525cf85e8c8d3bc693fb4c21c755fb4",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     },
     {
       "id": "catacomb-3-d-the-descent-reflectionhle",
       "canonical_issue": 2684,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "ada0f598c09a2d9aed599a6d3b5f72cc4853e4d5fab1c8c574f5bf0c9ef55df1",
-      "canonical_body_sha256": "b0fcea6061b702c7e690c1670ec2bc6e44b15949843d350bb5cd214915307104",
+      "authored_sha256": "a97fa5ae7d5189fbc76ab310fb674ea75eb54923c33de8bff959b6829244d1aa",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Keep your own complete matching DOS Descent data, including CAT3D.EXE, AUDIO.C3D, EGAGRAPH.C3D and GAMEMAPS.C3D. The upstream tables distinguish v1.00 and v1.22 by sizes and CRCs. Abyss shareware does not provide Descent. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "b0fcea6061b702c7e690c1670ec2bc6e44b15949843d350bb5cd214915307104",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     },
     {
       "id": "the-catacomb-abyss-reflectionhle",
       "canonical_issue": 2685,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "b63b0a47a7178c3407b2814c6cfcc14e1d1eacbe2d346777366e112eddca51b1",
-      "canonical_body_sha256": "23c21706757d32cdd0924a791a1a38493828a9f0fcfb6646e08ee0bad8b5e368",
+      "authored_sha256": "420d125adc5a8e95a09e61a3b6a9138ac9f1f00d3cc23b2d1b5f03d4e48d4b30",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use a complete supported DOS Abyss edition, including CATABYSS.EXE and its ABS files. The upstream tables distinguish the shareware and registered revisions and require companion help/shape files. An arbitrary Abyss EXE or another Catacomb game is not a substitute. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "23c21706757d32cdd0924a791a1a38493828a9f0fcfb6646e08ee0bad8b5e368",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     },
     {
       "id": "the-catacomb-armageddon-reflectionhle",
       "canonical_issue": 2686,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "4240b1bc0b062609e9e0cf0b0f4cc6a374af5f04f0b1771c2dc623fc02a56b2e",
-      "canonical_body_sha256": "6802f497fbc254453f3112dd53ea5655593e62ad6ef62e752622ac2cd399d8cf",
+      "authored_sha256": "5285435f0034849c28b5352f71bcf8e091b7e45e4d9363b67469ec1671f45318",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete matching DOS Armageddon folder, including ARMGAME.EXE, AUDIO.ARM, EGAGRAPH.ARM, GAMEMAPS.ARM and the required SHP companion files. Abyss shareware does not supply Armageddon. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "6802f497fbc254453f3112dd53ea5655593e62ad6ef62e752622ac2cd399d8cf",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     },
     {
       "id": "the-catacomb-apocalypse-reflectionhle",
       "canonical_issue": 2687,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "ae73f0327906b9ba98fefd5d6d47133b910f921ea13678c2a1b84a7a6c383e93",
-      "canonical_body_sha256": "c37efc5d3452f94cb03e3f16f4201ba373650abd76edc47cbdd0a09b219acb3d",
+      "authored_sha256": "9b1aaac612f6125ed9a2c1211de851224e46b84582cdca3ed2a33910dae51a5c",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete matching DOS Apocalypse folder, including APOCGAME.EXE, AUDIO.APC, EGAGRAPH.APC, GAMEMAPS.APC and the required SHP companion files. Abyss shareware does not supply Apocalypse. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "c37efc5d3452f94cb03e3f16f4201ba373650abd76edc47cbdd0a09b219acb3d",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     },
     {
       "id": "wolfenstein-3d-reflectionhle",
       "canonical_issue": 2688,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "91abd6f716ce9ff4e56860faba9a8c4fbb7923f8eef6163f0f4d560a8a7642d7",
-      "canonical_body_sha256": "ecd251df564c01c1b87038b39f89b8477f9416b5fbba56aea2ec71a50f1671fd",
+      "authored_sha256": "13a8ad14dc5f6c17be4ae2f4cca56ed542fe4fa392273e20f174407543b7ad88",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete original DOS Wolfenstein 3D folder with WOLF3D.EXE and the matching WL1 or WL6 data. Shareware, registered and publisher revisions are separate launcher entries with exact size/CRC checks. Spear of Destiny and remastered/console data are not this game. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "ecd251df564c01c1b87038b39f89b8477f9416b5fbba56aea2ec71a50f1671fd",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     },
     {
       "id": "spear-of-destiny-reflectionhle",
       "canonical_issue": 2689,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "a6bff7b9ff6f2e528cf8d4322182de2b68dccbe1f8b259e3c5f2b97f2688741a",
-      "canonical_body_sha256": "ec982ef0ba1c50d24101f28e565df0a8d0629478e145a6a22645f59c561c1ffc",
+      "authored_sha256": "c1f7943f2f63082eba3c3e07e525f06fa5f541fbc817bac3f55bcd7f6afc73b3",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete matching DOS Spear folder, including SPEAR.EXE and its SOD/SD data. The upstream version tables distinguish the original game and mission packs. Preserve each owned mission and its matching files; Wolfenstein WL6 files are not Spear data. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "ec982ef0ba1c50d24101f28e565df0a8d0629478e145a6a22645f59c561c1ffc",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     },
     {
       "id": "super-3-d-noah-s-ark-dos-reflectionhle",
       "canonical_issue": 2690,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "348f96ff793c299886b0bfc6c196611704dcfd8dd01e440c105d85778e3cbb9b",
-      "canonical_body_sha256": "96abc62b9f66a83291bbb8a1551a5abc4a7dedb0511da7dce89884fbb5756db0",
+      "authored_sha256": "286d24911d24e38a4406d0c5fc3eb72696639b007b41005e579bc1cdeb483d31",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use your complete original DOS folder with NOAH3D.EXE or NOAH3DOS.EXE and matching N3D data, including AUDIOHED, AUDIOT, GAMEMAPS, MAPHEAD, VGADICT, VGAGRAPH, VGAHEAD and VSWAP. The upstream table requires exact sizes and CRCs; the SNES original is a different representation. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "96abc62b9f66a83291bbb8a1551a5abc4a7dedb0511da7dce89884fbb5756db0",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     },
     {
       "id": "bio-menace-reflectionhle",
       "canonical_issue": 2692,
       "frozen_cohort": "affected-312",
       "historical_1422_member": false,
-      "authored_sha256": "9705119a2a82d72de42bd1bd8637c54877c1efe710304e4847ed9b11839c9f27",
-      "canonical_body_sha256": "1d74bb629bec1cdf64b34e2a15c08a3e6b2fd5d6a49dd32b66d6be623c786ced",
+      "authored_sha256": "25f5412c5f42f7643b2708c68e787f1954fd30bd9f2a28ad57cfcb2e97f2929a",
       "canonical_comments_complete": 2,
       "prior_setup_evidence": "dos-engine-upstream-routes-2026-10-27.json",
       "original_data": "Use the complete matching original DOS episode folders with BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE and their corresponding BM1/BM2/BM3 data. The upstream tables distinguish shareware, registered and freeware revisions. Keep companion files; a BioMenace Remastered installation is not established as an interchangeable input. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals.",
       "offered_managed_scope": "Candidate only; actual Core lifecycle qualification pending",
-      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion"
+      "retained_external_scope": "Keep old user-selected registrations and creating runtimes; no data adoption or ownership conversion",
+      "canonical_body_sha256_at_initial_managed_pickup": "1d74bb629bec1cdf64b34e2a15c08a3e6b2fd5d6a49dd32b66d6be623c786ced",
+      "canonical_observation_scope": "Initial managed pickup before PR3888 canonical component reconciliation; issue remains open with managed fitting retained."
     }
   ],
   "retained_selected_fixture": {
     "source_commit": "30487262866eb4072ab07bee3d8ba4446fd8dead",
     "sha256": "0f460df2d8e7838f5a6bcca3e7b08ad4423a44840981e3e04227138ef1afb831",
-    "scope": "Exact nine preceding UserPrepared/UserSelected projections. Original case identities and consent/ownership/argument/launch/removal assertions remain, registering under creating authority then reopening current NativePortable. Execution pending; prior49delivery not yet credited."
+    "scope": "Exact9UserPrepared/UserSelected projections from30487262, delivered unchanged in3888. All49case identities remain once; these9register under creating authority and reopen currentNativePortable, preserving every prior safety assertion."
+  },
+  "counts": {
+    "listings": 1424,
+    "operational_definitions_before": 247,
+    "operational_definitions_after": 247,
+    "definition_replacements": 9,
+    "other_definitions_unchanged": 238,
+    "source_profiles": 112,
+    "supported_operation_promotions": 0
+  },
+  "initial_required_ci": {
+    "source": "4f6b17c26b934458dc2623d4386e179c4040bb77",
+    "run": 40742028782,
+    "attempt": 1,
+    "result": "failed",
+    "windows_producers": {
+      "passed": 7,
+      "failed": 1,
+      "running": 0,
+      "missing": 0
+    },
+    "passed_candidate_controls": [
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2687\"]",
+        "outcome": "passed",
+        "duration_ms": 1694.8471
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"release::tests::unchanged_definition::reflectionhle_shared_release_keeps_all_nine_identities_dynamic_and_refuses_unsafe_assets\"]",
+        "outcome": "passed",
+        "duration_ms": 540.2075
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2685\"]",
+        "outcome": "passed",
+        "duration_ms": 2351.6843
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2692\"]",
+        "outcome": "passed",
+        "duration_ms": 2404.6775000000002
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2689\"]",
+        "outcome": "passed",
+        "duration_ms": 1716.1545999999998
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2684\"]",
+        "outcome": "passed",
+        "duration_ms": 1776.0663000000002
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2683\"]",
+        "outcome": "passed",
+        "duration_ms": 2245.3075
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2689\"]",
+        "outcome": "passed",
+        "duration_ms": 2290.5002
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2688\"]",
+        "outcome": "passed",
+        "duration_ms": 1063.4979
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2686\"]",
+        "outcome": "passed",
+        "duration_ms": 1324.2449000000001
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2683\"]",
+        "outcome": "passed",
+        "duration_ms": 1469.1336
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2692\"]",
+        "outcome": "passed",
+        "duration_ms": 1407.8879
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2688\"]",
+        "outcome": "passed",
+        "duration_ms": 1763.0019
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2686\"]",
+        "outcome": "passed",
+        "duration_ms": 1404.2913
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2687\"]",
+        "outcome": "passed",
+        "duration_ms": 1839.7757000000001
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2690\"]",
+        "outcome": "passed",
+        "duration_ms": 1324.2492000000002
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"install::tests::native_paths::reflectionhle_coordinates_2685\"]",
+        "outcome": "passed",
+        "duration_ms": 1636.6943
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2684\"]",
+        "outcome": "passed",
+        "duration_ms": 2265.2254
+      },
+      {
+        "identity": "[\"portcove-core\",\"portcove-core\",\"service::user_selected::tests::desktop_prepared_route_2690\"]",
+        "outcome": "passed",
+        "duration_ms": 2344.1717999999996
+      }
+    ],
+    "failure": {
+      "case": "catalog::tests::embedded_summaries_leave_structured_facts_to_structured_fields",
+      "job": 123011757267,
+      "url": "https://github.com/boburning/portcove/actions/runs/40742028782/job/123011757267",
+      "scope": "The shared guard stopped at Bio Menace; all9candidate summaries contained setup/management facts. No validator was weakened."
+    },
+    "repair": "Use per-title gameplay outcome summaries. Setup, update owner and separate external ownership remain in structured contracts and guides; do not copy former upstream-owned-update wording into the managed offer."
+  },
+  "synthetic_maintenance_controls": {
+    "source": "crates/portcove-core/src/runtime_tests/reflectionhle_progression.rs",
+    "platform": "Windows only",
+    "cases": 9,
+    "status": "pending execution",
+    "scope": "Existing Core/provider/archive helpers; first-party inert N/N+1 packages, unchanged definition reconcile/stage/activate with changed wrapper, current-data rollback, reviewed backup/restore and preserving removal. Save, configuration and original-location-witness bytes are asserted at each phase; no upstream game or original is executed."
   }
 }
