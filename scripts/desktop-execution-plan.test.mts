@@ -527,6 +527,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-rejected-listener-registration",
             "native-interface-size",
             "native-library-layout",
+            "native-update-acquisition-lifecycle",
           ].includes(id),
       ),
     });
@@ -534,6 +535,8 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-preliminary-source-review"));
     assert.ok(!selection.selected_scenarios.includes("native-saved-folder-hash-resume"));
     assert.ok(selection.excluded_scenarios.includes("native-saved-folder-hash-resume"));
+    assert.ok(!selection.selected_scenarios.includes("native-update-acquisition-lifecycle"));
+    assert.ok(selection.excluded_scenarios.includes("native-update-acquisition-lifecycle"));
     assert.deepEqual(historicalSelection(selection), row.selection);
     const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
     assert.deepEqual(historicalSelection(plan.selection), row.selection);
@@ -973,6 +976,8 @@ void test("qualified reviews and a running setup restart reject missing or forei
       runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
         assert,
         path,
+        performance,
+        executionPlan: { fixtures: { acquisitionJourney: false } },
         savedLibraryRecoverySession: false,
         checks: [{ scenario, outcome }],
         application: "/owned/app.exe",
@@ -1338,76 +1343,78 @@ void test("publication repeat callback requires the complete owned native quiesc
   const start = source.indexOf("async function restartApplication(");
   const end = source.indexOf("// Interrupt only this harness", start);
   assert.ok(start >= 0 && end > start);
-  for (const refusesExit of [false, true]) {
-    const events: string[] = [];
-    const exitFailure = new Error("owned native inventory has not fully exited");
-    const restart = callable(
-      runInNewContext(`${source.slice(start, end)}; restartApplication`, {
-        linuxSelectedSession: false,
-        savedLibraryRecoverySession: false,
-        cleanupName: "host-publication",
-        hostPublicationSession: true,
-        preferencesRecoverySession: false,
-        assert,
-        required: (value: unknown) => value,
-        output: "/owned/output",
-        path,
-        artifacts: [],
-        browser: {
-          quit: async () => {
-            events.push("quit");
+  for (const acquisition of [false, true])
+    for (const refusesExit of [false, true]) {
+      const events: string[] = [];
+      const exitFailure = new Error("owned native inventory has not fully exited");
+      const restart = callable(
+        runInNewContext(`${source.slice(start, end)}; restartApplication`, {
+          linuxSelectedSession: false,
+          savedLibraryRecoverySession: false,
+          cleanupName: "host-publication",
+          hostPublicationSession: !acquisition,
+          executionPlan: { fixtures: { acquisitionJourney: acquisition } },
+          preferencesRecoverySession: false,
+          assert,
+          required: (value: unknown) => value,
+          output: "/owned/output",
+          path,
+          artifacts: [],
+          browser: {
+            quit: async () => {
+              events.push("quit");
+            },
           },
-        },
-        captureBackupFocusCleanup: () => {
-          events.push("capture");
-          return "/owned/inventory.json";
-        },
-        readFile: async () => "{}",
-        readNativeProcessSnapshot: (value: unknown) => value,
-        validateBackupFocusInventory: () => {
-          events.push("validate");
-        },
-        stopBackupFocusDriver: () => {
-          events.push("stop");
-        },
-        ownedSession: {
-          requireQuiescence: () => {
-            events.push("join");
-            if (refusesExit) throw exitFailure;
-            return {};
+          captureBackupFocusCleanup: () => {
+            events.push("capture");
+            return "/owned/inventory.json";
           },
-        },
-        startDriver: async () => {
-          events.push("start");
-        },
-        connect: async () => {
-          events.push("connect");
-        },
-        driverBrowser: () => ({}),
-        writeFile: async () => {},
-      }),
-    );
-    const execute = async () =>
-      restart("published-move-repeat", async () => {
-        events.push("callback");
-      });
-    if (refusesExit) {
-      await assert.rejects(execute(), (error) => error === exitFailure);
-      assert.deepEqual(events, ["capture", "validate", "quit", "stop", "join"]);
-    } else {
-      await execute();
-      assert.deepEqual(events, [
-        "capture",
-        "validate",
-        "quit",
-        "stop",
-        "join",
-        "callback",
-        "start",
-        "connect",
-      ]);
+          readFile: async () => "{}",
+          readNativeProcessSnapshot: (value: unknown) => value,
+          validateBackupFocusInventory: () => {
+            events.push("validate");
+          },
+          stopBackupFocusDriver: () => {
+            events.push("stop");
+          },
+          ownedSession: {
+            requireQuiescence: () => {
+              events.push("join");
+              if (refusesExit) throw exitFailure;
+              return {};
+            },
+          },
+          startDriver: async () => {
+            events.push("start");
+          },
+          connect: async () => {
+            events.push("connect");
+          },
+          driverBrowser: () => ({}),
+          writeFile: async () => {},
+        }),
+      );
+      const execute = async () =>
+        restart(acquisition ? "acquisition-2.0.0" : "published-move-repeat", async () => {
+          events.push("callback");
+        });
+      if (refusesExit) {
+        await assert.rejects(execute(), (error) => error === exitFailure);
+        assert.deepEqual(events, ["capture", "validate", "quit", "stop", "join"]);
+      } else {
+        await execute();
+        assert.deepEqual(events, [
+          "capture",
+          "validate",
+          "quit",
+          "stop",
+          "join",
+          "callback",
+          "start",
+          "connect",
+        ]);
+      }
     }
-  }
 });
 
 void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", async () => {
@@ -1532,4 +1539,76 @@ void test("listener callback bytes follow their owning scenario source exactly o
       assert.equal(helpers.length, parentIndex < 0 ? 0 : 1);
       if (parentIndex >= 0) assert.equal(inputs[parentIndex + 1]?.path, helper);
     }
+});
+
+void test("acquisition qualification is isolated, builds the owned probe and passes real native authority only to its install journey", async () => {
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () =>
+        resolveDesktopSelection({ scenarios: ["native-update-acquisition-lifecycle"], platform }),
+      /standalone Windows/,
+    );
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: ["native-update-acquisition-lifecycle", "keyboard-layout"],
+        platform: "win32",
+      }),
+    /standalone Windows/,
+  );
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-update-acquisition-lifecycle"],
+    platform: "win32",
+  });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, ["install-commit-refresh-recovery"]);
+  assert.equal(plan.fixtures.acquisitionJourney, true);
+  assert.equal(plan.fixtures.install, true);
+  assert.equal(plan.fixtures.owned, true);
+  assert.equal(plan.fixtures.completionJourney, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
+    ),
+  );
+  const marker = { capture() {}, observe() {} };
+  const confirm = () => {};
+  let called = false;
+  await runOwnedFixtureJourneys(
+    {
+      plan,
+      runtime: {
+        context: () => ({
+          browser: "owned",
+          invoke() {},
+          scenario() {},
+          library: "owned-library",
+          output: "owned-output",
+          artifacts: [],
+          inputs: [],
+          installFixture: {},
+          restartApplication() {},
+          ownedGameProcess: marker,
+        }),
+        confirmNative: () => confirm,
+        recordKnownGap: () =>
+          assert.fail("No acceptance gaps may be substituted for this scenario"),
+      },
+    },
+    {
+      install: async (context) => {
+        called = true;
+        assert.equal(context.ownedGameProcess, marker);
+        assert.equal(context.confirmNative, confirm);
+      },
+      selectedSetup: async () => {},
+      selectedSetupCompletion: async () => {},
+      preparation: async () => {},
+    },
+  );
+  assert.equal(called, true);
 });

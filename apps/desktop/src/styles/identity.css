@@ -1,0 +1,71 @@
+@layer components {
+  .identity-chip {
+    --identity-ink: var(--color-text-muted);
+
+    display: inline-flex;
+    max-inline-size: 100%;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elevated);
+    color: var(--identity-ink);
+    font-size: var(--text-xs);
+    line-height: var(--leading-small);
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .identity-chip[style] {
+    --identity-ink: color-mix(in srgb, var(--identity-base) 45%, white);
+
+    border-color: color-mix(in srgb, var(--identity-base) 40%, var(--color-border));
+    background: color-mix(in srgb, var(--identity-base) 12%, var(--color-bg-elevated));
+  }
+
+  :root[data-theme="light"] .identity-chip[style] {
+    --identity-ink: color-mix(in srgb, var(--identity-base) 48%, black);
+  }
+
+  .identity-chip svg {
+    flex: none;
+    inline-size: 0.875rem;
+    block-size: 0.875rem;
+  }
+  .identity-chip-button {
+    min-block-size: var(--control-height-sm);
+  }
+  .identity-chip-button[aria-pressed="false"] {
+    background: transparent;
+    color: var(--color-text);
+  }
+  .identity-chip-button[aria-pressed="true"] {
+    border-color: currentColor;
+  }
+
+  .catalog-filter-panel {
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+  }
+  .catalog-filter-groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: var(--space-5);
+    margin-block: var(--space-4);
+  }
+
+  @media (forced-colors: active) {
+    .identity-chip,
+    .identity-chip[style] {
+      color: CanvasText;
+      background: Canvas;
+      border-color: CanvasText;
+    }
+    .identity-chip-button[aria-pressed="true"] {
+      outline: 2px solid Highlight;
+    }
+  }
+}

@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vite-plus/test";
 import { portDefinition, portStatus } from "../../test-fixtures";
-import type { PendingSetupRecord, PortListing, PortStatus } from "../../types";
+import type {
+  CatalogMediaAsset,
+  OriginalGameIdentity,
+  PendingSetupRecord,
+  PortListing,
+  PortStatus,
+} from "../../types";
 import { filterPorts } from "../../view-model";
 import { catalogEntries, usesSelfServiceDetail } from "./catalog-entry";
 import { evaluateCatalogQuery } from "./catalog-query";
+import { gameGroupId, originalSystems } from "./original-game";
 
 const listing: PortListing = {
   id: "new-project",
@@ -15,6 +22,56 @@ const listing: PortListing = {
   availability: "packages",
 };
 const directory = { format_version: 1, listings: [listing] };
+const original: OriginalGameIdentity = {
+  format_version: 1,
+  id: "reviewed-original",
+  evidence_urls: ["https://example.com/original"],
+  source_editions: [
+    {
+      id: "reviewed-edition",
+      title: "Reviewed original edition",
+      system: "nintendo-64",
+      evidence_urls: ["https://example.com/original/edition"],
+    },
+  ],
+};
+const screenshot: CatalogMediaAsset = {
+  id: "original-scene",
+  role: "screenshot",
+  subject: {
+    kind: "original",
+    game_id: original.id,
+    source_edition_id: original.source_editions[0]!.id,
+  },
+  caption: "Synthetic original scene",
+  url: `https://raw.githubusercontent.com/example/fixture/${"a".repeat(40)}/scene.png`,
+  sha256: "a".repeat(64),
+  width: 1,
+  height: 1,
+  attribution: "Synthetic test fixture",
+  source_url: "https://example.com/original/scene",
+  license: "CC0-1.0",
+  rights_url: "https://example.com/original/rights",
+};
+const enrichedListing: PortListing = {
+  ...listing,
+  original_game: original,
+  media: [{ ...screenshot, id: "original-header", role: "header" }, screenshot],
+  manual_setup: {
+    help_url: "https://example.com/new-setup",
+    steps: [{ title: "Listing setup", instruction: "Listing-only setup instructions." }],
+    warnings: [],
+  },
+};
+
+function enrichedEntry(definition: ReturnType<typeof portDefinition>) {
+  return catalogEntries(
+    { schema_version: 1, ports: [definition], source_profiles: [] },
+    { format_version: 3, listings: [enrichedListing] },
+    [],
+    [],
+  )[0]!;
+}
 
 describe("lightweight catalog entries", () => {
   it("keeps every identity searchable without manufacturing an integration", () => {
@@ -41,6 +98,107 @@ describe("lightweight catalog entries", () => {
     expect(entries[0]?.release).toBe(definition.release);
     expect(entries[0]?.listing).toBe(listing);
   });
+
+  it("enriches an old strict display with reviewed identity and media without changing its operational owner", () => {
+    const presentation = {
+      installation_method: "portable-package" as const,
+      source_requirements: [],
+      saves_and_settings: "portcove-managed" as const,
+      original_game_title: "Strict display title",
+      manual_preparation: "Keep the strict preparation instructions.",
+    };
+    const definition = { ...portDefinition(), id: listing.id, presentation };
+    const entry = enrichedEntry(definition);
+    expect(entry.presentation).toEqual({
+      ...presentation,
+      original_game: original,
+      media: enrichedListing.media,
+    });
+    expect(entry.definition).toBe(definition);
+    expect(entry.definition?.presentation).toBe(presentation);
+    expect(definition.presentation).not.toHaveProperty("original_game");
+    expect(definition.presentation).not.toHaveProperty("media");
+    expect(entry.release).toBe(definition.release);
+    expect(entry.source_profile).toBe(definition.source_profile);
+    expect(entry.presentation?.manual_setup).toBeUndefined();
+    expect(gameGroupId(entry)).toBe(`game:${original.id}`);
+    expect(originalSystems(entry)).toEqual(["nintendo-64"]);
+  });
+
+  it.each([undefined, null])(
+    "adds only descriptive fields when the strict presentation is %s",
+    (presentation) => {
+      const definition = { ...portDefinition(), id: listing.id };
+      if (presentation === null) definition.presentation = null;
+      else delete definition.presentation;
+      const entry = enrichedEntry(definition);
+      expect(entry.presentation).toEqual({
+        original_game: original,
+        media: enrichedListing.media,
+      });
+      expect(entry.definition).toBe(definition);
+      expect(entry.definition?.presentation).toBe(presentation);
+      expect(entry.presentation?.installation_method).toBeUndefined();
+      expect(entry.presentation?.manual_setup).toBeUndefined();
+    },
+  );
+
+  it.each([
+    { label: "empty", media: [] },
+    { label: "authored", media: [screenshot] },
+  ])("preserves explicit strict media ($label)", ({ media }) => {
+    const presentation = {
+      installation_method: "portable-package" as const,
+      source_requirements: [],
+      saves_and_settings: "portcove-managed" as const,
+      original_game: original,
+      media,
+    };
+    const entry = enrichedEntry({ ...portDefinition(), id: listing.id, presentation });
+    expect(entry.presentation).toBe(presentation);
+    expect(entry.presentation?.media).toBe(media);
+  });
+
+  it.each(["different-game", "different-edition"])(
+    "does not inherit original-release media for a %s correction in the strict identity",
+    (correction) => {
+      const corrected = {
+        ...original,
+        ...(correction === "different-game" ? { id: "corrected-original" } : {}),
+        source_editions: original.source_editions.map((edition) => ({
+          ...edition,
+          ...(correction === "different-edition" ? { id: "corrected-edition" } : {}),
+        })),
+      };
+      const portImage: CatalogMediaAsset = {
+        ...screenshot,
+        id: "port-scene",
+        subject: { kind: "port", port_id: listing.id },
+      };
+      const definition = {
+        ...portDefinition(),
+        id: listing.id,
+        presentation: {
+          installation_method: "portable-package" as const,
+          source_requirements: [],
+          saves_and_settings: "portcove-managed" as const,
+          original_game: corrected,
+        },
+      };
+      const entry = catalogEntries(
+        { schema_version: 1, ports: [definition], source_profiles: [] },
+        {
+          format_version: 3,
+          listings: [{ ...enrichedListing, media: [...enrichedListing.media!, portImage] }],
+        },
+        [],
+        [],
+      )[0]!;
+      expect(entry.presentation?.original_game).toBe(corrected);
+      expect(entry.presentation?.media).toEqual([portImage]);
+      expect(entry.definition).toBe(definition);
+    },
+  );
 
   it("keeps a saved download discoverable after its listing leaves the current catalog", () => {
     const pending: PendingSetupRecord = {

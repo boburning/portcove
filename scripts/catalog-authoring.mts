@@ -24,12 +24,19 @@ export interface AuthoredListing extends NamedRecord {
   download_asset_hints?: Record<string, string[]>;
   recommended_download_channel?: "stable" | "beta";
   original_game_title?: string;
+  original_game?: {
+    format_version: 1;
+    id: string;
+    evidence_urls: string[];
+    source_editions: { id: string; title: string; system?: string; evidence_urls: string[] }[];
+  };
   variant_label?: string;
   issue_number?: number;
   release_url?: string;
   setup_url?: string;
   manual_setup?: unknown;
   artwork?: unknown;
+  media?: unknown;
 }
 export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
@@ -51,9 +58,11 @@ export const catalogSourceNames = {
 } as const;
 const listingPresentationFields = [
   "original_game_title",
+  "original_game",
   "variant_label",
   "manual_setup",
   "artwork",
+  "media",
 ] as const;
 const sharedPortFields = ["id", "name", "summary", "project_url"] as const;
 const listingFields = new Set([
@@ -175,6 +184,49 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!Number.isSafeInteger(listing.issue_number) || Number(listing.issue_number) < 1)
   )
     throw new Error("Listing issue_number must be a positive integer.");
+  if (listing.original_game !== undefined) {
+    const game = listing.original_game;
+    const identity = (value: unknown) =>
+      typeof value === "string" && value.length <= 128 && stableId.test(value);
+    const evidence = (value: unknown) => {
+      if (
+        !Array.isArray(value) ||
+        value.length < 1 ||
+        value.length > 8 ||
+        new Set(value).size !== value.length
+      )
+        throw new Error("Original game evidence requires bounded unique public HTTPS URLs.");
+      for (const url of value) publicUrl(url, "original_game evidence");
+    };
+    if (
+      !isRecord(game) ||
+      game.format_version !== 1 ||
+      !identity(game.id) ||
+      Object.keys(game).some(
+        (key) => !["format_version", "id", "evidence_urls", "source_editions"].includes(key),
+      ) ||
+      !Array.isArray(game.source_editions) ||
+      game.source_editions.length > 16
+    )
+      throw new Error("Invalid original game identity.");
+    evidence(game.evidence_urls);
+    const editions = new Set();
+    for (const edition of game.source_editions) {
+      if (
+        !isRecord(edition) ||
+        !identity(edition.id) ||
+        editions.has(edition.id) ||
+        !boundedText(edition.title, 512) ||
+        (edition.system !== undefined && !identity(edition.system)) ||
+        Object.keys(edition).some(
+          (key) => !["id", "title", "system", "evidence_urls"].includes(key),
+        )
+      )
+        throw new Error("Invalid or duplicate source edition identity.");
+      editions.add(edition.id);
+      evidence(edition.evidence_urls);
+    }
+  }
   for (const field of ["original_game_title", "variant_label"] as const)
     if (listing[field] !== undefined && !boundedText(listing[field], 512))
       throw new Error(`Listing ${field} requires bounded nonempty text.`);
@@ -267,9 +319,15 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     platforms: structuredClone(record.integration?.platforms ?? record.listing.platforms ?? []),
     availability: record.listing.availability ?? "unknown",
   }));
-  const format_version = listings.some((listing) => listing.download_block_reason !== undefined)
-    ? 2
-    : 1;
+  const format_version = listings.some(
+    (listing) =>
+      listing.original_game !== undefined ||
+      (Array.isArray(listing.media) && listing.media.length > 0),
+  )
+    ? 3
+    : listings.some((listing) => listing.download_block_reason !== undefined)
+      ? 2
+      : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

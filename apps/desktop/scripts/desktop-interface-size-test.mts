@@ -149,6 +149,7 @@ export async function interfaceSizeScenario(context: Context) {
         await context.setTheme(theme);
         for (const size of sizes.slice(1)) {
           await select(size);
+          if (size === 125 || size === 200) await capturePicker(`interface-size-${theme}-${size}`);
           if (size === 300) await capturePicker(`interface-size-${theme}-300-320css`);
         }
         const enlarged = await settled(400);

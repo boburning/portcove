@@ -15,6 +15,7 @@ interface JourneySlots {
   interruptApplication?: unknown;
   closeApplication?: unknown;
   captureLivePreparation?: unknown;
+  ownedGameProcess?: unknown;
   chooseOwnedLibrary?: unknown;
   chooseGameFileFolder?: unknown;
 }
@@ -38,7 +39,11 @@ interface JourneyRuntime<Context extends JourneySlots, Confirmation> {
 export interface OwnedFixtureJourneys<Context extends JourneySlots, Confirmation> {
   install: (
     context: Shared<Context> &
-      Selected<Context, "inputs" | "restartApplication"> & { fixture: Context["installFixture"] },
+      Selected<Context, "inputs" | "restartApplication"> & {
+        fixture: Context["installFixture"];
+        ownedGameProcess?: Context["ownedGameProcess"];
+        confirmNative?: Confirmation;
+      },
   ) => Promise<unknown>;
   selectedSetup: (
     context: Shared<Context> & Selected<Context, "cli"> & { fixture: Context["installFixture"] },
@@ -89,6 +94,9 @@ export async function runOwnedFixtureJourneys<Context extends JourneySlots, Conf
           inputs: context.inputs,
           fixture: context.installFixture,
           restartApplication: context.restartApplication,
+          ...(context.ownedGameProcess
+            ? { ownedGameProcess: context.ownedGameProcess, confirmNative: runtime.confirmNative() }
+            : {}),
         });
         break;
       case "selected-setup":

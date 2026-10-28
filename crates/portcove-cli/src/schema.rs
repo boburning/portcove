@@ -598,6 +598,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "game_update_acquisition",
+                serde_json::json!(schema_for_contract::<portcove_core::GameUpdateAcquisition>(
+                    contract
+                )),
+            ),
+            (
                 "preparation_plan",
                 serde_json::json!(schema_for_contract::<portcove_core::PreparationPlan>(
                     contract

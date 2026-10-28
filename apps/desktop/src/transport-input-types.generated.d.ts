@@ -19,6 +19,57 @@ export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "keep-preview";
 export type InputDesktopApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+export type InputDesktopOrganizationChange =
+  | {
+      hidden: boolean;
+      kind: "set_hidden";
+      port_id: string;
+    }
+  | {
+      game_id: string;
+      kind: "set_saved";
+      saved: boolean;
+    }
+  | {
+      game_id: string;
+      kind: "set_saved_group";
+      legacy_port_ids: string[];
+      saved: boolean;
+    }
+  | {
+      collection_id: string;
+      kind: "upsert_collection";
+      name: string;
+    }
+  | {
+      collection_id: string;
+      kind: "remove_collection";
+    }
+  | {
+      collection_id: string;
+      included: boolean;
+      kind: "set_collection_port";
+      port_id: string;
+    }
+  | {
+      choice: UpdateNoticeChoice;
+      kind: "set_update_notice";
+      port_id: string;
+    }
+  | {
+      confirmation: SetupConfirmation;
+      confirmed: boolean;
+      kind: "set_setup_confirmation";
+    };
+export type InstallationContext =
+  | {
+      installation_id: string;
+      kind: "managed";
+    }
+  | {
+      installation_id: string;
+      kind: "external";
+    };
 export type SteamEntryOperation = "add_or_repair" | "remove";
 
 export interface TransportInputs {
@@ -35,6 +86,7 @@ export interface TransportInputs {
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
   desktop_install_input: InputDesktopInstallInput;
+  desktop_organization_change: InputDesktopOrganizationChange;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
   desktop_steam_entry_selection: InputDesktopSteamEntrySelection;
 }
@@ -122,6 +174,22 @@ export interface InputDesktopInstallInput {
   source?: string | null;
   stage: boolean;
   [k: string]: unknown;
+}
+export interface UpdateNoticeChoice {
+  paused: boolean;
+  skipped_release?: UpdateNoticeRelease | null;
+  [k: string]: unknown;
+}
+export interface UpdateNoticeRelease {
+  /**
+   * Same-tag rebuilds with different bytes must remain visible.
+   */
+  artifact_sha256: string;
+  version: string;
+}
+export interface SetupConfirmation {
+  context: InstallationContext;
+  port_id: string;
 }
 export interface InputDesktopSteamBatchSelection {
   portIds: string[];

@@ -367,7 +367,7 @@ void test("actual desktop launcher consumes the final verification seam across h
       import assert from 'node:assert/strict';
       import { mock } from 'node:test';
       import { registerHooks } from 'node:module';
-      import { fileURLToPath } from 'node:url';
+      import { fileURLToPath, pathToFileURL } from 'node:url';
       import path from 'node:path';
       import * as fs from 'node:fs/promises';
       const cli = ${JSON.stringify(cli.href)}, directory = ${JSON.stringify(directory)}, file = ${JSON.stringify(file)};
@@ -392,6 +392,9 @@ void test("actual desktop launcher consumes the final verification seam across h
         if(path.basename(String(args[0]))==='prelaunch.json')await fs.writeFile(file,'modified');
       }});
       replace(${JSON.stringify(new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url).href)}, {});
+      const resolutionFixture=path.join(directory,'selenium-resolution.cjs');
+      await fs.writeFile(resolutionFixture,'throw new Error("Resolution fixture must never execute");');
+      let resolvedSelenium=false;
       registerHooks({load(url,context,next){
         const loaded=next(url,context);
         if(url!==cli)return loaded;
@@ -418,6 +421,10 @@ void test("actual desktop launcher consumes the final verification seam across h
       }});
       // Observe the real target import without loading any native harness code.
       registerHooks({resolve(specifier,context,next){
+        if(specifier==='selenium-webdriver'){
+          resolvedSelenium=true;
+          return {url:pathToFileURL(resolutionFixture).href,shortCircuit:true};
+        }
         if(context.parentURL===cli && specifier==='../apps/desktop/scripts/desktop-test.mts')imported=true;
         return next(specifier,context);
       }});
@@ -425,6 +432,7 @@ void test("actual desktop launcher consumes the final verification seam across h
       await assert.rejects(import(cli),/changed after capture/u);
       assert.equal(imported,false,'Target import must remain unreachable after late mutation');
       assert.equal(released,true,'Original admission must release after refusal');
+      assert.equal(resolvedSelenium,true,'Actual launcher resolution must use the controlled dependency');
       console.log('PASS actual prelaunch caller');
     `;
     const env = { ...process.env };

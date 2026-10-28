@@ -15,7 +15,24 @@
       "game_slug": "mega-man-x6-recompiled",
       "match_kind": "port"
     },
-    "issue_number": 117
+    "issue_number": 117,
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x6",
+      "evidence_urls": [
+        "https://github.com/mstan/MegaManX6Recomp/blob/f8bbe3986be38a01819255ba6ca7762327b8098f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-x6-psx-usa-v11",
+          "title": "Mega Man X6 (PlayStation, USA v1.1, SLUS-01395)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/MegaManX6Recomp/blob/f8bbe3986be38a01819255ba6ca7762327b8098f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "stable",

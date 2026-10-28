@@ -103,9 +103,9 @@ export async function workspaceRefreshScenario({
   tool,
 }: RefreshContext) {
   await scenario("native-workspace-refresh-recovery", async () => {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
-    await browser.wait(until.elementLocated(By.css(".port-card")), 10_000);
-    const before = await browser.findElements(By.css(".port-card"));
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
+    await browser.wait(until.elementLocated(By.css(".discover-game")), 10_000);
+    const before = await browser.findElements(By.css(".discover-game"));
     const observations: RefreshObservations = {
       injection:
         "one synthetic get_workspace_snapshot rejection; subsequent requests use actual native IPC",
@@ -199,7 +199,7 @@ export async function workspaceRefreshScenario({
         observations.failure_text,
         /No files were changed|couldn't confirm whether anything changed|synthetic-native-refresh-failure/,
       );
-      assert.equal((await browser.findElements(By.css(".port-card"))).length, before.length);
+      assert.equal((await browser.findElements(By.css(".discover-game"))).length, before.length);
       const accessibilityPath = path.join(output, "workspace-refresh-accessibility.json");
       await captureAccessibilityReport(browser, accessibilityPath, artifacts);
       const screenshot = path.join(output, "native-workspace-refresh-failure.png");
@@ -220,7 +220,7 @@ export async function workspaceRefreshScenario({
           ),
         5000,
       );
-      observations.after_cards = (await browser.findElements(By.css(".port-card"))).length;
+      observations.after_cards = (await browser.findElements(By.css(".discover-game"))).length;
       assert.equal(observations.after_cards, before.length);
       observations.commands = await executeBrowserScript(browser, () => {
         const runtime = window as RefreshWindow;
@@ -368,7 +368,7 @@ export async function workspaceRefreshScenario({
       };
 
       await card.findElement(By.css("button[data-detail-origin]")).click();
-      await revealDetailSection(browser, "Versions");
+      await revealDetailSection(browser, "Versions & updates");
       const preferences = await browser.wait(
         until.elementLocated(By.xpath('//summary[normalize-space(.)="Future update preferences"]')),
         15_000,

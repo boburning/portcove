@@ -9,7 +9,7 @@ import type { WebDriver } from "selenium-webdriver";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
-import { clickVisible, reviewControls } from "./desktop-review-controls.mts";
+import { clickVisible, reviewControls, selectCatalogPort } from "./desktop-review-controls.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
@@ -90,15 +90,11 @@ export async function hostPublicationScenario(context: Context) {
     await writeFile(file, Buffer.from(await browser.takeScreenshot(), "base64"), { flag: "wx" });
     artifacts.push(file);
   };
-  async function open(name: string) {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+  async function open(port: { id: string; name: string }) {
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, name);
-    const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${name}.")]`,
-    );
-    await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, port.name);
+    await selectCatalogPort(browser, port.id);
   }
   async function arm(checkpoint: string, checkpointRoot = library) {
     const nonce = randomUUID();
@@ -176,7 +172,7 @@ export async function hostPublicationScenario(context: Context) {
       const original = await fileIdentity(save);
       assert.equal(transportValue("status", command(["status", port.id])).active, null);
       const probe = await arm(checkpoint);
-      await open(port.name);
+      await open(port);
       await browser.findElement(button("Review installation")).click();
       const install = By.xpath('//button[starts-with(normalize-space(.),"Install ·")]');
       const action = await browser.wait(until.elementLocated(install), 15_000);
@@ -237,7 +233,7 @@ export async function hostPublicationScenario(context: Context) {
     const currentSave = await fileIdentity(save);
     const backupsBefore = transportValue("backup_inventory", command(["backup", "list", port.id]));
     const probe = await arm("restore_prepared");
-    await open(port.name);
+    await open(port);
     const row = await browser.wait(
       until.elementLocated(By.css(`[data-backup-id="${selected.id}"]`)),
       15_000,

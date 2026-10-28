@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import type { InstallRecord, LaunchSessionRecord } from "../src/transport-types.generated.d.ts";
 
 export const nativeSessionScript = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
 
@@ -8,6 +9,69 @@ export interface CapturedNativeProcess {
   pid: number;
   path: string;
   started_filetime: string;
+}
+export interface NativeManagedGame {
+  executable: string;
+  installation: Pick<InstallRecord, "id" | "port_id" | "path">;
+}
+
+function sameNativePath(left: string, right: string) {
+  const canonical = (value: string) =>
+    path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase();
+  return canonical(left) === canonical(right);
+}
+
+function sameNativeProcess(left: CapturedNativeProcess, right: CapturedNativeProcess) {
+  return (
+    left.pid === right.pid &&
+    left.started_filetime === right.started_filetime &&
+    sameNativePath(left.path, right.path)
+  );
+}
+
+function sameManagedInstallation(session: LaunchSessionRecord, game: NativeManagedGame) {
+  return (
+    session.port_id === game.installation.port_id &&
+    session.install_id === game.installation.id &&
+    sameNativePath(session.install_root, game.installation.path)
+  );
+}
+
+export function assertNativeApplicationInventory(
+  captured: NativeProcessSnapshot,
+  application: CapturedNativeProcess,
+  game: NativeManagedGame | undefined,
+  sessions: readonly LaunchSessionRecord[],
+  previousGames: readonly NativeManagedGame[] = [],
+) {
+  assert.equal(
+    new Set(captured.processes.map((entry) => entry.pid)).size,
+    captured.processes.length,
+    "Captured native identities must have distinct PIDs",
+  );
+  assert.equal(
+    captured.processes.filter((entry) => sameNativeProcess(entry, application)).length,
+    1,
+    "The exact connected native application identity is required",
+  );
+  for (const entry of captured.processes.filter((entry) =>
+    sameNativePath(entry.path, application.path),
+  )) {
+    if (sameNativeProcess(entry, application)) continue;
+    assert.ok(game, "An unexplained additional native application was captured");
+    assert.ok(
+      sessions.some(
+        (session) =>
+          session.supervisor_pid === entry.pid &&
+          session.supervisor_identity === `windows-filetime:${entry.started_filetime}` &&
+          session.owner_kind === "managed" &&
+          (sameManagedInstallation(session, game) ||
+            (["succeeded", "failed", "cancelled"].includes(session.outcome ?? "") &&
+              previousGames.some((previous) => sameManagedInstallation(session, previous)))),
+      ),
+      "Additional native application must be the exact recorded owned game supervisor",
+    );
+  }
 }
 export interface NativeProcessSnapshot {
   captured_at: string;
@@ -209,6 +273,9 @@ export function readNativeSessionObservation(
 export class OwnedNativeSession {
   private launchAttempted = false;
   driver: CapturedNativeProcess | undefined;
+  application: CapturedNativeProcess | undefined;
+  game: NativeManagedGame | undefined;
+  games: NativeManagedGame[] = [];
   inventory: string | undefined;
   cleanup: NativeSessionCleanup | undefined;
 
@@ -217,8 +284,35 @@ export class OwnedNativeSession {
     // Invalidate the former host's proof before a replacement can exist,
     // including when spawn succeeds but identity capture fails.
     this.driver = undefined;
+    this.application = undefined;
+    this.game = undefined;
+    this.games = [];
     this.inventory = undefined;
     this.cleanup = undefined;
+  }
+
+  bindApplication(captured: NativeProcessSnapshot, executable: string) {
+    assert.deepEqual(captured.driver, this.driver, "Connected native driver identity changed");
+    const applications = captured.processes.filter((entry) =>
+      sameNativePath(entry.path, executable),
+    );
+    assert.equal(applications.length, 1, "Connection must capture exactly one native application");
+    const application = applications[0];
+    assert.ok(application);
+    assert.equal(captured.application_pid, application.pid);
+    this.application = { ...application };
+  }
+
+  requireApplication(captured: NativeProcessSnapshot) {
+    assert.deepEqual(captured.driver, this.driver, "Captured native driver identity changed");
+    const application = this.application;
+    assert.ok(application, "The connected native application identity was not captured");
+    assert.equal(
+      captured.processes.filter((entry) => sameNativeProcess(entry, application)).length,
+      1,
+      "The exact connected native application identity is required",
+    );
+    return application;
   }
 
   requireQuiescence() {

@@ -590,7 +590,7 @@ for (const closeFails of [false, true]) {
   });
 }
 
-void test("native recovery keyboard changes retain macOS no-global portability coverage", () => {
+void test("native recovery and Unix custody changes retain macOS no-global portability coverage", () => {
   const job = workflowJob("frontend_portability");
   assert.equal(job["runs-on"], "macos-26");
   assert.ok(typeof job.if === "string");
@@ -602,6 +602,10 @@ void test("native recovery keyboard changes retain macOS no-global portability c
     new Set(ordinaryInputs),
     new Set([
       "apps/desktop/scripts/browser-runtime.mts",
+      "scripts/run-rust-tests.mts",
+      "scripts/run-rust-tests.test.mts",
+      "scripts/rust-test-tree-supervisor.mts",
+      "scripts/rust-test-tree-supervisor.test.mts",
       "pnpm-workspace.yaml",
       "apps/desktop/src/browser/display-recovery.browser.test.tsx",
       "apps/desktop/src/browser/compact-navigation.browser.test.tsx",

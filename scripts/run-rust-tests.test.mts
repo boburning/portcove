@@ -596,6 +596,57 @@ for (const [signal, expectedStatus] of [
   });
 }
 
+for (const cleanup of ["quiescent", "missing", "failed", "live"] as const)
+  void test(`completed macOS payload waits for watchdog exit and ${cleanup} cleanup proof`, async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-darwin-completion-"));
+    const child = childProcess(831, null);
+    const events: string[] = [];
+    let exit: NodeJS.Immediate | undefined;
+    try {
+      const result = runRustTests(["--guard-command", "owned-fixture"], {
+        tempRoot,
+        platform: "darwin",
+        spawn: () => child,
+        writeGate: () => {
+          if (cleanup !== "live")
+            exit = setImmediate(() => {
+              events.push("exit");
+              child.emit("close", null, "SIGKILL");
+            });
+        },
+        readUnixSupervisorStatus: () => 7,
+        killProcess: () => {
+          throw Object.assign(new Error("redundant group kill EPERM"), { code: "EPERM" });
+        },
+        treeWaitMilliseconds: 20,
+        treePollMilliseconds: 1,
+        readCleanupReceipt: () => {
+          events.push("receipt");
+          if (cleanup === "missing") throw Object.assign(new Error("missing"), { code: "ENOENT" });
+          return { outcome: cleanup === "quiescent" ? "quiescent" : "failed:EPERM" };
+        },
+        acquireLock: async () => ({
+          childEnvironment: {},
+          registerChild: async () => ({ pid: 831 }),
+          release: async () => {
+            events.push("release");
+          },
+        }),
+      });
+      if (cleanup === "quiescent") {
+        assert.equal(await result, 7);
+        assert.deepEqual(events, ["exit", "receipt", "release"]);
+      } else {
+        await assert.rejects(result, { code: "PORTCOVE_HEAVY_RUST_TREE_ACTIVE" });
+        assert.ok(!events.includes("release"), "unproved cleanup must retain ownership");
+        if (cleanup === "live") assert.deepEqual(events, []);
+      }
+    } finally {
+      clearImmediate(exit);
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
 void test("invalid execution budgets refuse before admission or filesystem setup", async () => {
   for (const executionTimeoutMilliseconds of [0, -1, 0.5, NaN, Infinity, 86_400_001])
     await assert.rejects(

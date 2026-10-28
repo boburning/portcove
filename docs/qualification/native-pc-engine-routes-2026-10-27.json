@@ -1,0 +1,1444 @@
+{
+  "format_version": 1,
+  "kind": "dated primary-source and operation-scope evidence; not a live registry",
+  "owners": [2510, 2926],
+  "pickup_main": "55e6bb8c6c860d4b1ad39d89fd7b396bb9f809cd",
+  "ordinary_guides": 20,
+  "held_research": [
+    {
+      "canonical_issue": 2633,
+      "id": "baldur-s-gate-ii-enhanced-edition-gemrb",
+      "status": "existing experimental/revision research retained; no new permanent deferral or acquisition hold",
+      "next_action": "Establish an actual matched GemRB build and supported BG2EE data revision before offering the ordinary original-edition setup flow; no inherited support from original BGII"
+    }
+  ],
+  "new_managed_definitions": 0,
+  "native_executions": 0,
+  "ports": [
+    {
+      "id": "blake-stone-aliens-of-gold-bstone",
+      "canonical_issue": 2555,
+      "family": "bstone",
+      "underlying_game": "Blake Stone: Aliens of Gold",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game.",
+      "selected_player": "bstone.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+      "source_paths": ["README.md"],
+      "authored_package_hints": null,
+      "before_sha256": "294106e4769d884031d594d49ef3be94748fad75db94e47cc7b8d451a33cf150",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+          "source_tree": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+          "git_blob_sha": "c32dc37c548e7ea42e6e5f4cb70dd31e383441e3",
+          "url": "https://api.github.com/repos/bibendovsky/bstone/git/blobs/c32dc37c548e7ea42e6e5f4cb70dd31e383441e3"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "876e4222d8befcdd6cafee9b583d50f3daaf0d52be9790c2b971b6f03cbcc3c5"
+    },
+    {
+      "id": "blake-stone-planet-strike-bstone",
+      "canonical_issue": 2556,
+      "family": "bstone",
+      "underlying_game": "Blake Stone: Planet Strike",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike.",
+      "selected_player": "bstone.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+      "source_paths": ["README.md"],
+      "authored_package_hints": null,
+      "before_sha256": "cffad2717edbe482827cf7c38011322f84bfbc66a9496a5f0bb9b0f7897a7cce",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+          "source_tree": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+          "git_blob_sha": "c32dc37c548e7ea42e6e5f4cb70dd31e383441e3",
+          "url": "https://api.github.com/repos/bibendovsky/bstone/git/blobs/c32dc37c548e7ea42e6e5f4cb70dd31e383441e3"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "80e37e694ae6575e29a16ed642b6ce5f416e7cc27a7a1788e8450097bc11a2ad"
+    },
+    {
+      "id": "descent-dxx-rebirth",
+      "canonical_issue": 2652,
+      "family": "dxx-rebirth",
+      "underlying_game": "Descent",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your own Descent descent.hog and descent.pig. The documented PC/Mac Descent shareware is a limited alternative. Descent II data does not supply Descent.",
+      "selected_player": "d1x-rebirth.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+      "source_paths": ["INSTALL.markdown", "similar/misc/physfsx.cpp"],
+      "authored_package_hints": null,
+      "before_sha256": "a041849c866b7938f8f00ae1a3f792ac257dee5049c6d2907db3df7b8532921c",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "INSTALL.markdown",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "git_blob_sha": "05d28cad7c7c79cd3f80516195cf6e7a1cc9a747",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/05d28cad7c7c79cd3f80516195cf6e7a1cc9a747"
+        },
+        {
+          "path": "similar/misc/physfsx.cpp",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "git_blob_sha": "9e930b12a12f159442518a9c189eddd0c15cd949",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/9e930b12a12f159442518a9c189eddd0c15cd949"
+        },
+        {
+          "path": "README.md",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "git_blob_sha": "e8cf35c9fd7b6d542af5d00cf681dda0847a23db",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/e8cf35c9fd7b6d542af5d00cf681dda0847a23db"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "22175990ada4b5f6c3c7d94d5d69fc75e291dc799dadc1fe2840dcbe23b105b4"
+    },
+    {
+      "id": "descent-ii-dxx-rebirth",
+      "canonical_issue": 2653,
+      "family": "dxx-rebirth",
+      "underlying_game": "Descent II",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your own retail descent2.hog, descent2.ham, descent2.s22 and all six alien1/alien2/fire/groupa/ice/water PIG files. Optional movies stay optional. The separate documented PC/Mac Descent II demo uses its own complete demo set; Descent I shareware does not supply this game.",
+      "selected_player": "d2x-rebirth.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+      "source_paths": ["INSTALL.markdown", "similar/misc/physfsx.cpp"],
+      "authored_package_hints": null,
+      "before_sha256": "b2441718d9bd3a0670cab808127bd2775ebdaed2a48bed408d9d7b79ff5cbb32",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "INSTALL.markdown",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "git_blob_sha": "05d28cad7c7c79cd3f80516195cf6e7a1cc9a747",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/05d28cad7c7c79cd3f80516195cf6e7a1cc9a747"
+        },
+        {
+          "path": "similar/misc/physfsx.cpp",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "git_blob_sha": "9e930b12a12f159442518a9c189eddd0c15cd949",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/9e930b12a12f159442518a9c189eddd0c15cd949"
+        },
+        {
+          "path": "README.md",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "git_blob_sha": "e8cf35c9fd7b6d542af5d00cf681dda0847a23db",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/e8cf35c9fd7b6d542af5d00cf681dda0847a23db"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "da45a0f4c647e72986448bfd82b17fb24bd340f969c646a4142ce1af113afe0d"
+    },
+    {
+      "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
+      "canonical_issue": 2619,
+      "family": "OpenXcom",
+      "underlying_game": "UFO: Enemy Unknown / X-COM: UFO Defense",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your own complete unmodified original UFO/XCOM data folders. XcomUtil-modified originals can fail. Copy the original subfolders into OpenXcom’s UFO subdirectory, keeping their hierarchy; TFTD files are not UFO data.",
+      "selected_player": "openxcom.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+      "source_paths": ["README.md"],
+      "authored_package_hints": null,
+      "before_sha256": "cf958abb7499ce8d433253c82802b05ebcfe09c17c260603fe1e5a874b33f614",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+          "source_tree": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+          "git_blob_sha": "b7ef96e01a0c2431ab99442ea2a3b36e5928cd5f",
+          "url": "https://api.github.com/repos/OpenXcom/OpenXcom/git/blobs/b7ef96e01a0c2431ab99442ea2a3b36e5928cd5f"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "b3a6ff1c7d004a27449abfb9610e2d948b48f09f3d91175715eac82875425e23"
+    },
+    {
+      "id": "x-com-terror-from-the-deep-openxcom",
+      "canonical_issue": 2620,
+      "family": "OpenXcom",
+      "underlying_game": "X-COM: Terror from the Deep",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your own complete unmodified original TFTD/TFD data folders. Copy the original subfolders into OpenXcom’s TFTD subdirectory, keeping their hierarchy. UFO/XCOM files do not supply this game.",
+      "selected_player": "openxcom.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+      "source_paths": ["README.md"],
+      "authored_package_hints": null,
+      "before_sha256": "e4bc848f35283ec1ffc3517099a108196948532938e470946d99278ffd4972f1",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+          "source_tree": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+          "git_blob_sha": "b7ef96e01a0c2431ab99442ea2a3b36e5928cd5f",
+          "url": "https://api.github.com/repos/OpenXcom/OpenXcom/git/blobs/b7ef96e01a0c2431ab99442ea2a3b36e5928cd5f"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "086b2fef5e134cb5962d6a091f36882f1a59327552cedc0f196ed18fb6d65902"
+    },
+    {
+      "id": "baldur-s-gate-original-gemrb",
+      "canonical_issue": 2628,
+      "family": "gemrb",
+      "underlying_game": "Baldur's Gate (original)",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use a complete installed original Baldur’s Gate working copy, including its original resources and any deliberately installed expansion. Enhanced Edition files and the bundled trivial demo are different inputs.",
+      "selected_player": "gemrb.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+      "source_paths": ["gemrb/GemRB.cfg.sample.in", "gemrb.6.in", "gemrb/core/Interface.cpp"],
+      "authored_package_hints": null,
+      "before_sha256": "5354cf8e94b0ad41c44a6aeb253940c1605770c1ff2d09a182811fa05b19ad76",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "gemrb/GemRB.cfg.sample.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "66d191fa1fb9a08056abaa2ed624889bb58f6661",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/66d191fa1fb9a08056abaa2ed624889bb58f6661"
+        },
+        {
+          "path": "gemrb.6.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "734f9a5e3297ab5dcd82c3d5977bc611a3db6af0",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/734f9a5e3297ab5dcd82c3d5977bc611a3db6af0"
+        },
+        {
+          "path": "gemrb/core/Interface.cpp",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "d4021400b1b6854984b2fa7e2b72e62b1a9abc21",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/d4021400b1b6854984b2fa7e2b72e62b1a9abc21"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "8898ddf6087acde7fd534e78f19277ca9455eb4c0e09a053a8114d7dcbbb569d"
+    },
+    {
+      "id": "baldur-s-gate-ii-original-gemrb",
+      "canonical_issue": 2629,
+      "family": "gemrb",
+      "underlying_game": "Baldur's Gate II (original)",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use a complete installed original Baldur’s Gate II: Shadows of Amn working copy, with Throne of Bhaal only if you own and installed it. Enhanced Edition files and the trivial demo do not supply the original edition.",
+      "selected_player": "gemrb.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+      "source_paths": ["gemrb/GemRB.cfg.sample.in", "gemrb.6.in", "gemrb/core/Interface.cpp"],
+      "authored_package_hints": null,
+      "before_sha256": "9e4bf21cbc9674a5c78c076f4118c776dcd23302062e29ab82215f3f27f9d72d",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "gemrb/GemRB.cfg.sample.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "66d191fa1fb9a08056abaa2ed624889bb58f6661",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/66d191fa1fb9a08056abaa2ed624889bb58f6661"
+        },
+        {
+          "path": "gemrb.6.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "734f9a5e3297ab5dcd82c3d5977bc611a3db6af0",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/734f9a5e3297ab5dcd82c3d5977bc611a3db6af0"
+        },
+        {
+          "path": "gemrb/core/Interface.cpp",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "d4021400b1b6854984b2fa7e2b72e62b1a9abc21",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/d4021400b1b6854984b2fa7e2b72e62b1a9abc21"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "4b2cb793f102ab130d68926ff30a424afc15abb4bff58a26afa8b880c76d5ed2"
+    },
+    {
+      "id": "icewind-dale-original-gemrb",
+      "canonical_issue": 2630,
+      "family": "gemrb",
+      "underlying_game": "Icewind Dale (original)",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use a complete installed original Icewind Dale working copy. Keep Heart of Winter/Trials of the Luremaster only with their matching installed data; do not invent those expansions from the base game or substitute Enhanced Edition data.",
+      "selected_player": "gemrb.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+      "source_paths": ["gemrb/GemRB.cfg.sample.in", "gemrb.6.in", "gemrb/core/Interface.cpp"],
+      "authored_package_hints": null,
+      "before_sha256": "e6908360af3d987a85c3a8f5d43be84591c4e93073a9f713c7b91048e672ffa5",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "gemrb/GemRB.cfg.sample.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "66d191fa1fb9a08056abaa2ed624889bb58f6661",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/66d191fa1fb9a08056abaa2ed624889bb58f6661"
+        },
+        {
+          "path": "gemrb.6.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "734f9a5e3297ab5dcd82c3d5977bc611a3db6af0",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/734f9a5e3297ab5dcd82c3d5977bc611a3db6af0"
+        },
+        {
+          "path": "gemrb/core/Interface.cpp",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "d4021400b1b6854984b2fa7e2b72e62b1a9abc21",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/d4021400b1b6854984b2fa7e2b72e62b1a9abc21"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "c5f836cb28d0d0deb1f6918de575aa40c12660c732dd32ae12d6dbfb4c87255c"
+    },
+    {
+      "id": "icewind-dale-ii-gemrb",
+      "canonical_issue": 2631,
+      "family": "gemrb",
+      "underlying_game": "Icewind Dale II",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use a complete installed original Icewind Dale II working copy. Icewind Dale I, Enhanced Edition and the included trivial demo are different inputs.",
+      "selected_player": "gemrb.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+      "source_paths": ["gemrb/GemRB.cfg.sample.in", "gemrb.6.in", "gemrb/core/Interface.cpp"],
+      "authored_package_hints": null,
+      "before_sha256": "9c55a310b32a76f7ce4895d37ce27f6d62268be7be05f22d5e4c9a36107b7568",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "gemrb/GemRB.cfg.sample.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "66d191fa1fb9a08056abaa2ed624889bb58f6661",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/66d191fa1fb9a08056abaa2ed624889bb58f6661"
+        },
+        {
+          "path": "gemrb.6.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "734f9a5e3297ab5dcd82c3d5977bc611a3db6af0",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/734f9a5e3297ab5dcd82c3d5977bc611a3db6af0"
+        },
+        {
+          "path": "gemrb/core/Interface.cpp",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "d4021400b1b6854984b2fa7e2b72e62b1a9abc21",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/d4021400b1b6854984b2fa7e2b72e62b1a9abc21"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "78c6e953f0e702ce234ce32612cc5b1f702c567b1179a75812b4476e9aeafd55"
+    },
+    {
+      "id": "planescape-torment-original-gemrb",
+      "canonical_issue": 2632,
+      "family": "gemrb",
+      "underlying_game": "Planescape: Torment (original)",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use a complete installed original Planescape: Torment working copy. Enhanced Edition and the included trivial demo do not supply this target. Preserve the chosen language and patches with that working copy.",
+      "selected_player": "gemrb.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+      "source_paths": ["gemrb/GemRB.cfg.sample.in", "gemrb.6.in", "gemrb/core/Interface.cpp"],
+      "authored_package_hints": null,
+      "before_sha256": "f282236c0b3d1152087789ccef198d5ce73a2b5aeff41b0e61466ba9af9b74f0",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "gemrb/GemRB.cfg.sample.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "66d191fa1fb9a08056abaa2ed624889bb58f6661",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/66d191fa1fb9a08056abaa2ed624889bb58f6661"
+        },
+        {
+          "path": "gemrb.6.in",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "734f9a5e3297ab5dcd82c3d5977bc611a3db6af0",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/734f9a5e3297ab5dcd82c3d5977bc611a3db6af0"
+        },
+        {
+          "path": "gemrb/core/Interface.cpp",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "git_blob_sha": "d4021400b1b6854984b2fa7e2b72e62b1a9abc21",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/d4021400b1b6854984b2fa7e2b72e62b1a9abc21"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "98846b86e1afd7e2db03f7b790b2fef87649bcffb25f5c8354c41665be022683"
+    },
+    {
+      "id": "cannon-fodder-open-fodder",
+      "canonical_issue": 2641,
+      "family": "openfodder",
+      "underlying_game": "Cannon Fodder",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "For the documented DOS CD route, copy your own Cannon Fodder CF_ENG.DAT into OpenFodder/Data/Dos_CD. Keep the matching upstream Campaigns data pack. Included demos provide limited demo content, not the retail game. Supported Amiga/CD32 preparation has separate instructions.",
+      "selected_player": "OpenFodder.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+      "source_paths": ["INSTALL.md", "Projects/WinInstaller/installer.nsi"],
+      "authored_package_hints": ["OpenFodder-Installer.exe"],
+      "before_sha256": "d32cecb7b184ea9b83424dfa5ffb6421001340ac230986c4f89a9cce452da204",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "INSTALL.md",
+          "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "source_tree": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "git_blob_sha": "f7c158e143ecd43dbf05c301fc02a2e68ffe9dd6",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/f7c158e143ecd43dbf05c301fc02a2e68ffe9dd6"
+        },
+        {
+          "path": "Projects/WinInstaller/installer.nsi",
+          "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "source_tree": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "git_blob_sha": "3e3a2313852b4ed17e298f0c04c9913baa8ea8ed",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/3e3a2313852b4ed17e298f0c04c9913baa8ea8ed"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "b52a612f11336324d579ca66a0c77b4af1eb8f62e4df0dd697c48604961df97f",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "2.0.0",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "OpenFodder-Installer.exe",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cannon-fodder-2-open-fodder",
+      "canonical_issue": 2642,
+      "family": "openfodder",
+      "underlying_game": "Cannon Fodder 2",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "For the documented DOS CD route, copy all files from your own Cannon Fodder 2 CD/GOG installation into OpenFodder/Data/Dos2_CD, not just CF_ENG.DAT. Keep the matching upstream Campaigns data pack. Cannon Fodder 1 and its demos do not supply this game.",
+      "selected_player": "OpenFodder.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+      "source_paths": ["INSTALL.md", "Projects/WinInstaller/installer.nsi"],
+      "authored_package_hints": ["OpenFodder-Installer.exe"],
+      "before_sha256": "d9e269a318e212b06517277a8b306b0d80a29914c94023b44146d3461f355c01",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "INSTALL.md",
+          "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "source_tree": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "git_blob_sha": "f7c158e143ecd43dbf05c301fc02a2e68ffe9dd6",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/f7c158e143ecd43dbf05c301fc02a2e68ffe9dd6"
+        },
+        {
+          "path": "Projects/WinInstaller/installer.nsi",
+          "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "source_tree": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "git_blob_sha": "3e3a2313852b4ed17e298f0c04c9913baa8ea8ed",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/3e3a2313852b4ed17e298f0c04c9913baa8ea8ed"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "687cac9d1aa6d02bbaed8119f3c1bcc52a4d656e7aa44427ba01721cc98546c6",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "2.0.0",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "OpenFodder-Installer.exe",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "ultima-vii-the-black-gate-exult",
+      "canonical_issue": 2621,
+      "family": "exult",
+      "underlying_game": "Ultima VII: The Black Gate",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your installed original Black Gate data, especially its complete STATIC folder. Forge of Virtue is optional and remains a separately owned add-on. Serpent Isle data does not supply Black Gate.",
+      "selected_player": "exult.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+      "source_paths": ["README.md", "docs/exult.6"],
+      "authored_package_hints": null,
+      "before_sha256": "23f2f03712e795603a6b4e85ae194f3ab63547d63ade787030e63c0e6d50821c",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "source_tree": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "git_blob_sha": "618d2e5017f62eba378ff2a2a20610d204b833ef",
+          "url": "https://api.github.com/repos/exult/exult/git/blobs/618d2e5017f62eba378ff2a2a20610d204b833ef"
+        },
+        {
+          "path": "docs/exult.6",
+          "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "source_tree": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "git_blob_sha": "fbe44324c55286835c275d64878e11c6af0adb2c",
+          "url": "https://api.github.com/repos/exult/exult/git/blobs/fbe44324c55286835c275d64878e11c6af0adb2c"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "5ea8689000fa25a29105ad414e4eeb473c3982d4676e9aa4a10d7701cc1e01fe"
+    },
+    {
+      "id": "ultima-vii-part-two-serpent-isle-exult",
+      "canonical_issue": 2622,
+      "family": "exult",
+      "underlying_game": "Ultima VII Part Two: Serpent Isle",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your installed original Serpent Isle data, especially its complete STATIC folder. Silver Seed is optional and remains a separately owned add-on. Black Gate data does not supply Serpent Isle.",
+      "selected_player": "exult.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+      "source_paths": ["README.md", "docs/exult.6"],
+      "authored_package_hints": null,
+      "before_sha256": "dc46af6e6ccba5aa731548afb1be12b0281d59f6854fea7e3be3386dcdea0f10",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "source_tree": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "git_blob_sha": "618d2e5017f62eba378ff2a2a20610d204b833ef",
+          "url": "https://api.github.com/repos/exult/exult/git/blobs/618d2e5017f62eba378ff2a2a20610d204b833ef"
+        },
+        {
+          "path": "docs/exult.6",
+          "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "source_tree": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "git_blob_sha": "fbe44324c55286835c275d64878e11c6af0adb2c",
+          "url": "https://api.github.com/repos/exult/exult/git/blobs/fbe44324c55286835c275d64878e11c6af0adb2c"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "d8ea6a02ba63057b6069d0f2b99abc026f34ce6739cd6ce81d7c3abee1ff35a6"
+    },
+    {
+      "id": "diablo-devilutionx",
+      "canonical_issue": 2563,
+      "family": "DevilutionX",
+      "underlying_game": "Diablo",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use DIABDAT.MPQ from your own original PC Diablo CD or installation. The documented SPAWN.MPQ shareware provides limited shareware content only. Keep the packaged devilutionx.mpq; optional fonts and voice packs have separate upstream requirements.",
+      "selected_player": "devilutionx.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+      "source_paths": ["docs/installing.md", "Source/diablo.cpp"],
+      "authored_package_hints": ["devilutionx-windows-x86_64.zip"],
+      "before_sha256": "68906e42cb4990f92399f4415756ae2ed62c3547077b1abc41a3ed0ed1e7c07a",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "docs/installing.md",
+          "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "source_tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "git_blob_sha": "4b43037700d2abdcb0d984250be14b0bf6e183b6",
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/4b43037700d2abdcb0d984250be14b0bf6e183b6"
+        },
+        {
+          "path": "Source/diablo.cpp",
+          "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "source_tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "git_blob_sha": "c67a5f58cc2e47b8de5f638dbb3c627696304f13",
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/c67a5f58cc2e47b8de5f638dbb3c627696304f13"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "3106ed3c135f21f5316dec14b1549c454618ef49ddee1c732e7939f54d630001",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "1.5.5",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "devilutionx-windows-x86_64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "diablo-hellfire-devilutionx",
+      "canonical_issue": 2564,
+      "family": "DevilutionX",
+      "underlying_game": "Diablo: Hellfire",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions.",
+      "selected_player": "devilutionx.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+      "source_paths": ["docs/installing.md", "Source/diablo.cpp"],
+      "authored_package_hints": ["devilutionx-windows-x86_64.zip"],
+      "before_sha256": "ae4f9f3d7ee7a819b5d1e741f84463f61c0b295a07e0ac6117c7c59ffc287026",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "docs/installing.md",
+          "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "source_tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "git_blob_sha": "4b43037700d2abdcb0d984250be14b0bf6e183b6",
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/4b43037700d2abdcb0d984250be14b0bf6e183b6"
+        },
+        {
+          "path": "Source/diablo.cpp",
+          "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "source_tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "git_blob_sha": "c67a5f58cc2e47b8de5f638dbb3c627696304f13",
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/c67a5f58cc2e47b8de5f638dbb3c627696304f13"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "fa288ecfbcdd3edfec13a227cf24ed6e0552e6fe22008b560229083418977365",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "1.5.5",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "devilutionx-windows-x86_64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "the-elder-scrolls-iii-morrowind-openmw",
+      "canonical_issue": 2616,
+      "family": "openmw",
+      "underlying_game": "The Elder Scrolls III: Morrowind",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your own installed Morrowind Data Files and Morrowind.ini through the OpenMW installation wizard. Tribunal and Bloodmoon need their own corresponding installed data and deliberate load order. Console originals and saves are not interchangeable PC inputs.",
+      "selected_player": "openmw.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "f4bec41444214a7903bebd178389ca22ca13f646",
+      "source_paths": ["README.md", "docs/source/reference/modding/paths.rst"],
+      "authored_package_hints": ["OpenMW-", "-Windows-x64.exe"],
+      "before_sha256": "040112d056201da59bee8e79277dea18b3f840e7ee3dadaa5dad6ef7c87c7e13",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "f4bec41444214a7903bebd178389ca22ca13f646",
+          "source_tree": "f4bec41444214a7903bebd178389ca22ca13f646",
+          "git_blob_sha": "ad3e9b1e19dc9f6260d3a36ef731e0b65c6030bb",
+          "url": "https://api.github.com/repos/OpenMW/openmw/git/blobs/ad3e9b1e19dc9f6260d3a36ef731e0b65c6030bb"
+        },
+        {
+          "path": "docs/source/reference/modding/paths.rst",
+          "source_commit": "f4bec41444214a7903bebd178389ca22ca13f646",
+          "source_tree": "f4bec41444214a7903bebd178389ca22ca13f646",
+          "git_blob_sha": "d5765b8ce517725f95b8a17c28f8cf4ae8a2f93e",
+          "url": "https://api.github.com/repos/OpenMW/openmw/git/blobs/d5765b8ce517725f95b8a17c28f8cf4ae8a2f93e"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "22a60fc914626d4f4601f098649f90657f5de776e0ecc085e57362be06562460",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "openmw-0.51.0",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "OpenMW-0.51.0-Windows-x64.exe",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "doom-3-classic-dhewm3",
+      "canonical_issue": 2567,
+      "family": "dhewm3",
+      "underlying_game": "Doom 3 (classic)",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use your original classic Doom 3 data patched to 1.3.1: base/pak000.pk4 through pak008.pk4. BFG Edition is a different product and is not supported by dhewm3. Preserve your original installation; use a separate prepared working copy or the explicit fs_basepath option.",
+      "selected_player": "dhewm3.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+      "source_paths": ["README.md", "Configuration.md"],
+      "authored_package_hints": ["dhewm3-1.", "_win32.zip"],
+      "before_sha256": "44a081712e93b54fa080cf2bff95c4c99a1d3464aedd007117926a2185b893c8",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "source_tree": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "git_blob_sha": "51ec13359e97f1c42e5da7d1dbcc821369ec55e5",
+          "url": "https://api.github.com/repos/dhewm/dhewm3/git/blobs/51ec13359e97f1c42e5da7d1dbcc821369ec55e5"
+        },
+        {
+          "path": "Configuration.md",
+          "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "source_tree": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "git_blob_sha": "2d4bc5696673a4b7c489bca8d0353004a00a3790",
+          "url": "https://api.github.com/repos/dhewm/dhewm3/git/blobs/2d4bc5696673a4b7c489bca8d0353004a00a3790"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "66bc7c7fd3579fbef4423ee7e43c827a4958d786877b54b75351fb24de7bbc97",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "1.5.5",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "dhewm3-1.5.5_win32.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "doom-3-resurrection-of-evil-classic-dhewm3",
+      "canonical_issue": 2568,
+      "family": "dhewm3",
+      "underlying_game": "Doom 3: Resurrection of Evil (classic)",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "platform": "windows-x86-64",
+      "original_data": "Use classic Doom 3 patched to 1.3.1 base/pak000.pk4 through pak008.pk4 plus your Resurrection of Evil d3xp/pak000.pk4 and pak001.pk4. Expansion files alone and BFG Edition do not provide this route.",
+      "selected_player": "dhewm3.exe",
+      "working_directory": "complete installed/extracted player directory",
+      "maintenance": "user-managed-update",
+      "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+      "source_paths": ["README.md", "Configuration.md"],
+      "authored_package_hints": ["dhewm3-1.", "_win32.zip"],
+      "before_sha256": "d79397c07a0a456c8097611e9869be5a0ce31e99c4e2766cf02fc8dbcb3dac4f",
+      "delivery": "candidate; PR owns exact review/CI/merge and readback",
+      "managed_fit": "unfinished; resolve exact source/completion, runtime/profile ownership, accepted artifact integrity and compatible progression before managed admission",
+      "native_and_real_save_observations": "not-run",
+      "source_references": [
+        {
+          "path": "README.md",
+          "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "source_tree": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "git_blob_sha": "51ec13359e97f1c42e5da7d1dbcc821369ec55e5",
+          "url": "https://api.github.com/repos/dhewm/dhewm3/git/blobs/51ec13359e97f1c42e5da7d1dbcc821369ec55e5"
+        },
+        {
+          "path": "Configuration.md",
+          "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "source_tree": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "git_blob_sha": "2d4bc5696673a4b7c489bca8d0353004a00a3790",
+          "url": "https://api.github.com/repos/dhewm/dhewm3/git/blobs/2d4bc5696673a4b7c489bca8d0353004a00a3790"
+        }
+      ],
+      "source_scope": "Exact package tag plus separately bound upstream documentation and preparation sources; no source-to-binary build attestation",
+      "authored_record_sha256": "2294bf0820ec41fa09b58dde5a9d920578c63820afe0770274ca64180df02bd2",
+      "preparation": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "1.5.5",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "dhewm3-1.5.5_win32.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    }
+  ],
+  "families": {
+    "DevilutionX": {
+      "repository": "diasurgical/DevilutionX",
+      "repository_id": 143324737,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkxNDMzMjQ3Mzc=",
+      "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+      "source_tree_truncated": false,
+      "release_count": 22,
+      "release_pages": 1,
+      "source_files": [
+        {
+          "path": "source/Source/diablo.cpp",
+          "sha256": "b7337c65281c94d2dbd1abf79248799f3c8639a9bee60bbf8a8716cbccea686e",
+          "git_blob_sha": "c67a5f58cc2e47b8de5f638dbb3c627696304f13",
+          "source_tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/c67a5f58cc2e47b8de5f638dbb3c627696304f13"
+        },
+        {
+          "path": "source/Source/options.cpp",
+          "sha256": "e7f0259173628f24a5743784a9a7e4854ab1c2e1cb827fbc8ec6754591118265",
+          "git_blob_sha": "89958748ac8311829848494c706106b0372a1ecc",
+          "source_tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/89958748ac8311829848494c706106b0372a1ecc"
+        },
+        {
+          "path": "source/docs/installing.md",
+          "sha256": "d8b12e5d0638c049259c7ca2fd77bd246de863c30e17ea5d15cefc7a54549bf6",
+          "git_blob_sha": "9bf2144e1b0677c13cd077f933dc15a719c9a347",
+          "source_tree": "aa3dc7b10e35abaad57548f0fca6ed94e8f4d611",
+          "source_commit": null,
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/9bf2144e1b0677c13cd077f933dc15a719c9a347"
+        },
+        {
+          "path": "tagged/README.md",
+          "sha256": "977ca03f394b862b16c03ff94f76b66a0e057b4fe24c2a9bc70e913b7604d4cb",
+          "git_blob_sha": "80e5d679c614ea025236ceebadeb09f1aced5c4f",
+          "source_tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/80e5d679c614ea025236ceebadeb09f1aced5c4f"
+        },
+        {
+          "path": "tagged/docs/installing.md",
+          "sha256": "4177318abdc6cd408b79dfb8033942ee31a6c0f99090a961090c00f900efb43a",
+          "git_blob_sha": "4b43037700d2abdcb0d984250be14b0bf6e183b6",
+          "source_tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "source_commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+          "url": "https://api.github.com/repos/diasurgical/DevilutionX/git/blobs/4b43037700d2abdcb0d984250be14b0bf6e183b6"
+        }
+      ],
+      "read_only_windows_packages": [
+        {
+          "asset_id": 310816827,
+          "name": "devilutionx-windows-x86_64.zip",
+          "url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-windows-x86_64.zip",
+          "size": 10482049,
+          "publisher_digest": "sha256:a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b",
+          "observed_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b",
+          "entries": 11,
+          "expanded_bytes": 17247834,
+          "executables": [
+            {
+              "path": "devilutionx/devilutionx.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": [
+            "devilutionx/devilutionx.mpq",
+            "devilutionx/devilutionx.exe",
+            "devilutionx/libsodium-26.dll",
+            "devilutionx/SDL2.dll",
+            "devilutionx/LICENSE/",
+            "devilutionx/LICENSE/LICENSE.OFL.txt",
+            "devilutionx/LICENSE/LICENSE.CC-BY.txt",
+            "devilutionx/LICENSE/README-SDL.txt",
+            "devilutionx/LICENSE/LICENSE.zlib.txt",
+            "devilutionx/README.txt",
+            "devilutionx/discord_game_sdk.dll"
+          ]
+        }
+      ]
+    },
+    "OpenXcom": {
+      "repository": "OpenXcom/OpenXcom",
+      "repository_id": 1334924,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkxMzM0OTI0",
+      "source_commit": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+      "source_tree_truncated": false,
+      "release_count": 0,
+      "release_pages": 1,
+      "source_files": [
+        {
+          "path": "source/README.md",
+          "sha256": "ac0ffc20b422316a65ad6990848a7736fd052a156c1d5dc3db6a2b75d6b762c9",
+          "git_blob_sha": "b7ef96e01a0c2431ab99442ea2a3b36e5928cd5f",
+          "source_tree": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+          "source_commit": "4a4bae5fa2e5a09282928e84943fc84b093e34ff",
+          "url": "https://api.github.com/repos/OpenXcom/OpenXcom/git/blobs/b7ef96e01a0c2431ab99442ea2a3b36e5928cd5f"
+        }
+      ],
+      "read_only_windows_packages": []
+    },
+    "bstone": {
+      "repository": "bibendovsky/bstone",
+      "repository_id": 11468258,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkxMTQ2ODI1OA==",
+      "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+      "source_tree_truncated": false,
+      "release_count": 52,
+      "release_pages": 1,
+      "source_files": [
+        {
+          "path": "source/README.md",
+          "sha256": "2b332969135d06670dff26794f99f671c82cffd78f249c14283ff7369a6b4ff5",
+          "git_blob_sha": "c32dc37c548e7ea42e6e5f4cb70dd31e383441e3",
+          "source_tree": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+          "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+          "url": "https://api.github.com/repos/bibendovsky/bstone/git/blobs/c32dc37c548e7ea42e6e5f4cb70dd31e383441e3"
+        },
+        {
+          "path": "tagged/README.md",
+          "sha256": "2b332969135d06670dff26794f99f671c82cffd78f249c14283ff7369a6b4ff5",
+          "git_blob_sha": "c32dc37c548e7ea42e6e5f4cb70dd31e383441e3",
+          "source_tree": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+          "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+          "url": "https://api.github.com/repos/bibendovsky/bstone/git/blobs/c32dc37c548e7ea42e6e5f4cb70dd31e383441e3"
+        }
+      ],
+      "read_only_windows_packages": [
+        {
+          "asset_id": 431305599,
+          "name": "bstone-1.3.4+e65a6b40-win64.zip",
+          "url": "https://github.com/bibendovsky/bstone/releases/download/v1.3.4/bstone-1.3.4%2Be65a6b40-win64.zip",
+          "size": 2081399,
+          "publisher_digest": "sha256:4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+          "observed_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+          "entries": 4,
+          "expanded_bytes": 5053705,
+          "executables": [
+            {
+              "path": "bstone-1.3.4+e65a6b40-win64/bstone.exe",
+              "pe_machine": 34404
+            }
+          ],
+          "files": [
+            "bstone-1.3.4+e65a6b40-win64/bstone.exe",
+            "bstone-1.3.4+e65a6b40-win64/bstone_changelog.txt",
+            "bstone-1.3.4+e65a6b40-win64/bstone_license.txt",
+            "bstone-1.3.4+e65a6b40-win64/bstone_readme.txt"
+          ]
+        }
+      ]
+    },
+    "dhewm3": {
+      "repository": "dhewm/dhewm3",
+      "repository_id": 3179095,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkzMTc5MDk1",
+      "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+      "source_tree_truncated": false,
+      "release_count": 26,
+      "release_pages": 1,
+      "source_files": [
+        {
+          "path": "official-site.html",
+          "sha256": "2ba0f8d699eec57fbcc6d9be14a171ebe6eedde06dc5b4dee691630b1f62333d",
+          "url": "https://dhewm3.org/",
+          "kind": "dated official website bytes; no package/build attestation"
+        },
+        {
+          "path": "source/Configuration.md",
+          "sha256": "16fedf24d2404be1e3ce92adb6fd2ec17720e2885052f51443d362cc6354ce79",
+          "git_blob_sha": "2d4bc5696673a4b7c489bca8d0353004a00a3790",
+          "source_tree": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "url": "https://api.github.com/repos/dhewm/dhewm3/git/blobs/2d4bc5696673a4b7c489bca8d0353004a00a3790"
+        },
+        {
+          "path": "tagged/Configuration.md",
+          "sha256": "16fedf24d2404be1e3ce92adb6fd2ec17720e2885052f51443d362cc6354ce79",
+          "git_blob_sha": "2d4bc5696673a4b7c489bca8d0353004a00a3790",
+          "source_tree": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "url": "https://api.github.com/repos/dhewm/dhewm3/git/blobs/2d4bc5696673a4b7c489bca8d0353004a00a3790"
+        },
+        {
+          "path": "tagged/README.md",
+          "sha256": "caadbd2197e3da340340fd3ca312f664e99d8950986083fbd197248137b01884",
+          "git_blob_sha": "51ec13359e97f1c42e5da7d1dbcc821369ec55e5",
+          "source_tree": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "source_commit": "455b88e8dff2be822f08eb498f51b383e851fa38",
+          "url": "https://api.github.com/repos/dhewm/dhewm3/git/blobs/51ec13359e97f1c42e5da7d1dbcc821369ec55e5"
+        }
+      ],
+      "read_only_windows_packages": [
+        {
+          "asset_id": 441742605,
+          "name": "dhewm3-1.5.5_win32.zip",
+          "url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_win32.zip",
+          "size": 11382039,
+          "publisher_digest": "sha256:7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+          "observed_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+          "entries": 19,
+          "expanded_bytes": 52640570,
+          "executables": [
+            {
+              "path": "dhewm3/dhewm3.exe",
+              "pe_machine": 332
+            },
+            {
+              "path": "dhewm3/dhewm3_notools.exe",
+              "pe_machine": 332
+            },
+            {
+              "path": "dhewm3/dhewm3ded.exe",
+              "pe_machine": 332
+            }
+          ],
+          "files": [
+            "dhewm3/base.dll",
+            "dhewm3/base/",
+            "dhewm3/base/gamepad.cfg",
+            "dhewm3/base/WHAT_TO_DO.txt",
+            "dhewm3/Changelog.txt",
+            "dhewm3/Configuration.txt",
+            "dhewm3/COPYING.txt",
+            "dhewm3/d3xp.dll",
+            "dhewm3/d3xp/",
+            "dhewm3/d3xp/gamepad-d3xp.cfg",
+            "dhewm3/d3xp/WHAT_TO_DO.txt",
+            "dhewm3/dhewm3.exe",
+            "dhewm3/dhewm3_notools.exe",
+            "dhewm3/dhewm3ded.exe",
+            "dhewm3/libcurl-4.dll",
+            "dhewm3/LibLicenses.txt",
+            "dhewm3/OpenAL32.dll",
+            "dhewm3/README.txt",
+            "dhewm3/SDL2.dll"
+          ]
+        }
+      ]
+    },
+    "dxx-rebirth": {
+      "repository": "dxx-rebirth/dxx-rebirth",
+      "repository_id": 7398625,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnk3Mzk4NjI1",
+      "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+      "source_tree_truncated": false,
+      "release_count": 2,
+      "release_pages": 1,
+      "source_files": [
+        {
+          "path": "source/INSTALL.markdown",
+          "sha256": "579febb7f5144558a8c4e80b9f6e4b9df2d9e2f0c7bcb68a5826c61af21ca679",
+          "git_blob_sha": "05d28cad7c7c79cd3f80516195cf6e7a1cc9a747",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/05d28cad7c7c79cd3f80516195cf6e7a1cc9a747"
+        },
+        {
+          "path": "source/common/misc/physfsx.cpp",
+          "sha256": "bda1be45078bbc8f03fd63f5869668886c64534b75274d195b67a9fd7b4b141e",
+          "git_blob_sha": "40760651c4e4841b9a71e1ab58d382da9ee10843",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/40760651c4e4841b9a71e1ab58d382da9ee10843"
+        },
+        {
+          "path": "source/similar/misc/physfsx.cpp",
+          "sha256": "478741d9b449a1960f6fed00d27a5efa1e19ff769934733d79cbf291d914c25e",
+          "git_blob_sha": "9e930b12a12f159442518a9c189eddd0c15cd949",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/9e930b12a12f159442518a9c189eddd0c15cd949"
+        },
+        {
+          "path": "README.md",
+          "sha256": "dc7445b40ecb6c3ef036e24e54859967ad171d9bb5e9eea81b183bc7d6f2029e",
+          "git_blob_sha": "e8cf35c9fd7b6d542af5d00cf681dda0847a23db",
+          "source_tree": "6943b924bea749543ef5729f31a28345e79716d2",
+          "source_commit": "6943b924bea749543ef5729f31a28345e79716d2",
+          "url": "https://api.github.com/repos/dxx-rebirth/dxx-rebirth/git/blobs/e8cf35c9fd7b6d542af5d00cf681dda0847a23db"
+        }
+      ],
+      "read_only_windows_packages": []
+    },
+    "exult": {
+      "repository": "exult/exult",
+      "repository_id": 53741886,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnk1Mzc0MTg4Ng==",
+      "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+      "source_tree_truncated": false,
+      "release_count": 647,
+      "release_pages": 7,
+      "source_files": [
+        {
+          "path": "official-docs.html",
+          "sha256": "505d0c5be7ad645ba7e94ac5dd35a45814b4e44da4f8fdedf980d3da1b83770b",
+          "url": "https://exult.info/docs.html",
+          "kind": "dated official website bytes; no package/build attestation"
+        },
+        {
+          "path": "source/INSTALL",
+          "sha256": "03a2c260f5bdede8b41dc5b0febc6baec831f45fbf0fd882ed4ce02d09e4db83",
+          "git_blob_sha": "21b05c98211a4695aa9136a6a606cc14c7275c84",
+          "source_tree": "65c1e1f5323d0830674a22b860c976cce9cbbaa4",
+          "source_commit": null,
+          "url": "https://api.github.com/repos/exult/exult/git/blobs/21b05c98211a4695aa9136a6a606cc14c7275c84"
+        },
+        {
+          "path": "source/docs/exult.6",
+          "sha256": "ba4e1328ab0670b2f217acc655dbdc745484c017b5e77f05d250a62496f06fc3",
+          "git_blob_sha": "fbe44324c55286835c275d64878e11c6af0adb2c",
+          "source_tree": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "url": "https://api.github.com/repos/exult/exult/git/blobs/fbe44324c55286835c275d64878e11c6af0adb2c"
+        },
+        {
+          "path": "tagged/README.md",
+          "sha256": "087eff55a4749529f0cd57d2e1cdf1465fa1575da5758552d756d54caa550b5e",
+          "git_blob_sha": "618d2e5017f62eba378ff2a2a20610d204b833ef",
+          "source_tree": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "url": "https://api.github.com/repos/exult/exult/git/blobs/618d2e5017f62eba378ff2a2a20610d204b833ef"
+        },
+        {
+          "path": "tagged/docs/exult.6",
+          "sha256": "ba4e1328ab0670b2f217acc655dbdc745484c017b5e77f05d250a62496f06fc3",
+          "git_blob_sha": "fbe44324c55286835c275d64878e11c6af0adb2c",
+          "source_tree": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "source_commit": "cacb4f584901dab59ff288c750d3622d3378435b",
+          "url": "https://api.github.com/repos/exult/exult/git/blobs/fbe44324c55286835c275d64878e11c6af0adb2c"
+        }
+      ],
+      "read_only_windows_packages": []
+    },
+    "gemrb": {
+      "repository": "gemrb/gemrb",
+      "repository_id": 3297830,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkzMjk3ODMw",
+      "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+      "source_tree_truncated": false,
+      "release_count": 12,
+      "release_pages": 1,
+      "source_files": [
+        {
+          "path": "gemrb-features.html",
+          "sha256": "af1e6ee62ed29033f033964afe5670099e99af9f2825c237b566258171166d0f",
+          "url": "https://gemrb.org/Features.html",
+          "kind": "dated official website bytes; no package/build attestation"
+        },
+        {
+          "path": "gemrb-install.html",
+          "sha256": "b385a92b9f472e202682cb4942a7f15f436aff91347a208ed04d1308c9a7d9c3",
+          "url": "https://gemrb.org/Install.html",
+          "kind": "dated official website bytes; no package/build attestation"
+        },
+        {
+          "path": "source/INSTALL",
+          "sha256": "3bedc56c5e303d69cf3e2e0c778f832276508f5a664938fab722ae1eb3e53991",
+          "git_blob_sha": "e1ba5a7b2bd9e11aa670582df021a57ab036dfce",
+          "source_tree": "037859e733071a480979fa073202cec50988fb5f",
+          "source_commit": "037859e733071a480979fa073202cec50988fb5f",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/e1ba5a7b2bd9e11aa670582df021a57ab036dfce"
+        },
+        {
+          "path": "source/gemrb/GemRB.cfg.sample.in",
+          "sha256": "f15254496a0fc72677f5befc8081aac23550444b360fcf87e53b08b9baca9d4f",
+          "git_blob_sha": "4ef1c3fdfa3b8ad2246d964c1970477c8b12fc94",
+          "source_tree": "037859e733071a480979fa073202cec50988fb5f",
+          "source_commit": "037859e733071a480979fa073202cec50988fb5f",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/4ef1c3fdfa3b8ad2246d964c1970477c8b12fc94"
+        },
+        {
+          "path": "source/gemrb/core/Interface.cpp",
+          "sha256": "040ae8e77956fff3af3195f82ced3710aae2ecd4b6373bd54e94f523efb2908c",
+          "git_blob_sha": "d4021400b1b6854984b2fa7e2b72e62b1a9abc21",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/d4021400b1b6854984b2fa7e2b72e62b1a9abc21"
+        },
+        {
+          "path": "source/gemrb.6.in",
+          "sha256": "cfb88d63c9327344eeb2f6ee7ed905ef1a996fce27780a1f2d862611aa3badc6",
+          "git_blob_sha": "734f9a5e3297ab5dcd82c3d5977bc611a3db6af0",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/734f9a5e3297ab5dcd82c3d5977bc611a3db6af0"
+        },
+        {
+          "path": "tagged/README.md",
+          "sha256": "196a4f4f09b37cee42325df8e6f76241e572aa860666296973269cefc9e4ca14",
+          "git_blob_sha": "21257cc8eaea2101566850603aab88b816395d06",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/21257cc8eaea2101566850603aab88b816395d06"
+        },
+        {
+          "path": "tagged/gemrb/GemRB.cfg.sample.in",
+          "sha256": "05b9dead557c9d93bb3da083d2eddd7812ccc8aa2c67acfab1a9b7ef8acaf962",
+          "git_blob_sha": "66d191fa1fb9a08056abaa2ed624889bb58f6661",
+          "source_tree": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "source_commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "url": "https://api.github.com/repos/gemrb/gemrb/git/blobs/66d191fa1fb9a08056abaa2ed624889bb58f6661"
+        }
+      ],
+      "read_only_windows_packages": []
+    },
+    "openfodder": {
+      "repository": "OpenFodder/openfodder",
+      "repository_id": 7062553,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnk3MDYyNTUz",
+      "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+      "source_tree_truncated": false,
+      "release_count": 18,
+      "release_pages": 1,
+      "source_files": [
+        {
+          "path": "source/INSTALL.md",
+          "sha256": "2401c5e0c7659d4e2db80bddbcc0cdee6b16ec1b842f78393b92639995b650eb",
+          "git_blob_sha": "ae63adc2100d7bc5d7cfa50ca2277841a6a4fe1c",
+          "source_tree": "4312ff7c1abe3b6750483921893651d9d3c55b33",
+          "source_commit": "4312ff7c1abe3b6750483921893651d9d3c55b33",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/ae63adc2100d7bc5d7cfa50ca2277841a6a4fe1c"
+        },
+        {
+          "path": "source/Projects/WinInstaller/installer.nsi",
+          "sha256": "26fd5c49703a0348b310f37455177a909fa0c0a9783d8fd38ca5fade6b201457",
+          "git_blob_sha": "3e3a2313852b4ed17e298f0c04c9913baa8ea8ed",
+          "source_tree": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/3e3a2313852b4ed17e298f0c04c9913baa8ea8ed"
+        },
+        {
+          "path": "source/README.md",
+          "sha256": "4023af03e4b2cc6ad9c73a6293ff2bdd9d54d741321f8d5609c8dcdf7f380687",
+          "git_blob_sha": "d2ed288fbf49fd078115fda169a3da64bacccf81",
+          "source_tree": "4312ff7c1abe3b6750483921893651d9d3c55b33",
+          "source_commit": "4312ff7c1abe3b6750483921893651d9d3c55b33",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/d2ed288fbf49fd078115fda169a3da64bacccf81"
+        },
+        {
+          "path": "tagged/INSTALL.md",
+          "sha256": "5fe2270fb5b72d08c8fb9e2fb76f7f297af2a292d1671ef3fe73b569cf448ed4",
+          "git_blob_sha": "f7c158e143ecd43dbf05c301fc02a2e68ffe9dd6",
+          "source_tree": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/f7c158e143ecd43dbf05c301fc02a2e68ffe9dd6"
+        },
+        {
+          "path": "tagged/README.md",
+          "sha256": "058f51018f77aec34fe822da6bb3beaf5012cdec9ed102415d60871c6c9795a2",
+          "git_blob_sha": "619f496637fd859a625ec2a74d5fa11950636b1c",
+          "source_tree": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "source_commit": "5eb41362f72fcedf2b1dffed397a7a8edf9a6305",
+          "url": "https://api.github.com/repos/OpenFodder/openfodder/git/blobs/619f496637fd859a625ec2a74d5fa11950636b1c"
+        }
+      ],
+      "read_only_windows_packages": []
+    },
+    "openmw": {
+      "repository": "OpenMW/openmw",
+      "repository_id": 285722,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkyODU3MjI=",
+      "source_commit": "f4bec41444214a7903bebd178389ca22ca13f646",
+      "source_tree_truncated": false,
+      "release_count": 40,
+      "release_pages": 1,
+      "source_files": [
+        {
+          "path": "source/README.md",
+          "sha256": "61930dce4b5e3c31b814ff97a87ef534d518907d19261d1dc1df3cde8a4d0ca8",
+          "git_blob_sha": "9a4fb3f1f1dfadeb56faa265630c530afefe73cf",
+          "source_tree": "93d2136e5dd0d2f3a706a7f785b3a69f3bcbba34",
+          "source_commit": null,
+          "url": "https://api.github.com/repos/OpenMW/openmw/git/blobs/9a4fb3f1f1dfadeb56faa265630c530afefe73cf"
+        },
+        {
+          "path": "tagged/README.md",
+          "sha256": "0342111e0061aedc4f889340e22c8608b6e6ba04b388ee1313da018c7a9308d1",
+          "git_blob_sha": "ad3e9b1e19dc9f6260d3a36ef731e0b65c6030bb",
+          "source_tree": "f4bec41444214a7903bebd178389ca22ca13f646",
+          "source_commit": "f4bec41444214a7903bebd178389ca22ca13f646",
+          "url": "https://api.github.com/repos/OpenMW/openmw/git/blobs/ad3e9b1e19dc9f6260d3a36ef731e0b65c6030bb"
+        },
+        {
+          "path": "tagged/docs/source/reference/modding/paths.rst",
+          "sha256": "39abe5b04fe6dc450c9e2ba081b8124e33254e37d7cfaae3be967fbcf7e8353c",
+          "git_blob_sha": "d5765b8ce517725f95b8a17c28f8cf4ae8a2f93e",
+          "source_tree": "f4bec41444214a7903bebd178389ca22ca13f646",
+          "source_commit": "f4bec41444214a7903bebd178389ca22ca13f646",
+          "url": "https://api.github.com/repos/OpenMW/openmw/git/blobs/d5765b8ce517725f95b8a17c28f8cf4ae8a2f93e"
+        }
+      ],
+      "read_only_windows_packages": []
+    }
+  },
+  "release_inventory_bracket": {
+    "observed_at": "2026-10-28T01:31:20Z",
+    "method": "independent GraphQL opaque repository identity, releases.totalCount and latest release node identity agree with all complete REST pages",
+    "sha256": "e3de1bb26bfde114398854d13df3c289adc8fa7c03cde0309665ae3cec60acfe",
+    "coverage": "complete for the nine captured repositories; no global catalog claim"
+  }
+}

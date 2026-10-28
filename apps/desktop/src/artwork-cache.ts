@@ -1,10 +1,11 @@
 import { desktopApi } from "./api";
 import type { DesktopArtworkThumbnail } from "./api";
-import type { ArtworkSlot, ArtworkState } from "./types";
+import type { ArtworkSlot, ArtworkState, CatalogMediaAsset } from "./types";
 import { errorText } from "./view-model";
 
 export interface ArtworkDisplay {
   state?: ArtworkState;
+  media?: CatalogMediaAsset;
   // Display snapshots explicitly clear these fields while retaining the choice.
   image?: string | undefined;
   onImageError?: (() => void) | undefined;
@@ -19,7 +20,7 @@ const maximumPngBytes = 1024 * 1024;
 const maximumRemoteRequests = 2;
 
 interface QueuedThumbnail {
-  state: ArtworkState;
+  state: ArtworkState | CatalogMediaAsset;
   stillInterested: () => boolean;
   fetch: () => Promise<void>;
 }
@@ -30,17 +31,25 @@ function decodedBytes(encoded: string) {
 }
 
 function thumbnailUrl(thumbnail: DesktopArtworkThumbnail, state: ArtworkState) {
-  const encoded = thumbnail.png_base64;
   const expectedId =
     state.resolved_source.kind === "local_import"
       ? state.resolved_source.asset_sha256
       : state.resolved_source.kind === "igdb_cover"
         ? state.resolved_source.cache_id
         : undefined;
+  return verifiedThumbnailUrl(thumbnail, expectedId, state.choice.revision);
+}
+
+function verifiedThumbnailUrl(
+  thumbnail: DesktopArtworkThumbnail,
+  expectedId: string | undefined,
+  revision: number,
+) {
+  const encoded = thumbnail.png_base64;
   if (
     !expectedId ||
     thumbnail.asset_sha256 !== expectedId ||
-    thumbnail.choice_revision !== state.choice.revision ||
+    thumbnail.choice_revision !== revision ||
     encoded.length === 0 ||
     encoded.length > 4 * Math.ceil(maximumPngBytes / 3) ||
     encoded.length % 4 !== 0 ||
@@ -74,7 +83,10 @@ export class ArtworkCache {
   }
 
   subscribe(portId: string, slot: ArtworkSlot, listener: () => void) {
-    const key = this.key(portId, slot);
+    return this.subscribeKey(this.key(portId, slot), listener);
+  }
+
+  private subscribeKey(key: string, listener: () => void) {
     const listeners = this.listeners.get(key) ?? new Set<() => void>();
     listeners.add(listener);
     this.listeners.set(key, listeners);
@@ -94,7 +106,10 @@ export class ArtworkCache {
   }
 
   private publish(portId: string, slot: ArtworkSlot, value: ArtworkDisplay) {
-    const key = this.key(portId, slot);
+    this.publishKey(this.key(portId, slot), value);
+  }
+
+  private publishKey(key: string, value: ArtworkDisplay) {
     this.entries.delete(key);
     this.entries.set(key, value);
     this.trim();
@@ -112,7 +127,8 @@ export class ArtworkCache {
       if (this.remoteActive.size >= maximumRemoteRequests) break;
       if (this.remoteActive.has(key)) continue;
       this.remoteQueued.delete(key);
-      if (this.entries.get(key)?.state !== request.state) continue;
+      const display = this.entries.get(key);
+      if ((display?.state ?? display?.media) !== request.state) continue;
       if (!request.stillInterested() && !this.listeners.has(key)) {
         // Do not retain a loading entry whose request was discarded: a later
         // visit must be able to load it again without an explicit refresh.
@@ -130,6 +146,68 @@ export class ArtworkCache {
   private refreshQueuedInterest(key: string, stillInterested: () => boolean) {
     const queued = this.remoteQueued.get(key);
     if (queued) queued.stillInterested = stillInterested;
+    this.drainRemote();
+  }
+
+  private mediaKey(portId: string, media: CatalogMediaAsset) {
+    return JSON.stringify([portId, "catalog-media", media.id, media.sha256]);
+  }
+
+  readMedia(portId: string, media: CatalogMediaAsset): ArtworkDisplay {
+    return this.entries.get(this.mediaKey(portId, media)) ?? empty;
+  }
+
+  subscribeMedia(portId: string, media: CatalogMediaAsset, listener: () => void) {
+    return this.subscribeKey(this.mediaKey(portId, media), listener);
+  }
+
+  /** Catalog media shares the cover cache's visibility queue and bounded retained entries. */
+  loadMedia(
+    portId: string,
+    media: CatalogMediaAsset,
+    stillInterested: () => boolean,
+    refresh = false,
+  ) {
+    const key = this.mediaKey(portId, media);
+    if (!refresh && this.entries.has(key)) {
+      this.refreshQueuedInterest(key, stillInterested);
+      return;
+    }
+    if (!stillInterested() && !this.listeners.has(key)) return;
+    if (this.remoteActive.has(key)) return;
+    this.publishKey(key, { media, loading: true });
+    this.remoteQueued.set(key, {
+      state: media,
+      stillInterested,
+      fetch: async () => {
+        try {
+          const thumbnail = await desktopApi.catalogMediaThumbnail(
+            portId,
+            media.id,
+            media.sha256,
+            this.generation,
+          );
+          const image = verifiedThumbnailUrl(thumbnail, media.sha256, 0);
+          if (this.entries.get(key)?.media !== media) return;
+          this.publishKey(key, {
+            media,
+            image,
+            loading: false,
+            onImageError: () => {
+              if (this.entries.get(key)?.image !== image) return;
+              this.publishKey(key, {
+                media,
+                loading: false,
+                error: "This catalog image cannot be displayed.",
+              });
+            },
+          });
+        } catch (error) {
+          if (this.entries.get(key)?.media === media)
+            this.publishKey(key, { media, loading: false, error: errorText(error) });
+        }
+      },
+    });
     this.drainRemote();
   }
 

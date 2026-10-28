@@ -149,15 +149,17 @@ impl Catalog {
                 )));
             }
         }
+        let mut listings = crate::CatalogListingDocument {
+            format_version: 1,
+            listings: document
+                .ports
+                .iter()
+                .map(crate::PortListing::from)
+                .collect(),
+        };
+        listings.promote_projected_format();
         let catalog = Self {
-            listings: Arc::new(crate::CatalogListingDocument {
-                format_version: 1,
-                listings: document
-                    .ports
-                    .iter()
-                    .map(crate::PortListing::from)
-                    .collect(),
-            }),
+            listings: Arc::new(listings),
             user_selected_listing: false,
             document: Arc::new(document),
             definition_snapshot: None,
@@ -550,6 +552,14 @@ impl Catalog {
                 }
             }
             if let Some(presentation) = &port.presentation {
+                if let Some(game) = &presentation.original_game {
+                    game.validate()?;
+                }
+                crate::catalog_media::validate_catalog_media(
+                    &port.id,
+                    presentation.original_game.as_ref(),
+                    presentation.media.as_deref().unwrap_or_default(),
+                )?;
                 for (name, value) in [
                     ("original game title", &presentation.original_game_title),
                     ("variant label", &presentation.variant_label),
@@ -2731,6 +2741,15 @@ mod tests {
         // Keep frozen port facts except the reviewed metadata/runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
+        // Historical readers keep the unmodified launch recipe. Only the current
+        // definition gains the reviewed upstream update-owner switch.
+        let gen1 = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "gen1recomp")
+            .unwrap();
+        assert!(gen1.launch_environment.is_empty());
+        gen1.launch_environment
+            .insert("POKEPORT_PORTMASTER_MANAGED".into(), "1".into());
         let battleship = expected_ports
             .iter_mut()
             .find(|port| port.id == "battleship")
@@ -4173,6 +4192,12 @@ mod tests {
             vec!["5ca7ba01642a3b27b0cc0b5349b52792795b62d3ed977e98a09390659af96b7b"]
         );
         let port = catalog.port("gen1recomp").unwrap();
+        // The upstream packaged runtime must not mount/download an independent
+        // update payload over the Core-owned version (including portable mode).
+        assert_eq!(
+            port.launch_environment.get("POKEPORT_PORTMASTER_MANAGED"),
+            Some(&"1".to_string())
+        );
         assert!(port.portable_marker);
         assert_eq!(
             port.source_environment.as_deref(),

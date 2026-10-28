@@ -34,6 +34,7 @@ type FixturePort = Pick<
   >;
   source_profile?: string | null;
   bios_source_profile?: string | null;
+  launch_arguments?: string[];
 };
 interface NamedRecord extends Record<string, unknown> {
   id: string;
@@ -82,6 +83,7 @@ interface SourceProfile {
 }
 interface RequestObservation {
   index: number;
+  request_path: string;
   started_at: string;
   bytes_sent: number;
   completed: boolean;
@@ -98,6 +100,7 @@ interface FixtureOptions {
   preliminarySetupJourney?: boolean;
   hashResumeJourney?: boolean;
   completionJourney?: boolean;
+  acquisitionJourney?: boolean;
   preparationTool?: string;
   revision?: string;
 }
@@ -206,7 +209,7 @@ function createInstallArtifact(seed?: number) {
   return gzipSync(tar, { level: 0 });
 }
 
-async function createCompletionArtifact(tool: string | undefined) {
+async function createCompletionArtifact(tool: string | undefined, seed?: number) {
   if (!tool || !path.isAbsolute(tool) || !(await stat(tool)).isFile())
     throw new Error("Selected setup completion requires an absolute owned preparation tool file");
   const executable = await readFile(tool);
@@ -215,7 +218,7 @@ async function createCompletionArtifact(tool: string | undefined) {
     Buffer.concat([
       tarEntry(platformContract().executable, executable, 0o755),
       // Keep the first download genuinely interruptible even for a small probe.
-      tarEntry("owned-download-padding.bin", deterministicPayload(), 0o644),
+      tarEntry("owned-download-padding.bin", deterministicPayload(3 * 1024 * 1024, seed), 0o644),
       Buffer.alloc(1024),
     ]),
     { level: 0 },
@@ -385,6 +388,7 @@ async function addSelectedSetupSources({
   output: string;
   revision: string | undefined;
   completionJourney?: boolean;
+  acquisitionJourney?: boolean;
 }) {
   if (typeof revision !== "string" || !/^[a-f0-9]{40}$/.test(revision))
     throw new Error("Selected setup requires the actual frozen source revision");
@@ -483,16 +487,24 @@ async function addSelectedSetupSources({
   };
 }
 
+interface ArtifactGate {
+  released: boolean;
+  expired: boolean;
+  release(): void;
+}
+
 function createArtifactServer({
   artifacts,
   requests,
   sockets,
   holdFirstDownload,
+  gates,
 }: {
   artifacts: Map<string, Buffer>;
   requests: RequestObservation[];
   sockets: Set<Socket>;
   holdFirstDownload: boolean;
+  gates: Map<string, ArtifactGate>;
 }) {
   const server = createServer((request, response) => {
     const servedArtifact = request.method === "GET" ? artifacts.get(request.url ?? "") : null;
@@ -502,6 +514,7 @@ function createArtifactServer({
     }
     const observation: RequestObservation = {
       index: requests.length + 1,
+      request_path: request.url ?? "",
       started_at: new Date().toISOString(),
       bytes_sent: 0,
       completed: false,
@@ -540,7 +553,13 @@ function createArtifactServer({
       observation.connection_closed = true;
       observation.closed_at = new Date().toISOString();
     });
-    if (observation.index === 1) {
+    const gate = gates.get(observation.request_path);
+    if (gate) {
+      writeChunk();
+      timer = setInterval(() => {
+        if (gate.released) writeChunk();
+      }, 75);
+    } else if (observation.index === 1) {
       writeChunk();
       // A held first request exposes real download progress but cannot pass
       // publication while the consumer establishes conflict and cancellation.
@@ -567,6 +586,7 @@ async function writeFixtureCatalog({
   sourceJourney,
   preliminarySetupJourney,
   completionJourney,
+  acquisitionWaitPath,
   revision,
 }: {
   root: string;
@@ -576,6 +596,7 @@ async function writeFixtureCatalog({
   sourceJourney: boolean;
   preliminarySetupJourney: boolean;
   completionJourney: boolean;
+  acquisitionWaitPath: string | undefined;
   revision: string | undefined;
 }) {
   let url: string,
@@ -604,6 +625,15 @@ async function writeFixtureCatalog({
     artifact,
     adapter: "libultraship-portable",
   });
+  if (acquisitionWaitPath) {
+    refreshPortDefinition.launch_arguments = [
+      "--game",
+      "--owned-wait",
+      acquisitionWaitPath,
+      "--owned-wait-seconds",
+      "180",
+    ];
+  }
   const portDefinitions: (FixturePort | PreliminaryPort)[] = [
     portDefinition,
     refreshPortDefinition,
@@ -711,9 +741,18 @@ export async function createInstallFixture({
   preliminarySetupJourney = false,
   hashResumeJourney = false,
   completionJourney = false,
+  acquisitionJourney = false,
   preparationTool,
   revision,
 }: FixtureOptions) {
+  if (
+    acquisitionJourney &&
+    (sourceJourney || completionJourney || preliminaryJourney || hashResumeJourney)
+  )
+    throw new Error("Acquisition requires its own executable-upgrade fixture selection");
+  const acquisitionWaitPath = acquisitionJourney
+    ? path.join(output, "acquisition-game-release.signal")
+    : undefined;
   if (sourceJourney && completionJourney)
     throw new Error("Discovery and completion fixtures require separate isolated selections");
   if (preliminaryJourney && (!sourceJourney || completionJourney))
@@ -722,13 +761,15 @@ export async function createInstallFixture({
     throw new Error("Preliminary setup review requires its standalone preliminary fixture");
   if (hashResumeJourney && (!sourceJourney || preliminaryJourney || completionJourney))
     throw new Error("Hash continuation requires its standalone source fixture");
-  let artifact = completionJourney
-    ? await createCompletionArtifact(preparationTool)
-    : createInstallArtifact();
+  let artifact =
+    completionJourney || acquisitionJourney
+      ? await createCompletionArtifact(preparationTool)
+      : createInstallArtifact();
   const artifacts = new Map([[`/${artifactName}`, artifact]]);
   const requests: RequestObservation[] = [];
   const sockets = new Set<Socket>();
-  const server = createArtifactServer({ artifacts, requests, sockets, holdFirstDownload });
+  const gates = new Map<string, ArtifactGate>();
+  const server = createArtifactServer({ artifacts, requests, sockets, holdFirstDownload, gates });
   const port = await listen(server);
   let url;
   let portDefinition;
@@ -753,6 +794,7 @@ export async function createInstallFixture({
       sourceJourney,
       preliminarySetupJourney,
       completionJourney,
+      acquisitionWaitPath,
       revision,
     }));
     if (preliminaryJourney) {
@@ -782,7 +824,32 @@ export async function createInstallFixture({
     ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
     ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
     completionJourney,
+    acquisitionWaitPath,
     url,
+    holdArtifact(artifactUrl: string) {
+      const candidate = new URL(artifactUrl);
+      if (
+        !acquisitionJourney ||
+        candidate.origin !== new URL(url).origin ||
+        !artifacts.has(candidate.pathname)
+      )
+        throw new Error("Only an owned acquisition artifact may be held");
+      if (gates.has(candidate.pathname)) throw new Error("Artifact already has a transfer gate");
+      const gate: ArtifactGate = {
+        released: false,
+        expired: false,
+        release() {
+          clearTimeout(deadline);
+          gate.released = true;
+        },
+      };
+      const deadline = setTimeout(() => {
+        gate.expired = true;
+        gate.release();
+      }, 180_000);
+      gates.set(candidate.pathname, gate);
+      return gate;
+    },
     async publishRelease(
       portId: string,
       { version, publishedAt, seed }: { version: string; publishedAt: string; seed: number },
@@ -795,7 +862,9 @@ export async function createInstallFixture({
         throw new Error(
           "Fixture upgrades require a version, publication time, and nonzero integer seed",
         );
-      const nextArtifact = createInstallArtifact(seed);
+      const nextArtifact = acquisitionJourney
+        ? await createCompletionArtifact(preparationTool, seed)
+        : createInstallArtifact(seed);
       const raw: unknown = JSON.parse(await readFile(catalogPath, "utf8"));
       const current = catalog(raw);
       const definition = current.ports.find((value) => value.id === portId);
@@ -822,6 +891,7 @@ export async function createInstallFixture({
       return { version, url: publishedUrl, size: nextArtifact.length, sha256 };
     },
     async close() {
+      for (const gate of gates.values()) gate.release();
       for (const socket of sockets) socket.destroy();
       await new Promise((resolve) => server.close(resolve));
     },

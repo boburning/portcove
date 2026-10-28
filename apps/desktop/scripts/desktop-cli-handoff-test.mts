@@ -61,9 +61,9 @@ export async function cliHandoffScenario({
     assert.equal(stale.ok, false);
     assert.equal(object(stale.error).code, "conflict");
     const { click } = reviewControls(browser);
-    const open = async (portId: string, view: "Library" | "Find games") => {
+    const open = async (portId: string, view: "Library" | "Discover") => {
       const port = transportValue("port", command(["catalog", "show", portId]));
-      if (view === "Find games") await openCatalogPortAfterRefresh(browser, port);
+      if (view === "Discover") await openCatalogPortAfterRefresh(browser, port);
       else {
         await browser.navigate().refresh();
         await selectPrimaryNavigation(browser, "Library");
@@ -133,7 +133,7 @@ export async function cliHandoffScenario({
           await clickVisible(browser, favorite);
         await click(By.css(`[data-detail-game-id="${port.id}"]`));
       }
-      await revealDetailSection(browser, "Files");
+      await revealDetailSection(browser, "Manage");
       const technical = By.css(
         ".detail-tab-panel:not([hidden]) > .advanced-settings > .advanced-summary",
       );
@@ -154,9 +154,9 @@ export async function cliHandoffScenario({
           tab.textContent?.trim(),
         ),
       ),
-      ["Overview", "Files", "Saved data", "Versions"],
+      ["Overview", "Game files", "Saves", "Versions & updates", "Manage"],
     );
-    await revealDetailSection(browser, "Versions");
+    await revealDetailSection(browser, "Versions & updates");
     const versionSummary = await browser
       .findElement(By.css('[aria-label="Installation and release versions"]'))
       .getText();
@@ -178,7 +178,7 @@ export async function cliHandoffScenario({
       await browser.findElement(By.css("#detail-updates")).findElement(By.xpath("..")).getText(),
       /No update check is saved for this installation and channel/,
     );
-    await revealDetailSection(browser, "Files");
+    await revealDetailSection(browser, "Manage");
     const launch = By.css('[aria-label="Launch from another app"]');
     await browser.wait(until.elementLocated(By.css('[aria-label="Copy launch command"]')), 10_000);
     await click(By.xpath('//summary[normalize-space(.)="Separate program and arguments"]'));
@@ -203,7 +203,7 @@ export async function cliHandoffScenario({
       flag: "wx",
     });
     artifacts.push(screenshot);
-    await open("opengoal-jak2", "Find games");
+    await open("opengoal-jak2", "Discover");
     await browser.wait(
       until.elementLocated(By.css('[aria-label="Copy command template"]')),
       10_000,

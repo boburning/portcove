@@ -14361,6 +14361,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Beetle Adventure Racing!",
+        "original_game": {
+          "format_version": 1,
+          "id": "beetle-adventure-racing",
+          "evidence_urls": [
+            "https://github.com/bryankruman/BeetleRecomp/blob/fcb1c87443a1ca78b8e464e923d1134d8b758d6e/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "beetle-adventure-racing-n64-usa",
+              "title": "Beetle Adventure Racing! (Nintendo 64, USA)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/bryankruman/BeetleRecomp/blob/fcb1c87443a1ca78b8e464e923d1134d8b758d6e/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 2715,
           "cover_id": 104718,
@@ -15114,6 +15131,9 @@
           "game_slug": "pokemon-red-version",
           "match_kind": "underlying-game"
         }
+      },
+      "launch_environment": {
+        "POKEPORT_PORTMASTER_MANAGED": "1"
       }
     },
     {
@@ -15472,6 +15492,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Blue Dragon",
+        "original_game": {
+          "format_version": 1,
+          "id": "blue-dragon",
+          "evidence_urls": [
+            "https://github.com/zolaware/reblue/blob/85aae686489dff775890fb8100ab525d7b7427b0/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "blue-dragon-xbox360-global",
+              "title": "Blue Dragon (Xbox 360, Global three-disc release)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/zolaware/reblue/blob/85aae686489dff775890fb8100ab525d7b7427b0/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 415482,
           "cover_id": 599565,
@@ -16307,6 +16344,31 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "F-Zero X",
+        "original_game": {
+          "format_version": 1,
+          "id": "f-zero-x",
+          "evidence_urls": [
+            "https://github.com/Zorkats/G-Diffuser/blob/37e4daa95afb44e5e3a36050dd5a0dc30d85f034/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "f-zero-x-n64-us-rev0",
+              "title": "F-Zero X (Nintendo 64, US revision 0)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/Zorkats/G-Diffuser/blob/37e4daa95afb44e5e3a36050dd5a0dc30d85f034/README.md"
+              ]
+            },
+            {
+              "id": "f-zero-x-64dd-expansion-kit",
+              "title": "F-Zero X Expansion Kit (Nintendo 64DD, translated disk)",
+              "system": "nintendo-64dd",
+              "evidence_urls": [
+                "https://github.com/Zorkats/G-Diffuser/blob/37e4daa95afb44e5e3a36050dd5a0dc30d85f034/README.md"
+              ]
+            }
+          ]
+        },
         "variant_label": "Expansion Kit",
         "artwork": {
           "game_id": 413108,
@@ -16972,6 +17034,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Mega Man X6",
+        "original_game": {
+          "format_version": 1,
+          "id": "mega-man-x6",
+          "evidence_urls": [
+            "https://github.com/mstan/MegaManX6Recomp/blob/f8bbe3986be38a01819255ba6ca7762327b8098f/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "mega-man-x6-psx-usa-v11",
+              "title": "Mega Man X6 (PlayStation, USA v1.1, SLUS-01395)",
+              "system": "playstation",
+              "evidence_urls": [
+                "https://github.com/mstan/MegaManX6Recomp/blob/f8bbe3986be38a01819255ba6ca7762327b8098f/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 409014,
           "cover_id": 605094,
@@ -21077,6 +21156,16 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Build Render96 with upstream’s documented instructions and your own original, then select the resulting executable. You manage optional packs, runtime updates, saves and settings. Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts.",
         "original_game_title": "Super Mario 64",
+        "original_game": {
+          "format_version": 1,
+          "id": "super-mario-64",
+          "evidence_urls": [
+            "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/README.md",
+            "https://github.com/sm64pc/sm64ex/blob/d7ca2c04364a6dd0dac58b47151e04e26887e6f0/README.md",
+            "https://github.com/sm64-port/sm64-port/blob/2b17d081c9798b31b91dc71f37994b0da28cffc9/README.md"
+          ],
+          "source_editions": []
+        },
         "artwork": {
           "game_id": 1074,
           "cover_id": 329251,

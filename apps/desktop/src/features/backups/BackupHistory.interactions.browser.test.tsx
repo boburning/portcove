@@ -1023,6 +1023,10 @@ it("keeps the retry control focused when an uninstalled port's unknown list beco
       problems: [],
     });
   await root.rerender(<DetailReadHistory />);
+  // Finish the opening's animation-frame focus before exercising an intentional retry.
+  await expect
+    .poll(() => document.activeElement)
+    .toBe(container.querySelector("#detail-section-saves"));
   const retry = [...container.querySelectorAll("button")].find(
     (button) => button.textContent === "Retry backup history",
   )!;

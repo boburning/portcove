@@ -27,6 +27,8 @@ import {
   assertCompactReview,
   captureAccessibilityReport,
   reviewControls,
+  selectCatalogPort,
+  clearCatalogFilters,
 } from "./desktop-review-controls.mts";
 import { artworkObservations } from "./desktop-artwork-observations.mts";
 
@@ -188,19 +190,15 @@ export async function artworkScenario({
         }
         // Keep the reload above paired with observations.begin(); a second
         // reload here would discard its request observers.
-        await click(By.xpath('//nav//button[contains(., "Find games")]'));
+        await click(By.xpath('//nav//button[contains(., "Discover")]'));
         const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
         await search.sendKeys(
           Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
           Key.BACK_SPACE,
         );
-        await click(
-          By.xpath(
-            '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]',
-          ),
-        );
-        await click(By.css(`[data-detail-origin="catalog:card:${port.id}"]`));
-        await revealDetailSection(browser, "Files");
+        await clearCatalogFilters(browser);
+        await selectCatalogPort(browser, port.id);
+        await revealDetailSection(browser, "Manage");
         const summary = await browser.findElement(
           By.xpath('//summary[normalize-space(.)="Change artwork"]'),
         );

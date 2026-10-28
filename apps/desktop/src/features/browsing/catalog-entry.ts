@@ -29,7 +29,7 @@ export type CatalogEntry = Pick<PortDefinition, "id" | "name" | "summary" | "pla
     pendingSetup?: PendingSetupRecord;
   };
 
-/** One card per stable identity. Strict integrations keep their existing metadata. */
+/** One entry per stable port identity; grouping is a separate display projection. */
 export function catalogEntries(
   catalog: CatalogDocument | undefined,
   directory: CatalogListingDocument | undefined,
@@ -54,7 +54,36 @@ export function catalogEntries(
       ...(listingStatuses.has(id) ? { listingStatus: listingStatuses.get(id)! } : {}),
       ...(pendingSetups.has(id) ? { pendingSetup: pendingSetups.get(id)! } : {}),
     };
-    if (definition) return { ...definition, ...shared };
+    if (definition) {
+      const presentation = definition.presentation;
+      const originalGame = presentation?.original_game ?? listing?.original_game;
+      // Only descriptive additions may fall back to the accepted listing. The
+      // strict definition remains the separate operational owner, including setup.
+      const descriptive = {
+        ...(presentation?.original_game == null && listing?.original_game
+          ? { original_game: listing.original_game }
+          : {}),
+        ...(presentation?.media == null && listing?.media
+          ? {
+              media: listing.media.filter(({ subject }) =>
+                subject.kind === "port"
+                  ? subject.port_id === id
+                  : subject.game_id === originalGame?.id &&
+                    originalGame.source_editions.some(
+                      (edition) => edition.id === subject.source_edition_id,
+                    ),
+              ),
+            }
+          : {}),
+      };
+      return {
+        ...definition,
+        ...shared,
+        ...(Object.keys(descriptive).length
+          ? { presentation: { ...presentation, ...descriptive } }
+          : {}),
+      };
+    }
     // The identity came from the accepted directory; no release, source, or
     // installation contract is manufactured to make a listing fit the browser.
     const identity = listings.get(id)!;
@@ -64,6 +93,8 @@ export function catalogEntries(
       summary: identity.summary,
       platforms: identity.platforms ?? [],
       presentation: {
+        ...(identity.original_game ? { original_game: identity.original_game } : {}),
+        ...(identity.media ? { media: identity.media } : {}),
         ...(identity.original_game_title
           ? { original_game_title: identity.original_game_title }
           : {}),

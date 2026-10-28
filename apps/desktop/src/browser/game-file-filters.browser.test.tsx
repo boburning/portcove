@@ -9,6 +9,7 @@ import { GameFileFilterObservation } from "../components/GameFileFilterObservati
 import { GameFileQueryControl } from "../components/GameFileQuery";
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
 import { PortBrowser } from "../components/PortBrowser";
+import { openDiscoverPort } from "./discover-test-helpers";
 import { DetailLayout } from "../components/DetailLayout";
 import { useDetailWorkspaceNavigation } from "../features/app-shell/use-detail-workspace-navigation";
 import { useLibraryBrowsingContext } from "../features/app-shell/use-library-browsing-context";
@@ -201,12 +202,14 @@ afterEach(() => {
 const button = (name: string) => page.getByRole("button", { name, exact: true });
 async function openAdvancedFilters(name: string) {
   await userEvent.click(button(name));
-  if (!document.querySelector<HTMLDetailsElement>("[role=dialog] details")?.open)
+  if (!document.querySelector<HTMLDetailsElement>(".catalog-filter-panel details")?.open)
     await userEvent.click(page.getByText("Advanced filters", { exact: true }));
 }
 async function closeFilters() {
   await userEvent.keyboard("{Escape}");
-  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("region", { name: "Filter options", exact: true }))
+    .not.toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
     .toHaveFocus();
@@ -239,9 +242,13 @@ it.each(["dark", "light"])(
       await expect.element(button(`${label} (1)`)).toBeEnabled();
     await userEvent.click(button("Compatible complete files available (1)"));
     await closeFilters();
-    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("region", { name: "Filter options", exact: true }))
+      .not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
-    const card = page.getByRole("button", { name: /^Complete game\s/ });
+    const card = page
+      .getByRole("button")
+      .filter({ has: page.getByRole("heading", { name: "Complete game", exact: true }) });
     await userEvent.click(card);
     await expect
       .element(page.getByRole("region", { name: "Catalog game-file observation" }))
@@ -274,7 +281,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
   await userEvent.click(button("Check game-file filters"));
   await userEvent.click(button("Needs checking (1)"));
   await closeFilters();
-  await userEvent.click(page.getByRole("button", { name: /^Checking game\s/ }));
+  await openDiscoverPort("checking");
   await expect
     .element(page.getByRole("region", { name: "Catalog game-file observation" }))
     .toBeInTheDocument();
@@ -316,12 +323,12 @@ it.each(["dark", "light"])(
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(button("Check game-file filters"));
     await closeFilters();
-    await userEvent.click(page.getByRole("button", { name: /^Complete game\s/ }));
+    await openDiscoverPort("complete");
     await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
     await userEvent.click(button("Check selected route game files"));
     await expect.element(page.getByLabelText("Selected-route check history")).toBeInTheDocument();
     await userEvent.click(button("Back to previous workspace"));
-    await userEvent.click(page.getByRole("button", { name: /^Complete game\s/ }));
+    await openDiscoverPort("complete");
     await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
     await expect
       .element(page.getByLabelText("Selected-route check history"))
@@ -347,7 +354,7 @@ it.each(["dark", "light"])(
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(button("Check game-file filters"));
     await closeFilters();
-    await userEvent.click(page.getByRole("button", { name: /^Complete game\s/ }));
+    await openDiscoverPort("complete");
     monotonic.mockReturnValue(301001);
     flushSync(() => root.render(<Fixture />));
     await expect

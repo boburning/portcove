@@ -48,6 +48,7 @@ mod host_startup;
 mod library_selection;
 mod library_transfer;
 mod managed_install_review;
+mod organization_commands;
 mod output_location;
 mod preparation;
 mod removal;
@@ -2086,7 +2087,7 @@ async fn open_external_url(
 ) -> DesktopResult<()> {
     let state = state.inner().clone();
     blocking_service(state, move |service| {
-        validate_external_url(service.catalog().document(), &url)?;
+        validate_external_url(&service, &url)?;
         open_host_target(std::ffi::OsStr::new(&url))
     })
     .await
@@ -2115,23 +2116,14 @@ fn resolve_source_evidence_url(
         .map_err(Into::into)
 }
 
-fn validate_external_url(catalog: &CatalogDocument, url: &str) -> DesktopResult<()> {
+fn validate_external_url(service: &PortcoveService, url: &str) -> DesktopResult<()> {
     let known = matches!(
         url,
         "https://github.com/boburning/portcove" | "https://github.com/login/device"
-    ) || catalog.ports.iter().any(|port| {
-        port.project_url == url
-            || port
-                .presentation
-                .as_ref()
-                .and_then(|presentation| presentation.artwork.as_ref())
-                .is_some_and(|artwork| {
-                    url == format!("https://www.igdb.com/games/{}", artwork.game_slug)
-                })
-    });
-    if !url.starts_with("https://") || !known {
+    ) || service.is_reviewed_resource_url(url)?;
+    if !known {
         return Err(PortcoveError::usage(
-            "only reviewed project, artwork source and GitHub sign-in links may be opened",
+            "only reviewed project, setup, release, artwork and GitHub sign-in links may be opened",
         )
         .into());
     }
@@ -2593,6 +2585,8 @@ pub fn run() -> std::process::ExitCode {
             get_locale_preference,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
+            organization_commands::get_library_organization,
+            organization_commands::change_library_organization,
             set_locale_preference,
             application_update_commands::check_application_update,
             application_update_commands::download_application_update,
@@ -2642,6 +2636,9 @@ pub fn run() -> std::process::ExitCode {
             preparation::plan_preparation,
             preparation::prepare_port,
             game_updates::plan_game_update,
+            game_updates::plan_game_update_acquisition,
+            game_updates::acquire_game_update,
+            game_updates::discard_game_update_acquisition,
             game_updates::apply_game_update,
             output_location::preview_output_location,
             output_location::set_output_location,
@@ -2661,6 +2658,7 @@ pub fn run() -> std::process::ExitCode {
             backup_review::preview_backup_action,
             artwork::get_artwork,
             artwork::get_artwork_thumbnail,
+            artwork::get_catalog_media_thumbnail,
             artwork::import_artwork,
             artwork::reset_artwork,
             backup_review::restore_backup,
@@ -3253,14 +3251,17 @@ mod tests {
 
     #[test]
     fn external_links_are_limited_to_reviewed_https_destinations() {
-        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let catalog = service.catalog();
         for url in [
             "https://github.com/boburning/portcove",
             "https://github.com/login/device",
             &catalog.document().ports[0].project_url,
             "https://www.igdb.com/games/ship-of-harkinian",
         ] {
-            validate_external_url(catalog.document(), url).unwrap();
+            validate_external_url(&service, url).unwrap();
         }
         for url in [
             "file:///C:/Windows",
@@ -3271,11 +3272,38 @@ mod tests {
             "https://www.igdb.com/games/ship-of-harkinian?redirect=elsewhere",
             "https://www.igdb.com/games/unmapped-game",
         ] {
+            assert!(validate_external_url(&service, url).is_err(), "{url}");
+        }
+    }
+
+    #[test]
+    fn listing_only_resource_handoff_uses_exact_accepted_urls() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let listing = service
+            .catalog()
+            .listings()
+            .iter()
+            .find(|listing| service.catalog().port(&listing.id).is_err())
+            .unwrap();
+        validate_external_url(&service, &listing.project_url).unwrap();
+        for url in [&listing.release_url, &listing.setup_url]
+            .into_iter()
+            .flatten()
+        {
+            validate_external_url(&service, url).unwrap();
+        }
+        for suffix in ["?redirect=elsewhere", "/unreviewed"] {
             assert!(
-                validate_external_url(catalog.document(), url).is_err(),
-                "{url}"
+                validate_external_url(&service, &format!("{}{suffix}", listing.project_url))
+                    .is_err()
             );
         }
+        assert!(
+            validate_external_url(&service, "https://user:password@github.com/login/device")
+                .is_err()
+        );
     }
 
     #[test]

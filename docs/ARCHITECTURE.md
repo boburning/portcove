@@ -2972,6 +2972,75 @@ declare an incomplete capture complete, or grant recovery authority.
 
 Disk-heavy desktop commands run on Tauri's blocking worker pool. Entire mixed async/core operations such as planning, update checks, install, update, and reconciliation enter a worker before constructing the service, then drive their network future from that worker; source hashing, manifest verification, managed-tree copies or removal, adoption, backup review, rollback, activation, folder integration, and launch preparation never occupy the IPC event loop. Cancelling an IPC waiter does not asynchronously kill an in-flight blocking mutation: the worker finishes under the core lifecycle journal and lock, while the durable activity/result remains available after refresh. Their command names, structured errors, and core-service safety boundaries are unchanged.
 
+### Immutable game-update acquisition
+
+Core's `plan_game_update_acquisition` is an optimistic, read-only review for an
+already verified managed installation. `authorize_game_update_acquisition` binds
+one-use consent to that exact review, and `acquire_game_update` repeats it under
+a separate per-port acquisition lock. This operation owns only private archive
+bytes and its activity/journal. It does not extract, prepare sources, collect or
+restore saves, publish output ownership, register an installation, or activate a
+runtime. The supervised launch and all runtime/file mutations retain their
+existing exclusive port lock; immutable acquisition can begin before or after a
+verified current runtime launches, without interpreting a busy lock as permission.
+
+Library schema 42 stores the typed acquisition payload in the existing
+`lifecycle_operations` owner. Its public phases are `acquiring`, `verifying`,
+`acquired`, and `attention_required`. At most one retained acquisition exists per
+port, with 256 records and 8 GiB of reserved asset bytes per library and a 64 KiB
+UTF-8 payload limit per record. Reservations include partial downloads and every
+bundled runtime asset and are checked atomically with journal writes. Acquisition
+requires independently expected nonzero sizes and SHA-256 identities. Existing
+provider, definition, runtime-policy and source requirements still apply. Shared
+preference artifact trust is checked during transfer; permission to write that
+scope is reviewed afresh only by the later exclusive preparation/apply operation.
+
+Private archives live under `downloads/update-acquisition-v1/<activity-UUID>`.
+The journal binds their exact owner, release, platform, definition and ordered
+asset identities. Its bounded owner marker is published through an owned pending
+file before any archive write; an interrupted exact marker prefix has an explicit
+discard route, while foreign marker bytes remain held for review. File data and supported directory publication are synchronized
+before completed state is recorded. As with existing filesystem operations,
+Windows directory synchronization does not establish sudden-power-loss durability.
+The curated byte cache remains optional and keeps its existing admission, size,
+copy verification and cancellation rules; it is not the acquisition record or a
+source of execution authority. Acquisition does not promote newly transferred
+bytes into that cache before archive extraction validates them.
+
+A fresh `GameUpdatePlan` can select the exact acquired identity, includes it and
+its retained owner in the review digest, and still requires a new authorization.
+Exclusive Apply rechecks current state and acquisition files, takes the archive's
+activity-owner lease, and copies verified bytes into its own install staging.
+The copy worker is joined before cancellation/cleanup or lease release. Existing
+source validation, shared-preference acceptance, preparation, publication,
+activation and recovery checks remain in force. The established `apply_game_update`
+return contract remains an `InstallRecord`: `activate=false` prepares a staged
+runtime, while an acquired archive alone never creates staged or active state.
+
+Recovery checks the acquisition activity-owner lock instead of assuming that a
+port lock excludes a live transfer. It preserves completed archives as actionable
+work, not broken recovery, and marks interrupted transfer/verification as
+attention-required without preparing or activating it. Exact-ID
+`discard_game_update_acquisition` holds that same owner lease and validates all
+private paths and members before removing only owned files. A live transfer or
+Apply lease conflicts; foreign, linked or ambiguous contents are retained for
+review. Cancellation retains bounded partial state for this explicit discard
+route. Discarding the retained acquisition permits a new download review and
+leaves installed runtimes and player data intact. Archive-owner rows remain visible in bounded Core status and workspace
+inventories even after the managed install and catalog entry disappear. Such
+orphan rows expose only existing metadata and held operations; they do not
+synthesize a listing, operational definition, or launch permission. Exact-ID
+discard remains available without a current catalog entry. These private byte
+records do not broaden metadata export or portable installation authority. A live worker
+retains its ordinary shared library lease; an actual whole-library move cannot
+acquire exclusive access until every source handle is closed. Move preview and
+execution also refuse any retained acquisition journal, including a completed
+archive, and return its exact ID with the discard-then-review resume action.
+Metadata export/import excludes downloads and acquisition journals. Removing a
+managed runtime, or changing a source registration/channel through another
+client, never deletes these private archives; later Apply must freshly validate
+those changed facts and cannot resurrect a removed installation.
+
 ## Cooperative operation cancellation
 
 Cancellation belongs to core and uses the existing durable activity UUID. SQLite migration 10 adds optional preparation/finishing state, a request bit, and a service-owner identity to activity history. Each controlled activity holds an OS lock for its lifetime; another process may request cancellation but cannot mistake a live worker for an orphan. Source discovery, update checks, install, update, and reconcile opt in. The CLI signal handler targets only its own service's running and queued work; Tauri forwards a specific activity UUID. Presentation never declares an operation cancelled merely because a request was accepted or an IPC waiter disappeared.

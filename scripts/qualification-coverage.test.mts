@@ -49,6 +49,10 @@ void test("qualification inventory is nonzero and exactly covers exhaustive jobs
 void test("macOS qualification recognizes only the maintained portability input routes", () => {
   for (const file of [
     "apps/desktop/scripts/browser-runtime.mts",
+    "scripts/run-rust-tests.mts",
+    "scripts/run-rust-tests.test.mts",
+    "scripts/rust-test-tree-supervisor.mts",
+    "scripts/rust-test-tree-supervisor.test.mts",
     "pnpm-workspace.yaml",
     "apps/desktop/src/browser/display-recovery.browser.test.tsx",
     "apps/desktop/src/browser/compact-navigation.browser.test.tsx",

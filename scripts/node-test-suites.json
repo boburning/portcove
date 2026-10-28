@@ -3191,7 +3191,17 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
           "cases": [
-            "mock publisher restores private lookup after startup reorder and refuses functions",
+            "mock publisher restores private lookup after startup reorder and refuses functions"
+          ]
+        },
+        {
+          "platform": ["linux"],
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "The Ubuntu-only production publisher uses GNU date -d for authorization timestamps.",
+          "reason": "Execute the actual Ubuntu publisher fixture on Linux; BSD date on macOS does not implement its required GNU flags.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; local release-check",
+          "cases": [
             "publisher retries and recovers an interrupted draft without touching a published release"
           ]
         }
@@ -4055,6 +4065,10 @@
     {
       "file": "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "memberships": [["native-tools", 2300]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-review-controls.native.test.mts",
+      "memberships": [["native-tools", 2350]]
     },
     {
       "file": "apps/desktop/scripts/desktop-scenario-state.native.test.mts",

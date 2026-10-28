@@ -1,4 +1,99 @@
 @layer utilities {
+  .workspace-main {
+    --workspace-inline: var(--space-8);
+    padding-inline: var(--workspace-inline);
+  }
+  .workspace-toolbar {
+    min-block-size: 3.5rem;
+    margin-inline: calc(-1 * var(--workspace-inline));
+    margin-block-end: var(--space-8);
+    padding: var(--space-2) var(--workspace-inline);
+  }
+  .sidebar .brand-avatar {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .settings-grid .settings-row {
+    gap: var(--space-2);
+    padding: var(--space-5) 0;
+    border: 0;
+    border-block-end: 1px solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+  }
+  .settings-section-index > button {
+    min-block-size: var(--control-height-lg);
+  }
+  .settings-grid .settings-row > h2 {
+    font-size: var(--text-sm);
+  }
+  .theme-preview {
+    position: relative;
+    display: grid;
+    grid-template-columns: 22% minmax(0, 1fr);
+    inline-size: 100%;
+    block-size: 5.625rem;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-theme-preview-dark-bg);
+  }
+  .theme-preview > i {
+    background: var(--color-theme-preview-dark-nav);
+  }
+  .theme-preview > span {
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
+    gap: 5px;
+    padding: 16px 12px 12px;
+  }
+  .theme-preview b {
+    block-size: 75%;
+    border-radius: 2px;
+    background: var(--color-theme-preview-dark-block);
+  }
+  .theme-preview[data-preview="light"] {
+    background: var(--color-theme-preview-light-bg);
+  }
+  .theme-preview[data-preview="light"] > i {
+    background: var(--color-theme-preview-light-nav);
+  }
+  .theme-preview[data-preview="light"] b {
+    background: var(--color-theme-preview-light-block);
+  }
+  .theme-preview[data-preview="system"]::after {
+    position: absolute;
+    inset: 0 0 0 50%;
+    background: var(--color-theme-preview-light-bg);
+    content: "";
+  }
+  @container section (min-width: 44rem) {
+    .settings-grid [data-settings-group="appearance"] .settings-row:has([role="combobox"]) {
+      grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+      column-gap: var(--space-6);
+    }
+    .settings-grid [data-settings-group="appearance"] .settings-row:has([role="combobox"]) > h2,
+    .settings-grid [data-settings-group="appearance"] .settings-row:has([role="combobox"]) > p {
+      grid-column: 1;
+    }
+    .settings-grid [data-settings-group="appearance"] .settings-row > div:has([role="combobox"]) {
+      grid-area: 1 / 2 / span 3;
+      align-self: center;
+    }
+  }
+  @media (width <= 75rem) {
+    .workspace-main {
+      --workspace-inline: var(--space-6);
+    }
+  }
+  @media (width <= 65rem) {
+    .workspace-main {
+      --workspace-inline: var(--space-5);
+    }
+  }
   @container update-entry (max-width: 48em) {
     .update-entry > .update-row {
       grid-template-columns: 42px minmax(0, 1fr);
@@ -29,7 +124,7 @@
     display: none;
   }
 
-  @media (width < 48rem) {
+  @media (width < 42rem) {
     html,
     body,
     #root {
@@ -44,6 +139,7 @@
       min-height: 100dvh;
     }
     .interface-workspace > .app-shell {
+      position: relative;
       display: flex;
       height: auto;
       min-height: 100dvh;
@@ -60,6 +156,25 @@
     }
     .sidebar-compact-header {
       display: flex;
+      padding-inline-end: calc(var(--control-height-lg) + var(--space-3));
+    }
+    .app-shell > .workspace-main > .workspace-toolbar {
+      position: absolute;
+      z-index: 1;
+      inset-block-start: var(--space-3);
+      inset-inline-end: var(--space-4);
+      min-block-size: var(--control-height-lg);
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+    .app-shell > .workspace-main > .workspace-toolbar > [aria-label="Current location"] {
+      display: none;
+    }
+    .app-shell > .workspace-main > .workspace-toolbar .command-trigger {
+      inline-size: var(--control-height-lg);
+      min-block-size: var(--control-height-lg);
+      padding: 0;
     }
     .sidebar-compact-header .brand-avatar {
       width: 30px;
@@ -74,9 +189,10 @@
       gap: var(--space-3);
     }
     .app-shell > main {
+      --workspace-inline: var(--space-4);
       min-width: 0;
       overflow: visible;
-      padding: var(--space-4);
+      padding: var(--space-6) var(--workspace-inline) var(--space-4);
     }
     .header-tools {
       width: 100%;
@@ -141,7 +257,7 @@
     container-type: inline-size;
     container-name: app-window;
   }
-  @media (min-width: 768px) {
+  @media (min-width: 672px) {
     @container app-window (max-width: 80em) {
       .app-shell {
         grid-template-columns: var(--layout-sidebar-compact) minmax(0, 1fr);

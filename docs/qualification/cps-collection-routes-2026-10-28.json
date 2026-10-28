@@ -1,0 +1,708 @@
+{
+  "format_version": 1,
+  "kind": "dated source/route evidence, not a live backlog",
+  "owners": [2510, 2926],
+  "pickup_main": "9522f0d1c0afd6614e02dd9c130b7daa456f2d7b",
+  "cohort": {
+    "existing_listings": 12,
+    "new_operational_definitions": 0,
+    "native_executions": 0,
+    "scope": "twelve existing frozen identities only; shared bundle also contains other titles with their own canonical records"
+  },
+  "repository": {
+    "name": "tmcleroy/cps2recomp",
+    "id": 1417252543,
+    "node_id": "R_kgDOVHmOvw",
+    "release_count": 8,
+    "release_traversal": "one terminal REST page; independent GraphQL count and opaque identity bracket retained separately",
+    "source_tag": "v0.4.0-beta.7",
+    "source_commit": "6f3c37f5808268e4525c81f1419f65dca43e6f39",
+    "tree_truncated": false,
+    "channel": "Preview (beta-tag classification despite GitHub prerelease=false)",
+    "release_bracket": {
+      "id": "R_kgDOVHmOvw",
+      "databaseId": 1417252543,
+      "releases": {
+        "totalCount": 8,
+        "nodes": [
+          {
+            "id": "RE_kwDOVHmOv84ZYNlL",
+            "tagName": "v0.4.0-beta.7"
+          }
+        ]
+      }
+    }
+  },
+  "source_files": [
+    {
+      "path": "tagged/README.md",
+      "sha256": "37e514e14c5e4b4a46c3cfac5453dc1b1a339f4d49e6f2c206125ad31fd2f5f5"
+    },
+    {
+      "path": "tagged/games/avsp/README.md",
+      "sha256": "da522226164e82cf9b917083945db8446d456d15eb7b87dd566722c1f71080d1"
+    },
+    {
+      "path": "tagged/games/dino/README.md",
+      "sha256": "6ce55e8f7e017b187748dec50c64f7dc08ea355eeef201893701d51a41f8de02"
+    },
+    {
+      "path": "tagged/games/msh/README.md",
+      "sha256": "9f981646591c4792ab5405b5187e70c651fb9022e2203f356adf8525f8795f42"
+    },
+    {
+      "path": "tagged/games/pocket_fighter/README.md",
+      "sha256": "4c63637b77d838be1da1a8120980a93aab91089cdf257db12be6c967b33104db"
+    },
+    {
+      "path": "tagged/games/puzzle_fighter/README.md",
+      "sha256": "80cfcd1131d833968e3e6b57b3a1e1c3a72484587425a14e0dd63d0319f4568d"
+    },
+    {
+      "path": "tagged/games/sfa/README.md",
+      "sha256": "69e61bb4cc2d6861b7a7d64f55c9dfbef1ad75ba4d9c5d6e151c2f339020c187"
+    },
+    {
+      "path": "tagged/games/sfa2/README.md",
+      "sha256": "8549578dbf10c4088e2c91531d0257f7b29c8107f9b0cfa86e33a84a5dd48676"
+    },
+    {
+      "path": "tagged/games/sfa3/README.md",
+      "sha256": "e491b8bf04861b536caf22a824fcb8137b391ff3723e0c1cce4db500d80ce745"
+    },
+    {
+      "path": "tagged/games/ssf2t/README.md",
+      "sha256": "79ab380cb95e117e7b5269537c2c2726ef8d79e49758eace4233b17cd69dbb24"
+    },
+    {
+      "path": "tagged/games/vampire_savior/README.md",
+      "sha256": "965a91fa0df8231549acbbbaca75b70aa4d3c9fe22347aa25af1b5d98f386519"
+    },
+    {
+      "path": "tagged/games/vhunt2/README.md",
+      "sha256": "e507d450daf92b7695f25f6e4cb64649012b686592f454ce74dc8dd24be6e6a8"
+    },
+    {
+      "path": "tagged/games/vsav2/README.md",
+      "sha256": "760fdfc6c8aca2a385daf50a61c277a73346bedfa66d829a4362603c0d3b8b62"
+    },
+    {
+      "path": "tagged/games/vsav_definitive/README.md",
+      "sha256": "06e367d902e4ae04eb143f7e4c5c3546ed8a7ad30cd25379df30c8935e19efe7"
+    },
+    {
+      "path": "tagged/games/xmvsf/README.md",
+      "sha256": "7a41a85c84238e83bb1d73f3971abc725d89cdc35235682f4d7406a7542770a5"
+    },
+    {
+      "path": "tagged/recomp-common/launcher/src/update.cpp",
+      "sha256": "8981b85177c1b5bea559fdd9207f3ca802bbb3c7b061fe6ef371b917362cddd6"
+    }
+  ],
+  "read_only_package": {
+    "release_tag": "v0.4.0-beta.7",
+    "asset_id": 682362900,
+    "asset_name": "CPS2Recomp-windows-x64.zip",
+    "size": 55734997,
+    "sha256": "afa9c7f6ebee93b86c058ffc37c367a14b3da690ad29c699d4902ca968ab6ec6",
+    "publisher_digest_match": true,
+    "entry_count": 31,
+    "expanded_bytes": 170200842,
+    "executables": [
+      {
+        "path": "CPS2Recomp/pocket_fighter.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/ssf2t.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/xmvsf.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/avsp.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/msh.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/cps2recomp-launcher.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/vampire_savior.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/vhunt2.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/sfa.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/vsav_definitive.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/dino.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/vsav2.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/sfa2.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/sfa3.exe",
+        "machine": "0x8664"
+      },
+      {
+        "path": "CPS2Recomp/puzzle_fighter.exe",
+        "machine": "0x8664"
+      }
+    ],
+    "scope": "read-only bounded ZIP/header inspection; no extraction or execution"
+  },
+  "ports": [
+    {
+      "id": "cps2recomp-alien-vs-predator",
+      "canonical_issue": 2769,
+      "game_id": "avsp",
+      "original_set": "avspu",
+      "original_revision": "USA 940520",
+      "original_data": "Use your own exact arcade ROM set avspu (USA 940520), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "avsp"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream reports only scripted first-stage play and no human play observation for this newer beat-em-up.",
+      "before_sha256": "fc3de2740a6602591651a9a0ffbacf443841f38449c0a31ecaeb4a5f63c4c835",
+      "native_execution": "not-run",
+      "authored_sha256": "05c70e34d2ab0b8ff80029e5cbc3052def6ee7bfd7e9c567fdc91cc7c77027c4"
+    },
+    {
+      "id": "cps2recomp-cadillacs-and-dinosaurs",
+      "canonical_issue": 2770,
+      "game_id": "dino",
+      "original_set": "dino",
+      "original_revision": "World 930201",
+      "original_data": "Use your own Cadillacs and Dinosaurs CPS-1/QSound arcade set dino (World 930201), from a board you own. This set has no separate key file; upstream derives its sound-program key from the supplied original. Other revisions and CPS-2 keys do not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "dino"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream reports only scripted first-stage play and no human play/audio observation for this newer beat-em-up.",
+      "before_sha256": "5eaf24a3735b0430022b9952840f9beb11cfc3e9e931d1ed49b42a9c6ecb3f75",
+      "native_execution": "not-run",
+      "authored_sha256": "b9689193c976d1c69648e6dea131ed48c9e83c3d7026fe84e61dafc6ad76a47b"
+    },
+    {
+      "id": "cps2recomp-marvel-super-heroes",
+      "canonical_issue": 2764,
+      "game_id": "msh",
+      "original_set": "msh",
+      "original_revision": "Europe 951024",
+      "original_data": "Use your own exact arcade ROM set msh (Europe 951024), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "msh"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "a3c59cd1dfcd4375ed6d5b8086cfcab85079ef83d790279dc09bcf1b58e67c67",
+      "native_execution": "not-run",
+      "authored_sha256": "3343e7e26e7034873e5fc83ea4193dca6b41fd690a00bd766807e95b32c3351c"
+    },
+    {
+      "id": "cps2recomp-street-fighter-alpha-2",
+      "canonical_issue": 2763,
+      "game_id": "sfa2",
+      "original_set": "sfa2u",
+      "original_revision": "USA 960430",
+      "original_data": "Use your own exact arcade ROM set sfa2u (USA 960430), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "sfa2"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "cb17c731d3e6d43b5ea3598a33db75c601845fda5cea170294c3799a947dde50",
+      "native_execution": "not-run",
+      "authored_sha256": "9e88762b615115a8c514a01f869e93788403dbb15526a37c0141fbf1ca773805"
+    },
+    {
+      "id": "cps2recomp-street-fighter-alpha",
+      "canonical_issue": 2762,
+      "game_id": "sfa",
+      "original_set": "sfa",
+      "original_revision": "Europe 950727",
+      "original_data": "Use your own exact arcade ROM set sfa (Europe 950727), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "sfa"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "44992dd9068b990849b15643565c53230a4553b0b56f806b500c11c94badd34c",
+      "native_execution": "not-run",
+      "authored_sha256": "ae79ab0331d2a4bd3cd1578fa3aaac59e8c8be56472612ab1f85b7b7f19a88b4"
+    },
+    {
+      "id": "cps2recomp-super-gem-fighter-mini-mix",
+      "canonical_issue": 2780,
+      "game_id": "pocket_fighter",
+      "original_set": "sgemf",
+      "original_revision": "USA 970904",
+      "original_data": "Use your own exact arcade ROM set sgemf (USA 970904), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "pocket_fighter"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "6a46d7b279ad4d0206e00595f4a97b7d5e9c9b4d0f4ef98e522c375bba4d1329",
+      "native_execution": "not-run",
+      "authored_sha256": "a3c351105f1a66b872999340bac4e44f3096cd86a8e6fff9406dfe35f735b30d"
+    },
+    {
+      "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
+      "canonical_issue": 2765,
+      "game_id": "puzzle_fighter",
+      "original_set": "spf2t",
+      "original_revision": "Europe 960529",
+      "original_data": "Use your own exact arcade ROM set spf2t (Europe 960529), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "puzzle_fighter"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "8322974c3b163680445feca33457c5986af80f0ef93d91d237e7ad400309e9a6",
+      "native_execution": "not-run",
+      "authored_sha256": "cd531126f7e60e213cbf12e97a1c6bd4de744ac5cb3853f7f4a851c85985b63f"
+    },
+    {
+      "id": "cps2recomp-vampire-hunter-2",
+      "canonical_issue": 2782,
+      "game_id": "vhunt2",
+      "original_set": "vhunt2",
+      "original_revision": "Japan 970929",
+      "original_data": "Use your own exact arcade ROM set vhunt2 (Japan 970929), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "vhunt2"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "76b39cee78bb15a1ccf8bc2283cc4a63deb64544a818c647790865216ece5a31",
+      "native_execution": "not-run",
+      "authored_sha256": "6d89d2333499472a4054906d689172b3b0a89f6c04280a3c0ace6046301f6411"
+    },
+    {
+      "id": "cps2recomp-vampire-savior-2",
+      "canonical_issue": 2767,
+      "game_id": "vsav2",
+      "original_set": "vsav2",
+      "original_revision": "Japan 970913",
+      "original_data": "Use your own exact arcade ROM set vsav2 (Japan 970913), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "vsav2"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "c51b0c0de534b3ef0b5636362a8ad289c1029e8f7398632de25501ff5a303923",
+      "native_execution": "not-run",
+      "authored_sha256": "4017818414254b1fc1c0d55fbb1323589352ab9931e52ef523a7fc6df9353408"
+    },
+    {
+      "id": "cps2recomp-vampire-savior-definitive",
+      "canonical_issue": 2768,
+      "game_id": "vsav_definitive",
+      "original_set": "vsavj + vsav2",
+      "original_revision": "Japan 970519 + Japan 970913",
+      "original_data": "Use both of your own arcade sets, vsavj (Vampire Savior, Japan 970519) and vsav2 (Vampire Savior 2, Japan 970913), each with its key file, from boards you own. Configure vsavj on Definitive’s page and vsav2 on Vampire Savior 2’s page. One game alone does not supply this composite version. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "vsav_definitive"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream says the three imported characters have not been played by hand and lists missing Donovan stage/music.",
+      "before_sha256": "3b1241fa0f354f374db094594f7d7759ab95dd3d0c8cb517d6bd6a3db3bc680c",
+      "native_execution": "not-run",
+      "authored_sha256": "6e551fb8a9e3b4351b0c54bc5840a47164d6e77fe03daca19416dc3f0ab04f43"
+    },
+    {
+      "id": "cps2recomp-vampire-savior",
+      "canonical_issue": 2766,
+      "game_id": "vampire_savior",
+      "original_set": "vsavj",
+      "original_revision": "Japan 970519",
+      "original_data": "Use your own exact arcade ROM set vsavj (Japan 970519), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "vampire_savior"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "8e4c66c444290674d975aed68cc4991c3c10fc8990b720e3357eb330655476f8",
+      "native_execution": "not-run",
+      "authored_sha256": "f198c7033b2f8153a793bba1fc077475fa5ee78fae6a90384d9ea8bf9e456127"
+    },
+    {
+      "id": "cps2recomp-x-men-vs-street-fighter",
+      "canonical_issue": 2781,
+      "game_id": "xmvsf",
+      "original_set": "xmvsf",
+      "original_revision": "Europe 961004",
+      "original_data": "Use your own exact arcade ROM set xmvsf (Europe 961004), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files.",
+      "selected_player": "CPS2Recomp/cps2recomp-launcher.exe",
+      "arguments": ["--play", "xmvsf"],
+      "working_directory": "CPS2Recomp",
+      "route": "upstream-setup-and-nonowning-existing-player",
+      "maintenance": "upstream-launcher-owned-update",
+      "managed_fit": "nonowning route selected: upstream owns mutable runtime payloads; Core immutable ownership would require a supported updater ownership handoff and complete process-lifetime qualification",
+      "upstream_maturity_limit": "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+      "before_sha256": "f4c116c17db6b617b510cce36fcb19c0dd6496c21d78b744227ec0df32cbf633",
+      "native_execution": "not-run",
+      "authored_sha256": "5ea56ce5df96b8cd86b6343070cd94d3c4a898ed149794d1c9ffe0b1e79c5600"
+    }
+  ],
+  "acceptance": "Authored guides plus source/artifact inspection are distinct from native execution, accepted useful-route counts and supported operation totals. Canonical issues retain stronger acceptance; no closure.",
+  "package_recommendations": [
+    {
+      "id": "cps2recomp-alien-vs-predator",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-cadillacs-and-dinosaurs",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-marvel-super-heroes",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-street-fighter-alpha-2",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-street-fighter-alpha",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-super-gem-fighter-mini-mix",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-vampire-hunter-2",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-vampire-savior-2",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-vampire-savior-definitive",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-vampire-savior",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    },
+    {
+      "id": "cps2recomp-x-men-vs-street-fighter",
+      "result": {
+        "assets_complete": true,
+        "maintenance": {
+          "observed_release_tag": "v0.4.0-beta.7",
+          "observed_provider_prerelease": false,
+          "potential_version_restrictions": [],
+          "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
+          "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+        },
+        "platforms": [
+          {
+            "platform": "windows-x86-64",
+            "hint_matches": [
+              {
+                "name": "CPS2Recomp-windows-x64.zip",
+                "published_sha256": true
+              }
+            ],
+            "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+          }
+        ],
+        "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+      }
+    }
+  ]
+}

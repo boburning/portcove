@@ -1,0 +1,203 @@
+{
+  "format_version": 1,
+  "kind": "dated narrow current-definition safety repair; not whole-engine maintenance acceptance",
+  "owners": [2926, 2510],
+  "historical_port_issue": 98,
+  "pickup_main": "f5e4c3465838b60fbf6d619534bbbfea0072a5c1",
+  "scope": {
+    "port_id": "gen1recomp",
+    "game": "Pokémon Red",
+    "source_profile": "pokemon-gen-1",
+    "change": "launch_environment.POKEPORT_PORTMASTER_MANAGED=1",
+    "new_operational_definitions": 0,
+    "source_or_data_scope_change": false,
+    "retained_contracts_rewritten": false,
+    "new_native_qualification": false
+  },
+  "old_integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "generated-cache",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "bryanthaboi/gen1recomp"
+    },
+    "source_profile": "pokemon-gen-1",
+    "executable_hints": {
+      "windows-x86-64": ["gen1recomp.exe"],
+      "linux-x86-64": ["gen1recomp", "gen1recomp.appimage"],
+      "macos-x86-64": ["gen1recomp"],
+      "macos-aarch64": ["gen1recomp"]
+    },
+    "portable_marker": true,
+    "source_environment": "POKEPORT_IMPORT_ROM",
+    "launch_arguments": ["--game=red"],
+    "runtime_source_filename": "portcove-import.gb",
+    "runtime_source_materialization": "copy",
+    "runtime_mutable_paths": ["portcove-import.gb"],
+    "persistent_paths": [
+      "assets/generated",
+      "data/generated",
+      "red",
+      "mods",
+      "imports",
+      "exports",
+      "screenshots",
+      "save.lua",
+      "save.lua.bak",
+      "options.lua"
+    ],
+    "presentation": {
+      "installation_method": "generated-game-data",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "pokemon-gen-1",
+          "label": "Pokémon Red (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  },
+  "new_integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "generated-cache",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "bryanthaboi/gen1recomp"
+    },
+    "source_profile": "pokemon-gen-1",
+    "executable_hints": {
+      "windows-x86-64": ["gen1recomp.exe"],
+      "linux-x86-64": ["gen1recomp", "gen1recomp.appimage"],
+      "macos-x86-64": ["gen1recomp"],
+      "macos-aarch64": ["gen1recomp"]
+    },
+    "portable_marker": true,
+    "source_environment": "POKEPORT_IMPORT_ROM",
+    "launch_arguments": ["--game=red"],
+    "runtime_source_filename": "portcove-import.gb",
+    "runtime_source_materialization": "copy",
+    "runtime_mutable_paths": ["portcove-import.gb"],
+    "persistent_paths": [
+      "assets/generated",
+      "data/generated",
+      "red",
+      "mods",
+      "imports",
+      "exports",
+      "screenshots",
+      "save.lua",
+      "save.lua.bak",
+      "options.lua"
+    ],
+    "presentation": {
+      "installation_method": "generated-game-data",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "pokemon-gen-1",
+          "label": "Pokémon Red (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    },
+    "launch_environment": {
+      "POKEPORT_PORTMASTER_MANAGED": "1"
+    }
+  },
+  "before_record_sha256": "56661a9b79678ea9b443b9053d469ba08e72fd16b4e13b1c4a2eff5971528ec2",
+  "primary_source_commit": "1eba2cf5821e770ba21ef409682f834a38ff5c01",
+  "primary_tag": "v0.3.97",
+  "package": {
+    "tag": "v0.3.97",
+    "commit": "1eba2cf5821e770ba21ef409682f834a38ff5c01",
+    "asset": "gen1recomp-0.3.97-windows.zip",
+    "asset_id": 678789547,
+    "size": 39650119,
+    "sha256": "e05472b4fd5fd1a2fb56343990f1ec57fc88f0d424baafbda8f50dc5e1cbea01",
+    "publisher_digest_match": true,
+    "player": "gen1recomp-win64/gen1recomp.exe",
+    "machine": "AMD64",
+    "embedded_guard_modules": [
+      {
+        "path": "src/update/Boot.lua",
+        "sha256": "15edf13d21d9bce0de888a750bbd72d707bc74622fd86c540603e74864ae8830",
+        "matches_tagged_source": true
+      },
+      {
+        "path": "src/update/Check.lua",
+        "sha256": "d9d0cc93c937f0c7a06b93b568a9224d0599d296c95f4e1d170c3cc698cced1a",
+        "matches_tagged_source": true
+      },
+      {
+        "path": "src/core/Prelaunch.lua",
+        "sha256": "9b3652925428ae4f52f77ee1548667ccaa6f0648416f51a790dbdcfd498e1c36",
+        "matches_tagged_source": true
+      }
+    ],
+    "scope": "bounded read-only native/embedded-ZIP inspection; no player/helper/original execution"
+  },
+  "mocked_module_test": {
+    "status": "passed",
+    "checks": 9,
+    "runtime": "system liblua5.3.so.0",
+    "scope": "isolated exact upstream Lua module guards with mocked OS environment, filesystem, thread and dependency APIs; no player, original, worker, native window, filesystem writes, network or gameplay execution",
+    "tag": "v0.3.97",
+    "commit": "1eba2cf5821e770ba21ef409682f834a38ff5c01",
+    "harness_sha256": "74c1929eb8486f78585ad79e63fd2d7f7acce478fc82a1b656c0a970fa9b00ce",
+    "modules": [
+      {
+        "path": "src/update/Boot.lua",
+        "sha256": "15edf13d21d9bce0de888a750bbd72d707bc74622fd86c540603e74864ae8830"
+      },
+      {
+        "path": "src/update/Check.lua",
+        "sha256": "d9d0cc93c937f0c7a06b93b568a9224d0599d296c95f4e1d170c3cc698cced1a"
+      },
+      {
+        "path": "src/core/Prelaunch.lua",
+        "sha256": "9b3652925428ae4f52f77ee1548667ccaa6f0648416f51a790dbdcfd498e1c36"
+      }
+    ],
+    "adversarial_sensitivity": "Instrumented read/getInfo/getDirectoryItems/mount/remove; managed Boot.run has zero accesses; unmanaged and forced-gate-bypass controls reach pending/read and update lookup despite Boot.run pcall."
+  },
+  "caller_trace": {
+    "upstream": "main.lua invokes Boot.run before save-path handling; Boot.canUpdateInPlace exits before payload enumeration/mount when flag=1; Prelaunch.updateAllowed refuses an update stage even with allowUpdate=true; Check.ensureWorker/start/state refuse worker/check or return idle. RomImporter.updaterAllowed can still report true through a fused fallback; final Check/Boot gates remain authoritative. No assertion that every updater UI predicate becomes false.",
+    "core": "adapter.rs generic environment.extend(port.launch_environment.clone()) before child launch; immutable installed contracts retain their captured catalog/definition. Existing captured recipes do not inherit new environment automatically."
+  },
+  "remaining": {
+    "maintenance": "pending implementation: audit current save-slot and all profile writers, including saves/, save.lua.tmp, options.lua.bak/.tmp, kept ROMs, extra imports/exports and optional feature data. Do not inherit historical Windows qualification for these new coordinates or claim latest runtime progression accepted.",
+    "retained": "preserve old exact runtime/source/data/recipe. This change does not edit a retained launch contract, adopt populated data, shrink ownership or establish compatibility. A safe separately reviewed replacement must preserve old and new coordinates with interruption/rollback evidence.",
+    "additional_games": "the ten other canonical game identities retain individual original-file and maturity/route decisions. No Red qualification, cached source, save or managed ownership is inherited.",
+    "resume": "continue writer/route audit on exact source and package, publish only reviewed fitting contracts and qualify operations actually offered; source/gameplay gaps are not converted to permanent product deferrals."
+  },
+  "authored_record_sha256": "27c03045554abfd40a5ba89d6665117915b3b77973689cdc17ee58f5abf82309",
+  "qualification_failure_retained": {
+    "source": "e6cda2f4b377caa89202ff9bb9d29ecda1305399",
+    "run": 40618977256,
+    "attempt": 1,
+    "failed_producer_job": 122592669579,
+    "aggregate_job": 122596483927,
+    "failed_test": "catalog::tests::schema_2_compatibility_projection_preserves_every_schema_1_profile",
+    "cause": "Existing frozen schema-1 comparison requires every reviewed current-definition delta to be explicit. The new launch flag was absent from that narrow allowlist. All other required producer leaves passed; no cancellation.",
+    "repair": "Keep catalog-schema1-fixture.json bytes frozen; assert historical Gen1 launch environment is empty and add only the reviewed ownership switch to expected current projection. Existing exact-current guard regression remains. Fresh exact-head qualification required."
+  },
+  "local_focused_repair_check": {
+    "selected_case": "catalog::tests::schema_2_compatibility_projection_preserves_every_schema_1_profile",
+    "case_outcome": "passed",
+    "case_duration_ms": 187.499089,
+    "selected_cases": 1,
+    "nextest_native_status": 0,
+    "outer_wrapper_exit": 1,
+    "cleanup": "Linux heavyweight Rust reaper did not exit within cleanup budget; shared lock retained. No full local-pass or proven-quiescence claim. Do not bypass/reclaim without actual owner/cleanup evidence.",
+    "scope": "Focused local pure catalog test only; all required hosted contexts on the new head remain mandatory."
+  }
+}

@@ -99,7 +99,7 @@ it.each(["orchard", "summit"])(
     );
     const title = portId === "orchard" ? "Orchard Quest" : "Summit Racer";
     await page
-      .getByRole("button", { name: `View details for ${title} Port: ${title}`, exact: true })
+      .getByRole("button", { name: `View details for ${title} ${title}`, exact: true })
       .click();
     await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
     expect(review).toHaveBeenCalledWith(portId, 1);
@@ -183,7 +183,7 @@ it("leaves preparation, visits another entry, and revisits the original task wit
   );
   await page
     .getByRole("button", {
-      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      name: "View details for Harbor Adventure Harbor Adventure",
       exact: true,
     })
     .click();
@@ -195,7 +195,7 @@ it("leaves preparation, visits another entry, and revisits the original task wit
   await page.getByRole("button", { name: /^Library/ }).click();
   await page
     .getByRole("button", {
-      name: "View details for Orchard Quest Port: Orchard Quest",
+      name: "View details for Orchard Quest Orchard Quest",
       exact: true,
     })
     .click();

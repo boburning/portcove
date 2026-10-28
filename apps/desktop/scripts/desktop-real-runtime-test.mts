@@ -1,3 +1,4 @@
+import { selectCatalogPort } from "./desktop-review-controls.mts";
 import {
   parseRealRuntimeInput,
   runtimeMutable,
@@ -270,15 +271,11 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
     artifacts.push(file);
   }
   const button = (name: string) => By.xpath(`//button[normalize-space(.)="${name}"]`);
-  async function open(name: string) {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+  async function open(port: { id: string; name: string }) {
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, name);
-    const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${name}.")]`,
-    );
-    await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, port.name);
+    await selectCatalogPort(browser, port.id);
   }
   async function status(portId: string) {
     const statuses = transportValues("status", success(await invoke("get_statuses")));
@@ -314,7 +311,7 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
       steps: [],
     };
     routes.push(route);
-    await open(port.name);
+    await open(port);
     await browser.wait(until.elementLocated(button("Choose game folder")), 15_000);
     const instructions = await browser.findElement(By.css("main")).getText();
     assert.ok(
@@ -370,7 +367,7 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
       }),
     );
     browser = await context.restartApplication(`${port.id}-registered`);
-    await open(port.name);
+    await open(port);
     assert.deepEqual((await status(port.id)).external_runtime, registered);
     await screenshot(`${port.id}-restart-readback`);
     await launchRealRuntime(

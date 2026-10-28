@@ -2,7 +2,7 @@ import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { CatalogFilters } from "./CatalogFilters";
 import type { CatalogQuery, CatalogQueryContext } from "./catalog-query";
 import { portDefinition, portStatus } from "../../test-fixtures";
@@ -35,6 +35,7 @@ const ports = [
 let host: HTMLDivElement;
 let root: RenderResult;
 let current: Filter | CatalogQuery;
+let currentSearch = "";
 let setQuery: (value: string) => void;
 let setFavoritesOnly: (value: boolean) => void;
 let setContext: (value: CatalogQueryContext | undefined) => void;
@@ -98,6 +99,7 @@ function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery | undefi
   const [search, searchSetter] = useState("");
   const [favoriteOnly, favoriteSetter] = useState(false);
   current = filter;
+  currentSearch = search;
   setQuery = searchSetter;
   setFavoritesOnly = favoriteSetter;
   const candidates = filterPorts(ports, new Map(), "catalog", "all", search).filter(
@@ -134,16 +136,93 @@ afterEach(async () => {
   await cleanup();
   host.remove();
   vi.unstubAllGlobals();
+  delete document.documentElement.dataset.theme;
+});
+
+it.each([
+  { theme: "dark", width: 1600 },
+  { theme: "light", width: 1600 },
+  { theme: "dark", width: 390 },
+  { theme: "light", width: 390 },
+])("keeps $theme facet options compact and wrapping at $width", async ({ theme, width }) => {
+  await page.viewport(width, 1000);
+  document.documentElement.dataset.theme = theme;
+  await render();
+  await click("Filters (0)");
+  await page.getByText("Advanced filters", { exact: true }).click();
+  const panel = page.getByRole("region", { name: "Filter options", exact: true });
+  const options = [...panel.element().querySelectorAll<HTMLButtonElement>("fieldset button")];
+  expect(options.length).toBeGreaterThan(20);
+  for (const option of options) {
+    expect(option.getBoundingClientRect().height).toBeLessThanOrEqual(48);
+    expect(option.scrollWidth).toBeLessThanOrEqual(option.clientWidth + 1);
+  }
+  await click("Windows (2)");
+  await click("Preview (1)");
+  expect(current).toMatchObject({ platforms: ["windows-x86-64"], channels: ["beta"] });
+  await expect
+    .element(
+      page
+        .getByRole("group", { name: "Target OS", exact: true })
+        .getByRole("button", { name: /^Windows/ }),
+    )
+    .toHaveAttribute("aria-pressed", "true");
+  await expect
+    .element(
+      page
+        .getByRole("group", { name: "Release channels", exact: true })
+        .getByRole("button", { name: /^Preview/ }),
+    )
+    .toHaveAttribute("aria-pressed", "true");
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("button", { name: "Filters (2)", exact: true }))
+    .toHaveFocus();
+  await expect.element(panel).not.toBeInTheDocument();
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
 });
 it("starts with ordinary filters and exposes technical groups on request", async () => {
   await render();
   await click("Filters (0)");
-  await expect.element(page.getByRole("group", { name: "Platforms", exact: true })).toBeVisible();
-  expect(document.querySelector<HTMLDetailsElement>("[role=dialog] details")?.open).toBe(false);
+  await expect.element(page.getByRole("group", { name: "Target OS", exact: true })).toBeVisible();
+  expect(
+    document.querySelector<HTMLDetailsElement>('[aria-label="Filter options"] details')?.open,
+  ).toBe(false);
   await page.getByText("Advanced filters", { exact: true }).click();
   await expect
     .element(page.getByRole("group", { name: "Setup methods", exact: true }))
     .toBeVisible();
+});
+it("uses one inline panel and returns focus from Escape and Done without clearing search", async () => {
+  await render();
+  await act(async () => setQuery("Both"));
+  const trigger = page.getByRole("button", { name: "Filters (0)", exact: true });
+  await trigger.click();
+  expect(document.querySelectorAll('[aria-label="Filter options"]')).toHaveLength(1);
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  await expect
+    .element(page.getByRole("heading", { name: "Discover filters", exact: true }))
+    .toHaveFocus();
+  await expect
+    .element(page.getByRole("group", { name: "Original system", exact: true }))
+    .toBeVisible();
+  await expect.element(page.getByRole("group", { name: "Target OS", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Windows (1)", exact: true }).click();
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("button", { name: "Filters (1)", exact: true }))
+    .toHaveFocus();
+  expect(document.querySelector('[aria-label="Filter options"]')).toBeNull();
+  expect(currentSearch).toBe("Both");
+  await page.getByRole("button", { name: "Filters (1)", exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Filters (1)", exact: true }))
+    .toHaveFocus();
+  expect(document.querySelector('[aria-label="Filter options"]')).toBeNull();
+  await page.getByRole("button", { name: "Remove Windows filter", exact: true }).click();
+  await expect.element(trigger).toHaveFocus();
+  expect(currentSearch).toBe("Both");
 });
 it("keeps advanced choices open and focus visible after clearing their last selection", async () => {
   await render({ version: 1, installationMethods: ["portable-package"] });
@@ -151,7 +230,9 @@ it("keeps advanced choices open and focus visible after clearing their last sele
   await click("Filters (1)");
   const choice = page.getByRole("button", { name: "Portable upstream package (3)", exact: true });
   await choice.click();
-  expect(document.querySelector<HTMLDetailsElement>("[role=dialog] details")?.open).toBe(true);
+  expect(
+    document.querySelector<HTMLDetailsElement>('[aria-label="Filter options"] details')?.open,
+  ).toBe(true);
   await expect.element(choice).toHaveFocus();
   await expect.element(choice).toBeVisible();
 });
@@ -208,7 +289,7 @@ it.each([
   await click("Filters (0)");
   expect(button("Windows (unavailable)").disabled).toBe(true);
   expect(current).toEqual(initial);
-  await click("Reset catalog filters");
+  await click("Clear filters");
   expect(current).toBe("all");
   expect(button("Windows (2)").disabled).toBe(false);
 });
@@ -225,7 +306,8 @@ it("preserves established extra predicates visibly on edit and clears only query
     setQuery("Both");
     setFavoritesOnly(true);
   });
-  await click("Reset catalog filters");
+  await click("Clear filters");
+  expect(currentSearch).toBe("Both");
   expect(button("Windows (1)")).toBeDefined();
   expect(button("Linux (1)")).toBeDefined();
 });
@@ -380,7 +462,7 @@ it("keeps unknown restored attention unresolved until reset", async () => {
   await click("Filters (0)");
   expect(button("Missing BIOS (unavailable)").disabled).toBe(true);
   expect(current).toMatchObject({ attention: ["future-reason"] });
-  await click("Reset catalog filters");
+  await click("Clear filters");
   expect(current).toBe("all");
 });
 
@@ -464,6 +546,6 @@ it("retains unsupported restored update values until reset", async () => {
   await click("Filters (0)");
   expect(button("Matching update staged (unavailable)").disabled).toBe(true);
   expect(current).toMatchObject({ updates: ["future-candidate"] });
-  await click("Reset catalog filters");
+  await click("Clear filters");
   expect(current).toBe("all");
 });

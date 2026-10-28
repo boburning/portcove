@@ -28,6 +28,7 @@ export function presentPortAction(
         target: { kind: "port", id: portId, label: portId },
         libraryGeneration: owner.generation,
         exclusionScope: "target",
+        operation: action === "launch" ? "launch" : undefined,
       })
     : undefined;
   const reason = pending

@@ -10,7 +10,12 @@ import {
   type ReactNode,
 } from "react";
 import { ArtworkCache, type ArtworkDisplay } from "./artwork-cache";
-import type { ArtworkSlot, CatalogDocument, CatalogListingDocument } from "./types";
+import type {
+  ArtworkSlot,
+  CatalogDocument,
+  CatalogListingDocument,
+  CatalogMediaAsset,
+} from "./types";
 
 const ArtworkContext = createContext<ArtworkCache | undefined>(undefined);
 const unavailable: ArtworkDisplay = { loading: false };
@@ -27,8 +32,12 @@ export function ArtworkProvider({
   children: ReactNode;
 }) {
   const catalogArtworkKey = JSON.stringify([
-    catalog?.ports.map(({ id, presentation }) => [id, presentation?.artwork]) ?? [],
-    listings?.listings.map(({ id, artwork }) => [id, artwork]) ?? [],
+    catalog?.ports.map(({ id, presentation }) => [
+      id,
+      presentation?.artwork,
+      presentation?.media,
+    ]) ?? [],
+    listings?.listings.map(({ id, artwork, media }) => [id, artwork, media]) ?? [],
   ]);
   const cache = useMemo(
     () => new ArtworkCache(generation, catalogArtworkKey),
@@ -75,4 +84,36 @@ export function useArtworkVisibility() {
     return () => observer.disconnect();
   }, []);
   return { element, visible };
+}
+
+export function useCatalogMedia(
+  portId: string,
+  media: CatalogMediaAsset | undefined,
+  visible: boolean,
+) {
+  const cache = useContext(ArtworkContext);
+  const interest = useRef<CatalogMediaAsset | undefined>(undefined);
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      cache && media && visible ? cache.subscribeMedia(portId, media, listener) : () => {},
+    [cache, portId, media, visible],
+  );
+  const read = useCallback(
+    () => (media && visible ? (cache?.readMedia(portId, media) ?? unavailable) : unavailable),
+    [cache, portId, media, visible],
+  );
+  const display = useSyncExternalStore(subscribe, read, () => unavailable);
+  useEffect(() => {
+    let current = true;
+    interest.current = visible ? media : undefined;
+    if (media && visible) cache?.loadMedia(portId, media, () => current);
+    return () => {
+      current = false;
+      interest.current = undefined;
+    };
+  }, [cache, portId, media, visible]);
+  const retry = () => {
+    if (media && visible) cache?.loadMedia(portId, media, () => interest.current === media, true);
+  };
+  return { display, retry };
 }

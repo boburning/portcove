@@ -102,7 +102,7 @@ it("keeps enlarged review facts and cancellation reachable", async () => {
   mount("setup");
   await page
     .getByRole("button", {
-      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      name: "View details for Harbor Adventure Harbor Adventure",
       exact: true,
     })
     .click();
@@ -152,7 +152,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await expect
     .element(
       page.getByRole("button", {
-        name: "View details for Harbor Adventure Port: Harbor Adventure",
+        name: "View details for Harbor Adventure Harbor Adventure",
         exact: true,
       }),
     )
@@ -160,7 +160,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await expect
     .element(
       page.getByRole("button", {
-        name: "View details for Orchard Quest Port: Orchard Quest",
+        name: "View details for Orchard Quest Orchard Quest",
         exact: true,
       }),
     )
@@ -169,7 +169,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await expect
     .element(
       page.getByRole("button", {
-        name: "View details for Orchard Quest Port: Orchard Quest",
+        name: "View details for Orchard Quest Orchard Quest",
         exact: true,
       }),
     )
@@ -182,14 +182,14 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await expect
     .element(
       page.getByRole("button", {
-        name: "View details for Harbor Adventure Port: Harbor Adventure",
+        name: "View details for Harbor Adventure Harbor Adventure",
         exact: true,
       }),
     )
     .toBeVisible();
   await userEvent.click(
     page.getByRole("button", {
-      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      name: "View details for Harbor Adventure Harbor Adventure",
       exact: true,
     }),
   );
@@ -213,7 +213,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await expect
     .element(
       page.getByRole("button", {
-        name: "View details for Orchard Quest Port: Orchard Quest",
+        name: "View details for Orchard Quest Orchard Quest",
         exact: true,
       }),
     )
@@ -224,7 +224,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   mount("setup");
   await userEvent.click(
     page.getByRole("button", {
-      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      name: "View details for Harbor Adventure Harbor Adventure",
       exact: true,
     }),
   );
@@ -311,7 +311,7 @@ it("keeps actual App update entries and their independent Play actions reachable
     .element(page.getByRole("button", { name: /^View details for Super Mario 64/ }).first())
     .toBeVisible();
   await page.getByRole("button", { name: "Activity", exact: true }).click();
-  await page.getByRole("tab", { name: "Updates", exact: true }).click();
+  await page.getByRole("tab", { name: "Game updates", exact: true }).click();
   const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
   expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
   const play = page
