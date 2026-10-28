@@ -6,6 +6,7 @@ import {
 import type { WebDriver } from "selenium-webdriver";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { parseAst } from "vite-plus";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
@@ -156,68 +157,169 @@ void test("native boundary entrypoint retains its imported parsed invocation rou
     { mode: "strip" },
   );
   // Normative wiring only; imported-module and serialized-callback tests own behavior.
+  // Parse executable syntax with the already pinned frontend parser so comments,
+  // aliases, declaration position and layout cannot masquerade as an owner gate.
+  function* nodes(value: unknown): Generator<Record<string, unknown>> {
+    if (Array.isArray(value)) {
+      for (const child of value) yield* nodes(child);
+    } else if (isRecord(value)) {
+      if (typeof value.type === "string") yield value;
+      for (const child of Object.values(value)) yield* nodes(child);
+    }
+  }
+  const identifier = (value: unknown) =>
+    isRecord(value) && value.type === "Identifier" && typeof value.name === "string"
+      ? value.name
+      : undefined;
+  const literal = (value: unknown) =>
+    isRecord(value) && value.type === "Literal" ? value.value : undefined;
+  const awaited = (value: unknown) =>
+    isRecord(value) &&
+    value.type === "AwaitExpression" &&
+    isRecord(value.argument) &&
+    value.argument.type === "CallExpression"
+      ? value.argument
+      : undefined;
+  const args = (value: Record<string, unknown> | undefined): unknown[] =>
+    value && Array.isArray(value.arguments) ? value.arguments : [];
+  function route(code: string) {
+    const syntax = [...nodes(parseAst(code))];
+    const declarations = syntax.filter(
+      (node) =>
+        node.type === "ImportDeclaration" &&
+        literal(node.source) === "./desktop-boundary-invoke.mts",
+    );
+    const declaration = declarations[0];
+    assert.ok(declaration, "Native entrypoint must import the parsed invocation transport");
+    const specifiers = declarations.flatMap((entry) => {
+      assert.ok(Array.isArray(entry.specifiers));
+      return entry.specifiers.filter(isRecord);
+    });
+    const binding = (name: string) => {
+      const specifier = specifiers.find(
+        (node) => (identifier(node.imported) ?? literal(node.imported)) === name,
+      );
+      assert.ok(specifier, "Native entrypoint must import " + name);
+      const alias = identifier(specifier.local);
+      assert.ok(alias);
+      return { specifier, alias };
+    };
+    const invocation = binding("invokeBoundary"),
+      owner = binding("armBoundaryOwner");
+    const queues = syntax.filter((node) => {
+      const queue = awaited(node);
+      if (!identifier(queue?.callee) || args(queue).length !== 1) return false;
+      const armed = awaited(args(queue)[0]);
+      return identifier(armed?.callee) === owner.alias && args(armed).length === 1;
+    });
+    const creation = syntax.find((node) => {
+      const call = awaited(node);
+      return (
+        identifier(call?.callee) === invocation.alias &&
+        args(call).length === 2 &&
+        literal(args(call)[1]) === "create_boundary_windows"
+      );
+    });
+    return { syntax, declaration, declarations, specifiers, binding, queues, creation };
+  }
   function assertRoute(code: string) {
-    const imports = [
-      ...code.matchAll(/import\s*\{([^}]+)\}\s*from\s*["']\.\/desktop-boundary-invoke\.mts["']/gu),
-    ];
-    const bindings = imports.flatMap((entry) => entry[1]!.split(","));
-    const imported = bindings
-      .map((entry) => /^\s*invokeBoundary(?:\s+as\s+(\w+))?\s*$/u.exec(entry))
-      .find(Boolean);
-    assert.ok(imported, "Native entrypoint must import the parsed invocation transport");
-    const alias = imported[1] ?? "invokeBoundary";
-    const owner = bindings
-      .map((entry) => /^\s*armBoundaryOwner(?:\s+as\s+(\w+))?\s*$/u.exec(entry))
-      .find(Boolean);
-    assert.ok(owner, "Native entrypoint must import the owner arming transport");
-    const ownerAlias = owner[1] ?? "armBoundaryOwner";
-    const armedQueues = [
-      ...code.matchAll(
-        new RegExp(
-          String.raw`await\s+[\w$]+\s*\(\s*await\s+${ownerAlias}\s*\(\s*[\w$.]+\s*\)\s*\)`,
-          "gu",
-        ),
-      ),
-    ];
+    const observed = route(code);
     assert.ok(
-      armedQueues.length >= 2,
+      observed.queues.length >= 2,
       "Delivered and abandoned owner queues must both await the imported arming transport",
     );
-    const call = new RegExp(
-      String.raw`await\s+${alias}\s*\(\s*[\w$.]+\s*,\s*["']create_boundary_windows["']\s*\)`,
-      "u",
-    );
     assert.ok(
-      call.test(code),
+      observed.creation,
       "Native boundary fixture creation must use the imported parsed transport",
     );
   }
+  function range(node: Record<string, unknown>) {
+    assert.ok(typeof node.start === "number" && Number.isInteger(node.start));
+    assert.ok(typeof node.end === "number" && Number.isInteger(node.end));
+    assert.ok(node.start >= 0 && node.end > node.start);
+    return { start: node.start, end: node.end };
+  }
+  function edit(code: string, changes: { start: number; end: number; text: string }[]) {
+    return changes
+      .sort((left, right) => right.start - left.start)
+      .reduce(
+        (result, change) => result.slice(0, change.start) + change.text + result.slice(change.end),
+        code,
+      );
+  }
+  function renamed(code: string, exported: string, alias: string) {
+    const observed = route(code),
+      bound = observed.binding(exported);
+    const references = observed.syntax.filter(
+      (node) => node.type === "CallExpression" && identifier(node.callee) === bound.alias,
+    );
+    return edit(code, [
+      { ...range(bound.specifier), text: exported + " as " + alias },
+      ...references.map((node) => {
+        assert.ok(isRecord(node.callee));
+        return { ...range(node.callee), text: alias };
+      }),
+    ]);
+  }
   assertRoute(source);
-  assertRoute(
-    source
-      .replace(/\barmBoundaryOwner(?=[,\s}])/u, "armBoundaryOwner as renamedOwner")
-      .replace(/\barmBoundaryOwner(?=\s*\()/gu, "renamedOwner"),
+  const aliased = renamed(
+    renamed(source, "armBoundaryOwner", "$renamedOwner"),
+    "invokeBoundary",
+    "$renamedInvoke",
   );
+  assertRoute(aliased);
+  const aliasedRoute = route(aliased);
+  const splitImports =
+    edit(
+      aliased,
+      aliasedRoute.declarations.map((node) => ({
+        ...range(node),
+        text: "/* named transport imports moved and split */",
+      })),
+    ) +
+    "\n" +
+    aliasedRoute.specifiers
+      .map((node) => {
+        const selected = range(node);
+        return `import {${aliased.slice(selected.start, selected.end)}} from "./desktop-boundary-invoke.mts";`;
+      })
+      .reverse()
+      .join("\n");
+  assertRoute(splitImports);
+  const declaration = range(route(aliased).declaration);
+  assertRoute(
+    edit(aliased, [{ ...declaration, text: "/* imported transport moved below declarations */" }]) +
+      "\n" +
+      aliased.slice(declaration.start, declaration.end),
+  );
+  const observed = route(source);
+  const first = awaited(observed.queues[0]);
+  assert.ok(first);
+  const armedArgument = args(first)[0];
+  assert.ok(isRecord(armedArgument));
+  const arm = range(armedArgument);
+  const missingArm = edit(source, [{ ...arm, text: "0" }]);
+  assert.throws(() => assertRoute(missingArm), /both await/u);
+  // The removed gate's exact source in a comment cannot satisfy executable wiring.
   assert.throws(
-    () =>
-      assertRoute(source.replace("queueOwner(await armBoundaryOwner(browser))", "queueOwner(0)")),
+    () => assertRoute(missingArm + "\n/* " + source.slice(arm.start, arm.end) + " */"),
     /both await/u,
   );
-  assertRoute(
-    source.replace("as invoke", "as renamedInvoke").replace(/\binvoke(?=\s*\()/gu, "renamedInvoke"),
-  );
-  assert.throws(
-    () => assertRoute(source.replace("./desktop-boundary-invoke.mts", "./wrong-transport.mts")),
-    /must import/u,
-  );
+  const importedSource = observed.declaration.source;
+  assert.ok(isRecord(importedSource));
   assert.throws(
     () =>
       assertRoute(
-        source.replace(
-          'await invoke(browser, "create_boundary_windows")',
-          'await wrongTransport(browser, "create_boundary_windows")',
-        ),
+        edit(source, [{ ...range(importedSource), text: JSON.stringify("./wrong-transport.mts") }]),
       ),
+    /must import/u,
+  );
+  const creation = awaited(observed.creation);
+  assert.ok(creation);
+  const creationCallee = creation.callee;
+  assert.ok(isRecord(creationCallee));
+  assert.throws(
+    () => assertRoute(edit(source, [{ ...range(creationCallee), text: "wrongTransport" }])),
     /must use/u,
   );
 });
