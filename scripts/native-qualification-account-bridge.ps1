@@ -8,7 +8,21 @@ $ErrorActionPreference = 'Stop'
 $hostedMode = $null -ne $HostedMemoryContext
 if ($hostedMode) {
     $hostedCandidateExecutionAuthorized = $false
-    if (-not $hostedCandidateExecutionAuthorized) { throw 'Hosted memory bridge awaits separate candidate execution authority' }
+    $hostedDiagnosticCandidateExecutionAuthorized = $false
+    $diagnosticMemoryMode = $HostedMemoryContext -is [hashtable] -and $HostedMemoryContext.ContainsKey('diagnostic')
+    if ($diagnosticMemoryMode) {
+        if ($HostedMemoryContext.diagnostic -isnot [bool] -or -not $HostedMemoryContext.diagnostic) { throw 'Fixed diagnostic memory scope required' }
+        if (-not $hostedDiagnosticCandidateExecutionAuthorized) { throw 'Hosted diagnostic memory bridge awaits separate diagnostic execution authority' }
+        if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+            [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne 'X64' -or
+            $env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+            $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or $env:GITHUB_JOB -cne 'installed-prerequisite' -or
+            $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
+            $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,15}$' -or
+            $env:GITHUB_WORKFLOW_REF -cne 'boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028' -or
+            $env:PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC -cne 'true' -or $env:PORTCOVE_HOSTED_PLATFORM -cne 'windows-x86_64' -or
+            $env:PORTCOVE_HOSTED_OBSERVATION_ONLY -cne 'false') { throw 'Fixed hosted diagnostic bridge context required' }
+    } elseif (-not $hostedCandidateExecutionAuthorized) { throw 'Hosted memory bridge awaits separate candidate execution authority' }
 }
 
 # This is fixed owner-side launch plumbing, not an acceptance report importer.
