@@ -897,8 +897,7 @@ mod tests {
                                 | "--incompatible"
                                 | "--record"
                         )
-                    })
-                {
+                    }) {
                     5_000
                 } else {
                     200
