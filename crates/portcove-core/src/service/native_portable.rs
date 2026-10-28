@@ -216,13 +216,35 @@ impl PortcoveService {
         Ok(())
     }
 
+    /// Backups must not silently omit unclaimed output in an inactive copy.
+    pub(super) fn require_generated_cache_outputs_unchanged(&self, port_id: &str) -> Result<()> {
+        for install in self.library.all_installs()? {
+            if install.port_id == port_id
+                && self.installed_port(&install)?.adapter == AdapterKind::GeneratedCache
+            {
+                self.require_portable_runtime_unchanged(&install)?;
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn require_portable_runtime_unchanged(&self, install: &InstallRecord) -> Result<()> {
         let port = self.installed_port(install)?;
         if port.adapter != AdapterKind::NativePortable
+            && port.adapter != AdapterKind::GeneratedCache
             && !crate::persistence::ready_staged_archive(&port)
             && !port.n64_runtime_at_executable_parent
         {
             return Ok(());
+        }
+        if port.adapter == AdapterKind::GeneratedCache
+            && Installer::new(self.library.clone())?
+                .retained_catalog(install)?
+                .is_none()
+        {
+            return Err(PortcoveError::verification(
+                "Generated-cache maintenance requires its exact retained contract; preserve this runtime and all player data for review",
+            ));
         }
         let qualification = self.installed_mutability_qualification(install)?;
         let report =

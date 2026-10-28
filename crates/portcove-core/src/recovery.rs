@@ -352,7 +352,33 @@ pub(crate) fn recover_removal(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    // Old journals can recover identities only while authenticated database rows remain.
+    // After deletion, unbound quarantine bytes cannot grant their own cleanup authority.
+    if operation.removal_installs.is_none() && !operation.original_paths.is_empty() {
+        let records = service
+            .library
+            .all_installs()?
+            .into_iter()
+            .filter(|install| {
+                install.port_id == operation.port_id
+                    && operation.original_paths.contains(&install.path)
+            })
+            .collect::<Vec<_>>();
+        if records.len() != operation.original_paths.len() {
+            return Err(PortcoveError::verification(
+                "Historical removal recovery lacks retained installation identities; preserve quarantine and journal for review",
+            ));
+        }
+        operation.removal_installs = Some(records);
+        // Decode and preflight before persisting the recovered binding.
+        RemovalOperation::decode(&service.library, operation)?
+            .require_retained_outputs(service, operation)?;
+        store.put(operation)?;
+    }
     let mut removal = RemovalOperation::decode(&service.library, operation)?;
+    if !operation.original_paths.is_empty() {
+        removal.require_retained_outputs(service, operation)?;
+    }
     crate::retained_build::require_no_references(
         &service.library.connection()?,
         &operation.port_id,
@@ -393,6 +419,7 @@ pub(crate) fn recover_removal(
         for paths in removal.paths(&service.library)? {
             crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
         }
+        removal.require_retained_outputs(service, operation)?;
         service.library.remove_port(&operation.port_id)?;
         removal.advance(RemovalPhase::Committed, operation, store)?;
     }
@@ -400,6 +427,7 @@ pub(crate) fn recover_removal(
         removal.phase,
         RemovalPhase::Committed | RemovalPhase::CleanupPending
     ) {
+        removal.require_retained_outputs(service, operation)?;
         let cleanup_roots = removal
             .paths(&service.library)?
             .into_iter()

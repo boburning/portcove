@@ -32,6 +32,7 @@ pub(crate) struct RemovalOperation {
     created_at: i64,
     quarantine: PathBuf,
     original_paths: Vec<PathBuf>,
+    retained_installs_sha256: String,
     pub(crate) phase: RemovalPhase,
 }
 
@@ -91,6 +92,9 @@ impl RemovalOperation {
             created_at: operation.created_at,
             quarantine,
             original_paths: operation.original_paths.clone(),
+            retained_installs_sha256: crate::signed_catalog::digest(&serde_json::to_vec(
+                &operation.removal_installs,
+            )?),
             phase,
         })
     }
@@ -101,6 +105,77 @@ impl RemovalOperation {
             .iter()
             .map(|path| crate::output_root::removal_paths(library, &self.port_id, &self.id, path))
             .collect()
+    }
+
+    /// Inspect the relocated bytes using the original authenticated identities.
+    /// A location change never changes the retained manifest or its digest.
+    pub(crate) fn require_retained_outputs(
+        &self,
+        service: &crate::PortcoveService,
+        operation: &LifecycleOperation,
+    ) -> Result<()> {
+        let records = operation.removal_installs.as_ref().ok_or_else(|| {
+            PortcoveError::verification("Removal recovery has no retained installation identities. Preserve the runtime, quarantine and journal for review")
+        })?;
+        let mut paths = std::collections::BTreeSet::new();
+        let mut ids = std::collections::BTreeSet::new();
+        if records.len() != self.original_paths.len() {
+            return Err(PortcoveError::verification(
+                "removal installation identities do not cover every original path",
+            ));
+        }
+        for install in records {
+            if install.port_id != self.port_id
+                || !self.original_paths.contains(&install.path)
+                || !paths.insert(install.path.clone())
+                || !ids.insert(install.id.clone())
+            {
+                return Err(PortcoveError::verification(
+                    "removal installation identity is mismatched or duplicated",
+                ));
+            }
+            let paths = crate::output_root::removal_paths(
+                &service.library,
+                &self.port_id,
+                &self.id,
+                &install.path,
+            )?;
+            let actual = match (paths.live.try_exists()?, paths.quarantined.try_exists()?) {
+                (true, false) => paths.live,
+                (false, true) => paths.quarantined,
+                (false, false)
+                    if matches!(
+                        self.phase,
+                        RemovalPhase::Committed | RemovalPhase::CleanupPending
+                    ) =>
+                {
+                    continue;
+                }
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "removal payload location is missing or ambiguous; preserve its recovery evidence",
+                    ));
+                }
+            };
+            refuse_symlink_ancestors(&actual)?;
+            let mut located = install.clone();
+            located.path = actual;
+            let installer = crate::Installer::new(service.library.clone())?;
+            let catalog = installer.retained_catalog(&located)?.ok_or_else(|| {
+                PortcoveError::verification("Removal cannot classify an installation without its retained contract; preserve all runtime and player data for review")
+            })?;
+            let port = catalog.port(&install.port_id)?;
+            if port.adapter == crate::AdapterKind::GeneratedCache {
+                let qualification =
+                    crate::InstallQualification::from_port(port, crate::Platform::current()?)?;
+                let report = installer.verify_managed(&located, &qualification)?;
+                if !report.valid {
+                    return Err(PortcoveError::conflict("Generated-cache removal found changed or unclaimed output. Preserve the entire runtime, quarantine and player data for review")
+                        .detail("failures", serde_json::to_string(&report.failures)?));
+                }
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn advance(
@@ -115,6 +190,8 @@ impl RemovalOperation {
             || operation.created_at != self.created_at
             || operation.paths.quarantine.as_ref() != Some(&self.quarantine)
             || operation.original_paths != self.original_paths
+            || crate::signed_catalog::digest(&serde_json::to_vec(&operation.removal_installs)?)
+                != self.retained_installs_sha256
             || operation.phase != self.phase.stored()
             || !matches!(
                 (self.phase, next),

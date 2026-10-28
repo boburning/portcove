@@ -189,7 +189,9 @@ impl InstallQualification {
             source_preparation: None,
             strict_staged_source: matches!(
                 port.adapter,
-                AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
+                AdapterKind::StagedSourcePortable
+                    | AdapterKind::NativePortable
+                    | AdapterKind::GeneratedCache
             ) || port.n64_runtime_at_executable_parent,
             restore_receipt_metadata: crate::persistence::requires_restore_receipt(port),
             runtime_data_policy: port.runtime_data_policy,
@@ -3458,7 +3460,9 @@ fn full_immutable_integrity(
             let port = catalog.port(&install.port_id)?;
             matches!(
                 port.adapter,
-                AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
+                AdapterKind::StagedSourcePortable
+                    | AdapterKind::NativePortable
+                    | AdapterKind::GeneratedCache
             ) || port.n64_runtime_at_executable_parent
         }
         None => fallback,
