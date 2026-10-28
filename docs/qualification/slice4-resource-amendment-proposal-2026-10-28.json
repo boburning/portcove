@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "status": "PROPOSAL ONLY; NOT RATIFIED",
+  "authority": "none",
+  "effective_policy": {
+    "application_minutes": 89,
+    "catalog_alternative_minutes": 40,
+    "hard_cap_minutes": 100
+  },
+  "proposed_policy": {
+    "application_minutes": 163,
+    "catalog_alternative_minutes": 40,
+    "hard_cap_minutes": 163,
+    "purpose_accounting": "mutually-exclusive-max-application163-catalog40",
+    "unused_application_allowance_minutes": 0
+  },
+  "source_scope": {
+    "engineering_base": "c79ea4a0b3740b261177401a20a20261e91fb68b",
+    "current_workflow_sha256": "76b8fbb5bd7327eb9d33246b0d911ea83943c666efc82607a4458b1b9046020d",
+    "current_policy_sha256": "a951b4c2a6fa036b2b87856ec9e1a06b074626428cbc234400d6ba9bed1b6736",
+    "activation_requires": "Exact final implementation source/workflow/configuration/resource digest, independent review, explicit resource ratification; these preimage hashes are not future approval"
+  },
+  "jobs": [
+    {
+      "job": "admission",
+      "effective_minutes": 1,
+      "proposed_minutes": 1,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tool_bootstrap",
+      "effective_minutes": 4,
+      "proposed_minutes": 12,
+      "scope": "Application branch only; fixed catalog branch remains4",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tool_attest",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tool_bootstrap_windows",
+      "effective_minutes": 4,
+      "proposed_minutes": 20,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "classification_protection_observation",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "classification_writer",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "coordinator",
+      "effective_minutes": 3,
+      "proposed_minutes": 3,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "coordinator_protection_observation",
+      "effective_minutes": 3,
+      "proposed_minutes": 3,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "independent_admission",
+      "effective_minutes": 9,
+      "proposed_minutes": 9,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "protection_observation",
+      "effective_minutes": 10,
+      "proposed_minutes": 10,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "attest",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "native_linux",
+      "effective_minutes": 10,
+      "proposed_minutes": 25,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "payload_signing",
+      "effective_minutes": 10,
+      "proposed_minutes": 10,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_releases",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_preview",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_stable",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_snapshot",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_timestamp",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "release_publication",
+      "effective_minutes": 6,
+      "proposed_minutes": 6,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "site_publication",
+      "effective_minutes": 5,
+      "proposed_minutes": 5,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "site_protection_observation",
+      "effective_minutes": 5,
+      "proposed_minutes": 5,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "native_windows",
+      "effective_minutes": null,
+      "proposed_minutes": 35,
+      "scope": "Missing current production job; proposal requires implementation and review before activation",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "wake",
+      "effective_minutes": 1,
+      "proposed_minutes": 1,
+      "scope": "Same mutually exclusive wake",
+      "observed_protected_seconds": null
+    }
+  ],
+  "allocations": {
+    "tool_bootstrap_application": {
+      "setup_dependencies": 3,
+      "build_tools": 6,
+      "upload_identity_binding": 2,
+      "settlement": 1,
+      "total": 12
+    },
+    "tool_bootstrap_windows": {
+      "setup_dependencies": 4,
+      "runtime_sequential": 7.5,
+      "build_tools": 4,
+      "upload_identity_binding": 3.5,
+      "settlement": 1,
+      "total": 20
+    },
+    "native_linux": {
+      "setup_reacquisition": 3,
+      "pre_post_native_work": 10,
+      "full_payload_signing_wait": 10,
+      "settlement_recovery": 2,
+      "total": 25
+    },
+    "native_windows": {
+      "setup_reacquisition": 3,
+      "runtime_sequential": 7.5,
+      "original_owner_pre_post_capture_upload_recovery": 9.5,
+      "full_payload_signing_wait": 10,
+      "outer_settlement_upload": 5,
+      "total": 35
+    }
+  },
+  "observations": [
+    {
+      "run": "40653503928/1",
+      "source": "fcd44753a4a7095283845fe5a4fd4d357f44e3a4",
+      "windows_component_seconds": 493,
+      "windows_dependency_seconds": 103,
+      "windows_build_seconds": 210,
+      "linux_component_seconds": 270,
+      "limit": "Component/fixture source; not protected cold job or native proof"
+    },
+    {
+      "run": "40686760408/1",
+      "source": "0013a9d2454c55a85e0f00b469fa2ed4d8ae7bb9",
+      "windows_job_seconds": 4494,
+      "runtime_driver_step_seconds": 116,
+      "runtime_helper_milliseconds": 53028,
+      "native_two_build_seconds": 4004,
+      "limit": "Ordinary two-build installed rehearsal; does not size protected prebuilt graph"
+    }
+  ],
+  "invariants": {
+    "maximum_spend_usd": 0,
+    "standard_runners_only": true,
+    "paid_fallback": false,
+    "shared_cache": false,
+    "enlarged_cache": false,
+    "overwrite": false,
+    "unrelated_evidence_deletion": false,
+    "retention_days": 7,
+    "archive_bytes": 536870912,
+    "total_archive_bytes": 2147483648,
+    "report_repair_separate_maximum_minutes": 4,
+    "report_repair_does_not_renew_controller": true
+  },
+  "unknowns": [
+    "Cold protected producer setup/build/upload/source-binding runtime",
+    "Actual protected Linux/Windows prebuilt native workload",
+    "Signing readiness latency within allocated full10minute wait",
+    "Production recovery and final artifact readback time",
+    "Provider availability/account storage headroom",
+    "Catalog4minute shared bootstrap fit remains unproven; catalog40 is retained independent allocation, not completion"
+  ],
+  "engineering_remaining": [
+    "Implement held protected Windows job orchestration with unchanged production admission/receipts",
+    "Implement fixed application12/catalog4 bootstrap timeout branches and purpose-aware complete resource inventory",
+    "Apply proposed ceilings/digests only after explicit ratification; preserve100 until then"
+  ],
+  "stop": "Any enlarged runner/payment/fallback, source or digest mismatch, missing authority, expired original deadline or incomplete cleanup refuses; no automatic retry or budget renewal"
+}

@@ -170,6 +170,27 @@ function os(state: State, script: string, maximum = 16384) {
 }
 async function recheck(state: State) {
   active(state);
+  const gitEnvironment = {
+    ...environment(state.root),
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: "NUL",
+    GIT_NO_REPLACE_OBJECTS: "1",
+    GIT_NO_LAZY_FETCH: "1",
+    GIT_TERMINAL_PROMPT: "0",
+  };
+  const git = (args: string[]) =>
+    execFileSync(windowsSourceSystemExecutables.git, args, {
+      cwd: project,
+      env: gitEnvironment,
+      encoding: "utf8",
+      timeout: Math.max(1, Math.min(10000, Math.floor(state.deadline - performance.now()))),
+      maxBuffer: 65536,
+      windowsHide: true,
+    }).trim();
+  assert.equal(git(["rev-parse", "HEAD"]), state.inputs.source);
+  assert.equal(git(["rev-parse", "HEAD^{tree}"]), state.inputs.tree);
+  git(["-c", "core.fsmonitor=false", "diff", "--quiet", "HEAD", "--"]);
+
   recheckNativeRuntimeCustody(state.files, state.custody);
   recheckNativeRuntimeCustody(state.inputs.drivers.files, state.inputs.drivers.custody);
   recheckWindowsSourceSystemCustody(state.system);
@@ -304,6 +325,7 @@ async function freshTools(inputs: Inputs, deadline: number) {
       "release-hosted-native-windows-setup.cs.txt",
       "native-qualification-account.cs.txt",
       "native-qualification-account-bridge.ps1",
+      "native-qualification-account-client.ps1",
       "native-qualification-account-registry.ps1",
     ];
   const files: { path: string; bytes: number; sha256: string }[] = [];
@@ -1313,33 +1335,41 @@ async function main() {
   if (operation === "settle" && process.argv.length === 3) {
     for (;;) {
       await transportFailure();
+      let result: unknown;
       try {
-        const result: unknown = JSON.parse(
+        result = JSON.parse(
           (
             await readControllerToolFile(path.join(diagnosticRoot, "diagnostic-result.json"), 65536)
           ).toString("utf8"),
-        );
-        assert.ok(
-          isRecord(result) &&
-            result.source === process.env.GITHUB_SHA &&
-            result.run_id === process.env.GITHUB_RUN_ID &&
-            result.attempt === 1 &&
-            isRecord(result.controller) &&
-            result.controller.pid === original.pid &&
-            result.controller.created_filetime === original.created &&
-            result.authority === "none" &&
-            result.production_acceptance === "not-established",
-        );
-        assert.equal(
-          readProcessIdentity(original.pid),
-          null,
-          "Original controller exit remains unobserved",
-        );
-        return result;
+        ) as unknown;
       } catch (error) {
-        if (!["ENOENT", "ERR_ASSERTION"].includes(errorCode(error) ?? "")) throw error;
+        if (errorCode(error) !== "ENOENT") throw error;
+        live();
+        await delay(100);
+        continue;
       }
-      live();
+      assert.ok(
+        isRecord(result) &&
+          result.source === process.env.GITHUB_SHA &&
+          result.run_id === process.env.GITHUB_RUN_ID &&
+          result.attempt === 1 &&
+          isRecord(result.controller) &&
+          result.controller.pid === original.pid &&
+          result.controller.created_filetime === original.created &&
+          result.authority === "none" &&
+          result.production_acceptance === "not-established",
+      );
+      const identity = readProcessIdentity(original.pid);
+      if (identity === null) return result;
+      assert.equal(
+        windowsOwnerFiletime(identity, original.pid),
+        original.created,
+        "Original controller generation differs; no adoption",
+      );
+      assert.ok(
+        process.hrtime.bigint() < original.deadline,
+        "Original controller exit unobserved inside its deadline",
+      );
       await delay(100);
     }
   }
@@ -1362,8 +1392,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           automatic_retry: false,
         }).catch(() => {});
       }
-      console.error(
-        "Connected diagnostic refused; retain original attempt and exact recovery evidence",
-      );
+      if (process.argv[2] !== "run")
+        console.error(
+          "Connected diagnostic refused; retain original attempt and exact recovery evidence",
+        );
       process.exitCode = 2;
     });

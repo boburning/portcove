@@ -100,6 +100,7 @@ const windowsPaths = Object.freeze(
     "bin/tauri-driver.exe",
     "bin/msedgedriver.exe",
     "webview-driver.json",
+    "windows-runtime-prerequisite.json",
     "webview-driver-license.txt",
     "webview-driver-eula.txt",
     "webview-driver-notices.html",

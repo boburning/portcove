@@ -50,7 +50,7 @@ export interface VerifyUpdaterOptions extends CommonOptions {
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants, createReadStream } from "node:fs";
-import { copyFile, lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";

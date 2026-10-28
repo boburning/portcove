@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
@@ -199,7 +199,9 @@ ConvertTo-Json -InputObject $rows -Depth 10 -Compress
     ["-NoProfile", "-NonInteractive", "-File", wrapper, source, floor, root],
     {
       encoding: "utf8",
-      timeout: 45000,
+      // The complete inert source/refusal matrix exceeded45s under concurrent owning families.
+      // This is only its outer harness; download, installer and cleanup bounds stay unchanged.
+      timeout: 90000,
       maxBuffer: 131072,
       env: {
         ...process.env,
@@ -971,4 +973,100 @@ void test("original observer heartbeat refuses stale samples while preserving th
   const stale = fixture.invoke(fixture.checkPath);
   assert.notEqual(stale.status, 0);
   assert.match(stale.stderr, /heartbeat stale/u);
+});
+
+void test("connected diagnostic workflow stays source-held and writes exactly the four fixed public upload paths", async (t) => {
+  const workflow = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS() as {
+    on: { workflow_dispatch: { inputs: Record<string, { default?: unknown }> } };
+    jobs: Record<string, { steps: Record<string, unknown>[] }>;
+  };
+  assert.equal(workflow.on.workflow_dispatch.inputs.connected_private_diagnostic?.default, false);
+  const steps = workflow.jobs["installed-prerequisite"]!.steps;
+  const preflight = steps.findIndex((step) => step.id === "diagnostic_preflight"),
+    native = steps.findIndex((step) => step.name === "Provision pinned Windows native driver");
+  assert.ok(preflight > 0 && preflight < native);
+  for (const name of ["diagnostic_pre_upload", "diagnostic_post_upload"]) {
+    const step = steps.find((row) => row.id === name);
+    assert.ok(step && isRecord(step.with));
+    assert.equal(step.uses, "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
+    assert.equal(step.with["retention-days"], 7);
+    assert.equal(step.with.overwrite, false);
+    assert.equal(step.with["compression-level"], 0);
+  }
+  const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-actions-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const id of ["diagnostic_pre", "diagnostic_post"]) {
+    const step = steps.find((row) => row.id === id);
+    assert.ok(typeof step?.run === "string");
+    const output = path.join(root, id + ".output"),
+      program = path.join(root, id + ".ps1"),
+      request = {
+        request_sha256: "a".repeat(64),
+        name: "fixed-diagnostic-name",
+        files: ["subject.json", "report.json", "capture.json", "bundle.json"],
+      };
+    await writeFile(
+      program,
+      `$ErrorActionPreference='Stop'\nfunction node { '${JSON.stringify(request)}'; $global:LASTEXITCODE=0 }\n` +
+        step.run,
+    );
+    const observed = spawnSync(
+      "pwsh",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
+      { encoding: "utf8", timeout: 15000, env: { ...process.env, GITHUB_OUTPUT: output } },
+    );
+    assert.equal(observed.status, 0, observed.stderr);
+    assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/u), [
+      "request_sha256=" + request.request_sha256,
+      "name=" + request.name,
+      "paths<<PORTCOVE_DIAGNOSTIC_PATHS",
+      ...request.files,
+      "PORTCOVE_DIAGNOSTIC_PATHS",
+    ]);
+  }
+  const launch = fileURLToPath(
+    new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+  );
+  for (const operation of ["Preflight", "Start"]) {
+    const result = spawnSync(
+      "pwsh",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", launch, "-Operation", operation],
+      {
+        encoding: "utf8",
+        timeout: 15000,
+        env: { ...process.env, RUNNER_TEMP: path.join(root, "must-not-create") },
+      },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Connected Windows S2 diagnostic remains held/u);
+  }
+});
+
+void test("source-held diagnostic controller refuses every transport operation before storage and native work", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-controller-held-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const entry = fileURLToPath(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+  );
+  for (const operation of [
+    ["run"],
+    ["request", "payload-signing"],
+    ["ack", "release-publication", "a".repeat(64), "1", "b".repeat(64)],
+    ["abort"],
+    ["settle"],
+  ]) {
+    const result = spawnSync(process.execPath, [entry, ...operation], {
+      encoding: "utf8",
+      timeout: 15000,
+      env: { ...process.env, RUNNER_TEMP: root, PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true" },
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.deepEqual(await readdir(root), []);
+  }
 });

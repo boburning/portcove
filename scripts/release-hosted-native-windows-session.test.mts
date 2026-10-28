@@ -606,6 +606,7 @@ void test("fixed diagnostic acquisition reuses signature verification and refuse
           GITHUB_REPOSITORY:
             scenario === "wrong-repository" ? "other/portcove" : "boburning/portcove",
           PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
+          PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
           PORTCOVE_HOSTED_OBSERVATION_ONLY: scenario === "observer-only" ? "true" : "false",
           GITHUB_EVENT_NAME: "workflow_dispatch",
           GITHUB_JOB: "installed-prerequisite",
@@ -1128,5 +1129,191 @@ void test("same-job derivation binds the maintained producer, actual commands an
         break;
     }
     assert.throws(() => inspect(clone, context, expected), scenario);
+  }
+});
+
+void test("shared original A/B stage mechanics reject altered worker generations and incomplete cleanup before accepting settlement", async () => {
+  const text = readFileSync(
+      new URL("./release-windows-owner-mechanism.mts", import.meta.url),
+      "utf8",
+    ),
+    code = body(
+      "export async function startWindowsOwnerStageMechanism(",
+      "/** End of shared original A/B stage mechanisms. */",
+      text,
+    );
+  for (const scenario of [
+    "success",
+    "worker-request",
+    "lineage",
+    "worker-failed",
+    "undrained",
+    "remaining-child",
+  ]) {
+    const directory = path.resolve("/original-stage/capture"),
+      workerSha = "a".repeat(64),
+      bindingSha = "b".repeat(64),
+      invocation = "c".repeat(64);
+    const trace: string[] = [];
+    const state = {
+      account: { sid: "S-1-5-21-9" },
+      owner: { pid: 10, created: "100" },
+      tools: { node: "fixed-node.exe" },
+    };
+    const stage: {
+      kind: string;
+      directory: string;
+      binding: Record<string, unknown>;
+      workerRequestSha: string;
+      bindingSha: string;
+      station: { before: Buffer; proposed: Buffer } | null;
+      worker?: { pid: number; created: string };
+    } = {
+      kind: "payload-signing",
+      directory,
+      binding: { configuration_sha256: "config" },
+      workerRequestSha: workerSha,
+      bindingSha,
+      station: null,
+    };
+    const vmAssert = {
+      ...assert,
+      deepEqual: (actual: unknown, expected: unknown, message?: string) =>
+        assert.deepEqual(
+          JSON.parse(JSON.stringify(actual)) as unknown,
+          JSON.parse(JSON.stringify(expected)) as unknown,
+          message,
+        ),
+    };
+    const common = runInNewContext(
+      code + ";({start:startWindowsOwnerStageMechanism,settle:settleWindowsOwnerStageMechanism})",
+      {
+        assert: vmAssert,
+        Buffer,
+        JSON,
+        path,
+        isRecord,
+        errorCode: (error: unknown) => (isRecord(error) ? error.code : undefined),
+        delay: async () => {},
+        readProcessIdentity: () => null,
+        windowsOwnerFiletime: () => "200",
+        readControllerToolFile: async (file: string) =>
+          file.endsWith("bridge-state.json")
+            ? Buffer.from(
+                JSON.stringify({
+                  invocation_id: invocation,
+                  broker_pid: 10,
+                  broker_created_filetime: "100",
+                  configuration_sha256: "config",
+                  phase: "prepared",
+                }),
+              )
+            : Buffer.from(file.endsWith("station-dacl-before.bin") ? "before" : "proposed"),
+        NativeAccountClient: class {
+          constructor(binding: unknown) {
+            assert.equal(binding, stage.binding);
+          }
+          invoke(operation: string, phase: string) {
+            assert.equal(operation, "finish");
+            assert.equal(phase, "stage-finish");
+            trace.push("finish");
+          }
+        },
+      },
+    ) as {
+      start: (state: unknown, stage: unknown, options: unknown) => Promise<void>;
+      settle: (state: unknown, stage: unknown, options: unknown) => Promise<void>;
+    };
+    const options = {
+      invocationId: invocation,
+      active: () => {},
+      recheck: async () => {
+        trace.push("recheck");
+      },
+      recheckStage: () => {
+        trace.push("custody");
+      },
+      write: (name: string) => {
+        trace.push(name);
+      },
+      frame: () => {
+        trace.push("worker-start");
+      },
+      remember: async () => {},
+      inspectAccount: async (enabled: boolean) => {
+        trace.push(enabled ? "enabled" : "disabled");
+      },
+      inspectLineage: async () => {
+        if (scenario === "lineage") throw Error("foreign worker parent");
+        trace.push("lineage");
+      },
+      station: async (before: Buffer) => {
+        assert.equal(before.toString(), "before");
+        trace.push("station-restored");
+      },
+      read: async (name: string) => ({
+        file: path.join(directory, name),
+        value: name.endsWith("-station.json")
+          ? { account_sid: state.account.sid, enabled: false }
+          : name.endsWith("-worker.json")
+            ? {
+                pid: 20,
+                created_filetime: "200",
+                owner_pid: 10,
+                owner_created_filetime: "100",
+                image: "fixed-node.exe",
+                request_sha256: workerSha,
+                supervisor_job_pids: [10, 20],
+              }
+            : {
+                account_sid: state.account.sid,
+                disabled: true,
+                station_restored: true,
+                group_empty: true,
+                harness_exit_code: 0,
+                harness_drained: scenario !== "undrained",
+                broker_job_remaining_pids: scenario === "remaining-child" ? [10, 30] : [10],
+              },
+      }),
+      workerRecord: async (name: string) => ({
+        files: [name + ".json", name + ".complete"],
+        value:
+          name === "worker-ready"
+            ? {
+                pid: 20,
+                created_filetime: "200",
+                owner_pid: 10,
+                owner_created_filetime: "100",
+                invocation_id: invocation,
+                stage: "payload-signing",
+                request_sha256: scenario === "worker-request" ? "d".repeat(64) : workerSha,
+                binding_sha256: bindingSha,
+              }
+            : {
+                pid: 20,
+                created_filetime: "200",
+                request_sha256: workerSha,
+                invocation_id: invocation,
+                status: scenario === "worker-failed" ? 1 : 0,
+                authority: "none",
+              },
+      }),
+    };
+    if (["worker-request", "lineage"].includes(scenario)) {
+      await assert.rejects(common.start(state, stage, options), scenario);
+      assert.equal(trace.includes("worker-start"), false);
+      continue;
+    }
+    await common.start(state, stage, options);
+    assert.ok(trace.indexOf("lineage") < trace.indexOf("worker-start"));
+    assert.equal(stage.worker?.pid, 20);
+    if (scenario === "success") {
+      await common.settle(state, stage, options);
+      assert.ok(trace.includes("finish") && trace.includes("station-restored"));
+    } else {
+      await assert.rejects(common.settle(state, stage, options), scenario);
+      assert.equal(trace.includes("station-restored"), false);
+      if (scenario === "worker-failed") assert.equal(trace.includes("finish"), false);
+    }
   }
 });

@@ -282,6 +282,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   assert.equal(process.env.GITHUB_REPOSITORY, "boburning/portcove");
   assert.equal(process.env.PORTCOVE_HOSTED_PLATFORM, "windows-x86_64");
   assert.equal(process.env.PORTCOVE_HOSTED_OBSERVATION_ONLY, "false");
+  assert.equal(process.env.PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC, "true");
   const source = process.env.GITHUB_SHA,
     workflow = process.env.GITHUB_WORKFLOW_REF,
     run_id = process.env.GITHUB_RUN_ID;
@@ -303,6 +304,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
     "GITHUB_REPOSITORY",
     "PORTCOVE_HOSTED_PLATFORM",
     "PORTCOVE_HOSTED_OBSERVATION_ONLY",
+    "PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC",
   ];
   const route = routeNames.map((name) => process.env[name]);
   const deadline = performance.now() + 300000;

@@ -503,3 +503,4 @@ export async function settleWindowsOwnerStageMechanism(
   await options.recheck();
   await options.remember([settled.file]);
 }
+/** End of shared original A/B stage mechanisms. */

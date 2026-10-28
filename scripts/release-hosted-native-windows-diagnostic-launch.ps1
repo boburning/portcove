@@ -9,7 +9,7 @@ if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-host
     $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
     $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,15}$' -or
     $env:GITHUB_WORKFLOW_REF -cnotmatch '^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$' -or
-    $env:PORTCOVE_HOSTED_PLATFORM -cne 'windows-x86_64' -or $env:PORTCOVE_HOSTED_OBSERVATION_ONLY -cne 'false' -or
+    $env:PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC -cne 'true' -or $env:PORTCOVE_HOSTED_PLATFORM -cne 'windows-x86_64' -or $env:PORTCOVE_HOSTED_OBSERVATION_ONLY -cne 'false' -or
     [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne 'X64' -or -not $IsWindows){throw 'Fixed hosted Windows diagnostic context required'}
 $source=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $actual=(& git -C $source rev-parse HEAD|Out-String).Trim()
@@ -32,7 +32,7 @@ $broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $node=(Get-Command node -CommandType Application).Source
 if([IO.Path]::GetFileName($node) -cne 'node.exe' -or (& $node --version|Out-String).Trim() -cne 'v24.22.1' -or $LASTEXITCODE -ne 0){throw 'Fixed existing Node24.22.1 runtime required'}
 $closed=[ordered]@{}
-foreach($name in @('SystemRoot','WINDIR','PATH','PATHEXT','USERPROFILE','HOME','TEMP','TMP','LOCALAPPDATA','RUNNER_TEMP','RUNNER_TRACKING_ID','RUSTUP_HOME','CARGO_HOME','PORTCOVE_SHARED_TOOL_CACHE','PORTCOVE_RESOURCE_RESERVATION','PORTCOVE_RESOURCE_PROCESS_TOKEN','PORTCOVE_HEAVY_RUST_LOCK_TOKEN','GITHUB_ACTIONS','RUNNER_ENVIRONMENT','GITHUB_REPOSITORY','GITHUB_JOB','GITHUB_WORKFLOW_REF','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','GITHUB_EVENT_NAME','PORTCOVE_HOSTED_PLATFORM','PORTCOVE_HOSTED_OBSERVATION_ONLY')){
+foreach($name in @('SystemRoot','WINDIR','PATH','PATHEXT','USERPROFILE','HOME','TEMP','TMP','LOCALAPPDATA','RUNNER_TEMP','RUNNER_TRACKING_ID','RUSTUP_HOME','CARGO_HOME','PORTCOVE_SHARED_TOOL_CACHE','PORTCOVE_RESOURCE_RESERVATION','PORTCOVE_RESOURCE_PROCESS_TOKEN','PORTCOVE_HEAVY_RUST_LOCK_TOKEN','GITHUB_ACTIONS','RUNNER_ENVIRONMENT','GITHUB_REPOSITORY','GITHUB_JOB','GITHUB_WORKFLOW_REF','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','GITHUB_EVENT_NAME','PORTCOVE_HOSTED_PLATFORM','PORTCOVE_HOSTED_OBSERVATION_ONLY','PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC')){
     $value=[Environment]::GetEnvironmentVariable($name,'Process')
     if($null -ne $value){if($value.Length -gt 32768 -or $value.Contains([char]0)){throw 'Closed diagnostic environment differs'};$closed[$name]=$value}
 }

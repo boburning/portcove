@@ -3,6 +3,88 @@
 import assert from "node:assert/strict";
 import { isRecord } from "./runtime-values.mts";
 import { assertMinimumVersion } from "./release-authority-configuration-contract.mts";
+import path from "node:path";
+import { lstat } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readControllerToolFile } from "./release-controller-tools.mts";
+import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+
+/** Shared byte/identity fence only; callers retain workflow/admission authority. */
+export async function captureSupportedHostedWindowsRuntimeInput(
+  sourceRoot: string,
+  context: {
+    source: string | undefined;
+    workflow: string | undefined;
+    run_id: string | undefined;
+    attempt: string | undefined;
+  },
+  sourceRecheck: () => void,
+) {
+  const read = async (relative: string) => {
+    sourceRecheck();
+    const filename = await assertOwnedUnlinkedPath(
+        sourceRoot,
+        path.join(sourceRoot, relative),
+        "Supported Windows runtime input",
+      ),
+      before = await lstat(filename, { bigint: true });
+    assert.ok(before.isFile() && !before.isSymbolicLink() && before.nlink === 1n);
+    const bytes = await readControllerToolFile(filename, 65536),
+      after = await lstat(filename, { bigint: true });
+    for (const key of ["dev", "ino", "mode", "size", "nlink", "mtimeNs", "ctimeNs"] as const)
+      assert.equal(after[key], before[key], "Runtime input changed during read");
+    await assertOwnedUnlinkedPath(sourceRoot, filename, "Supported Windows runtime input");
+    sourceRecheck();
+    return { relative, bytes, identity: before };
+  };
+  const floor = await read("apps/desktop/src-tauri/src/runtime_support.rs"),
+    input = await read("work/hosted-continuity-evidence/windows-runtime.json"),
+    facts = inspectSupportedHostedWindowsRuntimeInput(floor.bytes, input.bytes, context),
+    hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const identity = (value: typeof input) => ({
+    path: value.relative,
+    bytes: value.bytes.length,
+    sha256: hash(value.bytes),
+  });
+  let stopped = false;
+  const recheck = async () => {
+    assert.ok(!stopped, "Original supported runtime input stopped");
+    try {
+      for (const old of [floor, input]) {
+        const current = await read(old.relative);
+        assert.ok(old.bytes.equals(current.bytes), "Original runtime bytes changed");
+        for (const key of ["dev", "ino", "mode", "size", "nlink", "mtimeNs", "ctimeNs"] as const)
+          assert.equal(
+            current.identity[key],
+            old.identity[key],
+            "Original runtime identity changed",
+          );
+      }
+    } catch (error) {
+      stopped = true;
+      throw error;
+    }
+  };
+  await recheck();
+  return {
+    facts,
+    report: {
+      source: context.source,
+      workflow: context.workflow,
+      run_id: context.run_id,
+      attempt: context.attempt,
+      input: identity(input),
+      floor: identity(floor),
+      runtime_version: facts.observed,
+      minimum: facts.minimum,
+      scope:
+        "Source-bootstrap supported runtime prerequisite; no loaded engine or native acceptance",
+      authority: "none",
+    },
+    receipt: Buffer.from(input.bytes),
+    recheck,
+  };
+}
 export function inspectSupportedHostedWindowsRuntimeInput(
   floorBytes: Buffer,
   runtimeBytes: Buffer,
