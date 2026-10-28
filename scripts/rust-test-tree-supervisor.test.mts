@@ -14,11 +14,104 @@ import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-
 import { executeFallow } from "./fallow-execution.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { frontendOutputResource } from "./resource-capacity.mts";
+import { unixCleanupProgram } from "./rust-test-tree-supervisor.mts";
 
 interface ProcessExit {
   code: number | null;
   signal: NodeJS.Signals | null;
 }
+
+void test("serialized Unix watchdog requires actual absence after transient permission observations", async () => {
+  for (const mode of [
+    "initial-permission",
+    "observation-permission",
+    "persistent-permission",
+    "present",
+    "unexpected",
+    "absent",
+  ] as const) {
+    const writes = new Map<string, string>();
+    const listeners = new Map<string, () => void>();
+    const signals: (NodeJS.Signals | 0)[] = [];
+    let clock = 0,
+      observations = 0;
+    runInNewContext(
+      unixCleanupProgram({ readyPath: "/owned/ready", receiptPath: "/owned/receipt", group: 4242 }),
+      {
+        require: (name: string) => {
+          assert.equal(name, "node:fs");
+          return {
+            writeFileSync: (file: string, bytes: string, options: { flag: string }) => {
+              assert.equal(options.flag, "wx");
+              assert.ok(!writes.has(file));
+              writes.set(file, bytes);
+            },
+            renameSync: (from: string, to: string) => {
+              assert.equal(to, "/owned/receipt");
+              writes.set(to, required(writes.get(from)));
+              writes.delete(from);
+            },
+          };
+        },
+        Date: { now: () => clock },
+        setTimeout: (callback: () => void, delay: number) => {
+          clock += delay;
+          queueMicrotask(callback);
+        },
+        process: {
+          pid: 43,
+          stdin: {
+            once: (name: string, callback: () => void) => listeners.set(name, callback),
+            resume() {},
+          },
+          kill: (group: number, signal: NodeJS.Signals | 0) => {
+            assert.equal(group, -4242, "Observation must retain the original anchored group");
+            signals.push(signal);
+            const fail = (code: string) => {
+              throw Object.assign(new Error(code), { code });
+            };
+            if (signal === "SIGKILL") {
+              if (mode === "initial-permission" || mode === "persistent-permission") fail("EPERM");
+              if (mode === "unexpected") fail("EIO");
+              if (mode === "absent") fail("ESRCH");
+              return;
+            }
+            assert.equal(signal, 0, "Only the first operation may send SIGKILL");
+            if (mode === "present") return;
+            if (mode === "persistent-permission" || observations++ === 0) fail("EPERM");
+            fail("ESRCH");
+          },
+        },
+      },
+      { timeout: 1000 },
+    );
+    assert.equal(writes.get("/owned/ready"), "ready\n");
+    required(listeners.get("end"))();
+    for (let tick = 0; tick < 2000 && !writes.has("/owned/receipt"); tick++)
+      await Promise.resolve();
+    const receipt = json(required(writes.get("/owned/receipt")));
+    assert.equal(
+      receipt.outcome,
+      mode === "persistent-permission"
+        ? "failed:EPERM"
+        : mode === "present"
+          ? "failed:timeout"
+          : mode === "unexpected"
+            ? "failed:EIO"
+            : "quiescent",
+      mode,
+    );
+    assert.equal(signals.filter((signal) => signal === "SIGKILL").length, 1);
+    assert.ok(clock <= 5000, "Permission observations must not renew the original deadline");
+    if (mode === "persistent-permission" || mode === "present") assert.equal(clock, 5000);
+    required(listeners.get("end"))();
+    assert.equal(
+      signals.filter((signal) => signal === "SIGKILL").length,
+      1,
+      "Repeated pipe loss must not signal again",
+    );
+  }
+});
 
 void test(
   "analyzer deadline retains live partial streams and proves ordinary descendant exit",

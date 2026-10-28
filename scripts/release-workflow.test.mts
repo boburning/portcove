@@ -477,7 +477,12 @@ void test(
 
 void test(
   "publisher retries and recovers an interrupted draft without touching a published release",
-  { skip: !bashExecutable },
+  {
+    skip:
+      process.platform !== "linux"
+        ? "The production publisher runs on Ubuntu with GNU date; catalog-full-2 and release-check execute this fixture on Linux."
+        : false,
+  },
   async (t) => {
     assert.ok(bashExecutable);
     const root = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-"));
