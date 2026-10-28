@@ -1233,6 +1233,13 @@ impl Installer {
             manifest_sha256,
             selected_executable,
         };
+        check_retained_runtime_paths(
+            &InstallRecord {
+                path: payload_root.clone(),
+                ..install.clone()
+            },
+            &install.path,
+        )?;
         lifecycle.record.install = Some(install.clone());
         self.faults
             .check(LifecycleFaultPoint::InstallReadyToPublish)?;
@@ -1899,6 +1906,7 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<PathBuf> {
+        check_retained_runtime_paths(install, &install.path)?;
         let manifest = verified_manifest(install)?;
         // Mutable verification projections may intentionally omit the retained
         // contract. Artifact authority comes from the authenticated manifest,
@@ -2041,6 +2049,7 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<()> {
+        check_retained_runtime_paths(install, &install.path)?;
         let manifest = verified_manifest(install)?;
         let mut qualification = qualification.clone();
         if manifest.retained_contract.as_ref().is_some_and(|contract| {
@@ -3002,6 +3011,44 @@ pub(crate) fn verified_launch_subject(install: &InstallRecord) -> Result<[u8; 32
     )
 }
 
+/// Inspect the authenticated creating contract and immutable members at their
+/// proposed final coordinates. Does not synchronize data or change the record.
+pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Path) -> Result<()> {
+    let manifest = verified_manifest(install)?;
+    let Some(contract) = &manifest.retained_contract else {
+        return Ok(());
+    };
+    let catalog = contract.catalog(&install.port_id)?;
+    let port = catalog.port(&install.port_id)?;
+    if port.windows_runtime_path_policy
+        != Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+    {
+        return Ok(());
+    }
+    let platform = manifest.platform.ok_or_else(|| {
+        PortcoveError::verification("runtime path policy requires the retained platform")
+    })?;
+    crate::runtime_path_policy::check_package_paths(
+        port,
+        platform,
+        target,
+        manifest.files.iter().map(|member| member.path.as_str()),
+    )?;
+    let executable = target.join(&manifest.selected_executable);
+    crate::runtime_path_policy::check_executable(port, platform, &executable)?;
+    let observed_executable = install.path.join(&manifest.selected_executable);
+    let observed_working = crate::adapter::launch_working_directory(
+        port.adapter,
+        port,
+        &install.path,
+        &observed_executable,
+    )?;
+    let relative = observed_working.strip_prefix(&install.path).map_err(|_| {
+        PortcoveError::verification("runtime working directory escaped its installation")
+    })?;
+    crate::runtime_path_policy::check(port, platform, &target.join(relative))
+}
+
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
     verified_manifest_with_limit(install, None)
 }
@@ -3803,6 +3850,7 @@ fn normalize_standalone_appimage(
 #[cfg(test)]
 mod tests {
     mod dynamic_policy;
+    mod native_paths;
     use std::{
         fs::File,
         sync::{

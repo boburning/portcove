@@ -43,6 +43,18 @@ impl PortcoveService {
         crate::library_import::validate_metadata(&metadata, &catalogs)?;
         for install in &metadata.application_versions {
             let retained_catalog = catalogs.catalog_for_install(install)?;
+            let mut recorded = install.clone();
+            recorded.path = source_root.join(&install.path);
+            if retained_catalog
+                .port(&install.port_id)?
+                .windows_runtime_path_policy
+                == Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+            {
+                crate::install::check_retained_runtime_paths(
+                    &recorded,
+                    &destination_root.join(&install.path),
+                )?;
+            }
             crate::runtime_path_policy::check_executable(
                 retained_catalog.port(&install.port_id)?,
                 crate::Platform::current()?,

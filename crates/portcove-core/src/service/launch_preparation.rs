@@ -57,6 +57,7 @@ impl PortcoveService {
         }
         let catalog = self.installed_catalog(active)?;
         let port = catalog.port(&active.port_id)?;
+        crate::install::check_retained_runtime_paths(active, &active.path)?;
         self.require_installed_shared_preferences(active)?;
         self.require_ghostship_install_data_compatibility(active, None)?;
         let qualification = self.installed_mutability_qualification(active)?;

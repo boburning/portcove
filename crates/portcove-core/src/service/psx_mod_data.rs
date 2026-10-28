@@ -762,6 +762,7 @@ impl PortcoveService {
 
     /// Shared preflight before the caller's reuse, activation or recovery commit.
     pub(crate) fn prepare_retained_install_data(&self, install: &InstallRecord) -> Result<()> {
+        crate::install::check_retained_runtime_paths(install, &install.path)?;
         self.require_portable_runtime_unchanged(install)?;
         let qualification = self.installed_mutability_qualification(install)?;
         let active = self
