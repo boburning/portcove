@@ -7,6 +7,26 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI40735538051/a1 Windows partition1 job122989201944 reached Active,
+# Retired and Superseded completion at18.492/22.354/26.219s, then began
+# Abandoned before its30.047s cutoff. Retain the entire maintenance matrix
+# under the same finite60s safeguard already used on Intel.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# The same run's Windows partition3 job122989201991 reached preparation
+# completion at25.819s before its30.040s lifecycle cutoff. Preserve actual
+# install/update/prepare/launch observations with existing Linux/Intel90s
+# outer headroom; child/product deadlines, workers and retries are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40731813951/a1 Windows partition8 job122974032101 exhausted30.054s
 # in the two-variant channel/instance drift fixture. Each request retains its
 # existing30s QueryFence; allow90s only for the enclosing two-request/setup

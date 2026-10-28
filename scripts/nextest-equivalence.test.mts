@@ -286,8 +286,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   });
   const curatedInstalledWithdrawalFilter =
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
+  const historicalByteOnlyBackupFilter =
+    "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)";
   const windowsLifecycleFilters = [
-    "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
+    "package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)",
+    historicalByteOnlyBackupFilter,
     "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
     "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
     "package(portcove-core) & (test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/) | test(/^service::tests::backups::interrupted_backup_stages_are_visible_without_hiding_verified_backups$/))",
@@ -301,6 +304,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)",
     "package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)",
   ];
+  const windowsRuntimeDiagnosticsFilter =
+    "package(portcove-cli) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)";
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
   const psxProgressionFilter =
@@ -345,6 +350,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsRuntimeDiagnosticsFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
     ]
@@ -410,7 +416,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     for (const field of ["retries", "threads-required", "priority", "default-filter"])
       assert.equal(override[field], undefined);
     assert.ok(
-      overrides.indexOf(override) < overrides.indexOf(overrideFor(windowsLifecycleFilters[0]!)),
+      overrides.indexOf(override) < overrides.indexOf(overrideFor(historicalByteOnlyBackupFilter)),
     );
   }
   for (const filter of windowsLifecycleFilters) {
@@ -454,7 +460,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     for (const field of ["retries", "threads-required", "priority"])
       assert.equal(override[field], undefined);
   }
-  for (const filter of [replacementDownloadFilter, namedSaveRestoreFilter, psxProgressionFilter]) {
+  for (const filter of [
+    replacementDownloadFilter,
+    namedSaveRestoreFilter,
+    psxProgressionFilter,
+    windowsRuntimeDiagnosticsFilter,
+  ]) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override["success-output"], "immediate");
     assert.deepEqual(override["slow-timeout"], {
