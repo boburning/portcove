@@ -66,6 +66,9 @@ refusing mismatched bodies. Exactly one active item, the complete issue body,
 neutral planning fields and applicable scoped doctors must verify before the
 receipt says `complete`. A logical batch over ten retains its final full doctor.
 Scoped receipts retain `global_health: not_evaluated`.
+The shared inventory reader permits one admitted complete replacement for known
+Project revision/count drift per execution batch. It discards the changed view;
+another drift or any provider/integrity failure holds intake within the same budget.
 
 Hosted reporting reads the bot receipt and exact request/plan binding. An issue
 creation response, automatic attachment, accepted dispatch or running workflow
@@ -535,12 +538,13 @@ Unexpected changed-body reads still consume the original hard budget and refuse
 when it cannot fit; neither reconciliation allowance expands those limits.
 
 Separately, a changing `totalCount` between successful Project connection pages
-produces a typed `inventory_changed` refusal. Once per foreground session, the
-runner may discard that entire incomplete view and recollect the complete
+or a changed Project revision bracket produces a typed `inventory_changed`
+refusal. Once per execution batch, the maintained reader may discard that entire
+incomplete view and recollect the complete
 inventory from fresh repository and Project context. It never joins abandoned
 pages or falls back to a cached view. Both attempts and their charged request
 counts are retained. Only the fully validated replacement can reach mutation or
-doctor; a second count drift stops the run. Transport denials, malformed pages,
+doctor; a second inventory drift stops the run. Transport denials, malformed pages,
 duplicate identities and other integrity failures do not trigger recollection.
 This allowance is distinct from issue-revision reconciliation and does not
 restart the process or retry a failed HTTP request. Retained created issue and

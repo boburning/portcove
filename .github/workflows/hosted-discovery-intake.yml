@@ -87,7 +87,7 @@ jobs:
           import { existsSync, readdirSync, readFileSync } from 'node:fs';
           const root = 'work/hosted-discovery-intake';
           if (existsSync(root)) for (const name of readdirSync(root)) {
-            if (!/^(?:summary|write-probe|write-proof-\d+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
+            if (!/^(?:summary|inventory-recollection|write-probe|write-proof-\d+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
             const bytes = readFileSync(`${root}/${name}`);
             if (bytes.length <= 262144) console.log(JSON.stringify({ file: name, evidence: JSON.parse(bytes) }));
           }

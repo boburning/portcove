@@ -44,7 +44,7 @@ investigator for hosted discovery; local collection and research can use
 GPT-6.1-Sol Medium. Software changes retain independent review and CI under QUALITY.
 Ordinary and cold budgets
 are selected by the runner. Retain an explicit continuation when work does not fit.
-The one permitted count-drift recollection spends the existing delivery reserve
+The one permitted Project revision/count-drift recollection spends the existing delivery reserve
 for one complete replacement inventory; it does not start a new delivery budget.
 This workflow researches metadata and applies authorized neutral intake or
 material factual updates. It does not implement, install, admit, qualify or

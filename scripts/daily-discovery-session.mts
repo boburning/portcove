@@ -30,7 +30,11 @@ import {
   isNonCatalogResearchBody,
 } from "./roadmap-issue.mts";
 import type { RoadmapInventory, InventoryCache } from "./roadmap-inventory.mts";
-import { collectRoadmapInventory, requireRoadmapInventory } from "./roadmap-inventory.mts";
+import {
+  collectRoadmapInventory,
+  collectRoadmapInventoryWithRecollection,
+  requireRoadmapInventory,
+} from "./roadmap-inventory.mts";
 import {
   DiscoveryBudget,
   selectDiscoveryProfile,
@@ -487,53 +491,34 @@ export class DiscoverySession {
         this.budget.usage.profile === "cold" && !this.inventoryStarted ? undefined : old,
       );
     const started = this.budget.usage.requests;
-    try {
-      this.inventory = collect();
-    } catch (error) {
-      if (
-        !(error instanceof GitHubApiError) ||
-        error.code !== "inventory_changed" ||
-        this.inventoryRecollections !== 0
-      )
-        throw error;
-      this.inventoryRecollections++;
-      const observation = {
-        phase: "inventory-recollection",
-        allowance: this.inventoryRecollections,
-        first: {
-          error: errorMessage(error),
-          requests_before: started,
-          requests_after: this.budget.usage.requests,
-        },
-        second: {
-          requests_before: this.budget.usage.requests,
-          requests_after: this.budget.usage.requests,
-          status: "pending",
-          error: "",
-        },
-      };
-      this.journal.notes.push(observation);
-      this.persist();
-      try {
+    const observation = {
+      phase: "inventory-recollection",
+      allowance: 0,
+      first: { error: "", requests_before: started, requests_after: started },
+      second: { requests_before: started, requests_after: started, status: "pending", error: "" },
+    };
+    this.inventory = collectRoadmapInventoryWithRecollection(this.client, collect, this, {
+      before: (error) => {
+        observation.allowance = this.inventoryRecollections;
+        observation.first.error = errorMessage(error);
+        observation.first.requests_after = this.budget.usage.requests;
+        observation.second.requests_before = this.budget.usage.requests;
+        this.journal.notes.push(observation);
+        this.persist();
         if (this.inventory) {
           // The batch reserve already includes this one replacement inventory.
           // Do not require another doctor plus another recollection reserve here.
           const cost = discoveryInventoryCost(this.inventory);
           this.budget.admit(cost.requests, cost.bytes);
         } else this.budget.admit(1, 1);
-        this.client._completeProjectContext = undefined;
-        this.client._projectContext = undefined;
-        this.inventory = collect();
-        observation.second.status = "complete";
-      } catch (second) {
-        observation.second.status = "failed";
-        observation.second.error = errorMessage(second);
-        throw second;
-      } finally {
+      },
+      after: (status, error) => {
+        observation.second.status = status;
+        observation.second.error = status === "failed" ? errorMessage(error) : "";
         observation.second.requests_after = this.budget.usage.requests;
         this.persist();
-      }
-    }
+      },
+    });
     this.inventoryCache = this.inventory;
     this.inventoryStarted = true;
     if (this.budget.usage.profile === "cold")

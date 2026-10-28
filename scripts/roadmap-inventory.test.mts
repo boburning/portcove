@@ -8,6 +8,7 @@ import { RoadmapClient, validateConfig } from "./roadmap.mts";
 import { renderPortIssueBody } from "./roadmap-issue.mts";
 import {
   collectRoadmapInventory,
+  collectRoadmapInventoryWithRecollection,
   requireRoadmapInventory,
   invalidateRoadmapInventory,
 } from "./roadmap-inventory.mts";
@@ -18,6 +19,7 @@ import { GitHubApiError } from "./github-api.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { readDiscoveryCache } from "./discovery-cache.mts";
+import { HostedIntakeBridge } from "./hosted-discovery-intake.mts";
 import {
   discoveryDeliveryCost,
   discoveryInventoryCost,
@@ -223,6 +225,93 @@ async function temporarySession(
     session,
   };
 }
+for (const mode of ["local", "hosted"] as const) {
+  void test(`${mode} inventory replaces one changed Project snapshot and retains the run-scoped allowance`, async (t) => {
+    const f = fixture(2);
+    const original = f.client.graphql.bind(f.client);
+    let revisions = 0,
+      keepMoving = false;
+    f.client.graphql = (query, variables) => {
+      const data = original(query, variables);
+      if (query.includes("projectRevision")) {
+        revisions++;
+        const marker = (data as { projectRevision: { updatedAt: string } }).projectRevision;
+        marker.updatedAt = keepMoving
+          ? `2026-10-29T00:00:${String(revisions).padStart(2, "0")}Z`
+          : revisions === 1
+            ? "2026-10-28T00:00:00Z"
+            : "2026-10-28T00:00:01Z";
+        if (revisions === 2) f.project[0]!.id = "P_replacement";
+      }
+      return data;
+    };
+    const { session, state } = await temporarySession(t);
+    session.client.graphql = f.client.graphql;
+    session.client.completeProjectContext = f.client.completeProjectContext;
+    session.client.itemList = f.client.itemList;
+    const retained: unknown[] = [];
+    const hosted = new HostedIntakeBridge(
+      f.client,
+      "a".repeat(40),
+      () => {
+        throw new Error("No research in inventory fixture");
+      },
+      (_name, value) => retained.push(value),
+      () => session.budget.admit(1, 1),
+    );
+    const read = () => (mode === "local" ? session.refresh() : hosted.inventory());
+    const counter = () =>
+      mode === "local" ? session.inventoryRecollections : hosted.inventoryRecollections;
+    const result = read();
+    assert.equal(counter(), 1);
+    assert.equal(revisions, 4);
+    assert.equal(
+      result.items[0]?.id,
+      "P_replacement",
+      "abandoned first-pass rows must be discarded",
+    );
+    const cache =
+      mode === "local" ? readFileSync(path.join(state, "inventory.json"), "utf8") : undefined;
+    keepMoving = true;
+    assert.throws(
+      read,
+      (error) => error instanceof GitHubApiError && error.code === "inventory_changed",
+    );
+    assert.equal(counter(), 1);
+    assert.equal(revisions, 6, "a later read cannot replenish the consumed allowance");
+    if (cache !== undefined)
+      assert.equal(readFileSync(path.join(state, "inventory.json"), "utf8"), cache);
+    else assert(retained.some((value) => JSON.stringify(value).includes('"status":"complete"')));
+  });
+}
+void test("inventory replacement refuses second drift, provider denial, integrity errors and exhausted admission", () => {
+  for (const kind of ["second-drift", "denial", "integrity", "budget"] as const) {
+    const f = fixture(1),
+      state = { inventoryRecollections: 0 };
+    let traversals = 0,
+      admissions = 0;
+    const statuses: string[] = [];
+    const collect = (): ReturnType<typeof collectRoadmapInventory> => {
+      traversals++;
+      if (kind === "denial") throw new GitHubApiError("http_error", "denied", { status: 403 });
+      if (kind === "integrity") throw new Error("Project changed during inventory collection");
+      throw new GitHubApiError("inventory_changed", "known revision moved");
+    };
+    assert.throws(() =>
+      collectRoadmapInventoryWithRecollection(f.client, collect, state, {
+        before: () => {
+          admissions++;
+          if (kind === "budget") throw new Error("budget exhausted");
+        },
+        after: (status) => statuses.push(status),
+      }),
+    );
+    assert.equal(traversals, kind === "second-drift" ? 2 : 1);
+    assert.equal(admissions, ["denial", "integrity"].includes(kind) ? 0 : 1);
+    assert.equal(state.inventoryRecollections, ["denial", "integrity"].includes(kind) ? 0 : 1);
+    assert.deepEqual(statuses, ["denial", "integrity"].includes(kind) ? [] : ["failed"]);
+  }
+});
 void test("prepared metadata needs no reviewer but stale primary evidence stays pending across restart", async (t) => {
   const { session, state, run } = await temporarySession(t);
   session.inventory = collectRoadmapInventory(fixture(1).client);

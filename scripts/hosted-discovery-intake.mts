@@ -5,7 +5,10 @@ import { runCheckedGit } from "./checked-git.mts";
 import { RoadmapClient, portFieldInitialization, runDoctor, validateConfig } from "./roadmap.mts";
 import { qualificationCatalogObservation } from "./roadmap-qualification.mts";
 import { GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
-import { collectRoadmapInventory } from "./roadmap-inventory.mts";
+import {
+  collectRoadmapInventory,
+  collectRoadmapInventoryWithRecollection,
+} from "./roadmap-inventory.mts";
 import { runScopedDoctor } from "./roadmap-scoped.mts";
 import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
 import { investigateDiscoveryUpstream } from "./daily-discovery-sources.mts";
@@ -13,7 +16,7 @@ import { assertDiscoveryIntakeIdentity, discoveryGameKey } from "./discovery-int
 import { readCatalogSource } from "./catalog-authoring.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
 import { discoveryPost } from "./discovery-mutation.mts";
-import { validateDiscoveryIntakeBody } from "./daily-discovery-session.mts";
+import { validateDiscoveryIntakeBody, discoveryInventoryCost } from "./daily-discovery-session.mts";
 import {
   renderPortIssueBody,
   findPortIssueDuplicates,
@@ -272,20 +275,26 @@ function receiptBody(r: Receipt) {
   return body;
 }
 export class HostedIntakeBridge {
+  inventoryRecollections = 0;
   readonly client: RoadmapClient;
   readonly head: string;
   readonly research: (repository: string) => ReturnType<typeof investigateDiscoveryUpstream>;
   readonly save: (name: string, value: unknown) => void;
+  readonly admitRecollection: (cache?: RoadmapInventory) => void;
   constructor(
     client: RoadmapClient,
     head: string,
     research: (repository: string) => ReturnType<typeof investigateDiscoveryUpstream>,
     save: (name: string, value: unknown) => void,
+    admitRecollection: (cache?: RoadmapInventory) => void = () => {
+      throw new Error("Inventory recollection admission is not configured");
+    },
   ) {
     this.client = client;
     this.head = head;
     this.research = research;
     this.save = save;
+    this.admitRecollection = admitRecollection;
   }
   get prefix() {
     return `repos/${this.client.config.repository}/issues`;
@@ -401,7 +410,30 @@ export class HostedIntakeBridge {
   inventory(cache?: RoadmapInventory) {
     this.client._completeProjectContext = undefined;
     this.client._projectContext = undefined;
-    return collectRoadmapInventory(this.client, cache);
+    let first: ReturnType<typeof sanitizeOperationError> | undefined;
+    return collectRoadmapInventoryWithRecollection(
+      this.client,
+      () => collectRoadmapInventory(this.client, cache),
+      this,
+      {
+        before: (error) => {
+          first = sanitizeOperationError(error);
+          this.save("inventory-recollection", {
+            status: "pending",
+            allowance: this.inventoryRecollections,
+            first,
+          });
+          this.admitRecollection(cache);
+        },
+        after: (status, error) =>
+          this.save("inventory-recollection", {
+            status,
+            allowance: this.inventoryRecollections,
+            first,
+            ...(status === "failed" ? { second: sanitizeOperationError(error) } : {}),
+          }),
+      },
+    );
   }
   duplicates(inventory: RoadmapInventory, p: Planned, exclude?: number) {
     const c = p.candidate,
@@ -681,6 +713,10 @@ async function main() {
     head,
     (repo) => investigateDiscoveryUpstream({ api, budget, http: project, save }, repo),
     save,
+    (cache) => {
+      const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
+      budget.admit(cost.requests, cost.bytes);
+    },
   );
   try {
     const inputs = object(event).inputs;
