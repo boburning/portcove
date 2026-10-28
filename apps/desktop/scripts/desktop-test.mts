@@ -3923,10 +3923,12 @@ try {
     await captureOutputDestinationReview("game-details");
     const draftPath = "C:\\Portcove-fixture\\Future-install";
     await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
+    await revealDetailSection(browser, "Game files");
     const sourceDraft = await browser.findElement(
       By.css('.requirements-body input[id^="source-"]'),
     );
     await sourceDraft.sendKeys("C:\\Portcove-fixture\\candidate.z64");
+    await revealDetailSection(browser, "Manage");
     await browser.wait(
       async () =>
         (await executeBrowserScript(
@@ -3938,7 +3940,9 @@ try {
       "the open future-folder editor closed after selecting game files",
     );
     assert.equal(await outputDraft.getAttribute("value"), draftPath);
+    await revealDetailSection(browser, "Game files");
     await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await revealDetailSection(browser, "Manage");
     await browser.wait(
       async () =>
         (await executeBrowserScript(
