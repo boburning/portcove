@@ -1058,7 +1058,11 @@ jobs:
       - name: Execute Intel binaries on Intel hardware
         env:
           PORTCOVE_INTEL_PARTITION_STRATEGY: ${{ inputs.intel_partition_strategy || 'duration' }}
-        run: node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"
+          LC_ALL: C
+        run: |
+          mkdir -p work/test-results
+          /usr/sbin/sysctl -n hw.logicalcpu hw.physicalcpu machdep.cpu.brand_string > work/test-results/intel-host.txt
+          /usr/bin/time -lp -o work/test-results/intel-resource-usage.txt node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"
       - name: Retain Intel discovery and original case outcomes
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

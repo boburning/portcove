@@ -807,6 +807,14 @@ original outcomes. Legacy `hash:1/2` and `hash:2/2` labels identify worker slots
 runs accept `duration` or the complete `hash-control` for comparable measurement.
 Hints and modeled balance do not establish CPU/I/O costs or a measured speedup.
 
+Intel comparison artifacts also retain `intel-host.txt` (logical/physical cores
+and CPU model) and `intel-resource-usage.txt`, produced by macOS's bundled
+`/usr/bin/time -lp`. Its elapsed/user/system times, context switches and block
+I/O operation counts describe the complete qualification command. Block counts
+are not byte throughput or device utilization. Attribute queue, archive/cache
+and cleanup separately from the existing stage receipts and hosted job steps;
+these observations do not establish per-family independence or native acceptance.
+
 Inventory/build, archive creation, transfer/setup, partition execution and
 transport build/run phases must be included when assessing total feedback time.
 Retain queue delay, cache state and summed runner time separately from elapsed
