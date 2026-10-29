@@ -403,6 +403,23 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   assert.equal(sourcePreparation["success-output"], "immediate");
   for (const field of ["platform", "retries", "threads-required", "priority", "default-filter"])
     assert.equal(sourcePreparation[field], undefined);
+  const retainedLinux = overrideFor(
+    "package(portcove-core) & (test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/) | test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/))",
+    "x86_64-unknown-linux-gnu",
+  );
+  assert.deepEqual(retainedLinux["slow-timeout"], {
+    period: "5s",
+    "terminate-after": 12,
+    "grace-period": "0s",
+  });
+  for (const field of [
+    "retries",
+    "threads-required",
+    "priority",
+    "default-filter",
+    "success-output",
+  ])
+    assert.equal(retainedLinux[field], undefined);
   const linuxLifecycle = overrideFor(linuxLifecycleFilter, "x86_64-unknown-linux-gnu");
   assert.deepEqual(linuxLifecycle["slow-timeout"], {
     period: "5s",

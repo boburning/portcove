@@ -57,9 +57,11 @@ success-output = "immediate"
 # The October 25 source-status regression completed in 24.690s, then hit
 # the 30s harness cutoff under shared-host load. Keep this exact Linux case
 # bounded at 60s; retain assertions, two slots, cleanup and zero retries.
+# The October29 composed authenticated-retention fixture also reached30.014s
+# during its complete retained lifecycle. Include that exact Linux case at60s.
 [[profile.default.overrides]]
 platform = 'x86_64-unknown-linux-gnu'
-filter = 'package(portcove-core) & test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/)'
+filter = 'package(portcove-core) & (test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/) | test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
 # Source-only install/repair fixtures include exact package, source, launch and
