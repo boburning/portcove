@@ -131,8 +131,65 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
         include_desktop.then(|| Consumer::from_environment("PORTCOVE_QUALIFICATION_DESKTOP"));
     let report = PathBuf::from(std::env::var_os("PORTCOVE_QUALIFICATION_CONSUMER_REPORT").unwrap());
     let mut stages = Vec::new();
+    let before_admission_http = AcquisitionHttp::new();
     let mut observe = |library: &Library, stage: &str| {
         let root = library.root().to_str().unwrap();
+        if stage == "before-admission" {
+            let catalog_before = serde_json::to_value(library.catalog_status().unwrap()).unwrap();
+            let selection_before =
+                serde_json::to_value(library.definition_selection_status().unwrap()).unwrap();
+            assert!(library.activities(1).unwrap().is_empty());
+            assert_eq!(count(library, "installs"), 0);
+            let mut refusals = Vec::new();
+            for (command, subcommand, expected) in [
+                ("catalog", "show", "catalog.show"),
+                ("installation", "plan", "installation.plan"),
+            ] {
+                let result = cli.invoke_result(
+                    library,
+                    &[
+                        "--library",
+                        root,
+                        "--json",
+                        "--non-interactive",
+                        "--qualification-provider-library",
+                        root,
+                        "--qualification-provider-origin",
+                        before_admission_http.origin.as_str(),
+                        command,
+                        subcommand,
+                        ID,
+                    ],
+                    false,
+                );
+                assert_eq!(result["ok"], false);
+                assert_eq!(result["command"], expected);
+                assert_eq!(result["error"]["code"], "not_found");
+                refusals.push(result);
+            }
+            assert!(before_admission_http.requests.lock().unwrap().is_empty());
+            assert!(library.activities(1).unwrap().is_empty());
+            assert_eq!(count(library, "installs"), 0);
+            assert_eq!(count(library, "definition_publisher_admission"), 0);
+            assert_eq!(count(library, "definition_publisher_policy"), 0);
+            assert_eq!(
+                serde_json::to_value(library.catalog_status().unwrap()).unwrap(),
+                catalog_before
+            );
+            assert_eq!(
+                serde_json::to_value(library.definition_selection_status().unwrap()).unwrap(),
+                selection_before
+            );
+            stages.push(serde_json::json!({
+                "stage": stage,
+                "cli_refusals": refusals,
+                "provider_requests": 0,
+                "activities": 0,
+                "installs": 0,
+                "catalog_and_selection_unchanged": true,
+            }));
+            return;
+        }
         let cli_status = cli.invoke(
             library,
             &["--library", root, "--json", "--non-interactive", "status"],
@@ -417,6 +474,7 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
             .map(|s| s["stage"].as_str().unwrap())
             .collect::<Vec<_>>(),
         [
+            "before-admission",
             "new-definition",
             "v1",
             "v2",
