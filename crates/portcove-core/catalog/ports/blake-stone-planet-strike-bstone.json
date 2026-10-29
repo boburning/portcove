@@ -93,52 +93,52 @@
     "source_profile": "bstone-planet-strike-originals",
     "runtime_source_set": [
       {
-        "source_filenames": ["AUDIOHED.VSI", "audiohed.vsi"],
+        "source_filenames": ["AUDIOHED.VSI"],
         "destination": "originals/audiohed.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["AUDIOT.VSI", "audiot.vsi"],
+        "source_filenames": ["AUDIOT.VSI"],
         "destination": "originals/audiot.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["EANIM.VSI", "eanim.vsi"],
+        "source_filenames": ["EANIM.VSI"],
         "destination": "originals/eanim.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["IANIM.VSI", "ianim.vsi"],
+        "source_filenames": ["IANIM.VSI"],
         "destination": "originals/ianim.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["MAPHEAD.VSI", "maphead.vsi"],
+        "source_filenames": ["MAPHEAD.VSI"],
         "destination": "originals/maphead.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["MAPTEMP.VSI", "maptemp.vsi"],
+        "source_filenames": ["MAPTEMP.VSI"],
         "destination": "originals/maptemp.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["VGADICT.VSI", "vgadict.vsi"],
+        "source_filenames": ["VGADICT.VSI"],
         "destination": "originals/vgadict.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["VGAGRAPH.VSI", "vgagraph.vsi"],
+        "source_filenames": ["VGAGRAPH.VSI"],
         "destination": "originals/vgagraph.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["VGAHEAD.VSI", "vgahead.vsi"],
+        "source_filenames": ["VGAHEAD.VSI"],
         "destination": "originals/vgahead.vsi",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["VSWAP.VSI", "vswap.vsi"],
+        "source_filenames": ["VSWAP.VSI"],
         "destination": "originals/vswap.vsi",
         "materialization": "copy"
       }

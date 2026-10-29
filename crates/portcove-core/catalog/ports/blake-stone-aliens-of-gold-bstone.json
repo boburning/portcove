@@ -93,62 +93,62 @@
     "source_profile": "bstone-aliens-of-gold-originals",
     "runtime_source_set": [
       {
-        "source_filenames": ["AUDIOHED.BS6", "audiohed.bs6"],
+        "source_filenames": ["AUDIOHED.BS6"],
         "destination": "originals/audiohed.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["AUDIOT.BS6", "audiot.bs6"],
+        "source_filenames": ["AUDIOT.BS6"],
         "destination": "originals/audiot.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["EANIM.BS6", "eanim.bs6"],
+        "source_filenames": ["EANIM.BS6"],
         "destination": "originals/eanim.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["GANIM.BS6", "ganim.bs6"],
+        "source_filenames": ["GANIM.BS6"],
         "destination": "originals/ganim.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["IANIM.BS6", "ianim.bs6"],
+        "source_filenames": ["IANIM.BS6"],
         "destination": "originals/ianim.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["MAPHEAD.BS6", "maphead.bs6"],
+        "source_filenames": ["MAPHEAD.BS6"],
         "destination": "originals/maphead.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["MAPTEMP.BS6", "maptemp.bs6"],
+        "source_filenames": ["MAPTEMP.BS6"],
         "destination": "originals/maptemp.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["SANIM.BS6", "sanim.bs6"],
+        "source_filenames": ["SANIM.BS6"],
         "destination": "originals/sanim.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["VGADICT.BS6", "vgadict.bs6"],
+        "source_filenames": ["VGADICT.BS6"],
         "destination": "originals/vgadict.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["VGAGRAPH.BS6", "vgagraph.bs6"],
+        "source_filenames": ["VGAGRAPH.BS6"],
         "destination": "originals/vgagraph.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["VGAHEAD.BS6", "vgahead.bs6"],
+        "source_filenames": ["VGAHEAD.BS6"],
         "destination": "originals/vgahead.bs6",
         "materialization": "copy"
       },
       {
-        "source_filenames": ["VSWAP.BS6", "vswap.bs6"],
+        "source_filenames": ["VSWAP.BS6"],
         "destination": "originals/vswap.bs6",
         "materialization": "copy"
       }

@@ -616,7 +616,7 @@
         "authority": "alexbeavs-ps1-ports/dino-crisis-recomp",
         "authority_ref": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/7fd9deaa0ef7f8b689b1092821c19ac6a0de87db/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/main/game.toml"
       },
@@ -626,7 +626,7 @@
         "authority": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
         "authority_ref": "38514024f3a7cea54ff05ae3afdad0929920cb5a",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/38514024f3a7cea54ff05ae3afdad0929920cb5a/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/main/game.toml"
       },
@@ -636,7 +636,7 @@
         "authority": "alexbeavs-ps1-ports/alien-resurrection-recomp",
         "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/main/game.toml"
       },
@@ -646,7 +646,7 @@
         "authority": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
         "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/54ddfe971dfd79134f2593b00dbd9b78ae51536b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/main/game.toml"
       },
@@ -2918,12 +2918,12 @@
       },
       {
         "id": "pokemon-gen-1",
-        "label": "Pokémon Red (US) source",
+        "label": "Pok\u00e9mon Red (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pokémon Red (US) source",
+            "title": "Pok\u00e9mon Red (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -2958,12 +2958,12 @@
       },
       {
         "id": "pokemon-gold",
-        "label": "Pokémon Gold (US) source",
+        "label": "Pok\u00e9mon Gold (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pokémon Gold (US) source",
+            "title": "Pok\u00e9mon Gold (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -2998,12 +2998,12 @@
       },
       {
         "id": "pokemon-silver",
-        "label": "Pokémon Silver (US) source",
+        "label": "Pok\u00e9mon Silver (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pokémon Silver (US) source",
+            "title": "Pok\u00e9mon Silver (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -3038,12 +3038,12 @@
       },
       {
         "id": "pokemon-crystal",
-        "label": "Pokémon Crystal (US) source",
+        "label": "Pok\u00e9mon Crystal (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pokémon Crystal (US) source",
+            "title": "Pok\u00e9mon Crystal (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -4009,12 +4009,12 @@
       },
       {
         "id": "masters-of-teras-kasi-psx",
-        "label": "Star Wars: Masters of Teräs Käsi (USA) disc",
+        "label": "Star Wars: Masters of Ter\u00e4s K\u00e4si (USA) disc",
         "kind": "optical-disc",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Star Wars: Masters of Teräs Käsi (USA) disc",
+            "title": "Star Wars: Masters of Ter\u00e4s K\u00e4si (USA) disc",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -7179,8 +7179,7 @@
                     "id": "audiohed",
                     "label": "AUDIOHED.BS6",
                     "filenames": [
-                      "AUDIOHED.BS6",
-                      "audiohed.bs6"
+                      "AUDIOHED.BS6"
                     ],
                     "identities": [
                       {
@@ -7195,8 +7194,7 @@
                     "id": "audiot",
                     "label": "AUDIOT.BS6",
                     "filenames": [
-                      "AUDIOT.BS6",
-                      "audiot.bs6"
+                      "AUDIOT.BS6"
                     ],
                     "identities": [
                       {
@@ -7211,8 +7209,7 @@
                     "id": "eanim",
                     "label": "EANIM.BS6",
                     "filenames": [
-                      "EANIM.BS6",
-                      "eanim.bs6"
+                      "EANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7227,8 +7224,7 @@
                     "id": "ganim",
                     "label": "GANIM.BS6",
                     "filenames": [
-                      "GANIM.BS6",
-                      "ganim.bs6"
+                      "GANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7243,8 +7239,7 @@
                     "id": "ianim",
                     "label": "IANIM.BS6",
                     "filenames": [
-                      "IANIM.BS6",
-                      "ianim.bs6"
+                      "IANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7259,8 +7254,7 @@
                     "id": "maphead",
                     "label": "MAPHEAD.BS6",
                     "filenames": [
-                      "MAPHEAD.BS6",
-                      "maphead.bs6"
+                      "MAPHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -7275,8 +7269,7 @@
                     "id": "maptemp",
                     "label": "MAPTEMP.BS6",
                     "filenames": [
-                      "MAPTEMP.BS6",
-                      "maptemp.bs6"
+                      "MAPTEMP.BS6"
                     ],
                     "identities": [
                       {
@@ -7291,8 +7284,7 @@
                     "id": "sanim",
                     "label": "SANIM.BS6",
                     "filenames": [
-                      "SANIM.BS6",
-                      "sanim.bs6"
+                      "SANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7307,8 +7299,7 @@
                     "id": "vgadict",
                     "label": "VGADICT.BS6",
                     "filenames": [
-                      "VGADICT.BS6",
-                      "vgadict.bs6"
+                      "VGADICT.BS6"
                     ],
                     "identities": [
                       {
@@ -7323,8 +7314,7 @@
                     "id": "vgagraph",
                     "label": "VGAGRAPH.BS6",
                     "filenames": [
-                      "VGAGRAPH.BS6",
-                      "vgagraph.bs6"
+                      "VGAGRAPH.BS6"
                     ],
                     "identities": [
                       {
@@ -7339,8 +7329,7 @@
                     "id": "vgahead",
                     "label": "VGAHEAD.BS6",
                     "filenames": [
-                      "VGAHEAD.BS6",
-                      "vgahead.bs6"
+                      "VGAHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -7355,8 +7344,7 @@
                     "id": "vswap",
                     "label": "VSWAP.BS6",
                     "filenames": [
-                      "VSWAP.BS6",
-                      "vswap.bs6"
+                      "VSWAP.BS6"
                     ],
                     "identities": [
                       {
@@ -7393,8 +7381,7 @@
                     "id": "audiohed",
                     "label": "AUDIOHED.BS6",
                     "filenames": [
-                      "AUDIOHED.BS6",
-                      "audiohed.bs6"
+                      "AUDIOHED.BS6"
                     ],
                     "identities": [
                       {
@@ -7409,8 +7396,7 @@
                     "id": "audiot",
                     "label": "AUDIOT.BS6",
                     "filenames": [
-                      "AUDIOT.BS6",
-                      "audiot.bs6"
+                      "AUDIOT.BS6"
                     ],
                     "identities": [
                       {
@@ -7425,8 +7411,7 @@
                     "id": "eanim",
                     "label": "EANIM.BS6",
                     "filenames": [
-                      "EANIM.BS6",
-                      "eanim.bs6"
+                      "EANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7441,8 +7426,7 @@
                     "id": "ganim",
                     "label": "GANIM.BS6",
                     "filenames": [
-                      "GANIM.BS6",
-                      "ganim.bs6"
+                      "GANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7457,8 +7441,7 @@
                     "id": "ianim",
                     "label": "IANIM.BS6",
                     "filenames": [
-                      "IANIM.BS6",
-                      "ianim.bs6"
+                      "IANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7473,8 +7456,7 @@
                     "id": "maphead",
                     "label": "MAPHEAD.BS6",
                     "filenames": [
-                      "MAPHEAD.BS6",
-                      "maphead.bs6"
+                      "MAPHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -7489,8 +7471,7 @@
                     "id": "maptemp",
                     "label": "MAPTEMP.BS6",
                     "filenames": [
-                      "MAPTEMP.BS6",
-                      "maptemp.bs6"
+                      "MAPTEMP.BS6"
                     ],
                     "identities": [
                       {
@@ -7505,8 +7486,7 @@
                     "id": "sanim",
                     "label": "SANIM.BS6",
                     "filenames": [
-                      "SANIM.BS6",
-                      "sanim.bs6"
+                      "SANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7521,8 +7501,7 @@
                     "id": "vgadict",
                     "label": "VGADICT.BS6",
                     "filenames": [
-                      "VGADICT.BS6",
-                      "vgadict.bs6"
+                      "VGADICT.BS6"
                     ],
                     "identities": [
                       {
@@ -7537,8 +7516,7 @@
                     "id": "vgagraph",
                     "label": "VGAGRAPH.BS6",
                     "filenames": [
-                      "VGAGRAPH.BS6",
-                      "vgagraph.bs6"
+                      "VGAGRAPH.BS6"
                     ],
                     "identities": [
                       {
@@ -7553,8 +7531,7 @@
                     "id": "vgahead",
                     "label": "VGAHEAD.BS6",
                     "filenames": [
-                      "VGAHEAD.BS6",
-                      "vgahead.bs6"
+                      "VGAHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -7569,8 +7546,7 @@
                     "id": "vswap",
                     "label": "VSWAP.BS6",
                     "filenames": [
-                      "VSWAP.BS6",
-                      "vswap.bs6"
+                      "VSWAP.BS6"
                     ],
                     "identities": [
                       {
@@ -7607,8 +7583,7 @@
                     "id": "audiohed",
                     "label": "AUDIOHED.BS6",
                     "filenames": [
-                      "AUDIOHED.BS6",
-                      "audiohed.bs6"
+                      "AUDIOHED.BS6"
                     ],
                     "identities": [
                       {
@@ -7623,8 +7598,7 @@
                     "id": "audiot",
                     "label": "AUDIOT.BS6",
                     "filenames": [
-                      "AUDIOT.BS6",
-                      "audiot.bs6"
+                      "AUDIOT.BS6"
                     ],
                     "identities": [
                       {
@@ -7639,8 +7613,7 @@
                     "id": "eanim",
                     "label": "EANIM.BS6",
                     "filenames": [
-                      "EANIM.BS6",
-                      "eanim.bs6"
+                      "EANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7655,8 +7628,7 @@
                     "id": "ganim",
                     "label": "GANIM.BS6",
                     "filenames": [
-                      "GANIM.BS6",
-                      "ganim.bs6"
+                      "GANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7671,8 +7643,7 @@
                     "id": "ianim",
                     "label": "IANIM.BS6",
                     "filenames": [
-                      "IANIM.BS6",
-                      "ianim.bs6"
+                      "IANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7687,8 +7658,7 @@
                     "id": "maphead",
                     "label": "MAPHEAD.BS6",
                     "filenames": [
-                      "MAPHEAD.BS6",
-                      "maphead.bs6"
+                      "MAPHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -7703,8 +7673,7 @@
                     "id": "maptemp",
                     "label": "MAPTEMP.BS6",
                     "filenames": [
-                      "MAPTEMP.BS6",
-                      "maptemp.bs6"
+                      "MAPTEMP.BS6"
                     ],
                     "identities": [
                       {
@@ -7719,8 +7688,7 @@
                     "id": "sanim",
                     "label": "SANIM.BS6",
                     "filenames": [
-                      "SANIM.BS6",
-                      "sanim.bs6"
+                      "SANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7735,8 +7703,7 @@
                     "id": "vgadict",
                     "label": "VGADICT.BS6",
                     "filenames": [
-                      "VGADICT.BS6",
-                      "vgadict.bs6"
+                      "VGADICT.BS6"
                     ],
                     "identities": [
                       {
@@ -7751,8 +7718,7 @@
                     "id": "vgagraph",
                     "label": "VGAGRAPH.BS6",
                     "filenames": [
-                      "VGAGRAPH.BS6",
-                      "vgagraph.bs6"
+                      "VGAGRAPH.BS6"
                     ],
                     "identities": [
                       {
@@ -7767,8 +7733,7 @@
                     "id": "vgahead",
                     "label": "VGAHEAD.BS6",
                     "filenames": [
-                      "VGAHEAD.BS6",
-                      "vgahead.bs6"
+                      "VGAHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -7783,8 +7748,7 @@
                     "id": "vswap",
                     "label": "VSWAP.BS6",
                     "filenames": [
-                      "VSWAP.BS6",
-                      "vswap.bs6"
+                      "VSWAP.BS6"
                     ],
                     "identities": [
                       {
@@ -7821,8 +7785,7 @@
                     "id": "audiohed",
                     "label": "AUDIOHED.BS6",
                     "filenames": [
-                      "AUDIOHED.BS6",
-                      "audiohed.bs6"
+                      "AUDIOHED.BS6"
                     ],
                     "identities": [
                       {
@@ -7837,8 +7800,7 @@
                     "id": "audiot",
                     "label": "AUDIOT.BS6",
                     "filenames": [
-                      "AUDIOT.BS6",
-                      "audiot.bs6"
+                      "AUDIOT.BS6"
                     ],
                     "identities": [
                       {
@@ -7853,8 +7815,7 @@
                     "id": "eanim",
                     "label": "EANIM.BS6",
                     "filenames": [
-                      "EANIM.BS6",
-                      "eanim.bs6"
+                      "EANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7869,8 +7830,7 @@
                     "id": "ganim",
                     "label": "GANIM.BS6",
                     "filenames": [
-                      "GANIM.BS6",
-                      "ganim.bs6"
+                      "GANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7885,8 +7845,7 @@
                     "id": "ianim",
                     "label": "IANIM.BS6",
                     "filenames": [
-                      "IANIM.BS6",
-                      "ianim.bs6"
+                      "IANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7901,8 +7860,7 @@
                     "id": "maphead",
                     "label": "MAPHEAD.BS6",
                     "filenames": [
-                      "MAPHEAD.BS6",
-                      "maphead.bs6"
+                      "MAPHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -7917,8 +7875,7 @@
                     "id": "maptemp",
                     "label": "MAPTEMP.BS6",
                     "filenames": [
-                      "MAPTEMP.BS6",
-                      "maptemp.bs6"
+                      "MAPTEMP.BS6"
                     ],
                     "identities": [
                       {
@@ -7933,8 +7890,7 @@
                     "id": "sanim",
                     "label": "SANIM.BS6",
                     "filenames": [
-                      "SANIM.BS6",
-                      "sanim.bs6"
+                      "SANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -7949,8 +7905,7 @@
                     "id": "vgadict",
                     "label": "VGADICT.BS6",
                     "filenames": [
-                      "VGADICT.BS6",
-                      "vgadict.bs6"
+                      "VGADICT.BS6"
                     ],
                     "identities": [
                       {
@@ -7965,8 +7920,7 @@
                     "id": "vgagraph",
                     "label": "VGAGRAPH.BS6",
                     "filenames": [
-                      "VGAGRAPH.BS6",
-                      "vgagraph.bs6"
+                      "VGAGRAPH.BS6"
                     ],
                     "identities": [
                       {
@@ -7981,8 +7935,7 @@
                     "id": "vgahead",
                     "label": "VGAHEAD.BS6",
                     "filenames": [
-                      "VGAHEAD.BS6",
-                      "vgahead.bs6"
+                      "VGAHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -7997,8 +7950,7 @@
                     "id": "vswap",
                     "label": "VSWAP.BS6",
                     "filenames": [
-                      "VSWAP.BS6",
-                      "vswap.bs6"
+                      "VSWAP.BS6"
                     ],
                     "identities": [
                       {
@@ -8035,8 +7987,7 @@
                     "id": "audiohed",
                     "label": "AUDIOHED.BS6",
                     "filenames": [
-                      "AUDIOHED.BS6",
-                      "audiohed.bs6"
+                      "AUDIOHED.BS6"
                     ],
                     "identities": [
                       {
@@ -8051,8 +8002,7 @@
                     "id": "audiot",
                     "label": "AUDIOT.BS6",
                     "filenames": [
-                      "AUDIOT.BS6",
-                      "audiot.bs6"
+                      "AUDIOT.BS6"
                     ],
                     "identities": [
                       {
@@ -8067,8 +8017,7 @@
                     "id": "eanim",
                     "label": "EANIM.BS6",
                     "filenames": [
-                      "EANIM.BS6",
-                      "eanim.bs6"
+                      "EANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -8083,8 +8032,7 @@
                     "id": "ganim",
                     "label": "GANIM.BS6",
                     "filenames": [
-                      "GANIM.BS6",
-                      "ganim.bs6"
+                      "GANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -8099,8 +8047,7 @@
                     "id": "ianim",
                     "label": "IANIM.BS6",
                     "filenames": [
-                      "IANIM.BS6",
-                      "ianim.bs6"
+                      "IANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -8115,8 +8062,7 @@
                     "id": "maphead",
                     "label": "MAPHEAD.BS6",
                     "filenames": [
-                      "MAPHEAD.BS6",
-                      "maphead.bs6"
+                      "MAPHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -8137,8 +8083,7 @@
                     "id": "maptemp",
                     "label": "MAPTEMP.BS6",
                     "filenames": [
-                      "MAPTEMP.BS6",
-                      "maptemp.bs6"
+                      "MAPTEMP.BS6"
                     ],
                     "identities": [
                       {
@@ -8159,8 +8104,7 @@
                     "id": "sanim",
                     "label": "SANIM.BS6",
                     "filenames": [
-                      "SANIM.BS6",
-                      "sanim.bs6"
+                      "SANIM.BS6"
                     ],
                     "identities": [
                       {
@@ -8175,8 +8119,7 @@
                     "id": "vgadict",
                     "label": "VGADICT.BS6",
                     "filenames": [
-                      "VGADICT.BS6",
-                      "vgadict.bs6"
+                      "VGADICT.BS6"
                     ],
                     "identities": [
                       {
@@ -8209,8 +8152,7 @@
                     "id": "vgagraph",
                     "label": "VGAGRAPH.BS6",
                     "filenames": [
-                      "VGAGRAPH.BS6",
-                      "vgagraph.bs6"
+                      "VGAGRAPH.BS6"
                     ],
                     "identities": [
                       {
@@ -8243,8 +8185,7 @@
                     "id": "vgahead",
                     "label": "VGAHEAD.BS6",
                     "filenames": [
-                      "VGAHEAD.BS6",
-                      "vgahead.bs6"
+                      "VGAHEAD.BS6"
                     ],
                     "identities": [
                       {
@@ -8277,8 +8218,7 @@
                     "id": "vswap",
                     "label": "VSWAP.BS6",
                     "filenames": [
-                      "VSWAP.BS6",
-                      "vswap.bs6"
+                      "VSWAP.BS6"
                     ],
                     "identities": [
                       {
@@ -8332,8 +8272,7 @@
                     "id": "audiohed",
                     "label": "AUDIOHED.VSI",
                     "filenames": [
-                      "AUDIOHED.VSI",
-                      "audiohed.vsi"
+                      "AUDIOHED.VSI"
                     ],
                     "identities": [
                       {
@@ -8348,8 +8287,7 @@
                     "id": "audiot",
                     "label": "AUDIOT.VSI",
                     "filenames": [
-                      "AUDIOT.VSI",
-                      "audiot.vsi"
+                      "AUDIOT.VSI"
                     ],
                     "identities": [
                       {
@@ -8364,8 +8302,7 @@
                     "id": "eanim",
                     "label": "EANIM.VSI",
                     "filenames": [
-                      "EANIM.VSI",
-                      "eanim.vsi"
+                      "EANIM.VSI"
                     ],
                     "identities": [
                       {
@@ -8380,8 +8317,7 @@
                     "id": "ianim",
                     "label": "IANIM.VSI",
                     "filenames": [
-                      "IANIM.VSI",
-                      "ianim.vsi"
+                      "IANIM.VSI"
                     ],
                     "identities": [
                       {
@@ -8396,8 +8332,7 @@
                     "id": "maphead",
                     "label": "MAPHEAD.VSI",
                     "filenames": [
-                      "MAPHEAD.VSI",
-                      "maphead.vsi"
+                      "MAPHEAD.VSI"
                     ],
                     "identities": [
                       {
@@ -8412,8 +8347,7 @@
                     "id": "maptemp",
                     "label": "MAPTEMP.VSI",
                     "filenames": [
-                      "MAPTEMP.VSI",
-                      "maptemp.vsi"
+                      "MAPTEMP.VSI"
                     ],
                     "identities": [
                       {
@@ -8428,8 +8362,7 @@
                     "id": "vgadict",
                     "label": "VGADICT.VSI",
                     "filenames": [
-                      "VGADICT.VSI",
-                      "vgadict.vsi"
+                      "VGADICT.VSI"
                     ],
                     "identities": [
                       {
@@ -8444,8 +8377,7 @@
                     "id": "vgagraph",
                     "label": "VGAGRAPH.VSI",
                     "filenames": [
-                      "VGAGRAPH.VSI",
-                      "vgagraph.vsi"
+                      "VGAGRAPH.VSI"
                     ],
                     "identities": [
                       {
@@ -8460,8 +8392,7 @@
                     "id": "vgahead",
                     "label": "VGAHEAD.VSI",
                     "filenames": [
-                      "VGAHEAD.VSI",
-                      "vgahead.vsi"
+                      "VGAHEAD.VSI"
                     ],
                     "identities": [
                       {
@@ -8476,8 +8407,7 @@
                     "id": "vswap",
                     "label": "VSWAP.VSI",
                     "filenames": [
-                      "VSWAP.VSI",
-                      "vswap.vsi"
+                      "VSWAP.VSI"
                     ],
                     "identities": [
                       {
