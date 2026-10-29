@@ -236,6 +236,7 @@ const rustWorkflowContractTests = [
 ];
 const workflowFeatureTests = [
   "scripts/ci-frontend-workflow.test.mts",
+  "scripts/ci-windows-helpers.test.mts",
   "scripts/ci-native-workflow.test.mts",
   "scripts/ci-release-workflow.test.mts",
   ...rustWorkflowContractTests,
@@ -1850,6 +1851,7 @@ explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   "scripts/production-aggregate-steps.test.mts",
   "scripts/renovate-engine-probe.test.mts",
   "scripts/desktop-staged-layout.test.mts",
+  "scripts/ci-windows-helpers.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",

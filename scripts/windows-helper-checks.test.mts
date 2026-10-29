@@ -7,7 +7,7 @@ import {
   windowsNativeToolsRequired,
 } from "./windows-helper-checks.mts";
 import { evaluateCiResults } from "./ci-result-gate.mts";
-import { executableNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
+import { parseNodeTestSuites } from "./node-test-suites.mts";
 
 const sha = (character: string) => character.repeat(40);
 
@@ -833,90 +833,6 @@ void test("catalog aggregate rejects absent or failed selected Windows producer"
       }),
     /expected skipped/,
   );
-});
-function assertOnlyFixedHelperImportPreparation(job: string) {
-  const allowed =
-    "        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts";
-  const lines = job.split(/\r?\n/u);
-  assert.equal(
-    lines.filter((line) => line === allowed).length,
-    1,
-    "one complete fixed frozen root preparation only",
-  );
-  assert.doesNotMatch(
-    lines.filter((line) => line !== allowed).join("\n"),
-    /cargo (?:build|test)|desktop-verify.mts|desktop:build|bootstrap.*Desktop|native-driver|setup-vp|pnpm install/,
-  );
-}
-void test("helper workflow admits one fixed frozen root import preparation and rejects widened or additional effects", async () => {
-  const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
-  const job = workflow.split("\n  windows_helpers:\n")[1]?.split("\n  fast_catalog:")[0];
-  assert.ok(job);
-  assertOnlyFixedHelperImportPreparation(job);
-  const command = "pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts";
-  for (const changed of [
-    job.replace(command, command.replace("--filter portcove-repository", "--filter *")),
-    job.replace(command, command.replace("--frozen-lockfile", "")),
-    job.replace(command, command.replace("--ignore-scripts", "")),
-    job.replace(command, command + " --offline"),
-    job.replace(command, command + " && pnpm install"),
-    job + "\n        run: " + command,
-    job + "\n        run: pnpm install",
-    job + "\n        run: cargo build",
-    job + "\n        run: cargo test",
-    job + "\n        run: desktop-verify.mts",
-    job + "\n        run: desktop:build",
-    job + "\n        run: native-driver",
-    job + "\n        uses: setup-vp",
-  ])
-    assert.throws(() => assertOnlyFixedHelperImportPreparation(changed));
-});
-void test("workflow runs bounded Windows controls and pinned lint under the existing catalog aggregate", async () => {
-  const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
-  const windows = workflow.split("\n  windows_helpers:\n")[1];
-  assert.ok(windows, "Windows helpers job must exist");
-  const job = windows.split("\n  fast_catalog:")[0];
-  assert.ok(job);
-  assert.match(job, /runs-on: windows-latest/);
-  assert.match(job, /timeout-minutes: 10/);
-  assert.match(job, /outputs.windows_helpers == 'true'/);
-  assert.match(job, /--test-timeout=30000/);
-  assert.match(job, /--test-concurrency=1/);
-  assert.match(job, /native-confirmation.test.mts/);
-  assert.match(job, /native-helper-dependencies.mts/);
-  assert.match(job, /Import-PowerShellDataFile -LiteralPath .config\/powershell-resources.psd1/);
-  assert.match(job, /Import-Module -Name PSScriptAnalyzer -RequiredVersion/);
-  assert.match(job, /lint-tools.integration.mts psscriptanalyzer/);
-  assertOnlyFixedHelperImportPreparation(job);
-  assert.match(
-    job,
-    /uses: \.\/\.github\/actions\/setup-rust\n\s+if: needs.classify.outputs.native_tools == 'true'/,
-  );
-  const registry = parseNodeTestSuites(
-    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
-  );
-  const native = executableNodeCommands(job, registry).filter(
-    (command) => command.id === "native-tools",
-  );
-  assert.equal(native.length, 1);
-  assert.deepEqual(native[0]?.arguments, [
-    "--test",
-    "--test-timeout=30000",
-    "--test-reporter=./scripts/required-node-test-reporter.mts",
-  ]);
-  const catalogSection = workflow.split("\n  catalog:\n")[1];
-  assert.ok(catalogSection, "catalog aggregate must exist");
-  const catalog = catalogSection.split("\n  fast_dependency_review:")[0];
-  assert.ok(catalog);
-  assert.match(
-    catalog,
-    /needs: \[classify, prose_checks, fast_catalog, windows_helpers, catalog_full\]/,
-  );
-  assert.match(
-    catalog,
-    /PORTCOVE_TARGETED_RESULTS: '\{"windows_helpers":"\$\{\{ needs.windows_helpers.result \}\}"\}'/,
-  );
-  assert.equal((catalog.match(/PORTCOVE_TARGETED_RESULTS:/gu) ?? []).length, 1);
 });
 
 void test(
