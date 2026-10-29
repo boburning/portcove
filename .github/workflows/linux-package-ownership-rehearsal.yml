@@ -14,6 +14,9 @@ on:
       - .node-version
       - scripts/install-linux-desktop-prerequisites.sh
       - scripts/package-ownership-selection.mts
+      - scripts/qualify-dialog-gtk.mts
+      - vendor/rfd/**
+      - vendor/rfd-provenance.json
       - apps/desktop/src-tauri/Cargo.toml
       - apps/desktop/src-tauri/src/application_update.rs
       - apps/desktop/src-tauri/src/application_update_commands.rs
@@ -84,8 +87,22 @@ jobs:
           key: linux-package-ownership-rehearsal
       - name: Install Linux packaging prerequisites
         timeout-minutes: 30
-        run: ./scripts/install-linux-desktop-prerequisites.sh --include-rpm --install-timeout-seconds=600 --prefer-archive-mirror
+        run: ./scripts/install-linux-desktop-prerequisites.sh --include-rpm --include-dialog-tests --install-timeout-seconds=600 --prefer-archive-mirror
       - run: pnpm install --frozen-lockfile
+      - name: Verify actual GTK description formatting and the unpatched control
+        if: hashFiles('vendor/rfd-provenance.json') != ''
+        run: node scripts/dev-storage.mts run -- xvfb-run -a node scripts/qualify-dialog-gtk.mts
+      - name: Retain GTK constructor observations
+        if: always() && hashFiles('vendor/rfd-provenance.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dialog-gtk-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/dialog-gtk/**/*.txt
+            work/dialog-gtk/**/intent.json
+            work/dialog-gtk/**/result.json
+          retention-days: 7
+          if-no-files-found: warn
       - name: Build DEB and RPM packages only
         run: pnpm tauri build --bundles deb,rpm --ci
         working-directory: apps/desktop

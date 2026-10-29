@@ -14,7 +14,7 @@ import {
   nativeHelperRegistryPath,
   nativeHelperFiles,
 } from "./native-helper-dependencies.mts";
-import { ordinaryOwnershipForPath } from "./validation-plan.mts";
+import { ordinaryOwnershipForPath, isVendoredRfdInput } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
 import { stagedFileBatches } from "./viteplus-cli.mts";
 export interface LocalChange extends ValidationChangeInput {
@@ -2274,6 +2274,16 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  if (isVendoredRfdInput(file)) {
+    selection.workspaceRust = true;
+    selection.rustfmt = true;
+    selection.ui = true;
+    selection.uiFullTests = true;
+    selection.browser = true;
+    selection.scopes.add("rust-workspace");
+    addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    recognized = true;
+  }
   if (
     /^apps\/desktop\/scripts\/[^/]+\.native\.test\.mts$/u.test(file) ||
     file === "vite.config.ts" ||

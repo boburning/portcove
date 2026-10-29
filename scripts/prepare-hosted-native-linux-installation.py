@@ -414,12 +414,23 @@ def prepare_source_dependencies(plan, settings):
         if time.monotonic_ns() - last_inventory < 250_000_000:
             return
         last_inventory = time.monotonic_ns()
-        pending = [home, *(source / p for p in DEPENDENCIES if os.path.lexists(source / p))]
+        inventory_roots = [home, *(source / p for p in DEPENDENCIES if os.path.lexists(source / p))]
+        pending = list(inventory_roots)
         count, total = 0, 0
         while pending:
             check()
             current = pending.pop()
-            with os.scandir(current) as children:
+            try:
+                iterator = os.scandir(current)
+            except FileNotFoundError:
+                # pnpm can remove a queued staging directory after its parent
+                # entry was counted. Keep that conservative count and bytes.
+                # Missing roots and other errors still refuse; settled graph
+                # inspection below remains strict and has no automatic retry.
+                if current in inventory_roots:
+                    raise
+                continue
+            with iterator as children:
                 for child in children:
                     count += 1
                     need(count <= MAX_FILES, "dependency preparation inventory exceeds bound")

@@ -5,7 +5,8 @@ import desktopPackageManifest from "../apps/desktop/package.json" with { type: "
 import rootPackage from "../package.json" with { type: "json" };
 import qualityManifest from "../.github/quality-tools.json" with { type: "json" };
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, readdir, lstat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -727,4 +728,51 @@ void test("Node proposals update every maintained isolated pin without rewriting
       }
     }
   }
+});
+
+void test("RFD backport retains the publisher closure and only the reviewed format patch", async () => {
+  const provenance = record(JSON.parse(await read("vendor/rfd-provenance.json")));
+  assert.equal(provenance.version, "0.17.2");
+  assert.equal(provenance.fix_revision, "9eb59f2716738ebf44ff6e9524450c8e703957a8");
+  const originals = record(provenance.original_files);
+  const modified = record(provenance.modified_files);
+  assert.deepEqual(Object.keys(modified), ["src/backend/gtk3/message_dialog.rs"]);
+  const files: string[] = [];
+  async function visit(directory: string, prefix = "") {
+    const info = await lstat(directory);
+    assert.ok(info.isDirectory() && !info.isSymbolicLink());
+    for (const entry of await readdir(directory)) {
+      const relative = `${prefix}${entry}`;
+      const filename = path.join(directory, entry);
+      const stat = await lstat(filename);
+      assert.ok(!stat.isSymbolicLink());
+      if (stat.isDirectory()) await visit(filename, `${relative}/`);
+      else {
+        assert.ok(stat.isFile());
+        files.push(relative);
+      }
+    }
+  }
+  await visit(path.join(root, "vendor/rfd"));
+  assert.deepEqual(files.sort(), Object.keys(originals).sort());
+  for (const name of files) {
+    const expected = modified[name] ?? originals[name];
+    assert.equal(typeof expected, "string");
+    assert.match(String(expected), /^[a-f0-9]{64}$/u);
+    assert.equal(
+      createHash("sha256")
+        .update(await readFile(path.join(root, "vendor/rfd", name)))
+        .digest("hex"),
+      expected,
+      name,
+    );
+  }
+  assert.match(await read("Cargo.toml"), /rfd = \{ path = "vendor\/rfd" \}/u);
+  const rfd = (await read("Cargo.lock"))
+    .split("[[package]]")
+    .find((entry) => /^name = "rfd"$/mu.test(entry));
+  assert.ok(rfd);
+  assert.match(rfd, /^version = "0\.17\.2"$/mu);
+  assert.doesNotMatch(rfd, /^(?:source|checksum) =/mu);
+  assert.match(await read("vendor/rfd/LICENSE"), /Permission is hereby granted/u);
 });
