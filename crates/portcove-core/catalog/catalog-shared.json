@@ -954,6 +954,26 @@
         "live_url": "https://github.com/libretro/libretro-database/blob/master/metadat/redump/Sony%20-%20PlayStation.dat"
       },
       {
+        "id": "devilution-owner-original-bytes-2026-10-29",
+        "role": "byte_identity",
+        "authority": "Portcove owner-provided original-game archive",
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "claim": "Exact byte facts from the owner-provided archive: five complete retail/Hellfire MPQs, observed SHA1/SHA256 and sizes. Region/revision remain Unknown; these are not publisher-issued hashes or distribution-rights authentication. SPAWN.MPQ is excluded. Actual title qualification is recorded separately.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json"
+      },
+      {
+        "id": "devilutionx-1-5-5-original-and-path-contract",
+        "role": "upstream_support",
+        "authority": "diasurgical/DevilutionX",
+        "authority_ref": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+        "reviewed_at": "2026-10-29",
+        "claim": "Version1.5.5 requires DIABDAT.MPQ for Diablo; Hellfire additionally requires hellfire.mpq,hfmonk.mpq,hfmusic.mpq,hfvoice.mpq. --diablo/--hellfire select mode, and data/save/config path overrides are separate. This upstream source inspection is not gameplay, Portcove lifecycle or save compatibility evidence.",
+        "immutable_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
+        "live_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
+      },
+      {
         "id": "bstone-e65a6b40-original-file-identities",
         "role": "byte_identity",
         "authority": "bibendovsky/bstone",
@@ -7169,6 +7189,162 @@
         "evidence_gap": null
       },
       {
+        "id": "diablo-devilutionx-retail-originals",
+        "label": "Diablo reviewed retail MPQ set",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "owner-provided-2026-10-29",
+            "title": "Owner-provided complete original set; edition not attributed",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-mpq-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "diabdat",
+                    "label": "diabdat.mpq",
+                    "filenames": [
+                      "diabdat.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5cfd971abb25602731fef0c9b43eb7d7447f296e",
+                        "sha256": "63fb47d9c76484024c7640d90ab6b7ec5e13f567a7e1a917b6c03a6631d3f2b0",
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "devilution-owner-original-bytes-2026-10-29"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "devilution-owner-original-bytes-2026-10-29",
+              "devilutionx-1-5-5-original-and-path-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "diablo-hellfire-devilutionx-originals",
+        "label": "Diablo and Hellfire reviewed MPQ set",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "owner-provided-2026-10-29",
+            "title": "Owner-provided complete original set; edition not attributed",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-mpq-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "diabdat",
+                    "label": "diabdat.mpq",
+                    "filenames": [
+                      "diabdat.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5cfd971abb25602731fef0c9b43eb7d7447f296e",
+                        "sha256": "63fb47d9c76484024c7640d90ab6b7ec5e13f567a7e1a917b6c03a6631d3f2b0",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hellfire",
+                    "label": "hellfire.mpq",
+                    "filenames": [
+                      "hellfire.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4852a68a70f7f55a28084281a96e95c2027c5137",
+                        "sha256": "bbbd3e4b09db3c16d72e3f8503058dd09a8aaecccf486c3b6a0fca270cef9ba8",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfmonk",
+                    "label": "hfmonk.mpq",
+                    "filenames": [
+                      "hfmonk.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "47f44845803b05fa243c4733995b08cbaa0dbe37",
+                        "sha256": "5358fa2aa6c7bfdd3bfdd07b0457807d3220a60cfe8b1967a0938b433a9b33c5",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfmusic",
+                    "label": "hfmusic.mpq",
+                    "filenames": [
+                      "hfmusic.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5d64d26798738c503b0aa1651c1534ff5488291c",
+                        "sha256": "2d719ef13502bf3c68eb4771411391bd37bb420d753eb6239becb063c6918de1",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfvoice",
+                    "label": "hfvoice.mpq",
+                    "filenames": [
+                      "hfvoice.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "04e7fe3a5509013cbf22d0937817e2775226993e",
+                        "sha256": "243fec5f04710ba316b9f61065a257e47c1404b13f63c52541ed4eb714267b72",
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "devilution-owner-original-bytes-2026-10-29"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "devilution-owner-original-bytes-2026-10-29",
+              "devilutionx-1-5-5-original-and-path-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
         "id": "bstone-aliens-of-gold-originals",
         "label": "Blake Stone aliens-of-gold complete original files",
         "kind": "file-set",
@@ -11524,6 +11700,62 @@
         "live_review_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "diablo-devilutionx-game-source",
+        "port_id": "diablo-devilutionx",
+        "role": "game",
+        "profile_id": "diablo-devilutionx-retail-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "owner-provided-2026-10-29"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "devilution-owner-original-bytes-2026-10-29",
+          "devilutionx-1-5-5-original-and-path-contract"
+        ],
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_review_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "diablo-hellfire-devilutionx-game-source",
+        "port_id": "diablo-hellfire-devilutionx",
+        "role": "game",
+        "profile_id": "diablo-hellfire-devilutionx-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "owner-provided-2026-10-29"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "devilution-owner-original-bytes-2026-10-29",
+          "devilutionx-1-5-5-original-and-path-contract"
+        ],
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_review_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },

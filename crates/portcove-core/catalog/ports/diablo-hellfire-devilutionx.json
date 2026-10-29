@@ -3,7 +3,7 @@
   "listing": {
     "id": "diablo-hellfire-devilutionx",
     "name": "Diablo: Hellfire (DevilutionX)",
-    "summary": "Set up Diablo: Hellfire through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+    "summary": "Play Diablo: Hellfire through DevilutionX with your matching original game files.",
     "original_game_title": "Diablo: Hellfire",
     "project_url": "https://github.com/diasurgical/DevilutionX",
     "issue_number": 2564,
@@ -24,6 +24,10 @@
     },
     "manual_setup": {
       "steps": [
+        {
+          "title": "Choose the runtime owner and original set",
+          "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+        },
         {
           "title": "Use this original game and edition",
           "instruction": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -61,30 +65,70 @@
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
-    "adapter": "staged-source-portable",
+    "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "user-prepared",
       "repository": "diasurgical/DevilutionX",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
+      "asset_hints": {
+        "windows-x86-64": ["devilutionx-windows-x86_64.zip"]
       }
     },
+    "executable_hints": {
+      "windows-x86-64": ["devilutionx.exe"]
+    },
+    "windows_runtime_path_policy": "relative-file-max-path",
+    "source_profile": "diablo-hellfire-devilutionx-originals",
+    "runtime_source_set": [
+      {
+        "source_filenames": ["diabdat.mpq"],
+        "destination": "originals/diabdat.mpq",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["hellfire.mpq"],
+        "destination": "originals/hellfire.mpq",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["hfmonk.mpq"],
+        "destination": "originals/hfmonk.mpq",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["hfmusic.mpq"],
+        "destination": "originals/hfmusic.mpq",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["hfvoice.mpq"],
+        "destination": "originals/hfvoice.mpq",
+        "materialization": "copy"
+      }
+    ],
+    "launch_arguments": [
+      "--hellfire",
+      "--data-dir",
+      "originals",
+      "--save-dir",
+      "profile",
+      "--config-dir",
+      "profile"
+    ],
+    "persistent_paths": ["profile"],
+    "windows_temp_directory": "profile",
     "presentation": {
-      "installation_method": "user-prepared-runtime",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the complete official Windows x86_64 ZIP and keep devilutionx.exe, devilutionx.mpq and all runtime companions together. A GOG installation may be detected; otherwise supply the matching MPQs beside the player or in the actual data directory described by upstream. Register devilutionx.exe inside its wrapper, using that same folder as working directory. Use the documented single argument --hellfire to select this entry’s game even when both games’ files are present. The Windows data/profile location is normally %APPDATA%/diasurgical/devilution, with upstream portable/path overrides depending on the selected setup. Preserve the actual configuration, character saves and MPQ locations as well as the working copy, with all players closed before changing versions. Diablo and Hellfire modes have different original-data and save semantics. No automatic character conversion or cross-version save guarantee is supplied by registration. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+      "installation_method": "portable-package",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "diablo-hellfire-devilutionx-originals",
+          "label": "Diablo and Hellfire reviewed MPQ set",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select a folder or ZIP containing your complete matching DIABDAT.MPQ plus hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq through the original-file chooser. This managed offer accepts the reviewed complete original set; other editions, the shareware demo and optional class archives use the separate upstream-owned route. Originals are not included. Upstream may also read recognized outside data locations; Core does not own or back up those files. Portcove prepares verified immutable copies under originals beside the player, and keeps settings, characters, stash, screenshots, demos and temporary data under the separate profile folder. Play uses the selected Diablo: Hellfire mode. Keep Diablo and Hellfire in their own entries and profiles; character conversion, cross-mode saves and older-reader compatibility are not established. Do not change this entry’s original set in place. Existing registrations stay externally owned; this offer does not adopt their populated runtime, original files or profile. Use a separate library or independently owned upstream copy for another original set, profile or owner. Preserve the creating runtime and current profile before changing versions. Outside-tree paths and unclaimed inside-tree modifications are outside this managed scope and can hold maintenance. Removal preserves the declared profile and external originals; retained profile data requires its creating contract before reuse."
     }
   }
 }

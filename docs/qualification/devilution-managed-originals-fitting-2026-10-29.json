@@ -1,0 +1,144 @@
+{
+  "format_version": 1,
+  "kind": "two-title Native6 managed-originals candidate; final PR owns delivery",
+  "owners": [2510, 2926, 2563, 2564],
+  "source_base": "06303bec1ecc95041931d5f67238555d388c2e85",
+  "upstream": {
+    "repository": "diasurgical/DevilutionX",
+    "version": "1.5.5",
+    "commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+    "tree": "15acc6b2d8b0407f1ec282301af2310fa67f5040",
+    "git_blob_verified_files": 458,
+    "source_capture_sha256": "d9b87b4b45258ee1ce7b2b2465086972d08fdc978119d8e7a3321fd1f273c418"
+  },
+  "package": {
+    "asset_id": 310816827,
+    "name": "devilutionx-windows-x86_64.zip",
+    "bytes": 10482049,
+    "expected_publisher_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b",
+    "archive_entries": 11,
+    "architecture": "AMD64",
+    "working_coordinate": "selected executable parent inside publisher devilutionx wrapper"
+  },
+  "originals": {
+    "authority": "owner-provided exact original-game byte facts; not publisher authentication",
+    "provenance_url": "https://github.com/boburning/portcove/issues/2563#issuecomment-6503470014",
+    "archive_name": "gamedata.zip",
+    "archive_bytes": 718542565,
+    "archive_sha256": "b75405c3b2842d1bba56f03e8211ab9bd95c27ed806a9798f4a7094825658bd4",
+    "region": null,
+    "revision": null,
+    "original_archive_full_readback_unchanged": true,
+    "members": [
+      {
+        "name": "diabdat.mpq",
+        "size": 517501282,
+        "sha1": "5cfd971abb25602731fef0c9b43eb7d7447f296e",
+        "sha256": "63fb47d9c76484024c7640d90ab6b7ec5e13f567a7e1a917b6c03a6631d3f2b0"
+      },
+      {
+        "name": "hellfire.mpq",
+        "size": 65502336,
+        "sha1": "4852a68a70f7f55a28084281a96e95c2027c5137",
+        "sha256": "bbbd3e4b09db3c16d72e3f8503058dd09a8aaecccf486c3b6a0fca270cef9ba8"
+      },
+      {
+        "name": "hfmonk.mpq",
+        "size": 37658368,
+        "sha1": "47f44845803b05fa243c4733995b08cbaa0dbe37",
+        "sha256": "5358fa2aa6c7bfdd3bfdd07b0457807d3220a60cfe8b1967a0938b433a9b33c5"
+      },
+      {
+        "name": "hfmusic.mpq",
+        "size": 34379360,
+        "sha1": "5d64d26798738c503b0aa1651c1534ff5488291c",
+        "sha256": "2d719ef13502bf3c68eb4771411391bd37bb420d753eb6239becb063c6918de1"
+      },
+      {
+        "name": "hfvoice.mpq",
+        "size": 37743520,
+        "sha1": "04e7fe3a5509013cbf22d0937817e2775226993e",
+        "sha256": "243fec5f04710ba316b9f61065a257e47c1404b13f63c52541ed4eb714267b72"
+      }
+    ],
+    "demo_and_optional_classes": "SPAWN.MPQ and optional hfbard/hfbarb archives are excluded; no arbitrary or mixed edition acceptance"
+  },
+  "routes": [
+    {
+      "id": "diablo-devilutionx",
+      "canonical_issue": 2563,
+      "reader": "Native6",
+      "source_profile": "diablo-devilutionx-retail-originals",
+      "complete_required_members": ["diabdat.mpq"],
+      "arguments": [
+        "--diablo",
+        "--data-dir",
+        "originals",
+        "--save-dir",
+        "profile",
+        "--config-dir",
+        "profile"
+      ],
+      "immutable_outputs": ["originals/diabdat.mpq"],
+      "persistent_paths": ["profile"],
+      "windows_temp_directory": "profile",
+      "source_input": "folder or ZIP containing the complete admitted set",
+      "maintenance": "managed-compatible-release; actual future artifact/save compatibility remains unqualified",
+      "retained": "old UserPrepared/external creating contracts preserved exactly; no populated adoption or original/source/profile remapping",
+      "current_native_evidence": "pending; no actual title completion claimed"
+    },
+    {
+      "id": "diablo-hellfire-devilutionx",
+      "canonical_issue": 2564,
+      "reader": "Native6",
+      "source_profile": "diablo-hellfire-devilutionx-originals",
+      "complete_required_members": [
+        "diabdat.mpq",
+        "hellfire.mpq",
+        "hfmonk.mpq",
+        "hfmusic.mpq",
+        "hfvoice.mpq"
+      ],
+      "arguments": [
+        "--hellfire",
+        "--data-dir",
+        "originals",
+        "--save-dir",
+        "profile",
+        "--config-dir",
+        "profile"
+      ],
+      "immutable_outputs": [
+        "originals/diabdat.mpq",
+        "originals/hellfire.mpq",
+        "originals/hfmonk.mpq",
+        "originals/hfmusic.mpq",
+        "originals/hfvoice.mpq"
+      ],
+      "persistent_paths": ["profile"],
+      "windows_temp_directory": "profile",
+      "source_input": "folder or ZIP containing the complete admitted set",
+      "maintenance": "managed-compatible-release; actual future artifact/save compatibility remains unqualified",
+      "retained": "old UserPrepared/external creating contracts preserved exactly; no populated adoption or original/source/profile remapping",
+      "current_native_evidence": "pending; no actual title completion claimed"
+    }
+  ],
+  "boundaries": [
+    "Existing SourceOnly and Native5 authorities; no per-title importer/helper/marker",
+    "Core prepares copies, verifies complete identities and retains existing receipts/journals; original files unchanged",
+    "Profile includes configuration, character/stash archives, screenshots/demos and default ZeroTier state; outside-tree paths excluded",
+    "Literal ASCII profile avoids tagged Windows ZeroTier multibyte-path fallback, even with Unicode library root",
+    "Upstream original search is preferred/nonexclusive; actual startup must establish use of copied originals, not a fallback installation",
+    "Old-none/new-source, source/edition changes, populated data and persistence remapping remain held",
+    "Passing fixtures, native startup, gameplay, save-format compatibility and Supported operations are separate evidence"
+  ],
+  "validation": {
+    "provider": "observed complete1.5.5 release plus controlled1.5.6 fixed-filename selection and wrongCPU/platform/ambiguity/missingdigest refusal tests; future artifact synthetic",
+    "retained": "exact two-port DTO snapshot from06303bec extends existing49 complete selected-runtime cases without reducing assertions",
+    "shared": "Native6 component4011 all5 exact-head checks and3034 actual Windows owned-fixture cases; consumer CI/native still pending",
+    "actual_windows": "pending",
+    "gameplay": "not_evaluated",
+    "save_abi": "not_evaluated",
+    "supported_promotion": false
+  }
+}

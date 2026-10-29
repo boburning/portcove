@@ -78,7 +78,7 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mts";
 
-async function injectActionHold(browser: WebDriver, portId: string, action: string) {
+export async function injectActionHold(browser: WebDriver, portId: string, action: string) {
   const result = object(
     await browser.executeAsyncScript<unknown>(
       (portId: string, action: string, done: (result: unknown) => void) => {
@@ -163,7 +163,7 @@ async function injectActionHold(browser: WebDriver, portId: string, action: stri
   assert.equal(result.ok, true, JSON.stringify(result));
 }
 
-async function restoreActionHold(
+export async function restoreActionHold(
   browser: WebDriver,
   expectedAvailability: string,
 ): Promise<HoldObservation> {
@@ -444,6 +444,87 @@ async function assertTrialLayout(browser: WebDriver, summary: string) {
   await revealDetailSection(browser, "Game files");
 }
 
+export async function injectReadinessOmission(browser: WebDriver, portId: string) {
+  return browser.executeAsyncScript<unknown>((portId: string, done: (result: unknown) => void) => {
+    const runtime = window as ReadinessWindow;
+    const native = runtime.__TAURI_INTERNALS__;
+    if (!native) throw new Error("Native bridge unavailable");
+    const original = window.fetch;
+    const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
+    runtime.__portcoveReadinessProbe = { original, injected: 0 };
+    window.fetch = async function (input, ...args) {
+      const url =
+        typeof input === "string"
+          ? input
+          : input !== null &&
+              (typeof input === "object" || typeof input === "function") &&
+              "url" in input &&
+              input.url !== undefined &&
+              input.url !== null
+            ? input.url
+            : // oxlint-disable-next-line typescript/no-base-to-string -- Preserve native fetch coercion for foreign-realm URLs; covered by serialized-input controls.
+              String(input);
+      const response = await original.call(window, input, ...args);
+      if (url !== target) return response;
+      const snapshot: unknown = await response.clone().json();
+      const record = (value: unknown): value is Record<string, unknown> =>
+        value !== null && typeof value === "object" && !Array.isArray(value);
+      if (!record(snapshot)) return response;
+      if (
+        !Array.isArray(snapshot.statuses) ||
+        !snapshot.statuses.some(
+          (status: unknown) =>
+            record(status) &&
+            status.port_id === portId &&
+            record(status.readiness) &&
+            status.readiness.launchable === true,
+        )
+      )
+        return response;
+      const probe = runtime.__portcoveReadinessProbe;
+      if (!probe) return response;
+      probe.injected++;
+      return new Response(
+        JSON.stringify({
+          ...snapshot,
+          statuses: (snapshot.statuses as unknown[]).map((status) =>
+            record(status) && status.port_id === portId ? { ...status, readiness: null } : status,
+          ),
+        }),
+        {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        },
+      );
+    };
+    void native
+      .invoke("plugin:event|emit", {
+        event: "portcove://library-changed",
+        payload: "readiness-probe",
+      })
+      .then(
+        () => done({ ok: true }),
+        (error: unknown) => done({ error }),
+      );
+  }, portId);
+}
+
+export async function restoreReadinessOmission(browser: WebDriver) {
+  return executeBrowserScript(browser, (): ProbeObservation | { installed: false } => {
+    const runtime = window as ReadinessWindow;
+    const probe = runtime.__portcoveReadinessProbe;
+    if (!probe) return { installed: false };
+    window.fetch = probe.original;
+    const result = {
+      injected: probe.injected,
+      restored: window.fetch === probe.original,
+    };
+    delete runtime.__portcoveReadinessProbe;
+    return result;
+  });
+}
+
 export async function readinessScenario({
   browser,
   scenario,
@@ -471,76 +552,10 @@ export async function readinessScenario({
     const controls = reviewControls(browser);
     await open(port, false);
     try {
-      await browser
-        .executeAsyncScript<unknown>((portId: string, done: (result: unknown) => void) => {
-          const runtime = window as ReadinessWindow;
-          const native = runtime.__TAURI_INTERNALS__;
-          if (!native) throw new Error("Native bridge unavailable");
-          const original = window.fetch;
-          const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
-          runtime.__portcoveReadinessProbe = { original, injected: 0 };
-          window.fetch = async function (input, ...args) {
-            const url =
-              typeof input === "string"
-                ? input
-                : input !== null &&
-                    (typeof input === "object" || typeof input === "function") &&
-                    "url" in input &&
-                    input.url !== undefined &&
-                    input.url !== null
-                  ? input.url
-                  : // oxlint-disable-next-line typescript/no-base-to-string -- Preserve native fetch coercion for foreign-realm URLs; covered by serialized-input controls.
-                    String(input);
-            const response = await original.call(window, input, ...args);
-            if (url !== target) return response;
-            const snapshot: unknown = await response.clone().json();
-            const record = (value: unknown): value is Record<string, unknown> =>
-              value !== null && typeof value === "object" && !Array.isArray(value);
-            if (!record(snapshot)) return response;
-            if (
-              !Array.isArray(snapshot.statuses) ||
-              !snapshot.statuses.some(
-                (status: unknown) =>
-                  record(status) &&
-                  status.port_id === portId &&
-                  record(status.readiness) &&
-                  status.readiness.launchable === true,
-              )
-            )
-              return response;
-            const probe = runtime.__portcoveReadinessProbe;
-            if (!probe) return response;
-            probe.injected++;
-            return new Response(
-              JSON.stringify({
-                ...snapshot,
-                statuses: (snapshot.statuses as unknown[]).map((status) =>
-                  record(status) && status.port_id === portId
-                    ? { ...status, readiness: null }
-                    : status,
-                ),
-              }),
-              {
-                status: response.status,
-                statusText: response.statusText,
-                headers: response.headers,
-              },
-            );
-          };
-          void native
-            .invoke("plugin:event|emit", {
-              event: "portcove://library-changed",
-              payload: "readiness-probe",
-            })
-            .then(
-              () => done({ ok: true }),
-              (error: unknown) => done({ error }),
-            );
-        }, port.id)
-        .then((value) => {
-          const result = object(value);
-          assert.equal(result.ok, true, JSON.stringify(result));
-        });
+      await injectReadinessOmission(browser, port.id).then((value) => {
+        const result = object(value);
+        assert.equal(result.ok, true, JSON.stringify(result));
+      });
       await browser.wait(
         async () =>
           (await browser.findElement(By.css(".detail-panel")).getText()).includes(
@@ -587,18 +602,7 @@ export async function readinessScenario({
       throw error;
     } finally {
       try {
-        observations.probe = await executeBrowserScript(browser, () => {
-          const runtime = window as ReadinessWindow;
-          const probe = runtime.__portcoveReadinessProbe;
-          if (!probe) return { installed: false };
-          window.fetch = probe.original;
-          const result = {
-            injected: probe.injected,
-            restored: window.fetch === probe.original,
-          };
-          delete runtime.__portcoveReadinessProbe;
-          return result;
-        });
+        observations.probe = await restoreReadinessOmission(browser);
         assert.ok("restored" in observations.probe && observations.probe.restored === true);
       } finally {
         const report = path.join(output, "readiness-observations.json");
