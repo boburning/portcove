@@ -4,6 +4,7 @@ param(
     [string]$PlatformLabel,
     [ValidateSet("legacy-adjacent", "legacy-skipped", "preview-final")]
     [string]$TransitionProfile = "legacy-skipped",
+    [switch]$HistoricalLinuxBootstrap,
     [switch]$DescribeTransition,
     [ValidateSet('.github/workflows/updater-artifact-rehearsal.yml', '.github/workflows/hosted-native-continuity.yml')]
     [string]$EvidenceWorkflow = '.github/workflows/updater-artifact-rehearsal.yml',
@@ -13,6 +14,9 @@ param(
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location -LiteralPath $root
+if ($HistoricalLinuxBootstrap -and ($PlatformLabel -cne 'linux-x86_64' -or $TransitionProfile -ceq 'preview-final')) {
+    throw 'Historical Linux bootstrap requires a Linux legacy transition'
+}
 $transition = [ordered]@{
     profile = $TransitionProfile
     platform = $PlatformLabel
@@ -49,6 +53,11 @@ $revision = (& git rev-parse HEAD | Out-String).Trim()
 $runRoot = Join-Path $root "work/updater-rehearsal"
 if (Test-Path -LiteralPath $runRoot) { throw "Rehearsal evidence directory must be new" }
 New-Item -ItemType Directory -Path $runRoot | Out-Null
+$historicalLinuxManifest = $null
+if ($HistoricalLinuxBootstrap) {
+    $historicalLinuxManifest = (& node (Join-Path $root 'scripts/updater-historical-inputs.mts') prepare $root (Join-Path $runRoot 'historical-linux-bootstrap') | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $historicalLinuxManifest) { throw 'Historical Linux input preparation failed' }
+}
 $metadataPaths = @("Cargo.toml", "Cargo.lock", "apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json")
 $original = @{}
 foreach ($relative in $metadataPaths) { $original[$relative] = [IO.File]::ReadAllBytes((Join-Path $root $relative)) }
@@ -616,6 +625,7 @@ try {
         if (-not (Test-Path -LiteralPath $predecessor -PathType Leaf)) {
             throw "The qualified predecessor AppImage was not retained before consumer execution"
         }
+        $qualifiedPredecessorHash = if ($HistoricalLinuxBootstrap) { (Get-FileHash -LiteralPath $predecessor -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
         $linuxHarnessArguments = @(
             "-NoProfile", "-File", (Join-Path $PSScriptRoot "test-linux-appimage-update.ps1"),
             "-PredecessorPath", $predecessor,
@@ -641,11 +651,16 @@ try {
         $rendererLibrary = Join-Path $rendererRoot "library"
         New-Item -ItemType Directory -Path $rendererInstall, $rendererLibrary | Out-Null
         $rendererStable = Join-Path $rendererInstall "Portcove.AppImage"
-        Invoke-Checked "/usr/bin/cp" @("--preserve=mode,timestamps", "--", $predecessor, $rendererStable)
-        Invoke-Checked "/usr/bin/chmod" @("u+rwx,go+rx", "--", $rendererStable)
+        if (-not $HistoricalLinuxBootstrap) {
+            Invoke-Checked "/usr/bin/cp" @("--preserve=mode,timestamps", "--", $predecessor, $rendererStable)
+            Invoke-Checked "/usr/bin/chmod" @("u+rwx,go+rx", "--", $rendererStable)
+        }
         $rendererSentinel = Join-Path $rendererLibrary "update-preservation-marker.txt"
-        [IO.File]::WriteAllText($rendererSentinel, "Installed AppImage renderer update preservation`n")
-        $rendererSentinelHash = (Get-FileHash -LiteralPath $rendererSentinel -Algorithm SHA256).Hash
+        $rendererSentinelHash = $null
+        if (-not $HistoricalLinuxBootstrap) {
+            [IO.File]::WriteAllText($rendererSentinel, "Installed AppImage renderer update preservation`n")
+            $rendererSentinelHash = (Get-FileHash -LiteralPath $rendererSentinel -Algorithm SHA256).Hash
+        }
         $rendererEnvironmentNames = @(
             "APPIMAGE_EXTRACT_AND_RUN", "PORTCOVE_APPLICATION_RUNTIME_LOCK",
             "PORTCOVE_APPLICATION_UPDATE_PREFERENCES", "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
@@ -654,7 +669,10 @@ try {
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
-            "PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES"
+            "PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES",
+            "HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "TMPDIR",
+            "PORTCOVE_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN", "DBUS_SESSION_BUS_ADDRESS",
+            "GNOME_KEYRING_CONTROL", "GNOME_KEYRING_PID", "SSH_AUTH_SOCK", "GPG_AGENT_INFO", "RUSTUP_HOME"
         )
         $rendererPreviousEnvironment = @{}
         foreach ($name in $rendererEnvironmentNames) {
@@ -674,9 +692,27 @@ try {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $rendererRoot "candidate-startup.json"
             $env:PORTCOVE_LIBRARY = $rendererLibrary
             $env:PORTCOVE_PREFERENCES = Join-Path $rendererRoot "host-preferences.json"
+            if ($HistoricalLinuxBootstrap) {
+                # Compiler/reaper preparation retains its existing trusted tool
+                # cache. The consumer removes tool-cache variables from both
+                # application-driver environments; app HOME stays private.
+                if (-not $rendererPreviousEnvironment['RUSTUP_HOME']) {
+                    $env:RUSTUP_HOME = Join-Path $rendererPreviousEnvironment['HOME'] '.rustup'
+                }
+                foreach ($entry in @(@('HOME','home'), @('XDG_CONFIG_HOME','config'), @('XDG_DATA_HOME','data'), @('XDG_CACHE_HOME','cache'), @('XDG_RUNTIME_DIR','runtime'), @('TMPDIR','tmp'))) {
+                    $directory = Join-Path $rendererRoot $entry[1]
+                    New-Item -ItemType Directory -Path $directory | Out-Null
+                    Invoke-Checked '/usr/bin/chmod' @('700', '--', $directory)
+                    [Environment]::SetEnvironmentVariable($entry[0], $directory, 'Process')
+                }
+                foreach ($name in @('PORTCOVE_LIBRARY','PORTCOVE_GITHUB_TOKEN','GH_TOKEN','GITHUB_TOKEN','DBUS_SESSION_BUS_ADDRESS','GNOME_KEYRING_CONTROL','GNOME_KEYRING_PID','SSH_AUTH_SOCK','GPG_AGENT_INFO')) {
+                    [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+                }
+            }
+            $rendererEntry = if ($HistoricalLinuxBootstrap) { Join-Path $root 'scripts/run-installed-appimage-renderer.mts' } else { Join-Path $root 'apps/desktop/scripts/desktop-appimage-update-test.mts' }
             $rendererArguments = @(
                 "-a", "dbus-run-session", "--", "node",
-                (Join-Path $root "apps/desktop/scripts/desktop-appimage-update-test.mts"),
+                $rendererEntry,
                 "--app", $rendererStable,
                 "--driver", (Get-Command tauri-driver -ErrorAction Stop).Source,
                 "--native-driver", (Get-Command WebKitWebDriver -ErrorAction Stop).Source,
@@ -688,8 +724,21 @@ try {
                 "--candidate-sha", $candidateHash,
                 "--candidate-version", $candidateVersion
             )
+            if ($HistoricalLinuxBootstrap) {
+                $rendererArguments += @('--historical-bootstrap-manifest', $historicalLinuxManifest,
+                    '--bootstrap-predecessor', $predecessor,
+                    '--bootstrap-predecessor-sha', $qualifiedPredecessorHash,
+                    '--bootstrap-library', $rendererLibrary)
+            }
             Invoke-Checked "xvfb-run" $rendererArguments
             $rendererReport = Get-Content -LiteralPath (Join-Path $rendererRoot "evidence/renderer-update-evidence.json") -Raw | ConvertFrom-Json
+            if ($HistoricalLinuxBootstrap) {
+                if (-not $rendererReport.historical_bootstrap.normal_close_before_driver_teardown -or
+                    $rendererReport.historical_bootstrap.phase -cne 'complete') {
+                    throw 'Historical AppImage bootstrap did not complete normally'
+                }
+                $rendererSentinelHash = $rendererReport.historical_bootstrap.initial_marker_sha256
+            }
             if ($rendererReport.phase -ne "complete" -or $rendererReport.source_commit -ne $revision -or
                 $rendererReport.restart.stable_sha256 -ne $candidateHash -or
                 (Get-FileHash -LiteralPath $rendererStable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $candidateHash -or

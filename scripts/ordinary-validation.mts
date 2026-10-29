@@ -1259,6 +1259,7 @@ for (const [file, tests] of [
       "scripts/required-node-test-reporter.test.mts",
       "scripts/test-duration-reporter.test.mts",
       "scripts/ui-test-selection.test.mts",
+      "scripts/updater-historical-inputs.test.mts",
       "scripts/windows-historical-bootstrap.test.mts",
     ],
   ],

@@ -1,7 +1,9 @@
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { writeFile, mkdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { constants } from "node:fs";
+import { writeFile, mkdir, copyFile, chmod, lstat, readlink, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { By } from "selenium-webdriver";
@@ -9,6 +11,9 @@ import type { WebDriver } from "selenium-webdriver";
 import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.mts";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
 import { loadedWebKitLibraries } from "./desktop-linux-webkit-inspector.mts";
+import { readHistoricalLinuxInputs } from "../../../scripts/updater-historical-inputs.mts";
+import { assertOwnedUnlinkedPath } from "../../../scripts/release-path-safety.mts";
+import { readBoundedPublicBuildInputFile } from "../../../scripts/release-public-build-inputs.mts";
 import {
   createAppImageProcessObservations,
   waitForHealthyAppImageRestart,
@@ -35,6 +40,10 @@ const { values } = parseArgs({
       "helper-process-marker",
       "candidate-sha",
       "candidate-version",
+      "historical-bootstrap-manifest",
+      "bootstrap-predecessor",
+      "bootstrap-predecessor-sha",
+      "bootstrap-library",
     ].map((name) => [name, { type: "string" }] as const),
   ),
 });
@@ -101,6 +110,33 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
   helper_cleanup?: string;
   relaunch_cleanup?: string;
   processes_after_driver_stop?: ProcIdentity[];
+  historical_bootstrap?: {
+    phase: string;
+    inputs: Awaited<ReturnType<typeof readHistoricalLinuxInputs>>;
+    saved_library_choice: unknown;
+    cli_observed_version?: string;
+    data_scope: string;
+    desktop_entry_preservation: string;
+    initial_marker_sha256?: string;
+    initial_preferences_sha256?: string;
+    private_bus_id_sha256?: string;
+    caller?: {
+      uid: number;
+      gid: number;
+      groups: number[];
+      architecture: string;
+      credential_status: string[];
+    };
+    application_credential_status?: string[];
+    window_title?: string;
+    window_body_excerpt?: string;
+    normal_close_before_driver_teardown?: boolean;
+    driver?: ProcIdentity;
+    application?: ProcIdentity;
+    driver_log?: string;
+    driver_teardown?: { exit_code: number | null; signal: NodeJS.Signals | null };
+    snapshots: unknown[];
+  };
 }
 function object(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
@@ -205,17 +241,314 @@ async function ownedProcessTree(rootPid: number) {
 let driver: ReturnType<typeof startInstalledUpdateDriver>["driver"] | undefined;
 let browser: WebDriver | undefined;
 let driverSession: ReturnType<typeof startInstalledUpdateDriver> | undefined;
+const applicationEnvironment = { ...process.env };
+if (values["historical-bootstrap-manifest"])
+  for (const name of ["CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN", "RUSTC"])
+    delete applicationEnvironment[name];
+if (values["historical-bootstrap-manifest"])
+  applicationEnvironment.PATH = applicationEnvironment.PATH?.split(path.delimiter)
+    .filter((entry) => !/(?:^|\/)\.(?:cargo|rustup)(?:\/|$)/u.test(entry))
+    .join(path.delimiter);
+const projectRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+  encoding: "utf8",
+}).trim();
+async function historicalSnapshot(phase: string) {
+  const historical = report.historical_bootstrap;
+  assert.ok(historical);
+  const preferences = process.env.PORTCOVE_PREFERENCES;
+  assert.ok(preferences && path.isAbsolute(preferences));
+  const raw = await readBoundedPublicBuildInputFile(
+    projectRoot,
+    path.relative(projectRoot, preferences),
+    65536,
+  );
+  const preferencesSha = createHash("sha256").update(raw).digest("hex");
+  historical.initial_preferences_sha256 ??= preferencesSha;
+  assert.equal(
+    preferencesSha,
+    historical.initial_preferences_sha256,
+    "Normally saved host preferences changed",
+  );
+  const data = object(JSON.parse(raw.toString("utf8")));
+  assert.equal(data.format_version, 1);
+  const library = absoluteOption("bootstrap-library");
+  assert.equal(data.library_root, library);
+  const marker = await hashFile(path.join(library, "update-preservation-marker.txt"));
+  assert.equal(
+    marker.sha256,
+    historical.initial_marker_sha256,
+    "Original marker changed; never reseed it",
+  );
+  const installed = await lstat(app);
+  assert.ok(installed.isFile());
+  assert.equal(installed.uid, process.getuid?.(), "Installed AppImage ownership changed");
+  const busId = execFileSync(
+    "gdbus",
+    [
+      "call",
+      "--session",
+      "--dest",
+      "org.freedesktop.DBus",
+      "--object-path",
+      "/org/freedesktop/DBus",
+      "--method",
+      "org.freedesktop.DBus.GetId",
+    ],
+    { encoding: "utf8", timeout: 5000, maxBuffer: 65536 },
+  );
+  const names = execFileSync(
+    "gdbus",
+    [
+      "call",
+      "--session",
+      "--dest",
+      "org.freedesktop.DBus",
+      "--object-path",
+      "/org/freedesktop/DBus",
+      "--method",
+      "org.freedesktop.DBus.ListNames",
+    ],
+    { encoding: "utf8", timeout: 5000, maxBuffer: 65536 },
+  );
+  assert.ok(
+    !names.includes("org.freedesktop.secrets"),
+    "Private secret service activated; inspect ownership before continuing",
+  );
+  const busSha = createHash("sha256").update(busId).digest("hex");
+  historical.private_bus_id_sha256 ??= busSha;
+  assert.equal(busSha, historical.private_bus_id_sha256);
+  historical.snapshots.push({
+    phase,
+    preferences: { bytes: raw.length, sha256: preferencesSha, data },
+    marker,
+    stable: await hashFile(app),
+    owner_uid: installed.uid,
+    mode: (installed.mode & 0o7777).toString(8),
+    private_bus_id_sha256: busSha,
+    secret_service_registered: false,
+  });
+  await save();
+}
+async function historicalPrelude() {
+  const inputs = await readHistoricalLinuxInputs(
+    projectRoot,
+    absoluteOption("historical-bootstrap-manifest"),
+  );
+  assert.ok(
+    process.getuid && process.getuid() !== 0,
+    "Historical AppImage caller must be rootless",
+  );
+  assert.equal(process.arch, "x64");
+  const library = absoluteOption("bootstrap-library");
+  const predecessor = absoluteOption("bootstrap-predecessor");
+  const predecessorSha = requiredOption("bootstrap-predecessor-sha");
+  assert.match(predecessorSha, /^[a-f0-9]{64}$/u);
+  await assertOwnedUnlinkedPath(projectRoot, app, "historical stable AppImage");
+  await assertOwnedUnlinkedPath(projectRoot, library, "historical library");
+  const pre = await lstat(predecessor);
+  assert.ok(pre.isFile() && pre.size > 0 && pre.size <= 512 * 1024 * 1024);
+  const preBytes = await readBoundedPublicBuildInputFile(
+    projectRoot,
+    path.relative(projectRoot, predecessor),
+    pre.size,
+  );
+  assert.equal(createHash("sha256").update(preBytes).digest("hex"), predecessorSha);
+  await assert.rejects(lstat(app), { code: "ENOENT" }, "Bootstrap destination must be new");
+  const oldEnvironment = { ...applicationEnvironment };
+  for (const name of Object.keys(oldEnvironment))
+    if (
+      name.startsWith("PORTCOVE_APPLICATION_") ||
+      name.startsWith("TAURI_SIGNING_") ||
+      ["PORTCOVE_LIBRARY", "PORTCOVE_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"].includes(name)
+    )
+      delete oldEnvironment[name];
+  const historical: NonNullable<AppImageUpdateReport["historical_bootstrap"]> = {
+    phase: "preparing-saved-library-choice",
+    inputs,
+    saved_library_choice: null,
+    data_scope:
+      "normally saved library preference and one synthetic marker; no installed game/save/credential continuity",
+    desktop_entry_preservation:
+      "not_evaluated; this continuous renderer installation has no desktop entry; lifecycle entry evidence is separate",
+    snapshots: [] as unknown[],
+  };
+  report.historical_bootstrap = historical;
+  historical.caller = {
+    uid: process.getuid(),
+    gid: process.getgid!(),
+    groups: process.getgroups!(),
+    architecture: process.arch,
+    credential_status: (await readFile("/proc/self/status", "utf8"))
+      .split("\n")
+      .filter((line) => /^(Uid|Gid|CapEff|NoNewPrivs):/u.test(line)),
+  };
+  await save();
+  historical.cli_observed_version = execFileSync(inputs.files.cli.path, ["--version"], {
+    env: oldEnvironment,
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 65536,
+  }).trim();
+  assert.equal(historical.cli_observed_version, `portcove ${inputs.version}`);
+  const cliResults: Record<string, unknown>[] = [];
+  for (const args of [
+    ["--json", "library", "set", library],
+    ["--json", "library", "show"],
+  ]) {
+    const result = object(
+      JSON.parse(
+        execFileSync(inputs.files.cli.path, args, {
+          env: oldEnvironment,
+          encoding: "utf8",
+          timeout: 30_000,
+          maxBuffer: 65536,
+        }),
+      ),
+    );
+    assert.equal(result.ok, true);
+    const resultData = object(result.data);
+    assert.equal(resultData.root, library);
+    assert.equal(resultData.source, "saved");
+    cliResults.push(result);
+  }
+  historical.saved_library_choice = cliResults;
+  const marker = path.join(library, "update-preservation-marker.txt");
+  await writeFile(marker, "Installed AppImage renderer update preservation\n", { flag: "wx" });
+  historical.initial_marker_sha256 = (await hashFile(marker)).sha256;
+  await copyFile(inputs.files.appimage.path, app, constants.COPYFILE_EXCL);
+  await chmod(app, 0o755);
+  assert.equal((await hashFile(app)).sha256, inputs.files.appimage.sha256);
+  await historicalSnapshot("before-updaterless-startup");
+  driverSession = startInstalledUpdateDriver(driverPath, nativeDriver, {
+    detached: true,
+    env: oldEnvironment,
+  });
+  driver = driverSession.driver;
+  report.driver = await awaitInstalledUpdateDriver(driver, procIdentity);
+  historical.driver = report.driver;
+  assert.ok(historical.driver);
+  historical.phase = "ordinary-updaterless-session-starting";
+  await save();
+  browser = await connectInstalledUpdateDriver(app);
+  historical.application = await waitFor(
+    async () => {
+      assert.ok(driver?.pid);
+      const matches = [];
+      for (const before of await ownedProcessTree(driver.pid)) {
+        try {
+          const image = await readlink(`/proc/${before.pid}/exe`);
+          if (path.basename(image) !== "portcove-desktop") continue;
+          const env = (await readFile(`/proc/${before.pid}/environ`, "utf8")).split("\0");
+          if (!env.includes(`APPIMAGE=${app}`)) continue;
+          const after = await procIdentity(before.pid);
+          if (after?.start_ticks === before.start_ticks) matches.push(after);
+        } catch (error) {
+          if (
+            !["ENOENT", "ESRCH", "EACCES"].includes(String((error as NodeJS.ErrnoException).code))
+          )
+            throw error;
+        }
+      }
+      assert.ok(matches.length <= 1, "Historical application identity is ambiguous");
+      return matches[0];
+    },
+    "ordinary updater-less application identity",
+    15_000,
+  );
+  historical.window_title = await browser.getTitle();
+  historical.window_body_excerpt = await waitFor(
+    async () => {
+      assert.ok(browser);
+      const text: unknown = await browser.executeScript(
+        "return document.readyState === 'complete' ? document.body.innerText : ''",
+      );
+      return typeof text === "string" && text.trim().length > 0 ? text.slice(0, 3000) : undefined;
+    },
+    "ordinary historical window content",
+    15_000,
+  );
+  assert.ok(historical.application);
+  historical.application_credential_status = (
+    await readFile(`/proc/${historical.application.pid}/status`, "utf8")
+  )
+    .split("\n")
+    .filter((line) => /^(Uid|Gid|CapEff|NoNewPrivs):/u.test(line));
+  const appUid = historical.application_credential_status.find((line) => line.startsWith("Uid:"));
+  assert.ok(
+    appUid &&
+      appUid
+        .split(/\s+/u)
+        .slice(1)
+        .every((value) => Number(value) === process.getuid!()),
+  );
+  assert.ok(historical.application_credential_status.includes("CapEff:\t0000000000000000"));
+  await writeFile(
+    path.join(output, "historical-window.png"),
+    Buffer.from(await browser.takeScreenshot(), "base64"),
+  );
+  await browser.close();
+  const application = historical.application;
+  assert.ok(application);
+  await waitFor(
+    async () => (await procIdentity(application.pid))?.start_ticks !== application.start_ticks,
+    "updater-less application natural close before driver teardown",
+    15_000,
+  );
+  assert.equal(driver.exitCode, null);
+  assert.equal(driver.signalCode, null);
+  assert.equal(
+    (await procIdentity(historical.driver.pid))?.start_ticks,
+    historical.driver.start_ticks,
+  );
+  historical.normal_close_before_driver_teardown = true;
+  await historicalSnapshot("after-updaterless-normal-close");
+  const oldDriver = historical.driver;
+  const oldTree = await ownedProcessTree(oldDriver.pid);
+  await Promise.race([
+    browser.quit().catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, 5000)),
+  ]);
+  browser = undefined;
+  historical.driver_log = driverSession.log;
+  const liveDriver = await procIdentity(oldDriver.pid);
+  if (liveDriver) {
+    assert.equal(liveDriver.start_ticks, oldDriver.start_ticks);
+    process.kill(-oldDriver.pid, "SIGTERM");
+  }
+  await waitFor(
+    async () => {
+      const live = await Promise.all(
+        oldTree.map(async (old) => (await procIdentity(old.pid))?.start_ticks === old.start_ticks),
+      );
+      return live.every((value) => !value);
+    },
+    "historical owned driver tree teardown after normal application close",
+    5000,
+  );
+  historical.driver_teardown = { exit_code: driver.exitCode, signal: driver.signalCode };
+  driver = undefined;
+  driverSession = undefined;
+  assert.equal((await hashFile(app)).sha256, inputs.files.appimage.sha256);
+  await copyFile(predecessor, app);
+  await chmod(app, 0o755);
+  assert.equal((await hashFile(app)).sha256, predecessorSha);
+  await historicalSnapshot("after-manual-same-path-updater-enabled-replacement");
+  historical.phase = "complete";
+  await save();
+}
 try {
+  if (values["historical-bootstrap-manifest"]) await historicalPrelude();
   report.initial_sha256 = (await hashFile(app)).sha256;
   driverSession = startInstalledUpdateDriver(driverPath, nativeDriver, {
     detached: true,
-    env: process.env,
+    env: applicationEnvironment,
   });
   driver = driverSession.driver;
   assert.ok(driver.pid, "Owned driver PID required");
   report.driver = await awaitInstalledUpdateDriver(driver, procIdentity);
   assert.ok(report.driver);
   browser = await connectInstalledUpdateDriver(app);
+  if (report.historical_bootstrap) await historicalSnapshot("after-updater-enabled-startup");
   report.ordinary_staging = await driveInstalledUpdateToRestart(
     browser,
     report.actions,
@@ -281,6 +614,7 @@ try {
   );
   report.restart.candidate_exit_observed = true;
   report.actions.push("candidate-restarted-and-reconciled");
+  if (report.historical_bootstrap) await historicalSnapshot("after-authenticated-candidate-return");
   report.phase = "complete";
 } catch (error) {
   await recordInstalledUpdateFailure(report, error, helperMarker);
