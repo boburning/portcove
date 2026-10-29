@@ -580,7 +580,7 @@ async fn followed_updates_are_explicit_deduplicated_and_do_not_change_installs_o
 #[tokio::test]
 async fn pinned_real_sm64_relationships_stay_independent_and_sparse_without_fabricated_quality() {
     let evidence: serde_json::Value = serde_json::from_str(include_str!(
-        "../../tests/fixtures/recommendation-sm64-upstream-identities-20261029.json"
+        "../../../../tests/fixtures/recommendation-sm64-upstream-identities-20261029.json"
     ))
     .unwrap();
     let asset = &evidence["cases"][1]["asset"];

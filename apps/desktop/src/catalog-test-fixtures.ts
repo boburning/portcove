@@ -13,7 +13,15 @@ const ajv = new Ajv2020({
   coerceTypes: false,
   useDefaults: false,
   removeAdditional: false,
-  formats: { int32: true, int64: true, uint: true, uint32: true, uint64: true, uint8: true },
+  formats: {
+    int32: true,
+    int64: true,
+    uint: true,
+    uint32: true,
+    uint64: true,
+    uint8: true,
+    uint16: true,
+  },
 });
 const validate = ajv.compile<PortDefinition>({
   $schema: schemas.catalog.$schema,
