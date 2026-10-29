@@ -135,6 +135,8 @@ export function ListingDetailPanel({
   const listing = entry.listing;
   const registered = status?.external_runtime;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
+  const readinessUnknown =
+    registered && !launch.allowed && typeof status?.readiness?.launchable !== "boolean";
   const needsFiles = !registered || !launch.allowed;
   const links = listing && (
     <div className="flex flex-wrap gap-4 text-sm">
@@ -233,13 +235,17 @@ export function ListingDetailPanel({
               className={
                 registered && launch.allowed
                   ? "text-pc-success-foreground"
-                  : "text-pc-warning-foreground"
+                  : readinessUnknown
+                    ? "text-pc-muted-foreground"
+                    : "text-pc-warning-foreground"
               }
             >
               {registered
                 ? launch.allowed
                   ? "Ready to play"
-                  : "Launch needs attention"
+                  : readinessUnknown
+                    ? "Readiness unavailable"
+                    : "Launch needs attention"
                 : entry.pendingSetup
                   ? "Downloaded · finish setup"
                   : listing

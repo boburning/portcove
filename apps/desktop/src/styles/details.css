@@ -168,9 +168,9 @@
     block-size: 1rem;
     flex: none;
   }
-  .detail-header-actions > button,
-  .detail-header-actions .detail-hero-action {
-    min-block-size: 2.75rem;
+  .detail-header-actions {
+    --control-height-md: 2.75rem;
+    --control-height-lg: 2.75rem;
   }
   .detail-header-actions > [data-variant="primary"],
   .detail-header-actions .detail-hero-action {
@@ -477,6 +477,9 @@
     }
   }
   @container detail (max-width: 48em) {
+    .detail-setup-workspace {
+      grid-template-columns: minmax(0, 1fr);
+    }
     .media-gallery-grid {
       grid-template-columns: minmax(0, 1fr);
     }

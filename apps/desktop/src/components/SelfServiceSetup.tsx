@@ -1,4 +1,4 @@
-import { Gamepad2 } from "lucide-react";
+import { Play } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
@@ -72,7 +72,7 @@ export function SelfServiceSetup({
       aria-busy={launch.allowed && busy}
       onClick={play}
     >
-      <Icon glyph={Gamepad2} /> Play
+      <Icon glyph={Play} className="fill-current" /> Play
     </Button>
   ) : null;
   const setup = (
@@ -176,8 +176,8 @@ export function SelfServiceSetup({
       {registered && entry.listing && (
         <div className="grid gap-2 text-sm">
           <p>
-            Registered · ready to launch when available. You or upstream manage updates; the
-            downloaded release does not establish the currently installed version.
+            Registered installation. You or upstream manage updates; the downloaded release does not
+            establish the currently installed version.
           </p>
           <ExternalLink href={entry.listing.release_url || entry.listing.project_url}>
             Upstream releases and updates

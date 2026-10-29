@@ -26,11 +26,11 @@ name. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit
 selection scope, including filtered-out entries in supported Steam commands.
 
-Covers use content-driven columns with a preferred minimum of 12.75rem, giving
+Covers use content-driven columns with a preferred minimum of 12rem, giving
 five columns at the matched 1440px desktop viewport with the normal interface
 size and full sidebar. Available width and interface size change the count.
 Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
-it caps at 160px. Short windows retain the same density rules. Supporting text
+it caps at 160px. Compact widths and short desktop windows use a 10rem preferred column minimum; artwork remains capped at 260px even when supporting text grows. Supporting text
 scales and wraps without growing artwork beyond its CSS bound; native interface
 zoom still enlarges the physical rendering. Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
 40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a bordered, labeled button; hover and keyboard focus use the signature red. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
@@ -77,6 +77,15 @@ Geist, semantic tokens, the existing controls and the one persisted/native sizin
 authority remain shared. Enlarged text may wrap and scroll; it never authorizes
 shrinking essential text, hiding consequences or replacing the domain projections.
 
+Collection titles use scalable 14px-equivalent type with 1.45 leading; project text
+uses a 12px-equivalent role with 1.5 leading. The cover-to-identity gap is 24px at
+normal scale, columns are separated by 20px, and card actions use a 32px-equivalent
+height. Shared general-purpose buttons retain their larger hit targets. Saved and
+hidden collection views, Favorites, and Not in library share existing query owners;
+the latter is selected only for that exact singleton membership, not an OR selection
+that also includes installed games. Selecting a quick view preserves search and
+unrelated facets.
+
 ## Game details
 
 Managed games, registered external installations and catalog/self-service entries
@@ -105,14 +114,14 @@ keep the complete glyph bounds over a readable surface. Logo ink/contrast and
 minimum rendered size are checked; unsuitable or failed assets advance to the
 next fallback without arbitrary pixel recoloring. Continue uses recorded launch
 history and relaunches that installation; it does not load a save automatically.
-Loaded galleries use three columns in wide containers when at least three images
-exist, two at medium widths, and one in compact containers; per-slot attribution,
+Loaded galleries use three columns for exactly three images in wide containers,
+two for other multi-image sets and medium widths, and one in compact containers; per-slot attribution,
 errors and lightbox focus remain with the media owner. Forced colors suppress
 decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
 Five permanent sections use Base UI manual-activation tabs. Arrow keys and
-Home/End move focus; Enter/Space select. Narrow tab lists wrap with visible labels.
+Home/End move focus; Enter/Space select. Narrow tab lists retain visible labels in one horizontally scrollable row.
 Panels stay mounted to preserve drafts and reviews; inactive panels are hidden and
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
@@ -1016,3 +1025,21 @@ precede that identity chain. Header and screenshot selection remain independent.
 A logo sits above the game identity/actions; a cover retains its portrait column.
 Supporting detail and settings text scales with interface size. No artwork or
 prototype fixture creates readiness, launch history or operation eligibility.
+
+### Prototype composition and production state
+
+Overview uses a primary information column and a narrower Requirements/Project &
+support column. Files and Versions follow the same responsive rhythm. Current
+and downloaded/available versions are separate prominent values; retained update
+observations never become current facts after a generation or installation change.
+Backup journey counts require a current healthy inventory, and unavailable data
+never becomes a zero count. Manage uses ruled rows and a separate destructive zone.
+
+Activity embeds progress within task rows and uses open empty states while keeping
+history completeness visible. Supplemental update explanations are disclosed;
+current check coverage remains visible. Command groups are registry metadata, with
+original keyboard order, disabled skipping and command dispatch unchanged.
+
+Shared dialogs reserve heading and description space for Close. Shared empty
+states use an open icon/title/body composition; informational notices use a quiet
+surface and leading accent while warning/error semantics remain independent.
