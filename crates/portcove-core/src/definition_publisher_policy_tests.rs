@@ -1818,6 +1818,145 @@ async fn curated_cache_policy_loss_during_copy_refuses_publication_and_preserves
     curated_cache_worker_intervention(CacheIntervention::PolicyLoss).await;
 }
 
+#[tokio::test]
+async fn curated_cache_existing_retention_rechecks_unchanged_authority() {
+    curated_cache_existing_retention_recheck(None).await;
+}
+
+#[tokio::test]
+async fn curated_cache_existing_retention_rechecks_policy_revocation() {
+    curated_cache_existing_retention_recheck(Some("policy_revoked")).await;
+}
+
+#[tokio::test]
+async fn curated_cache_existing_retention_rechecks_artifact_revocation() {
+    curated_cache_existing_retention_recheck(Some("revoked")).await;
+}
+
+#[tokio::test]
+async fn curated_cache_existing_retention_rechecks_distribution_withdrawal() {
+    curated_cache_existing_retention_recheck(Some("distribution_withdrawn")).await;
+}
+
+async fn curated_cache_existing_retention_recheck(status: Option<&str>) {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let bytes = b"independently admitted cached fixture bytes";
+    let platform = crate::Platform::current().unwrap();
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = platform;
+    record.size = bytes.len() as u64;
+    record.sha256 = hex::encode(Sha256::digest(bytes));
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    port.platforms = vec![platform];
+    port.executable_hints = std::collections::BTreeMap::from([(
+        platform,
+        vec![
+            if cfg!(windows) {
+                "fixture.exe"
+            } else {
+                "fixture"
+            }
+            .into(),
+        ],
+    )]);
+    port.release.curated.insert(platform, record.clone());
+    document.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let (fixture, key, root, _directory, library, catalog, scope) =
+        managed_fixture_for_policy(authored, true).await;
+    let transition = if status == Some("policy_revoked") {
+        let mut document = managed_github(2);
+        document["policy_schema"] = 4.into();
+        document["decision"] = serde_json::json!({"status":"revoked"});
+        publish(&fixture, &key, 2, &document).await;
+        Some((acquire_policy(&fixture, &root, ID).await.unwrap(), None))
+    } else if let Some(status) = status {
+        let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
+        let (candidate, admission) =
+            publish_curated_transition(&fixture, &key, &root, &catalog, 2, Some(transitions)).await;
+        Some((admission, Some(candidate)))
+    } else {
+        None
+    };
+    scope.require_current().unwrap();
+    let cache_root = library.downloads_dir().join("curated-v1");
+    fs::create_dir_all(&cache_root).unwrap();
+    let cached = cache_root.join(format!("{}.asset", record.sha256));
+    fs::write(&cached, bytes).unwrap();
+    let source = library.root().join("source.asset");
+    fs::write(&source, bytes).unwrap();
+    let unaffected = library.root().join("unaffected.asset");
+    fs::write(&unaffected, b"retained unaffected bytes").unwrap();
+    let verified = Arc::new(AtomicBool::new(false));
+    let finished = Arc::new(AtomicBool::new(false));
+    let observed = verified.clone();
+    let changed_library = library.clone();
+    let expected_cached = cached.clone();
+    let mut worker = crate::curated_cache::CacheWorker::new(
+        &scope,
+        &crate::ReleaseAsset {
+            name: record.filename.clone(),
+            url: record.acquisition_url.clone(),
+            size: record.size,
+            sha256: record.sha256.clone(),
+        },
+        &crate::operation::OperationCoordinator::new("install", None),
+    );
+    worker.hook = Some(crate::curated_cache::CacheWorkerTestHook {
+        after_copy: Arc::new(|_, _| panic!("existing entry must not copy or publish bytes")),
+        after_verify: Some(Arc::new(move |path, size| {
+            assert_eq!(path, expected_cached);
+            assert_eq!(size, bytes.len() as u64);
+            assert!(
+                !observed.swap(true, Ordering::SeqCst),
+                "one actual cache verification expected"
+            );
+            // The actual digest has passed. Admit a separately authenticated
+            // transition before the worker can report successful cache reuse.
+            if let Some((admission, candidate)) = &transition {
+                assert!(
+                    changed_library
+                        .apply_definition_publisher_policy(admission, candidate.as_ref())?
+                );
+            }
+            Ok(())
+        })),
+        finished: finished.clone(),
+    });
+    let result = worker.retain(&source).await;
+    assert!(
+        verified.load(Ordering::SeqCst),
+        "actual verification was not reached: {result:?}"
+    );
+    assert!(
+        finished.load(Ordering::SeqCst),
+        "the original worker must be joined"
+    );
+    if status.is_some() {
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Conflict);
+        assert!(scope.require_current().is_err());
+    } else {
+        assert!(result.unwrap());
+        scope.require_current().unwrap();
+    }
+    assert_eq!(fs::read(&cached).unwrap(), bytes);
+    assert_eq!(fs::read(&source).unwrap(), bytes);
+    assert_eq!(fs::read(unaffected).unwrap(), b"retained unaffected bytes");
+    assert_eq!(fs::read_dir(&cache_root).unwrap().count(), 1);
+    assert!(library.all_installs().unwrap().is_empty());
+    assert_eq!(count(&library, "curated_artifact_admissions"), 1);
+}
+
 enum CacheIntervention {
     CancelRestore,
     CancelRetain,
@@ -1999,6 +2138,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
             }
             Ok(())
         }),
+        after_verify: None,
         finished: finished.clone(),
     };
     let installer = crate::Installer::new(library.clone())
@@ -2095,6 +2235,11 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // policy loss first copied at10.007s after its9.844s expired observation.
     // Apply the existing15s allowance to these four retention interventions
     // on the observed Unix platforms; keep restore budgets and all barriers.
+    // Source b89c local serial restore controls reached their first actual
+    // 64KiB copy at 5.737s (cancellation) and 5.546s (revocation), after the
+    // original five-second setup latch. Under QUALITY's standing calibration
+    // authority, reuse the existing finite 15s setup allowance for Linux x64
+    // restores; preserve the original start, partial-copy barrier and drain.
     let slow_retention_setup = ((cfg!(any(target_os = "windows", target_os = "macos"))
         || cfg!(all(target_os = "linux", target_arch = "x86_64")))
         && matches!(
@@ -2104,13 +2249,13 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 | CacheIntervention::CancelRetain
                 | CacheIntervention::ArtifactRevocationRetain
         ))
-        || (cfg!(target_os = "windows")
+        || (cfg!(target_os = "windows") || cfg!(all(target_os = "linux", target_arch = "x86_64")))
             && matches!(
                 intervention,
                 CacheIntervention::CancelRestore
                     | CacheIntervention::ArtifactRevocationRestore
                     | CacheIntervention::ArtifactWithdrawalRestore
-            ));
+            );
     let latch_timeout = if slow_retention_setup {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))

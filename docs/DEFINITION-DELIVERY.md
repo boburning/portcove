@@ -807,7 +807,9 @@ failure and must pass the existing size and checksum guards.
 The cache uses one existing library OS lock. Retaining a new entry inventories
 at most 256 entries and 8 GiB of retained bytes, including interrupted partial
 copies, and refuses unexpected members or over-bound inventories. An existing
-hit verifies its own bytes and path without auditing unrelated members. Lock
+hit verifies its own bytes and path without auditing unrelated members, then
+rechecks the same current scope and artifact policy before reporting retention
+success. A hold admitted during hashing refuses reuse and preserves the bytes. Lock
 contention or exhausted capacity permits ordinary verified acquisition without
 new cache retention. Symlinks and corruption are refused and preserved.
 Private `.partial-<UUID>` copies never qualify as hits; no eviction

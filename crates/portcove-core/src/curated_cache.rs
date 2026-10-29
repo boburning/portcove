@@ -28,6 +28,7 @@ type AfterCacheCopy = std::sync::Arc<dyn Fn(&Path, u64) -> Result<()> + Send + S
 #[derive(Clone)]
 pub(crate) struct CacheWorkerTestHook {
     pub after_copy: AfterCacheCopy,
+    pub after_verify: Option<AfterCacheCopy>,
     pub finished: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
@@ -143,7 +144,9 @@ fn regular(path: &Path) -> Result<Option<fs::Metadata>> {
     }
 }
 
-fn verify(path: &Path, asset: &ReleaseAsset, operation: &OperationCoordinator) -> Result<()> {
+fn verify(path: &Path, worker: &CacheWorker) -> Result<()> {
+    let asset = &worker.asset;
+    let operation = &worker.operation;
     let metadata = regular(path)?
         .ok_or_else(|| PortcoveError::verification("curated cache bytes disappeared"))?;
     crate::archive::validate_download_size(metadata.len(), asset.size)?;
@@ -156,6 +159,14 @@ fn verify(path: &Path, asset: &ReleaseAsset, operation: &OperationCoordinator) -
             PortcoveError::verification("curated cache bytes failed SHA-256 verification")
                 .detail("path", path.display().to_string()),
         );
+    }
+    #[cfg(test)]
+    if let Some(hook) = worker
+        .hook
+        .as_ref()
+        .and_then(|hook| hook.after_verify.as_ref())
+    {
+        hook(path, size)?;
     }
     Ok(())
 }
@@ -192,7 +203,7 @@ fn copy_checked(
     }
     output.sync_all()?;
     drop(output);
-    verify(destination, asset, &worker.operation)
+    verify(destination, worker)
 }
 
 fn restore_inner(worker: &CacheWorker, destination: &Path) -> Result<bool> {
@@ -226,7 +237,8 @@ fn retain_inner(worker: &CacheWorker, source: &Path) -> Result<bool> {
         Err(error) => return Err(error),
     };
     if regular(&path)?.is_some() {
-        verify(&path, asset, operation)?;
+        verify(&path, worker)?;
+        entry(scope, asset)?;
         return Ok(true);
     }
     let root = path.parent().expect("cache entry has parent");
