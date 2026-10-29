@@ -1081,6 +1081,14 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/fixtures/signing-context-artifact-fixture.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
+  ],
+  [
+    "scripts/fixtures/signing-context-receiver-fixture.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
+  ],
+  [
     "scripts/release-signing-context-artifact.mts",
     [
       "scripts/release-signing-context-artifact.test.mts",
