@@ -1,32 +1,48 @@
-//! A bounded historical reader hold; this grants no save conversion or adoption.
+//! Three bounded historical reader holds; no save conversion or adoption authority.
 use super::*;
 
+#[cfg(test)]
 const ID: &str = "sonic-3-and-knuckles-recomp";
 const LEGACY_PACKAGE: &str = "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99";
 
-fn newer_route(port: &PortDefinition) -> bool {
-    port.id == ID
-        && !(port.release.provider == crate::ReleaseSource::DirectManifest
-            && port
-                .release
-                .direct
-                .get(&Platform::WindowsX86_64)
-                .is_some_and(|release| {
-                    release.version == "v0.5.3" && release.sha256 == LEGACY_PACKAGE
-                }))
+fn legacy_reader(port_id: &str) -> Option<(&'static str, &'static str)> {
+    match port_id {
+        "sonic-3-and-knuckles-recomp" => Some(("v0.5.3", LEGACY_PACKAGE)),
+        "sonic-the-hedgehog-recomp" => Some((
+            "v0.6.0",
+            "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+        )),
+        "mega-man-x2-snes-recomp" => Some((
+            "v0.1.4",
+            "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+        )),
+        _ => None,
+    }
 }
 
-fn held() -> PortcoveError {
-    PortcoveError::conflict(
-        "Sonic 3K player-data compatibility is held. Preserve the creating runtime and all data; use a separate empty library for a fresh installation until the legacy transition is qualified (Portcove #154).",
-    ).with_known_cause(crate::failure::KnownFailureCause::PortableDataContractChanged)
+fn newer_route(port: &PortDefinition) -> bool {
+    let Some((version, sha256)) = legacy_reader(&port.id) else {
+        return false;
+    };
+    !(port.release.provider == crate::ReleaseSource::DirectManifest
+        && port
+            .release
+            .direct
+            .get(&Platform::WindowsX86_64)
+            .is_some_and(|release| release.version == version && release.sha256 == sha256))
+}
+
+fn held(port: &PortDefinition) -> PortcoveError {
+    PortcoveError::conflict(format!(
+        "{} player-data compatibility is held. Preserve the creating runtime and all data; use a separate empty library for a fresh installation until its legacy transition is qualified.", port.name,
+    )).with_known_cause(crate::failure::KnownFailureCause::PortableDataContractChanged)
 }
 
 /// Original bytes are not player data, but only a verified regular materialized
 /// source may be exempted. Case aliases, links and unreadable files remain holds.
 fn require_empty_player_data(port: &PortDefinition, root: &Path) -> Result<()> {
     if !crate::persistence::ready_staged_archive(port) {
-        return Err(held());
+        return Err(held(port));
     }
     for relative in crate::persistence::entries(port, &[root])? {
         if port.runtime_source_filename.as_deref() == Some(relative.as_str()) {
@@ -45,22 +61,25 @@ fn require_empty_player_data(port: &PortDefinition, root: &Path) -> Result<()> {
             // persistence::require_absent_path before allowing this one source.
             for (index, entry) in fs::read_dir(root)?.enumerate() {
                 if index >= 4096 {
-                    return Err(held());
+                    return Err(held(port));
                 }
                 let name = entry?.file_name();
                 let name = crate::path::unicode(Path::new(&name), "original filename")?;
                 if name.to_lowercase() == relative.to_lowercase() && name != relative {
-                    return Err(held());
+                    return Err(held(port));
                 }
             }
-            let expected = port.runtime_source_hashes.get(&relative).ok_or_else(held)?;
+            let expected = port
+                .runtime_source_hashes
+                .get(&relative)
+                .ok_or_else(|| held(port))?;
             let actual =
                 crate::external_runtime::hash_stable_regular(&path, 16 * 1024 * 1024, &|| Ok(()))?;
             if actual.0 != *expected {
-                return Err(held());
+                return Err(held(port));
             }
         } else {
-            crate::persistence::require_absent_path(root, &relative).map_err(|_| held())?;
+            crate::persistence::require_absent_path(root, &relative).map_err(|_| held(port))?;
         }
     }
     Ok(())
@@ -69,22 +88,22 @@ fn require_empty_player_data(port: &PortDefinition, root: &Path) -> Result<()> {
 impl PortcoveService {
     /// Preserve the exact legacy reader, while refusing unproven canonical data
     /// before a new route is created. Retained imports carry their own receipts.
-    pub(super) fn require_sonic3k_fresh_data(&self, port: &PortDefinition) -> Result<()> {
+    pub(super) fn require_direct_fresh_data(&self, port: &PortDefinition) -> Result<()> {
         if newer_route(port) {
             require_empty_player_data(port, &self.library.user_dir(&port.id))?;
         }
         Ok(())
     }
 
-    pub(super) fn require_sonic3k_initial_restore(
+    pub(super) fn require_direct_initial_restore(
         &self,
         port: &PortDefinition,
         install: &InstallRecord,
     ) -> Result<()> {
-        self.require_sonic3k_initial_restore_from(port, install, &self.library.user_dir(&port.id))
+        self.require_direct_initial_restore_from(port, install, &self.library.user_dir(&port.id))
     }
 
-    pub(super) fn require_sonic3k_restore_snapshot(
+    pub(super) fn require_direct_restore_snapshot(
         &self,
         port: &PortDefinition,
         install_root: &Path,
@@ -95,11 +114,11 @@ impl PortcoveService {
         }
         let install = self
             .psx_data_install(port, install_root)?
-            .ok_or_else(held)?;
-        self.require_sonic3k_initial_restore_from(port, &install, snapshot)
+            .ok_or_else(|| held(port))?;
+        self.require_direct_initial_restore_from(port, &install, snapshot)
     }
 
-    fn require_sonic3k_initial_restore_from(
+    fn require_direct_initial_restore_from(
         &self,
         port: &PortDefinition,
         install: &InstallRecord,
@@ -110,7 +129,7 @@ impl PortcoveService {
         }
         let retained = self.installed_port(install)?;
         if serde_json::to_value(&retained)? != serde_json::to_value(port)? {
-            return Err(held());
+            return Err(held(port));
         }
         if !psx_mod_data::initialized(install)? {
             require_empty_player_data(port, snapshot)?;
@@ -118,13 +137,13 @@ impl PortcoveService {
         Ok(())
     }
 
-    pub(super) fn require_sonic3k_empty_expansion(
+    pub(super) fn require_direct_empty_expansion(
         &self,
         retained: &PortDefinition,
         to: &PortDefinition,
         roots: &[PathBuf],
     ) -> Result<()> {
-        if retained.id == ID && newer_route(to) {
+        if retained.id == to.id && newer_route(to) {
             // Shared paths may contain build-bound states even when every added
             // thumbnail/campaign sidecar is absent. Generic expansion alone is
             // not a compatibility proof for this historical reader transition.
@@ -226,6 +245,47 @@ mod tests {
         fs::remove_file(root.join("game.bin")).unwrap();
         fs::hard_link(&original, root.join("game.bin")).unwrap();
         assert!(require_empty_player_data(&port, &root).is_err());
+    }
+
+    #[test]
+    fn fresh_sonic1_and_mmx2_routes_refuse_canonical_legacy_data() {
+        let library_root = tempfile::tempdir().unwrap();
+        let library = Library::open(library_root.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        for id in ["sonic-the-hedgehog-recomp", "mega-man-x2-snes-recomp"] {
+            let mut port = Catalog::embedded().unwrap().port(id).unwrap().clone();
+            let (version, hash) = legacy_reader(id).unwrap();
+            port.release.provider = crate::ReleaseSource::DirectManifest;
+            let release = port
+                .release
+                .direct
+                .get_mut(&Platform::WindowsX86_64)
+                .unwrap();
+            release.version = version.into();
+            release.sha256 = hash.into();
+            assert!(!newer_route(&port));
+            fs::create_dir_all(library.user_dir(id)).unwrap();
+            let name = if id == "sonic-the-hedgehog-recomp" {
+                "native_save_1.bin"
+            } else {
+                "saves"
+            };
+            fs::write(library.user_dir(id).join(name), b"creating-version data").unwrap();
+            service.require_direct_fresh_data(&port).unwrap();
+            port.release
+                .direct
+                .get_mut(&Platform::WindowsX86_64)
+                .unwrap()
+                .sha256 = "a".repeat(64);
+            assert!(newer_route(&port));
+            assert!(service.require_direct_fresh_data(&port).is_err());
+            assert_eq!(
+                fs::read(library.user_dir(id).join(name)).unwrap(),
+                b"creating-version data"
+            );
+            fs::remove_file(library.user_dir(id).join(name)).unwrap();
+            service.require_direct_fresh_data(&port).unwrap();
+        }
     }
 
     #[test]

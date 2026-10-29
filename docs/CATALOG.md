@@ -1709,7 +1709,8 @@ their original scope. Ordinary contract shrinking, populated additions and
 unproven scope expansion remain refused. Runtime rollback still carries current
 data and does not rewind saves.
 
-Sonic 3K's historical v0.5.3-to-newer reader transition (#154) has an additional
+The historical Sonic 3K v0.5.3 (#154), Sonic 1 v0.6.0 (#152) and Mega Man X2
+v0.1.4 (#165) reader transitions to newer routes have an additional
 compatibility hold: common declared player data must also be absent in the retained
 runtime, canonical data and actual target. Only separately verified regular original
 bytes are exempt; an empty set of added sidecars proves no save compatibility.

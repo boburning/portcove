@@ -44,8 +44,8 @@ use crate::AdapterKind;
 mod catalog_download;
 mod native_portable;
 pub(crate) mod package_selection;
+mod retained_direct_compatibility;
 mod setup_discovery;
-mod sonic3k_compatibility;
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,
@@ -3147,7 +3147,7 @@ impl PortcoveService {
             self.require_portable_transition(active, port)?;
         }
         if status.active.is_none() && status.staged.is_none() {
-            self.require_sonic3k_fresh_data(port)?;
+            self.require_direct_fresh_data(port)?;
         }
         crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;

@@ -238,7 +238,7 @@ impl PortcoveService {
             self.persistence_contract_for_install(target)?;
             roots.push(self.persistence_root(target_port, &target.path)?);
         }
-        self.require_sonic3k_empty_expansion(retained, to, &roots)?;
+        self.require_direct_empty_expansion(retained, to, &roots)?;
         for path in added {
             for root in &roots {
                 crate::persistence::require_absent_path(root, path).map_err(|error| {
@@ -3462,7 +3462,7 @@ mod tests {
             assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), receipt);
             assert!(!root.join("campaign.dat").exists());
             service
-                .require_sonic3k_fresh_data(&service.installed_port(&old).unwrap())
+                .require_direct_fresh_data(&service.installed_port(&old).unwrap())
                 .unwrap();
         }
     }

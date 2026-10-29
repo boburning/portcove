@@ -656,7 +656,7 @@ impl PortcoveService {
     ) -> Result<()> {
         if let Some(install) = self.psx_data_install(port, install_root)? {
             initialized(&install)?;
-            self.require_sonic3k_initial_restore(port, &install)?;
+            self.require_direct_initial_restore(port, &install)?;
         }
         Ok(())
     }
@@ -682,7 +682,7 @@ impl PortcoveService {
         let Some(install) = self.psx_data_install(port, install_root)? else {
             return Ok(None);
         };
-        self.require_sonic3k_initial_restore(port, &install)?;
+        self.require_direct_initial_restore(port, &install)?;
         if initialized(&install)? {
             return Ok(None);
         }
@@ -735,7 +735,7 @@ impl PortcoveService {
     ) -> Result<BTreeMap<PathBuf, ModRestore>> {
         let mut plans = BTreeMap::new();
         for (install_root, contract) in self.retained_persistence_contracts(port_id)? {
-            self.require_sonic3k_restore_snapshot(&contract.port, &install_root, user_root)?;
+            self.require_direct_restore_snapshot(&contract.port, &install_root, user_root)?;
             if !contract.writes_directly
                 && (contract.port.adapter == AdapterKind::PsxRecompManaged
                     || contract.port.mod_package_policy.is_some())
