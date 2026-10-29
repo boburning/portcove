@@ -10201,6 +10201,27 @@
         }
       ],
       "phase": "complete"
+    },
+    "payload_public_key_identity": {
+      "encoded_file": {
+        "path": "updater-rehearsal/disposable.key.pub",
+        "bytes": 152,
+        "sha256": "e54b629a67c784b69a9487f835d63d1f46424c4a8904f468d64d1507a2ede859"
+      },
+      "decoding": "Strict base64 decode of the exact encoded public-key file yields Minisign public-key text; maintained verifier hashes those decoded bytes, not the encoded file.",
+      "decoded_minisign_text": {
+        "bytes": 114,
+        "sha256": "ec11c5c8c1d4bc9cb7de2482c200771c2c487f00e40988a4a652087ea30efef6"
+      },
+      "both_independent_payload_results_use_decoded_identity": true
+    },
+    "compiled_fixture_feed": {
+      "metadata_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/",
+      "targets_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/targets/",
+      "bundled_root_file": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+      "derivation_source": "846d659bf0071d7602c91f57a44310c921313574",
+      "derivation": "scripts/rehearse-updater-artifacts.ps1 selects positiveRepository before qualified predecessor build; retained lifecycle/renderer paths bind actual fixture root.",
+      "scope": "Source-derived compiled predecessor positive file-feed identity; negative/recovery repositories and public artifact download URLs are separate. Candidate production/default feed is not established."
     }
   },
   "copied_windows_control": {
