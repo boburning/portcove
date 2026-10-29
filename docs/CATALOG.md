@@ -1860,6 +1860,11 @@ original/edition. An offered original edition is not a selected edition: every
 media role requires actual applicable edition context or explicitly reviewed
 `edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
 resolve independently, and a portrait cover is never stretched into a banner.
+The Desktop currently has no validated binding from Core's source game/variant/
+representation identity to these descriptive original-edition IDs. Production
+original media therefore requires explicitly reviewed edition neutrality; exact
+port media and the existing Cover/text fallback remain available. Offered editions
+or similar ID strings must not manufacture a selection.
 
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core

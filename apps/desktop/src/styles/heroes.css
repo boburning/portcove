@@ -161,6 +161,10 @@
     }
   }
   @media (max-width: 480px) {
+    .game-hero-detail .game-hero-content,
+    .game-hero-detail .game-hero-credits-slot {
+      background: var(--color-bg-elevated);
+    }
     .game-hero-detail .game-hero-body {
       align-items: flex-start;
       flex-direction: column;

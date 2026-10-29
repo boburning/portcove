@@ -136,23 +136,35 @@
     gap: 28px;
   }
   .detail-setup-main,
-  .detail-setup-context,
-  .detail-version-main,
-  .detail-version-options {
+  .detail-setup-context {
     min-width: 0;
     padding: 24px;
     border: 1px solid var(--color-border);
     border-radius: 0.75rem;
     background: var(--color-bg-elevated);
   }
-  .detail-versions-workspace:has(> aside) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 0.75fr);
-    align-items: start;
-    gap: 24px;
+  .detail-version-main {
+    min-inline-size: 0;
+  }
+  .detail-version-options {
+    margin-block-start: var(--space-5);
+    padding-block-start: var(--space-4);
+    border-block-start: 1px solid var(--color-border-subtle);
+  }
+  .detail-version-options > summary {
+    cursor: pointer;
+    font-weight: 600;
   }
   .detail-version-options > section {
-    margin-top: 0;
+    margin-block-start: var(--space-4);
+  }
+  .game-update-actions {
+    display: grid;
+    gap: var(--space-4);
+    margin-block-start: var(--space-3);
+  }
+  .game-update-actions details > :not(summary) {
+    margin-block-start: var(--space-3);
   }
   [data-detail-section="manage"] .detail-group {
     padding: 24px;
@@ -236,10 +248,6 @@
     .detail-resources {
       padding-top: 8px;
     }
-    .detail-setup-workspace,
-    .detail-versions-workspace:has(> aside) {
-      grid-template-columns: minmax(0, 1fr);
-    }
   }
   @container detail (max-width: 28em) {
     .detail-title {
@@ -260,8 +268,6 @@
     }
     .detail-setup-main,
     .detail-setup-context,
-    .detail-version-main,
-    .detail-version-options,
     [data-detail-section="manage"] .detail-group {
       padding: 18px;
     }

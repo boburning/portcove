@@ -3689,13 +3689,14 @@ function DetailVersionsSection({
         )}
       </div>
       {!external && model.installed && model.organization && (
-        <aside className="detail-version-options">
+        <details className="detail-version-options">
+          <summary>Update notices</summary>
           <UpdateNoticePreferences
             portId={model.port.id}
             status={model.status}
             organization={model.organization}
           />
-        </aside>
+        </details>
       )}
     </div>
   );

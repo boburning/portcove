@@ -299,8 +299,11 @@ for (const theme of ["dark", "light"]) {
     for (const entry of firstRow) {
       const state = entry.querySelector(".collection-state")!.getBoundingClientRect();
       const action = entry.querySelector(".collection-actions")!.getBoundingClientRect();
-      expect(action.top).toBeGreaterThanOrEqual(state.bottom);
-      expect(action.top - state.bottom).toBeLessThanOrEqual(32);
+      const beside = action.left >= state.right - 1;
+      expect(beside || action.top >= state.bottom - 1).toBe(true);
+      expect(
+        Math.max(0, beside ? action.left - state.right : action.top - state.bottom),
+      ).toBeLessThanOrEqual(32);
     }
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
@@ -326,7 +329,7 @@ for (const theme of ["dark", "light"]) {
     await mount(theme);
     expect(
       document.querySelector(".collection-art")!.getBoundingClientRect().width,
-    ).toBeLessThanOrEqual(221);
+    ).toBeLessThanOrEqual(260);
     const spacing = document.createElement("style");
     spacing.id = "collection-spacing";
     spacing.textContent =

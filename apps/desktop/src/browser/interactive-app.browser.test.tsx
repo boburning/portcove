@@ -139,10 +139,14 @@ it.each(["dark", "light"])(
       parseFloat(getComputedStyle(identity.querySelector(".collection-title")!).fontSize),
     ).toBeGreaterThanOrEqual(28);
     expect(document.documentElement.dataset.theme).toBe(theme);
-    expect(state.querySelector(".readiness")!.getBoundingClientRect().left).toBeCloseTo(
-      identity.querySelector(".collection-title")!.getBoundingClientRect().left,
-      0,
-    );
+    const statusBounds = state.querySelector(".readiness")!.getBoundingClientRect();
+    const identityBounds = identity.getBoundingClientRect();
+    const titleLeft = identity.querySelector(".collection-title")!.getBoundingClientRect().left;
+    expect(
+      statusBounds.left >= identityBounds.right - 1 ||
+        (statusBounds.top >= identityBounds.bottom - 1 &&
+          Math.abs(statusBounds.left - titleLeft) <= 1),
+    ).toBe(true);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(1366);
     await page.screenshot({ path: `../../../../outputs/ui-refinement/rows-text-200-${theme}.png` });
     const result = await axe.run(document.querySelector<HTMLElement>("#scenario-preview")!, {
@@ -282,7 +286,11 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent).toContain(
     "Harbor Adventure",
   );
-  expect(document.querySelector('[data-artwork-source="generated_fallback"]')).not.toBeNull();
+  expect(document.querySelector('.game-hero[data-hero-identity="text"]')).not.toBeNull();
+  expect(document.querySelector(".game-hero-image")).toBeNull();
+  await expect
+    .element(page.getByRole("heading", { name: "Harbor Adventure", exact: true }))
+    .toBeVisible();
   await userEvent.click(
     page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }),
   );

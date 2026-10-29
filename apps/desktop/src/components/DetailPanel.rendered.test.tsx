@@ -286,7 +286,7 @@ describe("desktop components", () => {
         />,
       );
       const check = html.indexOf("Check for updates</button>");
-      const review = html.indexOf("Review game update</button>");
+      const review = html.indexOf("Update now</button>");
       expect(check).toBeGreaterThan(-1);
       expect(review >= 0).toBe(state === "available");
       expect(review < check).toBe(true);

@@ -290,22 +290,30 @@ export function reviewControls(browser: WebDriver) {
   };
 }
 
-export async function chooseGameUpdateDisposition(
+/** Open the exact Core review through its visible action; no update is applied here. */
+export async function reviewGameUpdateDisposition(
   browser: WebDriver,
   choice: "install" | "prepare" | "download",
 ) {
-  const trigger = await browser.wait(
-    until.elementLocated(By.css('section[aria-label="Review game update"] [role="combobox"]')),
+  const section = await browser.wait(
+    until.elementLocated(By.css('section[aria-label="Review game update"]')),
     15_000,
   );
-  await clickVisible(browser, trigger);
+  if (choice === "prepare") {
+    const summary = await section.findElement(
+      By.xpath('.//summary[normalize-space(.)="Advanced update choice"]'),
+    );
+    const details = await summary.findElement(By.xpath(".."));
+    if ((await details.getAttribute("open")) === null) await clickVisible(browser, summary);
+  }
   const label = {
-    install: "Install update",
+    install: "Update now",
     prepare: "Prepare for later",
     download: "Download for later",
   }[choice];
-  await reviewControls(browser).click(
-    By.xpath(`//*[@role="option"][normalize-space(.)="${label}"]`),
+  await clickVisible(
+    browser,
+    await section.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`)),
   );
 }
 

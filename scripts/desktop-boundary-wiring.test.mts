@@ -2529,7 +2529,12 @@ void test("artwork scenarios serialize their live production browser observation
       /^not ok \d+ - serialized local artwork fallback preserves generated identity and geometry$/mu,
     );
     assert.ok(
-      rejected.output.includes("ARTWORK_CONTRACT_ASSERTION " + mutation.marker),
+      rejected.output.split("\n").some((line) => {
+        const message = line.trimStart();
+        return (
+          message.startsWith("ARTWORK_CONTRACT_ASSERTION ") && message.includes(mutation.marker)
+        );
+      }),
       rejected.output,
     );
   }

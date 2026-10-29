@@ -35,7 +35,7 @@
     width: min(330px, 34vw);
   }
   .collection-covers {
-    --collection-art-limit: 100%;
+    --collection-art-limit: 260px;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.75rem), 1fr));
     align-items: stretch;
     gap: 28px 20px;

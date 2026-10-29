@@ -509,7 +509,7 @@ for (const theme of ["dark", "light"]) {
     document.documentElement.style.fontSize = "32px";
     await expect
       .poll(() => artwork.getBoundingClientRect().width)
-      .toBeLessThanOrEqual(ordinary.width);
+      .toBeLessThanOrEqual(Math.max(ordinary.width, 260));
     expect(
       artwork.getBoundingClientRect().height / artwork.getBoundingClientRect().width,
     ).toBeCloseTo(1.5);

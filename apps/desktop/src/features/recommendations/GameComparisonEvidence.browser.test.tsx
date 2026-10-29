@@ -122,6 +122,9 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+// Whole-suite5c retained the completed axe observation before the15s outer limit.
+// Give this full keyboard/disclosure/follow+axe journey finite45s headroom;
+// inner assertions, product waits, zero retries and cleanup remain unchanged.
 it("shows the shared facts, accepts keyboard requirements and keeps following explicitly opt-in", async (context) => {
   await render(<Fixture />);
   const trigger = page.getByRole("button", { name: "Compare projects", exact: true });
@@ -177,7 +180,7 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   await userEvent.keyboard("{Escape}");
   await expect.element(dialog).not.toBeInTheDocument();
   await expect.element(trigger).toHaveFocus();
-});
+}, 45_000);
 
 it("uses the production controller handler to activate controls and dismiss only the comparison", async () => {
   await render(<Fixture />);
