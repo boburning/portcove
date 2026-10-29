@@ -140,6 +140,10 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
     .element(page.getByText("Synthetic assertion for presentation tests, not real gameplay."))
     .toBeVisible();
   expect(dialog.element().textContent).not.toContain("80/100");
+  // Keyboard disclosure focus scrolls the modal. Audit from a stable top position
+  // so the context paragraph is not partially clipped by the scrollport.
+  dialog.element().scrollTop = 0;
+  await frames(2);
   await auditAccessibility(
     dialog.element(),
     "recommendation-evidence-expanded-browser-fixture",
