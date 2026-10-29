@@ -238,7 +238,7 @@
   .collection-row {
     --collection-thumb: clamp(32px, 2rem, 40px);
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(140px, 9rem) auto auto;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 9rem) auto auto;
     gap: var(--space-1) var(--space-4);
     align-items: center;
     padding-block: 10px;
