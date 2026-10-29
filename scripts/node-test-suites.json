@@ -4182,16 +4182,26 @@
           "owner": "native-tools",
           "category": "platform",
           "prerequisite": "Actual Linux child-process, executable-script and pipe semantics",
-          "reason": "Controller protocol and fail-closed CLI admission controls only; no Core, installed application or release acceptance follows. Execute every declared case on the maintained Linux route; CLI refusal controls also support Windows.",
+          "reason": "Controller protocol and kernel launch-refusal components only; no Core, installed application or release acceptance follows. Execute every declared case on the maintained Linux route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
           "cases": [
             "component fake producer: explicit release retains actual child close exit 0",
             "component fake producer: bad-ready fails and preserves actual owned EOF/exit outcome",
             "component fake producer: early-exit fails and preserves actual owned EOF/exit outcome",
             "component fake producer: OS exit 0 cannot accept a foreign terminal activity",
-            "ordinary driver refuses busy helper without hash before creating output or launching",
-            "ordinary driver refuses busy helper without real-data before creating output or launching",
             "component noexec probe never runs an inert surrogate on an exec mount"
+          ]
+        },
+        {
+          "platform": ["linux", "win32"],
+          "owner": "native-tools",
+          "category": "platform",
+          "prerequisite": "Actual Linux or Windows CLI argument validation and child-process semantics",
+          "reason": "Fail-closed admission of the actual installed driver before output or launch; frontend dependencies are stubbed to reject UI use. No installed application acceptance follows.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
+          "cases": [
+            "ordinary driver refuses busy helper without hash before creating output or launching",
+            "ordinary driver refuses busy helper without real-data before creating output or launching"
           ]
         }
       ]
