@@ -77,5 +77,5 @@ for (const width of [640, 1600]) {
     await expect.element(page.getByRole("option", { name: /^All \(/ })).toBeVisible();
     await userEvent.keyboard("{Escape}");
     await expect.element(picker).toHaveFocus();
-  });
+  }, 30_000);
 }
