@@ -36,7 +36,7 @@ export function prepareReleaseResourceAmendmentProposal(
   assert.equal(jobs.native_linux["timeout-minutes"], 10);
   jobs.tool_bootstrap["timeout-minutes"] =
     "${{ inputs.publication_purpose == 'application' && 12 || 4 }}";
-  jobs.tool_bootstrap_windows["timeout-minutes"] = 20;
+  jobs.tool_bootstrap_windows["timeout-minutes"] = 22;
   jobs.native_linux["timeout-minutes"] = 25;
   assert.ok(Array.isArray(jobs.native_linux.needs) && Array.isArray(jobs.native_linux.steps));
   assert.ok(Array.isArray(jobs.tool_bootstrap_windows.steps));
@@ -108,7 +108,7 @@ export function prepareReleaseResourceAmendmentProposal(
   jobs.native_windows = native;
   const proposedWorkflow = Buffer.from(stringify(raw, { lineWidth: 100 })),
     observation = observeReleaseResources(proposedWorkflow, wake, candidate);
-  assert.equal(observation.accounting.application, 163);
+  assert.equal(observation.accounting.application, 165);
   assert.equal(observation.accounting.catalog_alternative, 40);
   assert.equal(observation.accounting.policy_envelope, 100);
   assert.equal(observation.policy_matches_workflow, false);
@@ -127,9 +127,9 @@ export function prepareReleaseResourceAmendmentProposal(
     input_workflow_sha256: digest,
     aggregate_job_minutes: app.filter((row) => !inputs(row.key)).map(minutes),
     input_job_minutes: app.filter((row) => inputs(row.key)).map(minutes),
-    declared_job_minutes: 163,
-    purpose_accounting: "mutually-exclusive-max-application163-catalog40",
-    total_job_minutes: 163,
+    declared_job_minutes: 165,
+    purpose_accounting: "mutually-exclusive-max-application165-catalog40",
+    total_job_minutes: 165,
   };
   return {
     proposedWorkflow,
