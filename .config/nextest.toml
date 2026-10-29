@@ -914,9 +914,12 @@ success-output = "immediate"
 # CI40793603321/a1 job123186674413 also reached observation16 at29.730s
 # in verified_resume_abort before its30.055s cutoff. Include that exact case
 # in the same finite60s allowance; this records progress, not a causal repair.
+# CI40903721571/a1 Windows6 cut activated_resume_abort at30.110s after
+# command3 completed29.354s and observation13 completed29.859s. Keep its
+# complete ownership sequence and exact intermediate assertions in this60s group.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/))'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 

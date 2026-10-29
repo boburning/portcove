@@ -126,6 +126,16 @@ impl Fixture {
             identity.label = "Owned synthetic original-file set".into();
             profile_id = NATIVE_PROFILE.into();
             port.source_profile = Some(profile_id.clone());
+            let requirement = port
+                .presentation
+                .as_mut()
+                .unwrap()
+                .source_requirements
+                .iter_mut()
+                .find(|requirement| requirement.role == crate::PortSourceRole::Game)
+                .unwrap();
+            requirement.profile_id = profile_id.clone();
+            requirement.label = identity.label.clone();
         }
         let profile = source_catalog
             .identities
