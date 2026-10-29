@@ -517,7 +517,10 @@ fn existing_managed_install_excludes_external_registration() {
 
 #[test]
 fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable() {
+    let clock = std::time::Instant::now();
+    println!("retained launch query setup begin: {:?}", clock.elapsed());
     let (_temporary, mut service, _batch) = service_fixture();
+    println!("retained launch query fixture ready: {:?}", clock.elapsed());
     let port = service
         .catalog()
         .ports()
@@ -548,6 +551,10 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
     let retained = crate::install::retained_query_context(&install).unwrap();
     assert!(retained.0.is_some());
     assert!(retained.1.is_some());
+    println!(
+        "retained launch query install retained: {:?}",
+        clock.elapsed()
+    );
     let batch = service
         .inspect_registered_sources_bounded(
             &["ocarina-of-time".into()],
@@ -555,6 +562,10 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
             &crate::OperationCoordinator::new("retained-query-fixture", None),
         )
         .unwrap();
+    println!(
+        "retained launch query source inspection complete: {:?}",
+        clock.elapsed()
+    );
     let mut request = GameFileRouteRequest {
         port_id: port.id.clone(),
         platform: port.platforms[0],
@@ -579,6 +590,10 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
         Some(retained_hash)
     );
     assert!(result.routes[0].route_instance_sha256.is_some());
+    println!(
+        "retained launch query platform verified: {:?}",
+        clock.elapsed()
+    );
     request.platform = if request.platform == Platform::WindowsX86_64 {
         Platform::LinuxX86_64
     } else {
@@ -590,6 +605,10 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
     assert_eq!(
         result.routes[0].reason,
         GameFileQueryReason::RouteNotOffered
+    );
+    println!(
+        "retained launch query alternate platform refused: {:?}",
+        clock.elapsed()
     );
     std::fs::write(
         install.path.join(".portcove-manifest.json"),
@@ -605,6 +624,10 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
     );
     assert!(result.routes[0].route_definition_sha256.is_none());
     assert!(result.routes[0].route_instance_sha256.is_some());
+    println!(
+        "retained launch query unreadable context verified: {:?}",
+        clock.elapsed()
+    );
 }
 
 #[test]
