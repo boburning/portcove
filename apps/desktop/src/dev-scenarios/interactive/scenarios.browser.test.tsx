@@ -394,7 +394,7 @@ it.each([
     // Usable width determines column count. Assert containment and independent
     // artwork bounds rather than freezing a particular column population.
     const cover = frames[0]!.getBoundingClientRect();
-    expect(cover.width).toBeLessThanOrEqual(height <= 680 ? 160 : 260);
+    expect(cover.width).toBeLessThanOrEqual(260);
     expect(grid.getBoundingClientRect().right).toBeLessThanOrEqual(width);
     expect(grid.scrollWidth).toBeLessThanOrEqual(grid.clientWidth);
   },

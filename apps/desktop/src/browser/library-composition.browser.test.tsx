@@ -2,6 +2,13 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
+import {
+  navigationScope,
+  focusableControls,
+  cyclePrimaryNavigation,
+  dismissActiveDialog,
+} from "../focus";
+import { controlledAct as act } from "../../test/controlled-react-act";
 import { desktopApi } from "../api";
 import { PortBrowser } from "../components/PortBrowser";
 import { discoverGroupForPort } from "./discover-test-helpers";
@@ -547,3 +554,26 @@ for (const theme of ["dark", "light"]) {
       .toBe("catalog:card:collection-0");
   });
 }
+
+it("keeps Collections inside the shared controller scope and returns Back and Escape to its opener", async () => {
+  await page.viewport(1200, 900);
+  await mount();
+  const opener = page.getByRole("button", { name: "Collections", exact: true });
+  await opener.click();
+  const scope = navigationScope();
+  expect(scope).not.toBe(document);
+  expect(focusableControls().length).toBeGreaterThan(0);
+  expect(focusableControls().every((control) => scope.contains(control))).toBe(true);
+  const active = document.activeElement;
+  cyclePrimaryNavigation(1);
+  expect(document.activeElement).toBe(active);
+  await act(async () => {
+    expect(dismissActiveDialog()).toBe(true);
+  });
+  await expect.element(opener).toHaveFocus();
+  await expect.poll(() => navigationScope()).toBe(document);
+  await opener.click();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(opener).toHaveFocus();
+  await expect.poll(() => navigationScope()).toBe(document);
+});

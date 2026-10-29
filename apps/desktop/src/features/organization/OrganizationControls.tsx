@@ -201,7 +201,10 @@ export function OrganizationControls({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={8} align="start" className="z-(--layer-floating)">
-          <Popover.Popup className="shadow-floating max-h-(--available-height) w-[min(30rem,var(--available-width))] overflow-auto rounded-pc-lg border border-pc-border bg-pc-surface p-4 text-sm text-pc-foreground outline-none">
+          <Popover.Popup
+            data-portcove-focus-scope
+            className="shadow-floating max-h-(--available-height) w-[min(30rem,var(--available-width))] overflow-auto rounded-pc-lg border border-pc-border bg-pc-surface p-4 text-sm text-pc-foreground outline-none"
+          >
             <Popover.Title className="mb-3 text-base font-semibold">Collections</Popover.Title>
             {controls}
           </Popover.Popup>
