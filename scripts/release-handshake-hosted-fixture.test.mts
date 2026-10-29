@@ -96,10 +96,11 @@ void test("paused completion publication stays invisible until its complete no-c
     `import fs from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { setTimeout } from "node:timers/promises";
+import { retainReleaseRoutingMarker } from ${JSON.stringify(new URL("./release-routing-marker.mts", import.meta.url).href)};
 const original = fs.link;
 fs.link = async (staging, destination) => {
   if (destination === ${JSON.stringify(path.join(directory, "completion-input.json"))}) {
-    await fs.writeFile(${JSON.stringify(paused)}, JSON.stringify({ staging, destination }), { flag: "wx" });
+    await retainReleaseRoutingMarker(${JSON.stringify(paused)}, { staging, destination });
     const deadline = Date.now() + 5000;
     for (;;) {
       try { await fs.stat(${JSON.stringify(release)}); break; }
