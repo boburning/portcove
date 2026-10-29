@@ -151,7 +151,7 @@ try{
     throw $original
 }finally{
     try{
-        if($launch -and -not $originalObservationAttempted){$originalObservationAttempted=$true;try{$originalObservation=$launch.Observe()}catch{}}
+        if($launch -and -not $originalObservationAttempted){$originalObservationAttempted=$true;try{$originalObservation=$launch.Observe()}catch{$originalObservation=$null}}
         $launcherFailure=$null
         if($null -ne $original){
             $name=$original.Exception.GetType().Name;if($name -cnotin @('RuntimeException','MethodInvocationException','InvalidOperationException','Win32Exception','IOException','UnauthorizedAccessException')){$name='unclassified'}

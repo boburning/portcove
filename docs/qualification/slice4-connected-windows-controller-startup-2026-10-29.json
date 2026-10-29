@@ -305,5 +305,27 @@
     },
     "repair": "One exact complete fixed filtered/frozen/ignore-scripts preparation line only; unchanged blanket bans over residual job text; negative controls for changed/duplicate/compound installs and existing disallowed effects",
     "scope": "Workflow contract calibration only; no actual account14/native/production qualification claimed"
+  },
+  "fourteen_pass_lint_failure": {
+    "source": "230d20b8684836f1da277350142cd19954aedc26",
+    "ci_run": 40811762837,
+    "attempt": 1,
+    "windows_job": 123243546990,
+    "actual_unique_account_cases_passed": 14,
+    "job_conclusion": "failure",
+    "failed_phase": "Lint PowerShell scripts and exercise the causal fixture",
+    "complete_log": {
+      "bytes": 576706,
+      "sha256": "bf24cde6744c5e6f967985333def06631d7468b9aa0ec716e5f461a417c8dcc5"
+    },
+    "analyzer": {
+      "version": "1.25.0",
+      "finding_count": 1,
+      "rule": "PSAvoidUsingEmptyCatchBlock",
+      "script": "release-hosted-native-windows-diagnostic-launch.ps1",
+      "line": 154
+    },
+    "repair": "Optional observation failure explicitly preserves null/Unknown; original failure, cleanup, ACK and authority unchanged",
+    "scope": "Actual14 Windows account controls only; job/all-five CI not accepted; successor fresh qualification required"
   }
 }
