@@ -107,3 +107,9 @@ and ordinary Linux; include normal exit, crash, Stop, prepared offline launch,
 relocation, update/rollback, storage and recovery outcomes. Preserve every failed
 or not-run cell and its concrete resume condition on #290. WSL, process simulation
 and a controlled shortcut file do not establish an ordinary Linux Steam result.
+
+The [October 29 acceptance table and ordinary-Linux procedure](../qualification/manual-steam-slice6-acceptance-2026-10-29.md)
+retain the actual Windows application observations, separate installed-game
+preparation, failed/not-run cells and exact remaining interaction requirements.
+The Linux procedure is preparation until executed in its own usable Steam
+graphical session.
