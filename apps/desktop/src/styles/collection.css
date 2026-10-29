@@ -412,6 +412,8 @@
   .collection-art-action svg {
     width: 16px;
     height: 16px;
+    max-width: 16px;
+    max-height: 16px;
   }
   .collection-art-action:hover {
     color: var(--color-text-on-dark);
