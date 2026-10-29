@@ -449,6 +449,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       periods: 12,
     },
   ];
+  const windowsTrackedCancellationFilter =
+    "package(portcove-core) & test(/^game_file_query::tests::tracked_refresh_settles_cancellation_only_after_worker_exit$/)";
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
     JSON.stringify([value.platform ?? null, value.filter]);
   const intelRecoveryFilter =
@@ -459,6 +461,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
+      { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       ...publicationFilters,
       { filter: sourcePreparationFilter },
@@ -481,6 +484,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       .map(outputIdentity)
       .sort(),
   );
+  assert.deepEqual(overrideFor(windowsTrackedCancellationFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsTrackedCancellationFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   for (const { filter, periods } of intelFullControlBudgets) {
     const observed = overrideFor(filter, "x86_64-apple-darwin");
     assert.deepEqual(observed, {

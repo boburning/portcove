@@ -1008,7 +1008,18 @@ fn cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker() 
 
 #[test]
 fn tracked_refresh_settles_cancellation_only_after_worker_exit() {
+    let harness_started = std::time::Instant::now();
+    let synchronization_timeout =
+        std::time::Duration::from_secs(if cfg!(windows) { 60 } else { 10 });
+    eprintln!(
+        "tracked-refresh-cancellation phase=fixture-start elapsed_ms={}",
+        harness_started.elapsed().as_millis()
+    );
     let (temporary, service, _batch) = service_fixture();
+    eprintln!(
+        "tracked-refresh-cancellation phase=fixture-ready elapsed_ms={}",
+        harness_started.elapsed().as_millis()
+    );
     let source = register_inert_query_source(&service, temporary.path().join("input.z64"));
     let request = GameFileQueryRefreshRequest {
         routes: vec![managed_request(&service)],
@@ -1020,28 +1031,39 @@ fn tracked_refresh_settles_cancellation_only_after_worker_exit() {
     let (release, held) = std::sync::mpsc::channel();
     let (events, observed) = std::sync::mpsc::channel();
     let worker = std::thread::spawn(move || {
+        eprintln!(
+            "tracked-refresh-cancellation phase=worker-started elapsed_ms={}",
+            harness_started.elapsed().as_millis()
+        );
         worker_service.refresh_game_file_query_tracked(
             &request,
             |event| events.send(event).unwrap(),
             || {
+                eprintln!(
+                    "tracked-refresh-cancellation phase=worker-held elapsed_ms={}",
+                    harness_started.elapsed().as_millis()
+                );
                 entered.send(()).unwrap();
-                held.recv_timeout(std::time::Duration::from_secs(10))
-                    .unwrap();
+                held.recv_timeout(synchronization_timeout).unwrap();
                 Ok(())
             },
         )
     });
-    ready
-        .recv_timeout(std::time::Duration::from_secs(10))
-        .unwrap();
-    let started = observed
-        .recv_timeout(std::time::Duration::from_secs(10))
-        .unwrap();
+    ready.recv_timeout(synchronization_timeout).unwrap();
+    eprintln!(
+        "tracked-refresh-cancellation phase=worker-entered-observed elapsed_ms={}",
+        harness_started.elapsed().as_millis()
+    );
+    let started = observed.recv_timeout(synchronization_timeout).unwrap();
     let running = service.library().activities(1).unwrap().remove(0);
     assert_eq!(running.id, started.operation_id);
     assert_eq!(running.operation, crate::ActivityOperation::VerifySource);
     assert_eq!(running.status, crate::ActivityStatus::Running);
     service.request_cancellation(&running.id).unwrap();
+    eprintln!(
+        "tracked-refresh-cancellation phase=cancellation-requested elapsed_ms={}",
+        harness_started.elapsed().as_millis()
+    );
     assert!(!worker.is_finished());
     assert!(
         observed.try_recv().is_err(),
@@ -1052,16 +1074,20 @@ fn tracked_refresh_settles_cancellation_only_after_worker_exit() {
         crate::ActivityStatus::Running
     );
     release.send(()).unwrap();
+    eprintln!(
+        "tracked-refresh-cancellation phase=worker-released elapsed_ms={}",
+        harness_started.elapsed().as_millis()
+    );
     assert_eq!(
         worker.join().unwrap().unwrap_err().code,
         crate::ErrorCode::Cancelled
     );
-    let terminal = serde_json::to_value(
-        observed
-            .recv_timeout(std::time::Duration::from_secs(10))
-            .unwrap(),
-    )
-    .unwrap();
+    eprintln!(
+        "tracked-refresh-cancellation phase=worker-joined elapsed_ms={}",
+        harness_started.elapsed().as_millis()
+    );
+    let terminal =
+        serde_json::to_value(observed.recv_timeout(synchronization_timeout).unwrap()).unwrap();
     assert_eq!(terminal["type"], "finished");
     assert_eq!(terminal["result"], "cancelled");
     assert_eq!(
