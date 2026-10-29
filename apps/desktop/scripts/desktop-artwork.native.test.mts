@@ -53,7 +53,7 @@ async function artworkContract(subject: Artwork) {
       assert.equal(selector, "img", "Count actual artwork images");
       return showImage ? [image] : [];
     },
-    getBoundingClientRect: () => ({ width: 200, height: 300 }),
+    getBoundingClientRect: () => ({ width: 420, height: 300 }),
     contains: (element: unknown) => element !== title,
   };
   let available = true;

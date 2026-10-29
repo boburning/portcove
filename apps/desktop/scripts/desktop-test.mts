@@ -889,7 +889,7 @@ async function verifySettingsRows() {
     await browser
       .findElement(
         By.xpath(
-          '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="System"]',
+          '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="Follow system"]',
         ),
       )
       .click();

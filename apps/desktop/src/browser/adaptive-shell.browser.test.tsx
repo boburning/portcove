@@ -46,7 +46,7 @@ for (const theme of ["dark", "light"]) {
     expect(libraryRange.getClientRects()).toHaveLength(1);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.viewport(240, 160);
-    for (const name of ["System", "Dark", "Light"]) {
+    for (const name of ["Follow system", "Dark", "Light"]) {
       const button = page
         .getByRole("radiogroup", { name: "Color theme", exact: true })
         .getByRole("radio", { name, exact: true });

@@ -554,7 +554,7 @@ describe("desktop components", () => {
         />,
       );
       expect(html).toContain(launches ? "Continue playing" : `aria-label="Play ${port.name}"`);
-      expect(html).toContain(launches ? "Play again" : ">Play</button>");
+      expect(html).toContain(launches ? "Continue playing" : ">Play</button>");
       expect(html).not.toContain(`Version ${install.version}`);
       expect(html).not.toContain("Last played ·");
       expect(html).toContain(`data-successful-launches="${launches}"`);
@@ -596,6 +596,6 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Review launch");
-    expect(html).not.toContain("Play again");
+    expect(html).not.toContain("Continue playing");
   });
 });
