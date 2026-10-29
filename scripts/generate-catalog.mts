@@ -374,33 +374,70 @@ function option(name: string, required = false): string | null {
   return value ?? null;
 }
 
-async function prepareArtworkProposal(fullProposal = false) {
+function validateArtworkProposalArguments(fullProposal: boolean) {
   if (process.argv.includes("--check") || process.argv.includes("--compare-historical"))
     throw new Error("Proposal preparation cannot also check or compare historical data.");
   if (fullProposal && process.argv.includes("--prepare-artwork"))
     throw new Error("Cannot combine proposal preparation modes.");
-  if (fullProposal) {
-    const allowed = new Set([
-      "--prepare-proposal",
-      "--validator-cli",
-      "--output-dir",
-      "--identities",
-      "--refresh-artwork",
-      "--credentials-file",
-      "--artwork-ids",
-      "--hero-media",
-    ]);
-    const seen = new Set();
-    const args = process.argv.slice(2);
-    for (let index = 0; index < args.length; index += 2) {
-      const name = args[index];
-      if (!name || !allowed.has(name) || seen.has(name))
-        throw new Error("Unknown or repeated proposal option.");
-      seen.add(name);
-      if (!args[index + 1] || args[index + 1]?.startsWith("--"))
-        throw new Error(`${name} requires a value.`);
-    }
+  if (!fullProposal) return;
+  const allowed = new Set([
+    "--prepare-proposal",
+    "--validator-cli",
+    "--output-dir",
+    "--identities",
+    "--refresh-artwork",
+    "--credentials-file",
+    "--artwork-ids",
+    "--hero-media",
+  ]);
+  const seen = new Set();
+  const args = process.argv.slice(2);
+  for (let index = 0; index < args.length; index += 2) {
+    const name = args[index];
+    if (!name || !allowed.has(name) || seen.has(name))
+      throw new Error("Unknown or repeated proposal option.");
+    seen.add(name);
+    if (!args[index + 1] || args[index + 1]?.startsWith("--"))
+      throw new Error(`${name} requires a value.`);
   }
+}
+
+function proposalImageValidator(
+  inspectProposal: ReturnType<typeof coreProposalInspector> | undefined,
+  cli: string | null,
+  outputRoot: string,
+): ImageValidator {
+  let imageValidator: ImageValidator | undefined;
+  let imageInitializationError: Error | undefined;
+  const capturedInspector = inspectProposal;
+  return capturedInspector
+    ? (bytes: Buffer) => {
+        if (imageInitializationError) throw imageInitializationError;
+        if (!imageValidator) {
+          try {
+            imageValidator = createCoreImageValidator(
+              capturedInspector.artifact,
+              join(outputRoot, "scratch"),
+            );
+          } catch (error) {
+            imageInitializationError =
+              error instanceof Error
+                ? error
+                : new Error("Core image initialization failed.", { cause: error });
+            throw error;
+          }
+        }
+        return imageValidator(bytes);
+      }
+    : cli
+      ? createCoreImageValidator(cli, join(outputRoot, "scratch"))
+      : () => {
+          throw new Error("Core image validation requires a selected compatible CLI.");
+        };
+}
+
+async function prepareArtworkProposal(fullProposal = false) {
+  validateArtworkProposalArguments(fullProposal);
   const captured = readArtworkInput(
     option(fullProposal ? "--prepare-proposal" : "--prepare-artwork", true),
     fullProposal ? 4 * 1024 * 1024 : 8 * 1024 * 1024,
@@ -441,36 +478,9 @@ async function prepareArtworkProposal(fullProposal = false) {
       input: inputCheck,
     };
   }
-  let imageValidator: ImageValidator | undefined;
-  let imageInitializationError: Error | undefined;
-  const capturedInspector = inspectProposal;
-  const validateImage = capturedInspector
-    ? (bytes: Buffer) => {
-        if (imageInitializationError) throw imageInitializationError;
-        if (!imageValidator) {
-          try {
-            imageValidator = createCoreImageValidator(
-              capturedInspector.artifact,
-              join(outputRoot, "scratch"),
-            );
-          } catch (error) {
-            imageInitializationError =
-              error instanceof Error
-                ? error
-                : new Error("Core image initialization failed.", { cause: error });
-            throw error;
-          }
-        }
-        return imageValidator(bytes);
-      }
-    : cli
-      ? createCoreImageValidator(cli, join(outputRoot, "scratch"))
-      : () => {
-          throw new Error("Core image validation requires a selected compatible CLI.");
-        };
+  const validateImage = proposalImageValidator(inspectProposal, cli, outputRoot);
   const heroMedia = option("--hero-media");
-  if (heroMedia !== undefined && heroMedia !== "igdb")
-    throw new Error("--hero-media requires igdb.");
+  if (heroMedia !== null && heroMedia !== "igdb") throw new Error("--hero-media requires igdb.");
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
   const covers = await prepareCatalogArtwork(input, {
     ...inspector,

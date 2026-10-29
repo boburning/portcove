@@ -517,7 +517,13 @@ void test("an observed Gone image sweeps earlier and unselected references and c
         );
       if (url.endsWith("/artworks")) return new Response("[]");
       if (url.endsWith("/logos"))
-        return new Response(JSON.stringify([{ id: 9, game: 7, image_id: "sharedlogo" }]));
+        // Duplicate records for one exact image must not retry it after withdrawal.
+        return new Response(
+          JSON.stringify([
+            { id: 9, game: 7, image_id: "sharedlogo" },
+            { id: 10, game: 7, image_id: "sharedlogo" },
+          ]),
+        );
       imageCalls++;
       return imageCalls === 1
         ? new Response("decoder-fixture", { headers: { "content-type": "image/png" } })

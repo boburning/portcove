@@ -222,3 +222,36 @@ void test("ordinary generator prepares one complete retained batch and refuses o
   assert.equal(readFileSync(join(output, "preservation-marker"), "utf8"), "keep");
   assert.equal(readFileSync(join(catalogRoot, "catalog.json"), "utf8"), before);
 });
+
+void test("explicit IGDB hero preparation retains unknown acquisition when its selected credential file is absent", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-hero-dispatch-"));
+  const output = join(scratch, "proposal");
+  const result = run(
+    "--prepare-artwork",
+    join(catalogRoot, "catalog-current-authoring.json"),
+    "--output-dir",
+    output,
+    "--credentials-file",
+    join(scratch, "absent-private-credentials.json"),
+    "--artwork-ids",
+    "shipwright",
+    "--hero-media",
+    "igdb",
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const evidence = fixtureJson(readFileSync(join(output, "artwork-evidence.json"), "utf8"));
+  const media = records(record(evidence.game_media).records);
+  const exactPort = media.filter((item) => record(item.subject).kind === "port");
+  assert.equal(exactPort.length, 2);
+  assert.deepEqual(
+    exactPort.map((item) => item.role),
+    ["key_art", "logo"],
+  );
+  assert.ok(
+    media.every(
+      (item) => item.port_id === "shipwright" && item.reason === "identity-provider-unavailable",
+    ),
+  );
+  assert.equal(record(evidence.provider_metrics).authentication_requests, 0);
+  assert.equal(record(evidence.provider_metrics).image_requests, 0);
+});

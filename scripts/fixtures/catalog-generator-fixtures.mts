@@ -193,6 +193,9 @@ export function proposalDecoderFixture(
     export function createIgdbInspector(_credentials, validateImage) {
       return {validateImage,providerMetrics:{authentication_requests:0,game_requests:0,image_requests:0}};
     }
+    export async function prepareCatalogGameMedia() {
+      throw new Error('Game-media acquisition is not modeled by this decoder-only fixture.');
+    }
     export async function prepareCatalogArtwork(input, {validateImage}) {
       const records=[];
       for(let i=0;i<Number(process.env.FIXTURE_IMAGES);i++) {
