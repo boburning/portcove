@@ -179,6 +179,47 @@ function assertCliVersion(options: InstalledGameFixtureOptions, environment: Nod
   assert.equal(observedVersion, `portcove ${options.cliVersion}`);
 }
 
+/** Validate a normal Core saved-choice reply, independently of process exit. */
+export function assertSavedInstalledGameLibraryChoice(value: unknown, canonicalRoot: string) {
+  const result = object(value);
+  assert.equal(result.ok, true);
+  const data = object(result.data);
+  assert.equal(data.source, "saved");
+  const comparable = (root: string) =>
+    process.platform === "win32" ? path.toNamespacedPath(root) : root;
+  assert.equal(
+    comparable(text(data.root)),
+    comparable(canonicalRoot),
+    "Core saved a different library root",
+  );
+  return result;
+}
+
+/** Normal Core preference mutation and readback in the admitted private fixture. */
+export async function saveInstalledGameLibraryChoice(options: InstalledGameFixtureOptions) {
+  const { environment } = await admit(options);
+  assertCliVersion(options, environment);
+  const canonicalRoot = await realpath(options.library);
+  const results = [];
+  for (const args of [
+    ["--json", "library", "set", options.library],
+    ["--json", "library", "show"],
+  ]) {
+    const result: unknown = JSON.parse(
+      execFileSync(options.cli, args, {
+        env: environment,
+        encoding: "utf8",
+        timeout: 120_000,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+      }),
+    );
+    await options.record({ phase: "normal-core-library-choice-reply", details: { args, result } });
+    results.push(assertSavedInstalledGameLibraryChoice(result, canonicalRoot));
+  }
+  return results;
+}
+
 function runCore(
   options: InstalledGameFixtureOptions,
   environment: NodeJS.ProcessEnv,
@@ -358,6 +399,7 @@ export async function seedInstalledGameData(options: InstalledGameFixtureOptions
   });
   const expected = object(object(fixture.manifest.upstream)[options.platform]);
   const plan = runCore(options, admitted.environment, ["plan", port, "--channel", "stable"]);
+  await options.record({ phase: "normal-core-plan-returned-before-admission", details: plan });
   assert.deepEqual(plan.source_requirements, []);
   const release = object(plan.release);
   const asset = object(release.asset);

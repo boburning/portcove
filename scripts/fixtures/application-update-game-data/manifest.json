@@ -35,7 +35,7 @@
       "sha256": "77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3"
     },
     "windows-x86_64": {
-      "asset": "opentyrian-v2.1.20260913-windows_x86_64.zip",
+      "asset": "opentyrian-v2.1.20260913-windows-x86_64.zip",
       "bytes": 6092537,
       "sha256": "7eddbe42439392ee8b2ffbe38c1c20a768da0c4afcc795ca31928c9dd6068f60"
     }
