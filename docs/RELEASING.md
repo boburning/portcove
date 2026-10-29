@@ -153,7 +153,12 @@ uses the pinned published Alpha 2 AppImage and its matching CLI, saves a real
 library choice in an empty private library, then creates its preservation marker
 once. The same installed path, library and preferences continue through ordinary
 Alpha 2 startup/close, manual replacement by the updater-enabled predecessor and
-the existing authenticated Settings journey. Historical input signatures/feed
+the existing authenticated Settings journey. Before closing Alpha 2, require its
+settled empty-library view and normal Settings readback of the exact saved library
+choice; inspect the retained screenshots separately. The qualified predecessor
+then performs a fresh Stable no-candidate check with unchanged AppImage bytes
+before explicitly selecting Preview through the shared Settings journey.
+Historical input signatures/feed
 remain explicitly absent. The maintained process-tree supervisor gives this
 consumer a 300-second execution budget after admission/setup, including with an
 inherited lease. Retain failed runs and cleanup settlement; a selected mode is

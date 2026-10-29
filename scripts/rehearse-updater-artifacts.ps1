@@ -706,7 +706,7 @@ try {
                     [Environment]::SetEnvironmentVariable($entry[0], $directory, 'Process')
                 }
                 foreach ($name in @('PORTCOVE_LIBRARY','PORTCOVE_GITHUB_TOKEN','GH_TOKEN','GITHUB_TOKEN','DBUS_SESSION_BUS_ADDRESS','GNOME_KEYRING_CONTROL','GNOME_KEYRING_PID','SSH_AUTH_SOCK','GPG_AGENT_INFO')) {
-                    [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+                    Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
                 }
             }
             $rendererEntry = if ($HistoricalLinuxBootstrap) { Join-Path $root 'scripts/run-installed-appimage-renderer.mts' } else { Join-Path $root 'apps/desktop/scripts/desktop-appimage-update-test.mts' }
@@ -757,7 +757,8 @@ try {
             } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $rendererRoot "preservation.json") -Encoding utf8
         } finally {
             foreach ($name in $rendererEnvironmentNames) {
-                [Environment]::SetEnvironmentVariable($name, $rendererPreviousEnvironment[$name], "Process")
+                if ($null -eq $rendererPreviousEnvironment[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+                else { [Environment]::SetEnvironmentVariable($name, $rendererPreviousEnvironment[$name], "Process") }
             }
         }
     }
@@ -850,7 +851,10 @@ try {
 } finally {
     $wrongPassword = $null
     foreach ($relative in $metadataPaths) { [IO.File]::WriteAllBytes((Join-Path $root $relative), $original[$relative]) }
-    foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
+    foreach ($name in $environmentNames) {
+        if ($null -eq $previousEnvironment[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+        else { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
+    }
     if ([IO.File]::Exists($privateKey)) { [IO.File]::Delete($privateKey) }
     if ([IO.Directory]::Exists($wrongPrivateRoot)) { [IO.Directory]::Delete($wrongPrivateRoot, $true) }
     $fixturePrivate = Join-Path $runRoot "linux-appimage-qualification/private"

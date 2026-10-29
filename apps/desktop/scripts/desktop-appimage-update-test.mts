@@ -7,10 +7,13 @@ import { writeFile, mkdir, copyFile, chmod, lstat, readlink, readFile } from "no
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
-import { By } from "selenium-webdriver";
+import { By, until } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.mts";
-import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
+import {
+  driveInstalledStableWaiting,
+  driveInstalledUpdateToRestart,
+} from "./desktop-application-update-journey.mts";
 import { loadedWebKitLibraries } from "./desktop-linux-webkit-inspector.mts";
 import { readHistoricalLinuxInputs } from "../../../scripts/updater-historical-inputs.mts";
 import { assertOwnedUnlinkedPath } from "../../../scripts/release-path-safety.mts";
@@ -97,6 +100,10 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
   driver?: ProcIdentity;
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
   ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
+  stable_waiting?: Awaited<ReturnType<typeof driveInstalledStableWaiting>> & {
+    installed_appimage_sha256_before: string;
+    installed_appimage_sha256_after: string;
+  };
   processes_before_restart?: ProcIdentity[];
   loaded_engine_before_restart?: Awaited<ReturnType<typeof loadedWebKitLibraries>>;
   restart_action_attempted?: boolean;
@@ -131,6 +138,7 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
     application_credential_status?: string[];
     window_title?: string;
     window_body_excerpt?: string;
+    saved_library_selection?: { root: string; source: "saved"; card_text: string };
     normal_close_before_driver_teardown?: boolean;
     driver?: ProcIdentity;
     application?: ProcIdentity;
@@ -461,10 +469,14 @@ async function historicalPrelude() {
       const text: unknown = await browser.executeScript(
         "return document.readyState === 'complete' ? document.body.innerText : ''",
       );
-      return typeof text === "string" && text.trim().length > 0 ? text.slice(0, 3000) : undefined;
+      if (typeof text !== "string" || !text.includes("No installed ports yet")) return undefined;
+      const ready: unknown = await browser.executeScript(
+        "return !!document.querySelector('[aria-label=\"Primary navigation\"]') && !document.querySelector('.loading-state')",
+      );
+      return ready === true ? text.slice(0, 3000) : undefined;
     },
-    "ordinary historical window content",
-    15_000,
+    "ordinary historical settled empty library",
+    30_000,
   );
   assert.ok(historical.application);
   historical.application_credential_status = (
@@ -483,6 +495,32 @@ async function historicalPrelude() {
   assert.ok(historical.application_credential_status.includes("CapEff:\t0000000000000000"));
   await writeFile(
     path.join(output, "historical-window.png"),
+    Buffer.from(await browser.takeScreenshot(), "base64"),
+  );
+  await browser
+    .findElement(
+      By.xpath(
+        '//nav[@aria-label="Primary navigation"]//button[.//span[normalize-space(.)="Settings"]]',
+      ),
+    )
+    .click();
+  const selectionCard = await browser.wait(
+    until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Startup selection"]]')),
+    15_000,
+  );
+  await browser.wait(until.elementIsVisible(selectionCard), 15_000);
+  const selectionText = await selectionCard.getText();
+  const selectedRoot = await selectionCard.findElement(By.css("code")).getText();
+  assert.equal(selectedRoot, library);
+  assert.ok(selectionText.includes("Saved host preference"));
+  historical.saved_library_selection = {
+    root: selectedRoot,
+    source: "saved",
+    card_text: selectionText,
+  };
+  await browser.executeScript("arguments[0].scrollIntoView({block: 'center'})", selectionCard);
+  await writeFile(
+    path.join(output, "historical-preferences.png"),
     Buffer.from(await browser.takeScreenshot(), "base64"),
   );
   await browser.close();
@@ -548,6 +586,20 @@ try {
   assert.ok(report.driver);
   browser = await connectInstalledUpdateDriver(app);
   if (report.historical_bootstrap) await historicalSnapshot("after-updater-enabled-startup");
+  if (report.historical_bootstrap) {
+    const beforeWaiting = (await hashFile(app)).sha256;
+    assert.equal(beforeWaiting, report.initial_sha256);
+    const waiting = await driveInstalledStableWaiting(browser, report.actions);
+    const afterWaiting = (await hashFile(app)).sha256;
+    assert.equal(afterWaiting, beforeWaiting);
+    report.stable_waiting = {
+      ...waiting,
+      installed_appimage_sha256_before: beforeWaiting,
+      installed_appimage_sha256_after: afterWaiting,
+    };
+    await historicalSnapshot("after-fresh-stable-waiting");
+    await save();
+  }
   report.ordinary_staging = await driveInstalledUpdateToRestart(
     browser,
     report.actions,
