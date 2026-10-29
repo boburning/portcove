@@ -3,7 +3,7 @@
   "listing": {
     "id": "heretic-crispy-doom-family",
     "name": "Heretic (Crispy Doom family)",
-    "summary": "Use Heretic with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+    "summary": "Install the official Crispy Heretic Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
     "original_game_title": "Heretic",
     "project_url": "https://github.com/fabiangreffrath/crispy-doom",
     "availability": "packages",
@@ -22,23 +22,26 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Use this game’s original IWAD",
-          "instruction": "Supply HERETIC.WAD from your original PC Heretic copy. HERETIC1.WAD provides the separate limited shareware edition. Doom IWADs are not Heretic data. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls."
+          "title": "Supply the matching original game files",
+          "instruction": "Supply HERETIC.WAD from your original PC Heretic copy. HERETIC1.WAD provides the separate limited shareware edition. Doom IWADs are not Heretic data. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
         },
         {
-          "title": "Choose the player rather than its setup tool",
-          "instruction": "Extract the official Windows 64-bit crispy-heretic ZIP, retaining its DLLs and support files. Use crispy-heretic-setup.exe for upstream configuration when needed, then select crispy-heretic.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen heretic.wad. Registration does not run setup or start the game; Play is separate."
+          "title": "Use the upstream setup and launch controls",
+          "instruction": "Play opens crispy-heretic-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully."
         },
         {
-          "title": "Keep the actual save and configuration locations",
-          "instruction": "The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established."
+          "title": "Keep the declared private data scope",
+          "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
         },
         {
-          "title": "Keep upstream update ownership",
-          "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+          "title": "Keep one runtime owner",
+          "instruction": "Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Play opens upstream setup and launch controls. Supply matching lawful originals separately.",
+        "Core backups exclude external music packs, custom paths and registered external-player data."
+      ],
       "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
     },
     "download_asset_hints": {
@@ -61,30 +64,107 @@
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
-    "adapter": "staged-source-portable",
+    "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "user-prepared",
       "repository": "fabiangreffrath/crispy-doom",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
+      "asset_hints": {
+        "windows-x86-64": ["crispy-heretic-", "-win64.zip"]
       }
     },
     "presentation": {
-      "installation_method": "user-prepared-runtime",
+      "installation_method": "portable-package",
       "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Supply HERETIC.WAD from your original PC Heretic copy. HERETIC1.WAD provides the separate limited shareware edition. Doom IWADs are not Heretic data. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls. Extract the official Windows 64-bit crispy-heretic ZIP, retaining its DLLs and support files. Use crispy-heretic-setup.exe for upstream configuration when needed, then select crispy-heretic.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen heretic.wad. Registration does not run setup or start the game; Play is separate. The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Supply HERETIC.WAD from your original PC Heretic copy. HERETIC1.WAD provides the separate limited shareware edition. Doom IWADs are not Heretic data. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies. Play opens crispy-heretic-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully. Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime. Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
+    },
+    "executable_hints": {
+      "windows-x86-64": ["crispy-heretic-setup.exe"]
+    },
+    "persistent_paths": [
+      "default.cfg",
+      "crispy-doom.cfg",
+      "heretic.cfg",
+      "crispy-heretic.cfg",
+      "hexen.cfg",
+      "crispy-hexen.cfg",
+      "strife.cfg",
+      "crispy-strife.cfg",
+      "saves",
+      "levelstat.txt",
+      "hexndata",
+      "demos",
+      "chocolat.rsp",
+      "tmp.cfg",
+      "extratmp.cfg",
+      "doom",
+      "doom.mid",
+      "timidity.cfg",
+      "temp.dsg",
+      "recovery.dsg",
+      "strfsav0.ssg",
+      "strfsav1.ssg",
+      "strfsav2.ssg",
+      "strfsav3.ssg",
+      "strfsav4.ssg",
+      "strfsav5.ssg",
+      "strfsav6.ssg",
+      "originals"
+    ],
+    "persistent_file_patterns": [
+      {
+        "prefix": "DOOM",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "DOOM",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "HTIC",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "HTIC",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "HEXEN",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "HEXEN",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "STRIFE",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "STRIFE",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "demo",
+        "suffix": ".lmp"
+      },
+      {
+        "prefix": "doomsav",
+        "suffix": ".dsg"
+      },
+      {
+        "prefix": "hticsav",
+        "suffix": ".hsg"
+      }
+    ],
+    "windows_runtime_path_policy": "relative-file-max-path",
+    "launch_arguments": ["-game", "heretic", "-savedir", "saves", "-noautoload"],
+    "launch_environment": {
+      "TEMP": ".",
+      "TMP": ".",
+      "DOOMWADDIR": "originals",
+      "SDL_RENDER_DRIVER": "direct3d11"
     }
   }
 }
