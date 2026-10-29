@@ -4086,6 +4086,13 @@ void test("native transport producers retain their actual Node consumers across 
       ],
     ],
     [
+      "scripts/fixtures/native-fetch-probe-fixture.mts",
+      [
+        "apps/desktop/scripts/desktop-readiness.native.test.mts",
+        "apps/desktop/scripts/desktop-install.native.test.mts",
+      ],
+    ],
+    [
       "scripts/fixtures/desktop-module-fixture.mts",
       [
         "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
@@ -4102,6 +4109,11 @@ void test("native transport producers retain their actual Node consumers across 
         "apps/desktop/scripts/desktop-artwork.native.test.mts",
         "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
         "scripts/capture-target.test.mts",
+        "apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts",
+        "apps/desktop/scripts/desktop-install.native.test.mts",
+        "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+        "apps/desktop/scripts/desktop-readiness.native.test.mts",
+        "scripts/desktop-staged-layout.test.mts",
       ],
     ],
   ];
@@ -4129,7 +4141,10 @@ void test("native transport producers retain their actual Node consumers across 
         head: "b".repeat(40),
         checkout: "b".repeat(40),
       });
-      if (file === "scripts/fixtures/desktop-module-fixture.mts") {
+      if (
+        file === "scripts/fixtures/desktop-module-fixture.mts" ||
+        file === "scripts/fixtures/native-fetch-probe-fixture.mts"
+      ) {
         assert.equal(windowsHelperChecksRequired(plan), true, variant);
         assert.equal(windowsNativeToolsRequired(plan), true, variant);
       }

@@ -349,6 +349,13 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/fixtures/native-fetch-probe-fixture.mts",
+    [
+      "apps/desktop/scripts/desktop-readiness.native.test.mts",
+      "apps/desktop/scripts/desktop-install.native.test.mts",
+    ],
+  ],
+  [
     "scripts/fixtures/desktop-module-fixture.mts",
     [
       "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
@@ -365,6 +372,11 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-artwork.native.test.mts",
       "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
       "scripts/capture-target.test.mts",
+      "apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts",
+      "apps/desktop/scripts/desktop-install.native.test.mts",
+      "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      "apps/desktop/scripts/desktop-readiness.native.test.mts",
+      "scripts/desktop-staged-layout.test.mts",
     ],
   ],
   [
