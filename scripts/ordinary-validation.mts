@@ -1229,6 +1229,7 @@ for (const [file, tests] of [
     "scripts/fixtures/disposable-directory.mts",
     [
       "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/desktop-staged-layout.test.mts",
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/node-platform-skips.test.mts",
@@ -1826,6 +1827,7 @@ explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/production-aggregate-steps.test.mts",
   "scripts/renovate-engine-probe.test.mts",
+  "scripts/desktop-staged-layout.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",
@@ -2228,8 +2230,10 @@ function addNodeTest(selection: ValidationSelection, file: string) {
       selection.nodeTests.add(companion);
   // These contracts formerly ran through imports; keep them in focused routes
   // now that each suite has its own explicit execution entry point.
-  if (normalized === "scripts/desktop-scenarios.test.mts")
+  if (normalized === "scripts/desktop-scenarios.test.mts") {
     selection.nodeTests.add("scripts/native-compatibility.test.mts");
+    selection.nodeTests.add("scripts/desktop-staged-layout.test.mts");
+  }
   if (normalized === "scripts/desktop-execution-plan.test.mts") {
     selection.nodeTests.add("scripts/desktop-execution-baseline.test.mts");
     selection.nodeTests.add("scripts/native-qualification-inventory.test.mts");
