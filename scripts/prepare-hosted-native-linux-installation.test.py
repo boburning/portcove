@@ -301,8 +301,10 @@ class RuntimePackages(unittest.TestCase):
 @unittest.skipUnless(sys.platform == "linux", "actual Linux file/link custody contracts")
 class DependencyGraph(unittest.TestCase):
     def test_frozen_install_controls_and_partial_refusal_retention(self):
-        for outcome in ("success", "refusal", "vanished-leaf"):
+        for outcome in ("success", "refusal", "vanished-leaf", "vanished-directory",
+                        "missing-inventory-root", "inaccessible-directory"):
             refused = outcome == "refusal"
+            scan_refused = outcome in ("missing-inventory-root", "inaccessible-directory")
             with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 source = root / "native-source"
@@ -324,7 +326,7 @@ class DependencyGraph(unittest.TestCase):
                 scan = os.scandir
                 vanished = []
                 @contextmanager
-                def changing_scan(directory, outcome=outcome, scan=scan, vanished=vanished):
+                def changing_entries(directory, outcome=outcome, scan=scan, vanished=vanished):
                     directory = Path(directory)
                     if outcome == "vanished-leaf" and directory.name == "native-dependency-home" and not vanished:
                         filename = directory / "package.json_pacquet-stage_inert"
@@ -338,10 +340,29 @@ class DependencyGraph(unittest.TestCase):
                     else:
                         with scan(directory) as entries:
                             yield entries
+                staging_created = []
+                def changing_scan(directory, outcome=outcome):
+                    directory = Path(directory)
+                    if directory.name == "native-dependency-home":
+                        if outcome == "missing-inventory-root":
+                            raise FileNotFoundError("inventory root disappeared")
+                        if outcome in ("vanished-directory", "inaccessible-directory") and not staging_created:
+                            staged = directory / "package_pacquet-stage_inert"
+                            staged.mkdir()
+                            staging_created.append(staged)
+                    if staging_created and directory == staging_created[0]:
+                        if outcome == "vanished-directory":
+                            directory.rmdir()
+                            vanished.append(str(directory))
+                        elif outcome == "inaccessible-directory":
+                            raise PermissionError("staging directory inaccessible")
+                    # Open the real iterator eagerly, as os.scandir does, so the
+                    # queued-directory race occurs between stat and opening it.
+                    return changing_entries(directory) if outcome == "vanished-leaf" else scan(directory)
                 def invoke(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536,
                            environment=None, calls=calls, source=source, refused=refused):
-                    check()
                     calls.append((arguments, environment, maximum_file_bytes))
+                    check()
                     if "--version" in arguments:
                         return "12.16.1"
                     (source / "node_modules").mkdir()
@@ -356,7 +377,13 @@ class DependencyGraph(unittest.TestCase):
                         patch.object(installation.os, "scandir", side_effect=changing_scan), \
                         patch.object(installation, "command", side_effect=invoke):
                     fixture_plan = {**plan(), "broker_uid": fixture_uid}
-                    if refused:
+                    if outcome == "missing-inventory-root":
+                        with self.assertRaisesRegex(FileNotFoundError, "inventory root disappeared"):
+                            installation.prepare_source_dependencies(fixture_plan, settings)
+                    elif outcome == "inaccessible-directory":
+                        with self.assertRaisesRegex(PermissionError, "staging directory inaccessible"):
+                            installation.prepare_source_dependencies(fixture_plan, settings)
+                    elif refused:
                         with self.assertRaisesRegex(RuntimeError, "partial progress"):
                             installation.prepare_source_dependencies(fixture_plan, settings)
                     else:
@@ -364,7 +391,9 @@ class DependencyGraph(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, "retained dependency"):
                         installation.prepare_source_dependencies(fixture_plan, settings)
                 self.assertTrue((root / "native-dependency-home/intent.json").is_file())
-                self.assertTrue((source / "node_modules").is_dir())
+                self.assertEqual((source / "node_modules").is_dir(), not scan_refused)
+                if outcome in ("vanished-leaf", "vanished-directory"):
+                    self.assertEqual(len(vanished), 1)
                 self.assertEqual(len(calls), 2)
                 args, environment, maximum = calls[1]
                 for flag in ("--frozen-lockfile", "--ignore-scripts", "--ignore-pnpmfile", "--pm-on-fail=error",
@@ -375,8 +404,7 @@ class DependencyGraph(unittest.TestCase):
                 self.assertEqual(environment["HOME"], str(root / "native-dependency-home"))
                 self.assertEqual(environment["COREPACK_ENABLE_NETWORK"], "0")
                 self.assertFalse(any("TOKEN" in key or "AUTH" in key for key in environment))
-                if outcome == "vanished-leaf":
-                    self.assertEqual(len(vanished), 1)
+                if outcome in ("vanished-leaf", "vanished-directory"):
                     self.assertFalse(Path(vanished[0]).exists())
 
     def test_public_acquisition_exact_inputs_and_changed_input_refusals(self):
