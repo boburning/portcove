@@ -16505,10 +16505,15 @@ fn main() {
     #[test]
     fn additive_current_mutability_recovers_a_retained_install_and_survives_rollback() {
         const PORT: &str = "zelda64-recomp";
+        let fixture_started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let previous = register_zelda_install(&library, "v1", true);
         let active = register_zelda_install(&library, "v2", true);
+        eprintln!(
+            "Additive current mutability fixtures registered: {:?}",
+            fixture_started.elapsed()
+        );
         let active_install = library
             .status(PORT, ReleaseChannel::Stable)
             .unwrap()
@@ -16527,6 +16532,10 @@ fn main() {
                 .is_err()
         );
 
+        eprintln!(
+            "Additive current mutability original refusal verified: {:?}",
+            fixture_started.elapsed()
+        );
         let mut document = service.catalog().authoritative_document();
         let current = document
             .ports
@@ -16583,6 +16592,10 @@ fn main() {
                 .contains(&"new-settings.ini".into())
         );
 
+        eprintln!(
+            "Additive current mutability active binding assertions complete: {:?}",
+            fixture_started.elapsed()
+        );
         service.rollback(PORT).unwrap();
         assert_eq!(
             fs::read(previous.join("new-settings.ini")).unwrap(),
@@ -16632,6 +16645,10 @@ fn main() {
                 .unwrap()
                 .reference,
             active_reference
+        );
+        eprintln!(
+            "Additive current mutability assertions complete: {:?}",
+            fixture_started.elapsed()
         );
     }
 

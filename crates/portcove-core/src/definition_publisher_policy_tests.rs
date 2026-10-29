@@ -2074,8 +2074,12 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // CI40753693620/a1 partition2 reached the withdrawal restore copy at
     // 5.322s after installer start. Reuse the exact Windows15s setup budget;
     // preserve the incomplete-copy barrier, refusal and worker-drain assertions.
-    let slow_retention_setup = ((cfg!(target_os = "windows")
-        || cfg!(all(target_os = "macos", target_arch = "x86_64")))
+    // Full40763883340/a1 Linux/ARM producers missed the same5s setup latch:
+    // policy loss first copied at10.007s after its9.844s expired observation.
+    // Apply the existing15s allowance to these four retention interventions
+    // on the observed Unix platforms; keep restore budgets and all barriers.
+    let slow_retention_setup = ((cfg!(any(target_os = "windows", target_os = "macos"))
+        || cfg!(all(target_os = "linux", target_arch = "x86_64")))
         && matches!(
             intervention,
             CacheIntervention::ArtifactWithdrawalRetain
@@ -2083,8 +2087,6 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 | CacheIntervention::CancelRetain
                 | CacheIntervention::ArtifactRevocationRetain
         ))
-        || (cfg!(all(target_os = "macos", target_arch = "aarch64"))
-            && matches!(intervention, CacheIntervention::CancelRetain))
         || (cfg!(target_os = "windows")
             && matches!(
                 intervention,

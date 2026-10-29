@@ -1404,7 +1404,7 @@ async fn reflectionhle_shared_release_keeps_all_nine_identities_dynamic_and_refu
         );
         let (root, requests, server) = serve_http(vec![
             metadata(),
-            releases(&[observed.clone()]),
+            releases(std::slice::from_ref(&observed)),
             metadata(),
             releases(&[successor, observed]),
         ]);
