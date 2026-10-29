@@ -4053,7 +4053,9 @@
             "fixed Windows source-system custody observes only its two host-image files",
             "Windows custody retains real owner/ACL/identity and refuses same-byte replacement",
             "Windows custody refuses hard links, junction ancestry and noncanonical requests",
-            "Windows custody refuses foreign file writers and ancestor replacement in owned fixtures"
+            "Windows custody refuses foreign file writers and ancestor replacement in owned fixtures",
+            "Windows custody classifies the real hosted runtime and source before candidate work",
+            "fixed Windows custody reader preserves trusted principals and closed foreign-rights refusals"
           ]
         }
       ]

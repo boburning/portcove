@@ -12,7 +12,11 @@ import { acquireNativePnpm, nativePnpmVersion } from "./release-pnpm-runtime.mts
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
-import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mts";
+import {
+  prepareRustSupportArtifact,
+  rustSupportCompilerIdentity,
+  type CompilerRunner,
+} from "./rust-support-cache.mts";
 import {
   nativeRuntimeSupportProfile,
   inspectNativeRuntimeSupport,
@@ -37,6 +41,30 @@ export async function bundleControllerEntries(
   platform: ControllerToolPlatform = "linux-x86_64",
 ) {
   const profile = controllerToolPlatformProfile(platform);
+  return bundleFixedControllerEntries(sourceRoot, outputRoot, [
+    ...controllerToolEntries.map((name) => ({
+      source: `scripts/${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
+      output: `${name}.bundle.mjs`,
+    })),
+    ...profile.children.map((source) => ({ source, output: path.posix.basename(source) })),
+  ]);
+}
+
+/** Fixed unbranded source-preparation CLI only; no controller admission export. */
+export async function bundleWindowsSourcePreparation(sourceRoot: string, outputRoot: string) {
+  return bundleFixedControllerEntries(sourceRoot, outputRoot, [
+    {
+      source: "scripts/release-hosted-native-windows-source.mts",
+      output: "release-hosted-native-windows-source.bundle.mjs",
+    },
+  ]);
+}
+
+async function bundleFixedControllerEntries(
+  sourceRoot: string,
+  outputRoot: string,
+  entries: readonly { source: string; output: string }[],
+) {
   const installed = await realpath(fileURLToPath(import.meta.resolve("vite-plus/pack")));
   const pack = (await import(pathToFileURL(installed).href)) as typeof import("vite-plus/pack");
   const packageFile = await realpath(fileURLToPath(import.meta.resolve("vite-plus/package.json")));
@@ -51,13 +79,6 @@ export async function bundleControllerEntries(
   )
     throw new Error("repository-pinned pack version differs");
   await mkdir(path.join(outputRoot, "scripts"), { recursive: true, mode: 0o700 });
-  const entries = [
-    ...controllerToolEntries.map((name) => ({
-      source: `scripts/${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
-      output: `${name}.bundle.mjs`,
-    })),
-    ...profile.children.map((source) => ({ source, output: path.posix.basename(source) })),
-  ];
   for (const definition of entries) {
     const entry = path.join(sourceRoot, definition.source);
     const commandOnly = [
@@ -521,12 +542,23 @@ export async function materializeControllerNativeSupport(
   tools: string,
   environment: NodeJS.ProcessEnv,
   platform: ControllerToolPlatform = "linux-x86_64",
+  originalDeadline?: number,
 ) {
   const profile = nativeRuntimeSupportProfile(platform);
   const os = platform === "linux-x86_64" ? "linux" : "win32";
   if (process.platform !== os || process.arch !== "x64")
     throw new Error("fixed platform support build required");
-  const compiler = rustSupportCompilerIdentity({ runSync: spawnSync, environment });
+  const runSync: CompilerRunner = (command, args, options) => {
+    if (originalDeadline === undefined) return spawnSync(command, args, options);
+    const remaining = Math.floor(originalDeadline - performance.now());
+    if (!Number.isFinite(originalDeadline) || remaining < 1)
+      throw new Error("Original native support preparation deadline exhausted");
+    return spawnSync(command, args, {
+      ...options,
+      timeout: Math.min(remaining, options.timeout ?? remaining),
+    });
+  };
+  const compiler = rustSupportCompilerIdentity({ runSync, environment });
   const output = path.join(tools, profile.binary);
   const prepared = prepareRustSupportArtifact({
     root: sourceRoot,
@@ -538,7 +570,7 @@ export async function materializeControllerNativeSupport(
     environment,
     platform: os,
     architecture: "x64",
-    runSync: spawnSync,
+    runSync,
   });
   await chmod(output, 0o700);
   const source = await readControllerToolFile(path.join(sourceRoot, profile.source), 65536);

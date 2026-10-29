@@ -348,23 +348,57 @@ jobs:
             $taskPrevious=$taskCurrent
             if($taskIndex -lt 2){Start-Sleep -Seconds 6}
           }
+      - name: Prepare the complete protected diagnostic closure before original controller startup
+        id: diagnostic_preparation
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        timeout-minutes: 9
+        shell: pwsh
+        run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Prepare
       - name: Start the separately held original connected diagnostic controller
         id: diagnostic_start
         if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         timeout-minutes: 6
         shell: pwsh
-        run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Start
+        env:
+          DIAGNOSTIC_LAUNCHER_SHA: ${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}
+          DIAGNOSTIC_SETUP_SHA: ${{ steps.diagnostic_preparation.outputs.setup_sha256 }}
+          DIAGNOSTIC_NODE_SHA: ${{ steps.diagnostic_preparation.outputs.node_sha256 }}
+          DIAGNOSTIC_OPERATION: Start
+        run: &prepared_diagnostic_entry |
+          $ErrorActionPreference='Stop'
+          if($env:DIAGNOSTIC_LAUNCHER_SHA -cnotmatch '^[a-f0-9]{64}$'){throw 'Sealed original preparation output required'}
+          $taskRoot=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)) ('.pct-connected-'+$env:GITHUB_RUN_ID+'-'+$env:GITHUB_SHA.Substring(0,12))
+          $taskEntry=Join-Path $taskRoot 'windows-source/source/scripts/release-hosted-native-windows-diagnostic-launch.ps1'
+          $taskCursor=$taskEntry
+          while($true){$taskItem=Get-Item -LiteralPath $taskCursor -Force;if($taskItem.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Captured workflow entry ancestry is linked'};$taskParent=[IO.Path]::GetDirectoryName($taskCursor);if(-not $taskParent -or $taskParent -ceq $taskCursor){break};$taskCursor=$taskParent}
+          $taskFile=[IO.FileStream]::new($taskEntry,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+          try{
+              if($taskFile.Length -lt 1 -or $taskFile.Length -gt 131072){throw 'Captured workflow entry exceeds bound'}
+              $taskBytes=[byte[]]::new([int]$taskFile.Length);$taskFile.ReadExactly($taskBytes)
+              if($taskFile.ReadByte() -ne -1 -or $taskFile.Length -ne $taskBytes.Length -or [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($taskBytes)).ToLowerInvariant() -cne $env:DIAGNOSTIC_LAUNCHER_SHA){throw 'Captured workflow entry differs from sealed original bootstrap'}
+              $taskArguments=@{Operation=$env:DIAGNOSTIC_OPERATION}
+              if($env:DIAGNOSTIC_STAGE){$taskArguments.Stage=$env:DIAGNOSTIC_STAGE}
+              if($env:DIAGNOSTIC_OPERATION -ceq 'Ack'){$taskArguments.RequestHash=$env:DIAGNOSTIC_REQUEST;$taskArguments.ArtifactId=$env:DIAGNOSTIC_ARTIFACT;$taskArguments.ArtifactDigest=$env:DIAGNOSTIC_DIGEST}
+              $taskResult=& $taskEntry @taskArguments
+              if($env:DIAGNOSTIC_OPERATION -ceq 'Request'){
+                  $taskRequest=$taskResult|ConvertFrom-Json
+                  $taskDelimiter='PORTCOVE_DIAGNOSTIC_PATHS'
+                  $taskOutput=@(('request_sha256='+$taskRequest.request_sha256),('name='+$taskRequest.name),('paths<<'+$taskDelimiter))+@($taskRequest.files)+@($taskDelimiter)
+                  [IO.File]::AppendAllText($env:GITHUB_OUTPUT,($taskOutput -join "`n")+"`n")
+              }else{$taskResult|Write-Output}
+          }finally{$taskFile.Dispose()}
       - name: Read original diagnostic initial-stage upload request
         id: diagnostic_pre
         if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         timeout-minutes: 10
         shell: pwsh
-        run: |
-          $taskRequest = (& node scripts/release-hosted-native-windows-diagnostic.mts request payload-signing) | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage request refused' }
-          $taskDelimiter = 'PORTCOVE_DIAGNOSTIC_PATHS'
-          $taskOutput = @(('request_sha256=' + $taskRequest.request_sha256), ('name=' + $taskRequest.name), ('paths<<' + $taskDelimiter)) + @($taskRequest.files) + @($taskDelimiter)
-          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ($taskOutput -join "`n") + "`n")
+        env:
+          DIAGNOSTIC_LAUNCHER_SHA: ${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}
+          DIAGNOSTIC_SETUP_SHA: ${{ steps.diagnostic_preparation.outputs.setup_sha256 }}
+          DIAGNOSTIC_NODE_SHA: ${{ steps.diagnostic_preparation.outputs.node_sha256 }}
+          DIAGNOSTIC_OPERATION: Request
+          DIAGNOSTIC_STAGE: payload-signing
+        run: *prepared_diagnostic_entry
       - name: Upload only four original diagnostic initial-stage public records
         id: diagnostic_pre_upload
         if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
@@ -372,6 +406,7 @@ jobs:
         with:
           name: ${{ steps.diagnostic_pre.outputs.name }}
           path: ${{ steps.diagnostic_pre.outputs.paths }}
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
           overwrite: false
@@ -383,20 +418,24 @@ jobs:
           DIAGNOSTIC_REQUEST: ${{ steps.diagnostic_pre.outputs.request_sha256 }}
           DIAGNOSTIC_ARTIFACT: ${{ steps.diagnostic_pre_upload.outputs.artifact-id }}
           DIAGNOSTIC_DIGEST: ${{ steps.diagnostic_pre_upload.outputs.artifact-digest }}
-        run: |
-          & node scripts/release-hosted-native-windows-diagnostic.mts ack payload-signing $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
-          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage acknowledgement refused' }
+          DIAGNOSTIC_LAUNCHER_SHA: ${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}
+          DIAGNOSTIC_SETUP_SHA: ${{ steps.diagnostic_preparation.outputs.setup_sha256 }}
+          DIAGNOSTIC_NODE_SHA: ${{ steps.diagnostic_preparation.outputs.node_sha256 }}
+          DIAGNOSTIC_OPERATION: Ack
+          DIAGNOSTIC_STAGE: payload-signing
+        run: *prepared_diagnostic_entry
       - name: Read original diagnostic compatible-transition upload request
         id: diagnostic_post
         if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
         timeout-minutes: 10
         shell: pwsh
-        run: |
-          $taskRequest = (& node scripts/release-hosted-native-windows-diagnostic.mts request release-publication) | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition request refused' }
-          $taskDelimiter = 'PORTCOVE_DIAGNOSTIC_PATHS'
-          $taskOutput = @(('request_sha256=' + $taskRequest.request_sha256), ('name=' + $taskRequest.name), ('paths<<' + $taskDelimiter)) + @($taskRequest.files) + @($taskDelimiter)
-          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ($taskOutput -join "`n") + "`n")
+        env:
+          DIAGNOSTIC_LAUNCHER_SHA: ${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}
+          DIAGNOSTIC_SETUP_SHA: ${{ steps.diagnostic_preparation.outputs.setup_sha256 }}
+          DIAGNOSTIC_NODE_SHA: ${{ steps.diagnostic_preparation.outputs.node_sha256 }}
+          DIAGNOSTIC_OPERATION: Request
+          DIAGNOSTIC_STAGE: release-publication
+        run: *prepared_diagnostic_entry
       - name: Upload only four original diagnostic compatible-transition public records
         id: diagnostic_post_upload
         if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
@@ -404,6 +443,7 @@ jobs:
         with:
           name: ${{ steps.diagnostic_post.outputs.name }}
           path: ${{ steps.diagnostic_post.outputs.paths }}
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
           overwrite: false
@@ -415,23 +455,42 @@ jobs:
           DIAGNOSTIC_REQUEST: ${{ steps.diagnostic_post.outputs.request_sha256 }}
           DIAGNOSTIC_ARTIFACT: ${{ steps.diagnostic_post_upload.outputs.artifact-id }}
           DIAGNOSTIC_DIGEST: ${{ steps.diagnostic_post_upload.outputs.artifact-digest }}
-        run: |
-          & node scripts/release-hosted-native-windows-diagnostic.mts ack release-publication $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
-          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition acknowledgement refused' }
+          DIAGNOSTIC_LAUNCHER_SHA: ${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}
+          DIAGNOSTIC_SETUP_SHA: ${{ steps.diagnostic_preparation.outputs.setup_sha256 }}
+          DIAGNOSTIC_NODE_SHA: ${{ steps.diagnostic_preparation.outputs.node_sha256 }}
+          DIAGNOSTIC_OPERATION: Ack
+          DIAGNOSTIC_STAGE: release-publication
+        run: *prepared_diagnostic_entry
       - name: Request original diagnostic recovery after a failed Actions transition
         if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && failure() && steps.diagnostic_start.outcome == 'success' }}
         timeout-minutes: 1
         shell: pwsh
-        run: |
-          & node scripts/release-hosted-native-windows-diagnostic.mts abort
-          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic abort request unavailable; retain its original bounded recovery evidence' }
+        env:
+          DIAGNOSTIC_LAUNCHER_SHA: ${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}
+          DIAGNOSTIC_SETUP_SHA: ${{ steps.diagnostic_preparation.outputs.setup_sha256 }}
+          DIAGNOSTIC_NODE_SHA: ${{ steps.diagnostic_preparation.outputs.node_sha256 }}
+          DIAGNOSTIC_OPERATION: Abort
+        run: *prepared_diagnostic_entry
       - name: Read the original diagnostic terminal result without resuming another owner
         if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_start.outcome == 'success' }}
         timeout-minutes: 10
         shell: pwsh
-        run: |
-          & node scripts/release-hosted-native-windows-diagnostic.mts settle
-          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic did not settle successfully; preserve partial evidence' }
+        env:
+          DIAGNOSTIC_LAUNCHER_SHA: ${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}
+          DIAGNOSTIC_SETUP_SHA: ${{ steps.diagnostic_preparation.outputs.setup_sha256 }}
+          DIAGNOSTIC_NODE_SHA: ${{ steps.diagnostic_preparation.outputs.node_sha256 }}
+          DIAGNOSTIC_OPERATION: Settle
+        run: *prepared_diagnostic_entry
+      - name: Copy only fixed public diagnostic records from the protected closure
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_preparation.outcome == 'success' }}
+        timeout-minutes: 1
+        shell: pwsh
+        env:
+          DIAGNOSTIC_LAUNCHER_SHA: ${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}
+          DIAGNOSTIC_SETUP_SHA: ${{ steps.diagnostic_preparation.outputs.setup_sha256 }}
+          DIAGNOSTIC_NODE_SHA: ${{ steps.diagnostic_preparation.outputs.node_sha256 }}
+          DIAGNOSTIC_OPERATION: Publish
+        run: *prepared_diagnostic_entry
       - name: Retain only bounded diagnostic source and cleanup records
         if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_preflight.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -441,6 +500,8 @@ jobs:
             work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json
             ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json
             ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-startup-public.json
+            ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-preimport-public.json
+            work/hosted-continuity-evidence/windows-diagnostic-preparation-failure.json
           if-no-files-found: warn
           retention-days: 7
           overwrite: false

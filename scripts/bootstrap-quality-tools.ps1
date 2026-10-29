@@ -31,6 +31,7 @@ Example:
 }
 
 Import-Module (Join-Path $PSScriptRoot "windows-webview-driver-policy.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "tool-cache-state.psm1") -Force
 $runningOnWindows = $env:OS -eq "Windows_NT"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Push-Location -LiteralPath $projectRoot
@@ -540,20 +541,7 @@ try {
             ($existingStateJson | ConvertFrom-Json).desktop
         }
     }
-    $state = [ordered]@{
-        format_version = 1
-        pin_fingerprint = [string]$toolPaths.pins.fingerprint
-        shared_root = $sharedRoot
-        shim_directory = $shimDirectory
-        # A driver-only state records the expected Aqua path without installing it.
-        # Broader doctor profiles still inspect their own actual prerequisites.
-        aqua = if ($wantsAqua) { $resolvedAqua } else { $aquaExecutable }
-        aqua_root = $aquaRoot
-        desktop = $desktopState
-    }
-    $statePath = [string]$toolPaths.statePath
-    $state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$statePath.next" -Encoding utf8
-    Move-Item -LiteralPath "$statePath.next" -Destination $statePath -Force
+    Write-PortcoveToolCacheState -StatePath ([string]$toolPaths.statePath) -PinFingerprint ([string]$toolPaths.pins.fingerprint) -SharedRoot $sharedRoot -ShimDirectory $shimDirectory -Aqua $(if ($wantsAqua) { $resolvedAqua } else { $aquaExecutable }) -AquaRoot $aquaRoot -Desktop $desktopState
     }
 }
 finally {
