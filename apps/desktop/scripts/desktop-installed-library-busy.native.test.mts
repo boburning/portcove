@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 import { startInstalledLibraryBusy } from "./desktop-installed-library-busy.mts";
@@ -221,7 +221,23 @@ for (const missing of ["hash", "real-data"] as const) {
               "--native-driver",
               absolute("missing-native-driver"),
             ];
-        const result = spawnSync(process.execPath, [entry, ...common, ...platform], {
+        // Exercise the actual CLI preflight without frontend dependencies. Any
+        // attempted UI use still fails; this hook grants no native execution.
+        const probe = path.join(root, "preflight.mjs");
+        await writeFile(
+          probe,
+          `import {registerHooks} from 'node:module';
+const forbidden = 'export const By=new Proxy({},{get(){throw Error("UI use forbidden before preflight")}});export const until=By';
+registerHooks({resolve(name,context,next){
+ if(name==='selenium-webdriver')return {url:'data:text/javascript,'+encodeURIComponent(forbidden),shortCircuit:true};
+ return next(name,context);
+}});
+process.argv=[process.execPath,${JSON.stringify(entry)},...${JSON.stringify([...common, ...platform])}];
+await import(${JSON.stringify(pathToFileURL(entry).href)});
+`,
+          { flag: "wx" },
+        );
+        const result = spawnSync(process.execPath, [probe], {
           cwd: root,
           encoding: "utf8",
           timeout: 30_000,
