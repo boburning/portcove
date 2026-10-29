@@ -616,7 +616,7 @@
         "authority": "alexbeavs-ps1-ports/dino-crisis-recomp",
         "authority_ref": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/7fd9deaa0ef7f8b689b1092821c19ac6a0de87db/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/main/game.toml"
       },
@@ -626,7 +626,7 @@
         "authority": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
         "authority_ref": "38514024f3a7cea54ff05ae3afdad0929920cb5a",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/38514024f3a7cea54ff05ae3afdad0929920cb5a/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/main/game.toml"
       },
@@ -636,7 +636,7 @@
         "authority": "alexbeavs-ps1-ports/alien-resurrection-recomp",
         "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/main/game.toml"
       },
@@ -646,7 +646,7 @@
         "authority": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
         "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/54ddfe971dfd79134f2593b00dbd9b78ae51536b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/main/game.toml"
       },
@@ -952,6 +952,16 @@
         "claim": "The pinned DAT has SCUS-94426 and SCUS-94426CE serial aliases with identical 605698800-byte raw CTR USA BIN: SHA1 1bb785082def3fe25f6b46be06d4eaf33c5bc772, CRC9a742438. Byte identity is separate from native player/source applicability; no original media acquisition.",
         "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat%2Fredump%2FSony%20-%20PlayStation.dat",
         "live_url": "https://github.com/libretro/libretro-database/blob/master/metadat/redump/Sony%20-%20PlayStation.dat"
+      },
+      {
+        "id": "bstone-e65a6b40-original-file-identities",
+        "role": "byte_identity",
+        "authority": "bibendovsky/bstone",
+        "authority_ref": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+        "reviewed_at": "2026-10-29",
+        "immutable_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
+        "live_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
+        "claim": "Upstream get_aog_full_v1_0_resources, get_aog_full_v2_0_resources, get_aog_full_v2_1_resources, get_aog_full_v3_0_resources and get_ps_resources bind each complete original resource set by filename and SHA1. Each retail AOG set has twelve BS6 members; Planet Strike has ten VSI members. These upstream byte identities do not establish gameplay, Portcove preparation or cross-version player-data compatibility. BS1 shareware sets are distinct and are not admitted by these retail contracts."
       }
     ],
     "identities": [
@@ -2908,12 +2918,12 @@
       },
       {
         "id": "pokemon-gen-1",
-        "label": "Pokémon Red (US) source",
+        "label": "Pok\u00e9mon Red (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pokémon Red (US) source",
+            "title": "Pok\u00e9mon Red (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -2948,12 +2958,12 @@
       },
       {
         "id": "pokemon-gold",
-        "label": "Pokémon Gold (US) source",
+        "label": "Pok\u00e9mon Gold (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pokémon Gold (US) source",
+            "title": "Pok\u00e9mon Gold (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -2988,12 +2998,12 @@
       },
       {
         "id": "pokemon-silver",
-        "label": "Pokémon Silver (US) source",
+        "label": "Pok\u00e9mon Silver (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pokémon Silver (US) source",
+            "title": "Pok\u00e9mon Silver (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -3028,12 +3038,12 @@
       },
       {
         "id": "pokemon-crystal",
-        "label": "Pokémon Crystal (US) source",
+        "label": "Pok\u00e9mon Crystal (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pokémon Crystal (US) source",
+            "title": "Pok\u00e9mon Crystal (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -3999,12 +4009,12 @@
       },
       {
         "id": "masters-of-teras-kasi-psx",
-        "label": "Star Wars: Masters of Teräs Käsi (USA) disc",
+        "label": "Star Wars: Masters of Ter\u00e4s K\u00e4si (USA) disc",
         "kind": "optical-disc",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Star Wars: Masters of Teräs Käsi (USA) disc",
+            "title": "Star Wars: Masters of Ter\u00e4s K\u00e4si (USA) disc",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -7147,6 +7157,1281 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "bstone-aliens-of-gold-originals",
+        "label": "Blake Stone aliens-of-gold complete original files",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "aog-full-v1-0",
+            "title": "aog-full-v1-0",
+            "region": null,
+            "revision": "aog-full-v1-0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6f19a144d8985e90f096fc1c67ade58e9051235c",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4d00c5f5c843f99a266bd938648192a6eff17b5a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "d4f81ace1701a7338d43ce07723c2adaafdc837c",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "02dc27d4810e3ffa26540b310eac6091f5e16de0",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "639ec9e7a81ad83fc5b5c557cf4fc5fa28b9676b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "0a700732ccbc72f95318a6226a7e1ad78ac713bb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          },
+          {
+            "id": "aog-full-v2-0",
+            "title": "aog-full-v2-0",
+            "region": null,
+            "revision": "aog-full-v2-0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "8b48e7eb859382a4c84948c5a62899194288e853",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e83b690836c9edf9ef60f6189b8384fb2319b735",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "67a679e3b107db8685ba5ff1643a38f9291b00bf",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "48b18caa86151610957b64b207cf2a2977ef7d57",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          },
+          {
+            "id": "aog-full-v2-1",
+            "title": "aog-full-v2-1",
+            "region": null,
+            "revision": "aog-full-v2-1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "8b48e7eb859382a4c84948c5a62899194288e853",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e4ae3ef9a3ac158a832092b7b5487227337c6f13",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6868e6cc4f8cb9160a218c5bce680a11f64c675a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "1a3864cd12de4b8fd6be023b73d2d79e91b9018d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          },
+          {
+            "id": "aog-full-v3-0",
+            "title": "aog-full-v3-0",
+            "region": null,
+            "revision": "aog-full-v3-0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "8b48e7eb859382a4c84948c5a62899194288e853",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "60da35e506d57753f83cca5f232a76dd1cf074ba",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "001037fafdff124befb5437c563d0b9c613b3c00",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ff165ca5924d738853587a7e4ab1cd239e10e359",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          },
+          {
+            "id": "legacy-projection-union",
+            "title": "Compatibility projection only",
+            "region": null,
+            "revision": "aog-full-v1-0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6f19a144d8985e90f096fc1c67ade58e9051235c",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4d00c5f5c843f99a266bd938648192a6eff17b5a",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "8b48e7eb859382a4c84948c5a62899194288e853",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "d4f81ace1701a7338d43ce07723c2adaafdc837c",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e83b690836c9edf9ef60f6189b8384fb2319b735",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e4ae3ef9a3ac158a832092b7b5487227337c6f13",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "60da35e506d57753f83cca5f232a76dd1cf074ba",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "02dc27d4810e3ffa26540b310eac6091f5e16de0",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "67a679e3b107db8685ba5ff1643a38f9291b00bf",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6868e6cc4f8cb9160a218c5bce680a11f64c675a",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "001037fafdff124befb5437c563d0b9c613b3c00",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "639ec9e7a81ad83fc5b5c557cf4fc5fa28b9676b",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "48b18caa86151610957b64b207cf2a2977ef7d57",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "1a3864cd12de4b8fd6be023b73d2d79e91b9018d",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ff165ca5924d738853587a7e4ab1cd239e10e359",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "0a700732ccbc72f95318a6226a7e1ad78ac713bb",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ],
+            "legacy_projection_only": true
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "bstone-planet-strike-originals",
+        "label": "Blake Stone planet-strike complete original files",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "ps",
+            "title": "ps",
+            "region": null,
+            "revision": "ps",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.VSI",
+                    "filenames": [
+                      "AUDIOHED.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "2ed9a587926b2b455f8176788f595d03f6359171",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.VSI",
+                    "filenames": [
+                      "AUDIOT.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ecac8a800c5d021c8b68d170066c8859df9bd79a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.VSI",
+                    "filenames": [
+                      "EANIM.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b668330e56ceb069c1b972cefddd8a3d618a14af",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.VSI",
+                    "filenames": [
+                      "IANIM.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.VSI",
+                    "filenames": [
+                      "MAPHEAD.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "c3fb0a9b81e0240d12c952fe5b57b78c1108aa48",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.VSI",
+                    "filenames": [
+                      "MAPTEMP.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "acd03031d526eeaee64072518adf6814f96e2a37",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.VSI",
+                    "filenames": [
+                      "VGADICT.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "061692d166f68d7e0b81568725439078cc728f33",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.VSI",
+                    "filenames": [
+                      "VGAGRAPH.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e619a3e6245f79888da5436df138d63204d2caba",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.VSI",
+                    "filenames": [
+                      "VGAHEAD.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ad5fed9de5d1d82145df3ff2286e4bc62cb80e2a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.VSI",
+                    "filenames": [
+                      "VSWAP.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4113ce83c42e69dc5cb20de79f41971a100f876e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -10224,6 +11509,63 @@
         "live_review_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "blake-stone-aliens-of-gold-bstone-game-source",
+        "port_id": "blake-stone-aliens-of-gold-bstone",
+        "role": "game",
+        "profile_id": "bstone-aliens-of-gold-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "aog-full-v1-0",
+          "aog-full-v2-0",
+          "aog-full-v2-1",
+          "aog-full-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "bstone-e65a6b40-original-file-identities"
+        ],
+        "authority_ref": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
+        "live_review_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.3.4",
+            "artifact_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "blake-stone-planet-strike-bstone-game-source",
+        "port_id": "blake-stone-planet-strike-bstone",
+        "role": "game",
+        "profile_id": "bstone-planet-strike-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "ps"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "bstone-e65a6b40-original-file-identities"
+        ],
+        "authority_ref": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
+        "live_review_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.3.4",
+            "artifact_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       }
