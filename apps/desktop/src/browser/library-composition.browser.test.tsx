@@ -396,6 +396,10 @@ it.each([
     await userEvent.keyboard("{Enter}");
     await expect.poll(() => launch.mock.calls).toEqual([[port.id, "", 1]]);
   },
+  // This complete long-identity journey includes both layouts, detail/return and
+  // keyboard launch. The retained cold-run15s failures exhausted the outer case
+  // budget before View details/return; action deadlines and assertions are unchanged.
+  45_000,
 );
 
 for (const theme of ["dark", "light"]) {

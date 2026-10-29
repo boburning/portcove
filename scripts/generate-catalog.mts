@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import {
   prepareCatalogArtwork,
   prepareCatalogGameMedia,
+  reconcileCatalogArtworkWithdrawals,
   createIgdbInspector,
   createCoreImageValidator,
   readArtworkJson,
@@ -494,9 +495,11 @@ async function prepareArtworkProposal(fullProposal = false) {
       ? await prepareCatalogGameMedia(covers.catalog, {
           inspector,
           identities,
+          knownGoneImageIds: covers.gone_image_ids,
           ...(selectedPortIds ? { selectedPortIds } : {}),
         })
       : undefined;
+  if (gameMedia) reconcileCatalogArtworkWithdrawals(covers, gameMedia.gone_image_ids);
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
   finishPhase("artwork_preparation");
   validateCurrentCatalog(result.catalog);
@@ -536,6 +539,7 @@ async function prepareArtworkProposal(fullProposal = false) {
     differences: differences(input, result.catalog),
     records: result.records,
     metrics: result.metrics,
+    gone_image_ids: result.gone_image_ids,
     provider_metrics: inspector.providerMetrics,
     ...(gameMedia
       ? { game_media: { records: gameMedia.records, gone_image_ids: gameMedia.gone_image_ids } }

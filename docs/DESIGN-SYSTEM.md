@@ -14,7 +14,7 @@ Other destructive reviews retain their own consent contracts.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover offers Catalog order, Title A–Z, Title Z–A and In library first. With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; Discover names reviewed game groups and matching independent ports separately.
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter
@@ -26,15 +26,16 @@ name. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit
 selection scope, including filtered-out entries in supported Steam commands.
 
-Covers use content-driven columns with a 180px preferred minimum, reduced to
-160px when the window is at most 680px high, always limited by the available
-width. Whole-image 2:3 artwork caps at 220 CSS pixels ordinarily, 180px when the
-window is at most 800px high and 160px at most 680px high. Text enlargement
-reflows text without increasing those artwork bounds. Narrow artwork still caps
-at 160px below 28em of collection width. Titles reserve two ordinary lines and expand on focus; port
-labels wrap completely. Full identity wraps below 40em. The action follows each
-entry's state instead of being pushed away by the tallest neighboring exception.
-No fixed column count, crop inference or provider mapping is implied.
+Covers use content-driven columns with a preferred minimum of 12.75rem, giving
+five columns at the matched 1440px desktop viewport with the normal interface
+size and full sidebar. Available width and interface size change the count.
+Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
+it caps at 160px. Short windows retain the same density rules. Supporting text
+scales and wraps without growing artwork beyond its CSS bound; native interface
+zoom still enlarges the physical rendering. Titles reserve two ordinary lines
+and expand on focus; project labels wrap completely. Full identity wraps below
+40em. Footer actions stay beside the dominant status without overlapping it.
+Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
 Library entries have separate identity, Play/review and More actions controls.
 Favorite choices live in More actions alongside the existing update/activity and
@@ -47,7 +48,7 @@ The candidate has a concise update review link. Healthy update entries omit the 
 
 Compact rows keep 32x48px contained thumbnails (up to 40x60px with text enlargement),
 10px block padding, full wrapping identity and a bounded action span. The list
-caps at max(840px, 52.5rem). Below 46em readiness stacks beneath identity with
+uses the available workspace width. Below 36em readiness stacks beneath identity with
 thumbnail alignment indentation; its separate column has no indentation. Below
 28em actions follow readiness. Artwork loading, stale/failed notices and user
 precedence remain with the existing artwork owner.
@@ -89,13 +90,29 @@ their existing authoritative projections. The installation fact is independently
 observed: managed version, registered external installation, downloaded setup or
 not installed. Readiness never establishes ownership.
 
-The contained 2:3 cover frame is independent of title length: 128 by 192 CSS pixels
-ordinarily, 148 by 222 in wide detail containers and 96 by 144 in compact
-containers. Narrow layouts omit the cover and retain the complete identity and
-actions. The illustrated hero uses a directional opacity mask behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. The shared directional artwork mask keeps Continue copy readable while exposing more image toward its action edge. Loaded galleries use three columns in wide containers when at least three images exist, two at medium widths, and one in compact containers; per-slot attribution, errors and lightbox focus remain with the media owner. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
-cache/provenance, overrides and quiet fallback remain with Artwork; both artwork
-slots are accessible through Change artwork in Manage. No cover crop or provider
-mapping is inferred.
+Details and the single Continue strip share one foreground identity system:
+verified key art, then a suitable game logo, then the appropriate existing Cover,
+then the typeset title. Prefer the exact port within each role, then an accurately
+matched applicable original game/edition. A missing logo never skips the Cover.
+Keep project/variant identity visible beside original-game branding. Foreground,
+atmospheric landscape background and gallery resolve independently through the
+existing media authority, with provenance, user customization, bounded cached
+assets and quiet failure. Never stretch a portrait cover into a landscape header.
+
+Foreground art preserves its natural aspect ratio in a reserved, responsive
+frame. Cover fallback stays deliberately portrait, including narrow layouts;
+key art and logos use wider bounded frames where useful. Compact details stack
+the foreground above complete identity/actions. The directional background mask
+protects text, while a solid narrow text stage and sufficient heading leading
+keep the complete glyph bounds over a readable surface. Logo ink/contrast and
+minimum rendered size are checked; unsuitable or failed assets advance to the
+next fallback without arbitrary pixel recoloring. Continue uses recorded launch
+history and relaunches that installation; it does not load a save automatically.
+Loaded galleries use three columns in wide containers when at least three images
+exist, two at medium widths, and one in compact containers; per-slot attribution,
+errors and lightbox focus remain with the media owner. Forced colors suppress
+decorative backdrop images. Change artwork in Manage retains the existing user
+artwork choices. No title-based identity or edition mapping is inferred.
 
 Five permanent sections use Base UI manual-activation tabs. Arrow keys and
 Home/End move focus; Enter/Space select. Narrow tab lists wrap with visible labels.
@@ -902,9 +919,13 @@ owner survives navigation. Only its owned API channel may bind an operation ID;
 global events cannot assign that identity. Exact terminal Activity readback retires
 late progress, even when it precedes the first channel event.
 
-Game update review starts with an explicit Install update / Download for later
-choice. Compact mode and future update policy do not choose the current action.
-Changing disposition re-plans before confirmation; a downloaded update remains
+Game updates expose direct Update now and Download for later entry actions;
+Prepare for later remains an advanced choice. Each action requests the existing
+Core plan before confirmation or execution. Compact mode and future update policy
+do not choose the current action. Initial controls remain mounted while review
+hides them, so cancellation restores the actual initiating control when available;
+a connected contextual region is the fallback. Changing disposition inside review
+re-plans before confirmation; a downloaded update remains
 separate from the current playable installation. Without an observed candidate,
 Check for updates is the entry point. Shared invocation feedback owns execution
 failures; a quiet, unchanged cancellation can remain local without duplicating an

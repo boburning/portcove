@@ -655,7 +655,7 @@ async function selectCover(
 function applyGoneImageFallbacks(
   catalog: ArtworkCatalog,
   records: ArtworkRecord[],
-  context: ArtworkContext,
+  context: Pick<ArtworkContext, "goneImages" | "metrics">,
 ) {
   const byId = new Map(records.map((record) => [record.port_id, record]));
   const invalidated: string[] = [];
@@ -719,12 +719,7 @@ export async function prepareCatalogArtwork(
   ) {
     throw new Error("Artwork catalogs require at most10000 unique stable port ids.");
   }
-  if (
-    options.knownGoneImageIds &&
-    (Buffer.byteLength(JSON.stringify(options.knownGoneImageIds)) > 8 * 1024 * 1024 ||
-      options.knownGoneImageIds.some((id) => !matchesString(imagePattern, id)))
-  )
-    throw new Error("Invalid bounded exact-image Gone observations.");
+  validateKnownGoneImages(options.knownGoneImageIds);
   const result = structuredClone(catalog);
   const accepted = new Map((options.acceptedCatalog?.ports ?? []).map((port) => [port.id, port]));
   const selectedIds = options.selectedPortIds ?? catalog.ports.map((port) => port.id);
@@ -854,17 +849,47 @@ export async function prepareCatalogArtwork(
   // A later refreshed record can observe Gone for an earlier reused mapping.
   // Apply that exact-image fact to every output reference without extra requests.
   const invalidatedPortIds = applyGoneImageFallbacks(result, records, context);
+  removeWithdrawnCatalogMedia(result, [], context.goneImages);
   assertPreparedArtwork(result);
   return {
     catalog: result,
     records,
     metrics: context.metrics,
+    gone_image_ids: [...context.goneImages].sort(),
     workset: {
       catalog_ports: catalog.ports.length,
       selected_port_ids: [...workset],
       invalidated_port_ids: invalidatedPortIds,
     },
   };
+}
+
+function validateKnownGoneImages(imageIds: readonly string[] | undefined) {
+  if (
+    imageIds &&
+    (Buffer.byteLength(JSON.stringify(imageIds)) > 8 * 1024 * 1024 ||
+      imageIds.some((id) => !matchesString(imagePattern, id)))
+  )
+    throw new Error("Invalid bounded exact-image Gone observations.");
+}
+
+/** Reconcile later role observations into the existing cover proposal and its
+ * evidence. No provider requests or authority are introduced by reconciliation. */
+export function reconcileCatalogArtworkWithdrawals(
+  prepared: Awaited<ReturnType<typeof prepareCatalogArtwork>>,
+  imageIds: readonly string[],
+) {
+  validateKnownGoneImages(imageIds);
+  const goneImages = new Set([...prepared.gone_image_ids, ...imageIds]);
+  const invalidated = applyGoneImageFallbacks(prepared.catalog, prepared.records, {
+    goneImages,
+    metrics: prepared.metrics,
+  });
+  removeWithdrawnCatalogMedia(prepared.catalog, [], goneImages);
+  prepared.gone_image_ids = [...goneImages].sort();
+  prepared.workset.invalidated_port_ids = [
+    ...new Set([...prepared.workset.invalidated_port_ids, ...invalidated]),
+  ].sort();
 }
 
 function cancelBody(body: Pick<ArtworkReader, "cancel"> | null | undefined) {
@@ -1533,6 +1558,9 @@ function removeWithdrawnCatalogMedia(
   // A withdrawal invalidates every candidate reference, including unselected ports
   // and records completed earlier in this batch.
   for (const port of catalog.ports) {
+    const artwork = port.presentation?.artwork;
+    if (validArtworkMapping(artwork) && gone.has(artwork.image_id) && port.presentation)
+      delete port.presentation.artwork;
     const media = port.presentation?.media;
     if (Array.isArray(media))
       port.presentation = {
@@ -1555,6 +1583,7 @@ export async function prepareCatalogGameMedia(
   options: {
     identities?: unknown;
     selectedPortIds?: readonly string[];
+    knownGoneImageIds?: readonly string[];
     inspector: Pick<
       ReturnType<typeof createIgdbInspector>,
       "inspectGame" | "inspectGameMedia" | "inspectMediaImage"
@@ -1562,6 +1591,7 @@ export async function prepareCatalogGameMedia(
     signal?: AbortSignal;
   },
 ) {
+  validateKnownGoneImages(options.knownGoneImageIds);
   const selected = options.selectedPortIds ?? catalog.ports.map((port) => port.id);
   if (
     selected.length > 400 ||
@@ -1575,7 +1605,7 @@ export async function prepareCatalogGameMedia(
     inspector: options.inspector,
     signal: options.signal,
     games: new Map(),
-    goneImages: new Set(),
+    goneImages: new Set(options.knownGoneImageIds ?? []),
   };
   for (const port of result.ports) {
     if (!selected.includes(port.id)) continue;

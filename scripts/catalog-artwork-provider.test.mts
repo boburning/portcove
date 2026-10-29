@@ -490,8 +490,12 @@ void test("incomplete key-art inventory preserves cached media and does not supp
 });
 
 void test("an observed Gone image sweeps earlier and unselected references and cannot be reselected in the batch", async () => {
-  const { createIgdbInspector, prepareCatalogGameMedia } =
-    await import("./inspect-igdb-artwork.mts");
+  const {
+    createIgdbInspector,
+    prepareCatalogArtwork,
+    prepareCatalogGameMedia,
+    reconcileCatalogArtworkWithdrawals,
+  } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-game-media-gone-"));
   const privateFile = join(scratch, "private-fixture.json");
   writeFileSync(
@@ -530,30 +534,60 @@ void test("an observed Gone image sweeps earlier and unselected references and c
         : new Response(null, { status: 410 });
     },
   );
-  const result = await prepareCatalogGameMedia(
-    {
-      ports: ["one", "two", "three", "unselected"].map((id) => ({
-        id,
-        name: "Sample",
-        project_url: "https://example.org/sample",
-        presentation: {
-          media: [
-            { id: "retained-header", role: "header", subject: { kind: "port", port_id: id } },
-            {
-              id: "withdrawn-logo",
-              role: "logo",
-              subject: { kind: "port", port_id: id },
-              igdb: { image_id: "sharedlogo" },
-            },
-          ],
+  const catalog = {
+    ports: ["one", "two", "three", "unselected"].map((id) => ({
+      id,
+      name: "Sample",
+      project_url: "https://example.org/sample",
+      presentation: {
+        artwork: {
+          game_id: 7,
+          cover_id: 9,
+          image_id: "sharedlogo",
+          image_sha256: "a".repeat(64),
+          game_slug: "sample",
+          match_kind: "port",
         },
-      })),
-    },
-    { inspector, selectedPortIds: ["one", "two", "three"] },
-  );
+        media: [
+          { id: "retained-header", role: "header", subject: { kind: "port", port_id: id } },
+          {
+            id: "withdrawn-logo",
+            role: "logo",
+            subject: { kind: "port", port_id: id },
+            igdb: { image_id: "sharedlogo" },
+          },
+        ],
+      },
+    })),
+  };
+  const covers = await prepareCatalogArtwork(catalog, {
+    ...inspector,
+    acceptedCatalog: catalog,
+    selectedPortIds: ["one", "two", "three"],
+  });
+  assert.equal(covers.metrics.reused, 3);
+  assert.equal(imageCalls, 0);
+  const result = await prepareCatalogGameMedia(covers.catalog, {
+    inspector,
+    selectedPortIds: ["one", "two", "three"],
+    knownGoneImageIds: covers.gone_image_ids,
+  });
+  reconcileCatalogArtworkWithdrawals(covers, result.gone_image_ids);
   assert.equal(imageCalls, 2);
   assert.deepEqual(result.gone_image_ids, ["sharedlogo"]);
+  assert.deepEqual(covers.gone_image_ids, ["sharedlogo"]);
+  assert.deepEqual(covers.workset.invalidated_port_ids, ["one", "three", "two", "unselected"]);
+  assert.equal(covers.metrics.reused, 0);
+  assert.equal(covers.metrics.fallback, 4);
+  assert.equal(covers.metrics.ports, 4);
+  assert.ok(
+    covers.records.every(
+      (record) =>
+        record.mapping === null && record.checks === null && record.reason === "generated-fallback",
+    ),
+  );
   for (const port of result.catalog.ports) {
+    assert.equal(port.presentation?.artwork, undefined);
     const media = port.presentation?.media;
     assert.ok(Array.isArray(media));
     assert.deepEqual(media, [
@@ -565,3 +599,113 @@ void test("an observed Gone image sweeps earlier and unselected references and c
     "selected-image-gone-later-in-batch",
   );
 });
+
+for (const unavailableMedia of [false, true]) {
+  void test(`cover Gone excludes every media fallback before ${unavailableMedia ? "unavailable" : "repeated"} alternate-role lookup`, async () => {
+    const { createIgdbInspector, prepareCatalogArtwork, prepareCatalogGameMedia } =
+      await import("./inspect-igdb-artwork.mts");
+    const scratch = mkdtempSync(join(tmpdir(), "portcove-cover-media-gone-"));
+    const credentials = join(scratch, "private-fixture.json");
+    writeFileSync(credentials, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
+    let imageCalls = 0,
+      mediaCalls = 0;
+    const provider = createIgdbInspector(
+      credentials,
+      () => ({ format: "jpeg", width: 280, height: 420, validator: "portcove-core" }),
+      async (url) => {
+        if (url.includes("oauth2")) return new Response('{"access_token":"fixture"}');
+        if (url.endsWith("/games"))
+          return new Response(
+            JSON.stringify([
+              {
+                id: 7,
+                name: "Sample",
+                slug: "sample",
+                websites: [{ url: "https://example.org/sample" }],
+                cover: { id: 9, image_id: "withdrawncover" },
+              },
+            ]),
+          );
+        assert.ok(url.includes("images.igdb.com"), `Unexpected provider request: ${url}`);
+        imageCalls++;
+        return new Response(null, { status: 410 });
+      },
+    );
+    const catalog = {
+      ports: ["earlier", "refreshed", "unselected"].map((id) => ({
+        id,
+        name: "Sample",
+        project_url: "https://example.org/sample",
+        presentation: {
+          artwork: {
+            game_id: 7,
+            cover_id: 9,
+            image_id: "withdrawncover",
+            image_sha256: "a".repeat(64),
+            game_slug: "sample",
+            match_kind: "port",
+          },
+          media: [
+            { id: "retained-header", role: "header", subject: { kind: "port", port_id: id } },
+            {
+              id: "gone-logo",
+              role: "logo",
+              subject: { kind: "port", port_id: id },
+              igdb: { image_id: "withdrawncover" },
+            },
+          ],
+        },
+      })),
+    };
+    const covers = await prepareCatalogArtwork(catalog, {
+      ...provider,
+      acceptedCatalog: catalog,
+      selectedPortIds: ["earlier", "refreshed"],
+      refreshPortIds: ["refreshed"],
+    });
+    assert.deepEqual(covers.gone_image_ids, ["withdrawncover"]);
+    assert.equal(imageCalls, 1);
+    // Cover-only preparation must already exclude every role and unselected ref.
+    for (const port of covers.catalog.ports) {
+      assert.equal(port.presentation?.artwork, undefined);
+      const retained = port.presentation?.media;
+      assert.ok(Array.isArray(retained));
+      assert.equal(retained.length, 1);
+    }
+    const result = await prepareCatalogGameMedia(covers.catalog, {
+      selectedPortIds: ["refreshed"],
+      knownGoneImageIds: covers.gone_image_ids,
+      inspector: {
+        ...provider,
+        inspectGameMedia: async () => {
+          mediaCalls++;
+          if (unavailableMedia) throw new Error("Fixture role lookup unavailable");
+          return [
+            { id: 9, game: 7, image_id: "withdrawncover", image_type: { id: 7, name: "Key Art" } },
+          ];
+        },
+      },
+    });
+    assert.equal(mediaCalls, 2);
+    assert.equal(
+      imageCalls,
+      1,
+      "Neither a repeated candidate nor unavailable metadata may retry an exact Gone image",
+    );
+    assert.deepEqual(result.gone_image_ids, ["withdrawncover"]);
+    for (const port of result.catalog.ports) {
+      assert.equal(port.presentation?.artwork, undefined);
+      assert.deepEqual(port.presentation?.media, [
+        { id: "retained-header", role: "header", subject: { kind: "port", port_id: port.id } },
+      ]);
+    }
+    assert.equal(covers.metrics.fallback, 3);
+    assert.ok(covers.records.every((record) => record.mapping === null && record.checks === null));
+    if (unavailableMedia)
+      assert.ok(
+        result.records.every(
+          (record) => record.reason === "media-provider-unavailable-or-incomplete",
+        ),
+      );
+  });
+}

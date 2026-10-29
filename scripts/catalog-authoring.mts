@@ -379,8 +379,8 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
         (asset) =>
           isRecord(asset) &&
           (["key_art", "logo"].includes(String(asset.role)) ||
-            asset.edition_neutral != null ||
-            asset.igdb != null),
+            Object.hasOwn(asset, "edition_neutral") ||
+            Object.hasOwn(asset, "igdb")),
       ) ||
         listing.media.filter((asset) => isRecord(asset) && asset.role === "header").length > 1),
   );
