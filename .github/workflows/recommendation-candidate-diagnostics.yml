@@ -9,81 +9,79 @@ on:
 permissions: {}
 
 jobs:
-  recover:
-    name: Recover exact candidate source for inspection
+  diagnose:
+    name: Validate preserved production comparison candidate
     if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/feature/game-port-recommendations' && github.event_name == 'push'
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    timeout-minutes: 45
     permissions:
       contents: read
+    env:
+      VP_GIT_HOOKS: "0"
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      CARGO_PROFILE_TEST_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: c94c7b22af9197774f047e1242b0829e9d65e5fb
           persist-credentials: false
-          fetch-depth: 2
-      - name: Recover hash-bound UTF-8 source without executing or publishing it
+          fetch-depth: 0
+      - name: Reconstruct exact isolated source and preserve comparison snapshots
         shell: bash
         run: |
           python3 - <<'PY'
           import base64, hashlib, json, lzma, os, pathlib, re, subprocess
-          HEAD = 'c94c7b22af9197774f047e1242b0829e9d65e5fb'
           BASE = '7c32dff3e1d475166dda5db9b7100c534be2d358'
           BASE_TREE = '76b9a6b7ffc28277b125c975070d5459b823d579'
-          EXPECTED_TREE = 'f998ed6da3ae1aa04aae378f45dbbc0c59e703f2'
+          ORIGINAL_TREE = 'f998ed6da3ae1aa04aae378f45dbbc0c59e703f2'
+          PATCHED_TREE = 'e5279bdea2dd383088bfb81815747b7f9f2b4d35'
           WORKFLOW = '.github/workflows/recommendation-candidate-diagnostics.yml'
-          PARTS = [f'.github/recommendation-transfer/part{i}.b64' for i in range(4)]
-          PART_HASHES = ['4518d8645ef698ddd5716f941cd9263a5c3a4937ccece1b52441db40c49a683f', 'c9c1801310a03fe6bb6c3b87db31f999a720f95e8f15928e24bdcb12fe84b2be', '722062d8b921902a9b3e9ab2128bf2f1f29e631efdebcd273febbaefdb24e6b1', '73bf872b0578c85b4b834eaf42d1dc2f9398583ee6860db2f294b61a5ec16aee']
           def require(condition, message):
               if not condition:
                   raise RuntimeError(message)
-          def git(*args):
-              return subprocess.check_output(['git', *args], timeout=60)
+          def git(*args, data=None):
+              return subprocess.check_output(['git', *args], input=data, timeout=120)
           def blob_sha(data):
               return hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
           require(os.environ['GITHUB_REPOSITORY'] == 'boburning/portcove', 'Repository mismatch')
-          require(git('rev-parse', 'HEAD').decode().strip() == HEAD, 'Checkout mismatch')
-          require(git('rev-parse', 'HEAD^').decode().strip() == BASE, 'Parent mismatch')
+          require(git('rev-parse', 'HEAD').decode().strip() == os.environ['GITHUB_SHA'], 'Checkout mismatch')
           require(git('rev-parse', BASE + '^{tree}').decode().strip() == BASE_TREE, 'Base tree mismatch')
-          require(set(git('diff', '--name-only', BASE, HEAD).decode().splitlines()) == set(PARTS + [WORKFLOW]), 'Unexpected transfer inputs')
-          chunks = []
-          for path, digest in zip(PARTS, PART_HASHES):
-              data = pathlib.Path(path).read_bytes()
-              require(len(data) <= 15000 and hashlib.sha256(data).hexdigest() == digest, 'Transfer chunk mismatch')
-              chunks.append(data)
-          encoded = b''.join(chunks)
+          encoded = b''.join(pathlib.Path(f'.github/recommendation-transfer/part{i}.b64').read_bytes() for i in range(4))
           require(len(encoded) == 57056, 'Encoded size mismatch')
           compressed = base64.b64decode(encoded, validate=True)
           require(len(compressed) == 42792 and hashlib.sha256(compressed).hexdigest() == '4bc7f03e72c5a28a10c31b08e874e9516aa6fcf337ee1c387aee2768edfb040f', 'Compressed identity mismatch')
-          # The prior 64 MiB ceiling rejected this hash-bound stream before decoding.
-          # Keep finite memory and independent 1 MiB output bounds; execute no payload.
           decoder = lzma.LZMADecompressor(memlimit=128 * 1024 * 1024)
           raw = decoder.decompress(compressed, max_length=1024 * 1024)
           require(decoder.eof and not decoder.unused_data, 'Incomplete or oversized payload')
           require(len(raw) == 264165 and hashlib.sha256(raw).hexdigest() == 'f5310292d14919ad220b768548fcc2ff41fc74a0956467528370a9b11e5f9e74', 'Payload identity mismatch')
           payload = json.loads(raw)
-          require(payload['format'] == 1 and payload['base'] == BASE and payload['tree'] == EXPECTED_TREE, 'Payload binding mismatch')
-          require(len(payload['files']) == 47, 'File count mismatch')
-          root = pathlib.Path(os.environ['RUNNER_TEMP'], 'recommendation-recovery')
+          require(payload['format'] == 1 and payload['base'] == BASE and payload['tree'] == ORIGINAL_TREE and len(payload['files']) == 47, 'Payload binding mismatch')
+          patch = pathlib.Path('.github/recommendation-transfer/invalidation.patch').read_bytes()
+          require(hashlib.sha256(patch).hexdigest() == 'a52aeacb3958004074b609cf2c3e6ea596fdf775f00a49fa4204230d67e41478', 'Repair patch identity mismatch')
+          root = pathlib.Path(os.environ['RUNNER_TEMP'], 'recommendation-validation')
           root.mkdir()
-          names, manifest = set(), []
+          (root / 'invalidation.patch').write_bytes(patch)
+          target = git('rev-parse', 'origin/main').decode().strip()
+          common = git('merge-base', BASE, target).decode().strip()
+          for label, revision in [('main', target), ('merge-base', common)]:
+              git('archive', '--format=tar.gz', '--output=' + str(root / (label + '.tar.gz')), revision)
+          git('reset', '--hard', BASE)
+          names = set()
           for item in payload['files']:
               path = item['path']
-              require(isinstance(path, str) and '\\' not in path and not path.startswith('/') and all(part not in ('', '.', '..', '.git') for part in path.split('/')), 'Unsafe file path')
-              require(path not in names and not path.startswith('.github/recommendation-transfer/'), 'Duplicate or transport file')
+              require(isinstance(path, str) and '\\' not in path and not path.startswith('/') and all(part not in ('', '.', '..', '.git') for part in path.split('/')), 'Unsafe path')
+              require(path not in names and not path.startswith('.github/recommendation-transfer/'), 'Duplicate or transport path')
               names.add(path)
               old_sha, new_sha = item['old'], item['new']
-              require(old_sha is None or re.fullmatch('[0-9a-f]{40}', old_sha), 'Invalid old identity')
-              require(new_sha is None or re.fullmatch('[0-9a-f]{40}', new_sha), 'Invalid new identity')
               old_entry = git('ls-tree', BASE, '--', path).decode().strip()
               if old_sha is None:
-                  require(not old_entry, 'New path already exists')
+                  require(not old_entry, 'New path exists')
                   old = b''
               else:
-                  require(old_entry.split('\t')[0] == '100644 blob ' + old_sha, 'Old file identity mismatch')
+                  require(old_entry.split('\t')[0] == '100644 blob ' + old_sha, 'Old identity mismatch')
                   old = git('cat-file', 'blob', old_sha)
               if new_sha is None:
                   require(path == WORKFLOW and old_sha == 'e9c2bcc1eeb254af9013742f1167a1772fd01d02', 'Unexpected deletion')
+                  pathlib.Path(path).unlink()
               else:
                   require(not path.startswith('.github/'), 'Unexpected workflow change')
                   pieces = []
@@ -91,26 +89,142 @@ jobs:
                       if isinstance(operation, str):
                           pieces.append(operation.encode('utf-8'))
                       else:
-                          require(isinstance(operation, list) and len(operation) == 2 and all(type(value) is int for value in operation), 'Invalid copy operation')
+                          require(isinstance(operation, list) and len(operation) == 2 and all(type(v) is int for v in operation), 'Invalid copy')
                           start, end = operation
-                          require(0 <= start <= end <= len(old), 'Invalid copy range')
+                          require(0 <= start <= end <= len(old), 'Invalid range')
                           pieces.append(old[start:end])
                   content = b''.join(pieces)
-                  require(len(content) <= 4 * 1024 * 1024 and blob_sha(content) == new_sha, 'New file identity mismatch')
+                  require(len(content) <= 4 * 1024 * 1024 and blob_sha(content) == new_sha, 'New identity mismatch')
                   content.decode('utf-8')
-                  target = root / 'candidate' / path
-                  target.parent.mkdir(parents=True, exist_ok=True)
-                  target.write_bytes(content)
-              manifest.append({'path': path, 'old': old_sha, 'new': new_sha})
-          archive = root / 'base.tar.gz'
-          subprocess.run(['git', 'archive', '--format=tar.gz', '--output=' + str(archive), BASE], check=True, timeout=60)
-          receipt = {'format_version': 1, 'base': BASE, 'base_tree': BASE_TREE, 'transfer_head': HEAD, 'expected_candidate_tree': EXPECTED_TREE, 'files': manifest, 'payload_sha256': hashlib.sha256(raw).hexdigest(), 'base_archive_sha256': hashlib.sha256(archive.read_bytes()).hexdigest(), 'scope': 'Recovered source only; no execution, repository object/ref publication, approval, merge, signing or release'}
-          (root / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+                  destination = pathlib.Path(path)
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(content)
+          git('add', '-A')
+          require(git('write-tree').decode().strip() == ORIGINAL_TREE, 'Original tree mismatch')
+          git('apply', '--cached', str(root / 'invalidation.patch'))
+          require(git('write-tree').decode().strip() == PATCHED_TREE, 'Patched tree mismatch')
+          git('checkout-index', '-f', '-a')
+          git('config', 'user.name', 'Portcove isolated validation')
+          git('config', 'user.email', 'validation@invalid.local')
+          candidate = git('commit-tree', PATCHED_TREE, '-p', BASE, data=b'test: isolated preserved recommendation candidate\n').decode().strip()
+          git('reset', '--hard', candidate)
+          receipt = {'workflow_head': os.environ['GITHUB_SHA'], 'base': BASE, 'original_tree': ORIGINAL_TREE, 'patched_tree': PATCHED_TREE, 'local_candidate': candidate, 'target_snapshot': target, 'merge_base': common, 'allowed_paths': sorted(names), 'scope': 'Isolated feedback; no source/ref publication, merge or protected acceptance'}
+          (root / 'source.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              stream.write('PORTCOVE_HEAD_SHA=' + candidate + '\nPORTCOVE_CHECKOUT_SHA=' + candidate + '\n')
           print(json.dumps(receipt))
           PY
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76
         with:
-          name: recommendation-recovered-source-${{ github.sha }}
-          path: ${{ runner.temp }}/recommendation-recovery/
-          retention-days: 1
+          version-file: pnpm-workspace.yaml
+          node-version-file: .node-version
+          cache-toolchain: true
+          cache: true
+          run-install: |
+            args: [--frozen-lockfile]
+      - uses: ./.github/actions/setup-rust
+        with:
+          test-fixtures: true
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          key: recommendation-feedback-linux
+          cache-on-failure: true
+      - name: Read pinned test runner
+        id: runner
+        run: node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(".github/quality-tools.json"));fs.appendFileSync(process.env.GITHUB_OUTPUT,"spec=cargo-nextest@"+m.tools.find(t=>t.id==="cargo-nextest").version+"\n")'
+      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91
+        with:
+          tool: ${{ steps.runner.outputs.spec }}
+      - name: Format recovered Rust and authored frontend files
+        id: format
+        continue-on-error: true
+        run: |
+          cargo fmt --all
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          paths=json.loads(pathlib.Path(os.environ['RUNNER_TEMP'], 'recommendation-validation/source.json').read_text())['allowed_paths']
+          files=[p for p in paths if pathlib.Path(p).exists() and p.endswith(('.ts','.tsx','.mts','.md','.json')) and '.generated.' not in p]
+          subprocess.run(['pnpm','exec','vp','fmt',*files],check=True)
+          PY
+      - name: Exercise production Core comparisons and primitive policy
+        id: core
+        continue-on-error: true
+        run: node scripts/run-rust-tests.mts --locked -p portcove-core -E 'test(game_recommendations) | test(port_recommendation) | test(host_preferences::recommendations)' --success-output immediate --failure-output immediate
+      - name: Exercise actual CLI comparison and recovery isolation
+        id: cli
+        continue-on-error: true
+        run: node scripts/run-rust-tests.mts --locked -p portcove-cli --test machine_contract -E 'test(game_comparison)' --success-output immediate --failure-output immediate
+      - name: Regenerate and check shared compiled transport contracts
+        id: transport
+        continue-on-error: true
+        run: |
+          node scripts/check-transport-contract.mts --write
+          node apps/desktop/scripts/generate-transport-types.mts --write
+      - name: Check frontend types and lints
+        id: static
+        continue-on-error: true
+        run: pnpm exec vp run frontend:static
+      - name: Provision pinned browser
+        id: browser
+        continue-on-error: true
+        run: node apps/desktop/scripts/browser-runtime.mts bootstrap
+      - name: Exercise comparison UI and opt-in follow controls
+        id: ui
+        if: steps.browser.outcome == 'success'
+        continue-on-error: true
+        run: node scripts/run-ui-tests.mts exact apps/desktop/src/features/recommendations/GameComparisonEvidence.browser.test.tsx apps/desktop/src/features/recommendations/use-game-comparison.browser.test.tsx apps/desktop/src/features/organization/organization.test.ts apps/desktop/src/features/organization/use-organization.browser.test.tsx apps/desktop/src/components/DetailChoices.browser.test.tsx
+      - name: Preserve formatted source and exact feedback outcomes
+        if: always()
+        env:
+          RESULTS: ${{ toJSON(steps) }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, shutil
+          root=pathlib.Path(os.environ['RUNNER_TEMP'], 'recommendation-validation')
+          root.mkdir(exist_ok=True)
+          (root/'outcomes.json').write_text(os.environ['RESULTS'])
+          source=root/'source.json'
+          if source.exists():
+              receipt=json.loads(source.read_text())
+              candidates=[]
+              allowed=set(receipt['allowed_paths'])
+              allowed.update(p.as_posix() for p in pathlib.Path('apps/desktop/src').glob('transport-*.generated.*'))
+              changed=subprocess.check_output(['git','diff','--name-only',receipt['base']]).decode().splitlines()
+              if not set(changed)<=allowed:
+                  raise RuntimeError('Unexpected generated source changes: '+repr(set(changed)-allowed))
+              for name in sorted(allowed):
+                  path=pathlib.Path(name)
+                  if path.exists():
+                      data=path.read_bytes()
+                      dest=root/'candidate'/name
+                      dest.parent.mkdir(parents=True,exist_ok=True)
+                      dest.write_bytes(data)
+                      candidates.append({'path':name,'sha':hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()})
+                  else:
+                      candidates.append({'path':name,'sha':None})
+              receipt['formatted_files']=candidates
+              (root/'source.json').write_text(json.dumps(receipt,indent=2)+'\n')
+              subprocess.run(['git','diff','--binary',receipt['base']],stdout=open(root/'candidate.patch','wb'),check=True)
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: recommendation-production-feedback-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/recommendation-validation/
+            work/nextest-default-outcomes/
+            work/test-results/
+          retention-days: 2
           if-no-files-found: error
+      - name: Require every requested feedback lane
+        if: always()
+        env:
+          RESULTS: ${{ toJSON(steps) }}
+        run: |
+          python3 - <<'PY'
+          import json,os
+          steps=json.loads(os.environ['RESULTS'])
+          failed=[name for name in ['format','core','cli','transport','static','browser','ui'] if steps.get(name,{}).get('outcome')!='success']
+          if failed:
+              raise SystemExit('Feedback lanes not successful: '+', '.join(failed))
+          PY
