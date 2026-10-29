@@ -2106,6 +2106,19 @@ impl Installer {
                 "prepared-game-data/sm64.o2r".into(),
             ]);
         }
+        if let Some(contract) = &manifest.retained_contract
+            && contract.preparation_mode() == Some(crate::PreparationMode::SourceOnly)
+        {
+            let catalog = contract.catalog(&install.port_id)?;
+            qualification
+                .critical_paths
+                .extend(crate::preparation::source::outputs(
+                    catalog.port(&install.port_id)?,
+                ));
+            // Preserve the caller's checked mutability scope while consuming the
+            // authenticated SourceOnly interpretation of outer receipts and originals.
+            qualification.retained_contract = Some(contract.clone());
+        }
         let selected = resolve_declared_executable(&install.path, &qualification)?;
         let (mut files, mutable_paths) = manifest_files(&install.path, &qualification, &selected)?;
         if manifest.schema_version < 5 {

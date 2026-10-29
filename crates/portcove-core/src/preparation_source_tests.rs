@@ -1141,8 +1141,77 @@ async fn native6_late_no_active_profile_data_holds_staged_activation() {
 
 #[tokio::test]
 async fn native6_authenticated_active_import_and_backup_restore_preserve_source_and_profile() {
-    let fixture = Fixture::native(false, true);
-    let installed = fixture.install(true).await;
+    let mut fixture = Fixture::native(false, true);
+    let catalog =
+        crate::test_fixture::admitted_indexed_catalog(fixture.service.catalog(), NATIVE_PORT);
+    crate::definition_candidate::selection::trust_catalog_selection_for_test(
+        fixture.service.library(),
+        &catalog,
+        NATIVE_PORT,
+    );
+    fixture.service.replace_catalog_for_test(catalog);
+    // Reuse the established future-definition import fixture authority. The
+    // owned package starts unprepared; public preparation seals its real inputs.
+    let root = fixture
+        .service
+        .library()
+        .versions_dir()
+        .join(NATIVE_PORT)
+        .join("owned-indexed");
+    let host = Platform::current().unwrap();
+    let executable = root.join(
+        &fixture
+            .service
+            .catalog()
+            .port(NATIVE_PORT)
+            .unwrap()
+            .executable_hints[&host][0],
+    );
+    fs::create_dir_all(executable.parent().unwrap()).unwrap();
+    fs::copy(&fixture.probe, &executable).unwrap();
+    let artifact = crate::ArtifactIdentity {
+        asset_name: "owned-indexed.zip".into(),
+        sha256: crate::signed_catalog::digest(&fs::read(&fixture.probe).unwrap()),
+        size: fs::metadata(&fixture.probe).unwrap().len(),
+    };
+    let qualification =
+        InstallQualification::from_catalog(fixture.service.catalog(), NATIVE_PORT, host).unwrap();
+    let (manifest_sha256, selected_executable, runtime) =
+        Installer::new(fixture.service.library().clone())
+            .unwrap()
+            .create_manifest(
+                "owned-indexed",
+                NATIVE_PORT,
+                "owned-indexed",
+                &artifact,
+                &qualification,
+                &root,
+            )
+            .unwrap();
+    fixture
+        .service
+        .library()
+        .register_install(
+            &InstallRecord {
+                id: "owned-indexed".into(),
+                port_id: NATIVE_PORT.into(),
+                version: "owned-indexed".into(),
+                path: root,
+                channel: ReleaseChannel::Stable,
+                installed_at: Library::now(),
+                verified: true,
+                staged: false,
+                artifact,
+                runtime,
+                manifest_sha256,
+                selected_executable,
+            },
+            true,
+        )
+        .unwrap();
+    let installed = crate::test_fixture::phase("native originals: admitted preparation", || {
+        fixture.run_preparation().unwrap()
+    });
     let config = installed.path.join("publisher/profile/settings.ini");
     fs::create_dir_all(config.parent().unwrap()).unwrap();
     fs::write(&config, b"owned native profile").unwrap();
@@ -1534,4 +1603,25 @@ fn native6_cancelled_copies_never_publish_receipt_or_change_originals() {
         assert_eq!(crate::adapter::hash_file(&selected).unwrap(), program);
         crate::source_inspection::verify_registered(catalog, &fixture.source).unwrap();
     }
+}
+
+#[tokio::test]
+async fn native6_unadmitted_raw_import_refuses_before_destination_mutation() {
+    let fixture = Fixture::native(false, true);
+    let installed = fixture.install(true).await;
+    let export = fixture._temporary.path().join("unadmitted-metadata.json");
+    fixture.service.write_library_metadata(&export).unwrap();
+    let destination = fixture._temporary.path().join("refused-import");
+    let error = PortcoveService::plan_library_import(
+        &export,
+        fixture.service.library().root(),
+        &destination,
+    )
+    .unwrap_err();
+    assert!(error.message.contains("no admitted authority"), "{error:?}");
+    assert!(!destination.exists());
+    assert!(installed.path.is_dir());
+    assert!(fixture.service.verify(NATIVE_PORT).unwrap().valid);
+    crate::source_inspection::verify_registered(fixture.service.catalog(), &fixture.source)
+        .unwrap();
 }
