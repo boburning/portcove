@@ -340,6 +340,7 @@ for (const [file, tests] of [
       "scripts/desktop-real-runtime.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+      "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
       "scripts/capture-target.test.mts",
     ],
   ],
