@@ -7,7 +7,10 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { createHostedWindowsNativeProofStore } from "./release-owned-windows-proof-store.mts";
-import { windowsSourceSystemExecutables } from "./release-native-runtime-custody.mts";
+import {
+  projectWindowsCustodyFailure,
+  windowsSourceSystemExecutables,
+} from "./release-native-runtime-custody.mts";
 
 function proofParent(context: test.TestContext, foreignWritable = false) {
   const outer = disposableDirectory(context, path.join(homedir(), ".pc-windows-proof-")),
@@ -96,7 +99,23 @@ void test(
   async (context) => {
     const root = proofParent(context, true);
     const target = path.join(root, "attempt");
-    await assert.rejects(createHostedWindowsNativeProofStore(target), /foreign writer/);
+    await assert.rejects(createHostedWindowsNativeProofStore(target), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, "Windows custody OS read refused");
+      assert.equal(Reflect.get(error, "code"), "ERR_WINDOWS_CUSTODY_REFUSED");
+      const failure = projectWindowsCustodyFailure(error);
+      assert.ok(failure);
+      assert.deepEqual(failure.reader, {
+        schema_version: 1,
+        reason: "writer",
+        phase: "rules",
+        ordinal: 0,
+        kind: "file",
+        principal_class: "builtin-users",
+        rights: 17,
+      });
+      return true;
+    });
     assert.ok(existsSync(path.join(target, "store-created.json")));
     for (const invalid of [
       "\\\\server\\share\\attempt",
