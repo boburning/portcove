@@ -355,6 +355,7 @@ for (const [file, tests] of [
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/native-compatibility.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
       "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
