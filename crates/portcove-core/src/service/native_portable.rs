@@ -662,7 +662,7 @@ mod tests {
             .unwrap();
         let port = catalog.port(ID).unwrap();
         let readonly = crate::adapter::standard(AdapterKind::NativePortable)
-            .launch_spec(port, Platform::WindowsX86_64, &first.path, None)
+            .launch_spec(&library, port, Platform::WindowsX86_64, &first.path, None)
             .unwrap();
         assert!(!first.path.join("Game-v1/temp").exists());
         assert_eq!(readonly.environment["TEMP"], "temp");
