@@ -1,8 +1,4 @@
-import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
-// Deliberate boundary controls must preserve non-Error rejection identity.
-function rethrowFailure(error: unknown): never {
-  throw error;
-}
+import { isRecord } from "../../../scripts/runtime-values.mts";
 function parseJson(value: string): unknown {
   return JSON.parse(value);
 }
@@ -31,6 +27,7 @@ function nestedRequest(value: string) {
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 import { spawnSync } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -43,7 +40,6 @@ import {
   isInspectorMainDocument,
   linuxInspectorEnvironment,
   LinuxInspectorProtocol,
-  connectLinuxInspector,
 } from "./desktop-linux-webkit-inspector.mts";
 
 // Imported by the maintained desktop-scenarios contract suite. Keep native-only
@@ -412,32 +408,54 @@ void test("inspector retains every primitive failure and refuses subsequent comm
   }
 });
 
-void test("inspector connection preserves primitive primary failures through evidence failures", async () => {
-  for (const failure of [false, 0, "", null, undefined]) {
-    for (const evidenceFails of [false, true]) {
-      const secondary = new Error("owned report write failure");
-      const logs: string[] = [];
-      // Execute the actual native-erased function with Linux/IO test seams.
-      // The injected readiness callback fails before listener or application IO;
-      // this control makes no Linux execution or deadline-qualification claim.
-      const invocation: unknown = vm.runInNewContext(
-        `(${connectLinuxInspector.toString()})({ port: 45123, launch: { child: { pid: 123, exitCode: null } }, app: "/owned-fixture", expectedSha256: "a".repeat(64), evidence: "owned-report.json", beforeConnect })`,
-        {
-          assert,
-          process: { platform: "linux" },
-          beforeConnect: async () => rethrowFailure(failure),
-          bounded: async (operation: Promise<unknown>) => operation,
-          writeFile: async () => {
-            if (evidenceFails) throw secondary;
-          },
-          isRecord,
-          errorMessage,
-          rethrowFailure,
-          console: { error: (message: string) => logs.push(message) },
+void test("inspector connection preserves primitive primary failures through evidence failures", () => {
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        new URL("./desktop-linux-webkit-inspector.mts", import.meta.url),
+        `
+      // Synthetic Linux metadata in this disposable child is not native evidence.
+      Object.defineProperty(process, 'platform', {value:'linux'});
+      globalThis.fetch=forbidden;
+      globalThis.WebSocket=class {constructor(){forbidden();}};
+      const fileSystem=await import('node:fs/promises');
+      let reports=[],logs=[],evidenceFails=false;
+      const secondary=new Error('owned report write failure');
+      mock.module('node:fs/promises',{namedExports:{...Object.fromEntries(
+        Object.entries(fileSystem).filter(([name])=>name!=='default').map(([name,value])=>
+          [name,typeof value==='function'?forbidden:value])),
+        writeFile:async(file,bytes,options)=>{
+          assert.equal(file,'owned-report.json');
+          assert.deepEqual(options,{flag:'wx'});
+          reports.push(JSON.parse(bytes));
+          if(evidenceFails)throw secondary;
         },
+      }});
+      console.error=message=>logs.push(message);
+      const {connectLinuxInspector}=await import(entry);
+      for(const failure of [false,0,'',null,undefined]){
+        for(evidenceFails of [false,true]){
+          reports=[];logs=[];let callbacks=0;
+          const invocation=connectLinuxInspector({port:45123,
+            launch:{child:{pid:123,exitCode:null}},app:'/owned-fixture',
+            expectedSha256:'a'.repeat(64),evidence:'owned-report.json',
+            beforeConnect:async()=>{callbacks++;throw failure;}});
+          await assert.rejects(invocation,error=>Object.is(error,failure),
+            'INSPECTOR_PRIMARY_IDENTITY must retain the consumed entrypoint rejection');
+          assert.equal(callbacks,1);
+          assert.equal(reports.length,1);
+          assert.equal(reports[0].outcome,'failed');
+          assert.equal(reports[0].automation,false);
+          assert.deepEqual(reports[0].discovery,[]);
+          assert.equal(logs.length,evidenceFails?1:0);
+          if(evidenceFails)assert.ok(logs[0].includes(secondary.message), "Secondary evidence failure must be reported");
+        }
+      }
+      console.log('primitive primary/evidence failures PASS; synthetic platform, no native acceptance');
+      `,
+        variant === "original" ? undefined : { exportName: "connectLinuxInspector", variant },
       );
-      await assert.rejects(Promise.resolve(invocation), (error) => Object.is(error, failure));
-      assert.equal(logs.length, evidenceFails ? 1 : 0);
-    }
+    if (variant === "wrong-export") assert.throws(execute, /INSPECTOR_PRIMARY_IDENTITY/u);
+    else assert.match(execute(), /primitive primary\/evidence failures PASS/u);
   }
 });
