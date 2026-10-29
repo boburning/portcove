@@ -3840,7 +3840,7 @@ try {
           ),
         };
       });
-      assert.equal(hierarchy.state, "Game files needed");
+      assert.equal(hierarchy.state, "Needs game files");
       assert.match(
         required(hierarchy.reason),
         /Choose the required game files before reviewing installation/u,

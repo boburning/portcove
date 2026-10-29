@@ -718,11 +718,11 @@ function BrowserEmptyState({
   return (
     <EmptyState
       icon={Settings2}
-      title="No matching games"
+      title={view === "library" ? "No matching library entries" : "No matching games"}
       description={
         query
           ? `No ${view === "library" ? "library entries" : "games"} match “${query}” with the current view. Reset search, filters, quick views and collection selection to browse again.`
-          : "No games match the current filters and view. Reset filters, quick views and collection selection to browse again."
+          : `No ${view === "library" ? "library entries" : "games"} match the current filters and view. Reset filters, quick views and collection selection to browse again.`
       }
       action={
         <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
@@ -1073,7 +1073,7 @@ function PortCardStatus({
         ? "Continue setup"
         : reviewSetup
           ? "Review setup"
-          : "Review game";
+          : "View details";
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
       <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
@@ -1727,7 +1727,7 @@ function LibraryUpdateReview({
           {status?.acquisition
             ? gameUpdateAcquisitionLabel(status.acquisition.phase)
             : status?.staged
-              ? "Update prepared"
+              ? "Update saved for later"
               : "Update available at last check"}
         </Button>
       )}

@@ -97,8 +97,9 @@ export function UpdateNoticePreferences({
       <h3 className="text-base">Library update notices</h3>
       <p className="max-w-prose text-pc-muted-foreground">
         {choice.paused ? "Notices are paused for this port." : "Show notices for new releases."}{" "}
-        These choices do not change your update policy, pause downloads, or hide a saved update. You
-        can still review and apply available updates here.
+        These choices only affect notices for this port in this library. They do not change your
+        update policy, pause downloads, or hide a downloaded update. You can still review and apply
+        available updates here.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -127,8 +128,9 @@ export function UpdateNoticePreferences({
                 choice: { ...choice, skipped_release: exactRelease },
               })
             }
+            aria-label={`Skip this version: ${exactRelease.version}`}
           >
-            Skip notice for {exactRelease.version}
+            Skip this version
           </Button>
         )}
         {choice.skipped_release && (
@@ -150,8 +152,8 @@ export function UpdateNoticePreferences({
       </div>
       {choice.skipped_release && (
         <p className="text-pc-muted-foreground">
-          Skipped {choice.skipped_release.version} for this exact download. A rebuilt release with
-          different bytes will be shown again.
+          Notices skipped for {choice.skipped_release.version} and this exact download. A rebuilt
+          release with different bytes will be shown again.
         </p>
       )}
       <ChoiceFailure organization={organization} />

@@ -205,13 +205,13 @@ it.each(["dark", "light"])(
   async (theme) => {
     await page.viewport(960, 640);
     await mount(theme, "details");
-    await page.getByRole("button", { name: "Update prepared", exact: true }).click();
+    await page.getByRole("button", { name: "Update saved for later", exact: true }).click();
     await expect
       .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
       .toHaveFocus();
     await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeEnabled();
     page
-      .getByRole("button", { name: "Use update · 1.3", exact: true })
+      .getByRole("button", { name: "Apply update · 1.3", exact: true })
       .element()
       .scrollIntoView({ block: "center" });
     contained();

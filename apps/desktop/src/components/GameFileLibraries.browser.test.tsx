@@ -584,7 +584,7 @@ it("marks matching registered candidates without claiming installation and keeps
   await click("Scan saved folders");
   expect(document.body.textContent).toContain("Already added");
   expect(document.body.textContent).toContain("Game A: Ready for setup review");
-  expect(document.body.textContent).toContain("Game B: Game files needed");
+  expect(document.body.textContent).toContain("Game B: Needs game files");
   expect(document.body.textContent).not.toContain("Already installed");
   await click("View Game B details");
   expect(onOpenPort).toHaveBeenCalledWith("game-b", "game-file-libraries-setup");

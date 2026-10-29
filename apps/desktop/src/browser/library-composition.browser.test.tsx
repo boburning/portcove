@@ -476,7 +476,7 @@ it("keeps an unknown external record distinct from managed readiness and reviews
     "Readiness unavailable",
   );
   expect(page.getByRole("button", { name: "Play", exact: true }).query()).toBeNull();
-  await page.getByRole("button", { name: /^Review game:/ }).click();
+  await page.getByRole("button", { name: /^View details:/ }).click();
   expect(select).toHaveBeenCalledWith(port.id, `library:card:${port.id}:review`);
   expect(status.external_runtime).toBe(record);
   expect(status.active).toBeNull();
