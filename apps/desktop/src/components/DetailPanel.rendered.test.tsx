@@ -2119,3 +2119,54 @@ it("uses descriptive display metadata only in the shared detail shell", () => {
   expect(detailSection(html, "manage")).not.toContain("Uninstall Display project");
   expect(detailSection(html, "files")).not.toContain('id="source-display-only-source"');
 });
+
+it("explains the retained setup and saved-data contract after current metadata changes", () => {
+  const current = {
+    ...port,
+    persistent_paths: ["new-catalog-only"],
+    presentation: { ...port.presentation!, manual_preparation: "New catalog guidance" },
+  };
+  const html = renderToStaticMarkup(
+    <DetailPanel
+      port={current}
+      status={{
+        ...portStatus(),
+        active: installRecord(),
+        readiness: {
+          launchable: true,
+          blockers: [],
+          pending_setup: false,
+          setup_contract: {
+            definition_sha256: "a".repeat(64),
+            retained: true,
+            platforms: ["windows-x86-64"],
+            installation_method: "portable-package",
+            saves_and_settings: "portcove-managed",
+            persistent_paths: ["retained-saves"],
+            persistent_file_patterns: [],
+            manual_preparation: "Original retained guidance",
+            manual_setup: null,
+            source_requirements: [
+              {
+                role: "game",
+                profile_id: "retained-original",
+                label: "Retained original requirement",
+                verification: "catalog-identity",
+              },
+            ],
+          },
+        },
+      }}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(html).toContain("Original retained guidance");
+  expect(html).toContain("Retained original requirement");
+  const coverage =
+    html.match(/<section aria-label="Saved-data coverage">([\s\S]*?)<\/section>/u)?.[1] ?? "";
+  expect(coverage).toContain("This installation’s recorded saved-data declarations");
+  expect(coverage).toContain("retained-saves");
+  expect(coverage).not.toContain("new-catalog-only");
+});

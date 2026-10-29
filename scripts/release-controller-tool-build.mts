@@ -386,7 +386,14 @@ export async function buildControllerTools(
       ],
       {
         cwd: sourceRoot,
-        environment: { ...env, CARGO_NET_RETRY: "0", CARGO_PROFILE_DEV_DEBUG: "0" },
+        environment: {
+          ...env,
+          // This isolated registry install has repeatedly failed with HTTP/2 framing errors.
+          // Keep TLS, locked identities and the zero-retry budget; use Cargo's HTTP/1.1 route.
+          CARGO_HTTP_MULTIPLEXING: "false",
+          CARGO_NET_RETRY: "0",
+          CARGO_PROFILE_DEV_DEBUG: "0",
+        },
       },
     );
     if (driverStatus !== 0)

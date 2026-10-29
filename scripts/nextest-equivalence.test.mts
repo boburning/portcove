@@ -390,6 +390,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch$/)",
     "package(portcove-core) & test(/^service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback$/)",
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase$/)",
     "package(portcove-core) & test(/^service::tests::unpublished_install_cleanup_retains_conflicting_family_intent$/)",
     historicalByteOnlyBackupFilter,
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)",
@@ -483,6 +484,23 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   assert.equal(sourcePreparation["success-output"], "immediate");
   for (const field of ["platform", "retries", "threads-required", "priority", "default-filter"])
     assert.equal(sourcePreparation[field], undefined);
+  const retainedLinux = overrideFor(
+    "package(portcove-core) & (test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/) | test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/))",
+    "x86_64-unknown-linux-gnu",
+  );
+  assert.deepEqual(retainedLinux["slow-timeout"], {
+    period: "5s",
+    "terminate-after": 12,
+    "grace-period": "0s",
+  });
+  for (const field of [
+    "retries",
+    "threads-required",
+    "priority",
+    "default-filter",
+    "success-output",
+  ])
+    assert.equal(retainedLinux[field], undefined);
   const linuxLifecycle = overrideFor(linuxLifecycleFilter, "x86_64-unknown-linux-gnu");
   assert.deepEqual(linuxLifecycle["slow-timeout"], {
     period: "5s",
@@ -518,13 +536,17 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       overrides.indexOf(override) < overrides.indexOf(overrideFor(historicalByteOnlyBackupFilter)),
     );
   }
+  const ninetySecondWindowsLifecycles = new Set([
+    "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
+    "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
+  ]);
   for (const filter of windowsLifecycleFilters) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override.platform, "x86_64-pc-windows-msvc");
     assert.equal(override["success-output"], "immediate");
     assert.deepEqual(override["slow-timeout"], {
       period: "5s",
-      "terminate-after": 12,
+      "terminate-after": ninetySecondWindowsLifecycles.has(filter) ? 18 : 12,
       "grace-period": "0s",
     });
     for (const field of ["retries", "threads-required", "priority"])

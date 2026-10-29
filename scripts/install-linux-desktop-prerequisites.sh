@@ -23,6 +23,7 @@ for option in "$@"; do
     --include-rpm) packages+=(rpm) ;;
     --include-appimage-runtime) packages+=("$fuse_package" xvfb dbus-x11 at-spi2-core util-linux) ;;
     --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11) ;;
+    --include-dialog-tests) packages+=(xvfb xauth) ;;
     --prefer-archive-mirror) prefer_archive_mirror=true ;;
     --install-timeout-seconds=*)
       seconds=${option#*=}
@@ -34,7 +35,7 @@ for option in "$@"; do
       fallback_install_deadline=$install_deadline
       ;;
     *)
-      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver] [--prefer-archive-mirror] [--install-timeout-seconds=180..3600]" >&2
+      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver] [--include-dialog-tests] [--prefer-archive-mirror] [--install-timeout-seconds=180..3600]" >&2
       exit 2
       ;;
   esac

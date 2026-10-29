@@ -8,7 +8,7 @@ import type {
   PortStatus,
 } from "../../types";
 import { filterPorts } from "../../view-model";
-import { catalogEntries, usesSelfServiceDetail } from "./catalog-entry";
+import { catalogEntries, usesSelfServiceDetail, listingAvailabilityLabel } from "./catalog-entry";
 import { evaluateCatalogQuery } from "./catalog-query";
 import { gameGroupId, originalSystems } from "./original-game";
 
@@ -349,4 +349,107 @@ describe("lightweight catalog entries", () => {
     ).toEqual([]);
     expect(filterPorts(entries, context.library.statuses, "library", "all", "")).toEqual(entries);
   });
+});
+
+it("keeps accepted listing facts, uncertainty, staleness and reason-bearing overrides distinct", () => {
+  const observed: PortListing = {
+    ...listing,
+    availability: "source-only",
+    upstream_observation: {
+      provider: "github",
+      repository: "example/game",
+      repository_id: 7,
+      status: "complete",
+      attempted_at: "2026-10-27T00:01:00Z",
+      observed_at: "2026-10-27T00:00:00Z",
+      fresh_until: "2026-10-27T12:00:00Z",
+      facts_sha256: "a".repeat(64),
+      release_limit: 4,
+      releases: [
+        {
+          id: 11,
+          version: "v1",
+          release_url: "https://github.com/example/game/releases/tag/v1",
+          published_at: "2026-10-26T00:00:00Z",
+          provider_prerelease: false,
+          assets_complete: true,
+          assets: [
+            {
+              id: 21,
+              name: "game-windows-x64.zip",
+              url: "https://github.com/example/game/releases/download/v1/game-windows-x64.zip",
+              size: 42,
+              sha256: null,
+              platform_hints: ["windows-x86-64"],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  const current = Date.parse("2026-10-27T06:00:00Z");
+  expect(listingAvailabilityLabel(observed, current)).toBe("Package candidates observed");
+  expect(
+    listingAvailabilityLabel(
+      { ...observed, availability_override_reason: "Reviewed distribution restriction" },
+      current,
+    ),
+  ).toBe("Source only (authored override)");
+  expect(listingAvailabilityLabel(observed, Date.parse("2026-10-28T00:00:00Z"))).toContain(
+    "stale observation",
+  );
+  expect(
+    listingAvailabilityLabel(
+      {
+        ...observed,
+        upstream_observation: { ...observed.upstream_observation!, status: "incomplete" },
+      },
+      current,
+    ),
+  ).toContain("incomplete check");
+  expect(
+    listingAvailabilityLabel(
+      {
+        ...observed,
+        upstream_observation: { ...observed.upstream_observation!, status: "failed" },
+      },
+      current,
+    ),
+  ).toContain("check failed");
+  const unknown = {
+    ...observed,
+    upstream_observation: {
+      ...observed.upstream_observation!,
+      status: "unavailable" as const,
+      repository_id: null,
+      observed_at: null,
+      fresh_until: null,
+      facts_sha256: null,
+      releases: [],
+    },
+  };
+  expect(listingAvailabilityLabel(unknown, current)).toBe(
+    "Package availability unknown (check unavailable)",
+  );
+  const assetsOnly = {
+    ...observed,
+    upstream_observation: {
+      ...observed.upstream_observation!,
+      releases: [
+        {
+          ...observed.upstream_observation!.releases[0]!,
+          assets: [
+            {
+              ...observed.upstream_observation!.releases[0]!.assets[0]!,
+              name: "SHA256SUMS.txt",
+              platform_hints: [],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  expect(listingAvailabilityLabel(assetsOnly, current)).toBe(
+    "Release assets observed; package availability unknown",
+  );
 });

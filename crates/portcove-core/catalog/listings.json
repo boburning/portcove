@@ -1,5 +1,5 @@
 {
-  "format_version": 3,
+  "format_version": 4,
   "listings": [
     {
       "id": "shipwright",
@@ -2431,7 +2431,18 @@
       },
       "platforms": [
         "windows-x86-64"
-      ]
+      ],
+      "release_maintenance": {
+        "reason": "The accepted managed build is retained for build-specific quickstates and its accepted original, launch and persistence contracts. Newer external Preview instructions describe a separately owned route.",
+        "reconsider_when": "Reassess a newly observed Windows package only after exact original/arguments, package companions, SRAM/quickstate preservation, developer options and full process lifetime have a bounded compatible transition.",
+        "pinned_releases": [
+          {
+            "platform": "windows-x86-64",
+            "version": "v0.3.12",
+            "published_at": "2026-10-17T22:09:41Z"
+          }
+        ]
+      }
     },
     {
       "id": "mega-man-x2-snes-recomp",
@@ -23666,7 +23677,7 @@
         "steps": [
           {
             "title": "Play the complete official game package",
-            "instruction": "The complete official Windows package includes this game’s scenario data and native player; no separately supplied commercial original, ROM or setup helper is required. Keep all package companions. This route pins release-20260930; automatic updates are not offered. Explicit Play can read and update an existing shared upstream profile. Core does not adopt that profile. Do not copy legacy Prefs or other old-runtime files into this fresh package. This route starts this bundled game; use a separate upstream copy for custom scenarios or extra data-search paths. Upstream owns shared profiles in Documents/AlephOne (saves, quick saves, recordings, screenshots and logs) and LocalAppData/AlephOne (preferences). Existing legacy Prefs in a separately owned upstream copy remain external. Core manages this separate runtime only; its backups do not include those external profiles. Preserve the creating runtime and actual profile before upstream replacement or older-runtime use; no save/state conversion, populated profile adoption or gameplay compatibility is inferred."
+            "instruction": "The complete official Windows package includes this game’s scenario data and native player; no separately supplied commercial original, ROM or setup helper is required. Keep all package companions. Explicit Play can read and update an existing shared upstream profile. Core does not adopt that profile. Do not copy legacy Prefs or other old-runtime files into this fresh package. This route starts this bundled game; use a separate upstream copy for custom scenarios or extra data-search paths. Upstream owns shared profiles in Documents/AlephOne (saves, quick saves, recordings, screenshots and logs) and LocalAppData/AlephOne (preferences). Existing legacy Prefs in a separately owned upstream copy remain external. Core manages this separate runtime only; its backups do not include those external profiles. Preserve the creating runtime and actual profile before upstream replacement or older-runtime use; no save/state conversion, populated profile adoption or gameplay compatibility is inferred."
           }
         ],
         "warnings": [
@@ -23677,7 +23688,18 @@
       },
       "platforms": [
         "windows-x86-64"
-      ]
+      ],
+      "release_maintenance": {
+        "reason": "The accepted package has a release-specific runtime directory and reads upstream-owned shared profiles. A later package must not reinterpret either contract.",
+        "reconsider_when": "Reassess a newly observed official Windows game package against archive layout, executable identity, Windows path limits, profile ownership and retained runtime compatibility.",
+        "pinned_releases": [
+          {
+            "platform": "windows-x86-64",
+            "version": "release-20260930",
+            "published_at": "2026-10-01T01:46:14Z"
+          }
+        ]
+      }
     },
     {
       "id": "marathon-infinity-aleph-one",

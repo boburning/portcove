@@ -1,5 +1,6 @@
 [workspace]
 resolver = "2"
+exclude = ["vendor/rfd"]
 members = [
   "crates/portcove-core",
   "crates/portcove-cli",
@@ -111,3 +112,7 @@ opt-level = 3
 inherits = "release"
 opt-level = 0
 strip = "symbols"
+
+# Preserve the GTK format fix until a compatible fixed RFD release is available.
+[patch.crates-io]
+rfd = { path = "vendor/rfd" }

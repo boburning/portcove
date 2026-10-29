@@ -116,17 +116,46 @@ export function catalogEntries(
   });
 }
 
-export function listingAvailabilityLabel(listing: PortListing): string {
-  switch (listing.availability) {
-    case "packages":
-      return "Upstream packages";
-    case "source-only":
-      return "Source only";
-    case "unavailable":
-      return "Upstream unavailable";
-    default:
-      return "Package availability unknown";
-  }
+export function listingAvailabilityLabel(listing: PortListing, now = Date.now()): string {
+  const authored = () => {
+    switch (listing.availability) {
+      case "packages":
+        return "Upstream packages";
+      case "source-only":
+        return "Source only";
+      case "unavailable":
+        return "Upstream unavailable";
+      default:
+        return "Package availability unknown";
+    }
+  };
+  if (listing.availability_override_reason) return `${authored()} (authored override)`;
+  const observation = listing.upstream_observation;
+  if (!observation) return authored();
+  const assets = observation.releases.flatMap((release) => release.assets);
+  const packages = assets.some((asset) => asset.platform_hints.length > 0);
+  const facts = !observation.observed_at
+    ? "Package availability unknown"
+    : packages
+      ? "Package candidates observed"
+      : assets.length
+        ? "Release assets observed; package availability unknown"
+        : "No package observed in checked releases";
+  const limits = [
+    ...(observation.fresh_until != null && Date.parse(observation.fresh_until) <= now
+      ? ["stale observation"]
+      : []),
+    ...(observation.status === "complete"
+      ? []
+      : [
+          observation.status === "incomplete"
+            ? "incomplete check"
+            : observation.status === "unavailable"
+              ? "check unavailable"
+              : "check failed",
+        ]),
+  ];
+  return limits.length ? `${facts} (${limits.join("; ")})` : facts;
 }
 
 /** Display only: require one current Core assessment, never infer a permission. */

@@ -101,7 +101,11 @@ Non-port draft -> Inbox -> Triage -> Ready -> In progress -> Validating -> Done
 
 Every independently catalogable or independently prioritizable port has
 exactly one durable GitHub issue. Shared engineering and family issues may
-coordinate several ports but never replace their individual issues.
+coordinate several ports but never replace their individual issues. Port integration
+is the primary outcome; use [port-driven capability selection](CATALOG.md#port-driven-capability-selection)
+for demonstrated shared gaps. Family owners do not form an independent mandatory
+release campaign. Planned work remains selectable without committing speculative
+family-wide enhancement lists.
 
 `capture-port` creates the repository issue immediately, adds it to the Project,
 and initializes neutral Watchlist fields. A public New

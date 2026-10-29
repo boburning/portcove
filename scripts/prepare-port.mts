@@ -35,6 +35,7 @@ import type {
 } from "./inspect-igdb-artwork.mts";
 import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import {
   assessUpstreamLineage,
@@ -662,6 +663,104 @@ export async function preparePort(options: PrepareOptions) {
   }
 }
 
+/** Project retained descriptive observations through ordinary record preparation.
+ * This neither collects provider facts nor accepts the proposed correction. */
+export function prepareListingObservations(
+  options: Pick<ArtworkOptions, "catalogRoot" | "outputDirectory" | "validatorCli"> & {
+    handoff: unknown;
+  },
+) {
+  const started = process.hrtime.bigint();
+  const authored = readCatalogSource(options.catalogRoot);
+  const handoff = options.handoff;
+  if (!isRecord(handoff) || !Array.isArray(handoff.descriptive_listing_candidates))
+    throw new Error("A retained descriptive listing observation handoff is required.");
+  const candidates = handoff.descriptive_listing_candidates;
+  if (candidates.length > authored.records.length)
+    throw new Error("Observation candidates exceed the accepted authored inventory.");
+  const currentListings = new Map(
+    authored.directory.listings.map((listing) => [listing.id, listing]),
+  );
+  const observations = new Map<string, Record<string, unknown>>();
+  for (const candidate of candidates) {
+    if (
+      !isRecord(candidate) ||
+      typeof candidate.id !== "string" ||
+      !isRecord(candidate.upstream_observation)
+    )
+      throw new Error("Each descriptive candidate requires an exact stable ID and observation.");
+    const current = currentListings.get(candidate.id);
+    if (!current || observations.has(candidate.id))
+      throw new Error("Descriptive candidates require unique existing authored identities.");
+    if (listingDeclarationHash(candidate) !== listingDeclarationHash(current))
+      throw new Error(
+        "Listing declaration changed; reproject the retained observation before preparing it.",
+      );
+    const preimages = handoff.descriptive_listing_preimages;
+    // Older handoffs are safe only before any observation has been accepted.
+    // A later snapshot must not be overwritten by an earlier unsigned proposal.
+    if (preimages !== undefined || current.upstream_observation != null) {
+      if (
+        !isRecord(preimages) ||
+        preimages[candidate.id] !== observationHash(current.upstream_observation ?? null)
+      )
+        throw new Error(
+          "Accepted listing observation changed; reproject against its current preimage.",
+        );
+    }
+    observations.set(candidate.id, candidate.upstream_observation);
+  }
+  const records = authored.records.map((record) => {
+    const observation = observations.get(record.listing.id);
+    return observation
+      ? checkedAuthoredPort({
+          ...structuredClone(record),
+          listing: {
+            ...structuredClone(record.listing),
+            upstream_observation: structuredClone(observation),
+          },
+        })
+      : record;
+  });
+  const root = resolve(options.outputDirectory);
+  const validatorIdentity = options.validatorCli
+    ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
+    : null;
+  openCheckpoint(root);
+  try {
+    const prepared = preparedRecordOutputs(
+      options,
+      root,
+      authored,
+      records,
+      { catalog: artworkCatalog(authored.records) },
+      true,
+      validatorIdentity,
+    );
+    if (
+      prepared.operational_changed ||
+      prepared.record_changes.some((change) => change.integration_changed)
+    )
+      throw new Error("Descriptive observation preparation cannot change an integration.");
+    const report = {
+      format_version: 1,
+      route: "listing-observations",
+      selected_port_ids: [...observations.keys()].sort(),
+      handoff_semantic_sha256: observationHash(handoff),
+      ...prepared,
+      files: { ...prepared.files, handoff: immutableJson(root, "observation-handoff", handoff) },
+      preparation_costs: preparationCosts(started),
+      upstream_collection: "retained-handoff-only; no provider requests",
+      next: "Review and deliver these prepared records through existing catalog acceptance and signed listing delivery. No authored facts need reconstruction from provider output.",
+      scope:
+        "Unsigned descriptive proposals only. Existing integrations, artwork mappings, restrictions, pin reasons and publication authority are preserved. Core inspection and normal delivery checks retain their existing roles.",
+    };
+    return { report, path: immutableJson(root, "completion", report) };
+  } finally {
+    rmdirSync(join(root, "active.lock"));
+  }
+}
+
 /** Cover-only work on existing authored identities; no upstream metadata collection. */
 export async function prepareArtworkBatch(
   options: ArtworkOptions & {
@@ -811,6 +910,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--output-dir",
     "--artwork-ids",
     "--refresh-artwork",
+    "--listing-observations",
   ]);
   for (let index = 2; index < process.argv.length; index += 2) {
     const name = process.argv[index]!;
@@ -823,6 +923,16 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");
   const artworkIds = values.get("--artwork-ids");
   const refreshIds = values.get("--refresh-artwork");
+  const observationHandoff = values.get("--listing-observations");
+  if (
+    observationHandoff &&
+    [...values.keys()].some(
+      (name) => !["--listing-observations", "--validator-cli", "--output-dir"].includes(name),
+    )
+  )
+    throw new Error(
+      "Listing observation batches cannot mix project, record, release or artwork options.",
+    );
   if (
     artworkIds &&
     [...values.keys()].some(
@@ -856,32 +966,39 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     validatorCli: values.get("--validator-cli"),
     credentialsFile: values.get("--credentials-file"),
   };
-  const result = artworkIds
-    ? await prepareArtworkBatch({
+  const result = observationHandoff
+    ? prepareListingObservations({
         ...common,
-        ...(artworkIds === "@due"
-          ? { maintenance: true }
-          : { selectedPortIds: artworkIds.split(",") }),
-        ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
+        handoff: parseCatalogSource(
+          readArtworkInput(observationHandoff, 16 * 1024 * 1024).bytes.toString("utf8"),
+        ),
       })
-    : await preparePort({
-        ...common,
-        projectUrl: values.get("--project"),
-        issue: values.get("--issue"),
-        id: values.get("--id"),
-        name: values.get("--name"),
-        summary: values.get("--summary"),
-        ...(input
-          ? {
-              record: parseCatalogSource(
-                readArtworkInput(input, 512 * 1024).bytes.toString("utf8"),
-              ),
-            }
-          : {}),
-        route,
-        releaseTag: values.get("--release-tag"),
-        facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
-      });
+    : artworkIds
+      ? await prepareArtworkBatch({
+          ...common,
+          ...(artworkIds === "@due"
+            ? { maintenance: true }
+            : { selectedPortIds: artworkIds.split(",") }),
+          ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
+        })
+      : await preparePort({
+          ...common,
+          projectUrl: values.get("--project"),
+          issue: values.get("--issue"),
+          id: values.get("--id"),
+          name: values.get("--name"),
+          summary: values.get("--summary"),
+          ...(input
+            ? {
+                record: parseCatalogSource(
+                  readArtworkInput(input, 512 * 1024).bytes.toString("utf8"),
+                ),
+              }
+            : {}),
+          route,
+          releaseTag: values.get("--release-tag"),
+          facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
+        });
   process.stdout.write(
     `${JSON.stringify(
       {
