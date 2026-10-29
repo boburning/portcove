@@ -3,7 +3,7 @@
   "listing": {
     "id": "blake-stone-planet-strike-bstone",
     "name": "Blake Stone: Planet Strike (Bstone)",
-    "summary": "Set up Blake Stone: Planet Strike through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+    "summary": "Set up Blake Stone: Planet Strike with the official BStone runtime and your original files. Choose a fresh private managed installation or register your existing upstream installation.",
     "original_game_title": "Blake Stone: Planet Strike",
     "project_url": "https://github.com/bibendovsky/bstone",
     "issue_number": 2556,

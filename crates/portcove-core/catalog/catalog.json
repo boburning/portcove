@@ -22182,7 +22182,7 @@
     {
       "id": "blake-stone-aliens-of-gold-bstone",
       "name": "Blake Stone: Aliens of Gold (Bstone)",
-      "summary": "Set up Blake Stone: Aliens of Gold through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Set up Blake Stone: Aliens of Gold with the official BStone runtime and your original files. Choose a fresh private managed installation or register your existing upstream installation.",
       "project_url": "https://github.com/bibendovsky/bstone",
       "support_tier": "beta",
       "channels": [
@@ -22295,7 +22295,7 @@
     {
       "id": "blake-stone-planet-strike-bstone",
       "name": "Blake Stone: Planet Strike (Bstone)",
-      "summary": "Set up Blake Stone: Planet Strike through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Set up Blake Stone: Planet Strike with the official BStone runtime and your original files. Choose a fresh private managed installation or register your existing upstream installation.",
       "project_url": "https://github.com/bibendovsky/bstone",
       "support_tier": "beta",
       "channels": [
