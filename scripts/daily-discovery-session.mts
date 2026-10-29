@@ -169,6 +169,7 @@ const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =
 const material = discoveryMaterial;
 export function discoveryInventoryCost(inventory: RoadmapInventory) {
   const items = [...inventory.items, ...inventory.archivedItems];
+  const intake = inventory.scope === "intake";
   const ids = new Set(inventory.issues.map((issue) => issue.id));
   const foreign = items.flatMap((item) =>
     item.content && !ids.has(item.content.id) ? [item.content] : [],
@@ -184,10 +185,12 @@ export function discoveryInventoryCost(inventory: RoadmapInventory) {
   }, 0);
   const pages =
     Math.max(1, Math.ceil(inventory.issues.length / 100)) +
-    Math.max(1, Math.ceil(items.length / 100)) +
-    Math.ceil(foreign.length / 10) +
+    Math.max(1, Math.ceil(items.length / 100)) * (intake ? 2 : 1) +
+    (intake
+      ? items.filter((item) => Array.isArray(item.fieldValues)).length
+      : Math.ceil(foreign.length / 10)) +
     dependencyPages +
-    9; // Five repository markers, two Project revision reads, details and fields.
+    (intake ? 11 : 9); // Intake also confirms membership and brackets target hydration.
   const thin =
     Buffer.byteLength(
       JSON.stringify(
@@ -196,9 +199,10 @@ export function discoveryInventoryCost(inventory: RoadmapInventory) {
           content: i.content ? { ...i.content, body: undefined } : null,
         })),
       ),
-    ) +
+    ) *
+      (intake ? 2 : 1) +
     Buffer.byteLength(JSON.stringify(inventory.issues.map((i) => ({ ...i, body: undefined })))) +
-    Buffer.byteLength(JSON.stringify(foreign.map((issue) => issue.body)));
+    (intake ? 0 : Buffer.byteLength(JSON.stringify(foreign.map((issue) => issue.body))));
   return { requests: pages, bytes: thin };
 }
 export function discoveryDeliveryCost(
