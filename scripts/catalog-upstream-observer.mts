@@ -1,4 +1,10 @@
 import {
+  projectListingObservation,
+  listingObservationReleaseIds,
+  listingProjectionHash,
+  listingDeclarationHash,
+} from "./listing-upstream-observation.mts";
+import {
   observeProviderSource,
   validateProviderProgress,
 } from "./provider-release-observation.mts";
@@ -13,6 +19,9 @@ import type { ObserverConfig, ObserveOptions, ProviderObservation } from "./upst
 import { advanceObservation } from "./observe-configured-upstream.mts";
 
 export interface ObservablePort {
+  /** Descriptive consumers never enter the managed Core inspector. */
+  kind?: "listing";
+  listing?: Record<string, unknown>;
   id: string;
   channels: string[];
   definition_sha256: string;
@@ -84,7 +93,7 @@ export function catalogObservationSources(input: unknown) {
   if (
     !isRecord(input) ||
     !Array.isArray(input.ports) ||
-    Buffer.byteLength(JSON.stringify(input)) > 4 * 1024 * 1024
+    Buffer.byteLength(JSON.stringify(input)) > 12 * 1024 * 1024
   )
     throw new Error("A bounded reviewed catalog is required");
   const seen = new Set<string>();
@@ -137,6 +146,64 @@ export function catalogObservationSources(input: unknown) {
     });
     sources.set(key, source);
   }
+  if (input.listings !== undefined && !Array.isArray(input.listings))
+    throw new Error("Invalid listing observation directory");
+  const listingIds = new Set<string>();
+  for (const listing of (input.listings ?? []) as unknown[]) {
+    if (
+      !isRecord(listing) ||
+      typeof listing.id !== "string" ||
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(listing.id) ||
+      listingIds.has(listing.id)
+    )
+      throw new Error("Listing observation requires unique stable identities");
+    listingIds.add(listing.id);
+    let url: URL;
+    try {
+      url = new URL(
+        typeof listing.release_url === "string" ? listing.release_url : String(listing.project_url),
+      );
+    } catch {
+      continue;
+    }
+    const match =
+      /^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:\/releases(?:\/.*)?)?\/?$/u.exec(
+        url.pathname,
+      );
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== "github.com" ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.search ||
+      url.hash ||
+      !match
+    )
+      continue;
+    const repository = `${match[1]}/${match[2]}`;
+    const key = observationHash({ provider: "github", repository });
+    const source: ObservableSource = sources.get(key) ?? {
+      key,
+      provider: "github",
+      repository,
+      ports: [],
+      scope_sha256: "",
+    };
+    const managed = source.ports.find((port) => port.id === listing.id);
+    if (managed) managed.listing = structuredClone(listing);
+    else
+      source.ports.push({
+        id: listing.id,
+        kind: "listing",
+        listing: structuredClone(listing),
+        channels: [],
+        definition_sha256: listingDeclarationHash(listing),
+        release: { repository },
+      });
+    sources.set(key, source);
+    seen.add(listing.id);
+  }
   return {
     port_ids: [...seen],
     sources: [...sources.values()].map((source) => ({
@@ -144,7 +211,17 @@ export function catalogObservationSources(input: unknown) {
       ports: source.ports.toSorted((a, b) => a.id.localeCompare(b.id)),
       scope_sha256: observationHash(
         source.ports
-          .map((port) => ({ id: port.id, definition_sha256: port.definition_sha256 }))
+          .map((port) => ({
+            id: port.id,
+            definition_sha256: port.definition_sha256,
+            ...(port.listing
+              ? {
+                  kind: port.kind ?? "managed-with-listing",
+                  listing_sha256: listingDeclarationHash(port.listing),
+                  projection_policy: listingProjectionHash,
+                }
+              : {}),
+          }))
           .toSorted((a, b) => a.id.localeCompare(b.id)),
       ),
     })),
@@ -352,13 +429,16 @@ export async function advanceCatalogObservations(
   const policyIdentity = options.policyIdentity;
   if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
-  const definitions = new Map(
-    sources.flatMap((source) =>
-      source.ports.map((port) => [port.id, options.definitionHash(port.id)] as const),
-    ),
-  );
-  if ([...definitions.values()].some((value) => !/^[a-f0-9]{64}$/u.test(value)))
-    throw new Error("Normalized current Core definition identities are required");
+  const definitionFor = (port: ObservablePort) =>
+    port.kind === "listing" ? port.definition_sha256 : options.definitionHash(port.id);
+  if (
+    sources
+      .flatMap((source) => source.ports)
+      .some((port) => !/^[a-f0-9]{64}$/u.test(definitionFor(port)))
+  )
+    throw new Error(
+      "Normalized current Core definition or descriptive declaration identities are required",
+    );
   const deadline = Math.min(now() + template.budget.duration_ms, options.deadline ?? Infinity);
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
@@ -370,7 +450,7 @@ export async function advanceCatalogObservations(
         : {}),
       policy: policyIdentity,
       scope: source.scope_sha256,
-      definitions: source.ports.map((port) => [port.id, definitions.get(port.id)]),
+      definitions: source.ports.map((port) => [port.id, definitionFor(port)]),
     });
   let requests = 0;
   let responseBytes = 0;
@@ -472,10 +552,11 @@ export async function advanceCatalogObservations(
     if (remaining !== null) remaining--;
   };
   const projectBound = async (
-    portId: string,
+    port: ObservablePort,
     repositoryId: number,
     observation: ProviderObservation,
   ) => {
+    const portId = port.id;
     if (options.signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
     if (now() >= deadline)
@@ -483,7 +564,10 @@ export async function advanceCatalogObservations(
         "budget",
         "Core projection admission exhausted; retain completed projections",
       );
-    const policy = await options.project(portId, repositoryId, observation);
+    const policy =
+      port.kind === "listing"
+        ? projectListingObservation(port.listing!, observation, template.stale_after_hours)
+        : await options.project(portId, repositoryId, observation);
     if (
       !isRecord(policy) ||
       policy.format !== 1 ||
@@ -491,7 +575,7 @@ export async function advanceCatalogObservations(
       policy.repository_id !== repositoryId ||
       policy.facts_sha256 !== observation.facts_sha256 ||
       !Array.isArray(policy.projections) ||
-      policy.catalog_definition_sha256 !== definitions.get(portId)
+      policy.catalog_definition_sha256 !== definitionFor(port)
     )
       throw new ObservationFailure(
         "core-binding",
@@ -502,7 +586,16 @@ export async function advanceCatalogObservations(
         "cancelled",
         "Observation cancelled before retaining Core projection",
       );
-    return policy;
+    return port.kind !== "listing" && port.listing
+      ? {
+          ...policy,
+          listing_update: projectListingObservation(
+            port.listing,
+            observation,
+            template.stale_after_hours,
+          ).listing_update,
+        }
+      : policy;
   };
   for (const [index, source] of pending.entries()) {
     if (options.signal?.aborted || now() >= deadline) break;
@@ -616,6 +709,7 @@ export async function advanceCatalogObservations(
               await options.commit(structuredClone(state));
             },
             project: async (portId, observation) => {
+              const port = source.ports.find((consumer) => consumer.id === portId)!;
               if (!options.projectProvider)
                 throw new ObservationFailure(
                   "core-provider-capability",
@@ -636,7 +730,7 @@ export async function advanceCatalogObservations(
               );
               if (
                 retained &&
-                retained.catalog_definition_sha256 === definitions.get(portId) &&
+                retained.catalog_definition_sha256 === definitionFor(port) &&
                 retained.facts_sha256 === observation.facts_sha256 &&
                 retained.format === 2
               )
@@ -647,7 +741,7 @@ export async function advanceCatalogObservations(
                 policy.format !== 2 ||
                 policy.port_id !== portId ||
                 policy.facts_sha256 !== observation.facts_sha256 ||
-                policy.catalog_definition_sha256 !== definitions.get(portId) ||
+                policy.catalog_definition_sha256 !== definitionFor(port) ||
                 !Array.isArray(policy.projections)
               )
                 throw new ObservationFailure(
@@ -780,6 +874,13 @@ export async function advanceCatalogObservations(
                 id: port.id,
                 channels: port.channels,
                 rolling_tag: port.release.rolling_tag ?? null,
+                ...(port.listing
+                  ? {
+                      kind: port.kind ?? "managed-with-listing",
+                      listing_sha256: listingDeclarationHash(port.listing),
+                      projection_policy: listingProjectionHash,
+                    }
+                  : {}),
               })),
             ),
           });
@@ -817,7 +918,7 @@ export async function advanceCatalogObservations(
               policy.port_id !== source.ports[index]?.id ||
               policy.repository_id !== config.repository_id ||
               policy.facts_sha256 !== observation.facts_sha256 ||
-              policy.catalog_definition_sha256 !== definitions.get(String(policy.port_id)),
+              policy.catalog_definition_sha256 !== definitionFor(source.ports[index]!),
           )
         )
           throw new ObservationFailure(
@@ -827,7 +928,7 @@ export async function advanceCatalogObservations(
         for (let index = pendingPolicies.policies.length; index < source.ports.length; index++) {
           const port = source.ports[index]!;
           pendingPolicies.policies.push(
-            await projectBound(port.id, config.repository_id, scoped(observation, port.id)),
+            await projectBound(port, config.repository_id, scoped(observation, port.id)),
           );
           pendingPolicies.sha256 = observationHash(pendingPolicies.policies);
           await options.commit(structuredClone(state));
@@ -907,10 +1008,12 @@ export async function advanceCatalogObservations(
             for (let index = selection.cursor; index < source.ports.length; index++) {
               const port = source.ports[index]!;
               const policy = await projectBound(
-                port.id,
+                port,
                 config.repository_id,
                 scoped(headers, port.id),
               );
+              if (port.listing)
+                for (const id of listingObservationReleaseIds(headers)) candidates.add(id);
               for (const projection of policy.projections as unknown[]) {
                 if (
                   isRecord(projection) &&

@@ -296,6 +296,7 @@ fn activity(record: &ActivityRecord) -> Value {
         started_at,
         finished_at,
         cancellation,
+        ..
     } = record;
     // Library/source targets may identify a private filesystem location.
     let exported_target = match kind {

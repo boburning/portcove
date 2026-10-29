@@ -654,6 +654,14 @@ function add<Value>(target: Set<Value>, ...values: readonly Value[]) {
   for (const value of values) target.add(value);
 }
 
+export function isVendoredRfdInput(file: string) {
+  return (
+    file.startsWith("vendor/rfd/") ||
+    file === "vendor/rfd-provenance.json" ||
+    file === "vendor/rfd-portcove.patch"
+  );
+}
+
 function classifyPath(file: string): PathOwnership {
   const areas = new Set<ValidationArea>();
   const groups = new Set<ValidationGroup>();
@@ -716,6 +724,7 @@ function classifyPath(file: string): PathOwnership {
     "scripts/fixtures/windows-qualification-selection.json",
     "scripts/nextest-outcomes.mts",
   ].includes(file);
+  match(isVendoredRfdInput(file), "rust", fastGroups, "vendored-rfd-source-and-provenance");
   match(documentation, "documentation", ["catalog", "rust-quality"], "documentation-contract");
   // Prose and captures are inert even when their topic names a platform or schema.
   if (!documentation) {
@@ -921,6 +930,13 @@ function classifyAuditPath(file: string): PathOwnership {
     reasons.push(reason);
   };
 
+  match(
+    isVendoredRfdInput(file),
+    "rust",
+    fastGroups,
+    "vendored-rfd-source-and-provenance",
+    qualificationPlatforms,
+  );
   match(
     file.startsWith("docs/") || /^(?:README|CONTRIBUTING|SECURITY|AGENTS)\.md$/u.test(file),
     "documentation",

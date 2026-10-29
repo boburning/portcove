@@ -1,0 +1,369 @@
+{
+  "source": "855187d23b54150391b17ab8853acfd8b63be738",
+  "tree": "5859ee786a28aca5d60b1bc291d8810422ae6c4e",
+  "run": 40786468754,
+  "attempt": 1,
+  "job": 123160802381,
+  "provider_result": "failure",
+  "provider_seconds": 4518,
+  "failed_step": "Start the separately held original connected diagnostic controller",
+  "failure_observed": "Original controller startup/source preflight failed or expired; launcher line89, within~3seconds; original deadline not reached",
+  "cause": "Unknown; no child exit/failure projection retained by this source",
+  "ready_and_settlement": "absent; upload emitted explicit no-files warning",
+  "effects": "Source-observed CreateProcess reached and startup/ready-ACK acceptance failed; original C lifetime/cause Unknown. No ready/ACK admits freshTools/account/station. No independent post-VM OS inventory or private/connected acceptance.",
+  "runtime": {
+    "source": "855187d23b54150391b17ab8853acfd8b63be738",
+    "run_id": "40786468754",
+    "attempt": "1",
+    "workflow": "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-node-canary-20261028",
+    "scope": "hosted runtime prerequisite only; not native acceptance",
+    "minimum": "155.0.4283.62",
+    "before": ["131.0.2903.86"],
+    "after": ["156.0.4314.50"],
+    "stage": "ready-installed",
+    "installed": true,
+    "automatic_retry": false,
+    "runtime_preparation_observation": {
+      "scope": "reviewed diagnostic after workflow gate through terminal readback/disposal; cold setup and final receipt write excluded",
+      "elapsed_milliseconds": 67128.0,
+      "phases": [
+        {
+          "phase": "entry",
+          "elapsed_milliseconds": 3.0
+        },
+        {
+          "phase": "initial-runtime-readback",
+          "elapsed_milliseconds": 116.0
+        },
+        {
+          "phase": "download-starting",
+          "elapsed_milliseconds": 125.0
+        },
+        {
+          "phase": "download-disposed",
+          "elapsed_milliseconds": 701.0
+        },
+        {
+          "phase": "signature-hash-verified",
+          "elapsed_milliseconds": 849.0
+        },
+        {
+          "phase": "installer-starting",
+          "elapsed_milliseconds": 863.0
+        },
+        {
+          "phase": "installer-process-disposed",
+          "elapsed_milliseconds": 67063.0
+        },
+        {
+          "phase": "post-install-runtime-readback",
+          "elapsed_milliseconds": 67124.0
+        },
+        {
+          "phase": "terminal-receipt-ready",
+          "elapsed_milliseconds": 67128.0
+        }
+      ]
+    },
+    "installer_sha256": "13f6d9cdc8c3e7186e4b180db7f48e199ee97d631480e8391fb3106f338fb21a",
+    "signer_thumbprint": "4028CAD637509D4744B17EC5B42AED8D7A31E6AF",
+    "exit_code": 0,
+    "observed_at": "2026-10-28T23:23:25.8410348Z"
+  },
+  "driver_baseline": {
+    "captured_at": "2026-10-29T00:34:25.3596149Z",
+    "process_integrity_sid": "S-1-16-12288",
+    "process_integrity_group_count": 1,
+    "whoami_exit_code": 0,
+    "administrator_token": true,
+    "webview2_runtime_versions": ["156.0.4314.50"],
+    "cached_webview2_version": "156.0.4314.50",
+    "drivers": {
+      "tauri_driver": {
+        "reported": "Error: unused arguments left: [\"--version\"]\r\nUSAGE: tauri-driver [FLAGS] [OPTIONS]\r\n\r\nFLAGS:\r\n  -h, --help              Prints help information\r\n\r\nOPTIONS:\r\n  --port NUMBER           Sets the tauri-driver intermediary port\r\n  --native-port NUMBER    Sets the port of the underlying WebDriver\r\n  --native-host HOST      Sets the host of the underlying WebDriver (Linux only)\r\n  --native-driver PATH    Sets the path to the native WebDriver binary",
+        "exit_code": 1,
+        "sha256": "9c4cdf9d861b6f8cbe31bdd9460da55fc4a997bf748fc92b6c2543b26f9d338f"
+      },
+      "native_driver": {
+        "reported": "Microsoft Edge WebDriver 156.0.4314.50 (af2ba23ae0ecf7084d900446fc59d5119dd5fd5e)",
+        "exit_code": 0,
+        "sha256": "dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3"
+      }
+    },
+    "os_version": "Microsoft Windows NT 10.0.20348.0",
+    "os_architecture": "X64"
+  },
+  "fixture_packages": [
+    {
+      "version": "1.0.0-rc.2",
+      "artifacts": [
+        {
+          "path": "work/updater-rehearsal/1.0.0-rc.2-windows-x86_64/Portcove_1.0.0-rc.2_x64-setup.exe",
+          "bytes": 13789010,
+          "sha256": "2bb540536ede6fe2e71b8fc1484aadf15ec9cb387f816560ebbdaa06b81d4d7e"
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "artifacts": [
+        {
+          "path": "work/updater-rehearsal/1.0.0-windows-x86_64/Portcove_1.0.0_x64-setup.exe",
+          "bytes": 13798819,
+          "sha256": "76f3a77d8b49b3127056d02b25fb976175102b93785d5138b7119d956d10e602"
+        }
+      ]
+    }
+  ],
+  "artifact_identity": [
+    {
+      "kind": "resource",
+      "id": 12863586265,
+      "bytes": 483691,
+      "sha256": "1c03cdb1e208223fceae0af560736e9e1d78f59df1105c3791eb0df18e0dba57"
+    },
+    {
+      "kind": "native",
+      "id": 12863371700,
+      "bytes": 98703,
+      "sha256": "4150ac9cfe600c0f91e2fe05fe4c6033058c063cbe46a10381b7d2f659d96483"
+    }
+  ],
+  "resource": {
+    "context": {
+      "source": "855187d23b54150391b17ab8853acfd8b63be738",
+      "run_id": "40786468754",
+      "attempt": "1",
+      "workflow": "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-node-canary-20261028",
+      "job": "installed-prerequisite",
+      "platform": "windows-x86_64",
+      "mode": "false"
+    },
+    "pid": 1196,
+    "birth_ticks": "windows-start-ticks:639288264361764629",
+    "raw_bytes": 479208,
+    "raw_sha256": "1a398b075dc86b1ae6dc9405284f081ba2daab18569c42271c44db9005a38a3c",
+    "rows": 898,
+    "first_observed_at": "2026-10-28T23:20:36.7059440Z",
+    "last_observed_at": "2026-10-29T00:35:21.6676862Z",
+    "first_elapsed_milliseconds": 17,
+    "last_elapsed_milliseconds": 4485058,
+    "sampled_span_milliseconds": 4485041,
+    "maximum_gap_milliseconds": 5146,
+    "terminal_elapsed_milliseconds": 4487338,
+    "counter_error_rows": 0,
+    "missed_intervals": 0,
+    "maximum_sampled_machine_used_bytes": 6558609408,
+    "volumes": [
+      {
+        "root": "D:\\",
+        "available_samples": 898,
+        "minimum_free_bytes": 146087497728,
+        "minimum_available_to_caller_bytes": 146087497728
+      },
+      {
+        "root": "C:\\",
+        "available_samples": 898,
+        "minimum_free_bytes": 84267782144,
+        "minimum_available_to_caller_bytes": 84267782144
+      }
+    ],
+    "scope": "Raw-byte/count/terminal/context/observer-identity closure and sampled machine counters only; no continuous peaks, job attribution, provider setup or post-last-sample observation"
+  },
+  "stable_waiting": {
+    "requested": false,
+    "observed": false,
+    "reason": "preview-final maps candidate_production_eligible=true; source passes VerifyStableWaiting only when false. This fixture field is not production authorization."
+  },
+  "retention": "/home/boburning/code/portcove/work/qualification-534/windows-connected-native-855187d2-40786468754-1/retention-manifest-v2.json",
+  "remote_ref": "conditionally retired after terminal and independent complete readback; local source retained; PR3937closed/unmerged",
+  "owning_receipt": "https://github.com/boburning/portcove/issues/534#issuecomment-6484749175",
+  "scope": "Actual ordinary package/runtime/machine-counter evidence plus retained original-controller startup failure; no private qualification, protected production, S1, signing/publication,315managed or246unchanged-client acceptance",
+  "successor_startup_control": {
+    "source": "fe3e4fc0de48752df0bc608c0f8bb2a3f09e4e4a",
+    "ci_run": 40799828291,
+    "attempt": 1,
+    "windows_job": 123205796757,
+    "actual_account_controls": {
+      "passed": 13,
+      "failed": 1,
+      "failed_boundary": "first original-C ready assertion",
+      "failed_duration_ms": 3470.7865
+    },
+    "complete_log": {
+      "bytes": 373659,
+      "sha256": "020caf451878444e6027ec376eab62c69c1275bc2d983cb076d66346635a88f2"
+    },
+    "local_precision_observation": {
+      "pid": 21384,
+      "native_created_filetime": "134377123349904143",
+      "cim_created_filetime": "134377123349904140",
+      "difference_100ns_units": 3,
+      "ready_sha256": "e1c4b344da1fcd7d7dc3372f24a4b81f5a68b673632ae04d56060988cc194429",
+      "aligned_positive_created_filetime": "134377123327368270",
+      "original_alive_before_cleanup": true,
+      "ack_attempted": false,
+      "settled_exit_code": 2,
+      "scope": "Owned inert local C fixture only; not a historical855 cause or connected-candidate acceptance"
+    },
+    "repair_scope": "One native observer across C/original-owner/worker/lineage/recovery; exact equality; generic lock/supervisor and CIM broker contracts unchanged",
+    "corrected_native_seven_variant_control": {
+      "status": "PASS",
+      "scope": "one local inert original-C case, all seven variants; no connected private-candidate acceptance",
+      "base_source": "fe3e4fc0de48752df0bc608c0f8bb2a3f09e4e4a",
+      "working_source_manifest_sha256": "ceefb8cbfc3f8f689fb7e0d444259a53501a314d2b756f7c1e81662cbf4e8ac0",
+      "public_output_bytes": 11073,
+      "public_output_sha256": "9e17a35f61dfe4a069d4c1db6b17e8164469d3b395ee027e841b995b78c2c78d",
+      "queue_ms": 218680,
+      "total_ms": 239390.8996,
+      "positive_pid": 24100,
+      "positive_exact_created_filetime": "134377139303505763",
+      "positive_nonmicrosecond_aligned": true,
+      "positive_ready_sha256": "679259a3c0d71f476f0787706d422e48e30b4b85c2cdd2b51646fbc504970e19",
+      "variants": [
+        "ready",
+        "wrong-source",
+        "wrong-pid",
+        "wrong-birth",
+        "refused-input",
+        "exit-259",
+        "unavailable-retention"
+      ],
+      "fresh_hosted_qualification": "pending fourteen Windows controls and five exact-head contexts"
+    }
+  },
+  "hosted_fixture_dependency_failure": {
+    "source": "ffee9ac02a9ed846c01263081f85e02bdad91fdd",
+    "ci_run": 40806788936,
+    "attempt": 1,
+    "windows_job": 123227751844,
+    "job_seconds": 285,
+    "actual_account_controls": {
+      "passed": 13,
+      "failed": 1,
+      "failed_variant": "ready",
+      "duration_ms": 2832.873
+    },
+    "startup": {
+      "pid": 9188,
+      "created_filetime": "134377150958734740",
+      "elapsed_ms": 402,
+      "original_alive": false,
+      "original_exit_code": 1,
+      "ready_sha256": null,
+      "ack_attempted": false,
+      "controller_failure_record": "missing",
+      "cleanup_termination_requested": false
+    },
+    "complete_log": {
+      "bytes": 380212,
+      "sha256": "e3400a377b3ca02a0a394a7aff9f018a072bb3dcf23e063e99d335811d3e99a6"
+    },
+    "controlled_native_import": {
+      "source_files": 180,
+      "source_bytes": 3233480,
+      "no_dependencies": {
+        "exit": 2,
+        "code": "ERR_MODULE_NOT_FOUND",
+        "missing_exact_yaml": true
+      },
+      "frozen_dependencies": {
+        "exit": 0,
+        "status": "imported"
+      },
+      "entry_main_invoked": false,
+      "stderr_bytes": 0,
+      "retained_records": {
+        "source-manifest.json": {
+          "bytes": 31175,
+          "sha256": "f4db42d13cff2527ce93c8960d1e5e0bb50188707ff14856f2ff71ef060a7e60"
+        },
+        "no-dependencies.json": {
+          "bytes": 548,
+          "sha256": "88d41e2d6b6bf2b2fa436281db1e4d456a4af8914ada2098903cd40f98063dc0"
+        },
+        "frozen-dependencies.json": {
+          "bytes": 336,
+          "sha256": "39edcb7419d1a32f0141c2c20f1e2179e8ab5e49d4c9d5eb7ad96925e7b0a15e"
+        }
+      }
+    },
+    "scope": "Hosted missing dependency prerequisite established by source ordering and controlled native comparison; hosted raw child error unobserved; not historical855 cause or connected acceptance",
+    "repair": "Reuse existing pinned pnpm action and frozen root ignore-scripts install before account cases in both CI plans; retain actual pinned Node and existing10/120-minute limits; no source activation"
+  },
+  "dependency_guard_failure": {
+    "source": "512448960cb7eeae80eb0e8e808891d8bb809df6",
+    "ci_run": 40809985737,
+    "attempt": 1,
+    "windows_job": 123237836361,
+    "failed_case": "workflow runs bounded Windows controls and pinned lint under the existing catalog aggregate",
+    "reason": "Existing blanket pnpm-install guard rejected the newly required fixed root dependency preparation",
+    "account_cases_observed": 0,
+    "complete_log": {
+      "bytes": 464211,
+      "sha256": "06033343ed09e014a56363d01c89d37279b50311a95edd3f760ce8f8bfe719fb"
+    },
+    "repair": "One exact complete fixed filtered/frozen/ignore-scripts preparation line only; unchanged blanket bans over residual job text; negative controls for changed/duplicate/compound installs and existing disallowed effects",
+    "scope": "Workflow contract calibration only; no actual account14/native/production qualification claimed"
+  },
+  "fourteen_pass_lint_failure": {
+    "source": "230d20b8684836f1da277350142cd19954aedc26",
+    "ci_run": 40811762837,
+    "attempt": 1,
+    "windows_job": 123243546990,
+    "actual_unique_account_cases_passed": 14,
+    "job_conclusion": "failure",
+    "failed_phase": "Lint PowerShell scripts and exercise the causal fixture",
+    "complete_log": {
+      "bytes": 576706,
+      "sha256": "bf24cde6744c5e6f967985333def06631d7468b9aa0ec716e5f461a417c8dcc5"
+    },
+    "analyzer": {
+      "version": "1.25.0",
+      "finding_count": 1,
+      "rule": "PSAvoidUsingEmptyCatchBlock",
+      "script": "release-hosted-native-windows-diagnostic-launch.ps1",
+      "line": 154
+    },
+    "repair": "Optional observation failure explicitly preserves null/Unknown; original failure, cleanup, ACK and authority unchanged",
+    "scope": "Actual14 Windows account controls only; job/all-five CI not accepted; successor fresh qualification required"
+  },
+  "current_windows_success_linux_contract_failure": {
+    "source": "3665758dca2a7df82a122f883366bdf863aeb8f4",
+    "ci_run": 40813706620,
+    "attempt": 1,
+    "windows": {
+      "job": 123249823541,
+      "conclusion": "success",
+      "job_seconds": 357,
+      "account_cases_passed": 14,
+      "public_original_c_variants": 7,
+      "pssa_and_causal_fixture": "passed",
+      "complete_log_bytes": 572343,
+      "complete_log_sha256": "7f44fd43d487a5a76581c0a181431dcda2d36e2a41d130c5798461ffbf7cb4b4"
+    },
+    "linux": {
+      "job": 123249823829,
+      "conclusion": "failure",
+      "step": "Check relevant cheap repository contracts",
+      "complete_log_bytes": 2920659,
+      "complete_log_sha256": "45a4339ec1f79565cda78bc45f839119c3c46907fc74d053802bc4564ce40164",
+      "failures": [
+        {
+          "file": "scripts/ci-rust-workflow.test.mts",
+          "boundary": "preserve independent native-only checks before root dependency setup"
+        },
+        {
+          "file": "scripts/ci-workflow-fixture.test.mts",
+          "boundary": "equivalent workflow-policy wrapper; child output truncated, separate cause not inferred"
+        },
+        {
+          "file": "scripts/hosted-native-continuity.test.mts",
+          "boundary": "exact settlement path expectation omitted intentional bounded startup record"
+        }
+      ]
+    },
+    "repair": "Keep independent native checks before the unchanged root dependency preparation, then account controls; add only the existing bounded startup path to exact test allowlist",
+    "scope": "Current native Windows14/lint success only; all-five catalog qualification failed; fresh successor required"
+  }
+}

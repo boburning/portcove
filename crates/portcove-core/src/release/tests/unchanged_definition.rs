@@ -1404,7 +1404,7 @@ async fn reflectionhle_shared_release_keeps_all_nine_identities_dynamic_and_refu
         );
         let (root, requests, server) = serve_http(vec![
             metadata(),
-            releases(&[observed.clone()]),
+            releases(std::slice::from_ref(&observed)),
             metadata(),
             releases(&[successor, observed]),
         ]);
@@ -1467,4 +1467,43 @@ async fn reflectionhle_shared_release_keeps_all_nine_identities_dynamic_and_refu
             server.join().unwrap();
         }
     }
+}
+
+#[tokio::test]
+async fn retained_releases_expose_old_filename_pins_without_guessing_a_successor() {
+    // Independently retained provider metadata, replayed through production resolution.
+    let observations = observed_rollout_releases("road-rash-64-recompiled");
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("road-rash-64-recompiled")
+        .unwrap()
+        .clone();
+    let old = &observations[1];
+    let old_tag = old["tag_name"].as_str().unwrap();
+    assert_ne!(observations[0]["tag_name"], old["tag_name"]);
+    port.release.asset_hints.insert(
+        Platform::WindowsX86_64,
+        vec![old_tag.into(), "Win64.zip".into()],
+    );
+    let definition = serde_json::to_vec(&port).unwrap();
+    let (root, _, server) = serve_http(vec![
+        metadata(),
+        releases(std::slice::from_ref(old)),
+        metadata(),
+        releases(&observations),
+    ]);
+    let original = GithubReleaseProvider::with_api_root(root.clone())
+        .unwrap()
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(original.version, old_tag);
+    let failure = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    assert_eq!(failure.code, crate::ErrorCode::NotFound);
+    assert_eq!(serde_json::to_vec(&port).unwrap(), definition);
+    server.join().unwrap();
 }

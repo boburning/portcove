@@ -213,7 +213,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("2.0");
     expect(html).toContain("Latest eligible");
-    expect(html).toContain("Checking only looks for updates");
+    expect(html).toContain("Checking does not install");
     expect(html).toContain("Update available");
     expect(html).toContain("Stable · Notify me");
     expect(html).toContain("Check installed ports for updates");

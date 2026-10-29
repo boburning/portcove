@@ -339,3 +339,62 @@ async fn cancellation_reaps_listing_acquisition_and_keeps_the_exact_prior_select
         crate::ActivityStatus::Cancelled
     );
 }
+
+#[tokio::test]
+async fn authenticated_descriptive_observation_updates_and_failed_refresh_keep_last_good_without_managed_rights()
+ {
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let mut initial = feed(1);
+    initial["directory"]["listings"][0]["project_url"] = "https://github.com/example/game".into();
+    initial["directory"]["listings"][0]["availability"] = "unknown".into();
+    let root = publish(&fixture, &key, 1, &initial).await;
+    provision(&library, &root);
+    refresh(&library, &fixture, &root).await.unwrap();
+    let operational =
+        serde_json::to_value(library.load_catalog().unwrap().0.authoritative_document()).unwrap();
+    let mut observed = initial.clone();
+    observed["revision"] = 2.into();
+    observed["directory"]["format_version"] = 4.into();
+    observed["directory"]["listings"][0]["download_asset_hints"] =
+        json!({"windows-x86-64":["windows","x64"]});
+    observed["directory"]["listings"][0]["upstream_observation"] = json!({
+        "provider":"github","repository":"example/game","repository_id":7,"status":"complete",
+        "attempted_at":"2026-10-27T00:01:00Z","observed_at":"2026-10-27T00:00:00Z","fresh_until":"2026-10-27T12:00:00Z",
+        "facts_sha256":"a".repeat(64),"release_limit":4,"releases":[{
+            "id":11,"version":"v1.2.0","release_url":"https://github.com/example/game/releases/tag/v1.2.0","published_at":"2026-10-26T00:00:00Z",
+            "provider_prerelease":false,"assets_complete":true,"assets":[{"id":21,"name":"game-windows-x64.zip","url":"https://github.com/example/game/releases/download/v1.2.0/game-windows-x64.zip","size":42,"sha256":null,"platform_hints":["windows-x86-64"]}]}]});
+    let root2 = publish(&fixture, &key, 2, &observed).await;
+    refresh(&library, &fixture, &root2).await.unwrap();
+    let (catalog, _) = library.load_catalog().unwrap();
+    let listing = catalog.listing("new-unmanaged-port").unwrap();
+    assert_eq!(
+        listing.upstream_observation.as_ref().unwrap().releases[0].assets[0].id,
+        21
+    );
+    assert!(catalog.port("new-unmanaged-port").is_err());
+    assert_eq!(
+        serde_json::to_value(catalog.authoritative_document()).unwrap(),
+        operational
+    );
+    let mut invalid = observed.clone();
+    invalid["revision"] = 3.into();
+    invalid["directory"]["listings"][0]["upstream_observation"]["releases"][0]["release_url"] =
+        "https://github.com/foreign/game/releases/tag/v1.2.0".into();
+    let root3 = publish(&fixture, &key, 3, &invalid).await;
+    assert!(refresh(&library, &fixture, &root3).await.is_err());
+    // Cached readback by the same compiled code does not require a provider request.
+    let (offline, _) = Library::open(library.root())
+        .unwrap()
+        .load_catalog()
+        .unwrap();
+    assert_eq!(
+        offline
+            .listing("new-unmanaged-port")
+            .unwrap()
+            .upstream_observation,
+        listing.upstream_observation
+    );
+    assert!(offline.port("new-unmanaged-port").is_err());
+}

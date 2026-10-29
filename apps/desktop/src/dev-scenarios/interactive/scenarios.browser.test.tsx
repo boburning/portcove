@@ -66,11 +66,17 @@ it("gives every disposable detail route five real tabs and binds external Play t
     .toHaveAttribute("aria-selected", "true");
   await page.getByRole("button", { name: "Play", exact: true }).click();
   expect(launch.mock.calls[0]).toEqual(["details-external", "", 1]);
-  for (const label of ["Game files", "Saves", "Versions & updates", "Manage", "Overview"]) {
+  for (const label of [
+    "Game files",
+    "Saves & backups",
+    "Versions & updates",
+    "Manage",
+    "Overview",
+  ]) {
     await page.getByRole("tab", { name: label, exact: true }).click();
     await expect.element(page.getByRole("tabpanel", { name: label, exact: true })).toBeVisible();
   }
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await page
     .getByRole("button", {
       name: "View details for Summit Racer Harbor upstream project · unknown",
@@ -86,13 +92,13 @@ it("gives every disposable detail route five real tabs and binds external Play t
   expect(document.querySelector("[data-installation-fact]")?.textContent).toBe(
     "Registered external installation",
   );
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
-  await page.getByRole("button", { name: "Update prepared", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
+  await page.getByRole("button", { name: "Update saved for later", exact: true }).click();
   await expect
     .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
     .toHaveFocus();
   await expect
-    .element(page.getByRole("button", { name: "Use update · 1.3", exact: true }))
+    .element(page.getByRole("button", { name: "Apply update · 1.3", exact: true }))
     .toBeVisible();
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
 });
@@ -102,7 +108,7 @@ it("opens actual game details, returns to Library and resets the selected journe
   await click("View details for Harbor Adventure Harbor Adventure");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).not.toBeNull();
-  await click("Back to previous workspace");
+  await click("Back to Library");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).toBeNull();
   await click("Reset journey");
   expect(document.querySelector("#port-search")).not.toBeNull();
@@ -117,6 +123,7 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   await expect.element(input).not.toBeInTheDocument();
   expect(document.querySelector(".detail-artwork")).toBeNull();
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
+  await page.getByText("Advanced installation settings", { exact: true }).click();
   await folder.click();
   await expect.element(input).toBeVisible();
   await input.fill("fixture/future-draft");
@@ -230,7 +237,7 @@ it("returns to the exact older recovery activity after opening its game", async 
   });
   await mount("library");
   await navigateTo("Activity");
-  await page.getByRole("button", { name: "Review activity", exact: true }).click();
+  await page.getByRole("button", { name: "View related task record", exact: true }).click();
   await expect
     .poll(() => document.activeElement?.getAttribute("data-activity-id"))
     .toBe("recovery-history-12");
@@ -423,7 +430,7 @@ it.each(["game", "bios"] as const)(
         .fill("fixture/replacement.iso"),
     );
     const repair = page.getByRole("button", {
-      name: purpose === "bios" ? "Locate required BIOS" : "Locate game files",
+      name: purpose === "bios" ? "Select BIOS file" : "Select game files",
     });
     expect(repair.element().closest(".primary-actions")).not.toBeNull();
     await act(async () => repair.click());
@@ -434,7 +441,7 @@ it.each(["game", "bios"] as const)(
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
   await mount("setup");
   await click("View details for Harbor Adventure Harbor Adventure");
-  await click("Review game preparation");
+  await click("Review setup");
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain("fixture/owned.iso");
   await click("Prepare game data");
   expect(document.body.textContent).toContain("Fixture preparation is waiting");
@@ -443,7 +450,7 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
   expect((await desktopApi.activities()).records[0]?.status).toBe("running");
   await click("Settle fixture cancellation");
   expect(document.body.textContent).toContain("Preparation did not complete");
-  await click("Review game preparation");
+  await click("Review setup");
   await click("Prepare game data");
   await click("Fail fixture preparation");
   expect(document.body.textContent).toContain("The demo setup did not finish");
@@ -453,12 +460,12 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
 it("revisits the original running task after browsing another game and records its exact completion", async () => {
   await mount("activity");
   await click("View details for Harbor Adventure Harbor Adventure");
-  await click("Review game preparation");
+  await click("Review setup");
   await click("Prepare game data");
   const retained = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
-  await click("Back to previous workspace");
+  await click("Back to Library");
   await click("View details for Orchard Quest Orchard Quest");
-  await click("Back to previous workspace");
+  await click("Back to Library");
   await navigateTo("Activity");
   const row = () => document.querySelector('[data-activity-id="fixture-preparation"]');
   await expect.poll(() => row()?.textContent).toContain("In progress");

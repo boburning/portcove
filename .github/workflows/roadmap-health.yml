@@ -25,6 +25,11 @@ on:
       - .github/workflows/roadmap-health.yml
   workflow_dispatch:
     inputs:
+      hosted_intake:
+        description: "Owner qualification of the reviewed hosted bridge ref; none keeps ordinary Roadmap checks"
+        type: choice
+        options: [none, process, probe]
+        default: none
       issue:
         description: "Issue number for a scoped check; leave empty for substantial-change or release-readiness audit"
         required: false
@@ -38,7 +43,19 @@ permissions:
   contents: read
 
 jobs:
+  hosted-intake:
+    if: github.event_name == 'workflow_dispatch' && inputs.hosted_intake != 'none' && inputs.hosted_intake != '' && github.actor == 'boburning' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/hosted-discovery-intake.yml
+    with:
+      mode: ${{ inputs.hosted_intake }}
+      probe_issue: "3849"
+    secrets:
+      PORTCOVE_ROADMAP_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
   configuration:
+    if: github.event_name != 'workflow_dispatch' || inputs.hosted_intake == 'none' || inputs.hosted_intake == '' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     timeout-minutes: 1
     permissions: {}

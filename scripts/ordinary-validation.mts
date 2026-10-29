@@ -14,7 +14,7 @@ import {
   nativeHelperRegistryPath,
   nativeHelperFiles,
 } from "./native-helper-dependencies.mts";
-import { ordinaryOwnershipForPath } from "./validation-plan.mts";
+import { ordinaryOwnershipForPath, isVendoredRfdInput } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
 import { stagedFileBatches } from "./viteplus-cli.mts";
 export interface LocalChange extends ValidationChangeInput {
@@ -340,6 +340,7 @@ for (const [file, tests] of [
       "scripts/desktop-real-runtime.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+      "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
       "scripts/capture-target.test.mts",
     ],
   ],
@@ -1228,6 +1229,7 @@ for (const [file, tests] of [
     "scripts/fixtures/disposable-directory.mts",
     [
       "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/desktop-staged-layout.test.mts",
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/node-platform-skips.test.mts",
@@ -1259,6 +1261,7 @@ for (const [file, tests] of [
       "scripts/required-node-test-reporter.test.mts",
       "scripts/test-duration-reporter.test.mts",
       "scripts/ui-test-selection.test.mts",
+      "scripts/updater-historical-inputs.test.mts",
       "scripts/windows-historical-bootstrap.test.mts",
     ],
   ],
@@ -1475,6 +1478,7 @@ for (const [file, tests] of [
     [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
   ],
   ["scripts/catalog-upstream-observer.mts", upstreamHealthContractTests],
+  ["scripts/listing-upstream-observation.mts", upstreamHealthContractTests],
   ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
@@ -1823,6 +1827,7 @@ explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
   "scripts/production-aggregate-steps.test.mts",
   "scripts/renovate-engine-probe.test.mts",
+  "scripts/desktop-staged-layout.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",
@@ -2225,10 +2230,14 @@ function addNodeTest(selection: ValidationSelection, file: string) {
       selection.nodeTests.add(companion);
   // These contracts formerly ran through imports; keep them in focused routes
   // now that each suite has its own explicit execution entry point.
-  if (normalized === "scripts/desktop-scenarios.test.mts")
+  if (normalized === "scripts/desktop-scenarios.test.mts") {
     selection.nodeTests.add("scripts/native-compatibility.test.mts");
-  if (normalized === "scripts/desktop-execution-plan.test.mts")
+    selection.nodeTests.add("scripts/desktop-staged-layout.test.mts");
+  }
+  if (normalized === "scripts/desktop-execution-plan.test.mts") {
     selection.nodeTests.add("scripts/desktop-execution-baseline.test.mts");
+    selection.nodeTests.add("scripts/native-qualification-inventory.test.mts");
+  }
   if (normalized === "scripts/release-workflow.test.mts")
     selection.nodeTests.add("scripts/sign-catalog.test.mts");
 }
@@ -2271,6 +2280,16 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  if (isVendoredRfdInput(file)) {
+    selection.workspaceRust = true;
+    selection.rustfmt = true;
+    selection.ui = true;
+    selection.uiFullTests = true;
+    selection.browser = true;
+    selection.scopes.add("rust-workspace");
+    addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    recognized = true;
+  }
   if (
     /^apps\/desktop\/scripts\/[^/]+\.native\.test\.mts$/u.test(file) ||
     file === "vite.config.ts" ||

@@ -109,6 +109,30 @@ function withHostSchemas(core: unknown, host: unknown) {
   return combined;
 }
 
+/** Small runtime inventories from Core's exported enums; never load schemas in React. */
+export function renderCatalogValues(schemas: unknown): string {
+  assertSchemas(schemas);
+  const catalog = schemas.catalog;
+  if (!catalog?.$defs) throw new Error("Core catalog definitions are required");
+  const names = {
+    platforms: "Platform",
+    channels: "ReleaseChannel",
+    installationMethods: "InstallationMethod",
+  };
+  const inventories = Object.entries(names).map(([key, name]) => {
+    const values = catalog.$defs![name]?.enum;
+    if (
+      !Array.isArray(values) ||
+      !values.length ||
+      values.some((v) => typeof v !== "string") ||
+      new Set(values).size !== values.length
+    )
+      throw new Error(`Core ${name} must be a unique string enum`);
+    return `export const ${key} = ${JSON.stringify(values)} as const;`;
+  });
+  return "// Generated from Core catalog schemas. Do not edit.\n" + inventories.join("\n") + "\n";
+}
+
 async function main() {
   const { values } = parseArgs({
     options: { write: { type: "boolean", default: false } },
@@ -130,6 +154,7 @@ async function main() {
     fs.readFileSync(path.join(source, "transport-host-events.generated.json"), "utf8"),
   );
   const outputs: readonly (readonly [string, string])[] = [
+    ["catalog-values.generated.ts", renderCatalogValues(schemas)],
     [
       "transport-types.generated.d.ts",
       await renderTransportTypes(withHostSchemas(schemas, hostOutput)),

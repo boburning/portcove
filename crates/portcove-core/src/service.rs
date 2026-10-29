@@ -1200,9 +1200,11 @@ impl PortcoveService {
                 &transaction,
                 &mut statuses,
             )?;
-            let activities = Library::activity_feed_from(&transaction, activity_limit)?;
+            let mut activities = Library::activity_feed_from(&transaction, activity_limit)?;
             let pending_setups = Self::pending_setups_from(&transaction)?;
             transaction.commit()?;
+            self.library
+                .observe_activity_liveness(&mut activities.records);
             tracing::debug!(
                 port_count = statuses.len(),
                 sqlite_query_count = metrics.sqlite_query_count + 2,
@@ -1775,6 +1777,7 @@ impl PortcoveService {
             Ok(catalog) => catalog,
             Err(_) => {
                 status.readiness = Some(LaunchReadiness {
+                    setup_contract: None,
                     launchable: false,
                     blockers: vec![LaunchBlocker::InvalidInstallation],
                     pending_setup: false,
@@ -1994,6 +1997,39 @@ impl PortcoveService {
             }
         }
         status.readiness = Some(LaunchReadiness {
+            setup_contract: retained_catalog
+                .as_ref()
+                .map(|_| -> Result<crate::SetupExplanation> {
+                    Ok(crate::SetupExplanation {
+                        definition_sha256: crate::catalog::observation_definition_sha256(port)?,
+                        retained: true,
+                        platforms: port.platforms.clone(),
+                        installation_method: port
+                            .presentation
+                            .as_ref()
+                            .map(|presentation| presentation.installation_method),
+                        source_requirements: port
+                            .presentation
+                            .as_ref()
+                            .map(|presentation| presentation.source_requirements.clone())
+                            .unwrap_or_default(),
+                        saves_and_settings: port
+                            .presentation
+                            .as_ref()
+                            .map(|presentation| presentation.saves_and_settings),
+                        persistent_paths: port.persistent_paths.clone(),
+                        persistent_file_patterns: port.persistent_file_patterns.clone(),
+                        manual_preparation: port
+                            .presentation
+                            .as_ref()
+                            .and_then(|presentation| presentation.manual_preparation.clone()),
+                        manual_setup: port
+                            .presentation
+                            .as_ref()
+                            .and_then(|presentation| presentation.manual_setup.clone()),
+                    })
+                })
+                .transpose()?,
             launchable: installed && blockers.is_empty(),
             blockers,
             pending_setup,
@@ -7896,6 +7932,7 @@ mod tests {
 
     #[test]
     fn publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase() {
+        let started = std::time::Instant::now();
         for kind in [
             LifecycleOperationKind::Install,
             LifecycleOperationKind::Adopt,
@@ -7907,6 +7944,10 @@ mod tests {
                 LifecyclePhase::MetadataCommitted,
                 LifecyclePhase::CleanupPending,
             ] {
+                eprintln!(
+                    "foreign publication owners {kind:?} {phase:?}: fixture begin elapsed={:?}",
+                    started.elapsed()
+                );
                 let temporary = tempfile::tempdir().unwrap();
                 let library = Library::open(temporary.path().join("library")).unwrap();
                 let live = register_zelda_install(&library, "v1", true);
@@ -7936,7 +7977,15 @@ mod tests {
                 let held = library
                     .try_lock_port("zelda64-recomp", "owned-test-install-lock")
                     .unwrap();
+                eprintln!(
+                    "foreign publication owners {kind:?} {phase:?}: recovery begin elapsed={:?}",
+                    started.elapsed()
+                );
                 PortcoveService::new(library.clone()).unwrap();
+                eprintln!(
+                    "foreign publication owners {kind:?} {phase:?}: recovery complete elapsed={:?}",
+                    started.elapsed()
+                );
                 let refused = store.get(&journal.id).unwrap().unwrap();
                 assert_eq!(refused.kind, kind);
                 assert_eq!(refused.phase, phase);
@@ -7974,6 +8023,10 @@ mod tests {
                         .is_err()
                 );
                 drop(held);
+                eprintln!(
+                    "foreign publication owners {kind:?} {phase:?}: assertions complete elapsed={:?}",
+                    started.elapsed()
+                );
             }
         }
     }
@@ -10953,10 +11006,17 @@ mod tests {
 
     #[tokio::test]
     async fn unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch() {
+        let trace_started = std::time::Instant::now();
+        let trace_phase = |phase: &str| {
+            eprintln!("unavailable artwork {phase}: {:?}", trace_started.elapsed());
+        };
+        trace_phase("fixture started");
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("library");
         let library = Library::open(&root).unwrap();
+        trace_phase("first fixture compile begins");
         let first = register_launch_probe(&library, "v1", false);
+        trace_phase("first fixture compiled");
         let service = PortcoveService::with_provider(
             library.clone(),
             Arc::new(RepublishedReleaseProvider {
@@ -11026,6 +11086,7 @@ mod tests {
             .apply_game_install("zelda64-recomp", &grant.token, |_| {})
             .await
             .unwrap();
+        trace_phase("reviewed install applied");
         assert_eq!(installed.id, first.id);
         assert_eq!(
             service.status("zelda64-recomp").unwrap().active.unwrap().id,
@@ -11040,7 +11101,9 @@ mod tests {
         );
         drop(service);
 
+        trace_phase("second fixture compile begins");
         let second = register_launch_probe(&library, "v2", false);
+        trace_phase("second fixture compiled");
         let service = PortcoveService::with_provider(
             library.clone(),
             Arc::new(RepublishedReleaseProvider {
@@ -11066,6 +11129,7 @@ mod tests {
             .apply_game_update("zelda64-recomp", true, &grant.token, |_| {})
             .await
             .unwrap();
+        trace_phase("reviewed update applied");
         let status = service.status("zelda64-recomp").unwrap();
         assert_eq!(status.active.unwrap().id, second.id);
         assert_eq!(status.previous.unwrap().id, first.id);
@@ -11092,6 +11156,7 @@ mod tests {
                 |_| {},
             )
             .unwrap();
+        trace_phase("supervised launch completed");
         assert!(outcome.successful);
         assert_eq!(outcome.exit_code, Some(0));
         assert!(started.is_file());
@@ -11128,6 +11193,7 @@ mod tests {
                 .id,
             second.id
         );
+        trace_phase("library reopened");
         let retained = reopened
             .artwork("zelda64-recomp", crate::ArtworkSlot::Cover)
             .unwrap();
@@ -11148,6 +11214,7 @@ mod tests {
         assert_eq!(detail_after.selection, detail_before.selection);
         assert!(png.is_file());
         assert!(detail_png.is_file());
+        trace_phase("retained slots verified");
     }
 
     fn register_launch_probe(library: &Library, version: &str, active: bool) -> InstallRecord {
@@ -12595,6 +12662,18 @@ fn main() {
         let readiness = status.readiness.unwrap();
         assert!(!readiness.launchable);
         assert_eq!(readiness.blockers, vec![LaunchBlocker::InvalidInstallation]);
+        assert!(readiness.setup_contract.is_none());
+        assert!(
+            service
+                .statuses()
+                .unwrap()
+                .iter()
+                .filter(|row| row.active.is_none() && row.external_runtime.is_none())
+                .all(|row| row
+                    .readiness
+                    .as_ref()
+                    .is_none_or(|ready| ready.setup_contract.is_none()))
+        );
         assert_eq!(status.external_runtime.unwrap().id, first.id);
         assert_eq!(row(), before);
         assert_eq!(fs::read(second.executable).unwrap(), b"accepted runtime");
@@ -15938,6 +16017,33 @@ fn main() {
         changed.persistent_paths.push("future-settings.json".into());
         service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
         phase("changed-catalog-loaded");
+        let explained = service
+            .status(&original.id)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .setup_contract
+            .unwrap();
+        assert!(explained.retained);
+        assert!(
+            explained
+                .persistent_paths
+                .iter()
+                .any(|path| path == "general.json")
+        );
+        assert!(
+            !explained
+                .persistent_paths
+                .iter()
+                .any(|path| path == "future-settings.json")
+        );
+        assert_eq!(
+            explained.manual_preparation,
+            original
+                .presentation
+                .as_ref()
+                .and_then(|presentation| presentation.manual_preparation.clone())
+        );
 
         assert!(service.verify(&original.id).unwrap().valid);
         phase("retained-install-verified");
@@ -16505,10 +16611,15 @@ fn main() {
     #[test]
     fn additive_current_mutability_recovers_a_retained_install_and_survives_rollback() {
         const PORT: &str = "zelda64-recomp";
+        let fixture_started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let previous = register_zelda_install(&library, "v1", true);
         let active = register_zelda_install(&library, "v2", true);
+        eprintln!(
+            "Additive current mutability fixtures registered: {:?}",
+            fixture_started.elapsed()
+        );
         let active_install = library
             .status(PORT, ReleaseChannel::Stable)
             .unwrap()
@@ -16527,6 +16638,10 @@ fn main() {
                 .is_err()
         );
 
+        eprintln!(
+            "Additive current mutability original refusal verified: {:?}",
+            fixture_started.elapsed()
+        );
         let mut document = service.catalog().authoritative_document();
         let current = document
             .ports
@@ -16583,6 +16698,10 @@ fn main() {
                 .contains(&"new-settings.ini".into())
         );
 
+        eprintln!(
+            "Additive current mutability active binding assertions complete: {:?}",
+            fixture_started.elapsed()
+        );
         service.rollback(PORT).unwrap();
         assert_eq!(
             fs::read(previous.join("new-settings.ini")).unwrap(),
@@ -16632,6 +16751,10 @@ fn main() {
                 .unwrap()
                 .reference,
             active_reference
+        );
+        eprintln!(
+            "Additive current mutability assertions complete: {:?}",
+            fixture_started.elapsed()
         );
     }
 

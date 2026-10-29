@@ -800,7 +800,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
       expect.any(Function),
     );
     expect(container.textContent).toContain(
-      "Update saved for later. Your current version is unchanged.",
+      "Update kept for later. Your current version is unchanged.",
     );
     expect(container.textContent).not.toContain("Update downloaded for later");
   },
@@ -912,7 +912,7 @@ it("retains authoritative success through the real wrapper when only display ref
   await click("Review game update");
   await click("Prepare update for later");
   expect(container.textContent).toContain(
-    "Update saved for later. Your current version is unchanged.",
+    "Update kept for later. Your current version is unchanged.",
   );
   expect(container.querySelector("[data-game-update-outcome]")).toBeNull();
   expect(actualOperation.error).toBe(refreshFailure);

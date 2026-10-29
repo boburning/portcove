@@ -7,7 +7,7 @@ export function readStagedLayout(version: string) {
   );
   const panel = detail?.querySelector<HTMLElement>("[role=tabpanel]:not([hidden]):not([inert])");
   const activate = [...(panel?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
-    (item) => item.textContent?.trim() === `Use update · ${version}`,
+    (item) => item.textContent?.trim() === `Apply update · ${version}`,
   );
   const rect = (element: Element) => {
     const { left, right, top, bottom } = element.getBoundingClientRect();

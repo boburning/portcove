@@ -988,3 +988,449 @@ void test("module fixtures preserve API aliases and opaque identities before opt
     );
   }
 });
+
+void test("workspace scenarios retain their actual serialized callbacks, activity and restoration routes", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-workspace-refresh-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function* active(
+    value: unknown,
+    parents: { node: Record<string, unknown>; key: string }[] = [],
+  ): Generator<{ node: Record<string, unknown>; parents: typeof parents }> {
+    if (Array.isArray(value)) {
+      for (const child of value) yield* active(child, parents);
+      return;
+    }
+    if (!isRecord(value)) return;
+    if (typeof value.type === "string") yield { node: value, parents };
+    if (
+      ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+        String(value.type),
+      )
+    )
+      return;
+    for (const [key, child] of Object.entries(value)) {
+      if (value.type === "IfStatement" && literal(value.test) === false && key === "consequent")
+        continue;
+      if (
+        value.type === "ConditionalExpression" &&
+        literal(value.test) === false &&
+        key === "consequent"
+      )
+        continue;
+      if (
+        value.type === "LogicalExpression" &&
+        value.operator === "&&" &&
+        literal(value.left) === false &&
+        key === "right"
+      )
+        continue;
+      yield* active(child, [...parents, { node: value, key }]);
+    }
+  }
+  const member = (node: unknown, object: string | undefined, property: string) =>
+    isRecord(node) &&
+    node.type === "MemberExpression" &&
+    identifier(node.object) === object &&
+    identifier(node.property) === property;
+  const verify = (code: string) => {
+    const tree: unknown = parseAst(code);
+    assert.ok(isRecord(tree) && Array.isArray(tree.body));
+    const topLevel: unknown[] = tree.body;
+    const declarations = new Map<string, Record<string, unknown>>();
+    const exports = new Map<string, string>();
+    const statements = new Map<string, Record<string, unknown>>();
+    for (const statement of topLevel) {
+      assert.ok(isRecord(statement));
+      const declaration: unknown =
+        statement.type === "ExportNamedDeclaration" ? statement.declaration : statement;
+      if (isRecord(declaration)) {
+        const name = identifier(declaration.id);
+        if (name) {
+          declarations.set(name, declaration);
+          statements.set(name, statement);
+        }
+        if (declaration.type === "VariableDeclaration" && Array.isArray(declaration.declarations)) {
+          for (const entry of declaration.declarations) {
+            assert.ok(isRecord(entry));
+            const name = identifier(entry.id);
+            if (name && isRecord(entry.init)) {
+              declarations.set(name, entry.init);
+              statements.set(name, statement);
+            }
+            if (name && statement.type === "ExportNamedDeclaration") exports.set(name, name);
+          }
+        } else if (name && statement.type === "ExportNamedDeclaration") exports.set(name, name);
+      }
+      if (statement.type === "ExportNamedDeclaration" && Array.isArray(statement.specifiers)) {
+        for (const specifier of statement.specifiers) {
+          assert.ok(isRecord(specifier));
+          const name = identifier(specifier.exported),
+            local = identifier(specifier.local);
+          if (name && local) exports.set(name, local);
+        }
+      }
+    }
+    const resolve = (
+      name: string | undefined,
+      seen = new Set<string>(),
+    ): Record<string, unknown> | undefined => {
+      if (!name || seen.has(name)) return undefined;
+      seen.add(name);
+      const declaration = declarations.get(name);
+      return declaration?.type === "Identifier"
+        ? resolve(identifier(declaration), seen)
+        : declaration;
+    };
+    const exported = (name: string) => {
+      const declaration = resolve(exports.get(name));
+      assert.ok(
+        declaration &&
+          ["FunctionDeclaration", "ArrowFunctionExpression", "FunctionExpression"].includes(
+            String(declaration.type),
+          ),
+        "Missing production export " + name,
+      );
+      return declaration;
+    };
+    const imported = (module: string, name: string) => {
+      const bindings: Record<string, unknown>[] = [];
+      for (const statement of topLevel) {
+        if (
+          !isRecord(statement) ||
+          statement.type !== "ImportDeclaration" ||
+          literal(statement.source) !== module ||
+          !Array.isArray(statement.specifiers)
+        )
+          continue;
+        const specifiers: unknown[] = statement.specifiers;
+        for (const specifier of specifiers)
+          if (
+            isRecord(specifier) &&
+            (name === "default"
+              ? specifier.type === "ImportDefaultSpecifier"
+              : identifier(specifier.imported) === name)
+          )
+            bindings.push(specifier);
+      }
+      assert.ok(bindings.length > 0, "Missing production dependency " + name);
+      return new Set(
+        bindings.map((binding) => {
+          assert.ok(isRecord(binding));
+          const alias = identifier(binding.local);
+          assert.ok(alias);
+          return alias;
+        }),
+      );
+    };
+    const adapter = imported("./browser-script.mts", "executeBrowserScript");
+    const transport = imported("./transport-values.mts", "transportValue");
+    const owner = exported("workspaceRefreshScenario");
+    assert.ok(
+      Array.isArray(owner.params) &&
+        isRecord(owner.params[0]) &&
+        Array.isArray(owner.params[0].properties),
+    );
+    const properties: unknown[] = owner.params[0].properties;
+    const parameter = (key: string) => {
+      const property = properties.find((value) => isRecord(value) && identifier(value.key) === key);
+      assert.ok(isRecord(property));
+      const name = identifier(property.value);
+      assert.ok(name);
+      return name;
+    };
+    const browser = parameter("browser"),
+      scenario = parameter("scenario");
+    const selected = (name: string) => {
+      const registrations = [...active(owner.body)].filter(
+        ({ node, parents }) =>
+          node.type === "CallExpression" &&
+          identifier(node.callee) === scenario &&
+          literal(args(node)[0]) === name &&
+          parents.some(({ node }) => node.type === "AwaitExpression"),
+      );
+      assert.equal(registrations.length, 1, "Actual selected scenario " + name);
+      const callback = args(registrations[0]?.node)[1];
+      assert.ok(isRecord(callback));
+      return [...active(callback.body)];
+    };
+    const refresh = selected("native-workspace-refresh-recovery"),
+      reconciliation = selected("native-external-cli-reconciliation");
+    const routes = [
+      ["installWorkspaceRefreshProbe", refresh, true, false],
+      ["restoreWorkspaceRefreshProbe", refresh, false, true],
+      ["installExternalReconciliationProbe", reconciliation, false, false],
+      ["replayTerminalActivity", reconciliation, true, false],
+      ["installReconciliationSupportGate", reconciliation, false, false],
+      ["releaseReconciliationSupportGate", reconciliation, false, true],
+      ["installSourceFormatProbe", reconciliation, false, false],
+      ["restoreSourceFormatProbe", reconciliation, false, true],
+      ["restoreExternalReconciliationProbe", reconciliation, false, true],
+    ] as const;
+    const calls = new Map<string, Record<string, unknown>>();
+    for (const [name, scope, asynchronous, finalizer] of routes) {
+      const dependency = exported(name);
+      const matches = scope.filter(({ node, parents }) => {
+        if (
+          node.type !== "CallExpression" ||
+          !parents.some(({ node }) => node.type === "AwaitExpression")
+        )
+          return false;
+        const values = args(node),
+          callback = asynchronous ? values[0] : values[1];
+        return (
+          resolve(identifier(callback)) === dependency &&
+          (asynchronous
+            ? member(node.callee, browser, "executeAsyncScript")
+            : adapter.has(identifier(node.callee) ?? "") && identifier(values[0]) === browser)
+        );
+      });
+      assert.equal(matches.length, 1, "Actual serialized route " + name);
+      const matched = matches[0];
+      assert.ok(matched);
+      if (finalizer)
+        assert.ok(
+          matched.parents.some(({ key }) => key === "finalizer"),
+          "Actual cleanup route " + name,
+        );
+      calls.set(name, matched.node);
+    }
+    const port = reconciliation.find(
+      ({ node }) =>
+        node.type === "VariableDeclarator" &&
+        isRecord(node.init) &&
+        node.init.type === "CallExpression" &&
+        transport.has(identifier(node.init.callee) ?? "") &&
+        literal(args(node.init)[0]) === "port",
+    )?.node;
+    const portName = identifier(port?.id);
+    assert.ok(portName);
+    assert.ok(
+      member(args(calls.get("installSourceFormatProbe"))[2], portName, "id"),
+      "Exact selected port",
+    );
+    const terminal = reconciliation.find(
+      ({ node }) =>
+        node.type === "VariableDeclarator" &&
+        isRecord(node.init) &&
+        node.init.type === "CallExpression" &&
+        isRecord(node.init.callee) &&
+        node.init.callee.type === "MemberExpression" &&
+        identifier(node.init.callee.property) === "find" &&
+        isRecord(node.init.callee.object) &&
+        identifier(node.init.callee.object.property) === "records" &&
+        [...nodes(args(node.init)[0])].some((value) => member(value, portName, "id")),
+    )?.node;
+    const terminalName = identifier(terminal?.id);
+    assert.ok(
+      terminalName &&
+        terminal &&
+        isRecord(terminal.init) &&
+        isRecord(terminal.init.callee) &&
+        isRecord(terminal.init.callee.object),
+    );
+    const observedName = identifier(terminal.init.callee.object.object);
+    assert.ok(observedName);
+    const observation = reconciliation.find(
+      ({ node }) => node.type === "VariableDeclarator" && identifier(node.id) === observedName,
+    )?.node;
+    assert.ok(observation && isRecord(observation.init));
+    const observedCall = awaited(args(observation.init)[0]);
+    assert.ok(
+      observedCall &&
+        identifier(observedCall.callee) === parameter("invoke") &&
+        literal(args(observedCall)[0]) === "get_activities",
+      "Actual activity observation",
+    );
+    const predicate = args(terminal.init)[0];
+    assert.ok(isRecord(predicate) && Array.isArray(predicate.params));
+    const record = identifier(predicate.params[0]);
+    assert.ok(record);
+    const returned =
+      isRecord(predicate.body) && predicate.body.type === "BlockStatement"
+        ? [...active(predicate.body)].find(({ node }) => node.type === "ReturnStatement")?.node
+            .argument
+        : predicate.body;
+    const conjuncts = (value: unknown): unknown[] =>
+      isRecord(value) && value.type === "LogicalExpression" && value.operator === "&&"
+        ? [...conjuncts(value.left), ...conjuncts(value.right)]
+        : [value];
+    const equal = (
+      value: unknown,
+      left: (node: unknown) => boolean,
+      right: (node: unknown) => boolean,
+    ) =>
+      isRecord(value) &&
+      value.type === "BinaryExpression" &&
+      value.operator === "===" &&
+      ((left(value.left) && right(value.right)) || (left(value.right) && right(value.left)));
+    const terms = conjuncts(returned);
+    assert.ok(
+      terms.some((value) =>
+        equal(
+          value,
+          (node) => member(node, record, "operation"),
+          (node) => literal(node) === "adopt",
+        ),
+      ) &&
+        terms.some((value) =>
+          equal(
+            value,
+            (node) => member(node, record, "target_id"),
+            (node) => member(node, portName, "id"),
+          ),
+        ),
+      "Exact adopted activity predicate",
+    );
+    const assertion = imported("node:assert/strict", "default");
+    const terminalStatus = reconciliation.find(
+      ({ node }) =>
+        node.type === "CallExpression" &&
+        [...assertion].some((alias) => member(node.callee, alias, "equal")) &&
+        member(args(node)[0], terminalName, "status") &&
+        literal(args(node)[1]) === "succeeded",
+    )?.node;
+    assert.ok(terminalStatus, "Actual terminal activity status");
+    assert.equal(
+      identifier(args(calls.get("replayTerminalActivity"))[1]),
+      terminalName,
+      "Actual retained activity",
+    );
+    const position = (name: string) => range(calls.get(name)).start;
+    assert.ok(
+      position("installReconciliationSupportGate") < position("releaseReconciliationSupportGate"),
+    );
+    assert.ok(position("installSourceFormatProbe") < position("restoreSourceFormatProbe"));
+    assert.ok(
+      position("restoreSourceFormatProbe") < position("restoreExternalReconciliationProbe"),
+    );
+    return { calls, exports, declarations, statements, predicate, observedCall, terminalStatus };
+  };
+  const original = verify(source);
+  const helpers = [...original.calls.keys()];
+  const aliases = helpers.reduce(
+    (code, name, index) =>
+      code.replace(new RegExp("\\b" + name + "\\b", "gu"), "$workspace" + index),
+    source,
+  );
+  const aliased =
+    helpers.reduce(
+      (code, name, index) =>
+        code.replace("export const $workspace" + index, "const $workspace" + index),
+      aliases,
+    ) +
+    "\nexport {" +
+    helpers.map((name, index) => "$workspace" + index + " as " + name).join(",") +
+    "};\n";
+  verify(aliased);
+  verify(`import {executeBrowserScript as $otherBrowserScript} from "./browser-script.mts";
+import {transportValue as $otherTransport} from "./transport-values.mts";
+import $otherAssert from "node:assert/strict";
+${source}
+function $otherUsedAliases(browser,value) {$otherAssert.ok(value);$otherBrowserScript(browser,()=>true);return $otherTransport("port",value);}
+`);
+
+  verify(source.replaceAll("\n", "\r\n"));
+  const declarationRanges = helpers.map((name) => range(original.statements.get(name)));
+  const spans = declarationRanges.map(({ start, end }) => source.slice(start, end));
+  verify(
+    edit(
+      source,
+      helpers.map((name) => {
+        const declaration = original.declarations.get(name);
+        assert.ok(declaration && Array.isArray(declaration.params));
+        const parameters = declaration.params
+          .map((value) => {
+            const span = range(value);
+            return source.slice(span.start, span.end);
+          })
+          .join(",");
+        const body = range(declaration.body);
+        return {
+          ...range(original.statements.get(name)),
+          text:
+            "export function " +
+            name +
+            "(" +
+            parameters +
+            ") " +
+            source.slice(body.start, body.end),
+        };
+      }),
+    ),
+  );
+
+  verify(
+    edit(
+      source,
+      declarationRanges.map((span, index) => ({
+        ...span,
+        text: spans[spans.length - index - 1] ?? "",
+      })),
+    ),
+  );
+  for (const [name, call] of original.calls) {
+    const index =
+      name === "installWorkspaceRefreshProbe" || name === "replayTerminalActivity" ? 0 : 1;
+    const callback = args(call)[index];
+    const changed = edit(source, [{ ...range(callback), text: "() => undefined" }]);
+    const decoy =
+      "\nasync function $unusedWorkspaceRoute(){await " +
+      source.slice(range(call).start, range(call).end) +
+      ";}\n";
+    assert.throws(() => verify(changed + decoy), /Actual serialized route/u, name);
+  }
+  const format = original.calls.get("installSourceFormatProbe");
+  assert.throws(
+    () => verify(edit(source, [{ ...range(args(format)[2]), text: '"unrelated-port"' }])),
+    /Exact selected port/u,
+  );
+  const replay = original.calls.get("replayTerminalActivity");
+  assert.throws(
+    () => verify(edit(source, [{ ...range(args(replay)[1]), text: "{}" }])),
+    /Actual retained activity/u,
+  );
+
+  const operation = [...nodes(original.predicate)].find((node) => literal(node) === "adopt");
+  assert.ok(operation);
+  assert.throws(
+    () => verify(edit(source, [{ ...range(operation), text: '"launch"' }])),
+    /Exact adopted activity predicate/u,
+  );
+  assert.throws(
+    () =>
+      verify(
+        edit(source, [
+          { ...range(args(original.observedCall)[0]), text: '"get_workspace_snapshot"' },
+        ]),
+      ),
+    /Actual activity observation/u,
+  );
+  assert.throws(
+    () => verify(edit(source, [{ ...range(args(original.terminalStatus)[1]), text: '"failed"' }])),
+    /Actual terminal activity status/u,
+  );
+  const gate = original.calls.get("installReconciliationSupportGate");
+  assert.ok(gate);
+  assert.throws(
+    () =>
+      verify(
+        edit(source, [
+          {
+            ...range(gate),
+            text: "(false && " + source.slice(range(gate).start, range(gate).end) + ")",
+          },
+        ]),
+      ),
+    /Actual serialized route/u,
+  );
+  assert.throws(
+    () =>
+      verify(source.replace('from "./browser-script.mts"', 'from "./wrong-browser-script.mts"')),
+    /Missing production dependency/u,
+  );
+});

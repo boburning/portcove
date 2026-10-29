@@ -127,7 +127,7 @@ it("reveals and focuses the exact loaded recovery activity beyond the short hist
     />,
   );
   expect(document.querySelector('[data-activity-id="activity-12"]')).toBeNull();
-  await page.getByRole("button", { name: "Review activity", exact: true }).click();
+  await page.getByRole("button", { name: "View related task record", exact: true }).click();
   await expect
     .poll(() => document.activeElement?.getAttribute("data-activity-id"))
     .toBe("activity-12");

@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, expect, it } from "vite-plus/test";
+import { openAdvancedFilters } from "../../test/filter-fields";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import {
   startInteractiveScenarios,
@@ -23,21 +24,56 @@ function mount(journey: string) {
   ).body.innerHTML;
   startInteractiveScenarios();
 }
-async function settleCapture() {
+async function settleCapture(animationTimeout = 10_000) {
+  const phase = (name: string) => {
+    document.documentElement.dataset.capturePhase = name;
+    document.documentElement.dataset.captureVisibility = document.visibilityState;
+    document.documentElement.dataset.captureFonts = document.fonts.status;
+  };
+  phase("fonts");
   await document.fonts.ready;
+  phase("images");
   await expect.poll(() => [...document.images].every((image) => image.complete)).toBe(true);
+  phase("paint");
   // Let the resized workspace and the theme owner's deferred invalidation paint.
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
-  await Promise.all(
-    document
-      .getAnimations()
-      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
-      .map((animation) => animation.finished.catch(() => {})),
-  );
+  phase("animations");
+  // Capture readiness follows the current rendered effects. A captured CSS
+  // transition's finished promise can remain unresolved after a rerender.
+  await expect
+    .poll(
+      () => {
+        const animations = document
+          .getAnimations()
+          .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+        document.documentElement.dataset.captureAnimations = JSON.stringify(
+          animations.map((animation) => ({
+            state: animation.playState,
+            pending: animation.pending,
+            rate: animation.playbackRate,
+            timing: animation.effect?.getComputedTiming(),
+            target:
+              animation.effect instanceof KeyframeEffect &&
+              animation.effect.target instanceof Element
+                ? `${animation.effect.target.tagName}.${animation.effect.target.getAttribute("class") ?? ""}`
+                : null,
+          })),
+        );
+        return animations.every(
+          (animation) => !animation.pending && ["finished", "idle"].includes(animation.playState),
+        );
+      },
+      { timeout: animationTimeout, message: "Current finite capture animations remain active" },
+    )
+    .toBe(true);
+  phase("complete");
 }
 afterEach(() => {
+  vi.restoreAllMocks();
+  for (const key of ["capturePhase", "captureVisibility", "captureFonts", "captureAnimations"])
+    delete document.documentElement.dataset[key];
   stopInteractiveScenarios();
   document.documentElement.style.fontSize = "";
   sessionStorage.removeItem(recoveryKey);
@@ -45,6 +81,47 @@ afterEach(() => {
   document.body.replaceChildren();
   window.history.replaceState(null, "", "/");
 });
+
+it("waits for current effects without awaiting obsolete transition promises", async () => {
+  let finished = false;
+  const obsolete = {
+    playState: "running",
+    pending: false,
+    effect: { getComputedTiming: () => ({ iterations: 1 }) },
+    finished: new Promise<void>(() => {}).then(() => {
+      finished = true;
+    }),
+  } as unknown as Animation;
+  let current = [obsolete];
+  const observed = vi.spyOn(document, "getAnimations").mockImplementation(() => current);
+  let settled = false;
+  const waiting = settleCapture().then(() => {
+    settled = true;
+  });
+  await expect.poll(() => observed.mock.calls.length).toBeGreaterThanOrEqual(2);
+  expect(settled).toBe(false);
+  current = [];
+  await waiting;
+  expect(finished).toBe(false);
+  expect(settled).toBe(true);
+});
+
+it.each(["running", "paused", "pending"])(
+  "refuses capture while a current finite effect is %s",
+  async (state) => {
+    vi.spyOn(document, "getAnimations").mockReturnValue([
+      {
+        playState: state === "pending" ? "idle" : state,
+        pending: state === "pending",
+        effect: { getComputedTiming: () => ({ iterations: 1 }) },
+      } as unknown as Animation,
+    ]);
+    await expect(settleCapture(150)).rejects.toThrow(
+      /Current finite capture animations remain active/,
+    );
+    expect(document.documentElement.dataset.capturePhase).toBe("animations");
+  },
+);
 
 it.each(["dark", "light"])(
   "keeps enlarged %s rows readable and checks the changed controls",
@@ -85,7 +162,10 @@ it.each(["dark", "light"])(
     expect(readiness.getBoundingClientRect().height).toBeLessThanOrEqual(
       parseFloat(getComputedStyle(readiness).lineHeight) + 1,
     );
-    const play = row.querySelector<HTMLButtonElement>('button[data-variant="primary"]')!;
+    const play = [...row.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Play",
+    )!;
+    expect(play.dataset.variant).toBe("outline");
     expect(play.textContent).toBe("Play");
     play.focus();
     await expect.element(play).toHaveFocus();
@@ -94,6 +174,7 @@ it.each(["dark", "light"])(
       path: `../../../../outputs/ui-refinement/rows-text-200-wide-${theme}.png`,
     });
   },
+  45_000,
 );
 
 it("keeps enlarged review facts and cancellation reachable", async () => {
@@ -106,7 +187,7 @@ it("keeps enlarged review facts and cancellation reachable", async () => {
       exact: true,
     })
     .click();
-  await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
+  await page.getByRole("button", { name: "Review setup", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect.element(dialog.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
   expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
@@ -116,13 +197,14 @@ it("keeps enlarged review facts and cancellation reachable", async () => {
   await page.getByRole("button", { name: "Cancel review", exact: true }).click();
   await expect.element(dialog).not.toBeInTheDocument();
   await expect
-    .element(page.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(page.getByRole("button", { name: "Review setup", exact: true }))
     .toHaveFocus();
 });
 
 it("keeps one named readiness choice across narrow, desktop and enlarged widths", async () => {
   await page.viewport(320, 900);
   mount("library");
+  await openAdvancedFilters();
   const readiness = page.getByRole("combobox", { name: /^Readiness/ });
   await expect.element(readiness).toBeVisible();
   await readiness.click();
@@ -174,6 +256,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
       }),
     )
     .not.toBeInTheDocument();
+  await openAdvancedFilters();
   await page.getByRole("combobox", { name: /^Readiness / }).click();
   await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
   await expect
@@ -194,14 +277,14 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
     }),
   );
   await expect
-    .element(page.getByRole("button", { name: "Back to previous workspace", exact: true }))
+    .element(page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }))
     .toBeVisible();
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent).toContain(
     "Harbor Adventure",
   );
   expect(document.querySelector('[data-artwork-source="generated_fallback"]')).not.toBeNull();
   await userEvent.click(
-    page.getByRole("button", { name: "Back to previous workspace", exact: true }),
+    page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }),
   );
   await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("Harbor");
   await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();
@@ -233,10 +316,10 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .not.toBeInTheDocument();
   const next = page.getByRole("region", { name: "Game actions", exact: true });
   await expect
-    .element(next.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(next.getByRole("button", { name: "Review setup", exact: true }))
     .toBeEnabled();
   expect(next.element().textContent).toContain("Harbor Adventure");
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await expect.element(page.getByText("Selected game files", { exact: true })).toBeVisible();
   await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
@@ -255,19 +338,19 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .toBeVisible();
   await userEvent.keyboard("{Alt>}{Shift>}C{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}F{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await expect
     .element(page.getByText("The demo setup did not finish.", { exact: false }).first())
     .toBeVisible();
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}{Enter}{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await expect
-    .element(page.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(page.getByRole("button", { name: "Review setup", exact: true }))
     .not.toBeInTheDocument();
   await expect
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)

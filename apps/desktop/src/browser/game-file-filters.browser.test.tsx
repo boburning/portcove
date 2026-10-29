@@ -1,3 +1,8 @@
+import {
+  filterChoice,
+  closeFilterPanel,
+  openAdvancedFilters as openAdvancedPanel,
+} from "../../test/filter-fields";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
@@ -202,18 +207,9 @@ afterEach(() => {
 const button = (name: string) => page.getByRole("button", { name, exact: true });
 async function openAdvancedFilters(name: string) {
   await userEvent.click(button(name));
-  if (!document.querySelector<HTMLDetailsElement>(".catalog-filter-panel details")?.open)
-    await userEvent.click(page.getByText("Advanced filters", { exact: true }));
+  await openAdvancedPanel();
 }
-async function closeFilters() {
-  await userEvent.keyboard("{Escape}");
-  await expect
-    .element(page.getByRole("region", { name: "Filter options", exact: true }))
-    .not.toBeInTheDocument();
-  await expect
-    .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
-    .toHaveFocus();
-}
+const closeFilters = closeFilterPanel;
 const noAdditionalChecks = () => {
   expect(desktopApi.libraryIdentity).toHaveBeenCalledTimes(1);
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
@@ -228,8 +224,8 @@ it.each(["dark", "light"])(
     flushSync(() => root.render(<Fixture />));
     await openAdvancedFilters("Filters (0)");
     await expect
-      .element(button("Compatible complete files available (unavailable)"))
-      .toBeDisabled();
+      .element(await filterChoice("Compatible complete files available (unavailable)"))
+      .toHaveAttribute("aria-disabled", "true");
     expect(desktopApi.refreshGameFileQuery).not.toHaveBeenCalled();
     await userEvent.click(button("Check game-file filters"));
     for (const label of [
@@ -239,8 +235,8 @@ it.each(["dark", "light"])(
       "No files to add in Portcove",
       "Unavailable context",
     ])
-      await expect.element(button(`${label} (1)`)).toBeEnabled();
-    await userEvent.click(button("Compatible complete files available (1)"));
+      await expect.element(await filterChoice(`${label} (1)`)).toBeEnabled();
+    await userEvent.click(await filterChoice("Compatible complete files available (1)"));
     await closeFilters();
     await expect
       .element(page.getByRole("region", { name: "Filter options", exact: true }))
@@ -268,7 +264,9 @@ it.each(["dark", "light"])(
       .toBeInTheDocument();
     await userEvent.fill(page.getByRole("textbox", { name: "Search catalog" }), "no match");
     await openAdvancedFilters("Filters (1)");
-    await expect.element(button("Compatible complete files available (0)")).toBeEnabled();
+    await expect
+      .element(await filterChoice("Compatible complete files available (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
     await closeFilters();
     noAdditionalChecks();
     expect(document.body.textContent).not.toContain("/private-game-files");
@@ -279,7 +277,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
   flushSync(() => root.render(<Fixture />));
   await openAdvancedFilters("Filters (0)");
   await userEvent.click(button("Check game-file filters"));
-  await userEvent.click(button("Needs checking (1)"));
+  await userEvent.click(await filterChoice("Needs checking (1)"));
   await closeFilters();
   await openDiscoverPort("checking");
   await expect
@@ -295,7 +293,9 @@ it("retains unavailable choices across library invalidation, persistence and iso
   await userEvent.click(button("Back to previous workspace"));
   await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
-  await expect.element(button("Needs checking (unavailable)")).toBeDisabled();
+  await expect
+    .element(await filterChoice("Needs checking (unavailable)"))
+    .toHaveAttribute("aria-disabled", "true");
   await closeFilters();
   await userEvent.click(button("Switch library"));
   await expect.element(button("Filters (0)")).toBeInTheDocument();
@@ -374,8 +374,8 @@ it.each(["dark", "light"])(
     await userEvent.click(button("Back to previous workspace"));
     await openAdvancedFilters("Filters (0)");
     await expect
-      .element(button("Compatible complete files available (unavailable)"))
-      .toBeDisabled();
+      .element(await filterChoice("Compatible complete files available (unavailable)"))
+      .toHaveAttribute("aria-disabled", "true");
     noAdditionalChecks();
   },
 );

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import { readFileSync, copyFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
@@ -850,5 +852,350 @@ Write-Output 'actual-multiple-node-path-and-wrong-first-version-controls-pass'
       existsSync(path.join(root, "portcove-hosted-windows-connected-diagnostic")),
       false,
     );
+  },
+);
+
+void test(
+  "diagnostic original controller reaches ready before ACK and retains startup refusal without private effects",
+  { skip: process.platform !== "win32", timeout: 300000 },
+  async (t) => {
+    await assert.doesNotReject(
+      import(new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url).href),
+      "Original C fixture requires the real locked repository import closure before launch",
+    );
+    const root = disposableDirectory(t, path.join(homedir(), ".pc-diagnostic-startup-"));
+    const emptyHooks = path.join(root, "empty hooks"),
+      emptyGitConfig = path.join(root, "empty-git-config");
+    mkdirSync(emptyHooks);
+    writeFileSync(emptyGitConfig, "");
+    const launcherOriginal = readFileSync(
+      new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+      "utf8",
+    );
+    const controllerOriginal = readFileSync(
+      new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+      "utf8",
+    );
+    const once = (value: string, before: string, after: string) => {
+      assert.equal(
+        value.split(before).length,
+        2,
+        `Owned startup control must replace exactly one ${before.slice(0, 70)}`,
+      );
+      return value.replace(before, after);
+    };
+    for (const variant of [
+      "ready",
+      "wrong-source",
+      "wrong-pid",
+      "wrong-birth",
+      "refused-input",
+      "exit-259",
+      "unavailable-retention",
+    ] as const) {
+      const source = path.join(root, variant, "source with spaces"),
+        temporary = path.join(root, variant, "temporary");
+      mkdirSync(path.join(source, "scripts"), { recursive: true });
+      mkdirSync(temporary);
+      let launcher = once(
+        launcherOriginal,
+        "$connectedDiagnosticLaunchAuthorized=$false",
+        "$connectedDiagnosticLaunchAuthorized=$true",
+      );
+      // This owned copy can never publish ACK or cross into tools/account/station effects.
+      launcher = once(
+        launcher,
+        "$clock.ElapsedMilliseconds -ge 330000",
+        "$clock.ElapsedMilliseconds -ge 20000",
+      );
+      launcher = once(
+        launcher,
+        "$ack=[ordered]@{schema_version=1;",
+        "throw 'Owned startup control stops before ACK';\n    $ack=[ordered]@{schema_version=1;",
+      );
+      let controller = once(
+        controllerOriginal,
+        "hostedWindowsConnectedDiagnosticExecutionAuthorized = false",
+        "hostedWindowsConnectedDiagnosticExecutionAuthorized = true",
+      );
+      const relativeImport = /from "(\.\/[^"\n]+[.]mts)"/gu;
+      assert.ok([...controller.matchAll(relativeImport)].length > 0);
+      controller = controller.replace(
+        relativeImport,
+        (_match: string, specifier: string) =>
+          `from ${JSON.stringify(new URL(specifier, import.meta.url).href)}`,
+      );
+      assert.equal([...controller.matchAll(relativeImport)].length, 0);
+      controller = once(
+        controller,
+        "const inputs = await readOriginalHostedWindowsDiagnosticInputs();",
+        variant === "refused-input" || variant === "unavailable-retention"
+          ? 'const inputs: Inputs = await (async () => { requireOriginalHostedWindowsDiagnosticContext(); throw Object.assign(new Error("synthetic-private-startup-marker"), {code:"ERR_ASSERTION"}); })();'
+          : 'requireOriginalHostedWindowsDiagnosticContext(); const inputs = {source:process.env.GITHUB_SHA,tree:execFileSync("git",["rev-parse","HEAD^{tree}"],{encoding:"utf8",timeout:5000}).trim(),run_id:process.env.GITHUB_RUN_ID,workflow:process.env.GITHUB_WORKFLOW_REF} as Inputs;',
+      );
+      if (variant === "unavailable-retention")
+        controller = once(
+          controller,
+          'throw Object.assign(new Error("synthetic-private-startup-marker")',
+          'delete process.env.RUNNER_TEMP; throw Object.assign(new Error("synthetic-private-startup-marker")',
+        );
+      const budget =
+        'const budget = await readOrdinaryHostedWindowsDiagnosticDeadline({\n    source: inputs.source,\n    run_id: inputs.run_id,\n    attempt: "1",\n  });'.replaceAll(
+          "\\n",
+          "\n",
+        );
+      controller = once(controller, budget, "const budget = {deadline:performance.now()+10000};");
+      controller = once(
+        controller,
+        "const built = await freshTools(inputs, budget.deadline),",
+        'await retain(path.join(controlRoot(),"fixture-effects-reached.json"),{unexpected:true}); throw new Error("Owned fixture must never cross ACK"); const built = await freshTools(inputs, budget.deadline),',
+      );
+      const start = controller.indexOf("async function acknowledgeOriginalControllerStart("),
+        end = controller.indexOf("async function originalController(", start);
+      assert.ok(start > 0 && end > start);
+      let readiness = controller.slice(start, end);
+      if (variant === "wrong-source")
+        readiness = once(
+          readiness,
+          "source: inputs.source,",
+          'source: inputs.source === "a".repeat(40) ? "b".repeat(40) : "a".repeat(40),',
+        );
+      if (variant === "wrong-pid")
+        readiness = once(readiness, "pid: process.pid,", "pid: process.pid+1,");
+      if (variant === "wrong-birth")
+        readiness = once(readiness, "created_filetime: created,", 'created_filetime:"1",');
+      controller = controller.slice(0, start) + readiness + controller.slice(end);
+      if (variant === "exit-259")
+        controller = once(controller, "function held() {", "process.exit(259);\nfunction held() {");
+      writeFileSync(
+        path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+        launcher,
+      );
+      writeFileSync(
+        path.join(source, "scripts/release-hosted-native-windows-diagnostic.mts"),
+        controller,
+      );
+      copyFileSync(
+        new URL("./release-hosted-native-windows-setup.cs.txt", import.meta.url),
+        path.join(source, "scripts/release-hosted-native-windows-setup.cs.txt"),
+      );
+      const git = (args: string[]) => {
+        const result = spawnSync(
+          "git",
+          [
+            "-c",
+            `core.hooksPath=${emptyHooks}`,
+            "-c",
+            "commit.gpgsign=false",
+            "-C",
+            source,
+            ...args,
+          ],
+          {
+            encoding: "utf8",
+            timeout: 15000,
+            windowsHide: true,
+            env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: emptyGitConfig },
+          },
+        );
+        assert.equal(result.status, 0, result.stderr);
+        return result.stdout.trim();
+      };
+      git(["init", "--quiet"]);
+      git(["config", "core.autocrlf", "false"]);
+      git(["add", "scripts"]);
+      git([
+        "-c",
+        "user.name=Portcove Startup Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "--quiet",
+        "-m",
+        "inert owned startup fixture",
+      ]);
+      const sha = git(["rev-parse", "HEAD"]),
+        tree = git(["rev-parse", "HEAD^{tree}"]);
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-File",
+          path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+        ],
+        {
+          encoding: "utf8",
+          timeout: 35000,
+          windowsHide: true,
+          maxBuffer: 65536,
+          cwd: source,
+          env: {
+            ...process.env,
+            GITHUB_ACTIONS: "true",
+            RUNNER_ENVIRONMENT: "github-hosted",
+            GITHUB_REPOSITORY: "boburning/portcove",
+            GITHUB_JOB: "installed-prerequisite",
+            GITHUB_EVENT_NAME: "workflow_dispatch",
+            GITHUB_RUN_ATTEMPT: "1",
+            GITHUB_RUN_ID: "123",
+            GITHUB_SHA: sha,
+            GITHUB_WORKFLOW_REF:
+              "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+            RUNNER_TEMP: temporary,
+            RUNNER_TRACKING_ID: process.env.RUNNER_TRACKING_ID ?? "owned-startup-fixture",
+            PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
+            PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
+            PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
+          },
+        },
+      );
+      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.status, 1, result.stderr);
+      const control = path.join(temporary, "portcove-hosted-windows-connected-diagnostic"),
+        reportBytes = readFileSync(path.join(control, "controller-startup-public.json"));
+      assert.ok(reportBytes.length <= 65536);
+      t.diagnostic(
+        "bounded-public-startup-observation " + variant + " " + reportBytes.toString("utf8"),
+      );
+      const report: unknown = JSON.parse(reportBytes.toString("utf8"));
+      assert.ok(isRecord(report));
+      const observedReadyPath = path.join(control, "controller-ready.json");
+      if (existsSync(observedReadyPath)) {
+        const observedReady = readFileSync(observedReadyPath);
+        assert.ok(observedReady.length <= 16384);
+        const ready: unknown = JSON.parse(observedReady.toString("utf8"));
+        assert.ok(isRecord(ready));
+        assert.match(String(ready.source), /^[a-f0-9]{40}$/u);
+        assert.match(String(ready.tree), /^[a-f0-9]{40}$/u);
+        assert.match(String(ready.run_id), /^[1-9][0-9]{0,15}$/u);
+        assert.equal(ready.attempt, 1);
+        assert.equal(ready.schema_version, 1);
+        assert.equal(typeof ready.pid, "number");
+        assert.ok(
+          typeof ready.pid === "number" &&
+            Number.isSafeInteger(ready.pid) &&
+            ready.pid > 0 &&
+            ready.pid <= 2147483647,
+        );
+        assert.match(String(ready.created_filetime), /^[1-9][0-9]{0,18}$/u);
+        assert.equal(ready.authority, "none");
+        assert.equal(
+          ready.workflow,
+          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+        );
+        const readySha = createHash("sha256").update(observedReady).digest("hex");
+        assert.equal(readySha, report.ready_sha256);
+        t.diagnostic(
+          "bounded-public-original-ready " +
+            JSON.stringify({
+              variant,
+              schema_version: ready.schema_version,
+              source: ready.source,
+              tree: ready.tree,
+              run_id: ready.run_id,
+              attempt: ready.attempt,
+              workflow: ready.workflow,
+              pid: ready.pid,
+              created_filetime: ready.created_filetime,
+              authority: ready.authority,
+              ready_sha256: readySha,
+            }),
+        );
+      }
+      assert.ok(isRecord(report.controller));
+      const originalController = report.controller;
+      assert.ok(isRecord(originalController.original_observation));
+      assert.ok(isRecord(originalController.settled_observation));
+      const before = originalController.original_observation,
+        settled = originalController.settled_observation;
+      assert.equal(report.source, sha);
+      assert.equal(report.tree, tree);
+      assert.equal(report.run_id, "123");
+      assert.equal(report.attempt, 1);
+      assert.equal(report.ack_publication_attempted, false);
+      assert.equal(report.ack_durably_written, false);
+      assert.equal(report.cleanup, "original-process-exit-observed");
+      assert.equal(settled.Alive, false);
+      assert.equal(typeof originalController.pid, "number");
+      assert.ok(
+        typeof originalController.pid === "number" &&
+          Number.isSafeInteger(originalController.pid) &&
+          originalController.pid > 0,
+      );
+      assert.equal(typeof originalController.created_filetime, "string");
+      assert.match(String(originalController.created_filetime), /^[1-9][0-9]{0,18}$/u);
+      assert.equal(
+        report.ready_verified,
+        variant === "ready",
+        "bounded-public-startup-observation " + variant + " " + reportBytes.toString("utf8"),
+      );
+      if (
+        variant !== "refused-input" &&
+        variant !== "unavailable-retention" &&
+        variant !== "exit-259"
+      ) {
+        const readyBytes = readFileSync(path.join(control, "controller-ready.json"));
+        const ready: unknown = JSON.parse(readyBytes.toString("utf8"));
+        assert.ok(isRecord(ready));
+        assert.equal(
+          ready.source,
+          variant === "wrong-source"
+            ? sha === "a".repeat(40)
+              ? "b".repeat(40)
+              : "a".repeat(40)
+            : sha,
+        );
+        assert.equal(
+          ready.pid,
+          variant === "wrong-pid" ? Number(originalController.pid) + 1 : originalController.pid,
+        );
+        assert.equal(
+          ready.created_filetime,
+          variant === "wrong-birth" ? "1" : originalController.created_filetime,
+        );
+        assert.equal(ready.tree, tree);
+        assert.equal(ready.run_id, "123");
+        assert.equal(ready.attempt, 1);
+        assert.equal(
+          ready.workflow,
+          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+        );
+        assert.equal(ready.authority, "none");
+        assert.equal(report.ready_sha256, createHash("sha256").update(readyBytes).digest("hex"));
+        assert.equal(before.Alive, true);
+        assert.equal(before.ExitCode, null);
+      }
+
+      assert.equal(existsSync(path.join(control, "controller-start-ack.json")), false);
+      assert.equal(existsSync(path.join(control, "fixture-effects-reached.json")), false);
+      assert.equal(
+        existsSync(path.join(source, "work/hosted-windows-connected-diagnostic/owner")),
+        false,
+      );
+      assert.equal(reportBytes.includes(Buffer.from("synthetic-private-startup-marker")), false);
+      if (variant === "refused-input") {
+        assert.equal(before.Alive, false);
+        assert.equal(before.ExitCode, 2);
+        assert.ok(isRecord(report.controller_failure));
+        assert.equal(report.controller_failure.status, "retained");
+        assert.equal(report.controller_failure.phase, "inputs-verifying");
+        assert.ok(isRecord(report.controller_failure.error));
+        assert.equal(report.controller_failure.error.code, "ERR_ASSERTION");
+      } else if (variant === "unavailable-retention") {
+        assert.equal(before.Alive, false);
+        assert.equal(before.ExitCode, 2);
+        assert.ok(isRecord(report.controller_failure));
+        assert.equal(report.controller_failure.status, "missing");
+        assert.equal(existsSync(path.join(control, "controller-failure.json")), false);
+      } else if (variant === "exit-259") {
+        assert.equal(before.Alive, false);
+        assert.equal(before.ExitCode, 259);
+      } else if (variant === "ready") {
+        assert.equal(before.Alive, true);
+        assert.equal(before.ExitCode, null);
+        assert.equal(report.phase, "ready-verified");
+      }
+    }
   },
 );

@@ -271,7 +271,7 @@ async function readOriginalDiagnosticDrivers(version: string, deadline: number) 
  * This is neither an admitted candidate nor authority to execute its bytes.
  * The separately held controller calls it only after the rehearsal has restored
  * the original tracked checkout and removed the disposable private key. */
-export async function readOriginalHostedWindowsDiagnosticInputs() {
+export function requireOriginalHostedWindowsDiagnosticContext() {
   assert.equal(process.platform, "win32");
   assert.equal(process.arch, "x64");
   assert.equal(process.env.GITHUB_EVENT_NAME, "workflow_dispatch");
@@ -292,6 +292,10 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
     workflow ?? "",
     /^boburning\/portcove\/[.]github\/workflows\/hosted-native-continuity[.]yml@refs\/heads\/(?:main|feature\/534-[A-Za-z0-9-]+)$/u,
   );
+  return { source: source!, workflow: workflow!, run_id: run_id! };
+}
+export async function readOriginalHostedWindowsDiagnosticInputs() {
+  const { source, workflow, run_id } = requireOriginalHostedWindowsDiagnosticContext();
   const routeNames = [
     "GITHUB_SHA",
     "GITHUB_WORKFLOW_REF",
@@ -430,7 +434,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
       input,
       label: "windows-x86_64",
       publicKey,
-      revision: source!,
+      revision: source,
       version,
       verifier,
     });
@@ -480,7 +484,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   );
   const fixture = inspectDiagnosticFixtureDerivation(
     derivation,
-    { source: source!, tree, run_id: run_id!, workflow: workflow! },
+    { source: source, tree, run_id: run_id, workflow: workflow },
     observed,
   );
   for (const [filename, bytes] of evidence)
@@ -493,10 +497,10 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   assert.equal(checkout(), tree);
   active();
   return {
-    source: source!,
+    source: source,
     tree,
-    run_id: run_id!,
-    workflow: workflow!,
+    run_id: run_id,
+    workflow: workflow,
     stages,
     runtime,
     drivers,

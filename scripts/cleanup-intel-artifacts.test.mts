@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cleanup, consumedTransfer } from "./cleanup-intel-artifacts.mts";
+import { cleanup, consumedTransfer, parseCleanupArgs } from "./cleanup-intel-artifacts.mts";
 
 const artifact = { id: 10, name: "intel-rust-tests-1", expired: false, workflow_run: { id: 20 } };
 const run = {
@@ -61,9 +61,9 @@ void test("dry run never deletes; apply checks identity and verifies deletion", 
       return { body: artifact };
     },
   };
-  assert.deepEqual(cleanup(api).eligible, [10]);
+  assert.deepEqual(cleanup(api, { runId: 20 }).eligible, [10]);
   assert.equal(deleted, false);
-  assert.deepEqual(cleanup(api, { apply: true }).deleted, [10]);
+  assert.deepEqual(cleanup(api, { apply: true, runId: 20 }).deleted, [10]);
 });
 void test("incomplete pagination and a concurrently restarted run block deletion", () => {
   const incomplete = {
@@ -72,7 +72,7 @@ void test("incomplete pagination and a concurrently restarted run block deletion
       throw new Error("incomplete");
     },
   };
-  assert.throws(() => cleanup(incomplete, { apply: true }), /incomplete/u);
+  assert.throws(() => cleanup(incomplete, { apply: true, runId: 20 }), /incomplete/u);
   let reads = 0;
   const api = {
     paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
@@ -83,7 +83,7 @@ void test("incomplete pagination and a concurrently restarted run block deletion
       return { body: artifact };
     },
   };
-  assert.throws(() => cleanup(api, { apply: true }), /changed/u);
+  assert.throws(() => cleanup(api, { apply: true, runId: 20 }), /changed/u);
 });
 
 void test("unknown artifact expiry cannot authorize cleanup", () => {
@@ -98,7 +98,7 @@ void test("unknown artifact expiry cannot authorize cleanup", () => {
         return { body: run };
       },
     };
-    const result = cleanup(api, { apply: true });
+    const result = cleanup(api, { apply: true, runId: 20 });
     assert.equal(deletions, 0);
     assert.deepEqual(result.eligible, []);
     assert.equal(result.preserved, 1);
@@ -130,10 +130,115 @@ void test("uncertain deletion is not retried and readable artifacts retain the o
       },
     };
     assert.throws(
-      () => cleanup(api, { apply: true }),
+      () => cleanup(api, { apply: true, runId: 20 }),
       (error: unknown) => error === failure,
     );
     assert.equal(deletions, 1);
     assert.equal(readbacks, 1);
   }
+});
+
+void test("completion event enumerates only its run and ignores unrelated artifacts", () => {
+  const calls: string[] = [];
+  let deletions = 0;
+  const api = {
+    paginateRest: (endpoint: string) => {
+      calls.push(endpoint);
+      return endpoint.includes("/jobs?")
+        ? jobs
+        : [{ ...artifact, id: 11, name: "other" }, artifact];
+    },
+    request: (method: string, endpoint: string) => {
+      if (method === "DELETE") deletions++;
+      return { body: endpoint.endsWith("/runs/20") ? run : artifact };
+    },
+  };
+  assert.deepEqual(cleanup(api, { runId: 20 }).eligible, [10]);
+  assert.equal(deletions, 0);
+  assert.equal(calls[0], "repos/boburning/portcove/actions/runs/20/artifacts?per_page=100");
+  assert.equal(calls[1], "repos/boburning/portcove/actions/runs/20/attempts/1/jobs?per_page=100");
+  assert.equal(calls.length, 2);
+});
+
+void test("hourly recovery enumerates exact names, never the entire repository inventory", () => {
+  const calls: string[] = [];
+  const api = {
+    paginateRest: (endpoint: string) => {
+      calls.push(endpoint);
+      if (endpoint.includes("/jobs?")) return jobs;
+      return endpoint.includes("name=intel-rust-tests-1&") ? [artifact] : [];
+    },
+    request: (_method: string, endpoint: string) => ({
+      body: endpoint.endsWith("/runs/20") ? run : artifact,
+    }),
+  };
+  assert.deepEqual(cleanup(api).eligible, [10]);
+  assert.deepEqual(
+    calls.slice(0, 4),
+    [1, 2, 3, 4].map(
+      (attempt) =>
+        `repos/boburning/portcove/actions/artifacts?name=intel-rust-tests-${attempt}&per_page=100`,
+    ),
+  );
+  assert.equal(calls.length, 5);
+});
+
+void test("an exact run supports arbitrary higher attempts without requiring a broad scan", () => {
+  const attempt = 27;
+  const candidate = { ...artifact, name: `intel-rust-tests-${attempt}` };
+  const runAtAttempt = { ...run, run_attempt: attempt };
+  const calls: string[] = [];
+  const api = {
+    paginateRest: (endpoint: string) => {
+      calls.push(endpoint);
+      return endpoint.includes("/jobs?") ? jobs : [candidate];
+    },
+    request: (_method: string, endpoint: string) => ({
+      body: endpoint.endsWith("/runs/20") ? runAtAttempt : candidate,
+    }),
+  };
+  assert.deepEqual(cleanup(api, { runId: 20 }).eligible, [10]);
+  assert.equal(calls.length, 2);
+});
+
+void test("a foreign artifact, duplicate sweep inventory or invalid run ID fails before deletion", () => {
+  let effects = 0;
+  const foreign = {
+    paginateRest: () => [{ ...artifact, workflow_run: { id: 99 } }],
+    request: () => {
+      effects++;
+      return { body: run };
+    },
+  };
+  assert.throws(() => cleanup(foreign, { apply: true, runId: 20 }), /selected run/u);
+  assert.equal(effects, 0);
+  const duplicates = {
+    paginateRest: () => [artifact],
+    request: () => {
+      effects++;
+      return { body: run };
+    },
+  };
+  assert.throws(() => cleanup(duplicates, { apply: true }), /duplicate artifact/u);
+  assert.equal(effects, 0);
+  assert.throws(() => cleanup(duplicates, { runId: Number.NaN }), /positive safe/u);
+  assert.throws(() => cleanup(duplicates, { runId: 0 }), /positive safe/u);
+  assert.equal(effects, 0);
+});
+
+void test("CLI accepts only valid exact run IDs and explicit apply", () => {
+  assert.deepEqual(parseCleanupArgs([]), { apply: false, runId: null });
+  assert.deepEqual(parseCleanupArgs(["--apply", "--run-id", "20"]), { apply: true, runId: 20 });
+  assert.deepEqual(parseCleanupArgs(["--run-id", "27"]), { apply: false, runId: 27 });
+  for (const args of [
+    ["--run-id"],
+    ["--run-id", "0"],
+    ["--run-id", "-1"],
+    ["--run-id", "1e3"],
+    ["--run-id", "9007199254740992"],
+    ["--run-id", "1", "--run-id", "2"],
+    ["--apply", "--apply"],
+    ["--unknown"],
+  ])
+    assert.throws(() => parseCleanupArgs(args));
 });

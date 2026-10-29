@@ -28,9 +28,7 @@ describe("static development scenarios", () => {
 
   it("uses current product presentation as positive controls", () => {
     expect(renderScenario("ready-game")).toContain("Play");
-    expect(renderScenario("filtered-empty-library")).toContain(
-      "No ports in your library match your search and filters",
-    );
+    expect(renderScenario("filtered-empty-library")).toContain("No matching library entries");
     const unavailableLibrary = renderScenario("unavailable-library");
     expect(unavailableLibrary).toContain("Library information could not be loaded");
     expect(unavailableLibrary).toContain("Initial scenario library load failed");
@@ -54,7 +52,7 @@ describe("static development scenarios", () => {
     expect(cancellation).not.toContain("source changed since registration");
     expect(renderScenario("missing-source")).toContain("game files");
     expect(renderScenario("missing-tool")).toContain("Not found");
-    expect(renderScenario("staged-update")).toContain("Use update");
+    expect(renderScenario("staged-update")).toContain("Apply update");
     const updateChoice = renderScenario("application-update-choice-narrow");
     expect(updateChoice).toContain("No application update choice is saved");
     expect(updateChoice).toContain("Automatic checks remain off");
@@ -81,8 +79,8 @@ describe("static development scenarios", () => {
     expect(libraryReference).toContain(">Play</button>");
     expect(libraryReference).not.toContain('class="detail-panel ');
     const libraryAttention = renderScenario("library-reference-attention-narrow");
-    expect(libraryAttention).toContain(">Review game</button>");
-    expect(libraryAttention).toContain("Update prepared");
+    expect(libraryAttention).toContain(">View details</button>");
+    expect(libraryAttention).toContain("Update saved for later");
     expect(libraryAttention).toContain(">Play</button>");
     const gameDetails = renderScenario("game-details-reference-narrow");
     expect(gameDetails).toContain("Play");
@@ -158,7 +156,7 @@ describe("development browser entry", () => {
     expect(preview.inert).toBe(true);
     select.value = "staged-update";
     select.dispatchEvent(new Event("change"));
-    expect(preview.innerHTML).toContain("Use update");
+    expect(preview.innerHTML).toContain("Apply update");
     for (const button of preview.querySelectorAll("button")) button.click();
     expect(invoke).not.toHaveBeenCalled();
     expect(document.querySelector("#scenario-limitation")!.textContent).toContain(

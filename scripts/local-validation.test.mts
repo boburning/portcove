@@ -597,6 +597,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "apps/desktop/scripts/desktop-listener-lifetime.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
     "scripts/desktop-boundary-wiring.test.mts",
+    "scripts/desktop-staged-layout.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
     "scripts/node-platform-skips.test.mts",
@@ -627,6 +628,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/required-node-test-reporter.test.mts",
     "scripts/test-duration-reporter.test.mts",
     "scripts/ui-test-selection.test.mts",
+    "scripts/updater-historical-inputs.test.mts",
     "scripts/windows-historical-bootstrap.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -696,6 +698,7 @@ void test("fixture module closure edits retain all independent policy and constr
   const consumers = [
     "scripts/daily-discovery.test.mts",
     "scripts/desktop-boundary-wiring.test.mts",
+    "scripts/desktop-staged-layout.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
@@ -751,6 +754,7 @@ void test("historical desktop oracle edits retain the decoder and unchanged plan
     for (const contract of [
       "scripts/desktop-execution-baseline.test.mts",
       "scripts/desktop-execution-plan.test.mts",
+      "scripts/native-qualification-inventory.test.mts",
     ])
       assert.ok(selection.nodeTests.has(contract), `${file}: ${contract}`);
   }
@@ -2153,6 +2157,23 @@ void test("every tracked repository path has an explicit local selection owner",
     .filter((file) => file && existsSync(new URL("../" + file, import.meta.url)));
   const selection = classifyChanges(files.map((path) => ({ status: "M", path })));
   assert.deepEqual([...selection.unknown].sort(), []);
+});
+
+void test("RFD source and provenance changes retain Rust, full UI and publisher contracts", () => {
+  for (const file of [
+    "vendor/rfd/src/backend/gtk3/message_dialog.rs",
+    "vendor/rfd-provenance.json",
+    "vendor/rfd-portcove.patch",
+  ]) {
+    for (const status of ["M", "A", "D"]) {
+      const selection = classifyChanges([{ status, path: file }], { fileExists: allFilesExist });
+      assert.equal(selection.workspaceRust, true);
+      assert.equal(selection.uiFullTests, true);
+      assert.equal(selection.browser, true);
+      assert.ok(selection.nodeTests.has("scripts/dependency-automation.test.mts"));
+      assert.equal(selection.unknown.size, 0);
+    }
+  }
 });
 
 void test("the exact development scenario entry selects full UI coverage without admitting other HTML", () => {
@@ -3953,6 +3974,7 @@ void test("native transport producers retain their actual Node consumers across 
         "scripts/desktop-real-runtime.test.mts",
         "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
         "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+        "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
         "scripts/capture-target.test.mts",
       ],
     ],

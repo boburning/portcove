@@ -6,7 +6,11 @@ import {
 } from "../../test-fixtures";
 import type { GameUpdateAcquisition } from "../../types";
 import { filterPorts } from "../../view-model";
-import { browsePortPresentation, browseStatusSummary } from "../port-actions/browse-presentation";
+import {
+  browsePortPresentation,
+  browseStatusSummary,
+  gameFilesPresentation,
+} from "../port-actions/browse-presentation";
 
 const port = portDefinition();
 const healthy = installedLaunchStatus({
@@ -125,4 +129,58 @@ it("retains concurrent input blockers when invalid installation takes precedence
     "library",
   );
   expect(observation.concurrentBlockers).toContain("Required game files are missing.");
+});
+
+it("does not turn legacy file blockers or saved paths into a connected/no-input claim", () => {
+  const noDeclaredInputs = {
+    ...port,
+    source_profile: null,
+    bios_source_profile: null,
+    presentation: {
+      installation_method: "portable-package" as const,
+      saves_and_settings: "portcove-managed" as const,
+      source_requirements: [],
+    },
+  };
+  expect(gameFilesPresentation(noDeclaredInputs, undefined).title).toBe(
+    "No files to add in Portcove",
+  );
+  expect(gameFilesPresentation({ ...noDeclaredInputs, presentation: null }, undefined).title).toBe(
+    "Requirements not available",
+  );
+  for (const blocker of [
+    "changed_source",
+    "unreadable_bios",
+    "incompatible_source",
+    "changed_bios",
+  ] as const) {
+    const status = {
+      ...healthy,
+      readiness: { launchable: false, pending_setup: false, blockers: [blocker] },
+    };
+    expect(gameFilesPresentation(noDeclaredInputs, status).title).toBe("Files need checking");
+  }
+  expect(
+    gameFilesPresentation(port, {
+      ...healthy,
+      readiness: { launchable: false, pending_setup: false, blockers: ["missing_source"] },
+    }).title,
+  ).toBe("Setup needed");
+  expect(
+    gameFilesPresentation(port, {
+      ...healthy,
+      readiness: { launchable: false, pending_setup: false, blockers: [], source: "current" },
+    }).title,
+  ).toBe("Files need checking");
+  expect(gameFilesPresentation(port, healthy).title).toBe("Files connected");
+  const unadmitted = {
+    ...confirmedSourceAssessment(),
+    admission: { ...confirmedSourceAssessment().admission, state: "not_evaluated" as const },
+  };
+  expect(
+    gameFilesPresentation(port, {
+      ...healthy,
+      readiness: { ...healthy.readiness!, source_assessment: unadmitted },
+    }).title,
+  ).toBe("Files need checking");
 });

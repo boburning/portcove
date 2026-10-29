@@ -167,7 +167,7 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: AuthCommand,
     },
-    /// Create, inspect, restore, or delete backups of managed saves and settings.
+    /// Create, inspect, restore, or delete managed saved-data backups.
     Backup {
         #[command(subcommand)]
         command: BackupCommand,
@@ -264,14 +264,14 @@ pub(crate) enum Commands {
     Ensure(EnsureArgs),
     /// Install or stage available game updates for installed ports.
     Update(UpdateArgs),
-    /// Verify the installed files for one port against recorded hashes.
+    /// Check installed files against the full recorded installation manifest.
     Verify {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
     },
-    /// Make a staged release the current installed version.
+    /// Apply a saved release as the current installed version.
     Activate {
-        /// Port with a staged release to activate.
+        /// Port with a saved release retained for later.
         port_id: String,
     },
     /// Return to the retained previous installed version after checking its files.

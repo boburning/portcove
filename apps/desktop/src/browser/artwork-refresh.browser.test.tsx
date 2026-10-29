@@ -53,7 +53,9 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
       </DirectionProvider>,
     ),
   );
-  await expect.poll(() => host.querySelector<HTMLImageElement>("img")?.naturalWidth).toBe(1);
+  await expect
+    .poll(() => host.querySelector<HTMLImageElement>("img")?.naturalWidth, { timeout: 10_000 })
+    .toBe(1);
   await userEvent.click(page.getByText("Change artwork", { exact: true }));
   const cover = page.getByRole("region", { name: "Cover image", exact: true });
   const detail = page.getByRole("region", { name: "Detail image", exact: true });

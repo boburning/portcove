@@ -37,6 +37,8 @@ export function activityPresentationState(
     if (["succeeded", "failed", "cancelled"].includes(activity.status)) return activity.status;
     return "unknown";
   }
+  if (activity.liveness === "active") return "running";
+  if (activity.liveness === "interrupted") return "unfinished";
   return nowSeconds - activity.started_at >= unfinishedActivityAfterSeconds
     ? "unfinished"
     : "running";
@@ -99,40 +101,52 @@ export function progressPresentation(
   range?: { current: number; total: number; percent: number };
 } {
   const presentation = operationPresentation(
-    operation?.type === "progress" ? operation.phase : (operation?.operation ?? busy),
+    operation?.type === "progress"
+      ? (operation.phase_id ?? operation.phase)
+      : (operation?.operation ?? busy),
   );
-  const unknown = { label: presentation.label, detail: presentation.indeterminate };
+  const unit = operation?.type === "progress" ? operation.unit : undefined;
+  const unknown = {
+    label: presentation.label,
+    detail:
+      unit === "bytes"
+        ? "Total size not yet known."
+        : unit === "ports"
+          ? "Port total not yet known."
+          : "Progress total not yet known.",
+  };
   if (operation?.type === "message")
     return { label: presentation.label, detail: operation.message };
   if (operation?.type !== "progress") return unknown;
   const { completed, total } = operation;
+  if (unit === "indeterminate" || (unit != null && !["bytes", "items", "ports"].includes(unit)))
+    return unknown;
   if (!Number.isSafeInteger(completed) || completed < 0) return unknown;
   if (completed === 0 && total === 0) return { label: presentation.label, detail: "" };
   if (total === null || !Number.isSafeInteger(total) || total <= 0) return unknown;
   const current = Math.min(completed, total);
   return {
     label: presentation.label,
-    detail: progressDetail(completed, total, presentation.unit),
+    detail: progressDetail(completed, total, unit ?? undefined),
     range: { current, total, percent: (current / total) * 100 },
   };
 }
 
-type ProgressUnit = "bytes" | "ports";
+type ProgressUnit = "bytes" | "ports" | "items";
 
 type OperationPresentation = {
   label: string;
-  unit?: ProgressUnit;
   indeterminate: string;
 };
 
 function operationPresentation(value: string): OperationPresentation {
   const presentations: Record<string, Omit<OperationPresentation, "indeterminate">> = {
-    download: { label: "Downloading release", unit: "bytes" },
-    download_package: { label: "Downloading upstream package", unit: "bytes" },
-    copy: { label: "Copying game files", unit: "bytes" },
-    "psx-toolchain-download": { label: "Downloading preparation tools", unit: "bytes" },
-    "Checking installed ports": { label: "Checking installed ports", unit: "ports" },
-    "Applying update policies": { label: "Applying update settings", unit: "ports" },
+    download: { label: "Downloading release" },
+    download_package: { label: "Downloading upstream package" },
+    copy: { label: "Copying game files" },
+    "psx-toolchain-download": { label: "Downloading preparation tools" },
+    "Checking installed ports": { label: "Checking installed ports" },
+    "Applying update policies": { label: "Applying update settings" },
     install: { label: "Installing game" },
     update: { label: "Updating game" },
     prepare: { label: "Preparing game" },
@@ -152,21 +166,16 @@ function operationPresentation(value: string): OperationPresentation {
     import_source: { label: "Copying game files" },
     discover_sources: { label: "Searching for game files" },
     update_catalog: { label: "Updating port catalog" },
-    "check installed": { label: "Checking for updates", unit: "ports" },
-    check_installed: { label: "Checking for updates", unit: "ports" },
-    reconcile_installed: { label: "Applying update settings", unit: "ports" },
+    "check installed": { label: "Checking for updates" },
+    check_installed: { label: "Checking for updates" },
+    reconcile_installed: { label: "Applying update settings" },
   };
   const selected = presentations[value];
   const presentation: Omit<OperationPresentation, "indeterminate"> =
     Object.hasOwn(presentations, value) && selected ? selected : { label: "Working" };
   return {
     ...presentation,
-    indeterminate:
-      presentation.unit === "bytes"
-        ? "Total size not yet known."
-        : presentation.unit === "ports"
-          ? "Port total not yet known."
-          : "Progress total not yet known.",
+    indeterminate: "Progress total not yet known.",
   };
 }
 
@@ -174,6 +183,7 @@ function progressDetail(completed: number, total: number, unit: ProgressUnit | u
   if (unit === "bytes") return `${formatBytes(completed)} of ${formatBytes(total)}`;
   const count = `${completed.toLocaleString()} of ${total.toLocaleString()}`;
   if (unit === "ports") return `${count} ${total === 1 ? "port" : "ports"}`;
+  if (unit === "items") return `${count} ${total === 1 ? "item" : "items"}`;
   return count;
 }
 
@@ -196,7 +206,7 @@ export function formatCountMessage(
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";
-export type DetailDestination = "updates" | "saves";
+export type DetailDestination = "updates" | "saves" | "files";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
 export type CatalogSort = "catalog" | "name" | "name-desc" | "recent" | "installed-first";
 export type PortReadiness =

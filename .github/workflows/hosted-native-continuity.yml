@@ -440,6 +440,7 @@ jobs:
           path: |
             work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json
             ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json
+            ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-startup-public.json
           if-no-files-found: warn
           retention-days: 7
           overwrite: false

@@ -702,7 +702,7 @@ export async function installScenarios({
     assert.equal(staged.staged.artifact.sha256, required(published).sha256);
     assert.equal(staged.previous, null);
     const activation = await browser.wait(
-      until.elementLocated(button(`Use update · ${nextVersion}`)),
+      until.elementLocated(button(`Apply update · ${nextVersion}`)),
       15_000,
     );
     const play = await browser.wait(until.elementLocated(button("Play")), 15_000);
@@ -750,7 +750,7 @@ export async function installScenarios({
       async () => {
         const section = await browser.findElement(
           By.css(
-            `.detail-panel[data-detail-port-id="${port.id}"] section[aria-label="Use update saved for later"]`,
+            `.detail-panel[data-detail-port-id="${port.id}"] section[aria-label="Apply saved update"]`,
           ),
         );
         return (await section.getText()).includes(nextVersion);

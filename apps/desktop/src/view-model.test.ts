@@ -19,6 +19,7 @@ import {
   mostRecentPort,
   portReadiness,
   progressPresentation,
+  activityPresentationState,
   requiredSourceNeeds,
   summarizeLibrary,
 } from "./view-model";
@@ -572,3 +573,54 @@ it.each([{ blockers: [] }, { blockers: ["future_blocker" as ReadinessBlocker] }]
     expect(portReadiness({ ...status, staged: status.active })).toBe("blocked");
   },
 );
+
+it("formats progress from producer units independently of display wording", () => {
+  const event = {
+    schema_version: 3,
+    operation_id: "progress",
+    parent_operation_id: null,
+    sequence: 1,
+    timestamp_ms: 1,
+    operation: "download",
+    target: null,
+    type: "progress",
+    phase: "renamed wording",
+    phase_id: "download",
+    unit: "bytes",
+    completed: 1024,
+    total: 2048,
+  } as const;
+  expect(progressPresentation(event, "").detail).toBe("1.0 KiB of 2.0 KiB");
+  expect(progressPresentation({ ...event, phase: "another translation" }, "")).toEqual(
+    progressPresentation(event, ""),
+  );
+  expect(progressPresentation({ ...event, unit: "items" }, "").detail).toBe("1,024 of 2,048 items");
+  expect(progressPresentation({ ...event, unit: "indeterminate" }, "").range).toBeUndefined();
+  const { unit: _unit, phase_id: _phaseId, ...legacy } = event;
+  expect(progressPresentation(legacy, "").detail).toBe("1,024 of 2,048");
+  expect(progressPresentation({ ...event, completed: 2048 }, "").range?.percent).toBe(100);
+});
+
+it("uses Core owner observations before age and preserves terminal outcomes", () => {
+  const activity: ActivityRecord = {
+    id: "owned",
+    operation: "install",
+    target_kind: "port",
+    target_id: "alpha",
+    status: "running",
+    message: null,
+    failure: null,
+    started_at: 1,
+    finished_at: null,
+    cancellation: null,
+  };
+  expect(activityPresentationState({ ...activity, liveness: "active" }, 1000000)).toBe("running");
+  expect(activityPresentationState({ ...activity, liveness: "interrupted" }, 2)).toBe("unfinished");
+  expect(
+    activityPresentationState({ ...activity, status: "succeeded", liveness: "interrupted" }, 2),
+  ).toBe("succeeded");
+  expect(activityPresentationState({ ...activity, liveness: "unknown" }, 2)).toBe("running");
+  expect(activityPresentationState({ ...activity, liveness: "unknown" }, 1000000)).toBe(
+    "unfinished",
+  );
+});

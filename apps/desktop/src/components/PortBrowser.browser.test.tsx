@@ -1,7 +1,7 @@
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { portDefinition } from "../test-fixtures";
+import { portDefinition, installedLaunchStatus } from "../test-fixtures";
 import { focusableControls } from "../focus";
 import { PortBrowser } from "./PortBrowser";
 
@@ -55,7 +55,7 @@ describe("Library card overflow", () => {
     );
     expect(focusableControls(menu as HTMLElement).map((item) => item.textContent)).toEqual([
       "Updates and activity",
-      "Saves and storage",
+      "Saves & backups",
     ]);
     const updates = [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
       (item) => item.textContent === "Updates and activity",
@@ -66,10 +66,48 @@ describe("Library card overflow", () => {
 
     await act(async () => more.click());
     const saves = [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
-      (item) => item.textContent === "Saves and storage",
+      (item) => item.textContent === "Saves & backups",
     )!;
     await act(async () => saves.click());
     expect(onSelect).toHaveBeenCalledWith(port.id, `library:card-more:${port.id}`, "saves");
+  });
+
+  it("routes a recorded input blocker directly to file review without launching", async () => {
+    const port = portDefinition();
+    const status = installedLaunchStatus({
+      launchable: false,
+      pending_setup: false,
+      blockers: ["changed_source"],
+      source: "changed",
+    });
+    const select = vi.fn();
+    const launch = vi.fn();
+    await act(async () =>
+      root.render(
+        <PortBrowser
+          view="library"
+          ports={[port]}
+          statuses={new Map([[port.id, status]])}
+          overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={select}
+          onContinue={launch}
+          loading={false}
+        />,
+      ),
+    );
+    const review = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
+      button.getAttribute("aria-label")?.startsWith("Review setup:"),
+    );
+    expect(review).toBeDefined();
+    await act(async () => review!.click());
+    expect(select).toHaveBeenCalledExactlyOnceWith(
+      port.id,
+      `library:card:${port.id}:review`,
+      "files",
+    );
+    expect(launch).not.toHaveBeenCalled();
   });
 });
 
@@ -105,7 +143,7 @@ describe("Library empty browsing context", () => {
     }
     await act(async () => root.render(<ResetContext />));
     const clear = [...host.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Clear search and filters"),
+      button.textContent?.includes("Reset view"),
     )!;
     await act(async () => {
       clear.focus();
@@ -189,18 +227,20 @@ describe("Library empty browsing context", () => {
     const resultStatus = host.querySelector('[role="status"]');
     expect(resultStatus?.textContent).toBe("0 library entries");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
-    expect(host.textContent).toContain("No ports in your library match your search and filters");
-    expect(host.textContent).toContain("This library has no ports yet");
+    expect(host.textContent).toContain("No matching library entries");
+    expect(host.textContent).toContain(
+      "No library entries match “unmatched title” with the current view.",
+    );
     expect(host.textContent).not.toContain("Your installed ports are still in this library");
     await act(async () =>
       [...host.querySelectorAll("button")]
-        .find((button) => button.textContent?.includes("Clear search and filters"))!
+        .find((button) => button.textContent?.includes("Reset view"))!
         .click(),
     );
     expect(clearFilters).toHaveBeenCalledOnce();
 
     await render("ready", "");
-    expect(host.textContent).toContain("No ports in your library match your search and filters");
+    expect(host.textContent).toContain("No matching library entries");
 
     await render("all", "   ");
     expect(host.querySelector('[role="status"]')).toBe(resultStatus);
@@ -215,6 +255,6 @@ describe("Library empty browsing context", () => {
     );
     expect(connectGameFiles).toHaveBeenCalledOnce();
     expect(host.textContent).toContain("copy a supported installation");
-    expect(host.textContent).not.toContain("Clear search and filters");
+    expect(host.textContent).not.toContain("Reset view");
   });
 });

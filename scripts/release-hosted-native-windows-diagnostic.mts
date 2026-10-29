@@ -12,7 +12,6 @@ import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
 import {
@@ -30,6 +29,7 @@ import {
   inspectWindowsSourceSystemCustody,
   recheckWindowsSourceSystemCustody,
   windowsSourceSystemExecutables,
+  readWindowsNativeProcessFiletime,
 } from "./release-native-runtime-custody.mts";
 import {
   inspectHostedWindowsWorkerRequest,
@@ -38,7 +38,6 @@ import {
 import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
 import {
   windowsOwnerEnvironment,
-  windowsOwnerFiletime,
   captureWindowsOwnerSupervisor,
   writeWindowsOwnerFrame,
   readWindowsOwnerRecord,
@@ -51,6 +50,7 @@ import {
 } from "./release-windows-owner-mechanism.mts";
 import {
   readOriginalHostedWindowsDiagnosticInputs,
+  requireOriginalHostedWindowsDiagnosticContext,
   readOrdinaryHostedWindowsDiagnosticDeadline,
   readBoundedDiagnosticProviderBody,
 } from "./release-hosted-native-windows-diagnostic-source.mts";
@@ -96,11 +96,100 @@ type State = WindowsOwnerMechanismState & {
   stage?: Stage;
   recoveryAttempted: boolean;
 };
+let originalControllerCreated: string | null = null;
+let startupPhase:
+  | "module-loaded"
+  | "source-gate-verified"
+  | "inputs-verifying"
+  | "provider-clock-verifying"
+  | "publishing-ready"
+  | "awaiting-start-ack"
+  | "start-ack-verified" = "module-loaded";
+
+const diagnosticStartupSourceSites = [
+  ["diagnostic-controller", "release-hosted-native-windows-diagnostic.mts"],
+  ["diagnostic-inputs", "release-hosted-native-windows-diagnostic-source.mts"],
+  ["hosted-runtime-input", "hosted-windows-runtime-input.mts"],
+  ["webview-driver", "release-windows-webview-driver.mts"],
+  ["owner-mechanism", "release-windows-owner-mechanism.mts"],
+  ["native-custody", "release-native-runtime-custody.mts"],
+  ["controller-tools", "release-controller-tools.mts"],
+].map(([script, filename]) => {
+  const url = new URL(`./${filename}`, import.meta.url);
+  return { script, paths: [url.href, fileURLToPath(url)] };
+});
+
+/** Public classification only. Unknown strings, stacks and paths never leave C. */
+export function projectDiagnosticStartupFailure(error: unknown) {
+  const names = ["Error", "AssertionError", "TypeError", "RangeError", "SyntaxError"];
+  const codes = [
+    "ERR_ASSERTION",
+    "ERR_MODULE_NOT_FOUND",
+    "MODULE_NOT_FOUND",
+    "ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX",
+    "ERR_UNKNOWN_FILE_EXTENSION",
+    "ERR_INVALID_ARG_VALUE",
+    "ERR_INVALID_ARG_TYPE",
+    "ENOENT",
+    "EACCES",
+    "EPERM",
+    "EINVAL",
+    "ETIMEDOUT",
+  ];
+  let name: unknown, code: string | undefined, message: unknown, stack: unknown;
+  try {
+    if (error instanceof Error) {
+      name = error.name;
+      message = error.message;
+      stack = error.stack;
+    }
+    code = errorCode(error);
+  } catch {
+    /* A hostile accessor is unavailable telemetry, not a replacement failure. */
+  }
+  const bytes = typeof message === "string" ? Buffer.byteLength(message) : null;
+  let source_site: { script: string; line: number; column: number } | null = null;
+  if (typeof stack === "string" && Buffer.byteLength(stack) <= 16384) {
+    for (const frame of stack.split("\n").slice(1, 65)) {
+      for (const site of diagnosticStartupSourceSites)
+        for (const filename of site.paths) {
+          const escaped = filename.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+          const match = new RegExp(
+            `^\\s{0,8}at (?:[^()\\r\\n]{1,160} \\()?${escaped}:([1-9][0-9]{0,6}):([1-9][0-9]{0,4})\\)?$`,
+            "u",
+          ).exec(frame);
+          if (match) {
+            source_site = {
+              script: site.script!,
+              line: Number(match[1]),
+              column: Number(match[2]),
+            };
+            break;
+          }
+        }
+      if (source_site) break;
+    }
+  }
+  return {
+    source_site,
+    name: typeof name === "string" && names.includes(name) ? name : "unclassified",
+    code: code !== undefined && codes.includes(code) ? code : "unclassified",
+    message_utf8_bytes: bytes,
+    message_sha256:
+      typeof message === "string" && bytes !== null && bytes <= 16384
+        ? hash(Buffer.from(message))
+        : null,
+    message_disposition:
+      bytes === null ? "unavailable" : bytes <= 16384 ? "digest-only" : "oversize-not-retained",
+  };
+}
+
 function held() {
   assert.ok(
     hostedWindowsConnectedDiagnosticExecutionAuthorized,
     "Connected Windows diagnostic awaits exact new source/account/candidate/recovery authority",
   );
+  requireOriginalHostedWindowsDiagnosticContext();
 }
 function environment(root: string) {
   return {
@@ -194,9 +283,11 @@ async function recheck(state: State) {
   recheckNativeRuntimeCustody(state.files, state.custody);
   recheckNativeRuntimeCustody(state.inputs.drivers.files, state.inputs.drivers.custody);
   recheckWindowsSourceSystemCustody(state.system);
-  const identity = readProcessIdentity(state.owner.pid);
-  if (state.owner.pid)
-    assert.equal(windowsOwnerFiletime(identity, state.owner.pid), state.owner.created);
+  if (state.owner.pid > 0)
+    assert.equal(
+      readWindowsNativeProcessFiletime(state.owner.pid, state.deadline),
+      state.owner.created,
+    );
   active(state);
 }
 async function remember(state: State, files: string[]) {
@@ -258,7 +349,7 @@ async function account(state: State, enabled: boolean) {
 }
 async function lineage(state: State, pid: number, created: string, parent: number, image: string) {
   active(state);
-  assert.equal(windowsOwnerFiletime(readProcessIdentity(pid), pid), created);
+  assert.equal(readWindowsNativeProcessFiletime(pid, state.deadline), created);
   const value: unknown = JSON.parse(
     os(
       state,
@@ -272,7 +363,7 @@ async function lineage(state: State, pid: number, created: string, parent: numbe
       typeof value.image === "string" &&
       value.image.toLowerCase() === image.toLowerCase(),
   );
-  assert.equal(windowsOwnerFiletime(readProcessIdentity(pid), pid), created);
+  assert.equal(readWindowsNativeProcessFiletime(pid, state.deadline), created);
   active(state);
 }
 async function station(state: State, before: Buffer) {
@@ -804,9 +895,9 @@ async function recover(state: State) {
   state.stopped = true;
   state.signal.emit("SIGTERM");
   await state.running;
-  const owner = readProcessIdentity(state.owner.pid);
+  const owner = readWindowsNativeProcessFiletime(state.owner.pid, state.deadline);
   assert.notEqual(
-    owner && windowsOwnerFiletime(owner, state.owner.pid),
+    owner,
     state.owner.created,
     "Original owner is still live; no competing recovery",
   );
@@ -1047,10 +1138,21 @@ async function retainDiagnosticPublicSettlement(
 ) {
   // Metadata-only finalization, not another owner/execution budget. No native
   // effect, recovery retry or deadline renewal is allowed here.
+  const metadataDeadline = performance.now() + 5000;
   const records = await collectHostedWindowsDiagnosticPublicSettlement(
     state.root,
-    performance.now() + 5000,
+    metadataDeadline,
   );
+  let originalOwnerExited: true | "Unknown" = "Unknown";
+  try {
+    const remainingDeadline = Math.min(state.deadline, metadataDeadline);
+    if (state.owner.pid > 0 && performance.now() < remainingDeadline) {
+      if (readWindowsNativeProcessFiletime(state.owner.pid, remainingDeadline) === null)
+        originalOwnerExited = true;
+    }
+  } catch {
+    // Optional metadata cannot discard original settlement/recovery records.
+  }
   await retain(
     path.join(diagnosticRoot, "diagnostic-public-settlement.json"),
     {
@@ -1062,13 +1164,12 @@ async function retainDiagnosticPublicSettlement(
       workflow: state.inputs.workflow,
       controller: {
         pid: process.pid,
-        created_filetime: windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid),
+        created_filetime: originalControllerCreated,
       },
       original_owner: { pid: state.owner.pid, created_filetime: state.owner.created },
       account_sid: state.account?.sid ?? null,
       outcome,
-      original_owner_exited:
-        state.owner.pid > 0 && readProcessIdentity(state.owner.pid) === null ? true : "Unknown",
+      original_owner_exited: originalOwnerExited,
       recovery,
       records,
       raw_private_streams_uploaded: false,
@@ -1085,17 +1186,22 @@ async function retainDiagnosticPublicSettlement(
 /** The source-false gate precedes provider, source, tool, account and station work. */
 export async function runHostedWindowsConnectedDiagnostic() {
   held();
-  const inputs = await readOriginalHostedWindowsDiagnosticInputs(),
-    budget = await readOrdinaryHostedWindowsDiagnosticDeadline({
-      source: inputs.source,
-      run_id: inputs.run_id,
-      attempt: "1",
-    });
+  startupPhase = "source-gate-verified";
+  startupPhase = "inputs-verifying";
+  const inputs = await readOriginalHostedWindowsDiagnosticInputs();
+  startupPhase = "provider-clock-verifying";
+  const budget = await readOrdinaryHostedWindowsDiagnosticDeadline({
+    source: inputs.source,
+    run_id: inputs.run_id,
+    attempt: "1",
+  });
   await acknowledgeOriginalControllerStart(inputs, budget.deadline);
+  startupPhase = "start-ack-verified";
   const built = await freshTools(inputs, budget.deadline),
     root = path.join(diagnosticRoot, "owner"),
     binding = randomBytes(32).toString("hex"),
-    nodeCreated = windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid);
+    nodeCreated = readWindowsNativeProcessFiletime(process.pid, budget.deadline);
+  assert.ok(nodeCreated, "Original C native creation time unavailable");
   const context = {
       schema_version: 1,
       binding,
@@ -1299,7 +1405,7 @@ export async function runHostedWindowsConnectedDiagnostic() {
         final.credential_disposed === true,
     );
     assert.equal(
-      readProcessIdentity(state.owner.pid),
+      readWindowsNativeProcessFiletime(state.owner.pid, state.deadline),
       null,
       "Original diagnostic owner exit unobserved",
     );
@@ -1377,11 +1483,15 @@ function controlRoot() {
   return path.join(temporary, "portcove-hosted-windows-connected-diagnostic");
 }
 async function acknowledgeOriginalControllerStart(inputs: Inputs, deadline: number) {
+  startupPhase = "publishing-ready";
+  const created = readWindowsNativeProcessFiletime(process.pid, deadline);
+  assert.ok(created, "Original C native creation time unavailable");
+  originalControllerCreated = created;
   const file = path.join(controlRoot(), "controller-ready.json"),
     value = {
       schema_version: 1,
       pid: process.pid,
-      created_filetime: windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid),
+      created_filetime: created,
       source: inputs.source,
       tree: inputs.tree,
       run_id: inputs.run_id,
@@ -1395,6 +1505,7 @@ async function acknowledgeOriginalControllerStart(inputs: Inputs, deadline: numb
       authority: "none",
     },
     bytes = await retain(file, value);
+  startupPhase = "awaiting-start-ack";
   const until = Math.min(deadline, performance.now() + 30000);
   for (;;) {
     assert.ok(performance.now() < until, "Original controller start acknowledgement exhausted");
@@ -1413,10 +1524,7 @@ async function acknowledgeOriginalControllerStart(inputs: Inputs, deadline: numb
           ack.created_filetime === value.created_filetime &&
           ack.ready_sha256 === hash(bytes),
       );
-      assert.equal(
-        windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid),
-        value.created_filetime,
-      );
+      assert.equal(readWindowsNativeProcessFiletime(process.pid, until), value.created_filetime);
       return;
     } catch (error) {
       if (!["ENOENT", "EBUSY", "EACCES"].includes(errorCode(error) ?? "")) throw error;
@@ -1484,7 +1592,10 @@ async function main() {
       "Original controller deadline exhausted",
     );
     assert.equal(
-      windowsOwnerFiletime(readProcessIdentity(original.pid), original.pid),
+      readWindowsNativeProcessFiletime(
+        original.pid,
+        performance.now() + Number(original.deadline - process.hrtime.bigint()) / 1e6,
+      ),
       original.created,
       "Original controller generation stopped; no adoption",
     );
@@ -1545,10 +1656,13 @@ async function main() {
           result.authority === "none" &&
           result.production_acceptance === "not-established",
       );
-      const identity = readProcessIdentity(original.pid);
+      const identity = readWindowsNativeProcessFiletime(
+        original.pid,
+        performance.now() + Number(original.deadline - process.hrtime.bigint()) / 1e6,
+      );
       if (identity === null) return result;
       assert.equal(
-        windowsOwnerFiletime(identity, original.pid),
+        identity,
         original.created,
         "Original controller generation differs; no adoption",
       );
@@ -1567,16 +1681,53 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (process.argv[2] !== "run") console.log(JSON.stringify(result));
     })
     .catch(async (error: unknown) => {
-      if (hostedWindowsConnectedDiagnosticExecutionAuthorized) {
-        await retain(path.join(controlRoot(), "controller-failure.json"), {
-          source: process.env.GITHUB_SHA,
-          run_id: process.env.GITHUB_RUN_ID,
-          attempt: process.env.GITHUB_RUN_ATTEMPT,
-          failure:
-            error instanceof Error ? error.message.slice(0, 1024) : "Original controller refused",
-          authority: "none",
-          automatic_retry: false,
-        }).catch(() => {});
+      let originalContextVerified = false;
+      try {
+        requireOriginalHostedWindowsDiagnosticContext();
+        originalContextVerified = true;
+      } catch {
+        /* Wrong context cannot write failure evidence. */
+      }
+      if (hostedWindowsConnectedDiagnosticExecutionAuthorized && originalContextVerified) {
+        try {
+          let created: string = "Unknown";
+          try {
+            created =
+              originalControllerCreated ??
+              readWindowsNativeProcessFiletime(process.pid, performance.now() + 5000) ??
+              "Unknown";
+          } catch {
+            /* Failed identity observation remains Unknown; never masks the original refusal. */
+          }
+          await retain(path.join(controlRoot(), "controller-failure.json"), {
+            schema_version: 1,
+            source: process.env.GITHUB_SHA,
+            tree: (() => {
+              try {
+                return execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
+                  cwd: project,
+                  encoding: "utf8",
+                  timeout: 5000,
+                  maxBuffer: 1024,
+                  windowsHide: true,
+                }).trim();
+              } catch {
+                return "Unknown";
+              }
+            })(),
+            run_id: process.env.GITHUB_RUN_ID,
+            attempt: 1,
+            workflow: process.env.GITHUB_WORKFLOW_REF,
+            pid: process.pid,
+            created_filetime: created,
+            phase: startupPhase,
+            error: projectDiagnosticStartupFailure(error),
+            authority: "none",
+            automatic_retry: false,
+          }).catch(() => {});
+        } catch {
+          /* Telemetry construction or retention must never replace the original refusal. */
+        }
       }
       if (process.argv[2] !== "run")
         console.error(

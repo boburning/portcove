@@ -14,7 +14,7 @@ Other destructive reviews retain their own consent contracts.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library retains Catalog order by default and offers Title A–Z, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter
@@ -92,7 +92,7 @@ not installed. Readiness never establishes ownership.
 The contained 2:3 cover frame is independent of title length: 128 by 192 CSS pixels
 ordinarily, 148 by 222 in wide detail containers and 96 by 144 in compact
 containers. Narrow layouts omit the cover and retain the complete identity and
-actions. The illustrated hero uses a directional opacity mask behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
+actions. The illustrated hero uses a directional opacity mask behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. The shared directional artwork mask keeps Continue copy readable while exposing more image toward its action edge. Loaded galleries use three columns in wide containers when at least three images exist, two at medium widths, and one in compact containers; per-slot attribution, errors and lightbox focus remain with the media owner. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
 cache/provenance, overrides and quiet fallback remain with Artwork; both artwork
 slots are accessible through Change artwork in Manage. No cover crop or provider
 mapping is inferred.
@@ -335,16 +335,34 @@ Describe individual installation routes and limitations at their own controls;
 the product description does not promise every port automatic installation,
 updates, or backups.
 
-Use **game files** for user-supplied original input; name a ROM, disc image,
-or BIOS when its format matters. A **saved location** is a remembered
-external reference, the **Portcove library** holds managed content, and an
-**install folder** is future placement for installed versions. Use **saved data**
-for the port's managed saves, settings, and other persistent files, with that
-scope explained. A **Steam shortcut** is the integration object. **File details**,
-**Technical details**, and **Test results** name different supporting information.
-Use “port” for an implementation, catalog entry, or channel and “game” for
-playing or managing saved data. Apply these terms to the affected copy rather
-than replacing words globally.
+The [glossary](../GLOSSARY.md) defines concepts and preferred player wording;
+[content design](CONTENT-DESIGN.md) owns shared communication and evidence rules.
+This section records actual interface labels and compositions rather than a
+second glossary. Use **game** for play-oriented tasks, **port / port project**
+for implementations and **installation** for a particular local copy, including
+an existing registered runtime. Counts follow the actual result unit.
+
+| Surface / next action                | Interface wording                                                     | Condition                                                                                                                                                          |
+| ------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Main navigation                      | Library / Discover / Activity / Settings                              | Activity contains Tasks / Game updates / History.                                                                                                                  |
+| Game-detail navigation               | Overview / Game files / Saves & backups / Versions & updates / Manage | Preserve the destination's actual contents and existing focus/navigation owner.                                                                                    |
+| Return from details                  | Back to Library / Back to Discover / Back to Add games                | Use the captured destination; unknown destinations use Back.                                                                                                       |
+| Original-input location              | Saved file location                                                   | A remembered path is not Files connected or a fresh check.                                                                                                         |
+| Required setup                       | Needs game files / Setup needed / the supplied precise setup state    | Never override assessments or hard-code a port's permanent status.                                                                                                 |
+| Launch into first-run configuration  | Launch to finish setup                                                | This action invokes launch; actual preparation execution can retain Start setup.                                                                                   |
+| Installed-file check                 | Check installed files                                                 | Keep the actual full-immutable or launch-critical result scope.                                                                                                    |
+| Immediate eligible saved-data backup | Back up now                                                           | The existing create assessment enables it; unknown/empty coverage does not.                                                                                        |
+| Declared saved-data folder           | Open saved data folder                                                | The current scope can include saves, settings, bindings and applicable mods.                                                                                       |
+| Activate a retained checked update   | Apply update · {version}                                              | Calls the existing activation owner; no new review step.                                                                                                           |
+| Retained checked game update         | Update saved for later                                                | A checked staged record is present; it can reuse local bytes without a new download. Partial download/recovery and failed-check states remain distinct.            |
+| Update notices                       | Pause update notices / Resume update notices / Skip this version      | Current scope is the selected Library and port; skip binds the exact version and artifact digest. It changes notices, not installed/staged files or update policy. |
+| Library filtered empty state         | No matching library entries                                           | A Library result counts entries, including separate implementations of one game. Discover can use No matching games for its grouped results.                       |
+
+**Saves and settings** names that data scope; **Saved data** covers broader declared
+files. **Saves & backups** is the destination. **Steam shortcut** is the integration
+object. **File details**, **Technical details** and **Test results** are distinct
+supporting information, as defined by content design. Use ordinary “and” in prose
+and retain approved compound destination labels.
 
 Name a concrete action and object; say “Review” when review is actually next.
 Place consequences before implementation detail and keep essential warnings
@@ -503,6 +521,38 @@ and details. Named collection-container queries expand text when its available
 width is below 60rem, including enlarged root text, without changing
 the artwork frame. Search matches the game, project, variant and stable port ID;
 name sorting uses the game title. Matching game titles never combine cards.
+
+Library uses Title A–Z only when no sort preference exists; explicit legacy Catalog
+order and saved sorts remain available. Unreadable stored preferences retain Catalog
+order for explicit recovery and are not replaced without an explicit save. Discover
+retains Suggested order. Everyday
+Library quick views compose existing query and favorites state; collection editing
+and Hidden stay in the collection menu. Clear filters retains search; Reset view
+states that it also clears search, quick views and collection selection. At compact
+widths search occupies its own toolbar row.
+
+Common filters use compact labeled checkbox popovers. Selection stays multi-select,
+with OR within a category and AND across categories; route-dependent predicates
+must still match the same observed route. Advanced filters and per-field help retain
+technical semantics. Escape closes the active popover before the containing panel.
+
+Repeated collection Play controls use neutral secondary emphasis. The selected-game
+hero and Continue keep primary emphasis. Detail Back labels follow the captured
+Library, Discover or active Add games origin; unknown origins use generic wording.
+Card metadata supports two lines without
+reserving blank lines on every short title. Detail uses current-state summaries and
+compact management rows around existing operation/review owners. File paths never
+establish file validation. Saves & backups distinguishes unknown/error history from
+known empty history; Manage distinguishes installed paths from future defaults.
+Update coverage, errors and unchecked state precede secondary statistics; version
+arrows require both known installed and offered versions. Task records retain their
+operation identity and diagnostics, with exact-operation recovery cross-links; no
+records are grouped by game name or inferred installation identity.
+
+Comparison separates original system, runtime targets and release channels, and
+reports observed ownership. Feature comparison remains unavailable until the shared
+catalog contract carries revalidated, sourced and dated claims. Presentation code
+must not supply project-specific feature maps.
 
 At enlarged text sizes the full application shell must reflow as well as the
 cards. Header search and command controls may wrap onto separate rows; neither

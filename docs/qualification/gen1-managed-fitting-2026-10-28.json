@@ -1,0 +1,256 @@
+{
+  "format_version": 1,
+  "kind": "dated-gen1-shared-managed-fitting-observation",
+  "owners": {
+    "parent": 2510,
+    "adoption": 2926,
+    "canonical_ports": [2866, 2867, 2871, 2872, 2873, 2874, 2875],
+    "historical_red": 98
+  },
+  "observed_at": "2026-10-28",
+  "main_at_pickup": "dad96847b406a1722c3ff8bf9b4f5b367e1575af",
+  "scope": "Seven existing affected-312 identities; no new frozen identity or definition. Existing prepared routes, all stronger canonical acceptance and historical Red qualification remain preserved. This packet is dated evidence, not a live backlog.",
+  "updater_ownership": {
+    "delivered_pr": 3808,
+    "switch": "POKEPORT_PORTMASTER_MANAGED=1",
+    "effect": "Existing Boot/Check/Prelaunch guards suppress independent updater payload ownership; they do not guard ordinary restart callers.",
+    "scope_unchanged": true
+  },
+  "published_package": {
+    "kind": "bounded-read-only-published-runtime-module-binding",
+    "tag": "v0.3.97",
+    "commit": "1eba2cf5821e770ba21ef409682f834a38ff5c01",
+    "package_sha256": "e05472b4fd5fd1a2fb56343990f1ec57fc88f0d424baafbda8f50dc5e1cbea01",
+    "player": "gen1recomp-win64/gen1recomp.exe",
+    "player_sha256": "2b7a154a494ae50702111a224e3033f65bd8c54fe3648870a661b201fa1147d1",
+    "outer_members": 12,
+    "inner_members": 2315,
+    "inner_declared_bytes": 69597047,
+    "modules": [
+      {
+        "path": "src/core/HostShell.lua",
+        "bytes": 39981,
+        "sha256": "c5e1baca5cb6c81533b121f000565b97af8c79001f1026720c9001466657b631",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "src/core/WinApi.lua",
+        "bytes": 8139,
+        "sha256": "96fa765576b90655a8446d7857acf4d5db81bfd4b3e882fdefc7ff696d86af54",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "src/core/SaveData.lua",
+        "bytes": 131093,
+        "sha256": "564f2d568cd13807030cf3f705f345cb301f45554f91e2b80ef0bc03f28c46b0",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "src/import/CacheFs.lua",
+        "bytes": 31007,
+        "sha256": "55d255d90bce8d568c450e26968a0838ded094ae5d7400357a841b708029c398",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "src/core/Prelaunch.lua",
+        "bytes": 6273,
+        "sha256": "9b3652925428ae4f52f77ee1548667ccaa6f0648416f51a790dbdcfd498e1c36",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "main.lua",
+        "bytes": 75128,
+        "sha256": "4dac8c160cc5bb060ea3728194a881403a90b2f71a3cdc5f838d23f90aa418d3",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "conf.lua",
+        "bytes": 7897,
+        "sha256": "420ef77abf419bc08b795929a73fe0cf632edf50a02f38b1736c4843c8b5bb9d",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "src/core/Game.lua",
+        "bytes": 71484,
+        "sha256": "05fa080461bc12716dcee8ff5d36b4699d898b87d9392fc9ec33a700f7026f1b",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "src/core/Game3.lua",
+        "bytes": 58833,
+        "sha256": "8a03d48d25612b00d9b8e9e0d88a21033e48a3c17b4d50f4a325c79f8f9c937e",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "src/mods/ManagerState.lua",
+        "bytes": 49364,
+        "sha256": "d7a7fcaed0e05042f6157a8bf7c6ba02e334b388576551a32c9cd9352904d91a",
+        "matches_pinned_source": true
+      },
+      {
+        "path": "src/ui/game3/boot.lua",
+        "bytes": 24263,
+        "sha256": "7909da6300d7df2ea7b56a4202fd6c87bb5c78476f5765f6712bc9a143374b96",
+        "matches_pinned_source": true
+      }
+    ],
+    "scope": "Only selected embedded modules bound to previously Git-blob-verified tagged source; no player, original, helper, native session or gameplay executed."
+  },
+  "restart_source_contract": {
+    "root_dispatch": "src/core/HostShell.lua:251-317",
+    "windows_dispatch": "Fused Windows branch calls WinApi.spawn then love.event.quit with no restart argument; main POKEPORT_LOOP_RESTART is not checked in this branch.",
+    "spawn_implementation": "src/core/WinApi.lua:141-173 creates DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP, closes process/thread handles and returns. Its separate run function waits; restart calls spawn.",
+    "ordinary_callers": [
+      "src/mods/ManagerState.lua:495-496,882-886 -> Game.restartWithMods (src/core/Game.lua:961-962) or Game3.restartWithMods (src/core/Game3.lua:384-385)",
+      "GBA exit: src/ui/game3/boot.lua:427-429 -> src/core/Game3.lua:566-569 -> main.lua:1090-1093 -> returnToLauncher:635-652"
+    ],
+    "argument_boundary": "--game prevents only the ordinary window-close return path; it does not fence Apply & Restart or the explicit GBA return path.",
+    "loop_flag_boundary": "HostShell checks loopRestarts in the Android branch; it does not provide a fused-Windows no-successor guarantee."
+  },
+  "core_lifetime_boundary": {
+    "source": "dad96847b406a1722c3ff8bf9b4f5b367e1575af",
+    "path": "crates/portcove-core/src/service.rs",
+    "sha256": "48d84243f00e1582d32533dd2c63f75228ae304e5125898c1b18e233ca6ac824",
+    "observation": "Supervised game launch waits the original std::process::Child before collecting managed user data and finishing its session. Preparation tool supervision is a separate authority; its process-tree closure cannot be credited to game launch.",
+    "required": "Do not claim full-session managed fitting while an ordinary supported runtime path can leave a writing successor after original-child exit."
+  },
+  "persistence_boundary": {
+    "portable_supported": "SaveData portableFs and CacheFs provide supported executable-adjacent paths for their own callers. No global relocation of the LÖVE save directory is established.",
+    "primary_evidence": [
+      "src/core/SaveData.lua:58-64 explicitly distinguishes fixed OS LÖVE save directory from plain-IO portable filesystem",
+      "conf.lua:38,43 sets POKEPORT_IDENTITY or pokemon-love2d",
+      "main.lua:295,310-312,644 reads/writes/removes relaunch_to_launcher.txt through love.filesystem rather than SaveData.persistenceFs"
+    ],
+    "known_unqualified_current_red_deltas": [
+      "saves/<version>/ slot namespaces",
+      "options.lua.bak and options.lua.tmp",
+      "versioned progress backups/staged witnesses",
+      "the OS-profile relaunch marker and other non-portable-API writers"
+    ],
+    "scope": "These are precise evidenced gaps, not a complete qualified writer inventory. Extending a path list alone cannot relocate external writers, transfer populated ownership or close the successor lifetime.",
+    "route_alternative": "The observed external marker defeats an all-private portable-profile assumption; it does not exclude NativePortable external-user-owned profile contracts. For a proposed Core-owned private profile, qualify every writer under that private coordinate contract. Alternatively assess the existing external-user-owned contract with exact compatibility, ownership, separate consent and unavailable-data-operation boundaries. Neither choice supplies full-session lifetime."
+  },
+  "isolated_dispatch_check": {
+    "kind": "isolated-published-Lua-restart-dispatch-contract",
+    "status": "passed",
+    "checks": 6,
+    "module_sha256": "c5e1baca5cb6c81533b121f000565b97af8c79001f1026720c9001466657b631",
+    "harness_sha256": "7810392535bd2c0aa4b04eef29b57ead19cdd4030f23af3fce5b401f641ecc78",
+    "runtime": "system liblua5.3.so.0 on Linux",
+    "scope": "Actual embedded HostShell Lua with controlled environment/platform/fused probes and mocked WinApi spawn/quit; no native Windows process, player, original, helper, thread, filesystem mutation by module, network or gameplay; dispatch choice only, not native CreateProcess observation."
+  },
+  "decision": {
+    "new_managed_definitions": 0,
+    "supported_promotions": 0,
+    "new_frozen_identities": 0,
+    "current_action": "Retain the delivered non-owning components; keep managed fitting open with the exact common upstream dependency. Do not create per-title supervisors, AppData adoption, source-hash bypasses or runtime repair engines.",
+    "historical_red": "#98 stays historically completed/qualified on its actual September evidence. Current v0.3.97 maintenance is separately unfinished under #2926/#2510; no old contract or populated data is rewritten.",
+    "research_only_gen2": [2868, 2869, 2870],
+    "gen2_boundary": "This seven-title observation adds no Gen2 completion, package qualification or inherited Red acceptance."
+  },
+  "resume_conditions": [
+    "Upstream-supported process-preserving/restart-wait contract or a separately qualified shared full-successor-session authority; verify ordinary mod restart and GBA return paths, not only normal Quit.",
+    "Select and qualify one complete profile contract: supported Core-owned private coordinates for every promised writer, or the existing external-user-owned alternative with exact compatibility/consent and unavailable managed-data operations. Preserve existing runtime/source/data roots and retained populated ownership.",
+    "Per-title exact legal source identities and runtime selection, private fresh setup, restart/close, interrupted maintenance/recovery and preserving operation evidence; retained populated scope changes remain held.",
+    "Independent non-writing review, all required exact-head contexts, guarded merge/readback and individual canonical reconciliation."
+  ],
+  "not_claimed": [
+    "Native Windows/player/game/original/helper execution by this inspection",
+    "Actual CreateProcess behavior observed at runtime",
+    "Whole-package source-to-binary equivalence or complete runtime writer qualification",
+    "New gameplay, Supported, populated adoption, shrinking persistence scope or old-save compatibility",
+    "Permission to remap Road Rash64 or resolve any of the six retained Direct decisions"
+  ],
+  "ports": [
+    {
+      "id": "pokemon-blue-gen1recomp",
+      "canonical_issue": 2866,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "delivered_component": {
+        "pr": 3888,
+        "route": "Windows user-prepared / user-selected; player owns runtime replacement and every external file"
+      },
+      "managed_fit": "pending precise shared upstream dependency; no managed promotion",
+      "resume": "A published supported full-session restart contract or qualified shared successor-session authority; then select and qualify either the Core-owned private-profile route or existing external-user-owned profile contract, plus per-title source and offered operations."
+    },
+    {
+      "id": "pokemon-yellow-gen1recomp",
+      "canonical_issue": 2867,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "delivered_component": {
+        "pr": 3888,
+        "route": "Windows user-prepared / user-selected; player owns runtime replacement and every external file"
+      },
+      "managed_fit": "pending precise shared upstream dependency; no managed promotion",
+      "resume": "A published supported full-session restart contract or qualified shared successor-session authority; then select and qualify either the Core-owned private-profile route or existing external-user-owned profile contract, plus per-title source and offered operations."
+    },
+    {
+      "id": "pokemon-firered-gen1recomp",
+      "canonical_issue": 2871,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "delivered_component": {
+        "pr": 3888,
+        "route": "Windows user-prepared / user-selected; player owns runtime replacement and every external file"
+      },
+      "managed_fit": "pending precise shared upstream dependency; no managed promotion",
+      "resume": "A published supported full-session restart contract or qualified shared successor-session authority; then select and qualify either the Core-owned private-profile route or existing external-user-owned profile contract, plus per-title source and offered operations."
+    },
+    {
+      "id": "pokemon-leafgreen-gen1recomp",
+      "canonical_issue": 2872,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "delivered_component": {
+        "pr": 3888,
+        "route": "Windows user-prepared / user-selected; player owns runtime replacement and every external file"
+      },
+      "managed_fit": "pending precise shared upstream dependency; no managed promotion",
+      "resume": "A published supported full-session restart contract or qualified shared successor-session authority; then select and qualify either the Core-owned private-profile route or existing external-user-owned profile contract, plus per-title source and offered operations."
+    },
+    {
+      "id": "pokemon-ruby-gen1recomp",
+      "canonical_issue": 2873,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "delivered_component": {
+        "pr": 3888,
+        "route": "Windows user-prepared / user-selected; player owns runtime replacement and every external file"
+      },
+      "managed_fit": "pending precise shared upstream dependency; no managed promotion",
+      "resume": "A published supported full-session restart contract or qualified shared successor-session authority; then select and qualify either the Core-owned private-profile route or existing external-user-owned profile contract, plus per-title source and offered operations."
+    },
+    {
+      "id": "pokemon-sapphire-gen1recomp",
+      "canonical_issue": 2874,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "delivered_component": {
+        "pr": 3888,
+        "route": "Windows user-prepared / user-selected; player owns runtime replacement and every external file"
+      },
+      "managed_fit": "pending precise shared upstream dependency; no managed promotion",
+      "resume": "A published supported full-session restart contract or qualified shared successor-session authority; then select and qualify either the Core-owned private-profile route or existing external-user-owned profile contract, plus per-title source and offered operations."
+    },
+    {
+      "id": "pokemon-emerald-gen1recomp",
+      "canonical_issue": 2875,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "delivered_component": {
+        "pr": 3888,
+        "route": "Windows user-prepared / user-selected; player owns runtime replacement and every external file"
+      },
+      "managed_fit": "pending precise shared upstream dependency; no managed promotion",
+      "resume": "A published supported full-session restart contract or qualified shared successor-session authority; then select and qualify either the Core-owned private-profile route or existing external-user-owned profile contract, plus per-title source and offered operations."
+    }
+  ],
+  "upstream": {
+    "repository": "bryanthaboi/gen1recomp",
+    "release_url": "https://github.com/bryanthaboi/gen1recomp/releases/tag/v0.3.97",
+    "source_url": "https://github.com/bryanthaboi/gen1recomp/tree/1eba2cf5821e770ba21ef409682f834a38ff5c01",
+    "attribution": "Upstream Gen1 Recompilation Project authors retain the implementation and runtime ownership; no original game content is redistributed."
+  }
+}
