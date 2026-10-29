@@ -44,6 +44,58 @@ for identified consumers and retirement conditions. Preserve installed runtimes,
 originals, saves, settings, backups and recovery independently of whether the
 builder that created them remains an active feature.
 
+## Port-driven capability selection
+
+Port integration is the product outcome for every console family. Use this
+sequence on the canonical port issue:
+
+1. **Discover:** identify the direct upstream, game, release and applicable platform.
+2. **Evaluate:** select the most useful reasonable installation, preparation and launch route.
+3. **Reuse:** prefer existing Core/adapters, official packages, supported upstream tools and safe non-owning existing-installation registration.
+4. **Identify gaps:** name the exact unsupported operation and why existing or upstream routes do not suffice.
+5. **Prioritize:** weigh known ports unlocked and expected player usefulness, reusable breadth, upstream tooling, implementation/testing complexity, maintenance cost, and source/security/rights/preservation risks.
+6. **Implement when justified:** extend the existing Core or adapter owner. Small per-port integration changes are appropriate when no shared abstraction is justified; preserve one durable lifecycle authority.
+7. **Integrate:** apply the capability to all genuinely fitting selected consumers. One shared change may justify a coherent multi-port batch.
+8. **Validate and deliver:** prove the operations actually offered, preserve installed compatibility and safety, and reconcile canonical issues, catalog evidence and the live Project.
+
+Record the short prioritization rationale with the selected consumers and missing
+operation on the existing owner. Use existing Project Priority, Horizon, Target
+release and Release commitment fields; do not add a score, adapter registry or
+parallel backlog. Many useful consumers can justify shared work ahead of isolated
+integrations; one immature consumer with a costly adapter can justify deferral.
+An adapter is independently valuable only when it serves a demonstrated
+integration need. Do not build universal console frameworks for hypothetical ports.
+
+[#135](https://github.com/boburning/portcove/issues/135),
+[#136](https://github.com/boburning/portcove/issues/136),
+[#137](https://github.com/boburning/portcove/issues/137) and
+[#138](https://github.com/boburning/portcove/issues/138) retain canonical technical
+ownership for demonstrated PS1, NES/SNES/Genesis, GameCube/Wii and Xbox 360 gaps.
+They are demand-driven dependencies of selected ports, not a separate mandatory
+implementation campaign. A port need not wait for a whole-family adapter;
+consume the smallest proven component or a fitting existing route. Broader
+manifest/build/configuration/container/lifecycle work uses the same owner when
+real consumers justify it. Planned does not commit every speculative enhancement.
+
+The existing seven-slice initial-beta plan keeps its numbering. Slice 1 owns port
+adoption, investigations and already-supported integrations through
+[#2510](https://github.com/boburning/portcove/issues/2510),
+[#2926](https://github.com/boburning/portcove/issues/2926) and canonical port issues.
+Former Slice 2, Console-Family Beta Primitives, is not a separate beta or mandatory
+1.0 campaign. New #135–#138 infrastructure does not gate initial Public beta;
+their approved 1.0 / Planned commitments remain non-gating. Other slices and
+independent protected delivery requirements retain their owners.
+
+[#1422](https://github.com/boburning/portcove/issues/1422) preserves its historical
+317 rows / 316 canonical identities, duplicate mapping, accepted routes and prior
+deferrals. For an unavailable route, retain discoverability and record the exact
+missing capability, rejected existing/upstream alternatives, source/rights/
+ownership/safety restrictions, any still-usable operations and reconsideration
+condition. Deferral is not delivery; listing is not Supported. Never delay or
+downgrade a working route because another title in the family needs new machinery.
+Later discoveries retain continuous intake; the existing daily investigation's
+approved metadata/intake scope and scheduling remain unchanged.
+
 ## Managed native portable packages
 
 The `native-portable` adapter offers the existing managed installation, update,
