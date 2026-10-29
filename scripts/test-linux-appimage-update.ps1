@@ -120,7 +120,7 @@ $libraryRoot = Join-Path $state "library"
 $updateRoot = Join-Path $state "update-state"
 $hostPreferences = Join-Path $state "host-preferences.json"
 $updatePreferences = Join-Path $state "application-update-preferences.json"
-$stable = Join-Path $installedRoot "Portcove Public beta β.AppImage"
+$stable = Join-Path $installedRoot ('Portcove Public beta ' + [char]0x03b2 + '.AppImage')
 $desktopEntry = Join-Path $applicationsRoot "com.boburning.portcove.desktop"
 New-Item -ItemType Directory -Path $installedRoot, $applicationsRoot, $libraryRoot | Out-Null
 & /usr/bin/cp --preserve=mode,timestamps -- $predecessor $stable
@@ -511,7 +511,7 @@ $truncatedCandidate = Join-Path $state "truncated-candidate.AppImage"
 try {
     Remove-Item Env:APPIMAGE_EXTRACT_AND_RUN -ErrorAction SilentlyContinue
     $noExecMount = Join-Path $state 'noexec-appimage-filesystem'
-    $noExecImage = Join-Path $noExecMount 'Portcove noexec β.AppImage'
+    $noExecImage = Join-Path $noExecMount ('Portcove noexec ' + [char]0x03b2 + '.AppImage')
     $noExecProbe = Join-Path $state 'noexec-probe.json'
     Mount-BoundedTmpfs $noExecMount ((Get-Item -LiteralPath $stable).Length + 33554432) -NoExec
     try {

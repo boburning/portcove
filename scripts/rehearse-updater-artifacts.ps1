@@ -670,7 +670,7 @@ try {
         $rendererInstall = Join-Path $rendererRoot "Applications/Portcove"
         $rendererLibrary = Join-Path $rendererRoot "library"
         New-Item -ItemType Directory -Path $rendererInstall, $rendererLibrary | Out-Null
-        $rendererStableName = if ($HistoricalLinuxBootstrap) { 'Portcove Public beta β.AppImage' } else { 'Portcove.AppImage' }
+        $rendererStableName = if ($HistoricalLinuxBootstrap) { ('Portcove Public beta ' + [char]0x03b2 + '.AppImage') } else { 'Portcove.AppImage' }
         $rendererStable = Join-Path $rendererInstall $rendererStableName
         if (-not $HistoricalLinuxBootstrap) {
             Invoke-Checked "/usr/bin/cp" @("--preserve=mode,timestamps", "--", $predecessor, $rendererStable)
