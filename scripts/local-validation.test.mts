@@ -627,6 +627,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/required-node-test-reporter.test.mts",
     "scripts/test-duration-reporter.test.mts",
     "scripts/ui-test-selection.test.mts",
+    "scripts/updater-historical-inputs.test.mts",
     "scripts/windows-historical-bootstrap.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));

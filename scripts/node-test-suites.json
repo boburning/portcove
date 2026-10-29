@@ -3755,6 +3755,13 @@
       ]
     },
     {
+      "file": "scripts/updater-historical-inputs.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2650],
+        ["release-check", 750]
+      ]
+    },
+    {
       "file": "scripts/upstream-health-accounting.test.mts",
       "memberships": [
         ["catalog-full", 130],

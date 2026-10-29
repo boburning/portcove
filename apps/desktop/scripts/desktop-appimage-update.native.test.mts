@@ -318,14 +318,14 @@ void test("actual AppImage entrypoint consumes its observation and reconciliatio
         waitFor:async(predicate)=>predicate(),
         recordInstalledUpdateFailure:async(report,error)=>{report.phase='failed';report.failure=error.message;},
       }});
-      mock.module(${JSON.stringify(module("./desktop-application-update-journey.mts"))},{namedExports:{driveInstalledUpdateToRestart:async()=>({})}});
+      mock.module(${JSON.stringify(module("./desktop-application-update-journey.mts"))},{namedExports:{driveInstalledUpdateToRestart:async()=>({}),driveInstalledStableWaiting:async()=>{throw new Error('Historical waiting must not run in the ordinary entrypoint control');}}});
       mock.module(${JSON.stringify(module("./desktop-linux-webkit-inspector.mts"))},{namedExports:{loadedWebKitLibraries:async()=>({process:{start_ticks:'123'}})}});
       mock.module('node:child_process',{namedExports:{execFileSync:(command,args)=>{
         if(command==='git'){assert.deepEqual(args,['rev-parse','HEAD']);return 'a'.repeat(40);}
         assert.equal(command,'ps');assert.deepEqual(args,['-eo','pid=,ppid=']);return '101 1\\n202 101\\n';
       }}});
       registerHooks({resolve(specifier,context,next){
-        if(specifier==='selenium-webdriver')return {url:'data:text/javascript,export const By={xpath:value=>value}',shortCircuit:true};
+        if(specifier==='selenium-webdriver')return {url:'data:text/javascript,export const By={xpath:value=>value};export const until={}',shortCircuit:true};
         if(!specifier.startsWith('node:')&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))throw new Error('Unexpected package import');
         return next(specifier,context);
       },load(url,context,next){const loaded=next(url,context);if(url!==entry)return loaded;let source=String(loaded.source);
