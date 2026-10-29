@@ -2567,3 +2567,354 @@ void test("artwork scenarios serialize their live production browser observation
     renameSync(retained, input);
   }
 });
+
+void test("desktop runner retains unresolved native custody through its live imported owner", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const program = parseAst(code);
+    assert.ok(isRecord(program) && Array.isArray(program.body));
+    const syntax = [...nodes(program)];
+    const statements: unknown[] = program.body;
+    const imports = (owner: string, name: string) =>
+      syntax
+        .filter((node) => node.type === "ImportDeclaration" && literal(node.source) === owner)
+        .flatMap((node) => {
+          assert.ok(Array.isArray(node.specifiers));
+          return node.specifiers
+            .filter(isRecord)
+            .filter((item) => (identifier(item.imported) ?? literal(item.imported)) === name)
+            .map((item) => ({ node: item, local: identifier(item.local) }));
+        });
+    const functions = (statements: unknown[]) =>
+      statements.flatMap((statement) => {
+        if (!isRecord(statement)) return [];
+        if (statement.type === "FunctionDeclaration")
+          return [
+            { statement, fn: statement, name: identifier(statement.id), binding: statement.id },
+          ];
+        if (statement.type !== "VariableDeclaration" || !Array.isArray(statement.declarations))
+          return [];
+        return statement.declarations.filter(isRecord).flatMap((declaration) =>
+          isRecord(declaration.init) &&
+          ["FunctionExpression", "ArrowFunctionExpression"].includes(String(declaration.init.type))
+            ? [
+                {
+                  statement,
+                  fn: declaration.init,
+                  name: identifier(declaration.id),
+                  binding: declaration.id,
+                },
+              ]
+            : [],
+        );
+      });
+    function active(seed: unknown) {
+      const result: Record<string, unknown>[] = [];
+      function visit(value: unknown) {
+        if (Array.isArray(value)) {
+          for (const child of value) visit(child);
+          return;
+        }
+        if (!isRecord(value)) return;
+        if (
+          ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+            String(value.type),
+          )
+        )
+          return;
+        result.push(value);
+        if (value.type === "IfStatement" || value.type === "ConditionalExpression") {
+          const truth = literal(value.test);
+          if (truth === true || truth === false) {
+            visit(truth ? value.consequent : value.alternate);
+            return;
+          }
+        }
+        if (value.type === "LogicalExpression") {
+          const left = literal(value.left);
+          visit(value.left);
+          if (
+            (value.operator === "&&" && left === false) ||
+            (value.operator === "||" && left === true)
+          )
+            return;
+          visit(value.right);
+          return;
+        }
+        if (value.type === "BlockStatement" && Array.isArray(value.body)) {
+          for (const child of value.body) {
+            visit(child);
+            if (
+              isRecord(child) &&
+              ["ReturnStatement", "ThrowStatement"].includes(String(child.type))
+            )
+              break;
+          }
+          return;
+        }
+        for (const child of Object.values(value)) visit(child);
+      }
+      visit(seed);
+      return result;
+    }
+    const top = functions(statements);
+    const sessionImports = imports("./desktop-owned-native-session.mts", "OwnedNativeSession");
+    const instances = statements
+      .filter(isRecord)
+      .filter((node) => node.type === "VariableDeclaration" && Array.isArray(node.declarations))
+      .flatMap((node) => {
+        assert.ok(Array.isArray(node.declarations));
+        return node.declarations
+          .filter(isRecord)
+          .filter((declaration) => {
+            const init = declaration.init;
+            return (
+              isRecord(init) &&
+              init.type === "NewExpression" &&
+              sessionImports.some((binding) => binding.local === identifier(init.callee))
+            );
+          })
+          .map((declaration) => identifier(declaration.id));
+      });
+    assert.equal(
+      instances.length,
+      1,
+      "Runner must construct the actual imported native session owner",
+    );
+    const finalizers = statements
+      .filter(isRecord)
+      .filter((node) => node.type === "TryStatement")
+      .map((node) => node.finalizer);
+    const finalCalls = active(finalizers)
+      .map(awaited)
+      .filter((node) => node !== undefined);
+    const release = top
+      .filter((entry) => finalCalls.some((call) => identifier(call.callee) === entry.name))
+      .flatMap((entry) =>
+        active(entry.fn.body)
+          .filter((node) => node.type === "TryStatement" && isRecord(node.handler))
+          .filter((node) =>
+            active(node.block)
+              .map(awaited)
+              .some(
+                (call) =>
+                  isRecord(call?.callee) &&
+                  call.callee.type === "MemberExpression" &&
+                  instances.includes(identifier(call.callee.object)) &&
+                  (identifier(call.callee.property) ?? literal(call.callee.property)) ===
+                    "releaseResources",
+              ),
+          )
+          .map((guard) => ({ entry, guard })),
+      );
+    assert.equal(release.length, 1, "Runner finally must await its real native release wrapper");
+    const selected = release[0];
+    assert.ok(selected && isRecord(selected.guard.handler));
+    const catchParameter = identifier(selected.guard.handler.param);
+    const retained = active(selected.guard.handler.body)
+      .map(awaited)
+      .filter(
+        (call) => call && args(call).length === 1 && identifier(args(call)[0]) === catchParameter,
+      )
+      .flatMap((call) => top.filter((entry) => entry.name === identifier(call?.callee)));
+    assert.equal(
+      retained.length,
+      1,
+      "Release failure must await its actual custody retainer with the caught error",
+    );
+    const wrapper = retained[0];
+    assert.ok(wrapper && isRecord(wrapper.fn.body) && Array.isArray(wrapper.fn.body.body));
+    const ownerImports = imports("./desktop-owned-native-session.mts", "retainNativeCustody");
+    const returns = active(wrapper.fn.body)
+      .filter((node) => node.type === "ReturnStatement")
+      .map((node) =>
+        isRecord(node.argument) && node.argument.type === "AwaitExpression"
+          ? node.argument.argument
+          : node.argument,
+      )
+      .filter(isRecord)
+      .filter(
+        (call) =>
+          call.type === "CallExpression" &&
+          ownerImports.some((binding) => binding.local === identifier(call.callee)),
+      );
+    assert.equal(
+      returns.length,
+      1,
+      "Actual custody retainer must return its imported required-capability operation",
+    );
+    const call = returns[0];
+    assert.ok(call && args(call).length === 1 && isRecord(args(call)[0]));
+    const capabilities = args(call)[0];
+    assert.ok(
+      isRecord(capabilities) &&
+        capabilities.type === "ObjectExpression" &&
+        Array.isArray(capabilities.properties),
+    );
+    const locals = functions(wrapper.fn.body.body);
+    const properties: unknown[] = capabilities.properties;
+    const capability = (name: string) => {
+      const entries = properties
+        .filter(isRecord)
+        .filter(
+          (node) =>
+            node.type === "Property" &&
+            node.kind === "init" &&
+            (identifier(node.key) ?? literal(node.key)) === name,
+        );
+      assert.equal(entries.length, 1, "One actual " + name + " custody capability");
+      const property = entries[0];
+      assert.ok(property && isRecord(property.value));
+      const fn = ["FunctionExpression", "ArrowFunctionExpression"].includes(
+        String(property.value.type),
+      )
+        ? property.value
+        : [...locals, ...top].find((entry) => entry.name === identifier(property.value))?.fn;
+      assert.ok(fn, "Custody capability resolves to its actual function");
+      return { property, fn };
+    };
+    const publish = capability("publish"),
+      hold = capability("hold");
+    capability("reportPublicationFailure");
+    capability("reportRetained");
+    const writeBindings = imports("node:fs/promises", "writeFile");
+    const publication = active(publish.fn.body);
+    const writes = publication.filter(
+      (node) =>
+        node.type === "CallExpression" &&
+        writeBindings.some((binding) => binding.local === identifier(node.callee)),
+    );
+    assert.equal(writes.length, 1, "Custody publication must invoke the real file writer");
+    const write = writes[0];
+    assert.ok(write);
+    assert.ok(
+      publish.fn.body === write ||
+        publication.some(
+          (node) =>
+            (node.type === "AwaitExpression" || node.type === "ReturnStatement") &&
+            node.argument === write,
+        ),
+      "Custody publication must join the real file writer promise",
+    );
+    const options = args(write)[2];
+    assert.ok(
+      isRecord(options) &&
+        Array.isArray(options.properties) &&
+        options.properties.some(
+          (node) =>
+            isRecord(node) &&
+            (identifier(node.key) ?? literal(node.key)) === "flag" &&
+            literal(node.value) === "wx",
+        ),
+      "Custody publication must retain exclusive evidence creation",
+    );
+    const held = active(hold.fn.body);
+    const timer = held.find(
+      (node) => node.type === "CallExpression" && identifier(node.callee) === "setInterval",
+    );
+    const unref = held.some(
+      (node) =>
+        node.type === "CallExpression" &&
+        isRecord(node.callee) &&
+        (identifier(node.callee.property) ?? literal(node.callee.property)) === "unref",
+    );
+    const pending = held.find(
+      (node) =>
+        node.type === "ReturnStatement" &&
+        isRecord(node.argument) &&
+        node.argument.type === "NewExpression" &&
+        identifier(node.argument.callee) === "Promise",
+    );
+    assert.ok(
+      timer && !unref && pending && isRecord(pending.argument),
+      "Custody hold keeps a referenced timer and returns a never-settling promise",
+    );
+    const executor = args(pending.argument)[0];
+    assert.ok(
+      isRecord(executor) &&
+        Array.isArray(executor.params) &&
+        executor.params.every((parameter) => identifier(parameter) !== undefined) &&
+        isRecord(executor.body) &&
+        Array.isArray(executor.body.body) &&
+        executor.body.body.length === 0,
+      "Custody hold has no early settlement or parameter effects",
+    );
+    return { syntax, wrapper, call, ownerImports, hold, publish, write, pending, timer };
+  }
+  const observed = route(source);
+  const owner = observed.ownerImports.find(
+    (binding) => binding.local === identifier(observed.call.callee),
+  );
+  assert.ok(owner && isRecord(owner.node.local) && isRecord(observed.wrapper.binding));
+  const rename = (name: string | undefined, alias: string, binding: unknown) => [
+    { ...range(binding), text: alias },
+    ...observed.syntax
+      .filter((node) => node.type === "CallExpression" && identifier(node.callee) === name)
+      .map((node) => ({ ...range(node.callee), text: alias })),
+  ];
+  const aliases = edit(source, [
+    ...rename(owner.local, "$renamedRequiredRetainer", owner.node.local),
+    ...rename(observed.wrapper.name, "$renamedCustodyWrapper", observed.wrapper.binding),
+  ]);
+  route(aliases);
+  const aliased = route(aliases);
+  route(
+    edit(aliases, [
+      { ...range(aliased.wrapper.statement), text: "/* hoisted custody declaration moved */" },
+    ]) +
+      "\n" +
+      aliases.slice(range(aliased.wrapper.statement).start, range(aliased.wrapper.statement).end),
+  );
+  route(aliases.replaceAll("\n", "\r\n"));
+  assert.ok(isRecord(observed.pending.argument));
+  const pendingExecutor = args(observed.pending.argument)[0];
+  assert.ok(isRecord(pendingExecutor));
+  route(
+    edit(source, [{ ...range(pendingExecutor), text: "(_unusedResolve, _unusedReject) => {}" }]),
+  );
+  const reject = (code: string, message: RegExp) =>
+    assert.throws(() => route(code), { name: "AssertionError", message });
+  assert.ok(isRecord(observed.wrapper.fn.body));
+  const body = range(observed.wrapper.fn.body);
+  reject(
+    edit(source, [{ start: body.start + 1, end: body.start + 1, text: "return;" }]),
+    /Actual custody retainer must return its imported/u,
+  );
+  const writer = source.slice(range(observed.write).start, range(observed.write).end);
+  reject(
+    edit(source, [
+      {
+        ...range(observed.publish.property.value),
+        text: "() => { " + writer + "; return Promise.resolve(); }",
+      },
+    ]),
+    /Custody publication must join the real file writer promise/u,
+  );
+  reject(
+    edit(source, [{ ...range(observed.call.callee), text: "$wrongRetainer" }]) +
+      "\nfunction $unusedRetainer(){return " +
+      owner.local +
+      "({});}\n",
+    /Actual custody retainer must return its imported/u,
+  );
+  reject(
+    edit(source, [{ ...range(observed.publish.property.value), text: "async () => {}" }]),
+    /Custody publication must invoke the real file writer/u,
+  );
+  reject(
+    edit(source, [
+      {
+        ...range(observed.timer),
+        text: source.slice(range(observed.timer).start, range(observed.timer).end) + ".unref()",
+      },
+    ]),
+    /Custody hold keeps a referenced timer/u,
+  );
+  reject(
+    edit(source, [{ ...range(observed.pending.argument), text: "Promise.resolve()" }]),
+    /Custody hold keeps a referenced timer/u,
+  );
+});
