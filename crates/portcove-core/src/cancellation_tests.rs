@@ -500,3 +500,63 @@ async fn archive_cancellation_waits_for_worker_quiescence_before_private_cleanup
         ActivityStatus::Cancelled
     );
 }
+
+#[test]
+fn activity_owner_observation_distinguishes_live_interrupted_unknown_and_terminal() {
+    let (_temporary, service) = service();
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::CheckUpdate,
+            ActivityTargetKind::Port,
+            Some("ship-of-harkinian"),
+        )
+        .unwrap();
+    let feed = service.library().activity_feed(50).unwrap();
+    assert_eq!(
+        feed.records
+            .iter()
+            .find(|row| row.id == activity.id)
+            .unwrap()
+            .liveness,
+        Some(crate::ActivityLiveness::Active)
+    );
+    drop(operation);
+    let feed = service.library().activity_feed(50).unwrap();
+    assert_eq!(
+        feed.records
+            .iter()
+            .find(|row| row.id == activity.id)
+            .unwrap()
+            .liveness,
+        Some(crate::ActivityLiveness::Interrupted)
+    );
+    let unowned = service
+        .library()
+        .begin_activity(
+            ActivityOperation::CheckUpdate,
+            ActivityTargetKind::Port,
+            Some("ship-of-harkinian"),
+        )
+        .unwrap();
+    let feed = service.library().activity_feed(50).unwrap();
+    assert_eq!(
+        feed.records
+            .iter()
+            .find(|row| row.id == unowned.id)
+            .unwrap()
+            .liveness,
+        Some(crate::ActivityLiveness::Unknown)
+    );
+    service
+        .library()
+        .finish_activity(&activity.id, ActivityStatus::Succeeded, None)
+        .unwrap();
+    let feed = service.library().activity_feed(50).unwrap();
+    let finished = feed
+        .records
+        .iter()
+        .find(|row| row.id == activity.id)
+        .unwrap();
+    assert_eq!(finished.status, ActivityStatus::Succeeded);
+    assert_eq!(finished.liveness, None);
+}

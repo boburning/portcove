@@ -3234,6 +3234,7 @@ mod tests {
 
     fn failed_activity(private_path: &std::path::Path) -> portcove_core::ActivityRecord {
         portcove_core::ActivityRecord {
+            liveness: None,
             id: "owned-activity-id".into(),
             operation: portcove_core::ActivityOperation::Prepare,
             target_kind: portcove_core::ActivityTargetKind::Port,

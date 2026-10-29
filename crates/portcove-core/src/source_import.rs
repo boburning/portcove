@@ -571,7 +571,12 @@ where
             service.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::SourceImportCopyStarted,
             )?;
-            emit(coordinator.progress("copy", 0, Some(plan.required_bytes)));
+            emit(coordinator.progress_with_unit(
+                "copy",
+                crate::ProgressUnit::Bytes,
+                0,
+                Some(plan.required_bytes),
+            ));
             if plan.schema_version == IMPORT_PLAN_SCHEMA_VERSION
                 && plan.mode == SourceImportMode::Copy
                 && plan.source.path.is_dir()
@@ -1333,7 +1338,12 @@ where
         }
         output.write_all(&buffer[..read])?;
         copied = copied.saturating_add(read as u64);
-        emit(coordinator.progress("copy", copied, Some(total)));
+        emit(coordinator.progress_with_unit(
+            "copy",
+            crate::ProgressUnit::Bytes,
+            copied,
+            Some(total),
+        ));
     }
     output.sync_all()?;
     fs::set_permissions(destination, fs::metadata(source)?.permissions())?;

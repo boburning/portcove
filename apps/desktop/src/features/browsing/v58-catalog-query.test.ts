@@ -7,6 +7,7 @@ import { filterPorts } from "../../view-model";
 import {
   evaluateCatalogQuery,
   sourceSystemOptions,
+  filterOptionsFor,
   type CatalogQueryContext,
 } from "./catalog-query";
 import { groupCatalog } from "./original-game";
@@ -286,4 +287,67 @@ it("retains total group counts when a caller narrows candidates before facet cou
   );
   expect(ids(result)).toEqual(["second-port"]);
   expect(result.counts.portOptions.multiple).toBe(1);
+});
+
+it("derives applicable filters in schema order and preserves selected zero-match values", () => {
+  const entries = [
+    port("windows", "game", [], { platforms: ["windows-x86-64"], channels: ["stable"] }),
+  ];
+  expect(
+    filterOptionsFor("platforms", entries, { version: 1, platforms: ["macos-aarch64"] }),
+  ).toEqual(["windows-x86-64", "macos-aarch64", "this-device"]);
+  expect(filterOptionsFor("channels", entries, { version: 1, channels: ["beta"] })).toEqual([
+    "stable",
+    "beta",
+  ]);
+  expect(filterOptionsFor("installationMethods", entries, { version: 1 })).toEqual([
+    "portable-package",
+  ]);
+  expect(evaluateCatalogQuery(entries, { version: 1, platforms: ["future-os"] }).state).toBe(
+    "unresolved",
+  );
+  const unknown = { ...entries[0]!, platforms: ["future-os"] } as unknown as PortDefinition;
+  expect(filterOptionsFor("platforms", [unknown], { version: 1 })).toEqual(["this-device"]);
+});
+
+it("keeps filter choices applicable to retained Core contexts after catalog changes", () => {
+  const entry = port("changed", "game", [], {
+    platforms: ["windows-x86-64"],
+    channels: ["stable"],
+  });
+  const context: CatalogQueryContext = {
+    library: { id: "library", statuses: new Map() },
+    browsing: {
+      schema_version: 1,
+      host_platform: "windows-x86-64",
+      library: { id: "library", root: "/library" },
+      retained_metadata_complete: true,
+      workspace_binding_sha256: "a".repeat(64),
+      contexts: [
+        {
+          port_id: "changed",
+          context_id: "old",
+          platform: "linux-x86-64",
+          channel: "beta",
+          installation_method: "upstream-setup",
+          artifact_sha256: null,
+          definition_sha256: null,
+          installation_id: "old",
+          instance_sha256: null,
+          member_context: true,
+          port_member: true,
+          release_version: "old",
+          route: "managed_launch",
+        },
+      ],
+    },
+  };
+  expect(filterOptionsFor("platforms", [entry], { version: 1 }, context)).toContain("linux-x86-64");
+  expect(filterOptionsFor("channels", [entry], { version: 1 }, context)).toContain("beta");
+  expect(filterOptionsFor("installationMethods", [entry], { version: 1 }, context)).toContain(
+    "upstream-setup",
+  );
+  expect(
+    filterOptionsFor("platforms", [entry], { version: 1 }, { ...context, browsing: undefined }),
+  ).toContain("macos-aarch64");
 });

@@ -254,6 +254,10 @@ version, description, repository and license without opening a library.
 Repeated operational commands do not print banners or artwork.
 
 Human operation progress goes to standard error. An interactive terminal receives an updating inline byte counter. When standard error is redirected, Portcove emits a bounded line for each phase start and its final observed byte count instead of carriage-return updates for every chunk. A partial final count does not imply success; read the command result or retained activity for the authoritative outcome. Machine clients should use `--jsonl` for the full versioned event stream.
+Schema-3 progress events can additionally supply stable `phase_id` and explicit
+`unit` (`bytes`, `items`, `ports`, `indeterminate`). Both human adapters use these
+producer facts. Older events without units display generic counts; display text
+never establishes a unit or terminal success.
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 

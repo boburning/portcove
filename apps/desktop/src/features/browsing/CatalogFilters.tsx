@@ -23,6 +23,7 @@ import { identityLabel, identityStyle } from "../identity/identity-style";
 import {
   evaluateCatalogQuery,
   sourceSystemOptions,
+  filterOptionsFor,
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./catalog-query";
@@ -34,45 +35,14 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { CompactFilterField } from "../../components/ui/field";
 
 const fixedGroups = [
-  {
-    key: "platforms",
-    label: "Target OS",
-    values: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64", "this-device"],
-  },
-  { key: "portOptions", label: "Port options", values: ["single", "multiple"] },
-  { key: "channels", label: "Release channels", values: ["stable", "beta", "rolling"] },
-  {
-    key: "installationMethods",
-    label: "Setup methods",
-    values: [
-      "portable-package",
-      "portable-recompilation",
-      "staged-game-files",
-      "referenced-disc",
-      "generated-game-data",
-      "upstream-setup",
-      "managed-recompilation",
-      "user-prepared-runtime",
-    ],
-  },
-  { key: "membership", label: "Library membership", values: ["in-library", "not-in-library"] },
-  { key: "updates", label: "Observed updates", values: ["available", "staged"] },
-  {
-    key: "gameFiles",
-    label: "Game files for the observed route",
-    values: [
-      "files_available",
-      "files_missing",
-      "needs_checking",
-      "no_files_required",
-      "unavailable_context",
-    ],
-  },
-  {
-    key: "attention",
-    label: "Installation attention",
-    values: ["missing-source", "missing-bios", "missing-runtime", "repair-needed", "finish-setup"],
-  },
+  { key: "platforms", label: "Target OS" },
+  { key: "portOptions", label: "Port options" },
+  { key: "channels", label: "Release channels" },
+  { key: "installationMethods", label: "Setup methods" },
+  { key: "membership", label: "Library membership" },
+  { key: "updates", label: "Observed updates" },
+  { key: "gameFiles", label: "Game files for the observed route" },
+  { key: "attention", label: "Installation attention" },
 ] as const;
 type Group = (typeof fixedGroups)[number]["key"] | "originalSystems";
 const commonGroups: readonly Group[] = [
@@ -101,7 +71,7 @@ function label(group: Group, value: string) {
   if (group === "originalSystems") return identityLabel(value);
   if (group === "portOptions") return value === "multiple" ? "Multiple ports" : "Single port";
   if (group === "installationMethods")
-    return installationMethodLabels[value as keyof typeof installationMethodLabels];
+    return installationMethodLabels[value as keyof typeof installationMethodLabels] ?? value;
   if (group === "platforms" && value === "this-device") return "For this device";
   if (group === "gameFiles") return states[value as keyof typeof states];
   if (group === "updates")
@@ -150,7 +120,10 @@ export function CatalogFilters({
       label: "Original system",
       values: sourceSystemOptions(candidates ?? [], filter),
     },
-    ...fixedGroups,
+    ...fixedGroups.map((group) => ({
+      ...group,
+      values: filterOptionsFor(group.key, candidates ?? [], queryFromFilter(filter), context),
+    })),
   ];
   const [open, setOpen] = useState(false);
   const panelId = useId();

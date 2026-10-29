@@ -1150,8 +1150,10 @@ Managed preparation records observed release facts in its receipt and preserves
 authored listing links, including a useful separate upstream launcher. It does
 not add a current-tag listing URL to an otherwise reusable managed definition.
 
-Preparation flags hints containing the observed release version for applicability
-review. Prefer stable discriminating fragments, including the actual package
+Preparation flags delimited dotted release tokens, including older versions absent
+from the observed tag, for applicability review. This advisory is not a numeric
+capability classifier; architecture, ABI and engine-generation fragments remain
+valid selectors. Prefer stable discriminating fragments, including the actual package
 variant. Preserve numeric ABI/engine-generation requirements where intentional.
 Test unchanged rules through the production provider for N, N+1 and a fresh
 installation after N+1, including competing variants, foreign architectures and

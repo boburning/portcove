@@ -9013,6 +9013,14 @@
         ],
         "type": "object"
       },
+      "ActivityLiveness": {
+        "enum": [
+          "active",
+          "interrupted",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "ActivityOperation": {
         "enum": [
           "download_package",
@@ -9077,6 +9085,17 @@
           },
           "id": {
             "type": "string"
+          },
+          "liveness": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ActivityLiveness"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Best-effort ownership observation, not a replacement for terminal results."
           },
           "message": {
             "type": [

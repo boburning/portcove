@@ -113,6 +113,9 @@ export function isolatedGenerator() {
     "maintainer-config.mts",
   ])
     copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
+  const inventory = join(scratch, "apps", "desktop", "src", "catalog-values.generated.ts");
+  mkdirSync(dirname(inventory), { recursive: true });
+  copyFileSync(join(root, "apps", "desktop", "src", "catalog-values.generated.ts"), inventory);
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(catalogs, { recursive: true });
   for (const name of [

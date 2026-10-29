@@ -1,4 +1,6 @@
-use portcove_core::{ActivityTargetKind, Catalog, OperationEvent, OperationEventKind};
+use portcove_core::{
+    ActivityTargetKind, Catalog, OperationEvent, OperationEventKind, ProgressUnit,
+};
 
 use crate::human;
 
@@ -6,7 +8,7 @@ pub(crate) struct HumanProgress<'a> {
     interactive: bool,
     catalog: Option<&'a Catalog>,
     phase: Option<String>,
-    latest: Option<(u64, Option<u64>)>,
+    latest: Option<(u64, Option<u64>, Option<ProgressUnit>)>,
     completed_line: bool,
     inline_line: bool,
 }
@@ -39,7 +41,10 @@ impl<'a> HumanProgress<'a> {
                 phase,
                 completed,
                 total,
+                unit,
+                phase_id,
             } => {
+                let phase = phase_id.as_ref().unwrap_or(phase);
                 if self.phase.as_deref() != Some(phase) {
                     output.push_str(&self.end_phase());
                     self.phase = Some(phase.clone());
@@ -48,12 +53,18 @@ impl<'a> HumanProgress<'a> {
                         output.push_str(&format!("{}: started\n", human::phase_name(phase)));
                     }
                 }
-                self.latest = Some((*completed, *total));
+                self.latest = Some((*completed, *total, *unit));
                 if self.interactive {
-                    output.push_str(&format!("\r{}", progress_line(phase, *completed, *total)));
+                    output.push_str(&format!(
+                        "\r{}",
+                        progress_line(phase, *completed, *total, *unit)
+                    ));
                     self.inline_line = true;
                 } else if total.is_some_and(|total| *completed >= total) && !self.completed_line {
-                    output.push_str(&format!("{}\n", progress_line(phase, *completed, *total)));
+                    output.push_str(&format!(
+                        "{}\n",
+                        progress_line(phase, *completed, *total, *unit)
+                    ));
                     self.completed_line = true;
                 }
             }
@@ -124,9 +135,12 @@ impl<'a> HumanProgress<'a> {
         let mut output = self.break_inline_line();
         if !self.interactive
             && !self.completed_line
-            && let (Some(phase), Some((completed, total))) = (&self.phase, self.latest)
+            && let (Some(phase), Some((completed, total, unit))) = (&self.phase, self.latest)
         {
-            output.push_str(&format!("{}\n", progress_line(phase, completed, total)));
+            output.push_str(&format!(
+                "{}\n",
+                progress_line(phase, completed, total, unit)
+            ));
         }
         self.phase = None;
         self.latest = None;
@@ -134,10 +148,16 @@ impl<'a> HumanProgress<'a> {
     }
 }
 
-fn progress_line(phase: &str, completed: u64, total: Option<u64>) -> String {
-    // Current Core download/copy progress counts bytes. Unknown future phases
-    // have no known unit; never label an arbitrary counter as a byte count.
-    let bytes = matches!(phase, "download" | "copy" | "psx-toolchain-download");
+fn progress_line(
+    phase: &str,
+    completed: u64,
+    total: Option<u64>,
+    unit: Option<ProgressUnit>,
+) -> String {
+    let bytes = unit == Some(ProgressUnit::Bytes);
+    if unit == Some(ProgressUnit::Indeterminate) {
+        return format!("{}: working", human::phase_name(phase));
+    }
     let count = |value| {
         if bytes {
             human::format_bytes(value)
@@ -145,7 +165,12 @@ fn progress_line(phase: &str, completed: u64, total: Option<u64>) -> String {
             value.to_string()
         }
     };
-    let units = if bytes { "" } else { " units" };
+    let units = match unit {
+        Some(ProgressUnit::Bytes) => "",
+        Some(ProgressUnit::Items) => " items",
+        Some(ProgressUnit::Ports) => " ports",
+        _ => " units",
+    };
     let count = match total {
         Some(total) => format!("{} of {}{units}", count(completed), count(total)),
         None => format!("{}{units} (total unknown)", count(completed)),
@@ -193,7 +218,8 @@ mod tests {
         let original = serde_json::to_value(&event).unwrap();
         let start = progress.render(&event);
         assert!(start.contains(&format!("{} ({})", port.name, port.id)));
-        let progress_event = operation.progress("download", 1024, Some(2048));
+        let progress_event =
+            operation.progress_with_unit("download", ProgressUnit::Bytes, 1024, Some(2048));
         let mut text = progress.render(&progress_event);
         text.push_str(&progress.render(&operation.finished(OperationResult::Failed)));
         assert!(text.contains("1.0 KiB of 2.0 KiB"));
@@ -201,6 +227,8 @@ mod tests {
         assert_eq!(
             progress_event.event,
             OperationEventKind::Progress {
+                phase_id: Some("download".into()),
+                unit: Some(portcove_core::ProgressUnit::Bytes),
                 phase: "download".into(),
                 completed: 1024,
                 total: Some(2048)
@@ -212,7 +240,8 @@ mod tests {
     fn zero_length_progress_and_terminal_controls_are_safe() {
         let operation = OperationCoordinator::new("install", None);
         let mut progress = HumanProgress::new(false);
-        let mut text = progress.render(&operation.progress("copy", 0, Some(0)));
+        let mut text =
+            progress.render(&operation.progress_with_unit("copy", ProgressUnit::Bytes, 0, Some(0)));
         text.push_str(&progress.render(&operation.message("info", "hello\u{1b}[2J\rworld")));
         text.push_str(&progress.render(&operation.finished(OperationResult::Succeeded)));
         assert!(text.contains("0 B of 0 B"));
