@@ -214,7 +214,11 @@ check reporting the sanitized reachability failure without new staging/apply
 state or changed saved updater choices, restore the original timestamp inode
 and bytes, then retry through the ordinary controls. Scheduling failure/retry
 counters may legitimately change. The installed executable/AppImage hash and
-existing data comparisons remain required. This is file-feed reachability
+existing data comparisons remain required. Repeated Stable/Manual setup confirms
+an already-saved choice through the shipping read-only preference query instead
+of clicking a correctly disabled, unchanged Save control. An enabled Save still
+uses its normal UI action, and the fresh one-time check remains mandatory.
+This is file-feed reachability
 coverage, not OS-offline, HTTP redirect/rate-limit, production TLS or publication
 acceptance.
 

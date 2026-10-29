@@ -108,9 +108,23 @@ export async function driveInstalledStableWaiting(browser: WebDriver, actions: s
     await browser
       .findElement(By.xpath(`//*[@aria-label="${label}"]//button[normalize-space(.)="${value}"]`))
       .click();
-  await browser
-    .findElement(By.xpath('//button[normalize-space(.)="Save application update settings"]'))
-    .click();
+  const save = await browser.findElement(
+    By.xpath('//button[normalize-space(.)="Save application update settings"]'),
+  );
+  const savedStableManual = (value: Record<string, unknown>) =>
+    isRecord(value.choice) && value.choice.channel === "stable" && value.choice.mode === "manual";
+  let shouldSave = false;
+  await browser.wait(async () => {
+    shouldSave = await save.isEnabled();
+    return shouldSave || savedStableManual(await readInstalledUpdatePreferences(browser));
+  }, 15_000);
+  if (shouldSave) await save.click();
+  // A disabled Save is also possible while unavailable. The authoritative
+  // choice and the enabled Check below must both agree before a fresh check.
+  await browser.wait(
+    async () => savedStableManual(await readInstalledUpdatePreferences(browser)),
+    15_000,
+  );
   await browser.wait(
     until.elementLocated(
       By.xpath('//button[normalize-space(.)="Check for updates" and not(@disabled)]'),
@@ -131,7 +145,9 @@ export async function driveInstalledStableWaiting(browser: WebDriver, actions: s
     '//section[@aria-labelledby="application-check-title"]//p[normalize-space(.)="One-time check · Stable"]',
   );
   await browser.wait(async () => (await browser.findElements(caption)).length === 0, 15_000);
-  actions.push("stable-manual-settings-saved");
+  actions.push(
+    shouldSave ? "stable-manual-settings-saved" : "stable-manual-settings-already-saved",
+  );
   const checkedAt = new Date().toISOString();
   await browser.findElement(By.xpath('//button[normalize-space(.)="Check for updates"]')).click();
   await browser.wait(until.elementLocated(caption), 45_000);
