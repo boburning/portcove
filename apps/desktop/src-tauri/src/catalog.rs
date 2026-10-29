@@ -203,3 +203,28 @@ pub(crate) async fn refresh_catalog_listings(
     })
     .await
 }
+
+/// Shared evidence query, bound to one selected library generation. This cannot
+/// install, launch, register sources or change installed/player-selected identity.
+#[tauri::command]
+pub(crate) async fn compare_game_ports(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    request: portcove_core::GameComparisonRequest,
+) -> DesktopResult<portcove_core::GameComparison> {
+    let state = state.inner().clone();
+    let preferences = state.preferences.as_ref().map_err(Clone::clone)?.clone();
+    let result = crate::blocking_async_service_at_generation(
+        state.clone(),
+        generation,
+        move |service| async move {
+            service
+                .compare_game_ports(&request, &preferences)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await?;
+    crate::require_library_generation(crate::state_generation(&state), generation)?;
+    Ok(result)
+}

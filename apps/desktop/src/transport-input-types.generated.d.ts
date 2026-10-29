@@ -21,6 +21,20 @@ export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "ke
 export type InputDesktopApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type InputDesktopOrganizationChange =
   | {
+      followed: boolean;
+      kind: "set_followed_project";
+      /**
+       * Optionally acknowledge the exact release already visible when following.
+       */
+      observed_identity?: string | null;
+      port_id: string;
+    }
+  | {
+      identity: string;
+      kind: "acknowledge_followed_release";
+      port_id: string;
+    }
+  | {
       hidden: boolean;
       kind: "set_hidden";
       port_id: string;
@@ -84,6 +98,7 @@ export interface TransportInputs {
   desktop_application_update_production_decision: InputDesktopApplicationUpdateProductionDecision;
   desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
+  desktop_game_comparison_request: InputDesktopGameComparisonRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
   desktop_install_input: InputDesktopInstallInput;
   desktop_organization_change: InputDesktopOrganizationChange;
@@ -166,6 +181,33 @@ export interface InputDesktopCatalogDownloadRequest {
   extract_archive: boolean;
   port_id: string;
   release_id: number;
+}
+export interface InputDesktopGameComparisonRequest {
+  edition_id?: string | null;
+  /**
+   * An explicit observation environment, not a claim that this machine matches it.
+   * Omission uses an unqualified environment and cannot inherit another device's evidence.
+   */
+  environment_id?: string | null;
+  /**
+   * Explicit replay clock. Adapters must not replace a supplied clock.
+   */
+  evaluated_at?: number | null;
+  platform?: Platform | null;
+  /**
+   * A current or retained listing. Only explicit original-game IDs relate alternatives.
+   */
+  port_id: string;
+  /**
+   * Reuse the existing provider's conditional requests, cache and network limits.
+   */
+  refresh?: boolean;
+  required_capabilities?: string[];
+  /**
+   * Catalog profile IDs only. Omission uses this library's explicit registrations;
+   * presence describes a hypothetical source context, not a fresh file verification.
+   */
+  source_profile_ids?: string[] | null;
 }
 export interface InputDesktopInstallInput {
   bios?: string | null;

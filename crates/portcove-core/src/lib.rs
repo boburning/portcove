@@ -38,6 +38,7 @@ mod external_runtime;
 mod failure;
 mod game_file_query;
 mod game_file_root;
+mod game_recommendations;
 mod ghostship_data_store;
 mod gitlab;
 mod host_preferences;
@@ -66,6 +67,7 @@ mod output_root;
 mod path;
 mod permissions;
 mod persistence;
+mod port_recommendation;
 mod portability;
 mod portability_authority;
 mod portable_tree;
@@ -193,6 +195,14 @@ pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
     GameFileScanSnapshot,
 };
+pub use game_recommendations::{
+    ComparisonEdition, ComparisonFreshness, ComparisonPort, ComparisonRelease,
+    ComparisonReleaseState, ComparisonUpdateNotice, ControlsOutcome, GameComparison,
+    GameComparisonRequest, GameplayOutcome, MaintenanceOutcome, PerformanceOutcome,
+    RECOMMENDATION_METADATA_VERSION, RecommendationCapabilityObservation, RecommendationMetadata,
+    RecommendationMetadataState, RecommendationObservation, RecommendationOutcome, SetupOutcome,
+    StabilityOutcome,
+};
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
@@ -217,6 +227,16 @@ pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
+};
+pub use port_recommendation::{
+    PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
+    PortRecommendationStatus, RecommendationCandidate, RecommendationCandidateAssessment,
+    RecommendationClaim, RecommendationContext, RecommendationDimension,
+    RecommendationDimensionAssessment, RecommendationDimensionState, RecommendationEvidence,
+    RecommendationEvidenceAssessment, RecommendationEvidenceDisposition,
+    RecommendationEvidenceKind, RecommendationOperationEligibility, RecommendationReason,
+    RecommendationRegression, RecommendationRequirement, RecommendationScope,
+    RecommendationVerifiedCorrection, assess_port_recommendations,
 };
 pub use portability::{
     LibraryContentKind, LibraryContentRoot, LibraryLaunchHistory, LibraryMetadata,
@@ -306,7 +326,7 @@ pub use types::*;
 // Public81 adds separately reviewed external-to-managed copy transitions.
 // Existing response meanings and operation-event schema3 remain unchanged.
 // Public82 adds source-only preparation format3 with no setup executable.
-pub const API_SCHEMA_VERSION: u32 = 82;
+pub const API_SCHEMA_VERSION: u32 = 83;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

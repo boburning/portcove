@@ -2333,3 +2333,14 @@ under an explicit current-catalog scope; recorded mechanical facts stay unavaila
 assessments retain their own owners. Mechanical explanation does not authorize
 preparation, updates or backups. Marathon's shared authored guide replaces its
 identical duplicated preparation paragraph; game-specific guidance is retained.
+
+## Optional recommendation observations
+
+`presentation.recommendation` is inert optional format-1 metadata. Its named
+outcomes, attributable public sources, explicit observation kinds and complete
+artifact/edition/environment/source/route scopes feed the shared Core query.
+It is not a numeric quality field or executable policy. Missing, malformed and
+future versions preserve ordinary project listings; older catalog readers can
+ignore it. Accepted regression and correction authority remains with the existing
+reviewed catalog inputs, not arbitrary release notes. See the
+[recommendation contract](reference/port-recommendation-policy.md).

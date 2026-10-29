@@ -26,6 +26,13 @@ renaming; this history does not deliver future commands or migrate stored data.
 
 ## Documented API changes
 
+API83 adds the shared game comparison request/result and optional named-outcome
+recommendation metadata. Local organization state adds explicit followed projects
+and deduplicated observed-release acknowledgments. Missing/future optional metadata
+does not reject ordinary listings. No Library database or installed-contract
+version changes. Exact API consumers must negotiate 83 rather than guessing at
+new consequential command results.
+
 The open-catalog addition retains API80's existing strict command contracts and
 advertises `catalog.listings`, `catalog.inspect-listings`, `setup.*` and
 `external.select-relink` separately. `CatalogListingDocument` has its own

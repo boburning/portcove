@@ -30,6 +30,24 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
     serde_json::Value::Object(
         [
             (
+                "game_comparison",
+                serde_json::json!(schema_for_contract::<portcove_core::GameComparison>(
+                    contract
+                )),
+            ),
+            (
+                "game_comparison_request",
+                serde_json::json!(schema_for_contract::<portcove_core::GameComparisonRequest>(
+                    contract
+                )),
+            ),
+            (
+                "recommendation_metadata",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::RecommendationMetadata>(contract)
+                ),
+            ),
+            (
                 "definition_capability_request",
                 serde_json::json!(schema_for_contract::<
                     portcove_core::DefinitionCapabilityRequest,

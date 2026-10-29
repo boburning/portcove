@@ -347,3 +347,15 @@ scope; it does not guarantee every port, platform or personal library.
 
 See the [contributor workflow](CONTRIBUTING.md), [quality checks](docs/QUALITY.md),
 [architecture](docs/ARCHITECTURE.md) and [documentation index](docs/README.md).
+
+### Compare implementations of a game
+
+Discover groups projects only through reviewed game identities. Open a comparison
+or **Why this port?** to inspect source editions, platform requirements, evidence
+and limitations. A recommended starting point appears only when scoped evidence
+supports it; sparse and single-project cases do not imply “best.” Changing the
+comparison never changes an installed project, original files, saves or channels.
+Explicitly follow independent projects for locally deduplicated release notices
+when refreshed; use the **Followed** filter to find them. There is no mandatory
+account, telemetry or background notification service. CLI users can run
+`portcove --json catalog compare PORT_ID` for the same Core result.

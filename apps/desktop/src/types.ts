@@ -247,3 +247,6 @@ export type SteamEntryOperation = SteamEntryReview["operation"];
 export type SteamEntrySelection = Requests.TransportInputs["desktop_steam_entry_selection"];
 export type SteamBatchReview = Generated.TransportOutputs["desktop_steam_batch_review"];
 export type SteamBatchSelection = Requests.TransportInputs["desktop_steam_batch_selection"];
+
+export type GameComparison = Generated.TransportOutputs["desktop_game_comparison"];
+export type GameComparisonRequest = Requests.TransportInputs["desktop_game_comparison_request"];
