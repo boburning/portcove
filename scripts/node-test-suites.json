@@ -4306,7 +4306,11 @@
           "prerequisite": "PowerShell unavailable; required Windows job executes this contract",
           "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3; Mac complement macos-platform-contracts",
-          "cases": ["Windows analyzer acquisition retains the exact pin and both mandatory gates"],
+          "cases": [
+            "Windows analyzer acquisition retains the exact pin and both mandatory gates",
+            "Rust action records consumed toolchain context and stops at each failed probe",
+            "Rust pin reader consumes the repository TOML and refuses malformed inputs without partial outputs"
+          ],
           "skip_reason_prefix": "PowerShell unavailable; required Windows job executes this contract"
         },
         {

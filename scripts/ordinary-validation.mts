@@ -1173,6 +1173,7 @@ for (const [file, tests] of [
     [...selectionContractTests, "scripts/validation-evidence.test.mts", "scripts/audit.test.mts"],
   ],
   [".fallow-tooling.json", ["scripts/fallow-scope.test.mts", "scripts/run-fallow.test.mts"]],
+  ["scripts/fixtures/rust-action-fixture.mts", ["scripts/rust-validation-setup.test.mts"]],
   [
     "scripts/fixtures/linux-prerequisites-fixture.mts",
     ["scripts/container-build.test.mts", "scripts/rust-validation-setup.test.mts"],
