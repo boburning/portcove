@@ -662,7 +662,7 @@ it.each(
   const create = vi.spyOn(desktopApi, "backup");
   await root.rerender(<DetailReadHistory />);
   const button = [...document.body.querySelectorAll("button")].find(
-    (button) => button.textContent?.trim() === "Back up data",
+    (button) => button.textContent?.trim() === "Back up now",
   );
   expect(button?.disabled).toBe(true);
   await act(async () => button?.click());
@@ -792,7 +792,7 @@ it("offers retained owned-data backup without an install and rejects last-loaded
   );
   const button = () =>
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (value) => value.textContent?.trim() === "Back up data",
+      (value) => value.textContent?.trim() === "Back up now",
     )!;
   expect(button()).toBeDefined();
   expect(button().disabled).toBe(false);

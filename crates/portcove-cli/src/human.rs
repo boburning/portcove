@@ -1351,13 +1351,13 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
                 "No usable backup is currently available to review for restore."
             }
             PortActionReason::UnreadableData => {
-                "Owned data could not be read; review its location and retry."
+                "Saved data could not be read; check its location before retrying."
             }
             PortActionReason::AssessmentIncomplete => {
                 "The bounded preview is incomplete; no empty-data conclusion or new backup execution limit is established."
             }
             PortActionReason::UnsafeData => {
-                "The owned data or retained save location needs path and ownership review."
+                "The saved-data location needs a safety check before this action."
             }
             PortActionReason::RecoveryRequired => {
                 "Restart Portcove to retry recovery; review doctor output if it remains."
@@ -1845,7 +1845,7 @@ pub(crate) fn preparation_cleanup(
 
 pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> String {
     format!(
-        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nStaged: {}",
+        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
         port_name(catalog, &paths.port_id),
         clean(&paths.library_root.display().to_string()),
         clean(&paths.user_data_root.display().to_string()),
@@ -2215,8 +2215,8 @@ pub(crate) fn operation_name(operation: portcove_core::ActivityOperation) -> &'s
         Operation::Update => "Update game port",
         Operation::Reconcile => "Apply game update policy",
         Operation::VerifyInstall => "Check installed files",
-        Operation::Activate => "Activate staged release",
-        Operation::Rollback => "Restore previous release",
+        Operation::Activate => "Apply saved update",
+        Operation::Rollback => "Restore previous version",
         Operation::Adopt => "Copy existing installation",
         Operation::Remove => "Remove managed versions",
         Operation::RemoveSource => "Remove saved game-file location",
@@ -2381,8 +2381,8 @@ fn repair_kind(kind: RepairItemKind) -> &'static str {
 fn install_action(action: InstallPlanAction) -> &'static str {
     match action {
         InstallPlanAction::AlreadyActive => "already active",
-        InstallPlanAction::UseStaged => "activate staged release",
-        InstallPlanAction::ReuseRetained => "reuse retained release",
+        InstallPlanAction::UseStaged => "use saved version",
+        InstallPlanAction::ReuseRetained => "use previous version",
         InstallPlanAction::BlockedUnverified => {
             "Blocked by a local installation that does not match the expected files"
         }

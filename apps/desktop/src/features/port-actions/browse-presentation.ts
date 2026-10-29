@@ -48,7 +48,7 @@ export function readinessPresentation(
   const setup = pendingSetupPresentation(port, status);
   if (setup) return setup;
   if (readiness === "setup" && hasPendingSetupAction(status))
-    return { label: "Setup required", action: "Finish setup", tone: "setup" } as const;
+    return { label: "Setup needed", action: "Finish setup", tone: "setup" } as const;
   if (
     (status?.active || status?.external_runtime) &&
     portActionPresentation(status, "launch").blocked
@@ -69,10 +69,10 @@ export function readinessPresentation(
       tone: "available",
     },
     ready: { label: "Ready to play", action: "View details", tone: "ready" },
-    source: { label: "Game files needed", action: "Finish setup", tone: "setup" },
+    source: { label: "Needs game files", action: "Finish setup", tone: "setup" },
     repair: {
       label: "Installation needs repair",
-      action: "Review game",
+      action: "View details",
       tone: "setup",
     },
     runtime: {
@@ -81,16 +81,16 @@ export function readinessPresentation(
       tone: "setup",
     },
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
-    setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
+    setup: { label: "Setup needed", action: "Finish setup", tone: "setup" },
     staged: { label: "Ready to play", action: "View details", tone: "ready" },
     unknown: {
       label: "Readiness unavailable",
-      action: "Review game",
+      action: "View details",
       tone: "setup",
     },
     blocked: {
       label: "Launch unavailable",
-      action: "Review game",
+      action: "View details",
       tone: "setup",
     },
   } as const;
@@ -134,7 +134,7 @@ export function browseStatusSummary(
   const update = status?.acquisition
     ? gameUpdateAcquisitionLabel(status.acquisition.phase)
     : status?.staged
-      ? "Update prepared"
+      ? "Update saved for later"
       : updateAvailable
         ? "Update available at last check"
         : undefined;

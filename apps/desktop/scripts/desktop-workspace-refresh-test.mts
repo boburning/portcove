@@ -682,7 +682,7 @@ export async function workspaceRefreshScenario({
         for (const launch of launchControls) assert.equal(await launch.isEnabled(), false);
         const locate = await browser.findElement(
           By.xpath(
-            '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Locate game files"]',
+            '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Select game files"]',
           ),
         );
         assert.equal(

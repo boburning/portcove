@@ -552,7 +552,7 @@ it.each(["loading", "loaded"] as const)(
     await click("Change download folder…");
     await page.getByRole("tab", { name: "Saves & backups", exact: true }).click();
     await expect
-      .element(page.getByRole("button", { name: "Back up data", exact: true }))
+      .element(page.getByRole("button", { name: "Back up now", exact: true }))
       .not.toBeInTheDocument();
     await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
     await expect

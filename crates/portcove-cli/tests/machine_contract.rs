@@ -181,7 +181,10 @@ fn consequential_help_explains_actions_and_review_arguments() {
     for (args, expected) in [
         (&["ensure", "--help"][..], "required runtime is present"),
         (&["reconcile", "--help"][..], "game update settings"),
-        (&["activate", "--help"][..], "staged release"),
+        (
+            &["activate", "--help"][..],
+            "saved release as the current installed version",
+        ),
         (
             &["rollback", "--help"][..],
             "retained previous installed version",

@@ -360,7 +360,7 @@ it.each(["catalog", "library"] as const)(
         />,
       );
     const html = renderCard();
-    expect(html).toContain("Setup required");
+    expect(html).toContain("Setup needed");
     const action = view === "catalog" ? discoverAction(html, port.id) : html;
     expect(action).toContain(view === "library" ? "Review setup" : "View installation");
     expect(html).not.toContain("Launch needs review");

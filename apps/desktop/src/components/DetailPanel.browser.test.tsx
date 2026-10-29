@@ -58,7 +58,7 @@ for (const id of ["road-rash-64-recompiled", "sonic-3-and-knuckles-recomp"]) {
       expect(props.actions.launch).not.toHaveBeenCalled();
       expect(props.inspectSource).not.toHaveBeenCalled();
       expect(
-        page.getByRole("button", { name: "Locate game files", exact: true }).query(),
+        page.getByRole("button", { name: "Select game files", exact: true }).query(),
       ).toBeNull();
       const play = document.querySelector<HTMLButtonElement>("[data-launch-action]");
       expect(play).not.toBeNull();
@@ -84,7 +84,7 @@ it.each([
   await render(<DetailPanel {...props} />);
   expect(document.querySelector("[data-launch-action]:not(:disabled)")).toBeNull();
   await expect
-    .element(page.getByRole("button", { name: "Locate game files", exact: true }))
+    .element(page.getByRole("button", { name: "Select game files", exact: true }))
     .toBeVisible();
   expect(props.actions.launch).not.toHaveBeenCalled();
 });
@@ -106,9 +106,9 @@ it("asks only for missing BIOS when the registered game has metadata-only health
     />,
   );
   await expect
-    .element(page.getByRole("button", { name: "Locate required BIOS", exact: true }))
+    .element(page.getByRole("button", { name: "Select BIOS file", exact: true }))
     .toBeVisible();
-  expect(page.getByRole("button", { name: "Locate game files", exact: true }).query()).toBeNull();
+  expect(page.getByRole("button", { name: "Select game files", exact: true }).query()).toBeNull();
   expect(document.querySelector("[data-launch-action]:not(:disabled)")).toBeNull();
 });
 
@@ -116,7 +116,7 @@ it("keeps Core's allowed launch while source-record readback is pending", async 
   const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
   await render(<DetailPanel {...props} source={undefined} sourcePath="" />);
   expect(document.querySelector("[data-launch-action]:not(:disabled)")).not.toBeNull();
-  expect(page.getByRole("button", { name: "Locate game files", exact: true }).query()).toBeNull();
+  expect(page.getByRole("button", { name: "Select game files", exact: true }).query()).toBeNull();
   expect(props.actions.launch).not.toHaveBeenCalled();
   expect(props.inspectSource).not.toHaveBeenCalled();
 });
@@ -170,7 +170,7 @@ it("keeps an unknown external installation's folder and maintenance facts distin
     "Readiness unavailable",
   );
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
-  const ownership = page.getByRole("heading", { name: "Installation ownership", exact: true });
+  const ownership = page.getByRole("heading", { name: "Installation management", exact: true });
   await expect.element(ownership).toBeVisible();
   const facts = page.elementLocator(ownership.element().closest("section")!);
   await expect
@@ -317,5 +317,50 @@ it.each(["dark", "light"])(
     expect(document.querySelector('[aria-label="Catalog check history"]')).toBeNull();
     expect(noop).not.toHaveBeenCalled();
     delete document.documentElement.dataset.theme;
+  },
+);
+
+it.each([
+  [360, "dark"],
+  [740, "light"],
+] as const)(
+  "names a first-run launch without implying preparation at %ipx in %s with enlarged text",
+  async (width, theme) => {
+    await page.viewport(width, 800);
+    const fontSize = document.documentElement.style.fontSize;
+    const oldTheme = document.documentElement.dataset.theme;
+    document.documentElement.style.fontSize = "20.8px";
+    document.documentElement.dataset.theme = theme;
+    const launch = vi.fn(async () => true);
+    const install = vi.fn(async () => true);
+    const reviewInstall = vi.fn();
+    try {
+      await render(
+        <DetailPanel
+          port={portDefinition()}
+          status={{
+            ...portStatus(),
+            active: installRecord(),
+            readiness: { launchable: true, pending_setup: true, blockers: [] },
+          }}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={{ ...detailActions, launch, install, reviewInstall }}
+        />,
+      );
+      const action = page.getByRole("button", { name: "Launch to finish setup", exact: true });
+      await expect.element(action).toBeVisible();
+      const element = action.element();
+      expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1);
+      expect(element.getBoundingClientRect().right).toBeLessThanOrEqual(width + 1);
+      await action.click();
+      expect(launch).toHaveBeenCalledOnce();
+      expect(install).not.toHaveBeenCalled();
+      expect(reviewInstall).not.toHaveBeenCalled();
+    } finally {
+      document.documentElement.style.fontSize = fontSize;
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+    }
   },
 );
