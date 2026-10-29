@@ -338,7 +338,7 @@ void test("game media uses dedicated relationships and fit PNG assets through th
   assert.ok(text(requiredFixture(calls[2]).options.body).includes("image_type.name"));
   assert.equal(
     text(requiredFixture(calls[3]).options.body),
-    "fields id,name; sort id asc; limit 501;",
+    "fields id,name; sort id asc; limit 500;",
   );
   assert.ok(calls.every((call) => call.options.redirect === "error"));
   assert.equal(decoded, 2);
@@ -347,6 +347,86 @@ void test("game media uses dedicated relationships and fit PNG assets through th
   assert.equal(provider.providerMetrics.image_requests, 2);
   await assert.rejects(provider.inspectGameMedia(0, "logo"), /Invalid game media identity/);
   assert.equal(calls.length, 6);
+});
+
+void test("image-type inventory respects the provider page cap and proves completeness at the boundary", async () => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-image-types-provider-"));
+  const privateFile = join(scratch, "private-fixture.json");
+  writeFileSync(privateFile, JSON.stringify({ client_id: "fixture", client_secret: "private" }));
+  const fullPage = Array.from({ length: 500 }, (_, index) => ({
+    id: index + 1,
+    name: `Type ${index}`,
+  }));
+  for (const [name, pages, accepted] of [
+    ["short", [[{ id: 3, name: "Key art with logo" }]], true],
+    ["empty", [[]], true],
+    ["exactly full", [fullPage, []], true],
+    ["overflow", [fullPage, [{ id: 501 }]], false],
+    ["malformed overflow", [fullPage, {}], false],
+    ["oversized", [[...fullPage, { id: 501, name: "Extra" }]], false],
+    ["malformed page", [{}], false],
+  ] as const) {
+    const queries: string[] = [];
+    const provider = createIgdbInspector(
+      privateFile,
+      () => assert.fail("metadata cannot decode"),
+      async (url, options) => {
+        if (url.includes("oauth2")) return Response.json({ access_token: "private-token" });
+        assert.equal(url, "https://api.igdb.com/v4/image_types");
+        const query = text(options.body);
+        const limit = Number(/limit (\d+);/.exec(query)?.[1]);
+        assert.ok(limit > 0 && limit <= 500, `${name}: legal provider limit`);
+        queries.push(query);
+        return Response.json(pages[queries.length - 1]);
+      },
+    );
+    if (accepted) assert.deepEqual(await provider.inspectImageTypes(), pages[0], name);
+    else
+      await assert.rejects(
+        provider.inspectImageTypes(),
+        /image.type inventory.*invalid or incomplete/i,
+        name,
+      );
+    assert.equal(queries.length, pages.length, name);
+    if (pages.length === 2)
+      assert.equal(queries[1], "fields id; sort id asc; limit 1; offset 500;", name);
+    assert.equal(provider.providerMetrics.authentication_requests, 1, name);
+  }
+});
+
+void test("unavailable image-type overflow stays unknown without disabling game-logo lookup", async () => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-image-types-unavailable-"));
+  const privateFile = join(scratch, "private-fixture.json");
+  writeFileSync(privateFile, JSON.stringify({ client_id: "fixture", client_secret: "private" }));
+  const queries: string[] = [];
+  const provider = createIgdbInspector(
+    privateFile,
+    () => assert.fail("metadata cannot decode"),
+    async (url, options) => {
+      if (url.includes("oauth2")) return Response.json({ access_token: "private-token" });
+      queries.push(url);
+      if (url.endsWith("/logos")) return Response.json([]);
+      assert.equal(url, "https://api.igdb.com/v4/image_types");
+      return text(options.body).includes("offset 500")
+        ? new Response("private-provider-error-body", { status: 403 })
+        : Response.json(
+            Array.from({ length: 500 }, (_, index) => ({ id: index + 1, name: `Type ${index}` })),
+          );
+    },
+  );
+  await assert.rejects(provider.inspectImageTypes(), {
+    message: "IGDB media request unavailable.",
+  });
+  assert.deepEqual(await provider.inspectGameMedia(7, "logo"), []);
+  assert.deepEqual(queries, [
+    "https://api.igdb.com/v4/image_types",
+    "https://api.igdb.com/v4/image_types",
+    "https://api.igdb.com/v4/logos",
+  ]);
+  assert.equal(provider.providerMetrics.authentication_requests, 1);
+  assert.equal(provider.providerMetrics.game_requests, 3);
 });
 
 void test("hero preparation validates identity without requiring a cover and rejects generic or foreign artwork", async () => {

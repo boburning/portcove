@@ -1255,7 +1255,20 @@ export function createIgdbInspector(
       );
     },
     async inspectImageTypes(): Promise<unknown> {
-      return inspectMetadata("image_types", "fields id,name; sort id asc; limit 501;");
+      // IGDB rejects limits above 500, including an in-page overflow sentinel.
+      // Keep the inventory bounded, and prove a full page is complete separately.
+      const types = await inspectMetadata("image_types", "fields id,name; sort id asc; limit 500;");
+      if (!Array.isArray(types) || types.length > 500)
+        throw new Error("IGDB image-type inventory is invalid or incomplete.");
+      if (types.length === 500) {
+        const overflow = await inspectMetadata(
+          "image_types",
+          "fields id; sort id asc; limit 1; offset 500;",
+        );
+        if (!Array.isArray(overflow) || overflow.length !== 0)
+          throw new Error("IGDB image-type inventory is invalid or incomplete.");
+      }
+      return types;
     },
     async inspectImage(imageId: string, remainingBytes = maximumBatchBytes) {
       return observedContent(await inspectRemoteImage(imageId, "cover_big", remainingBytes));
