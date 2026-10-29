@@ -1,3 +1,7 @@
+import {
+  prerequisiteInvocation,
+  prerequisiteOperations,
+} from "./fixtures/linux-prerequisites-fixture.mts";
 import { workflowJobs } from "./qualification-coverage.mts";
 import { readWorkflow } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
@@ -34,10 +38,7 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   const packageOwnershipRehearsal = await readWorkflow(
     new URL("../.github/workflows/linux-package-ownership-rehearsal.yml", import.meta.url),
   );
-  const installer = await readFile(
-    new URL("./install-linux-desktop-prerequisites.sh", import.meta.url),
-    "utf8",
-  );
+
   const installerSteps = (source: string) =>
     Object.values(workflowJobs(source))
       .flatMap((job): unknown[] => (Array.isArray(job.steps) ? job.steps : []))
@@ -45,55 +46,59 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
         (step: unknown): step is Record<string, unknown> & { run: string } =>
           isRecord(step) &&
           typeof step.run === "string" &&
-          step.run.startsWith("./scripts/install-linux-desktop-prerequisites.sh"),
+          /(?:^|[\s"'])\.\/scripts\/install-linux-desktop-prerequisites\.sh(?:[\s"']|$)/u.test(
+            step.run,
+          ),
       );
-  const defaultInstall = "./scripts/install-linux-desktop-prerequisites.sh";
+  const invocation = (step: { run: string }, expected: string[]) =>
+    assert.deepEqual(prerequisiteInvocation(step.run).toSorted(), expected.toSorted());
   assert.equal(installerSteps(workflow).length, 3);
   assert.equal(
     installerSteps(workflow).filter(
-      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+      (step) => prerequisiteInvocation(step.run).length === 0 && step["timeout-minutes"] === 15,
     ).length,
     0,
   );
-  const schemaInstall: Record<string, unknown> & { run: string } = workflowStep(
-    "rust_quality_full",
-    "Install Linux desktop schema-export prerequisites",
-  );
+  const installedBy = (jobId: string) => {
+    const job = workflowJobs(workflow)[jobId];
+    assert.ok(job && Array.isArray(job.steps));
+    const selected = job.steps.filter(
+      (step): step is Record<string, unknown> & { run: string } =>
+        isRecord(step) &&
+        typeof step.run === "string" &&
+        step.run.includes("./scripts/install-linux-desktop-prerequisites.sh"),
+    );
+    assert.equal(selected.length, 1);
+    return requiredFixture(selected[0]);
+  };
+  const schemaInstall = installedBy("rust_quality_full");
   assert.equal(schemaInstall["timeout-minutes"], 30);
-  assert.equal(
-    schemaInstall.run,
-    "./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600",
-  );
-  const nativeInstall: Record<string, unknown> & { run: string } = workflowStep(
-    "native_rust",
-    "Install Linux desktop prerequisites",
-  );
+  invocation(schemaInstall, ["--prefer-archive-mirror", "--install-timeout-seconds=600"]);
+  const nativeInstall = installedBy("native_rust");
   assert.equal(nativeInstall["timeout-minutes"], 30);
-  assert.equal(nativeInstall.run, schemaInstall.run);
-  const docsInstall: Record<string, unknown> & { run: string } = workflowStep(
-    "rust_docs",
-    "Install Linux desktop prerequisites",
-  );
+  invocation(nativeInstall, ["--prefer-archive-mirror", "--install-timeout-seconds=600"]);
+  const docsInstall = installedBy("rust_docs");
   assert.equal(docsInstall["timeout-minutes"], 30);
-  assert.equal(docsInstall.run, schemaInstall.run);
+  invocation(docsInstall, ["--prefer-archive-mirror", "--install-timeout-seconds=600"]);
   assert.equal(
     installerSteps(deepQuality).filter(
-      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+      (step) => prerequisiteInvocation(step.run).length === 0 && step["timeout-minutes"] === 15,
     ).length,
-    1,
+    2,
   );
   assert.equal(
     installerSteps(release).filter(
-      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+      (step) => prerequisiteInvocation(step.run).length === 0 && step["timeout-minutes"] === 15,
     ).length,
     2,
   );
   assert.equal(
     installerSteps(updaterRehearsal).filter(
       (step) =>
-        step.run ===
-          defaultInstall + " --include-rpm --include-appimage-runtime --include-webdriver" &&
-        step["timeout-minutes"] === 15,
+        JSON.stringify(prerequisiteInvocation(step.run).toSorted()) ===
+          JSON.stringify(
+            ["--include-rpm", "--include-appimage-runtime", "--include-webdriver"].toSorted(),
+          ) && step["timeout-minutes"] === 15,
     ).length,
     1,
   );
@@ -118,10 +123,15 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   assert.equal(
     installerSteps(packageOwnershipRehearsal).filter(
       (step) =>
-        step.run ===
-          defaultInstall +
-            " --include-rpm --include-dialog-tests --install-timeout-seconds=600 --prefer-archive-mirror" &&
-        step["timeout-minutes"] === 30,
+        JSON.stringify(prerequisiteInvocation(step.run).toSorted()) ===
+          JSON.stringify(
+            [
+              "--include-rpm",
+              "--include-dialog-tests",
+              "--install-timeout-seconds=600",
+              "--prefer-archive-mirror",
+            ].toSorted(),
+          ) && step["timeout-minutes"] === 30,
     ).length,
     1,
   );
@@ -134,49 +144,25 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   ]) {
     assert.doesNotMatch(hostedWorkflow, /sudo apt-get/);
   }
-  for (const packageName of [
+  // Production operations are exercised with inert command boundaries in
+  // container-build.test.mts; no source spelling establishes their behavior.
+  const planned = prerequisiteOperations(`
+plan_desktop_prerequisites ubuntu 24.04 --include-appimage-runtime --include-rpm
+printf '%s\\0' "\${packages[@]}"
+`);
+  assert.equal(planned.status, 0, planned.stderr);
+  assert.deepEqual(planned.stdout.slice(0, -1).split("\0"), [
     "libwebkit2gtk-4.1-dev",
     "libappindicator3-dev",
     "librsvg2-dev",
     "patchelf",
-    "libfuse2",
+    "libfuse2t64",
     "xvfb",
     "dbus-x11",
     "at-spi2-core",
     "util-linux",
-  ]) {
-    assert.ok(installer.includes(packageName), `${packageName} is missing`);
-  }
-  assert.match(installer, /Acquire::http::Timeout=30/);
-  assert.match(installer, /Acquire::https::Timeout=30/);
-  assert.match(installer, /Acquire::Retries=3/);
-  assert.match(installer, /DPkg::Lock::Timeout=60/);
-  assert.match(installer, /archive\.ubuntu\.com\/ubuntu/);
-  assert.match(installer, /Dir::Etc::sourceparts=-/);
-  assert.match(installer, /DEBIAN_FRONTEND=noninteractive/);
-  assert.match(installer, /timeout --kill-after=10s/);
-  assert.match(installer, /sudo -n true/);
-  assert.match(installer, /privilege=\(sudo -n\)/);
-  assert.match(installer, /"\$\{privilege\[@\]\}" timeout --kill-after=10s "\$deadline" env/);
-  assert.doesNotMatch(installer, /timeout[^\n]*"\$\{privilege\[@\]\}"/);
-  assert.match(installer, /install_deadline=3m/);
-  assert.match(installer, /fallback_install_deadline=5m/);
-  assert.match(
-    installer,
-    /install_from_current_mirror "the runner-configured mirror" 2m "\$install_deadline"/,
-  );
-  assert.match(
-    installer,
-    /install_from_current_mirror "the archive mirror fallback" 4m "\$fallback_install_deadline"/,
-  );
-  assert.ok(
-    installer.indexOf('if install_from_current_mirror "the runner-configured mirror"') <
-      installer.indexOf('echo "Retrying Linux desktop prerequisites'),
-  );
-  assert.match(installer, /--include-rpm\) packages\+=\(rpm\)/);
-  assert.match(installer, /VERSION_ID:-} == 24\.04[\s\S]*fuse_package=libfuse2t64/);
-  assert.match(installer, /--include-appimage-runtime\) packages\+=\("\$fuse_package"/);
-  assert.match(installer, /usage: \$0 \[--include-rpm\]/);
+    "rpm",
+  ]);
 });
 
 void test("repository Rust setup provisions components before ordinary identity probes", async () => {
