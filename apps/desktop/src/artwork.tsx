@@ -159,7 +159,7 @@ function useCatalogMediaChain(
 }
 
 /** Shared hero selection preserves local Detail choices and independent background media. */
-export function useHeaderArtwork(
+function useHeaderArtwork(
   port: PortIdentity & { id: string },
   visible: boolean,
   context: HeroMediaContext = {},

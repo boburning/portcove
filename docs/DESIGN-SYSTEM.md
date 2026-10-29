@@ -962,3 +962,23 @@ computed space, activation consequences and retained work stay visible; diagnost
 and external-window guidance remains secondary. Startup recovery groups only the
 actual unfinished library operation, preserves its unknown outcome and keeps
 retry, library selection and support-bundle paths available.
+
+Game files lead with the current file state and next action, followed by the
+existing requirements/input controls. File-matching evidence is one inline
+advanced disclosure. Saves lead with the authoritative backup-coverage result,
+known location and backup actions; exclusions and history stay visible. Manage
+keeps one ownership/path summary and puts future-install choices after its
+regular action rows.
+
+Activity recovery uses flat linked rows with recorded paths and guidance behind
+each row's disclosure. Recovery observations remain separate from task records;
+links use a real operation reference when one is available. Failed/unfinished
+outcomes and cancellation settlement remain visible on task rows. Operation IDs
+and retained preparation logs share Task details; they do not compete with the
+next action or hide mutation/uncertainty summaries.
+
+Port comparison shares `styles/comparison.css`: a concise evidence status, one
+optional settings disclosure and aligned project facts/actions. Exact artifact,
+freshness, file health and evidence provenance remain in each project's existing
+explanation. Advisory context remains distinct from setup/launch checks, and
+shared compatibility cautions are stated once rather than repeated on every card.

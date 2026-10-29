@@ -1085,13 +1085,6 @@ function ActivityRow({
         </div>
       )}
       <ActivityFailure activity={activity} target={target} onSelect={onSelect} />
-      {activity.operation === "prepare" && (
-        <ActivityDiagnostic
-          key={`${generation}:${activity.id}`}
-          activityId={activity.id}
-          generation={generation}
-        />
-      )}
       <details className={activityDetailsClass}>
         <summary data-focusable className="cursor-pointer py-1">
           Task details
@@ -1102,6 +1095,13 @@ function ActivityRow({
             <code>{activity.id}</code>
           </dd>
         </dl>
+        {activity.operation === "prepare" && (
+          <ActivityDiagnostic
+            key={`${generation}:${activity.id}`}
+            activityId={activity.id}
+            generation={generation}
+          />
+        )}
       </details>
     </div>
   );

@@ -991,16 +991,18 @@ function SavesStorageGroup({
     backups.length > 0 ||
     backupProblems.length > 0 ||
     (backupReadState !== undefined && backupReadState.status !== "idle");
+  const backupPresentation = backupCreatePresentation(backupCreateAssessment, backupReadState);
   return (
     <DetailGroup title="Saves & backups" headingId="detail-saves-and-storage" hideHeading>
-      <CurrentStateSummary title="Saved data" headingRef={heading}>
+      <CurrentStateSummary
+        title="Saved data"
+        headingRef={heading}
+        action={<DataActions busy={busy} actions={actions} presentation={backupPresentation} />}
+      >
+        <p role="status" className="m-0 text-sm" id="backup-create-explanation">
+          {backupPresentation.explanation}
+        </p>
         <StorageSummary status={status} />
-        <DataActions
-          busy={busy}
-          actions={actions}
-          assessment={backupCreateAssessment}
-          readState={backupReadState}
-        />
         <p className="m-0 text-sm text-pc-muted-foreground">
           Backups cover managed saves and settings. Game-version rollback, library metadata and
           other folders are separate.
@@ -2426,20 +2428,15 @@ function MaintenanceActions({
 function DataActions({
   busy,
   actions,
-  assessment,
-  readState,
+  presentation,
 }: {
   busy?: string | undefined;
   actions: DetailActions;
-  assessment?: BackupInventory["create_assessment"] | undefined;
-  readState?: BackupReadState | undefined;
+  presentation: ReturnType<typeof backupCreatePresentation>;
 }) {
-  const { available, explanation } = backupCreatePresentation(assessment, readState);
+  const { available, explanation } = presentation;
   return (
     <div className="flex flex-wrap gap-2">
-      <p role="status" className="w-full" id="backup-create-explanation">
-        {explanation}
-      </p>
       <Button
         data-focusable
         variant="outline"
@@ -3417,59 +3414,51 @@ function DetailFilesSection({
   managedPreparation: boolean;
 }) {
   return (
-    <div className="detail-setup-workspace">
-      <div className="detail-setup-main">
-        <RequirementsGroup
-          key={`requirements:${model.port.id}:${model.libraryGeneration}`}
-          port={model.port}
-          installed={model.installed}
-          status={model.status}
-          sources={model.sources}
-          managedPreparation={managedPreparation}
-          pendingSetup={model.pendingSetup}
-          busy={model.busy}
-        />
+    <div className="detail-files-stack">
+      <StatusActionsGroup
+        hidePlay={model.installed && model.launchReady}
 
-        <StatusActionsGroup
-          hidePlay={model.installed && model.launchReady}
-
-          installCancellations={model.installCancellations}
-          port={model.port}
+        installCancellations={model.installCancellations}
+        port={model.port}
+        status={model.status}
+        stagedVersion={undefined}
+        sources={model.sources}
+        installed={model.installed}
+        sourceReady={model.sourceReady}
+        biosReady={model.biosReady}
+        launchReady={model.launchReady}
+        pendingSetup={model.pendingSetup}
+        runtimeUpdateAvailable={model.runtimeUpdateAvailable}
+        managedPreparation={managedPreparation}
+        prepare={model.prepare}
+        installPlan={model.installPlan}
+        busy={model.busy}
+        libraryGeneration={model.libraryGeneration}
+        onChanged={model.externalRuntimeChanged}
+        actions={model.actions}
+        openLibraryStorage={model.openLibraryStorage}
+      />
+      <RequirementsGroup
+        key={`requirements:${model.port.id}:${model.libraryGeneration}`}
+        port={model.port}
+        installed={model.installed}
+        status={model.status}
+        sources={model.sources}
+        managedPreparation={managedPreparation}
+        pendingSetup={model.pendingSetup}
+        busy={model.busy}
+      />
+      {(model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation) && (
+        <SetupStatement
+          portId={model.port.id}
           status={model.status}
-          stagedVersion={undefined}
-          sources={model.sources}
-          installed={model.installed}
-          sourceReady={model.sourceReady}
-          biosReady={model.biosReady}
-          launchReady={model.launchReady}
-          pendingSetup={model.pendingSetup}
-          runtimeUpdateAvailable={model.runtimeUpdateAvailable}
-          managedPreparation={managedPreparation}
-          prepare={model.prepare}
-          installPlan={model.installPlan}
-          busy={model.busy}
-          libraryGeneration={model.libraryGeneration}
-          onChanged={model.externalRuntimeChanged}
-          actions={model.actions}
-          openLibraryStorage={model.openLibraryStorage}
+          organization={model.organization}
         />
-        {(model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation) && (
-          <SetupStatement
-            portId={model.port.id}
-            status={model.status}
-            organization={model.organization}
-          />
-        )}
-      </div>
-      <aside className="detail-setup-context">
-        <h3 className="mb-3 text-base">File details</h3>
-        <details className="my-4">
-          <summary className="cursor-pointer py-2 text-sm font-medium">
-            File matching details
-          </summary>
-          {model.observations}
-        </details>
-      </aside>
+      )}
+      <details className="detail-file-observations">
+        <summary data-focusable>File matching details</summary>
+        {model.observations}
+      </details>
     </div>
   );
 }
@@ -3490,13 +3479,14 @@ function DetailManageSection({
           !model.status
             ? "Installation status unavailable"
             : model.status.active || model.status.external_runtime
-              ? "Installation management"
+              ? model.status.external_runtime
+                ? "External installation"
+                : "Managed installation"
               : "No active installation"
         }
       >
         {model.status?.active && (
           <div className="text-sm wrap-anywhere">
-            <p className="m-0 font-medium">Managed installation</p>
             <p className="my-1 select-text">{model.status.active.path}</p>
             <p className="m-0 text-pc-muted-foreground">
               Portcove manages this installation. Saved-data coverage is shown in Saves & backups.
@@ -3505,7 +3495,6 @@ function DetailManageSection({
         )}
         {model.status?.external_runtime && (
           <div className="text-sm wrap-anywhere">
-            <p className="m-0 font-medium">Registered external installation</p>
             <p className="my-1 select-text">{model.status.external_runtime.path}</p>
             <p className="m-0 text-pc-muted-foreground">
               You maintain this folder and its updates.
@@ -3516,31 +3505,10 @@ function DetailManageSection({
           </div>
         )}
       </CurrentStateSummary>
-      {(!external || model.port.adapter === "native-portable") && (
-        <details className="my-4 text-sm">
-          <summary className="cursor-pointer py-2 font-medium">
-            Advanced installation settings
-          </summary>
-          <FutureSetupDisclosure
-            title="Folder for a future install"
-            description="Choosing an output folder does not move or install a game."
-          >
-            <OutputLocationControl
-              gameName={gameIdentityLabel(model.port)}
-              key={model.port.id + ":" + model.libraryGeneration}
-              portId={model.port.id}
-              generation={model.libraryGeneration}
-              busy={model.outputExternalBusy}
-              onChanged={model.outputLocationChanged}
-              onApplying={model.outputApplying}
-            />
-          </FutureSetupDisclosure>
-        </details>
-      )}
       <ManagementRow
         title="Artwork"
         targetId="detail-artwork"
-        description="Change this game’s artwork using the existing local and catalog choices."
+        description="Choose a cover or background image for this game."
       >
         <ArtworkControls
           key={`controls:${model.port.id}:${model.libraryGeneration}`}
@@ -3551,7 +3519,7 @@ function DetailManageSection({
       {!external && (
         <ManagementRow
           title="Steam shortcut"
-          description="Review adding, repairing or removing this game’s shortcut in Steam."
+          description="Add, repair or remove this game’s Steam shortcut."
         >
           <span id="detail-steam" tabIndex={-1} />
           <SteamEntryControl
@@ -3575,6 +3543,27 @@ function DetailManageSection({
           busy={model.busy}
           actions={model.actions}
         />
+      )}
+      {(!external || model.port.adapter === "native-portable") && (
+        <details className="my-4 text-sm">
+          <summary className="cursor-pointer py-2 font-medium">
+            Advanced installation settings
+          </summary>
+          <FutureSetupDisclosure
+            title="Folder for a future install"
+            description="Choosing an output folder does not move or install a game."
+          >
+            <OutputLocationControl
+              gameName={gameIdentityLabel(model.port)}
+              key={model.port.id + ":" + model.libraryGeneration}
+              portId={model.port.id}
+              generation={model.libraryGeneration}
+              busy={model.outputExternalBusy}
+              onChanged={model.outputLocationChanged}
+              onApplying={model.outputApplying}
+            />
+          </FutureSetupDisclosure>
+        </details>
       )}
       {(!external || hasRecordedChecks(model.port, model.sources)) && (
         <TechnicalDetails

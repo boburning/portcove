@@ -1483,6 +1483,80 @@ function renderSortPortBrowserView(
   );
 }
 
+function CollectionResultSummary({
+  model,
+}: {
+  model: Pick<
+    ReturnType<typeof usePortBrowser>,
+    | "resultsUnavailable"
+    | "resultCount"
+    | "organizationView"
+    | "organization"
+    | "libraryReadiness"
+    | "view"
+    | "collectionLayoutFailure"
+  >;
+}) {
+  return (
+    <>
+      <span>{model.resultsUnavailable ? "Ports unavailable" : model.resultCount}</span>
+      {model.organizationView !== "all" && (
+        <span>
+          Collection:{" "}
+          {model.organizationView.startsWith("collection:")
+            ? (model.organization?.snapshot?.collections[model.organizationView.slice(11)]?.name ??
+              "Unavailable collection")
+            : model.organizationView}
+        </span>
+      )}
+      {model.libraryReadiness !== "all" && model.view === "library" && (
+        <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
+      )}
+      {model.collectionLayoutFailure && (
+        <span role="status">
+          {model.collectionLayoutFailure === "read"
+            ? "The saved collection view could not be read. Covers are shown."
+            : "This collection view is available for this session; it could not be saved."}
+        </span>
+      )}
+    </>
+  );
+}
+
+function CollectionLayoutToggle({
+  layout,
+  onChange,
+}: {
+  layout: "covers" | "rows";
+  onChange: (layout: "covers" | "rows") => void;
+}) {
+  return (
+    <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">
+      <span className="self-center text-xs text-pc-muted-foreground">View</span>
+      {(["covers", "rows"] as const).map((nextLayout) => (
+        <Button
+          key={nextLayout}
+          variant={layout === nextLayout ? "selected" : "ghost"}
+          size="sm"
+          aria-pressed={layout === nextLayout}
+          aria-label={nextLayout === "rows" ? "Compact rows" : undefined}
+          data-focusable
+          onClick={() => onChange(nextLayout)}
+        >
+          {nextLayout === "covers" ? (
+            "Covers"
+          ) : (
+            <>
+              <span className="max-[42rem]:hidden">Compact rows</span>
+              <span className="hidden max-[42rem]:inline">Rows</span>
+            </>
+          )}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 function BrowserCollectionTools({
   setCollectionLayout,
   model,
@@ -1526,57 +1600,12 @@ function BrowserCollectionTools({
       )}
       {renderSort()}
       {setCollectionLayout && (
-        <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">
-          <span className="self-center text-xs text-pc-muted-foreground">View</span>
-          {(["covers", "rows"] as const).map((layout) => (
-            <Button
-              key={layout}
-              variant={model.collectionLayout === layout ? "selected" : "ghost"}
-              size="sm"
-              aria-pressed={model.collectionLayout === layout}
-              aria-label={layout === "rows" ? "Compact rows" : undefined}
-              data-focusable
-              onClick={() => setCollectionLayout(layout)}
-            >
-              {layout === "covers" ? (
-                "Covers"
-              ) : (
-                <>
-                  <span className="max-[42rem]:hidden">Compact rows</span>
-                  <span className="hidden max-[42rem]:inline">Rows</span>
-                </>
-              )}
-            </Button>
-          ))}
-        </div>
+        <CollectionLayoutToggle layout={model.collectionLayout} onChange={setCollectionLayout} />
       )}
       {!model.organization && renderSteamBatch()}
     </>
   );
-  const summary = (
-    <>
-      <span>{model.resultsUnavailable ? "Ports unavailable" : model.resultCount}</span>
-      {model.organizationView !== "all" && (
-        <span>
-          Collection:{" "}
-          {model.organizationView.startsWith("collection:")
-            ? (model.organization?.snapshot?.collections[model.organizationView.slice(11)]?.name ??
-              "Unavailable collection")
-            : model.organizationView}
-        </span>
-      )}
-      {model.libraryReadiness !== "all" && model.view === "library" && (
-        <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
-      )}
-      {model.collectionLayoutFailure && (
-        <span role="status">
-          {model.collectionLayoutFailure === "read"
-            ? "The saved collection view could not be read. Covers are shown."
-            : "This collection view is available for this session; it could not be saved."}
-        </span>
-      )}
-    </>
-  );
+  const summary = <CollectionResultSummary model={model} />;
   return (
     <div className="library-query-tools mb-4">
       {model.view === "catalog" || model.composedLibrary ? (

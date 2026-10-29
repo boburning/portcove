@@ -56,8 +56,8 @@
     width: min(100%, var(--collection-art-limit, 100%));
     aspect-ratio: 2 / 3;
     margin: 0;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
   }
   .collection-title {
     display: -webkit-box;
@@ -78,23 +78,6 @@
     -webkit-line-clamp: 2;
     overflow-wrap: anywhere;
     line-height: 1.4;
-  }
-  .port-comparison-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
-    gap: var(--space-4);
-  }
-  .port-comparison-project {
-    display: grid;
-    grid-template-rows: subgrid;
-    grid-row: span 8;
-    align-content: start;
-    gap: var(--space-2);
-  }
-  .port-comparison-project h4 {
-    margin-block: var(--space-2) 0;
-    font-size: var(--text-xs);
-    color: var(--color-text-muted);
   }
   .discover-grid {
     align-items: stretch;
@@ -212,17 +195,15 @@
   .collection-cover .library-entry-footer {
     width: min(100%, var(--collection-art-limit));
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    min-block-size: 3rem;
     align-content: start;
     gap: var(--space-2);
     margin-block-start: auto;
   }
   .collection-cover .collection-state {
     min-block-size: 1.25rem;
-  }
-  .collection-cover .collection-actions,
-  .collection-cover .collection-actions > span {
-    inline-size: 100%;
   }
   .library-entry-footer .collection-state {
     flex: 1 1 6rem;
@@ -237,9 +218,6 @@
     min-block-size: var(--control-height-xs);
     padding-inline: var(--space-2);
     font-size: var(--text-xs);
-  }
-  .collection-cover .library-card-action {
-    flex: 1 1 auto;
   }
   .collection-rows {
     inline-size: 100%;
