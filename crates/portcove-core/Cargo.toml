@@ -58,7 +58,7 @@ rustix.workspace = true
 windows-sys.workspace = true
 
 [dev-dependencies]
-aws-lc-rs = "1.18.2"
+aws-lc-rs = "1.19.0"
 jiff = "0.2.38"
 proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 filetime.workspace = true
