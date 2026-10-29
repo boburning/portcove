@@ -155,6 +155,7 @@ const containmentInputs = new Set([
   "scripts/fallow-source.mts",
   ...containmentContractTests,
   ...containmentContractTests.map((file) => file.replace(/\.test\.([cm]?[jt]s)$/u, ".$1")),
+  "scripts/fixtures/linux-containment-fixture.mts",
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
 ]);
