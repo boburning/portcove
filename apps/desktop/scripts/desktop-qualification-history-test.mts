@@ -462,7 +462,7 @@ export async function restoreHistoryScenario({
   observation: HistoryObservation;
   originalFont: string;
   originalWindow: { width: number; height: number; x: number; y: number };
-  primaryFailure?: { error: unknown };
+  primaryFailure?: { error: unknown } | undefined;
   writeEvidence: (file: string, bytes: string, options: { flag: "wx" }) => Promise<void>;
 }) {
   let validationFailure: { error: unknown } | undefined;

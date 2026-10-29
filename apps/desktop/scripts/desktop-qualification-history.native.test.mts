@@ -272,7 +272,7 @@ void test("historical cleanup retains malformed replies after all cleanup and pr
       "subject={...actual,restoreHistoryScenario:async context=>{try{return await actual.restoreHistoryScenario(context);}catch(error){if(context.primaryFailure||error?.code!=='ERR_ASSERTION')throw error;}}};",
       "HISTORY_VALIDATION_REQUIRED",
     ],
-  ])
+  ] as const)
     rejected(() => runDesktopModuleFixture(entry, program(historyCleanupOracle, mutation)), marker);
 });
 
@@ -431,10 +431,10 @@ async function historyCallerOracle(entry: string) {
         assert.equal(process.platform, "linux", "HISTORY_PLATFORM_IO_FORBIDDEN");
         assert.equal(file, report);
         assert.equal(typeof file, "string");
-        assert.equal(typeof bytes, "string");
+        assert.ok(typeof bytes === "string");
         assert.deepEqual(options, { flag: "wx" });
         writes++;
-        return fsActual.writeFile(file as string, bytes as string, { flag: "wx" });
+        return fsActual.writeFile(file, bytes, { flag: "wx" });
       },
     },
   });
