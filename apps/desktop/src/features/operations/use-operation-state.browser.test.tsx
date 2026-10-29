@@ -283,6 +283,178 @@ it("retains the original failure and independent readback failure", async () => 
   expect([...state.invocations.values()][0]).toMatchObject({ failure, refreshFailure: readback });
 });
 
+it.each([false, true])(
+  "propagates an original task failure only when requested: %s",
+  async (propagateFailure) => {
+    const failure = failureReport();
+    const readback = new Error("Independent readback failure");
+    refresh.mockRejectedValue(readback);
+    await act(async () => {
+      const observed = await state
+        .perform("prepare", () => Promise.reject(failure), {
+          context: context("A"),
+          propagateFailure,
+        })
+        .then(
+          (value) => ({ kind: "resolved", value }),
+          (value: unknown) => ({ kind: "rejected", value }),
+        );
+      expect(observed).toEqual(
+        propagateFailure
+          ? { kind: "rejected", value: failure }
+          : { kind: "resolved", value: undefined },
+      );
+      expect(observed.value).toBe(propagateFailure ? failure : undefined);
+    });
+    expect([...state.invocations.values()][0]).toMatchObject({
+      phase: "settled",
+      outcome: "failed",
+      failure,
+      refreshFailure: readback,
+    });
+    expect(state.error).toBe(failure);
+    expect(state.pendingOperations.size).toBe(0);
+  },
+);
+
+it("settles independent readback before propagating a task failure", async () => {
+  const failure = failureReport();
+  const readback = deferred<unknown>();
+  refresh.mockReturnValue(readback.promise);
+  let completed = false;
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = state
+      .perform("prepare", () => Promise.reject(failure), {
+        context: context("A"),
+        propagateFailure: true,
+      })
+      .then(
+        (value) => ({ kind: "resolved", value }),
+        (value: unknown) => {
+          completed = true;
+          return { kind: "rejected", value };
+        },
+      );
+  });
+  expect(completed).toBe(false);
+  expect([...state.invocations.values()][0]).toMatchObject({
+    phase: "pending",
+    outcome: "failed",
+    failure,
+  });
+  await act(async () => {
+    readback.resolve(undefined);
+    expect(await running).toEqual({ kind: "rejected", value: failure });
+  });
+  expect(completed).toBe(true);
+  expect([...state.invocations.values()][0]?.phase).toBe("settled");
+});
+
+it.each([undefined, null, false])(
+  "preserves an opt-in original falsy task rejection: %s",
+  async (failure) => {
+    await act(async () => {
+      const observed = await state
+        .perform("prepare", () => Promise.reject(failure), {
+          context: context("A"),
+          propagateFailure: true,
+        })
+        .then(
+          (value) => ({ kind: "resolved", value }),
+          (value: unknown) => ({ kind: "rejected", value }),
+        );
+      expect(observed).toEqual({ kind: "rejected", value: failure });
+    });
+    expect([...state.invocations.values()][0]).toMatchObject({
+      phase: "settled",
+      outcome: "failed",
+    });
+    expect([...state.invocations.values()][0]?.failure).not.toBeUndefined();
+  },
+);
+
+it("retains quiet cancellation classification while propagating its original value to an opt-in caller", async () => {
+  const cancellation = failureReport();
+  cancellation.code = "cancelled";
+  cancellation.presentation.mutation_state = "no_changes";
+  await act(async () => {
+    await expect(
+      state.perform("prepare", () => Promise.reject(cancellation), {
+        context: context("A"),
+        propagateFailure: true,
+      }),
+    ).rejects.toBe(cancellation);
+  });
+  expect([...state.invocations.values()][0]).toMatchObject({
+    phase: "settled",
+    outcome: "cancelled",
+  });
+  expect([...state.invocations.values()][0]?.failure).toBeUndefined();
+  expect(state.error).toBeUndefined();
+});
+
+it("suppresses an opt-in outgoing task rejection after the library generation changes", async () => {
+  const held = deferred<unknown>();
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = state
+      .perform("prepare", () => held.promise, { context: context("A"), propagateFailure: true })
+      .then(
+        (value) => ({ kind: "resolved", value }),
+        (value: unknown) => ({ kind: "rejected", value }),
+      );
+  });
+  await act(async () => root.render(<Fixture generation={8} />));
+  await act(async () => {
+    held.reject(failureReport());
+    expect(await running).toEqual({ kind: "resolved", value: undefined });
+  });
+  expect(state.invocations.size).toBe(0);
+  expect(refresh).not.toHaveBeenCalled();
+  expect(invalidate).not.toHaveBeenCalled();
+});
+
+it("keeps pre-task conflict refusal undefined for an opt-in caller", async () => {
+  const held = deferred<unknown>();
+  const blocked = vi.fn().mockResolvedValue("should not run");
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = state.perform("prepare", () => held.promise, { context: context("A") });
+    expect(
+      await state.perform("prepare", blocked, { context: context("A"), propagateFailure: true }),
+    ).toBeUndefined();
+  });
+  expect(blocked).not.toHaveBeenCalled();
+  expect([...state.invocations.values()].at(-1)).toMatchObject({
+    phase: "settled",
+    outcome: "failed",
+  });
+  await act(async () => {
+    held.resolve("committed");
+    await running;
+  });
+});
+
+it("returns a committed opt-in result when only independent readback fails", async () => {
+  const readback = new Error("Independent readback failure");
+  refresh.mockRejectedValue(readback);
+  await act(async () => {
+    expect(
+      await state.perform("prepare", () => Promise.resolve("committed"), {
+        context: context("A"),
+        propagateFailure: true,
+      }),
+    ).toBe("committed");
+  });
+  expect([...state.invocations.values()][0]).toMatchObject({
+    phase: "settled",
+    outcome: "succeeded",
+    refreshFailure: readback,
+  });
+  expect([...state.invocations.values()][0]?.failure).toBeUndefined();
+});
+
 it("releases local exclusion when diagnostic invalidation fails after a committed task", async () => {
   const problem = new Error("Diagnostic invalidation unavailable");
   invalidate.mockImplementationOnce(() => {

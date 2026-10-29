@@ -20,6 +20,7 @@ import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mts";
 import {
   driveInstalledUpdateToRestart,
   driveInstalledStableWaiting,
+  driveInstalledFeedOutage,
 } from "./desktop-application-update-journey.mts";
 import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mts";
 import {
@@ -64,6 +65,8 @@ const updateOptions: NonNullable<ParseArgsConfig["options"]> = {
       "candidate-installer-sha",
       "candidate-executable-sha",
       "candidate-version",
+      "feed-outage-configuration",
+      "feed-outage-sha",
       "transport",
     ].map((name) => [name, { type: "string" }] as const),
   ),
@@ -96,6 +99,19 @@ assert.ok(
 );
 const drivers = embedded ? null : cachedDesktopDrivers();
 assert.ok(embedded || drivers, "Pinned Tauri and WebView2 drivers are unavailable");
+const feedOutageConfiguration = values["feed-outage-configuration"],
+  feedOutageSha = values["feed-outage-sha"];
+assert.equal(
+  Boolean(feedOutageConfiguration),
+  Boolean(feedOutageSha),
+  "Feed outage configuration and hash are required together",
+);
+if (feedOutageConfiguration) {
+  assert.ok(
+    typeof feedOutageConfiguration === "string" && path.isAbsolute(feedOutageConfiguration),
+  );
+  assert.ok(typeof feedOutageSha === "string" && /^[a-f0-9]{64}$/u.test(feedOutageSha));
+}
 await mkdir(output, { recursive: false });
 interface MarkedExit {
   capture: MarkedObservation;
@@ -124,6 +140,11 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
     installed_executable_sha256_after: string;
   };
   ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
+  feed_outage?: Awaited<ReturnType<typeof driveInstalledFeedOutage>> & {
+    installed_file_sha256_before: string;
+    installed_file_sha256_after: string;
+  };
+
   native_processes_before_restart?: NativeProcessSnapshot;
   bootstrap_before_restart?: unknown;
   restart_action_attempted?: boolean;
@@ -323,6 +344,24 @@ try {
       ...waiting,
       installed_executable_sha256_before: beforeWaiting,
       installed_executable_sha256_after: afterWaiting,
+    };
+    await save();
+  }
+  if (feedOutageConfiguration && typeof feedOutageSha === "string") {
+    const before = (await hashFile(app)).sha256;
+    assert.equal(before, report.initial_executable_sha256);
+    const outage = await driveInstalledFeedOutage(
+      browser,
+      report.actions,
+      feedOutageConfiguration,
+      feedOutageSha,
+    );
+    const after = (await hashFile(app)).sha256;
+    assert.equal(after, before);
+    report.feed_outage = {
+      ...outage,
+      installed_file_sha256_before: before,
+      installed_file_sha256_after: after,
     };
     await save();
   }

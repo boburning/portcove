@@ -1256,6 +1256,7 @@ Frontend resolution uses pnpm 12.11.2's native `minimumReleaseAge: 1440`
 and `minimumReleaseAgeStrict: false`. It prefers eligible versions within a
 requested range, but can install a younger version when none qualifies. Renovate
 filters routine proposals with `minimumReleaseAge: "1 day"`,
+`minimumReleaseAgeBuffer: "30 minutes"`,
 `minimumReleaseAgeBehaviour: "timestamp-required"` and
 `internalChecksFilter: "strict"`. This is not a universal 24-hour installed-age
 guarantee, including for frozen lockfiles or newly resolved transitives. Keep
@@ -1316,13 +1317,38 @@ source review rather than omitted or silently normalized to another identity.
 Renovate remains the age owner for supported direct and digest updates.
 `minimumReleaseAge` is unsupported for lock-file maintenance, and its historical
 branch-stage missing-timestamp defect cannot be repaired by elapsed time alone.
-A later reviewed cutover may disable that inapplicable calculation **only for
-lockFileMaintenance**, after this real required enforcement is delivered and
-proved with live old/young inputs. Until then the existing Renovate configuration
-remains in force. The genuine repository result is the actual required check,
+The supported `lockFileMaintenance.minimumReleaseAge: null` cutover delegates
+only that unsupported calculation to the delivered required guard from #3972.
+It must not activate until the guard has executed on the actual canonical
+maintenance candidate and retained its real young-artifact refusal. Cargo and
+all pnpm documents share this one age owner; native direct/digest updates retain
+the explicit one-day-plus-thirty-minute, timestamp-required, strict policy. The genuine repository result is the actual required check,
 never a fabricated `renovate/stability-days` status. Do not count old green checks,
 skipped execution or local fixtures as evidence that a final maintenance head
 executed this policy. Preserve failed observations and the original proposal.
+
+### Temporary exact Rust digest timestamp propagation correction
+
+Renovate 44.188.2 can correctly refuse young Docker digests during native lookup
+but lose the accepted timestamp at the later existing-PR branch stage. The
+narrow temporary rule matches only Dockerfile manager/Docker datasource, package
+`rust`, `tools/containers/build/Dockerfile`, digest updates, unchanged literal
+`1.99.1-slim-bookworm`, and exact new immutable digest
+`sha256:24707e70a4f1e23d9a7b25202ec43126d28a52294b96aad5c670df1fd1f1d400`.
+It also requires no `lockedVersion`, current artifact age at least one day thirty
+minutes, and the exact native one-day/thirty-minute/strict/timestamp-required
+policy shape. Only that late branch's timestamp behaviour becomes optional.
+Native pre-lookup timestamp-required eligibility and `pendingChecks` remain
+untouched; missing, future and young artifacts remain pending. Another tag,
+digest, manager, path, direct update or policy shape receives no exception.
+
+The version-bound full-engine replay and official configuration validator are
+required evidence; static rule equality is a regression guard, not proof of
+hosted uptake. Preserve the original timestamp-loss failure and remove the exact
+workaround when the hosted engine demonstrably propagates the timestamp itself,
+or retire it when this immutable update is delivered. No general digest or
+missing-timestamp relaxation follows from this evidence. The lock-maintenance
+fallback is independent and continues to require its real repository check.
 
 Vite+ releases are discovered automatically by Renovate. The primary proposal
 selects a target; it must be completed through the supported migrator from

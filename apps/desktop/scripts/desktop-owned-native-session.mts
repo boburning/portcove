@@ -280,6 +280,29 @@ export interface NativeQualificationInventoryOptions {
 }
 
 // Ephemeral harness ownership, never durable operation or product authority.
+/** Retain unresolved custody through required caller-owned publication and hold capabilities. */
+export async function retainNativeCustody({
+  publish,
+  reportPublicationFailure,
+  reportRetained,
+  hold,
+}: {
+  publish: () => Promise<void>;
+  reportPublicationFailure: (error: unknown) => void;
+  reportRetained: () => void;
+  hold: () => Promise<never>;
+}): Promise<never> {
+  try {
+    await publish();
+  } catch (error) {
+    reportPublicationFailure(error);
+  } finally {
+    reportRetained();
+    await hold();
+  }
+  throw new Error("Retained native custody unexpectedly resumed without a resolution.");
+}
+
 export class OwnedNativeSession {
   private launchAttempted = false;
   driver: CapturedNativeProcess | undefined;

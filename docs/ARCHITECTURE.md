@@ -1314,6 +1314,12 @@ vocabulary and terminal activity reports. CLI and Tauri serialize the same core
 report while preserving original machine error fields. React presents this
 information; it does not infer successful rollback or unchanged files from a
 failed operation or a particular error code. Unannotated outcomes remain Unknown.
+The shared Desktop task handler records and settles each invocation before an
+opt-in current caller receives its original task rejection. Application update
+panels use that result to present the existing Core failure summary and allow a
+fresh retry. Other callers retain the default settled-result behavior; outgoing
+library generations and pre-task conflicts do not publish a task rejection.
+Independent readback failures remain separate from the original task outcome.
 Reviewed-action dialogs retain the structured report through review and execution
 failures and expose its original outcome, phase, code and redacted diagnostics
 through the shared failure-details control. Their review-again controls load only

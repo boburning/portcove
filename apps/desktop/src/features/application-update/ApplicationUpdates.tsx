@@ -461,6 +461,7 @@ function performApplicationTask<T>(
     ? perform(action, task, {
         refresh: "none",
         invalidateDiagnostics: false,
+        propagateFailure: true,
         context: {
           action,
           target: { kind: "application", id: "portcove", label: "Portcove" },

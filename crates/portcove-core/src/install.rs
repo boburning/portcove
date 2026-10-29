@@ -1563,39 +1563,54 @@ impl Installer {
         let mut stream = response.bytes_stream();
         let mut file = tokio::fs::File::create(destination).await?;
         let mut completed = 0_u64;
-        let mut reported = 0_u64;
-        while let Some(chunk) = operation
-            .interruptible(async { Ok(stream.next().await) })
-            .await?
-        {
-            let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
-            let next = completed
-                .checked_add(chunk.len() as u64)
-                .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;
-            validate_download_progress(next, asset.size)?;
-            file.write_all(&chunk).await?;
-            completed = next;
-            if total.is_some_and(|total| completed == total)
-                || completed.saturating_sub(reported) >= 1024 * 1024
+        let transfer_result: Result<()> = async {
+            let mut reported = 0_u64;
+            while let Some(chunk) = operation
+                .interruptible(async { Ok(stream.next().await) })
+                .await?
             {
+                let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+                let next = completed
+                    .checked_add(chunk.len() as u64)
+                    .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;
+                validate_download_progress(next, asset.size)?;
+                file.write_all(&chunk).await?;
+                completed = next;
+                if total.is_some_and(|total| completed == total)
+                    || completed.saturating_sub(reported) >= 1024 * 1024
+                {
+                    emit(operation.progress_with_unit(
+                        "download",
+                        crate::ProgressUnit::Bytes,
+                        completed,
+                        total,
+                    ));
+                    reported = completed;
+                }
+            }
+            if completed != reported {
                 emit(operation.progress_with_unit(
                     "download",
                     crate::ProgressUnit::Bytes,
                     completed,
                     total,
                 ));
-                reported = completed;
             }
+            Ok(())
         }
-        if completed != reported {
-            emit(operation.progress_with_unit(
-                "download",
-                crate::ProgressUnit::Bytes,
-                completed,
-                total,
-            ));
+        .await;
+        // Tokio write_all can return with a blocking file write still queued.
+        // Drain even on cancellation/network/size/write errors before callers
+        // may clean private staging or publish the terminal transfer result.
+        // This await is deliberately outside cooperative interruption.
+        let drain_result = file.flush().await;
+        if let Err(error) = transfer_result {
+            return Err(match drain_result {
+                Ok(()) => error,
+                Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
+            });
         }
-        file.flush().await?;
+        drain_result?;
         validate_download_size(completed, asset.size)?;
         Ok(())
     }
@@ -3879,6 +3894,7 @@ fn normalize_standalone_appimage(
 mod tests {
     mod dynamic_policy;
     mod native_paths;
+    mod network_download;
     use std::{
         fs::File,
         sync::{

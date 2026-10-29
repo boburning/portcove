@@ -52,6 +52,7 @@ async fn crispy_definitions_select_their_family_and_reject_unsafe_successors() {
     for (id, family) in [
         ("doom-the-ultimate-doom-crispy-doom-family", "doom"),
         ("doom-ii-crispy-doom-family", "doom"),
+        ("final-doom-crispy-doom-family", "doom"),
         ("heretic-crispy-doom-family", "heretic"),
         ("hexen-crispy-doom-family", "hexen"),
         ("strife-crispy-doom-family", "strife"),

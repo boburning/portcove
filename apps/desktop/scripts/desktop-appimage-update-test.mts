@@ -12,6 +12,7 @@ import type { WebDriver } from "selenium-webdriver";
 import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.mts";
 import {
   driveInstalledStableWaiting,
+  driveInstalledFeedOutage,
   driveInstalledUpdateToRestart,
 } from "./desktop-application-update-journey.mts";
 import { loadedWebKitLibraries } from "./desktop-linux-webkit-inspector.mts";
@@ -44,6 +45,8 @@ const { values } = parseArgs({
       "helper-process-marker",
       "candidate-sha",
       "candidate-version",
+      "feed-outage-configuration",
+      "feed-outage-sha",
       "historical-bootstrap-manifest",
       "bootstrap-predecessor",
       "bootstrap-predecessor-sha",
@@ -73,6 +76,19 @@ const stageMarker = absoluteOption("stage-marker"),
 const candidateSha = requiredOption("candidate-sha"),
   candidateVersion = requiredOption("candidate-version");
 assert.match(candidateSha, /^[0-9a-f]{64}$/u);
+const feedOutageConfiguration = values["feed-outage-configuration"],
+  feedOutageSha = values["feed-outage-sha"];
+assert.equal(
+  Boolean(feedOutageConfiguration),
+  Boolean(feedOutageSha),
+  "Feed outage configuration and hash are required together",
+);
+if (feedOutageConfiguration) {
+  assert.ok(
+    typeof feedOutageConfiguration === "string" && path.isAbsolute(feedOutageConfiguration),
+  );
+  assert.ok(typeof feedOutageSha === "string" && /^[a-f0-9]{64}$/u.test(feedOutageSha));
+}
 await mkdir(output, { recursive: false });
 interface ProcIdentity {
   pid: number;
@@ -101,6 +117,11 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
   driver?: ProcIdentity;
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
   ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
+  feed_outage?: Awaited<ReturnType<typeof driveInstalledFeedOutage>> & {
+    installed_file_sha256_before: string;
+    installed_file_sha256_after: string;
+  };
+
   game_data_events?: Array<{ phase: string; details: unknown }>;
   game_data_predecessor_cli?: unknown;
   installed_game_data?: Awaited<
@@ -660,6 +681,25 @@ try {
       installed_appimage_sha256_after: afterWaiting,
     };
     await historicalSnapshot("after-fresh-stable-waiting");
+    await save();
+  }
+  if (feedOutageConfiguration && typeof feedOutageSha === "string") {
+    const before = (await hashFile(app)).sha256;
+    assert.equal(before, report.initial_sha256);
+    const outage = await driveInstalledFeedOutage(
+      browser,
+      report.actions,
+      feedOutageConfiguration,
+      feedOutageSha,
+    );
+    const after = (await hashFile(app)).sha256;
+    assert.equal(after, before);
+    report.feed_outage = {
+      ...outage,
+      installed_file_sha256_before: before,
+      installed_file_sha256_after: after,
+    };
+    if (report.historical_bootstrap) await historicalSnapshot("after-owned-file-feed-retry");
     await save();
   }
   report.ordinary_staging = await driveInstalledUpdateToRestart(

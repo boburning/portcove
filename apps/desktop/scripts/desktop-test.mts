@@ -53,6 +53,7 @@ import {
 } from "./desktop-main-webview-boundary.mts";
 import {
   OwnedNativeSession,
+  retainNativeCustody as retainOwnedNativeCustody,
   nativeSessionScript,
   readNativeProcessSnapshot,
   readNativeSessionObservation,
@@ -483,34 +484,38 @@ async function releaseNativeResources() {
 async function retainNativeCustody(error: unknown): Promise<never> {
   process.exitCode = 1;
   const evidence = path.join(output, `${cleanupName}-unknown-custody.json`);
-  try {
-    await writeFile(
-      evidence,
-      JSON.stringify(
-        {
-          error: errorMessage(error),
-          driver: ownedSession.driver,
-          inventory: ownedSession.inventory,
-          cleanup: ownedSession.cleanup,
-          retained_at: new Date().toISOString(),
-        },
-        null,
-        2,
-      ) + "\n",
-      { flag: "wx" },
-    );
-  } catch (publicationError) {
-    console.error(`Could not publish retained native custody: ${errorMessage(publicationError)}`);
-  } finally {
-    console.error(
-      `Native custody remains unresolved; retained ${output}; runner and any unreleased reservations remain owned: ${errorMessage(error)}`,
-    );
-    // Keep the admitted runner alive even if evidence publication failed. No
-    // PID-only fallback or owner-death reclamation is implied by this failure.
-    setInterval(() => {}, 60_000);
-    await new Promise<never>(() => {});
-  }
-  throw new Error("Retained native custody unexpectedly resumed without a resolution.");
+  return retainOwnedNativeCustody({
+    publish: () =>
+      writeFile(
+        evidence,
+        JSON.stringify(
+          {
+            error: errorMessage(error),
+            driver: ownedSession.driver,
+            inventory: ownedSession.inventory,
+            cleanup: ownedSession.cleanup,
+            retained_at: new Date().toISOString(),
+          },
+          null,
+          2,
+        ) + "\n",
+        { flag: "wx" },
+      ),
+    reportPublicationFailure: (publicationError) => {
+      console.error(`Could not publish retained native custody: ${errorMessage(publicationError)}`);
+    },
+    reportRetained: () => {
+      console.error(
+        `Native custody remains unresolved; retained ${output}; runner and any unreleased reservations remain owned: ${errorMessage(error)}`,
+      );
+    },
+    hold: async () => {
+      // Keep the admitted runner alive even if evidence publication failed. No
+      // PID-only fallback or owner-death reclamation is implied by this failure.
+      setInterval(() => {}, 60_000);
+      return new Promise<never>(() => {});
+    },
+  });
 }
 
 async function stopDriver() {
