@@ -1147,6 +1147,13 @@ The plan reports the resolved release and asset size, current platform and chann
 
 ### Review and recover preparation
 
+API schema 84 adds optional IGDB game-image metadata, `logo` / `key_art` media roles
+and explicitly reviewed `edition_neutral` applicability. Strict projected listings
+use format 5 when these fields occur; older listing formats retain their readers.
+These descriptive fields confer no launch, installation, rights or publication
+authority. The reference client does not consume game media and preserves its
+existing identity and Core action decisions; event schemas remain 2–3.
+
 API schema 83 adds `catalog.compare` / `game_comparison`, its explicit request and
 optional recommendation-metadata schemas, and local followed-project organization
 state. CLI and Desktop consume the same Core assessment. Missing/future optional
@@ -1526,7 +1533,7 @@ prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
 included in backup/restore. The reference client accepts public API77 and requires
 explicit confirmation before transmitting acknowledgment. The current tested reference
-window extends through API83; unknown API84 and unknown consequential semantics are refused.
+window extends through API84; unknown API85 and unknown consequential semantics are refused.
 
 ### Retired custom source creation
 

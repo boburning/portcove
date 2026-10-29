@@ -18,7 +18,7 @@ download counts are not an installation inventory. This reset introduces API 80
 for changed user-selected execution and reusable policy contracts, rather than
 claiming that an unpublished API was never used.
 
-The maintained Playnite reference's tested window is API 42–57, 60–63 and 65–83,
+The maintained Playnite reference's tested window is API 42–57, 60–63 and 65–84,
 with used event schemas 2–3. Gaps 58, 59 and 64 remain refused; future versions and
 unknown consequential execution/ownership values remain refused. Published
 Alpha 1/2 cannot run the newer reference-client workflow. Local/package candidate
