@@ -3476,6 +3476,13 @@
       ]
     },
     {
+      "file": "scripts/hosted-discovery-intake-runner.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9691],
+        ["roadmap-check", 191]
+      ]
+    },
+    {
       "file": "scripts/hosted-discovery-intake.test.mts",
       "memberships": [
         ["catalog-full-2", 9690],
