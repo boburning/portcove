@@ -2918,3 +2918,318 @@ void test("desktop runner retains unresolved native custody through its live imp
     /Custody hold keeps a referenced timer/u,
   );
 });
+
+void test("recovery and rejected artwork intent use their actual serialized observation owners", async () => {
+  const families = [
+    {
+      file: "desktop-bootstrap-recovery-test.mts",
+      owner: "preferencesRecoveryScenario",
+      operation: "observeTechnicalDetails",
+    },
+    {
+      file: "desktop-artwork-correction-test.mts",
+      owner: "artworkCorrectionScenario",
+      operation: "repeatReviewedCatalogIntent",
+    },
+  ];
+  for (const family of families) {
+    const original = stripTypeScriptTypes(
+      await readFile(new URL("../apps/desktop/scripts/" + family.file, import.meta.url), "utf8"),
+      { mode: "strip" },
+    );
+    function inspect(code: string) {
+      const syntax = [...nodes(parseAst(code))];
+      function exported(name: string) {
+        let local = name;
+        const alias = syntax.find(
+          (node) =>
+            node.type === "ExportSpecifier" &&
+            (identifier(node.exported) ?? literal(node.exported)) === name,
+        );
+        if (alias) local = requiredIdentifier(alias.local);
+        const named = syntax.find(
+          (node) => node.type === "FunctionDeclaration" && identifier(node.id) === local,
+        );
+        const variable = syntax.find(
+          (node) =>
+            node.type === "VariableDeclarator" &&
+            identifier(node.id) === local &&
+            isRecord(node.init) &&
+            ["ArrowFunctionExpression", "FunctionExpression"].includes(String(node.init.type)),
+        );
+        const declaration = named ?? (isRecord(variable?.init) ? variable.init : undefined);
+        assert.ok(declaration && isRecord(declaration.body));
+        assert.ok(
+          syntax.some(
+            (node) =>
+              node.type === "ExportNamedDeclaration" &&
+              (node.declaration === named ||
+                (isRecord(node.declaration) &&
+                  node.declaration.type === "VariableDeclaration" &&
+                  Array.isArray(node.declaration.declarations) &&
+                  node.declaration.declarations.includes(variable)) ||
+                (Array.isArray(node.specifiers) && node.specifiers.includes(alias))),
+          ),
+        );
+        const form =
+          named ??
+          syntax.find(
+            (node) =>
+              node.type === "VariableDeclaration" &&
+              Array.isArray(node.declarations) &&
+              node.declarations.includes(variable),
+          );
+        assert.ok(form);
+        const statement =
+          syntax.find(
+            (node) => node.type === "ExportNamedDeclaration" && node.declaration === form,
+          ) ?? form;
+        return { declaration, statement, local, body: declaration.body };
+      }
+      function requiredIdentifier(value: unknown): string {
+        const name = identifier(value);
+        assert.ok(name);
+        return name;
+      }
+      const owner = exported(family.owner),
+        operation = exported(family.operation);
+      const parameters = owner.declaration.params;
+      assert.ok(Array.isArray(parameters));
+      const first: unknown = parameters[0];
+      assert.ok(
+        isRecord(first) && first.type === "ObjectPattern" && Array.isArray(first.properties),
+      );
+      const properties: unknown[] = first.properties;
+      const browserProperty = properties.find(
+        (value) => isRecord(value) && identifier(value.key) === "browser",
+      );
+      assert.ok(isRecord(browserProperty));
+      const browser = requiredIdentifier(browserProperty.value);
+      let body = owner.body;
+      if (family.operation === "repeatReviewedCatalogIntent") {
+        const journey = [...nodes(body)].find(
+          (node) => literal(args(awaited(node))[0]) === "native-artwork-catalog-correction",
+        );
+        const callback = args(awaited(journey))[1];
+        assert.ok(isRecord(callback) && isRecord(callback.body));
+        body = callback.body;
+      }
+      assert.ok(Array.isArray(body.body));
+      const live = body.body.filter(isRecord);
+      const calls = [...nodes(body)].filter(
+        (node) => identifier(awaited(node)?.callee) === operation.local,
+      );
+      assert.equal(calls.length, 1, "Actual caller must await its observation owner");
+      const call = awaited(calls[0]);
+      assert.ok(call);
+      const statement = live.find((node) => [...nodes(node)].includes(call));
+      assert.ok(
+        statement &&
+          statement.type === "VariableDeclaration" &&
+          Array.isArray(statement.declarations),
+        "Observation must initialize a live consumed value",
+      );
+      const declarations: unknown[] = statement.declarations;
+      const consumed = declarations.find(
+        (node) => isRecord(node) && [...nodes(node)].includes(call),
+      );
+      assert.ok(isRecord(consumed));
+      let initializer = consumed.init;
+      if (family.operation === "repeatReviewedCatalogIntent") {
+        while (isRecord(initializer) && initializer.type === "CallExpression") {
+          assert.ok(
+            isRecord(initializer) &&
+              initializer.type === "CallExpression" &&
+              args(initializer).length === 1,
+            "Observation must initialize a live consumed value",
+          );
+          initializer = args(initializer)[0];
+        }
+      }
+      assert.equal(awaited(initializer), call, "Observation must initialize a live consumed value");
+      assert.ok(
+        !live.slice(0, live.indexOf(statement)).some((node) => node.type === "ReturnStatement"),
+        "Observation must remain reachable",
+      );
+      assert.equal(identifier(args(call)[0]), browser, "Pass the current scenario browser");
+      if (family.operation === "observeTechnicalDetails") {
+        const failure = live
+          .flatMap((node) => [...nodes(node)])
+          .find(
+            (node) =>
+              node.type === "VariableDeclarator" &&
+              isRecord(node.init) &&
+              node.init.type === "AwaitExpression" &&
+              isRecord(node.init.argument) &&
+              isRecord(node.init.argument.callee) &&
+              node.init.argument.callee.type === "MemberExpression" &&
+              identifier(node.init.argument.callee.object) === browser &&
+              identifier(node.init.argument.callee.property) === "wait",
+          );
+        assert.ok(failure);
+        assert.equal(identifier(args(call)[1]), identifier(failure.id));
+        assert.equal(args(call).length, 2);
+      } else {
+        const plan = [...nodes(body)].find(
+          (node) =>
+            node.type === "VariableDeclarator" &&
+            isRecord(node.init) &&
+            literal(args(node.init)[0]) === "catalog_update_plan",
+        );
+        assert.ok(plan);
+        const planName = requiredIdentifier(plan.id);
+        for (const [index, field] of ["source", "plan_sha256"].entries()) {
+          const argument: unknown = args(call)[index + 1];
+          assert.ok(isRecord(argument) && argument.type === "MemberExpression");
+          assert.equal(identifier(argument.object), planName);
+          assert.equal(identifier(argument.property), field, "Pass reviewed intent " + field);
+        }
+        assert.equal(args(call).length, 3);
+      }
+      const operationParameters = operation.declaration.params;
+      assert.ok(Array.isArray(operationParameters));
+      const receiver = requiredIdentifier(operationParameters[0]);
+      const returned = [...nodes(operation.body)].find((node) => node.type === "ReturnStatement");
+      assert.ok(
+        returned && isRecord(returned.argument) && returned.argument.type === "CallExpression",
+      );
+      const transport = returned.argument;
+      if (family.operation === "observeTechnicalDetails") {
+        const specifiers = syntax
+          .filter(
+            (node) =>
+              node.type === "ImportDeclaration" && literal(node.source) === "./browser-script.mts",
+          )
+          .flatMap((node) => {
+            assert.ok(Array.isArray(node.specifiers));
+            const entries: unknown[] = node.specifiers;
+            return entries.filter(isRecord);
+          });
+        const binding = specifiers.find(
+          (node) =>
+            identifier(node.imported) === "executeBrowserScript" &&
+            identifier(node.local) === identifier(transport.callee),
+        );
+        assert.ok(binding, "Use the actual imported serialization dependency");
+        assert.equal(identifier(args(transport)[0]), receiver);
+      } else {
+        assert.ok(isRecord(transport.callee) && transport.callee.type === "MemberExpression");
+        assert.equal(identifier(transport.callee.object), receiver);
+        assert.equal(
+          identifier(transport.callee.property),
+          "executeAsyncScript",
+          "Use actual async serialization dependency",
+        );
+      }
+      return { operation, call, transport, statement, consumed, awaitNode: calls[0] };
+    }
+    const captured = inspect(original);
+    const declarationRange = range(captured.operation.statement);
+    const declaration = original.slice(declarationRange.start, declarationRange.end);
+    inspect(
+      original.slice(0, declarationRange.start) +
+        original.slice(declarationRange.end) +
+        "\n" +
+        declaration,
+    );
+    const renamed =
+      original
+        .replaceAll(captured.operation.local, "$renamedObservation")
+        .replace("export function $renamedObservation", "function $renamedObservation") +
+      "\nexport {$renamedObservation as " +
+      family.operation +
+      "};\n";
+    inspect(renamed.replaceAll("\n", "\r\n"));
+    const wrongCaller = edit(original, [
+      { ...range(captured.call.callee), text: "$unusedReplacement" },
+    ]);
+    assert.throws(
+      () => inspect(wrongCaller + "\nasync function $unusedReplacement() {}"),
+      /Actual caller must await/,
+    );
+    const fn = captured.operation.declaration;
+    assert.ok(Array.isArray(fn.params));
+    const parameterList = fn.params
+      .map((value) => original.slice(range(value).start, range(value).end))
+      .join(",");
+    if (fn.type === "FunctionDeclaration")
+      inspect(
+        edit(original, [
+          {
+            ...range(fn),
+            text:
+              "const " +
+              captured.operation.local +
+              " = (" +
+              parameterList +
+              ") => " +
+              original.slice(range(fn.body).start, range(fn.body).end) +
+              ";",
+          },
+        ]),
+      );
+    if (family.operation === "repeatReviewedCatalogIntent") {
+      const initRange = range(captured.consumed.init),
+        awaitRange = range(captured.awaitNode);
+      const decoder =
+        original.slice(initRange.start, awaitRange.start) +
+        "value" +
+        original.slice(awaitRange.end, initRange.end);
+      const factored = edit(original, [
+        {
+          ...initRange,
+          text: "$decodeReviewedIntent(" + original.slice(awaitRange.start, awaitRange.end) + ")",
+        },
+      ]);
+      inspect(factored + "\nfunction $decodeReviewedIntent(value) {return " + decoder + ";}\n");
+    }
+    const dead = edit(original, [
+      {
+        ...range(captured.awaitNode),
+        text:
+          "false && (" +
+          original.slice(range(captured.awaitNode).start, range(captured.awaitNode).end) +
+          ")",
+      },
+    ]);
+    const nestedDecoy = edit(original, [
+      { ...range(captured.call.callee), text: "$unusedReplacement" },
+      {
+        start: range(captured.statement).start,
+        end: range(captured.statement).start,
+        text:
+          "async function $unusedObservation() {await " +
+          original.slice(range(captured.call).start, range(captured.call).end) +
+          ";}\n",
+      },
+    ]);
+    assert.throws(() => inspect(nestedDecoy), /live consumed value/);
+    assert.throws(() => inspect(dead), /live consumed value|Actual caller must await/);
+    if (family.operation === "observeTechnicalDetails") {
+      inspect(
+        'import "./browser-script.mts";\nimport {executeBrowserScript as $unusedReader} from "./browser-script.mts";\n' +
+          original,
+      );
+      assert.throws(
+        () =>
+          inspect(
+            edit(original, [{ ...range(captured.transport.callee), text: "$wrongSerialization" }]),
+          ),
+        /actual imported serialization dependency/,
+      );
+    } else {
+      const callee = captured.transport.callee;
+      assert.ok(isRecord(callee));
+      assert.throws(
+        () => inspect(edit(original, [{ ...range(callee.property), text: "executeScript" }])),
+        /actual async serialization dependency/,
+      );
+      const plan = args(captured.call)[2];
+      assert.ok(isRecord(plan));
+      assert.throws(
+        () => inspect(edit(original, [{ ...range(plan.property), text: "unreviewed_sha256" }])),
+        /Pass reviewed intent plan_sha256/,
+      );
+    }
+  }
+});
