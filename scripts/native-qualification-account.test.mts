@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
-import { readFileSync, copyFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
+import {
+  readFileSync,
+  copyFileSync,
+  mkdirSync,
+  existsSync,
+  writeFileSync,
+  renameSync,
+  symlinkSync,
+} from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { windowsOwnerEnvironment } from "./release-windows-owner-mechanism.mts";
@@ -10,8 +18,14 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import path from "node:path";
 import { homedir } from "node:os";
-import { disposableDirectory } from "./fixtures/disposable-directory.mts";
-import { windowsSourceSystemExecutables } from "./release-native-runtime-custody.mts";
+import {
+  disposableDirectory,
+  registerDisposableDirectory,
+} from "./fixtures/disposable-directory.mts";
+import {
+  windowsSourceSystemExecutables,
+  windowsCustodyReaderSource,
+} from "./release-native-runtime-custody.mts";
 
 function actualDiagnosticOwnerEnvironment(directory: string): NodeJS.ProcessEnv {
   const controller = readFileSync(
@@ -814,7 +828,7 @@ void test(
       "utf8",
     );
     const start = source.indexOf("$nodeCommand="),
-      end = source.indexOf("$setupBytes=Read-LaunchBytes");
+      end = source.indexOf("$workspace=$source");
     assert.ok(
       start > 0 && end > start && end < source.indexOf("[Portcove.HostedNative.Setup]::Directory"),
     );
@@ -893,8 +907,8 @@ void test(
       "exit-259",
       "unavailable-retention",
     ] as const) {
-      const source = path.join(root, variant, "source with spaces"),
-        temporary = path.join(root, variant, "temporary");
+      let source = path.join(root, variant, "source with spaces");
+      const temporary = path.join(root, variant, "temporary");
       mkdirSync(path.join(source, "scripts"), { recursive: true });
       mkdirSync(temporary);
       let launcher = once(
@@ -905,8 +919,8 @@ void test(
       // This owned copy can never publish ACK or cross into tools/account/station effects.
       launcher = once(
         launcher,
-        "$clock.ElapsedMilliseconds -ge 330000",
-        "$clock.ElapsedMilliseconds -ge 20000",
+        "$originalStartupMaximumMilliseconds=330000",
+        "$originalStartupMaximumMilliseconds=20000",
       );
       launcher = once(
         launcher,
@@ -1016,6 +1030,214 @@ void test(
       ]);
       const sha = git(["rev-parse", "HEAD"]),
         tree = git(["rev-parse", "HEAD^{tree}"]);
+      // The same fixed staged location/receipt guards run for these inert C
+      // variants; only input/provider/private-effect boundaries are controlled.
+      const namespace = path.join(homedir(), `.pct-connected-123-${sha.slice(0, 12)}`);
+      mkdirSync(namespace);
+      registerDisposableDirectory(t, namespace);
+      mkdirSync(path.join(namespace, "windows-source"));
+      const preparedSource = path.join(namespace, "windows-source", "source");
+      renameSync(source, preparedSource);
+      source = preparedSource;
+      mkdirSync(path.join(namespace, "tools", "bin"), { recursive: true });
+      const preparedNode = path.join(namespace, "tools", "bin", "node.exe");
+      writeFileSync(preparedNode, readFileSync(process.execPath), { flag: "wx" });
+      mkdirSync(path.join(namespace, "tools", "scripts"));
+      writeFileSync(
+        path.join(namespace, "tools/scripts/release-native-runtime-custody-reader.ps1"),
+        windowsCustodyReaderSource(),
+        { flag: "wx" },
+      );
+      // A controlled within-root logical dependency link exercises generation
+      // and resolution fencing; this fixture makes no package/preparation claim.
+      mkdirSync(path.join(source, "node_modules"));
+      const ownedLink = path.join(source, "node_modules", "yaml");
+      symlinkSync(path.join(source, "scripts"), ownedLink, "junction");
+      const linkIdentity = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          "$ErrorActionPreference='Stop';Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_OWNED_SETUP));[Console]::Out.Write([Portcove.HostedNative.Setup]::LinkIdentity($env:PORTCOVE_OWNED_LINK))",
+        ],
+        {
+          env: {
+            ...process.env,
+            PORTCOVE_OWNED_SETUP: path.join(
+              source,
+              "scripts/release-hosted-native-windows-setup.cs.txt",
+            ),
+            PORTCOVE_OWNED_LINK: ownedLink,
+          },
+          encoding: "utf8",
+          windowsHide: true,
+          maxBuffer: 4096,
+          timeout: 15000,
+        },
+      );
+      assert.equal(linkIdentity.error, undefined);
+      assert.equal(linkIdentity.status, 0, linkIdentity.stderr);
+      assert.match(linkIdentity.stdout, /^[a-f0-9]{8}(?::[a-f0-9]{8}){4}$/u);
+      mkdirSync(path.join(namespace, "temp"));
+      mkdirSync(path.join(source, "work", "hosted-continuity-evidence"), { recursive: true });
+      writeFileSync(
+        path.join(source, "work/hosted-continuity-evidence/windows-diagnostic-preparation.json"),
+        JSON.stringify({
+          schema_version: 1,
+          source: sha,
+          tree,
+          run_id: "123",
+          attempt: 1,
+          workflow:
+            "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+          authority: "none",
+          root: namespace,
+          prepared_source: source,
+          node: preparedNode,
+          runner_temp: path.join(namespace, "temp"),
+          shared_cache: path.join(namespace, "cache"),
+          yaml_link: {
+            path: path.join("node_modules", "yaml"),
+            kind: "link",
+            identity: "owned-fixture",
+            target: path.join(source, "scripts"),
+            resolved: "scripts",
+          },
+          yaml_link_native_identity: linkIdentity.stdout,
+          imports: [
+            "scripts/release-hosted-native-windows-diagnostic.mts",
+            "scripts/release-hosted-native-windows-setup.cs.txt",
+          ].map((name) => {
+            const bytes = readFileSync(path.join(source, name));
+            return {
+              path: name,
+              bytes: bytes.length,
+              sha256: createHash("sha256").update(bytes).digest("hex"),
+            };
+          }),
+          node_sha256: createHash("sha256").update(readFileSync(preparedNode)).digest("hex"),
+          controller_sha256: createHash("sha256")
+            .update(
+              readFileSync(
+                path.join(source, "scripts/release-hosted-native-windows-diagnostic.mts"),
+              ),
+            )
+            .digest("hex"),
+        }),
+      );
+      writeFileSync(
+        path.join(namespace, "preparation.json"),
+        readFileSync(
+          path.join(source, "work/hosted-continuity-evidence/windows-diagnostic-preparation.json"),
+        ),
+        { flag: "wx" },
+      );
+      const fixtureEnvironment = {
+        ...process.env,
+        GITHUB_ACTIONS: "true",
+        RUNNER_ENVIRONMENT: "github-hosted",
+        GITHUB_REPOSITORY: "boburning/portcove",
+        GITHUB_JOB: "installed-prerequisite",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_RUN_ID: "123",
+        GITHUB_SHA: sha,
+        GITHUB_WORKFLOW_REF:
+          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+        RUNNER_TEMP: temporary,
+        RUNNER_TRACKING_ID: process.env.RUNNER_TRACKING_ID ?? "owned-startup-fixture",
+        PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
+        PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
+        PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
+      };
+      if (variant === "ready") {
+        const locator = path.join(
+            source,
+            "work/hosted-continuity-evidence/windows-diagnostic-preparation.json",
+          ),
+          validBytes = readFileSync(locator),
+          original: unknown = JSON.parse(validBytes.toString("utf8"));
+        assert.ok(isRecord(original));
+        for (const [field, wrong] of [
+          ["source", "0".repeat(40)],
+          ["root", path.join(namespace, "other")],
+          [
+            "workflow",
+            "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-other",
+          ],
+        ]) {
+          assert.notEqual(original[field!], wrong);
+          const changed: Record<string, unknown> = { ...original, [field!]: wrong };
+          writeFileSync(locator, JSON.stringify(changed));
+          assert.deepEqual(JSON.parse(readFileSync(locator).toString("utf8")), changed);
+          const refused = spawnSync(
+            "pwsh",
+            [
+              "-NoProfile",
+              "-NonInteractive",
+              "-File",
+              path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+              "-Operation",
+              "Publish",
+            ],
+            {
+              cwd: source,
+              env: fixtureEnvironment,
+              encoding: "utf8",
+              timeout: 15000,
+              maxBuffer: 16384,
+              windowsHide: true,
+            },
+          );
+          assert.equal(refused.error, undefined);
+          assert.equal(refused.status, 1);
+          assert.match(refused.stderr, /Original prepared diagnostic closure identity differs/u);
+          assert.equal(
+            existsSync(path.join(namespace, "temp/portcove-hosted-windows-connected-diagnostic")),
+            false,
+          );
+          t.diagnostic("bounded-public-preparation-refusal " + field);
+        }
+        writeFileSync(locator, validBytes);
+        // A scalar locator cannot authorize changed executable bytes.
+        writeFileSync(preparedNode, "changed owned inert runtime bytes");
+        const changedRuntime = spawnSync(
+          "pwsh",
+          [
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+            "-Operation",
+            "Publish",
+          ],
+          {
+            cwd: source,
+            env: fixtureEnvironment,
+            encoding: "utf8",
+            timeout: 15000,
+            maxBuffer: 16384,
+            windowsHide: true,
+          },
+        );
+        assert.equal(changedRuntime.error, undefined);
+        assert.equal(changedRuntime.status, 1);
+        assert.match(
+          changedRuntime.stderr,
+          /Original prepared diagnostic runtime\/source bytes changed/u,
+        );
+        assert.equal(
+          existsSync(path.join(namespace, "temp/portcove-hosted-windows-connected-diagnostic")),
+          false,
+        );
+        writeFileSync(preparedNode, readFileSync(process.execPath));
+        assert.equal(
+          createHash("sha256").update(readFileSync(preparedNode)).digest("hex"),
+          original.node_sha256,
+        );
+        t.diagnostic("bounded-public-preparation-refusal changed-runtime");
+      }
       const result = spawnSync(
         "pwsh",
         [
@@ -1030,24 +1252,7 @@ void test(
           windowsHide: true,
           maxBuffer: 65536,
           cwd: source,
-          env: {
-            ...process.env,
-            GITHUB_ACTIONS: "true",
-            RUNNER_ENVIRONMENT: "github-hosted",
-            GITHUB_REPOSITORY: "boburning/portcove",
-            GITHUB_JOB: "installed-prerequisite",
-            GITHUB_EVENT_NAME: "workflow_dispatch",
-            GITHUB_RUN_ATTEMPT: "1",
-            GITHUB_RUN_ID: "123",
-            GITHUB_SHA: sha,
-            GITHUB_WORKFLOW_REF:
-              "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
-            RUNNER_TEMP: temporary,
-            RUNNER_TRACKING_ID: process.env.RUNNER_TRACKING_ID ?? "owned-startup-fixture",
-            PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
-            PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
-            PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
-          },
+          env: fixtureEnvironment,
         },
       );
       assert.equal(result.error, undefined, result.error?.message);

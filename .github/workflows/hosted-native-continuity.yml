@@ -348,6 +348,12 @@ jobs:
             $taskPrevious=$taskCurrent
             if($taskIndex -lt 2){Start-Sleep -Seconds 6}
           }
+      - name: Prepare the complete protected diagnostic closure before original controller startup
+        id: diagnostic_preparation
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        timeout-minutes: 9
+        shell: pwsh
+        run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Prepare
       - name: Start the separately held original connected diagnostic controller
         id: diagnostic_start
         if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
@@ -360,7 +366,7 @@ jobs:
         timeout-minutes: 10
         shell: pwsh
         run: |
-          $taskRequest = (& node scripts/release-hosted-native-windows-diagnostic.mts request payload-signing) | ConvertFrom-Json
+          $taskRequest = (& ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Request -Stage payload-signing) | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage request refused' }
           $taskDelimiter = 'PORTCOVE_DIAGNOSTIC_PATHS'
           $taskOutput = @(('request_sha256=' + $taskRequest.request_sha256), ('name=' + $taskRequest.name), ('paths<<' + $taskDelimiter)) + @($taskRequest.files) + @($taskDelimiter)
@@ -372,6 +378,7 @@ jobs:
         with:
           name: ${{ steps.diagnostic_pre.outputs.name }}
           path: ${{ steps.diagnostic_pre.outputs.paths }}
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
           overwrite: false
@@ -384,7 +391,7 @@ jobs:
           DIAGNOSTIC_ARTIFACT: ${{ steps.diagnostic_pre_upload.outputs.artifact-id }}
           DIAGNOSTIC_DIGEST: ${{ steps.diagnostic_pre_upload.outputs.artifact-digest }}
         run: |
-          & node scripts/release-hosted-native-windows-diagnostic.mts ack payload-signing $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
+          & ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Ack -Stage payload-signing -RequestHash $env:DIAGNOSTIC_REQUEST -ArtifactId $env:DIAGNOSTIC_ARTIFACT -ArtifactDigest $env:DIAGNOSTIC_DIGEST
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage acknowledgement refused' }
       - name: Read original diagnostic compatible-transition upload request
         id: diagnostic_post
@@ -392,7 +399,7 @@ jobs:
         timeout-minutes: 10
         shell: pwsh
         run: |
-          $taskRequest = (& node scripts/release-hosted-native-windows-diagnostic.mts request release-publication) | ConvertFrom-Json
+          $taskRequest = (& ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Request -Stage release-publication) | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition request refused' }
           $taskDelimiter = 'PORTCOVE_DIAGNOSTIC_PATHS'
           $taskOutput = @(('request_sha256=' + $taskRequest.request_sha256), ('name=' + $taskRequest.name), ('paths<<' + $taskDelimiter)) + @($taskRequest.files) + @($taskDelimiter)
@@ -404,6 +411,7 @@ jobs:
         with:
           name: ${{ steps.diagnostic_post.outputs.name }}
           path: ${{ steps.diagnostic_post.outputs.paths }}
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
           overwrite: false
@@ -416,22 +424,27 @@ jobs:
           DIAGNOSTIC_ARTIFACT: ${{ steps.diagnostic_post_upload.outputs.artifact-id }}
           DIAGNOSTIC_DIGEST: ${{ steps.diagnostic_post_upload.outputs.artifact-digest }}
         run: |
-          & node scripts/release-hosted-native-windows-diagnostic.mts ack release-publication $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
+          & ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Ack -Stage release-publication -RequestHash $env:DIAGNOSTIC_REQUEST -ArtifactId $env:DIAGNOSTIC_ARTIFACT -ArtifactDigest $env:DIAGNOSTIC_DIGEST
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition acknowledgement refused' }
       - name: Request original diagnostic recovery after a failed Actions transition
         if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && failure() && steps.diagnostic_start.outcome == 'success' }}
         timeout-minutes: 1
         shell: pwsh
         run: |
-          & node scripts/release-hosted-native-windows-diagnostic.mts abort
+          & ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Abort
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic abort request unavailable; retain its original bounded recovery evidence' }
       - name: Read the original diagnostic terminal result without resuming another owner
         if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_start.outcome == 'success' }}
         timeout-minutes: 10
         shell: pwsh
         run: |
-          & node scripts/release-hosted-native-windows-diagnostic.mts settle
+          & ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Settle
           if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic did not settle successfully; preserve partial evidence' }
+      - name: Copy only fixed public diagnostic records from the protected closure
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_preparation.outcome == 'success' }}
+        timeout-minutes: 1
+        shell: pwsh
+        run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Publish
       - name: Retain only bounded diagnostic source and cleanup records
         if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_preflight.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -441,6 +454,8 @@ jobs:
             work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json
             ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json
             ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-startup-public.json
+            ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-preimport-public.json
+            work/hosted-continuity-evidence/windows-diagnostic-preparation-failure.json
           if-no-files-found: warn
           retention-days: 7
           overwrite: false

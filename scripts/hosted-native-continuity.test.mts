@@ -1007,138 +1007,177 @@ void test("original observer heartbeat refuses stale samples while preserving th
   assert.equal(original.stdout.trim(), "same original observer");
 });
 
-void test("connected diagnostic workflow stays source-held and writes exactly the four fixed public upload paths", async (t) => {
-  const workflow = parseDocument(
-    await readFile(
-      new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+void test(
+  "connected diagnostic workflow stays source-held and writes exactly the four fixed public upload paths",
+  { timeout: 180000 },
+  async (t) => {
+    const workflow = parseDocument(
+      await readFile(
+        new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+        "utf8",
+      ),
+    ).toJS() as {
+      on: { workflow_dispatch: { inputs: Record<string, { default?: unknown }> } };
+      jobs: Record<string, { steps: Record<string, unknown>[] }>;
+    };
+    assert.equal(workflow.on.workflow_dispatch.inputs.connected_private_diagnostic?.default, false);
+    const steps = workflow.jobs["installed-prerequisite"]!.steps;
+    const publicDiagnostics = steps.find(
+      (step) => step.name === "Retain only selected public diagnostics",
+    );
+    assert.ok(publicDiagnostics && isRecord(publicDiagnostics.with));
+    const publicPaths = String(publicDiagnostics.with.path).trim().split("\n");
+    assert.deepEqual(
+      publicPaths.filter((name) => name.includes("derivation")),
+      ["work/updater-rehearsal/windows-fixture-derivation.json"],
+    );
+    assert.ok(!publicPaths.some((name) => /(?:^|\/)(?:private|owner)(?:\/|$)/u.test(name)));
+    const producer = await readFile(
+      new URL("./rehearse-updater-artifacts.ps1", import.meta.url),
       "utf8",
-    ),
-  ).toJS() as {
-    on: { workflow_dispatch: { inputs: Record<string, { default?: unknown }> } };
-    jobs: Record<string, { steps: Record<string, unknown>[] }>;
-  };
-  assert.equal(workflow.on.workflow_dispatch.inputs.connected_private_diagnostic?.default, false);
-  const steps = workflow.jobs["installed-prerequisite"]!.steps;
-  const publicDiagnostics = steps.find(
-    (step) => step.name === "Retain only selected public diagnostics",
-  );
-  assert.ok(publicDiagnostics && isRecord(publicDiagnostics.with));
-  const publicPaths = String(publicDiagnostics.with.path).trim().split("\n");
-  assert.deepEqual(
-    publicPaths.filter((name) => name.includes("derivation")),
-    ["work/updater-rehearsal/windows-fixture-derivation.json"],
-  );
-  assert.ok(!publicPaths.some((name) => /(?:^|\/)(?:private|owner)(?:\/|$)/u.test(name)));
-  const producer = await readFile(
-    new URL("./rehearse-updater-artifacts.ps1", import.meta.url),
-    "utf8",
-  );
-  const publication = producer.slice(producer.lastIndexOf("if($captureFixtureDerivation){"));
-  assert.match(publication, /Private rehearsal input remains before derivation publication/u);
-  assert.match(
-    publication,
-    /if\(\$bytes.Length -gt 65536\)\{throw 'Fixture derivation report exceeds bound'\}/u,
-  );
-  assert.match(publication, /'windows-fixture-derivation.json'\),\[IO.FileMode\]::CreateNew/u);
-  const record = publication.split("\n").find((line) => line.includes("$derivation=[ordered]"));
-  assert.ok(record);
-  assert.doesNotMatch(
-    record,
-    /\$(?:privateKey|password|credential)\b|\$env:(?!GITHUB_(?:RUN_ID|RUN_ATTEMPT|WORKFLOW_REF)\b)/iu,
-  );
-  const preflight = steps.findIndex((step) => step.id === "diagnostic_preflight"),
-    native = steps.findIndex((step) => step.name === "Provision pinned Windows native driver");
-  assert.ok(preflight > 0 && preflight < native);
-  for (const name of ["diagnostic_pre_upload", "diagnostic_post_upload"]) {
-    const step = steps.find((row) => row.id === name);
-    assert.ok(step && isRecord(step.with));
-    assert.equal(step.uses, "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
-    assert.equal(step.with["retention-days"], 7);
-    assert.equal(step.with.overwrite, false);
-    assert.equal(step.with["compression-level"], 0);
-  }
-  const settlement = steps.find(
-    (row) => row.name === "Retain only bounded diagnostic source and cleanup records",
-  );
-  assert.ok(settlement && isRecord(settlement.with));
-  assert.match(String(settlement.if), /always\(\)/u);
-  assert.equal(
-    settlement.with.path,
-    "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-startup-public.json\n",
-  );
-  assert.ok(
-    !String(settlement.with.path).includes("owner/") &&
-      !String(settlement.with.path).includes("stdout"),
-  );
-  const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-actions-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  for (const id of ["diagnostic_pre", "diagnostic_post"]) {
-    const step = steps.find((row) => row.id === id);
-    assert.ok(typeof step?.run === "string");
-    const output = path.join(root, id + ".output"),
-      program = path.join(root, id + ".ps1"),
-      request = {
-        request_sha256: "a".repeat(64),
-        name: "fixed-diagnostic-name",
-        files: ["subject.json", "report.json", "capture.json", "bundle.json"],
-      };
-    await writeFile(
-      program,
-      `$ErrorActionPreference='Stop'\nfunction node { '${JSON.stringify(request)}'; $global:LASTEXITCODE=0 }\n` +
-        step.run,
     );
-    const observed = spawnSync(
-      "pwsh",
-      ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
-      { encoding: "utf8", timeout: 15000, env: { ...process.env, GITHUB_OUTPUT: output } },
+    const publication = producer.slice(producer.lastIndexOf("if($captureFixtureDerivation){"));
+    assert.match(publication, /Private rehearsal input remains before derivation publication/u);
+    assert.match(
+      publication,
+      /if\(\$bytes.Length -gt 65536\)\{throw 'Fixture derivation report exceeds bound'\}/u,
     );
-    assert.equal(observed.status, 0, observed.stderr);
-    assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/u), [
-      "request_sha256=" + request.request_sha256,
-      "name=" + request.name,
-      "paths<<PORTCOVE_DIAGNOSTIC_PATHS",
-      ...request.files,
-      "PORTCOVE_DIAGNOSTIC_PATHS",
-    ]);
-  }
-  const launch = fileURLToPath(
-    new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
-  );
-  for (const operation of ["Preflight", "Start"]) {
-    const result = spawnSync(
-      "pwsh",
-      ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", launch, "-Operation", operation],
-      {
-        encoding: "utf8",
-        timeout: 15000,
-        env: { ...process.env, RUNNER_TEMP: path.join(root, "must-not-create") },
-      },
+    assert.match(publication, /'windows-fixture-derivation.json'\),\[IO.FileMode\]::CreateNew/u);
+    const record = publication.split("\n").find((line) => line.includes("$derivation=[ordered]"));
+    assert.ok(record);
+    assert.doesNotMatch(
+      record,
+      /\$(?:privateKey|password|credential)\b|\$env:(?!GITHUB_(?:RUN_ID|RUN_ATTEMPT|WORKFLOW_REF)\b)/iu,
     );
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Connected Windows S2 diagnostic remains held/u);
-  }
-});
+    const preflight = steps.findIndex((step) => step.id === "diagnostic_preflight"),
+      native = steps.findIndex((step) => step.name === "Provision pinned Windows native driver");
+    assert.ok(preflight > 0 && preflight < native);
+    for (const name of ["diagnostic_pre_upload", "diagnostic_post_upload"]) {
+      const step = steps.find((row) => row.id === name);
+      assert.ok(step && isRecord(step.with));
+      assert.equal(step.uses, "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
+      assert.equal(step.with["retention-days"], 7);
+      assert.equal(step.with.overwrite, false);
+      assert.equal(step.with["compression-level"], 0);
+      assert.equal(
+        step.with["include-hidden-files"],
+        true,
+        "Only the fixed four public paths may cross the protected dot-prefixed ancestor",
+      );
+    }
+    assert.deepEqual(
+      steps
+        .filter((row) => isRecord(row.with) && row.with["include-hidden-files"] === true)
+        .map((row) => row.id)
+        .sort((a, b) => String(a).localeCompare(String(b))),
+      ["diagnostic_post_upload", "diagnostic_pre_upload"],
+    );
+    const preparation = steps.findIndex((row) => row.id === "diagnostic_preparation"),
+      controller = steps.findIndex((row) => row.id === "diagnostic_start");
+    assert.ok(preparation > native && preparation < controller);
+    assert.equal(steps[preparation]!["timeout-minutes"], 9);
+    for (const row of steps.filter(
+      (row) =>
+        typeof row.run === "string" &&
+        /-Operation (?:Request|Ack|Settle|Abort)/u.test(String(row.run)),
+    ))
+      assert.doesNotMatch(
+        String(row.run),
+        /& node scripts\//u,
+        "Every relay starts from the captured runtime/source via the fixed launcher",
+      );
+    const settlement = steps.find(
+      (row) => row.name === "Retain only bounded diagnostic source and cleanup records",
+    );
+    assert.ok(settlement && isRecord(settlement.with));
+    assert.match(String(settlement.if), /always\(\)/u);
+    assert.equal(
+      settlement.with.path,
+      "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-startup-public.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-preimport-public.json\nwork/hosted-continuity-evidence/windows-diagnostic-preparation-failure.json\n",
+    );
+    assert.ok(
+      !String(settlement.with.path).includes("owner/") &&
+        !String(settlement.with.path).includes("stdout"),
+    );
+    const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-actions-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    for (const id of ["diagnostic_pre", "diagnostic_post"]) {
+      const step = steps.find((row) => row.id === id);
+      assert.ok(typeof step?.run === "string");
+      const output = path.join(root, id + ".output"),
+        program = path.join(root, id + ".ps1"),
+        request = {
+          request_sha256: "a".repeat(64),
+          name: "fixed-diagnostic-name",
+          files: ["subject.json", "report.json", "capture.json", "bundle.json"],
+        };
+      await writeFile(
+        program,
+        `$ErrorActionPreference='Stop'\nfunction Invoke-OwnedDiagnosticRelay { '${JSON.stringify(request)}'; $global:LASTEXITCODE=0 }\n` +
+          step.run.replace(
+            "& ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Request",
+            "& Invoke-OwnedDiagnosticRelay",
+          ),
+      );
+      const observed = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
+        { encoding: "utf8", timeout: 15000, env: { ...process.env, GITHUB_OUTPUT: output } },
+      );
+      assert.equal(observed.status, 0, observed.stderr);
+      assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/u), [
+        "request_sha256=" + request.request_sha256,
+        "name=" + request.name,
+        "paths<<PORTCOVE_DIAGNOSTIC_PATHS",
+        ...request.files,
+        "PORTCOVE_DIAGNOSTIC_PATHS",
+      ]);
+    }
+    const launch = fileURLToPath(
+      new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+    );
+    for (const operation of ["Preflight", "Start"]) {
+      const result = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", launch, "-Operation", operation],
+        {
+          encoding: "utf8",
+          timeout: 60000,
+          env: { ...process.env, RUNNER_TEMP: path.join(root, "must-not-create") },
+        },
+      );
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Connected Windows S2 diagnostic remains held/u);
+    }
+  },
+);
 
-void test("source-held diagnostic controller refuses every transport operation before storage and native work", async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-controller-held-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const entry = fileURLToPath(
-    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
-  );
-  for (const operation of [
-    ["run"],
-    ["request", "payload-signing"],
-    ["ack", "release-publication", "a".repeat(64), "1", "b".repeat(64)],
-    ["abort"],
-    ["settle"],
-  ]) {
-    const result = spawnSync(process.execPath, [entry, ...operation], {
-      encoding: "utf8",
-      timeout: 15000,
-      env: { ...process.env, RUNNER_TEMP: root, PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true" },
-    });
-    assert.equal(result.status, 2, result.stderr);
-    assert.equal(result.stdout, "");
-    assert.deepEqual(await readdir(root), []);
-  }
-});
+void test(
+  "source-held diagnostic controller refuses every transport operation before storage and native work",
+  { timeout: 480000 },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-controller-held-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const entry = fileURLToPath(
+      new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    );
+    for (const operation of [
+      ["prepare"],
+      ["prepare-payload"],
+      ["run"],
+      ["request", "payload-signing"],
+      ["ack", "release-publication", "a".repeat(64), "1", "b".repeat(64)],
+      ["abort"],
+      ["settle"],
+    ]) {
+      const result = spawnSync(process.execPath, [entry, ...operation], {
+        encoding: "utf8",
+        timeout: 60000,
+        env: { ...process.env, RUNNER_TEMP: root, PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true" },
+      });
+      assert.equal(result.status, 2, result.stderr);
+      assert.equal(result.stdout, "");
+      assert.deepEqual(await readdir(root), []);
+    }
+  },
+);

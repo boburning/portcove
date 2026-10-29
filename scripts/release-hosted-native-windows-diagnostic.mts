@@ -20,10 +20,6 @@ import {
   preparedNativeSupportDependencies,
 } from "./release-native-runtime-support.mts";
 import {
-  controllerBootstrapEnvironment,
-  materializeControllerNativeSupport,
-} from "./release-controller-tool-build.mts";
-import {
   inspectNativeRuntimeCustody,
   recheckNativeRuntimeCustody,
   inspectWindowsSourceSystemCustody,
@@ -60,6 +56,11 @@ import {
   acknowledgeHostedWindowsDiagnosticUpload,
   awaitOriginalNativeUploadAcknowledgment,
 } from "./release-hosted-native-runner.mts";
+
+import {
+  prepareHostedWindowsDiagnosticClosure,
+  superviseHostedWindowsDiagnosticPreparation,
+} from "./release-hosted-native-windows-diagnostic-preparation.mts";
 
 export const hostedWindowsConnectedDiagnosticExecutionAuthorized = false;
 const project = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -110,6 +111,7 @@ let startupPhase:
 const diagnosticStartupSourceSites = [
   ["diagnostic-controller", "release-hosted-native-windows-diagnostic.mts"],
   ["diagnostic-inputs", "release-hosted-native-windows-diagnostic-source.mts"],
+  ["diagnostic-preparation", "release-hosted-native-windows-diagnostic-preparation.mts"],
   ["hosted-runtime-input", "hosted-windows-runtime-input.mts"],
   ["webview-driver", "release-windows-webview-driver.mts"],
   ["owner-mechanism", "release-windows-owner-mechanism.mts"],
@@ -444,19 +446,21 @@ async function freshTools(inputs: Inputs, deadline: number) {
   const support = nativeRuntimeSupportProfile("windows-x86_64");
   await mkdir(path.dirname(path.join(tools, support.source)), { recursive: true });
   await copy(path.join(project, support.source), support.source, 65536);
-  await materializeControllerNativeSupport(
-    project,
-    tools,
-    controllerBootstrapEnvironment(path.join(tools, "home"), path.join(tools, "target")),
-    "windows-x86_64",
-  );
-  for (const name of [support.binary, support.metadata]) {
-    const bytes = await readControllerToolFile(
-      path.join(tools, name),
+  const preparedTools = path.join(path.dirname(path.dirname(project)), "tools");
+  for (const name of [support.binary, support.metadata])
+    await copy(
+      path.join(preparedTools, name),
+      name,
       name === support.metadata ? 65536 : support.maximumBinaryBytes,
     );
-    files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
-  }
+  inspectNativeRuntimeSupport(
+    JSON.parse(
+      (await readControllerToolFile(path.join(tools, support.metadata), 65536)).toString("utf8"),
+    ),
+    await readControllerToolFile(path.join(tools, support.source), 65536),
+    await readControllerToolFile(path.join(tools, support.binary), support.maximumBinaryBytes),
+    "windows-x86_64",
+  );
   await retain(
     path.join(tools, "manifest.json"),
     {
@@ -1576,6 +1580,10 @@ function stageRoot(kind: Kind) {
 async function main() {
   held();
   const operation = process.argv[2];
+  if (operation === "prepare" && process.argv.length === 3)
+    return superviseHostedWindowsDiagnosticPreparation();
+  if (operation === "prepare-payload" && process.argv.length === 3)
+    return prepareHostedWindowsDiagnosticClosure();
   if (operation === "run" && process.argv.length === 3)
     return runHostedWindowsConnectedDiagnostic();
   const original = await originalController();
@@ -1693,6 +1701,39 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       }
       if (hostedWindowsConnectedDiagnosticExecutionAuthorized && originalContextVerified) {
         try {
+          if (["prepare", "prepare-payload"].includes(process.argv[2] ?? "")) {
+            await retain(
+              path.join(
+                project,
+                "work/hosted-continuity-evidence/windows-diagnostic-preparation-failure.json",
+              ),
+              {
+                schema_version: 1,
+                source: process.env.GITHUB_SHA,
+                run_id: process.env.GITHUB_RUN_ID,
+                tree: (() => {
+                  try {
+                    return execFileSync(
+                      windowsSourceSystemExecutables.git,
+                      ["-C", project, "rev-parse", "HEAD^{tree}"],
+                      { encoding: "utf8", timeout: 5000, maxBuffer: 1024, windowsHide: true },
+                    ).trim();
+                  } catch {
+                    return "Unknown";
+                  }
+                })(),
+                attempt: 1,
+                workflow: process.env.GITHUB_WORKFLOW_REF,
+                phase: "preparation-before-original-controller",
+                controller_launch_requested: false,
+                error: projectDiagnosticStartupFailure(error),
+                authority: "none",
+                automatic_retry: false,
+              },
+            );
+            process.exitCode = 2;
+            return;
+          }
           let created: string = "Unknown";
           try {
             created =

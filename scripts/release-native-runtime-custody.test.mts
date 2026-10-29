@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test, { type TestContext } from "node:test";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
@@ -22,8 +23,26 @@ import {
   inspectWindowsSourceSystemCustody,
   recheckWindowsSourceSystemCustody,
   windowsSourceSystemExecutables,
+  windowsCustodyReaderSource,
 } from "./release-native-runtime-custody.mts";
 import { lstatSync } from "node:fs";
+
+void test("pre-import Windows adapter is pinned to the identical fixed custody policy", () => {
+  const body = windowsCustodyReaderSource(),
+    expected = createHash("sha256").update(body).digest("hex"),
+    adapter = readFileSync(
+      new URL("./release-hosted-native-windows-setup.cs.txt", import.meta.url),
+      "utf8",
+    );
+  assert.ok(Buffer.byteLength(body) <= 16384);
+  assert.equal(
+    adapter.split(expected).length,
+    2,
+    "The bounded pre-Node reader must pin this exact unchanged OS policy",
+  );
+  assert.match(adapter, /ReadCustodyBytes\(reader.StandardOutput.BaseStream,1048576/u);
+  assert.match(adapter, /ReadCustodyBytes\(reader.StandardError.BaseStream,16384/u);
+});
 
 const windows = { skip: process.platform !== "win32" };
 

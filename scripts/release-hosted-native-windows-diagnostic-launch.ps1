@@ -1,4 +1,8 @@
-param([ValidateSet('Preflight','Start')][string]$Operation='Start')
+param(
+    [ValidateSet('Preflight','Prepare','Start','Request','Ack','Settle','Abort','Publish')][string]$Operation='Start',
+    [ValidateSet('payload-signing','release-publication')][string]$Stage,
+    [string]$RequestHash,[string]$ArtifactId,[string]$ArtifactDigest
+)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 # Fresh S2 source/account/candidate/recovery scope only; neither S1 nor production.
@@ -19,11 +23,24 @@ if($LASTEXITCODE -ne 0){throw 'Clean tracked diagnostic source required'}
 $actualTree=(& git -C $source rev-parse 'HEAD^{tree}'|Out-String).Trim()
 if($LASTEXITCODE -ne 0 -or $actualTree -cnotmatch '^[a-f0-9]{40}$'){throw 'Original diagnostic source tree unavailable'}
 if($Operation -ceq 'Preflight'){return}
-function Read-LaunchBytes([string]$Path,[int]$Maximum){
+$originalStartupMaximumMilliseconds=330000
+$originalStartupClock=[Diagnostics.Stopwatch]::StartNew()
+if($Operation -cin @('Publish','Ack','Abort')){$originalStartupMaximumMilliseconds=45000}
+function Read-LaunchBytes([string]$Path,[int]$Maximum,[bool]$AllowEmpty=$false){
     $item=Get-Item -LiteralPath $Path -Force
     if($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Original regular diagnostic launch input required'}
     $stream=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
-    try{if($stream.Length -lt 1 -or $stream.Length -gt $Maximum){throw 'Diagnostic launch input exceeds bound'};$bytes=[byte[]]::new([int]$stream.Length);$stream.ReadExactly($bytes);if($stream.ReadByte() -ne -1 -or $stream.Length -ne $bytes.Length){throw 'Diagnostic launch input changed'};return ,$bytes}finally{$stream.Dispose()}
+    try{if($null -ne ('Portcove.HostedNative.Setup' -as [type])){[Portcove.HostedNative.Setup]::SingleLinkFile($stream.SafeFileHandle)};if($stream.Length -lt $(if($AllowEmpty){0}else{1}) -or $stream.Length -gt $Maximum){throw 'Diagnostic launch input exceeds bound'};$bytes=[byte[]]::new([int]$stream.Length);$stream.ReadExactly($bytes);if($stream.ReadByte() -ne -1 -or $stream.Length -ne $bytes.Length){throw 'Diagnostic launch input changed'};return ,$bytes}finally{$stream.Dispose()}
+}
+function Select-ClosedCustodyReader([object]$r){
+    if($null -eq $r){return $null}
+    if((@($r.PSObject.Properties.Name|Sort-Object) -join ',') -cne 'kind,ordinal,phase,principal_class,reason,rights,schema_version' -or
+        $r.schema_version -ne 1 -or $r.reason -cnotin @('runtime','input','regular-path','owner','writer','os-read') -or
+        $r.phase -cnotin @('entry','input','item','acl','owner','rules','complete') -or $r.kind -cnotin @('unknown','file','directory') -or
+        $r.principal_class -cnotin @('unknown','everyone','authenticated-users','builtin-users','interactive','logon-session','creator-owner','other') -or
+        ($null -ne $r.ordinal -and (($r.ordinal -isnot [long] -and $r.ordinal -isnot [int]) -or $r.ordinal -lt 0 -or $r.ordinal -ge 4096)) -or
+        ($r.rights -isnot [long] -and $r.rights -isnot [int]) -or $r.rights -lt 0 -or $r.rights -gt 31){return $null}
+    return @{schema_version=1;reason=$r.reason;phase=$r.phase;ordinal=$r.ordinal;kind=$r.kind;principal_class=$r.principal_class;rights=$r.rights}
 }
 $utf8=[Text.UTF8Encoding]::new($false,$true)
 # Resolve one PATH-first application before any diagnostic control-directory effect.
@@ -33,11 +50,134 @@ if($node -isnot [string] -or -not [IO.Path]::IsPathFullyQualified($node) -or [IO
 $nodeItem=Get-Item -LiteralPath $node -Force
 if($nodeItem.PSIsContainer -or ($nodeItem.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Original regular Node executable required'}
 if((& $node --version|Out-String).Trim() -cne 'v24.22.1' -or $LASTEXITCODE -ne 0){throw 'Fixed existing Node24.22.1 runtime required'}
+$workspace=$source
+$publicTemp=$env:RUNNER_TEMP
+if($Operation -ceq 'Prepare'){
+    & $node (Join-Path $source 'scripts/release-hosted-native-windows-diagnostic.mts') prepare
+    if($LASTEXITCODE -ne 0){throw 'Bounded diagnostic closure preparation refused; retain original partial namespace'}
+    return
+}
+try{
 $setupBytes=Read-LaunchBytes (Join-Path $source 'scripts/release-hosted-native-windows-setup.cs.txt') 131072
 Add-Type -TypeDefinition $utf8.GetString($setupBytes)
-$control=Join-Path $env:RUNNER_TEMP 'portcove-hosted-windows-connected-diagnostic'
-$broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-[Portcove.HostedNative.Setup]::Directory($control,$broker,'',$false)
+# The locator is data. Derive the only permitted roots from this original
+# source/run/HOME tuple; it cannot appoint an executable or another controller.
+$expectedRoot=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)) ('.pct-connected-'+$env:GITHUB_RUN_ID+'-'+$env:GITHUB_SHA.Substring(0,12))
+$prepared=$utf8.GetString((Read-LaunchBytes (Join-Path $workspace 'work/hosted-continuity-evidence/windows-diagnostic-preparation.json') 65536))|ConvertFrom-Json
+$expectedSource=Join-Path $expectedRoot 'windows-source/source'
+$expectedNode=Join-Path $expectedRoot 'tools/bin/node.exe'
+$expectedTemp=Join-Path $expectedRoot 'temp'
+if($prepared.schema_version -ne 1 -or $prepared.source -cne $env:GITHUB_SHA -or $prepared.tree -cne $actualTree -or
+    $prepared.run_id -cne $env:GITHUB_RUN_ID -or $prepared.attempt -ne 1 -or $prepared.workflow -cne $env:GITHUB_WORKFLOW_REF -or
+    $prepared.authority -cne 'none' -or $prepared.root -cne $expectedRoot -or $prepared.prepared_source -cne $expectedSource -or
+    $prepared.node -cne $expectedNode -or $prepared.runner_temp -cne $expectedTemp -or $prepared.shared_cache -cne (Join-Path $expectedRoot 'cache') -or
+    $prepared.node_sha256 -cnotmatch '^[a-f0-9]{64}$' -or $prepared.controller_sha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'Original prepared diagnostic closure identity differs'}
+$privatePreparation=Read-LaunchBytes (Join-Path $expectedRoot 'preparation.json') 65536
+$publicPreparation=Read-LaunchBytes (Join-Path $workspace 'work/hosted-continuity-evidence/windows-diagnostic-preparation.json') 65536
+if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($privatePreparation)) -cne [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($publicPreparation))){throw 'Retained protected preparation differs from public locator'}
+$readerSource=$utf8.GetString((Read-LaunchBytes (Join-Path $expectedRoot 'tools/scripts/release-native-runtime-custody-reader.ps1') 16384))
+if($prepared.imports -isnot [Array] -or $prepared.imports.Count -lt 1 -or $prepared.imports.Count -gt 512){throw 'Bounded prepared import closure required'}
+$importFiles=[Collections.Generic.List[string]]::new()
+$seenImports=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach($member in $prepared.imports){
+    if((@($member.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'bytes,path,sha256' -or $member.path -isnot [string] -or $member.path.Length -gt 4096 -or
+        $member.sha256 -cnotmatch '^[a-f0-9]{64}$' -or ($member.bytes -isnot [long] -and $member.bytes -isnot [int]) -or $member.bytes -lt 0 -or $member.bytes -gt 134217728){throw 'Fixed prepared import member differs'}
+    $filename=[IO.Path]::GetFullPath((Join-Path $expectedSource $member.path))
+    if(-not $filename.StartsWith($expectedSource+[IO.Path]::DirectorySeparatorChar,[StringComparison]::Ordinal) -or -not $seenImports.Add($filename)){throw 'Prepared import member escapes or aliases source'}
+    $importFiles.Add($filename)
+}
+$yaml=$prepared.yaml_link
+if($null -eq $yaml -or (@($yaml.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'identity,kind,path,resolved,target' -or
+    $yaml.kind -cne 'link' -or $yaml.path -cne 'node_modules\yaml' -or $yaml.resolved -isnot [string] -or
+    $prepared.yaml_link_native_identity -cnotmatch '^[a-f0-9]{8}(:[a-f0-9]{8}){4}$'){throw 'Original prepared dependency resolution record required'}
+$yamlPath=Join-Path $expectedSource $yaml.path
+$yamlTarget=[IO.Path]::GetFullPath((Join-Path $expectedSource $yaml.resolved))
+if(-not $yamlTarget.StartsWith($expectedSource+[IO.Path]::DirectorySeparatorChar,[StringComparison]::Ordinal) -or
+    [Portcove.HostedNative.Setup]::LinkIdentity($yamlPath) -cne $prepared.yaml_link_native_identity -or
+    ([IO.DirectoryInfo]::new($yamlPath)).ResolveLinkTarget($true).FullName -cne $yamlTarget){throw 'Original dependency link generation or resolution changed'}
+$allInputs=@($expectedNode,(Join-Path $expectedSource 'scripts/release-hosted-native-windows-diagnostic.mts'),(Join-Path $expectedRoot 'preparation.json'),(Join-Path $expectedRoot 'tools/scripts/release-native-runtime-custody-reader.ps1'))+@($importFiles)
+$observedCustody=@{}
+for($offset=0;$offset -lt $allInputs.Count;$offset+=64){
+    $inventory=[Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
+    foreach($filename in $allInputs[$offset..([Math]::Min($allInputs.Count-1,$offset+63))]){
+        $cursor=$filename;$depth=0
+        while($true){
+            if(++$depth -gt 64 -or $inventory.Count -ge 4096){throw 'Prepared custody ancestry bound exceeded'}
+            $file=$cursor -ceq $filename
+            if($inventory.ContainsKey($cursor)){if($inventory[$cursor].file -ne $file){throw 'Prepared custody file/directory alias'};break}
+            if($file){$held=[IO.FileStream]::new($cursor,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);try{[Portcove.HostedNative.Setup]::SingleLinkFile($held.SafeFileHandle)}finally{$held.Dispose()}}
+            $inventory.Add($cursor,@{path=$cursor;file=$file})
+            $parent=[IO.Path]::GetDirectoryName($cursor)
+            if(-not $parent -or $parent -ceq $cursor){break};$cursor=$parent
+        }
+    }
+    $inputJson=ConvertTo-Json -InputObject @($inventory.Values) -Compress -Depth 4
+    $readerBudget=[Math]::Min(15000,$originalStartupMaximumMilliseconds-$originalStartupClock.ElapsedMilliseconds-5000)
+    if($readerBudget -lt 1){throw 'Original pre-import metadata/startup window exhausted'}
+    $custody=[Portcove.HostedNative.Setup]::ReadCustody($readerSource,$inputJson,$env:RUNNER_TRACKING_ID,[int]$readerBudget)|ConvertFrom-Json
+    if($custody.schema_version -ne 1 -or $custody.rows.Count -ne $inventory.Count){throw 'Complete prepared custody readback required'}
+    $returnedPaths=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach($row in $custody.rows){
+        if(-not $inventory.ContainsKey($row.path) -or -not $returnedPaths.Add($row.path)){throw 'Prepared custody path substitution or duplicate'}
+        $identity=$row.owner+'|'+$row.sddl
+        if($observedCustody.ContainsKey($row.path) -and $observedCustody[$row.path] -cne $identity){throw 'Prepared custody changed between bounded batches'}
+        $observedCustody[$row.path]=$identity
+    }
+}
+foreach($member in $prepared.imports){
+    $raw=Read-LaunchBytes ([IO.Path]::GetFullPath((Join-Path $expectedSource $member.path))) ([Math]::Max(1,$member.bytes)) ($member.bytes -eq 0)
+    if($raw.Length -ne $member.bytes -or [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($raw)).ToLowerInvariant() -cne $member.sha256){throw 'Prepared imported bytes changed'}
+}
+if([Portcove.HostedNative.Setup]::LinkIdentity($yamlPath) -cne $prepared.yaml_link_native_identity -or
+    ([IO.DirectoryInfo]::new($yamlPath)).ResolveLinkTarget($true).FullName -cne $yamlTarget){throw 'Original dependency resolution changed during custody readback'}
+$nodeBytes=Read-LaunchBytes $expectedNode 134217728
+$entryBytes=Read-LaunchBytes (Join-Path $expectedSource 'scripts/release-hosted-native-windows-diagnostic.mts') 131072
+if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($nodeBytes)).ToLowerInvariant() -cne $prepared.node_sha256 -or
+    [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($entryBytes)).ToLowerInvariant() -cne $prepared.controller_sha256){throw 'Original prepared diagnostic runtime/source bytes changed'}
+}catch{
+    $preimportOriginal=$_
+    try{
+        $readerFailure=$null;$readerStatus=$null;$exception=$preimportOriginal.Exception
+        for($depth=0;$depth -lt 4 -and $null -ne $exception;$depth++){
+            if($exception.Data.Contains('closed_custody_reader')){
+                try{$text=$exception.Data['closed_custody_reader'];if($text -is [string] -and $utf8.GetByteCount($text) -le 2048){$readerFailure=Select-ClosedCustodyReader ($text|ConvertFrom-Json)}}catch{$readerFailure=$null}
+            }
+            if($exception.Data.Contains('custody_reader_status')){$value=$exception.Data['custody_reader_status'];if($value -is [int] -and $value -ge 0){$readerStatus=$value}}
+            $exception=$exception.InnerException
+        }
+        $name=$preimportOriginal.Exception.GetType().Name
+        if($name -cnotin @('RuntimeException','MethodInvocationException','InvalidOperationException','Win32Exception','IOException','UnauthorizedAccessException')){$name='unclassified'}
+        $message=$utf8.GetBytes($preimportOriginal.Exception.Message)
+        $sourceLine=$null;if($null -ne $preimportOriginal.InvocationInfo){$sourceLine=$preimportOriginal.InvocationInfo.ScriptLineNumber}
+        $record=@{schema_version=1;source=$env:GITHUB_SHA;tree=$actualTree;run_id=$env:GITHUB_RUN_ID;attempt=1;workflow=$env:GITHUB_WORKFLOW_REF;authority='none';automatic_retry=$false;phase='prepared-closure-before-original-controller';outcome='refused';controller_create_attempted=$false;error=@{name=$name;source_line=$sourceLine;message_bytes=$message.Length;message_sha256=$(if($message.Length -le 16384){[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($message)).ToLowerInvariant()}else{$null});custody_reader=$readerFailure;custody_reader_status=$readerStatus};scope='pre-import metadata only; no original C launched by this operation'}
+        $bytes=$utf8.GetBytes(($record|ConvertTo-Json -Depth 8 -Compress));if($bytes.Length -gt 16384){throw 'Public pre-import projection exceeds bound'}
+        $sinkRoot=Join-Path $publicTemp 'portcove-hosted-windows-connected-diagnostic'
+        [IO.Directory]::CreateDirectory($sinkRoot)|Out-Null
+        $sink=[IO.FileStream]::new((Join-Path $sinkRoot 'controller-preimport-public.json'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        try{$sink.Write($bytes);$sink.Flush($true)}finally{$sink.Dispose()}
+    }catch{[Console]::Error.WriteLine('Bounded pre-import public retention unavailable; preserve original refusal')}
+    throw $preimportOriginal
+}
+$node=$expectedNode;$source=$expectedSource
+$env:RUNNER_TEMP=$expectedTemp
+$env:PORTCOVE_SHARED_TOOL_CACHE=$prepared.shared_cache
+$env:PATH=(Split-Path -Parent $node)+';C:\Windows\System32;C:\Program Files\Git\cmd;C:\Program Files\PowerShell\7'
+function Copy-FixedPublicDiagnosticRecords {
+    foreach($row in @(
+        @((Join-Path $expectedTemp 'portcove-hosted-windows-connected-diagnostic/controller-ready.json'),(Join-Path $publicTemp 'portcove-hosted-windows-connected-diagnostic/controller-ready.json'),16384),
+        @((Join-Path $expectedTemp 'portcove-hosted-windows-connected-diagnostic/controller-startup-public.json'),(Join-Path $publicTemp 'portcove-hosted-windows-connected-diagnostic/controller-startup-public.json'),65536),
+        @((Join-Path $source 'work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json'),(Join-Path $workspace 'work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json'),262144)
+    )){
+        if(-not (Test-Path -LiteralPath $row[0])){continue}
+        $bytes=Read-LaunchBytes $row[0] $row[2]
+        $value=$utf8.GetString($bytes)|ConvertFrom-Json
+        if($value.source -cne $env:GITHUB_SHA -or $value.tree -cne $actualTree -or $value.run_id -cne $env:GITHUB_RUN_ID -or $value.attempt -ne 1 -or $value.workflow -cne $env:GITHUB_WORKFLOW_REF -or $value.authority -cne 'none'){throw 'Public diagnostic sink identity differs'}
+        [IO.Directory]::CreateDirectory((Split-Path -Parent $row[1]))|Out-Null
+        if(Test-Path -LiteralPath $row[1]){if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData((Read-LaunchBytes $row[1] $row[2]))) -cne [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))){throw 'Retained public diagnostic sink differs'};continue}
+        $sink=[IO.FileStream]::new($row[1],[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        try{$sink.Write($bytes);$sink.Flush($true)}finally{$sink.Dispose()}
+    }
+}
 $closed=[ordered]@{}
 foreach($name in @('SystemRoot','WINDIR','PATH','PATHEXT','USERPROFILE','HOME','TEMP','TMP','LOCALAPPDATA','RUNNER_TEMP','RUNNER_TRACKING_ID','RUSTUP_HOME','CARGO_HOME','PORTCOVE_SHARED_TOOL_CACHE','PORTCOVE_RESOURCE_RESERVATION','PORTCOVE_RESOURCE_PROCESS_TOKEN','PORTCOVE_HEAVY_RUST_LOCK_TOKEN','GITHUB_ACTIONS','RUNNER_ENVIRONMENT','GITHUB_REPOSITORY','GITHUB_JOB','GITHUB_WORKFLOW_REF','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','GITHUB_EVENT_NAME','PORTCOVE_HOSTED_PLATFORM','PORTCOVE_HOSTED_OBSERVATION_ONLY','PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC')){
     $value=[Environment]::GetEnvironmentVariable($name,'Process')
@@ -45,6 +185,31 @@ foreach($name in @('SystemRoot','WINDIR','PATH','PATHEXT','USERPROFILE','HOME','
 }
 foreach($name in @('SystemRoot','PATH','RUNNER_TEMP','RUNNER_TRACKING_ID')){if(-not $closed.Contains($name) -or -not $closed[$name]){throw 'Original provider tracking/runtime context missing'}}
 $closed.NODE_NO_WARNINGS='1'
+if($Operation -ceq 'Publish'){Copy-FixedPublicDiagnosticRecords;return}
+if($Operation -cne 'Start'){
+    $arguments=@((Join-Path $source 'scripts/release-hosted-native-windows-diagnostic.mts'),$Operation.ToLowerInvariant())
+    if($Operation -ceq 'Request' -or $Operation -ceq 'Ack'){if(-not $Stage){throw 'Fixed diagnostic stage required'};$arguments+=@($Stage)}
+    if($Operation -ceq 'Ack'){
+        if($RequestHash -cnotmatch '^[a-f0-9]{64}$' -or $ArtifactId -cnotmatch '^[1-9][0-9]{0,15}$' -or $ArtifactDigest -cnotmatch '^[a-f0-9]{64}$'){throw 'Original diagnostic provider acknowledgement differs'}
+        $arguments+=@($RequestHash,$ArtifactId,$ArtifactDigest)
+    }
+    $savedEnvironment=@{}
+    foreach($item in Get-ChildItem Env:){$savedEnvironment[$item.Name]=$item.Value}
+    try{
+        foreach($item in Get-ChildItem Env:){[Environment]::SetEnvironmentVariable($item.Name,$null,'Process')}
+        foreach($key in $closed.Keys){[Environment]::SetEnvironmentVariable($key,$closed[$key],'Process')}
+        & $node @arguments
+        if($LASTEXITCODE -ne 0){throw 'Original prepared diagnostic relay refused'}
+    }finally{
+        foreach($item in Get-ChildItem Env:){[Environment]::SetEnvironmentVariable($item.Name,$null,'Process')}
+        foreach($key in $savedEnvironment.Keys){[Environment]::SetEnvironmentVariable($key,$savedEnvironment[$key],'Process')}
+        try{Copy-FixedPublicDiagnosticRecords}catch{[Console]::Error.WriteLine('Bounded public diagnostic sink copy unavailable; retain original relay outcome')}
+    }
+    return
+}
+$control=Join-Path $env:RUNNER_TEMP 'portcove-hosted-windows-connected-diagnostic'
+$broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+[Portcove.HostedNative.Setup]::Directory($control,$broker,'',$false)
 $environment=(@($closed.Keys|Sort-Object|ForEach-Object {$_+'='+$closed[$_]})-join "`0")+"`0`0"
 $controllerTypeSource=@'
 using System;
@@ -116,35 +281,29 @@ function Read-StartupFailureProjection([object]$Original){
                 $c.spawn_code -cnotin @('unknown','ETIMEDOUT','ENOENT','EACCES','EPERM','ENOBUFS')){return @{status='custody-classification-unverified'}}
             $publicReader=$null
             if($null -ne $c.reader){
-                $r=$c.reader
-                if((@($r.PSObject.Properties.Name|Sort-Object) -join ',') -cne 'kind,ordinal,phase,principal_class,reason,rights,schema_version' -or
-                    $r.schema_version -ne 1 -or $r.reason -cnotin @('runtime','input','regular-path','owner','writer','os-read') -or
-                    $r.phase -cnotin @('entry','input','item','acl','owner','rules','complete') -or
-                    $r.kind -cnotin @('unknown','file','directory') -or
-                    $r.principal_class -cnotin @('unknown','everyone','authenticated-users','builtin-users','interactive','logon-session','creator-owner','other') -or
-                    ($null -ne $r.ordinal -and (($r.ordinal -isnot [long] -and $r.ordinal -isnot [int]) -or $r.ordinal -lt 0 -or $r.ordinal -ge 4096)) -or
-                    ($r.rights -isnot [long] -and $r.rights -isnot [int]) -or $r.rights -lt 0 -or $r.rights -gt 31){return @{status='custody-classification-unverified'}}
-                $publicReader=@{schema_version=1;reason=$r.reason;phase=$r.phase;ordinal=$r.ordinal;kind=$r.kind;principal_class=$r.principal_class;rights=$r.rights}
+                $publicReader=Select-ClosedCustodyReader $c.reader
+                if($null -eq $publicReader){return @{status='custody-classification-unverified'}}
             }
             $publicCustody=@{schema_version=1;child_status=$c.child_status;child_signal=$c.child_signal;spawn_code=$c.spawn_code;reader=$publicReader}
         }
         if($null -ne $e.source_site -and ((@($e.source_site.PSObject.Properties.Name|Sort-Object) -join ',') -cne 'column,line,script' -or
-            $e.source_site.script -cnotin @('diagnostic-controller','diagnostic-inputs','hosted-runtime-input','webview-driver','owner-mechanism','native-custody','controller-tools') -or
+            $e.source_site.script -cnotin @('diagnostic-controller','diagnostic-inputs','diagnostic-preparation','hosted-runtime-input','webview-driver','owner-mechanism','native-custody','controller-tools') -or
             ($e.source_site.line -isnot [long] -and $e.source_site.line -isnot [int]) -or $e.source_site.line -lt 1 -or $e.source_site.line -gt 9999999 -or
             ($e.source_site.column -isnot [long] -and $e.source_site.column -isnot [int]) -or $e.source_site.column -lt 1 -or $e.source_site.column -gt 99999)){return @{status='source-site-unverified'}}
         return @{status='retained';bytes=$raw.Length;sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($raw)).ToLowerInvariant();phase=$value.phase;error=@{custody=$publicCustody;source_site=$(if($null -ne $e.source_site){@{script=$e.source_site.script;line=$e.source_site.line;column=$e.source_site.column}}else{$null});name=$e.name;code=$e.code;message_disposition=$e.message_disposition;message_utf8_bytes=$e.message_utf8_bytes;message_sha256=$e.message_sha256}}
     }catch{return @{status='unreadable-invalid-or-oversize'}}
 }
 $launch=$null;$createProcessAttempted=$false;$ackPublicationAttempted=$false;$ackDurablyWritten=$false;$readyVerified=$false;$readyBytes=$null
-$clock=[Diagnostics.Stopwatch]::StartNew();$startupPhase='controller-type';$outcome='refused';$originalObservation=$null;$originalObservationAttempted=$false;$settledObservation=$null;$cleanup='not-requested';$cleanupTerminationRequested=$null;$original=$null
+$clock=$originalStartupClock;$startupPhase='controller-type';$outcome='refused';$originalObservation=$null;$originalObservationAttempted=$false;$settledObservation=$null;$cleanup='not-requested';$cleanupTerminationRequested=$null;$original=$null
 try{
     Add-Type -TypeDefinition $controllerTypeSource
+    if($clock.ElapsedMilliseconds -ge $originalStartupMaximumMilliseconds){throw 'Original controller startup window exhausted before launch'}
     $startupPhase='create-original-controller'
     $createProcessAttempted=$true
     $launch=[Portcove.Diagnostic.OriginalController]::Start($node,$source,$environment)
     $startupPhase='awaiting-ready';$readyPath=Join-Path $control 'controller-ready.json'
     while($null -eq $readyBytes){
-        if($clock.ElapsedMilliseconds -ge 330000 -or -not $launch.Alive()){throw 'Original controller startup/source preflight failed or expired'}
+        if($clock.ElapsedMilliseconds -ge $originalStartupMaximumMilliseconds -or -not $launch.Alive()){throw 'Original controller startup/source preflight failed or expired'}
         try{if(Test-Path -LiteralPath $readyPath){$readyBytes=Read-LaunchBytes $readyPath 16384}}catch [IO.IOException]{if(($_.Exception.HResult -band 65535) -notin @(32,33)){throw}}
         if($null -eq $readyBytes){Start-Sleep -Milliseconds 100}
     }
@@ -186,5 +345,5 @@ try{
         $bytes=$utf8.GetBytes(($public|ConvertTo-Json -Depth 10 -Compress));if($bytes.Length -lt 1 -or $bytes.Length -gt 65536){throw 'Public startup projection exceeds bound'}
         $file=[IO.FileStream]::new((Join-Path $control 'controller-startup-public.json'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);try{$file.Write($bytes);$file.Flush($true)}finally{$file.Dispose()}
     }catch{[Console]::Error.WriteLine('Bounded original startup public retention unavailable; no replacement of original failure')}
-    finally{if($launch){$launch.Dispose()}}
+    finally{try{Copy-FixedPublicDiagnosticRecords}catch{[Console]::Error.WriteLine('Bounded public diagnostic sink copy unavailable')};if($launch){$launch.Dispose()}}
 }

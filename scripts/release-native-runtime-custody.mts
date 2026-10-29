@@ -259,6 +259,10 @@ try{
  exit 1
 }
 `;
+/** Fixed policy bytes for the credential-free pre-Node Windows adapter. */
+export function windowsCustodyReaderSource() {
+  return windowsCustodyReader;
+}
 function inspectWindowsCustody(
   files: readonly string[],
   sourceSystemImages = false,
