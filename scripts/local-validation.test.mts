@@ -1616,6 +1616,7 @@ void test("current and historical catalog authorities select their generator con
     "scripts/catalog-artwork-lifecycle.test.mts",
     "scripts/catalog-artwork-provider.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/generate-catalog.test.mts",
   ]);
@@ -1628,6 +1629,7 @@ void test("current and historical catalog authorities select their generator con
     "scripts/catalog-artwork-lifecycle.test.mts",
     "scripts/catalog-artwork-provider.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/generate-catalog.test.mts",
     "scripts/release-native-source-contract.test.mts",
