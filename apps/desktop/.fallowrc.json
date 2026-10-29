@@ -28,7 +28,7 @@
       "usedExports": [
         {
           "pattern": "scripts/desktop-bootstrap-recovery-test.mts",
-          "exports": ["technicalDetailHasSeparation"]
+          "exports": ["technicalDetailHasSeparation", "observeTechnicalDetails"]
         },
         {
           "pattern": "scripts/transport-values.mts",
