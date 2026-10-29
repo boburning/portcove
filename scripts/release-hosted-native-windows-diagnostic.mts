@@ -1138,10 +1138,21 @@ async function retainDiagnosticPublicSettlement(
 ) {
   // Metadata-only finalization, not another owner/execution budget. No native
   // effect, recovery retry or deadline renewal is allowed here.
+  const metadataDeadline = performance.now() + 5000;
   const records = await collectHostedWindowsDiagnosticPublicSettlement(
     state.root,
-    performance.now() + 5000,
+    metadataDeadline,
   );
+  let originalOwnerExited: true | "Unknown" = "Unknown";
+  try {
+    const remainingDeadline = Math.min(state.deadline, metadataDeadline);
+    if (state.owner.pid > 0 && performance.now() < remainingDeadline) {
+      if (readWindowsNativeProcessFiletime(state.owner.pid, remainingDeadline) === null)
+        originalOwnerExited = true;
+    }
+  } catch {
+    // Optional metadata cannot discard original settlement/recovery records.
+  }
   await retain(
     path.join(diagnosticRoot, "diagnostic-public-settlement.json"),
     {
@@ -1158,11 +1169,7 @@ async function retainDiagnosticPublicSettlement(
       original_owner: { pid: state.owner.pid, created_filetime: state.owner.created },
       account_sid: state.account?.sid ?? null,
       outcome,
-      original_owner_exited:
-        state.owner.pid > 0 &&
-        readWindowsNativeProcessFiletime(state.owner.pid, state.deadline) === null
-          ? true
-          : "Unknown",
+      original_owner_exited: originalOwnerExited,
       recovery,
       records,
       raw_private_streams_uploaded: false,

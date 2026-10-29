@@ -1716,3 +1716,72 @@ void test("native FILETIME observer preserves nonaligned precision and distingui
   assert.throws(() => observe(native, 42, 2000, false, "invalid\0tracking"));
   assert.equal(calls, before);
 });
+
+void test("optional native exit observation never discards final settlement after original expiry or query refusal", async () => {
+  const implementation = readFileSync(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    "utf8",
+  );
+  const code = body(
+    "async function retainDiagnosticPublicSettlement(",
+    "export async function runHostedWindowsConnectedDiagnostic",
+    implementation,
+  );
+  for (const scenario of ["expired", "query-refused", "live", "absent"]) {
+    const records = Array.from({ length: 24 }, (_, index) => ({
+      path: "fixed-public-slot-" + index,
+      status: "missing",
+    }));
+    const recovery = { status: "verified", account_disabled: true, station_restored: true };
+    const state = {
+      root: "/original-owner",
+      owner: { pid: 42, created: "134377123349904143" },
+      deadline: scenario === "expired" ? 999 : 2000,
+      inputs: {
+        source: "a".repeat(40),
+        tree: "b".repeat(40),
+        run_id: "123",
+        workflow: "fixed-original-workflow",
+      },
+      account: null,
+    };
+    let queries = 0;
+    const retained: Record<string, unknown>[] = [];
+    const run: unknown = runInNewContext(code + "\nretainDiagnosticPublicSettlement", {
+      performance: { now: () => 1000 },
+      collectHostedWindowsDiagnosticPublicSettlement: async (root: string, deadline: number) => {
+        assert.equal(root, state.root);
+        assert.equal(deadline, 6000);
+        return records;
+      },
+      readWindowsNativeProcessFiletime: (pid: number, deadline: number) => {
+        queries++;
+        assert.equal(pid, 42);
+        assert.equal(deadline, state.deadline);
+        if (scenario === "query-refused") throw new Error("native query unavailable");
+        return scenario === "absent" ? null : state.owner.created;
+      },
+      retain: async (filename: string, value: Record<string, unknown>, maximum: number) => {
+        assert.equal(filename, path.join("/fixed-control", "diagnostic-public-settlement.json"));
+        assert.equal(maximum, 65536);
+        retained.push(value);
+      },
+      diagnosticRoot: "/fixed-control",
+      originalControllerCreated: "100",
+      process: { pid: 1 },
+      path,
+    });
+    assert.equal(typeof run, "function");
+    await (run as (state: unknown, recovery: unknown, outcome: string) => Promise<void>)(
+      state,
+      recovery,
+      "failed",
+    );
+    assert.equal(retained.length, 1);
+    assert.equal(retained[0]?.records, records);
+    assert.equal(retained[0]?.recovery, recovery);
+    assert.equal(retained[0]?.outcome, "failed");
+    assert.equal(retained[0]?.original_owner_exited, scenario === "absent" ? true : "Unknown");
+    assert.equal(queries, scenario === "expired" ? 0 : 1);
+  }
+});
