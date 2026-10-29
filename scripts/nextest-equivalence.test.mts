@@ -283,6 +283,16 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)";
   const windowsRelocationRecoveryFilter =
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)";
+  const linuxRelocationRecovery = overrideFor(
+    windowsRelocationRecoveryFilter,
+    "x86_64-unknown-linux-gnu",
+  );
+  assert.deepEqual(linuxRelocationRecovery, {
+    platform: "x86_64-unknown-linux-gnu",
+    filter: windowsRelocationRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const windowsRecoveryFamilyFilter =
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)";
   const relocationRecovery = overrideFor(windowsRelocationRecoveryFilter, "x86_64-pc-windows-msvc");
@@ -488,6 +498,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparationAndDriftFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsDiagnosticsFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRelocationRecoveryFilter },
+      { platform: "x86_64-unknown-linux-gnu", filter: windowsRelocationRecoveryFilter },
     ]
       .map(outputIdentity)
       .sort(),
