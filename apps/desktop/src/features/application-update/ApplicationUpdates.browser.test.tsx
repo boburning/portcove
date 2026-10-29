@@ -950,6 +950,28 @@ describe("ApplicationUpdateSettings", () => {
     expect(host.textContent).not.toContain("The verified download remains available.");
   });
 
+  it.each([
+    ["unavailable", "Use a supported package or the documented manual recovery path."],
+    ["not-configured", "Use the documented manual recovery path."],
+    ["package-managed-deb", "Update it through the same package source."],
+    ["package-managed-rpm", "Update it through the same package source."],
+  ] as const)(
+    "explains %s ownership before any update is staged",
+    async (eligibility, guidance) => {
+      vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+      vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValue({
+        ...idleStatus,
+        install_eligibility: eligibility,
+      });
+      const restart = vi.spyOn(desktopApi, "restartToApplyApplicationUpdate");
+      await render();
+      expect(host.textContent).toContain(guidance);
+      expect(host.textContent).toContain("No verified application update is staged.");
+      expect(host.textContent).not.toContain("Restart to update");
+      expect(restart).not.toHaveBeenCalled();
+    },
+  );
+
   it("restarts only through the explicit staged-update action bound to the current library", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
     vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({

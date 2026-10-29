@@ -17,6 +17,7 @@ import {
   driveInstalledUpdateToRestart,
 } from "./desktop-application-update-journey.mts";
 import { loadedWebKitLibraries } from "./desktop-linux-webkit-inspector.mts";
+import { executeBrowserScript } from "./browser-script.mts";
 import { readHistoricalLinuxInputs } from "../../../scripts/updater-historical-inputs.mts";
 import { assertOwnedUnlinkedPath } from "../../../scripts/release-path-safety.mts";
 import { readBoundedPublicBuildInputFile } from "../../../scripts/release-public-build-inputs.mts";
@@ -28,6 +29,7 @@ import {
   hashFile,
   readJson,
   recordInstalledUpdateFailure,
+  readInstalledUpdateStatus,
   startInstalledUpdateDriver,
   verifyInstalledUpdateStaging,
   waitFor,
@@ -164,6 +166,7 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
   loaded_engine_before_restart?: Awaited<ReturnType<typeof loadedWebKitLibraries>>;
   restart_action_attempted?: boolean;
   restart_click?: string;
+  restart_failure_observation?: unknown;
   helper_process_marker?: ProcessMarker;
   helper_identity?: ProcIdentity | null;
   relaunch_process_marker?: ProcessMarker;
@@ -863,6 +866,73 @@ try {
   report.phase = "complete";
 } catch (error) {
   await recordInstalledUpdateFailure(report, error, helperMarker);
+  if (browser && report.restart_action_attempted) {
+    // A returned WebDriver click does not prove that Tauri accepted a restart.
+    // Retain the ordinary panel and sanitized state before owned cleanup, while
+    // keeping the original failure even if the application has already exited.
+    const observations: Record<string, unknown> = {
+      observed_at: new Date().toISOString(),
+      per_observation_budget_ms: 5_000,
+    };
+    report.restart_failure_observation = observations;
+    await save();
+    const tasks: Array<[string, () => Promise<unknown>]> = [
+      [
+        "panel",
+        () =>
+          executeBrowserScript(browser!, () => {
+            const panel = document.querySelector(
+              'article[aria-labelledby="application-update-settings-title"]',
+            );
+            return {
+              text: panel?.textContent?.slice(0, 16_384),
+              buttons: Array.from(panel?.querySelectorAll("button") ?? [])
+                .slice(0, 64)
+                .map((button) => ({
+                  text: button.textContent?.slice(0, 256),
+                  disabled: button.disabled,
+                })),
+            };
+          }),
+      ],
+      ["status", () => readInstalledUpdateStatus(browser!)],
+      [
+        "staging",
+        async () => {
+          assert.ok(report.initial_sha256, "Original image identity was not observed");
+          return verifyInstalledUpdateStaging({
+            stagingRoot: staging,
+            payloadName: "candidate.payload",
+            candidateSha,
+            candidateVersion,
+            application: app,
+            initialSha: report.initial_sha256,
+          });
+        },
+      ],
+    ];
+    for (const [name, observe] of tasks) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        observations[name] = {
+          value: await Promise.race([
+            observe(),
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error("Failure observation exceeded 5000 ms")),
+                5_000,
+              );
+            }),
+          ]),
+        };
+      } catch (failure) {
+        observations[name] = { error: String(errorMessage(failure)).slice(0, 2048) };
+      } finally {
+        clearTimeout(timer);
+      }
+      await save();
+    }
+  }
   if (report.processes_before_restart) {
     const initialApplication = report.processes_before_restart.find((entry) =>
       entry.command.includes("portcove-desktop"),
