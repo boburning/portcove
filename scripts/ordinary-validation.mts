@@ -342,6 +342,8 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
       "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
+      "apps/desktop/scripts/desktop-artwork.native.test.mts",
+      "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
       "scripts/capture-target.test.mts",
     ],
   ],

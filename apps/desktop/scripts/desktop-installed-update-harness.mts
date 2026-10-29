@@ -428,8 +428,8 @@ export function startWindowsUpdateExitObservation(script: string, args: string[]
   };
 }
 
-function installedUpdatePid(value: unknown): number {
-  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+function installedUpdatePid(value: unknown, message?: string): number {
+  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, message);
   return value;
 }
 export function readWindowsUpdateProcessMarker(value: unknown): WindowsUpdateProcessMarker {
@@ -485,4 +485,129 @@ export function readMacInstalledProcessField(
       return null;
     throw error;
   }
+}
+
+export type MacInstalledProcessRole = "candidate" | "helper";
+export interface MacInstalledProcessIdentity {
+  pid: number;
+  started: string;
+  command: string;
+  state: string;
+}
+export interface MacInstalledProcessMarker {
+  schema_version: 1;
+  process_id: number;
+  executable: string;
+}
+
+/** Installed-harness control only. Every process observation, signal and wait is
+ * explicitly supplied by the caller; construction performs no native work. */
+export function createMacInstalledProcessCleanup(
+  app: string,
+  {
+    processIdentity,
+    matchingChildIdentity,
+    childPids,
+    signal,
+    waitFor,
+  }: {
+    processIdentity: (
+      pid: number,
+      role: MacInstalledProcessRole,
+    ) => MacInstalledProcessIdentity | null;
+    matchingChildIdentity: (
+      pid: number,
+      role: MacInstalledProcessRole,
+    ) => MacInstalledProcessIdentity | null;
+    childPids: (pid: number) => number[];
+    signal: (pid: number, signal: NodeJS.Signals) => void;
+    waitFor: (read: () => Promise<unknown>, label: string, timeoutMs: number) => Promise<unknown>;
+  },
+) {
+  function positivePid(value: unknown): number {
+    return installedUpdatePid(value, "Invalid owned process marker PID");
+  }
+  function processMarker(value: unknown): MacInstalledProcessMarker {
+    const marker = object(value);
+    assert.equal(marker.schema_version, 1);
+    assert.equal(marker.executable, app);
+    return {
+      ...marker,
+      schema_version: 1,
+      process_id: positivePid(marker.process_id),
+      executable: app,
+    };
+  }
+  // Cleanup ignores markers for other executables as before; matching identities
+  // must pass the same PID checks used by the observed-process boundary.
+  function ownedMarker(value: unknown): MacInstalledProcessMarker | null {
+    if (!value || (typeof value !== "object" && typeof value !== "function")) return null;
+    if (
+      !("executable" in value) ||
+      value.executable !== app ||
+      !("schema_version" in value) ||
+      value.schema_version !== 1
+    )
+      return null;
+    return processMarker(value);
+  }
+  async function stopOwned(value: unknown, role: MacInstalledProcessRole) {
+    const marker = ownedMarker(value);
+    if (!marker) return;
+    const original = processIdentity(marker.process_id, role);
+    if (!original) return;
+    signal(marker.process_id, "SIGTERM");
+    try {
+      await waitFor(
+        async () => {
+          const current = processIdentity(marker.process_id, role);
+          return !current || current.started !== original.started ? true : null;
+        },
+        `${role} cleanup`,
+        5000,
+      );
+    } catch {
+      const current = processIdentity(marker.process_id, role);
+      if (current?.started === original.started) signal(marker.process_id, "SIGKILL");
+      await waitFor(
+        async () => !processIdentity(marker.process_id, role),
+        `${role} forced cleanup`,
+        5000,
+      );
+    }
+  }
+  async function freezeCaptureAndStop(
+    pid: number,
+    role: MacInstalledProcessRole,
+    childRole: MacInstalledProcessRole,
+  ): Promise<MacInstalledProcessIdentity[]> {
+    const original = processIdentity(pid, role);
+    if (!original) return [];
+    let children: MacInstalledProcessIdentity[] = [];
+    let failure: { error: unknown } | undefined;
+    try {
+      signal(pid, "SIGSTOP");
+      await waitFor(
+        async () => processIdentity(pid, role)?.state.includes("T"),
+        `${role} stopped for child capture`,
+        5000,
+      );
+      children = childPids(pid)
+        .map((child) => matchingChildIdentity(child, childRole))
+        .filter((child) => child !== null);
+    } catch (error) {
+      failure = { error };
+    } finally {
+      try {
+        if (processIdentity(pid, role)?.started === original.started) signal(pid, "SIGKILL");
+        await waitFor(async () => !processIdentity(pid, role), `${role} forced exit`, 5000);
+      } catch (error) {
+        failure ??= { error };
+      }
+    }
+    if (failure) throw failure.error;
+    return children;
+  }
+
+  return { positivePid, processMarker, ownedMarker, stopOwned, freezeCaptureAndStop };
 }
