@@ -1321,12 +1321,19 @@ mod tests {
 
     #[test]
     fn external_to_external_cleanup_recovers_after_authority_commit() {
-        let fixture = Fixture::new();
-        let first_service = PortcoveService::new(fixture.library.clone()).unwrap();
-        let first_token = authorize(&first_service, &fixture.destination);
-        let first = first_service
-            .relocate_output(PORT, &fixture.destination, &first_token)
-            .unwrap();
+        use crate::test_fixture::phase;
+        let fixture = phase("external relocation cleanup: fixture", Fixture::new);
+        let first_service = phase("external relocation cleanup: first service", || {
+            PortcoveService::new(fixture.library.clone()).unwrap()
+        });
+        let first_token = phase("external relocation cleanup: first authorization", || {
+            authorize(&first_service, &fixture.destination)
+        });
+        let first = phase("external relocation cleanup: first relocation", || {
+            first_service
+                .relocate_output(PORT, &fixture.destination, &first_token)
+                .unwrap()
+        });
         assert!(!first.cleanup_pending);
         let old_external_paths = first
             .relocated_installs
@@ -1339,15 +1346,27 @@ mod tests {
             .path()
             .join("second-relocated")
             .join(PORT);
-        let interrupted = PortcoveService::with_faults(
-            fixture.library.clone(),
-            Arc::new(FailAt(LifecycleFaultPoint::RelocationMetadataCommitted)),
-        )
-        .unwrap();
-        let second_token = authorize(&interrupted, &second_destination);
-        let pending = interrupted
-            .relocate_output(PORT, &second_destination, &second_token)
-            .unwrap();
+        let interrupted = phase(
+            "external relocation cleanup: fault-injected service",
+            || {
+                PortcoveService::with_faults(
+                    fixture.library.clone(),
+                    Arc::new(FailAt(LifecycleFaultPoint::RelocationMetadataCommitted)),
+                )
+                .unwrap()
+            },
+        );
+        let second_token = phase("external relocation cleanup: second authorization", || {
+            authorize(&interrupted, &second_destination)
+        });
+        let pending = phase(
+            "external relocation cleanup: interrupted relocation",
+            || {
+                interrupted
+                    .relocate_output(PORT, &second_destination, &second_token)
+                    .unwrap()
+            },
+        );
         assert!(pending.cleanup_pending);
         assert!(old_external_paths.iter().all(|path| path.is_dir()));
         assert!(
@@ -1357,7 +1376,9 @@ mod tests {
                 .is_some()
         );
 
-        let recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+        let recovered = phase("external relocation cleanup: reopen and recover", || {
+            PortcoveService::new(fixture.library.clone()).unwrap()
+        });
         assert!(recovered.output_relocation_status(PORT).unwrap().is_none());
         assert!(old_external_paths.iter().all(|path| !path.exists()));
         let expected_destination =

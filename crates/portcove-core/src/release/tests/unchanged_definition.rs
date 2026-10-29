@@ -42,6 +42,104 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn bstone_definitions_keep_win64_identity_and_refuse_unqualified_metadata() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let captured: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/bstone-release-selection-2026-10-29.json"
+    ))
+    .unwrap();
+    let observed = &captured["release"];
+    let name = "bstone-1.3.4+e65a6b40-win64.zip";
+    let selected = observed["assets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|asset| asset["name"] == name)
+        .unwrap();
+    for id in [
+        "blake-stone-aliens-of-gold-bstone",
+        "blake-stone-planet-strike-bstone",
+    ] {
+        let port = catalog.port(id).unwrap();
+        let definition = serde_json::to_value(port).unwrap();
+        let mut synthetic = observed.clone();
+        synthetic["tag_name"] = serde_json::json!("v1.3.5");
+        for asset in synthetic["assets"].as_array_mut().unwrap() {
+            let next = asset["name"]
+                .as_str()
+                .unwrap()
+                .replace("1.3.4+e65a6b40", "1.3.5+01234567");
+            asset["name"] = serde_json::json!(next);
+            asset["browser_download_url"] =
+                serde_json::json!(format!("https://downloads.example.invalid/{next}"));
+            asset["digest"] = serde_json::json!(format!("sha256:{}", "b".repeat(64)));
+        }
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(observed)),
+            metadata(),
+            releases(&[synthetic]),
+        ]);
+        let old = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(old.version, "v1.3.4");
+        assert_eq!(old.asset.name, name);
+        assert_eq!(old.asset.size, 2_081_399);
+        assert_eq!(
+            old.asset.sha256,
+            "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45"
+        );
+        let next = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(next.version, "v1.3.5");
+        assert_eq!(next.asset.name, "bstone-1.3.5+01234567-win64.zip");
+        assert_eq!(next.asset.sha256, "b".repeat(64));
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+        for mutation in ["wrong-cpu", "ambiguous", "missing-integrity"] {
+            let mut player = selected.clone();
+            match mutation {
+                "wrong-cpu" => {
+                    player["name"] = serde_json::json!(name.replace("win64", "win32"));
+                }
+                "missing-integrity" => player["digest"] = serde_json::Value::Null,
+                _ => {}
+            }
+            let mut candidates = vec![player.clone()];
+            if mutation == "ambiguous" {
+                player["name"] = serde_json::json!(name.replace("e65a6b40", "alternate"));
+                candidates.push(player);
+            }
+            let (root, _, server) =
+                serve_http(vec![metadata(), releases(&[release("v1.3.5", candidates)])]);
+            let error = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.code,
+                match mutation {
+                    "ambiguous" => crate::ErrorCode::Conflict,
+                    "missing-integrity" => crate::ErrorCode::Verification,
+                    _ => crate::ErrorCode::NotFound,
+                },
+                "{id}: {mutation}"
+            );
+            server.join().unwrap();
+        }
+        // Metadata progression grants no original/edition/save qualification.
+        assert_eq!(serde_json::to_value(port).unwrap(), definition);
+    }
+}
+
+#[tokio::test]
 async fn crispy_definitions_select_their_family_and_reject_unsafe_successors() {
     let catalog = crate::Catalog::embedded().unwrap();
     let observed: serde_json::Value = serde_json::from_str(include_str!(
