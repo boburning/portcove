@@ -145,9 +145,6 @@
       gap: var(--space-5);
       padding: var(--space-5);
     }
-    .game-hero[data-hero-identity="logo"] .game-hero-foreground {
-      flex-basis: 32%;
-    }
   }
   @container library-query (max-width: 40rem) {
     .game-hero-continue .game-hero-content {
