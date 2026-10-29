@@ -138,7 +138,7 @@ function gameUpdateCompletionMessage(
   if (result && selection.kind === "apply")
     return selection.plan.activate
       ? "Update installed. Your previous version remains available."
-      : "Update saved for later. Your current version is unchanged.";
+      : "Update downloaded for later. Your current version is unchanged.";
   return "The operation was not confirmed complete. Review the current state before retrying.";
 }
 

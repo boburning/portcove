@@ -12,7 +12,7 @@ const valid = {
   panel: { left: 20, right: 900, top: 180, bottom: 600 },
   versionsSelected: true,
   state: "Ready to play",
-  attention: "Update saved for later · 2.0.0-fixture",
+  attention: "Downloaded for later · 2.0.0-fixture",
   viewport: { width: 960, height: 640 },
   documentOverflow: false,
 };

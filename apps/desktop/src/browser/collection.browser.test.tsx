@@ -282,7 +282,7 @@ for (const theme of ["dark", "light"]) {
     }
     for (const image of document.querySelectorAll(".collection-art img"))
       expect(getComputedStyle(image).objectFit).toBe("contain");
-    expect(entryFor(3).textContent).toContain("Update prepared");
+    expect(entryFor(3).textContent).toContain("Downloaded for later");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entryFor(4).textContent).toContain("Game files missing");
     expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");

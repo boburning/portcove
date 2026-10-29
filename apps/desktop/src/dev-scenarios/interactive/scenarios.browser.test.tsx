@@ -93,12 +93,12 @@ it("gives every disposable detail route five real tabs and binds external Play t
     "Registered external installation",
   );
   await page.getByRole("button", { name: "Back to Library", exact: true }).click();
-  await page.getByRole("button", { name: "Update prepared", exact: true }).click();
+  await page.getByRole("button", { name: "Downloaded for later", exact: true }).click();
   await expect
     .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
     .toHaveFocus();
   await expect
-    .element(page.getByRole("button", { name: "Use update · 1.3", exact: true }))
+    .element(page.getByRole("button", { name: "Apply update · 1.3", exact: true }))
     .toBeVisible();
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
 });
@@ -430,7 +430,7 @@ it.each(["game", "bios"] as const)(
         .fill("fixture/replacement.iso"),
     );
     const repair = page.getByRole("button", {
-      name: purpose === "bios" ? "Locate required BIOS" : "Locate game files",
+      name: purpose === "bios" ? "Select BIOS file" : "Select game files",
     });
     expect(repair.element().closest(".primary-actions")).not.toBeNull();
     await act(async () => repair.click());

@@ -198,7 +198,7 @@ function detailWorkspace(): WorkspaceSnapshot {
       original_game_title: kind === "backup-error" ? "Orchard Quest" : "Harbor Adventure",
       variant_label:
         kind === "staged"
-          ? "Update saved for later"
+          ? "Downloaded for later"
           : kind === "backup-error"
             ? "Backup history unavailable"
             : "Managed installation",

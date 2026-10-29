@@ -7,7 +7,7 @@ import type { Perform } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 
 const actionLabels: Readonly<Record<string, string>> = {
-  "activate staged update": "Use saved update",
+  "activate staged update": "Apply downloaded update",
   "back up data": "Back up saved data",
   check: "Check for game updates",
   install: "Install game",
@@ -15,12 +15,12 @@ const actionLabels: Readonly<Record<string, string>> = {
   "open data folder": "Open saves and settings folder",
   "open setup folder": "Open installed setup folder",
   remove: "Remove installation",
-  "delete backup": "Delete save backup",
+  "delete backup": "Delete backup",
   rollback: "Use previous version",
-  "restore backup": "Restore save backup",
+  "restore backup": "Restore backup",
   channel: "Change release channel",
   policy: "Save update preferences",
-  verify: "Verify installation",
+  verify: "Check installed files",
 };
 
 export interface DetailActionContext {

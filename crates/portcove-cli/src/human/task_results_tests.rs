@@ -259,7 +259,7 @@ fn update_policy_summaries_follow_each_core_outcome_without_inventing_an_install
         ),
         (
             ReconcileAction::Staged,
-            "Game update staged without activation",
+            "Game update downloaded for later without activation",
         ),
         (ReconcileAction::Activated, "Game update activated"),
     ] {
@@ -328,4 +328,31 @@ fn external_review_and_result_keep_registered_state_distinct_and_sanitize_contro
     assert!(text.contains("/owned/ゲーム folder"));
     assert!(!text.contains('\u{1b}'));
     assert_eq!(serde_json::to_value(&preview).unwrap(), before);
+}
+
+#[test]
+fn installed_file_check_names_recorded_manifest_scope_without_gameplay_assurance() {
+    let catalog = Catalog::embedded().unwrap();
+    for valid in [true, false] {
+        let report = portcove_core::VerificationReport {
+            install_id: "retained-instance".into(),
+            checked_files: 3,
+            valid,
+            failures: if valid {
+                vec![]
+            } else {
+                vec!["changed: game.exe".into()]
+            },
+        };
+        let text = verification_report(&report, "starship", &catalog);
+        assert!(text.contains("Scope: All files in the recorded installation manifest; launch-critical checks are separate."));
+        assert!(text.contains("Checked files: 3"));
+        if valid {
+            assert!(text.contains("Recorded file checks passed"));
+            assert!(text.contains("does not prove gameplay or saved-data compatibility"));
+        } else {
+            assert!(text.contains("changed: game.exe"));
+            assert!(text.contains("Preserve local files"));
+        }
+    }
 }

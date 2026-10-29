@@ -10,7 +10,7 @@ use super::{clean, format_bytes, platform_name, port_name, release_channel, utc_
 
 pub(crate) fn install_result(install: &InstallRecord, catalog: &Catalog) -> String {
     let mut text = format!(
-        "Managed installation result\nPort: {}\nInstallation: {}\nVersion: {}\nChannel: {}\nLocation: {}\nInstalled: {}\nStaged: {}\nRecorded file verification: {}",
+        "Managed installation result\nPort: {}\nInstallation: {}\nVersion: {}\nChannel: {}\nLocation: {}\nInstalled: {}\nDownloaded for later: {}\nRecorded file verification: {}",
         port_name(catalog, &install.port_id),
         clean(&install.id),
         clean(&install.version),
@@ -49,7 +49,7 @@ pub(crate) fn install_result(install: &InstallRecord, catalog: &Catalog) -> Stri
     text.push_str(&format!(
         "\nNext step: Using the same library, run portcove status {} to inspect the current installation and launch requirements.{}",
         clean(&install.port_id),
-        if install.staged { " This release is staged; it has not been activated by this result." } else { "" },
+        if install.staged { " This release is downloaded for later; it has not been activated by this result." } else { "" },
     ));
     text
 }
@@ -60,7 +60,7 @@ pub(crate) fn verification_report(
     catalog: &Catalog,
 ) -> String {
     let mut text = format!(
-        "Installed file check\nPort: {}\nInstallation: {}\nChecked files: {}\nResult: {}",
+        "Installed file check\nScope: All files in the recorded installation manifest; launch-critical checks are separate.\nPort: {}\nInstallation: {}\nChecked files: {}\nResult: {}",
         port_name(catalog, port_id),
         clean(&report.install_id),
         report.checked_files,
@@ -117,7 +117,7 @@ pub(crate) fn reconcile_result(result: &ReconcileResult, catalog: &Catalog) -> S
     let outcome = match result.action {
         ReconcileAction::UpToDate => "No game update was needed",
         ReconcileAction::Notify => "Game update available; no update was applied",
-        ReconcileAction::Staged => "Game update staged without activation",
+        ReconcileAction::Staged => "Game update downloaded for later without activation",
         ReconcileAction::Activated => "Game update activated",
     };
     let mut text = format!(
@@ -227,7 +227,7 @@ fn backup_details(backup: &BackupRecord, catalog: &Catalog) -> String {
 
 pub(crate) fn backup_created(backup: &BackupRecord, catalog: &Catalog) -> String {
     format!(
-        "Save/settings backup created\n{}\nNext step: Use backup list {} to inspect retained backups. This backup contains managed saves and settings, not application versions or original game files.",
+        "Saved-data backup created\n{}\nNext step: Use backup list {} to inspect retained backups. This backup contains the declared saved data, not application versions or original game files.",
         backup_details(backup, catalog),
         clean(&backup.port_id)
     )
