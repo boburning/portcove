@@ -204,6 +204,12 @@ function fixture(
       globalThis.fixtureClock += 17000000n;
       return {catalog:input,records:[],metrics:{reused:2,original_reused:0}};
     }
+    export async function prepareCatalogGameMedia() {
+      throw new Error('proposal cost fixtures do not request game media');
+    }
+    export function reconcileCatalogArtworkWithdrawals() {
+      throw new Error('proposal cost fixtures do not reconcile game media');
+    }
   `,
   );
   const preload = join(scratch, "inert-process-control.mjs");

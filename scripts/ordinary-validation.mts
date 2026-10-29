@@ -190,10 +190,12 @@ const catalogGeneratorFeatureTests = [
 ];
 export const catalogGeneratorContractTests = [
   "scripts/generate-catalog.test.mts",
+  "scripts/catalog-proposal-costs.test.mts",
   ...catalogGeneratorFeatureTests,
 ];
 const catalogAuthoringContractTests = [
   "scripts/generate-catalog.test.mts",
+  "scripts/catalog-proposal-costs.test.mts",
   "scripts/catalog-source-authoring.test.mts",
   "scripts/catalog-proposal-comparison.test.mts",
   "scripts/catalog-artwork-dispatch.test.mts",
