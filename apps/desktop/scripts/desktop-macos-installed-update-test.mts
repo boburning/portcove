@@ -11,6 +11,10 @@ import type { WebDriver } from "selenium-webdriver";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
 import {
   readMacInstalledProcessField as psField,
+  createMacInstalledProcessCleanup,
+  type MacInstalledProcessRole as ProcessRole,
+  type MacInstalledProcessIdentity as ProcessIdentity,
+  type MacInstalledProcessMarker as ProcessMarker,
   hashFile,
   readJson,
   verifyInstalledUpdateStaging,
@@ -59,18 +63,6 @@ await mkdir(evidenceDirectory, { recursive: false });
 const evidencePath = path.join(evidenceDirectory, "renderer-update-evidence.json");
 const initialSha = (await hashFile(app)).sha256;
 const librarySha = (await hashFile(libraryMarker)).sha256;
-type ProcessRole = "candidate" | "helper";
-interface ProcessIdentity {
-  pid: number;
-  started: string;
-  command: string;
-  state: string;
-}
-interface ProcessMarker {
-  schema_version: 1;
-  process_id: number;
-  executable: string;
-}
 interface NaturalExit {
   observed_live: ProcessIdentity | null;
   no_owned_process_remaining: true;
@@ -114,37 +106,16 @@ function object(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
   return value as Record<string, unknown>;
 }
-function positivePid(value: unknown): number {
-  assert.ok(
-    typeof value === "number" && Number.isSafeInteger(value) && value > 0,
-    "Invalid owned process marker PID",
-  );
-  return value;
-}
-function processMarker(value: unknown): ProcessMarker {
-  const marker = object(value);
-  assert.equal(marker.schema_version, 1);
-  assert.equal(marker.executable, app);
-  return {
-    ...marker,
-    schema_version: 1,
-    process_id: positivePid(marker.process_id),
-    executable: app,
-  };
-}
-// Cleanup ignores markers for other executables as before; matching identities
-// must pass the same PID checks used by the observed-process boundary.
-function ownedMarker(value: unknown): ProcessMarker | null {
-  if (!value || (typeof value !== "object" && typeof value !== "function")) return null;
-  if (
-    !("executable" in value) ||
-    value.executable !== app ||
-    !("schema_version" in value) ||
-    value.schema_version !== 1
-  )
-    return null;
-  return processMarker(value);
-}
+const { positivePid, processMarker, ownedMarker, stopOwned, freezeCaptureAndStop } =
+  createMacInstalledProcessCleanup(app, {
+    processIdentity,
+    matchingChildIdentity,
+    childPids,
+    signal: (pid, signal) => {
+      process.kill(pid, signal);
+    },
+    waitFor,
+  });
 const report: MacUpdateReport = {
   schema_version: 1,
   phase: "started",
@@ -239,63 +210,6 @@ async function naturalExit(marker: ProcessMarker, role: ProcessRole): Promise<Na
     30_000,
   );
   return { observed_live: original, no_owned_process_remaining: true };
-}
-async function stopOwned(value: unknown, role: ProcessRole) {
-  const marker = ownedMarker(value);
-  if (!marker) return;
-  const original = processIdentity(marker.process_id, role);
-  if (!original) return;
-  process.kill(marker.process_id, "SIGTERM");
-  try {
-    await waitFor(
-      async () => {
-        const current = processIdentity(marker.process_id, role);
-        return !current || current.started !== original.started ? true : null;
-      },
-      `${role} cleanup`,
-      5000,
-    );
-  } catch {
-    const current = processIdentity(marker.process_id, role);
-    if (current?.started === original.started) process.kill(marker.process_id, "SIGKILL");
-    await waitFor(
-      async () => !processIdentity(marker.process_id, role),
-      `${role} forced cleanup`,
-      5000,
-    );
-  }
-}
-async function freezeCaptureAndStop(
-  pid: number,
-  role: ProcessRole,
-  childRole: ProcessRole,
-): Promise<ProcessIdentity[]> {
-  const original = processIdentity(pid, role);
-  if (!original) return [];
-  let children: ProcessIdentity[] = [];
-  let failure: { error: unknown } | undefined;
-  try {
-    process.kill(pid, "SIGSTOP");
-    await waitFor(
-      async () => processIdentity(pid, role)?.state.includes("T"),
-      `${role} stopped for child capture`,
-      5000,
-    );
-    children = childPids(pid)
-      .map((child) => matchingChildIdentity(child, childRole))
-      .filter((child) => child !== null);
-  } catch (error) {
-    failure = { error };
-  } finally {
-    try {
-      if (processIdentity(pid, role)?.started === original.started) process.kill(pid, "SIGKILL");
-      await waitFor(async () => !processIdentity(pid, role), `${role} forced exit`, 5000);
-    } catch (error) {
-      failure ??= { error };
-    }
-  }
-  if (failure) throw failure.error;
-  return children;
 }
 async function stopHelper(value: unknown): Promise<ProcessIdentity[]> {
   const marker = ownedMarker(value);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { isBuiltin } from "node:module";
 import { tmpdir } from "node:os";
@@ -1432,5 +1432,631 @@ function $otherUsedAliases(browser,value) {$otherAssert.ok(value);$otherBrowserS
     () =>
       verify(source.replace('from "./browser-script.mts"', 'from "./wrong-browser-script.mts"')),
     /Missing production dependency/u,
+  );
+});
+
+void test("macOS installed cleanup consumes its live owner and explicit process capabilities", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-macos-installed-update-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function* active(
+    value: unknown,
+    callbacks = new Set<string>(),
+    executeCallback = false,
+  ): Generator<Record<string, unknown>> {
+    if (Array.isArray(value)) {
+      for (const child of value) yield* active(child, callbacks);
+      return;
+    }
+    if (!isRecord(value)) return;
+    if (typeof value.type === "string") yield value;
+    if (
+      ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+        String(value.type),
+      )
+    ) {
+      if (executeCallback) yield* active(value.body, callbacks);
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (value.type === "IfStatement" && literal(value.test) === false && key === "consequent")
+        continue;
+      if (
+        value.type === "CallExpression" &&
+        key === "arguments" &&
+        callbacks.has(identifier(value.callee) ?? "")
+      ) {
+        for (const [index, argument] of args(value).entries())
+          yield* active(argument, callbacks, index === 0);
+      } else yield* active(child, callbacks);
+    }
+  }
+  const route = (code: string) => {
+    const ast = parseAst(code);
+    const syntax = [...nodes(ast)];
+    const imported = (module: string, name: string) => {
+      const matches = syntax
+        .filter((node) => node.type === "ImportDeclaration" && literal(node.source) === module)
+        .flatMap((node) => {
+          assert.ok(Array.isArray(node.specifiers));
+          const values: unknown[] = node.specifiers;
+          return values.filter(isRecord);
+        })
+        .filter((node) => identifier(node.imported) === name);
+      assert.ok(matches.length > 0, "Import actual Mac capability " + name);
+      return {
+        matches,
+        aliases: new Set(
+          matches.map((node) => {
+            const alias = identifier(node.local);
+            assert.ok(alias);
+            return alias;
+          }),
+        ),
+      };
+    };
+    const factory = imported(
+      "./desktop-installed-update-harness.mts",
+      "createMacInstalledProcessCleanup",
+    );
+    const waits = imported("./desktop-installed-update-harness.mts", "waitFor");
+    const spawns = imported("node:child_process", "spawn");
+    const live = [...active(ast, waits.aliases)];
+    const calls = live.filter(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        isRecord(node.id) &&
+        node.id.type === "ObjectPattern" &&
+        isRecord(node.init) &&
+        node.init.type === "CallExpression" &&
+        factory.aliases.has(identifier(node.init.callee) ?? ""),
+    );
+    assert.equal(calls.length, 1, "Live Mac cleanup owner");
+    const owner = calls[0];
+    assert.ok(
+      owner && isRecord(owner.id) && Array.isArray(owner.id.properties) && isRecord(owner.init),
+    );
+    const invocation = owner.init;
+    const values = args(invocation),
+      configuration = values[1];
+    assert.ok(isRecord(configuration) && Array.isArray(configuration.properties));
+    const properties: unknown[] = configuration.properties,
+      bindings: unknown[] = owner.id.properties;
+    const dependency = (name: string) => {
+      const property = properties.find(
+        (value) => isRecord(value) && (identifier(value.key) ?? literal(value.key)) === name,
+      );
+      assert.ok(isRecord(property), "Mac capability " + name);
+      return property.value;
+    };
+    const spawn = live.find(
+      (node) => node.type === "CallExpression" && spawns.aliases.has(identifier(node.callee) ?? ""),
+    );
+    assert.ok(spawn);
+    const application = identifier(args(spawn)[0]);
+    assert.ok(application);
+    assert.equal(identifier(values[0]), application, "Cleanup owns the launched application");
+    assert.ok(
+      waits.aliases.has(identifier(dependency("waitFor")) ?? ""),
+      "Actual cleanup wait provider",
+    );
+    const functions = syntax.filter((node) => node.type === "FunctionDeclaration");
+    const functionFor = (value: unknown) => {
+      const name = identifier(value);
+      const declaration = syntax.find(
+        (node) =>
+          ["FunctionDeclaration", "VariableDeclarator"].includes(String(node.type)) &&
+          identifier(node.id) === name,
+      );
+      const fn =
+        isRecord(value) &&
+        ["ArrowFunctionExpression", "FunctionExpression"].includes(String(value.type))
+          ? value
+          : declaration?.type === "VariableDeclarator"
+            ? declaration.init
+            : declaration;
+      assert.ok(
+        isRecord(fn) &&
+          ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+            String(fn.type),
+          ) &&
+          !fn.async,
+        "Synchronous Mac capability",
+      );
+      return fn;
+    };
+    const identify = functionFor(dependency("processIdentity")),
+      matching = functionFor(dependency("matchingChildIdentity")),
+      children = functionFor(dependency("childPids"));
+    const identityBinding = identifier(dependency("processIdentity"));
+    assert.ok(identityBinding);
+    assert.ok(
+      [...active(matching.body)].some(
+        (node) =>
+          node.type === "ReturnStatement" &&
+          isRecord(node.argument) &&
+          node.argument.type === "CallExpression" &&
+          identifier(node.argument.callee) === identityBinding,
+      ),
+      "Child identity reuses the live identity provider",
+    );
+    // Follow the consumed command/result chain, rather than any decoy call in
+    // the provider body. Private bindings and declaration forms are incidental.
+    const commands = imported("node:child_process", "execFileSync");
+    const chain = (value: unknown) => {
+      const result: Record<string, unknown>[] = [];
+      while (isRecord(value)) {
+        result.push(value);
+        if (value.type === "CallExpression") value = value.callee;
+        else if (value.type === "MemberExpression") value = value.object;
+        else break;
+      }
+      return result;
+    };
+    const childNodes = [...active(children.body)];
+    const output = childNodes.find(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        chain(node.init).some(
+          (part) =>
+            part.type === "CallExpression" &&
+            commands.aliases.has(identifier(part.callee) ?? "") &&
+            literal(args(part)[0]) === "/usr/bin/pgrep",
+        ),
+    );
+    assert.ok(output, "Child enumeration uses actual pgrep provider");
+    const command = chain(output.init).find(
+      (part) =>
+        part.type === "CallExpression" && commands.aliases.has(identifier(part.callee) ?? ""),
+    );
+    const childArguments = args(command)[1];
+    assert.ok(isRecord(childArguments) && Array.isArray(childArguments.elements));
+    const childElements: unknown[] = childArguments.elements;
+    assert.equal(literal(childElements[0]), "-P");
+    const parentPid = childElements[1];
+    assert.ok(isRecord(parentPid) && parentPid.type === "CallExpression");
+    assert.equal(identifier(parentPid.callee), "String");
+    assert.ok(Array.isArray(children.params));
+    assert.equal(identifier(args(parentPid)[0]), identifier(children.params[0]));
+    assert.ok(
+      childNodes.some(
+        (node) =>
+          node.type === "ReturnStatement" &&
+          identifier(chain(node.argument).at(-1)) === identifier(output.id),
+      ),
+      "Child enumeration consumes the actual pgrep result",
+    );
+    const signal = functionFor(dependency("signal"));
+    assert.ok(Array.isArray(signal.params));
+    const forwarded = [...active(signal.body)].find(
+      (node) =>
+        node.type === "CallExpression" &&
+        isRecord(node.callee) &&
+        node.callee.type === "MemberExpression" &&
+        identifier(node.callee.object) === "process" &&
+        identifier(node.callee.property) === "kill",
+    );
+    assert.ok(forwarded, "Actual native signal adapter");
+    assert.equal(
+      identifier(args(forwarded)[0]),
+      identifier(signal.params[0]),
+      "Forward exact signal PID",
+    );
+    assert.equal(
+      identifier(args(forwarded)[1]),
+      identifier(signal.params[1]),
+      "Forward exact signal kind",
+    );
+    const methods = new Map<
+      string,
+      { property: Record<string, unknown>; alias: string; calls: Record<string, unknown>[] }
+    >();
+    for (const name of [
+      "positivePid",
+      "processMarker",
+      "ownedMarker",
+      "stopOwned",
+      "freezeCaptureAndStop",
+    ]) {
+      const property = bindings.find(
+        (value) => isRecord(value) && (identifier(value.key) ?? literal(value.key)) === name,
+      );
+      assert.ok(isRecord(property));
+      const alias = identifier(property.value);
+      assert.ok(alias);
+      const calls = live.filter(
+        (node) => node.type === "CallExpression" && identifier(node.callee) === alias,
+      );
+      assert.ok(calls.length > 0, "Consume live Mac method " + name);
+      methods.set(name, { property, alias, calls });
+    }
+    return {
+      factory,
+      owner,
+      invocation,
+      configuration,
+      dependency,
+      methods,
+      forwarded,
+      functions,
+      syntax,
+      signal,
+      providers: [
+        { name: identityBinding, fn: identify },
+        { name: identifier(dependency("matchingChildIdentity")), fn: matching },
+        { name: identifier(dependency("childPids")), fn: children },
+      ],
+    };
+  };
+  const actual = route(source);
+  const waitProperty = [...nodes(actual.configuration)].find(
+    (node) => node.type === "Property" && (identifier(node.key) ?? literal(node.key)) === "waitFor",
+  );
+  assert.ok(waitProperty);
+  route(source.replaceAll("\n", "\r\n"));
+  const factoryAlias = "$ownedMacCleanup";
+  route(
+    edit(source, [
+      ...actual.factory.matches.map((node) => ({
+        ...range(node),
+        text: "createMacInstalledProcessCleanup as " + factoryAlias,
+      })),
+      ...actual.syntax
+        .filter(
+          (node) =>
+            node.type === "CallExpression" &&
+            actual.factory.aliases.has(identifier(node.callee) ?? ""),
+        )
+        .map((node) => ({ ...range(node.callee), text: factoryAlias })),
+    ]),
+  );
+  const changes: { start: number; end: number; text: string }[] = [];
+  for (const [name, method] of actual.methods) {
+    const alias = "$mac" + name;
+    changes.push({ ...range(method.property), text: JSON.stringify(name) + ":" + alias });
+    for (const call of actual.syntax.filter(
+      (node) => node.type === "CallExpression" && identifier(node.callee) === method.alias,
+    ))
+      changes.push({ ...range(call.callee), text: alias });
+  }
+  route(edit(source, changes));
+  const providerForms: { start: number; end: number; text: string }[] = [];
+  let providerPrelude = "";
+  for (const { name, fn } of actual.providers) {
+    if (fn.type !== "FunctionDeclaration") continue;
+    assert.ok(name && Array.isArray(fn.params));
+    const parameters = fn.params
+      .map((value) => {
+        const span = range(value);
+        return source.slice(span.start, span.end);
+      })
+      .join(",");
+    const body = range(fn.body);
+    providerPrelude +=
+      "const " + name + " = (" + parameters + ") => " + source.slice(body.start, body.end) + ";\n";
+    providerForms.push({ ...range(fn), text: "" });
+  }
+  const ownerStatement = actual.syntax.find(
+    (node) =>
+      node.type === "VariableDeclaration" &&
+      Array.isArray(node.declarations) &&
+      node.declarations.includes(actual.owner),
+  );
+  assert.ok(ownerStatement);
+  const insertion = range(ownerStatement).start;
+  if (providerForms.length)
+    route(
+      edit(source, [...providerForms, { start: insertion, end: insertion, text: providerPrelude }]),
+    );
+  const moved = actual.functions.at(-1);
+  assert.ok(moved);
+  const movedRange = range(moved);
+  route(
+    source.slice(movedRange.start, movedRange.end) +
+      "\n" +
+      edit(source, [{ ...movedRange, text: "/* declaration moved */" }]),
+  );
+  route(
+    'import {createMacInstalledProcessCleanup as $otherMacCleanup} from "./desktop-installed-update-harness.mts";\n' +
+      source +
+      "\nfunction $unusedOtherMacAlias(){return $otherMacCleanup();}\n",
+  );
+  for (const [name, method] of actual.methods) {
+    const broken = edit(
+      source,
+      method.calls.map((call) => ({ ...range(call.callee), text: "unreviewedMacCleanup" })),
+    );
+    const decoy =
+      "\nasync function $unusedMacMethod(){" +
+      source.slice(range(method.calls[0]).start, range(method.calls[0]).end) +
+      ";}\n";
+    assert.throws(() => route(broken + decoy), /Consume live Mac method/u, name);
+  }
+  assert.throws(
+    () =>
+      route(
+        edit(source, [{ ...range(args(actual.invocation)[0]), text: '"foreign-application"' }]),
+      ),
+    /Cleanup owns the launched application/u,
+  );
+  assert.throws(
+    () => route(edit(source, [{ ...range(args(actual.forwarded)[0]), text: '"wrong-pid"' }])),
+    /Forward exact signal PID/u,
+  );
+  assert.throws(
+    () => route(edit(source, [{ ...range(args(actual.forwarded)[1]), text: '"SIGCONT"' }])),
+    /Forward exact signal kind/u,
+  );
+  const childProperty = [...nodes(actual.configuration)].find(
+    (node) =>
+      node.type === "Property" && (identifier(node.key) ?? literal(node.key)) === "childPids",
+  );
+  assert.ok(childProperty);
+  assert.throws(
+    () => route(edit(source, [{ ...range(childProperty), text: "childPids: () => []" }])),
+    { code: "ERR_ASSERTION", message: /Child enumeration uses actual pgrep provider/u },
+  );
+  assert.throws(
+    () =>
+      route(
+        edit(source, [
+          {
+            ...range(actual.signal.body),
+            text:
+              "{ if (false) { " +
+              source.slice(range(actual.forwarded).start, range(actual.forwarded).end) +
+              "; } }",
+          },
+        ]),
+      ),
+    { code: "ERR_ASSERTION", message: /Actual native signal adapter/u },
+  );
+  assert.throws(
+    () => route(edit(source, [{ ...range(waitProperty), text: "waitFor:async()=>true" }])),
+    /Actual cleanup wait provider/u,
+  );
+  assert.throws(
+    () =>
+      route(
+        edit(source, [
+          {
+            ...range(actual.factory.matches[0]),
+            text: "hashFile as " + identifier(actual.factory.matches[0]?.local),
+          },
+        ]),
+      ),
+    /Import actual Mac capability/u,
+  );
+});
+
+void test("imported macOS cleanup retains birth custody and mandatory frozen-owner cleanup", async (t) => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const entry = "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts";
+  const ownerPath = "apps/desktop/scripts/desktop-installed-update-harness.mts";
+  const transportPath = "apps/desktop/scripts/transport-values.mts";
+  const closure = readFixtureModuleClosure(root, [entry, ownerPath, transportPath]);
+  const directory = disposableDirectory(t, path.join(tmpdir(), "portcove-mac-cleanup-module-"));
+  writeFileSync(path.join(directory, "package.json"), '{"type":"module"}\n');
+  for (const module of closure.modules) {
+    const destination = path.join(directory, module.path);
+    mkdirSync(path.dirname(destination), { recursive: true });
+    writeFileSync(destination, module.bytes);
+  }
+  const source = stripTypeScriptTypes(await readFile(path.join(root, ownerPath), "utf8"), {
+    mode: "strip",
+  });
+  const program: unknown = parseAst(source);
+  assert.ok(isRecord(program) && Array.isArray(program.body));
+  const declarations = new Map<string, Record<string, unknown>>(),
+    exports = new Map<string, string>();
+  for (const item of program.body) {
+    assert.ok(isRecord(item));
+    const declaration: unknown = item.type === "ExportNamedDeclaration" ? item.declaration : item;
+    if (isRecord(declaration)) {
+      const name = identifier(declaration.id);
+      if (name) {
+        declarations.set(name, declaration);
+        if (item.type === "ExportNamedDeclaration") exports.set(name, name);
+      }
+      if (declaration.type === "VariableDeclaration" && Array.isArray(declaration.declarations))
+        for (const value of declaration.declarations) {
+          assert.ok(isRecord(value));
+          const name = identifier(value.id);
+          if (name && isRecord(value.init)) {
+            declarations.set(name, value.init);
+            if (item.type === "ExportNamedDeclaration") exports.set(name, name);
+          }
+        }
+    }
+    if (item.type === "ExportNamedDeclaration" && Array.isArray(item.specifiers))
+      for (const value of item.specifiers) {
+        assert.ok(isRecord(value));
+        const name = identifier(value.exported),
+          local = identifier(value.local);
+        if (name && local) exports.set(name, local);
+      }
+  }
+  const factory = declarations.get(exports.get("createMacInstalledProcessCleanup") ?? "");
+  assert.ok(factory && isRecord(factory.body));
+  const returned = [...nodes(factory.body)].find(
+    (node) =>
+      node.type === "ReturnStatement" &&
+      isRecord(node.argument) &&
+      node.argument.type === "ObjectExpression" &&
+      Array.isArray(node.argument.properties) &&
+      node.argument.properties.some(
+        (value: unknown) =>
+          isRecord(value) &&
+          (identifier(value.key) ?? literal(value.key)) === "freezeCaptureAndStop",
+      ),
+  );
+  assert.ok(returned && isRecord(returned.argument) && Array.isArray(returned.argument.properties));
+  const properties: unknown[] = returned.argument.properties;
+  const method = (name: string) => {
+    const property = properties.find(
+      (value) => isRecord(value) && (identifier(value.key) ?? literal(value.key)) === name,
+    );
+    assert.ok(isRecord(property));
+    const local = identifier(property.value);
+    const fn =
+      isRecord(property.value) &&
+      ["FunctionExpression", "ArrowFunctionExpression"].includes(String(property.value.type))
+        ? property.value
+        : [...nodes(factory.body)].find(
+            (node) =>
+              (node.type === "FunctionDeclaration" && identifier(node.id) === local) ||
+              (node.type === "VariableDeclarator" && identifier(node.id) === local),
+          );
+    assert.ok(fn);
+    const implementation = fn.type === "VariableDeclarator" ? fn.init : fn;
+    assert.ok(isRecord(implementation));
+    const binding = local ? fn.id : undefined;
+    const declaration =
+      fn.type === "VariableDeclarator"
+        ? [...nodes(factory.body)].find(
+            (node) =>
+              node.type === "VariableDeclaration" &&
+              Array.isArray(node.declarations) &&
+              node.declarations.includes(fn),
+          )
+        : fn.type === "FunctionDeclaration"
+          ? fn
+          : undefined;
+    return { property, fn: implementation, binding, declaration };
+  };
+  const stop = method("stopOwned"),
+    freeze = method("freezeCaptureAndStop");
+  const kill = (node: Record<string, unknown>) =>
+    [...nodes(node)].some(
+      (value) => value.type === "CallExpression" && literal(args(value)[1]) === "SIGKILL",
+    );
+  const guard = [...nodes(stop.fn.body)].find(
+    (node) => node.type === "IfStatement" && isRecord(node.consequent) && kill(node.consequent),
+  );
+  assert.ok(guard && isRecord(guard.consequent));
+  const capture = [...nodes(freeze.fn.body)].find(
+    (node) => node.type === "TryStatement" && isRecord(node.finalizer) && kill(node.finalizer),
+  );
+  assert.ok(capture && isRecord(capture.finalizer));
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const execute = (code: string) => {
+    writeFileSync(path.join(directory, ownerPath), code);
+    const result = spawnSync(
+      process.execPath,
+      ["--test", "--test-reporter=tap", path.join(directory, entry)],
+      {
+        cwd: directory,
+        env: environment,
+        encoding: "utf8",
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    assert.ifError(result.error);
+    return result;
+  };
+  const accepted = (code: string) => {
+    const result = execute(code);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /macOS frozen child capture retains exact first failure/u);
+    assert.match(result.stdout, /# pass 4\b/u);
+    assert.match(result.stdout, /# fail 0\b/u);
+  };
+  accepted(source);
+  const transportFile = path.join(directory, transportPath);
+  renameSync(transportFile, transportFile + ".retained-input");
+  try {
+    const missingInput = execute(source);
+    assert.equal(missingInput.signal, null);
+    assert.equal(missingInput.status, 1, "Missing required fixture input must refuse execution");
+    assert.match(missingInput.stdout, /ERR_MODULE_NOT_FOUND/u);
+    assert.ok(missingInput.stdout.includes("transport-values.mts"));
+  } finally {
+    renameSync(transportFile + ".retained-input", transportFile);
+  }
+  accepted(source.replaceAll("\n", "\r\n"));
+  const renamed: { start: number; end: number; text: string }[] = [];
+  for (const [name, implementation] of [
+    ["stopOwned", stop],
+    ["freezeCaptureAndStop", freeze],
+  ] as const) {
+    if (!isRecord(implementation.binding)) continue;
+    const alias = "$owned" + name;
+    renamed.push(
+      { ...range(implementation.binding), text: alias },
+      { ...range(implementation.property), text: JSON.stringify(name) + ":" + alias },
+    );
+  }
+  accepted(edit(source, renamed));
+  if (stop.declaration && freeze.declaration) {
+    const first = range(stop.declaration),
+      second = range(freeze.declaration);
+    if (first.end <= second.start || second.end <= first.start)
+      accepted(
+        edit(source, [
+          { ...first, text: source.slice(second.start, second.end) },
+          { ...second, text: source.slice(first.start, first.end) },
+        ]),
+      );
+  }
+  const forms: { start: number; end: number; text: string }[] = [];
+  for (const implementation of [stop, freeze]) {
+    if (implementation.declaration?.type !== "FunctionDeclaration") continue;
+    assert.ok(Array.isArray(implementation.fn.params));
+    const parameters = implementation.fn.params
+      .map((value) => {
+        const span = range(value);
+        return source.slice(span.start, span.end);
+      })
+      .join(",");
+    const body = range(implementation.fn.body),
+      name = identifier(implementation.binding);
+    assert.ok(name);
+    forms.push({
+      ...range(implementation.declaration),
+      text:
+        "const " +
+        name +
+        " = " +
+        (implementation.fn.async ? "async " : "") +
+        "(" +
+        parameters +
+        ") => " +
+        source.slice(body.start, body.end) +
+        ";",
+    });
+  }
+  if (forms.length) accepted(edit(source, forms));
+  const rejected = (code: string, caseName: RegExp, assertion: string) => {
+    const result = execute(code);
+    assert.equal(result.signal, null, "A process signal cannot stand in for a guard failure");
+    assert.equal(result.status, 1, "Removed custody guard must fail its actual unit case");
+    assert.match(result.stdout, caseName);
+    assert.match(result.stdout, /\bcode:\s*['"]?ERR_ASSERTION\b/u);
+    assert.ok(
+      result.stdout.includes("MAC_CONTRACT_ASSERTION " + assertion),
+      "Require the inner behavioral assertion, not a fixture infrastructure failure",
+    );
+    assert.doesNotMatch(result.stdout + result.stderr, /SyntaxError|ERR_MODULE_NOT_FOUND/u);
+  };
+  rejected(
+    edit(source, [
+      {
+        ...range(guard),
+        text: source.slice(range(guard.consequent).start, range(guard.consequent).end),
+      },
+    ]),
+    /not ok \d+ - macOS owned cleanup refuses foreign markers and never signals a changed start identity/u,
+    "Mac changed-start custody rejects forced kill",
+  );
+  rejected(
+    edit(source, [{ ...range(capture.finalizer), text: "{}" }]),
+    /not ok \d+ - macOS frozen child capture retains exact first failure after mandatory process cleanup/u,
+    "Mac capture must force stop in finally",
   );
 });
