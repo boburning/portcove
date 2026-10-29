@@ -43,6 +43,7 @@ async function importControlledJourney(
     for (const name of [
       "openInstalledUpdateSettings",
       "driveInstalledUpdateToRestart",
+      "driveInstalledBusyRestartRefusal",
       "driveInstalledStableWaiting",
       "driveInstalledFeedOutage",
       "driveInstalledUpdateRecovery",
@@ -62,6 +63,7 @@ const drivers = await importControlledJourney(
 const {
   openInstalledUpdateSettings,
   driveInstalledUpdateToRestart,
+  driveInstalledBusyRestartRefusal,
   driveInstalledStableWaiting,
   driveInstalledFeedOutage,
   driveInstalledUpdateRecovery,
@@ -862,3 +864,65 @@ void test("parent feed recovery seals out a late driver that has not started its
   assert.equal(observed, false);
   assert.deepEqual(await readFile(timestamp), bytes);
 });
+
+for (const stale of [false, true]) {
+  void test(`busy restart ${stale ? "rejects stale Conflict text before clicking" : "requires a fresh Conflict after the enabled ordinary click"}`, async () => {
+    const message =
+      "The selection changed or another operation is using it. Review its current state.";
+    const status = {
+      install_eligibility: "eligible",
+      staged: { version: "0.3.0", sha256: "a".repeat(64) },
+      apply: null,
+      recovery_required: [],
+    };
+    const preferences = {
+      revision: 1,
+      choice: { channel: "preview", mode: "manual", paused: false },
+    };
+    let clicked = false,
+      heldChecks = 0;
+    const browser = {
+      executeAsyncScript: async (query: unknown) =>
+        JSON.stringify({
+          ok: true,
+          value: String(query).includes("get_application_update_preferences")
+            ? preferences
+            : status,
+        }),
+      findElements: async (locator: { value: string }) =>
+        locator.value.includes('role="alert"') && (stale || clicked) ? [{}] : [],
+      findElement: (locator: { value: string }) => ({
+        click: async () => {
+          assert.match(locator.value, /Restart to update/u);
+          clicked = true;
+        },
+      }),
+      wait: async (condition: { value: string }) => {
+        if (condition.value.includes('role="alert"')) assert.equal(clicked, true);
+        else assert.match(condition.value, /Restart to update.*not\(@disabled\)/u);
+        return { getText: async () => message };
+      },
+    } as unknown as WebDriver;
+    const actions: string[] = [];
+    const observe = () =>
+      driveInstalledBusyRestartRefusal(browser, actions, async () => {
+        heldChecks++;
+      });
+    if (stale) {
+      await assert.rejects(observe(), /stale|already|existing|fresh/iu);
+      assert.equal(clicked, false);
+      assert.deepEqual(actions, []);
+    } else {
+      const result = await observe();
+      assert.equal(clicked, true);
+      assert.equal(heldChecks, 2);
+      assert.deepEqual(result.before.staged, result.after.staged);
+      assert.equal(result.after.apply, null);
+      assert.equal(result.message, message);
+      assert.deepEqual(actions, [
+        "ordinary-restart-requested-while-real-core-activity-held",
+        "real-core-busy-restart-refused-without-apply-intent",
+      ]);
+    }
+  });
+}
