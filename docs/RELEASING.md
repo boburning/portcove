@@ -207,6 +207,29 @@ recursive-library comparison, the observer captures original runtime/player
 files before additional Core status, checks the original installed record/policy
 and exact saved-library preference bytes, and writes retained evidence outside
 the disposable installer run. A selected option is not evidence of completion.
+The Windows real-data route and historical Linux renderer route additionally
+exercise a bounded outage of their owned local `timestamp.json`. They persist
+exact control/preimage identities before driver dispatch, observe an ordinary
+check reporting the sanitized reachability failure without new staging/apply
+state or changed saved updater choices, restore the original timestamp inode
+and bytes, then retry through the ordinary controls. Scheduling failure/retry
+counters may legitimately change. The installed executable/AppImage hash and
+existing data comparisons remain required. This is file-feed reachability
+coverage, not OS-offline, HTTP redirect/rate-limit, production TLS or publication
+acceptance.
+
+The fixture adapter verifies same-filesystem no-replace hardlinks before
+withholding anything and reuses the existing process-identity lock for its
+mutating window. Parent restoration refuses active/unknown mutators, seals out
+late fault writers and refuses foreign files or changed retained preimages.
+Exact controls and originals remain available on failure; resuming restoration
+uses the retained configuration and its original SHA-256 with
+`node apps/desktop/scripts/desktop-installed-feed-outage.mts --phase restore --configuration FILE --sha256 SHA256`.
+Do not recompute an expected digest from altered inputs or overwrite a foreign
+replacement. This establishes bounded process-interruption recovery, not
+power-loss/directory-durability or actual reboot behavior. Selecting the fixture
+does not establish that its installed observation completed.
+
 The fixed Windows OS credential store is not isolated by these private paths;
 credential continuity, gameplay and raw database-preimage claims remain absent.
 The caller must retain the configuration, CLI/package/source custody and all

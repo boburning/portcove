@@ -1,7 +1,10 @@
 import type { WebDriver } from "selenium-webdriver";
 import { By, until } from "selenium-webdriver";
 import assert from "node:assert/strict";
-import { readInstalledUpdateStatus } from "./desktop-installed-update-harness.mts";
+import {
+  readInstalledUpdateStatus,
+  readInstalledUpdatePreferences,
+} from "./desktop-installed-update-harness.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
 export async function openInstalledUpdateSettings(browser: WebDriver) {
@@ -175,6 +178,85 @@ export async function driveInstalledStableWaiting(browser: WebDriver, actions: s
     message,
     authority: "none" as const,
     scope: "ordinary Stable waiting UI only" as const,
+  };
+}
+
+/** A file-feed reachability fault, never OS-offline, HTTP, or production-feed proof. */
+export async function driveInstalledFeedOutage(
+  browser: WebDriver,
+  actions: string[],
+  configuration: string,
+  configurationSha256: string,
+) {
+  const { withInstalledFeedOutage } = await import("./desktop-installed-feed-outage.mts");
+  // Finish explicit settings changes before capturing the fault-interval choices.
+  const healthy = await driveInstalledStableWaiting(browser, actions);
+  const preferencesBefore = await readInstalledUpdatePreferences(browser);
+  const failed = await withInstalledFeedOutage(configuration, configurationSha256, async () => {
+    const checkedAt = new Date().toISOString();
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Check for updates"]')).click();
+    const message =
+      "The application update service could not be reached. Check the connection and try again.";
+    const alert = await browser.wait(
+      until.elementLocated(
+        By.xpath(
+          `//section[@aria-labelledby="application-check-title"]//p[@role="alert" and normalize-space(.)="${message}"]`,
+        ),
+      ),
+      45_000,
+    );
+    assert.equal(await alert.getText(), message);
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//button[normalize-space(.)="Check for updates" and not(@disabled)]'),
+      ),
+      15_000,
+    );
+    for (const text of [
+      "Download and verify update",
+      "Restart to update",
+      "Retry restart to update",
+    ])
+      assert.equal(
+        (await browser.findElements(By.xpath(`//button[normalize-space(.)="${text}"]`))).length,
+        0,
+      );
+    assert.equal(
+      (
+        await browser.findElements(
+          By.xpath(
+            '//section[@aria-labelledby="application-check-title"]//*[contains(.,"Portcove is current")]',
+          ),
+        )
+      ).length,
+      0,
+    );
+    const status = await readInstalledUpdateStatus(browser);
+    assert.equal(status.install_eligibility, healthy.after.install_eligibility);
+    assert.deepEqual(status.staged, healthy.after.staged);
+    assert.deepEqual(status.apply, healthy.after.apply);
+    assert.deepEqual(status.recovery_required, healthy.after.recovery_required);
+    const preferences = await readInstalledUpdatePreferences(browser);
+    assert.deepEqual(
+      preferences,
+      preferencesBefore,
+      "A failed check changed saved updater choices",
+    );
+    actions.push("owned-file-feed-unreachable-without-current-or-new-intent");
+    return { checked_at: checkedAt, message, status, preferences };
+  });
+  actions.push("owned-file-feed-original-inode-and-bytes-restored");
+  const retry = await driveInstalledStableWaiting(browser, actions);
+  actions.push("owned-file-feed-explicit-retry-completed");
+  return {
+    configuration_sha256: configurationSha256,
+    healthy,
+    preferences_before: preferencesBefore,
+    failed,
+    retry,
+    authority: "none" as const,
+    scope:
+      "owned local file-feed reachability failure and ordinary UI retry only; scheduling failure/retry counters may change" as const,
   };
 }
 
