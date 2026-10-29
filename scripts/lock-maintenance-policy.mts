@@ -4,7 +4,11 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord, errorMessage } from "./runtime-values.mts";
-import { MaintenanceRegistry, maintenanceLimits } from "./lock-maintenance-registry.mts";
+import {
+  MaintenanceRegistry,
+  maintenanceLimits,
+  maintenanceAgePolicy,
+} from "./lock-maintenance-registry.mts";
 import type { MaintenanceArtifact, RegistryObservation } from "./lock-maintenance-registry.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -176,6 +180,7 @@ export async function runMaintenancePolicy(mode: string, cwd = root) {
     observations: [],
     acceptance: false,
     limits: maintenanceLimits,
+    age_policy: maintenanceAgePolicy,
   };
   const file = path.join(directory, `${randomUUID()}.json`);
   try {
@@ -195,12 +200,13 @@ export async function runMaintenancePolicy(mode: string, cwd = root) {
       "cargo-lock-inventory.py",
     ];
     const policyHashes = () =>
-      Object.fromEntries(
-        policyFiles.map((name) => [
+      Object.fromEntries([
+        ...policyFiles.map((name): [string, string] => [
           name,
           sha(readFileSync(new URL(`./${name}`, import.meta.url), "utf8")),
         ]),
-      );
+        ["renovate.json", sha(readFileSync(new URL("../renovate.json", import.meta.url), "utf8"))],
+      ]);
     const hashes = policyHashes();
     report.policy_source = { checkout: executingHead, files: hashes };
     report.identity = identity;
@@ -236,7 +242,9 @@ export async function runMaintenancePolicy(mode: string, cwd = root) {
         observations.length > 0 &&
         observations.every((p) => p.age === "eligible" && p.archiveVerified);
       if (observations.some((p) => p.age === "young"))
-        throw new Error("Introduced artifact has not reached its exact 24-hour boundary");
+        throw new Error(
+          "Introduced artifact has not reached its exact 24-hour-plus-30-minute boundary",
+        );
     } else if (identity.applicable) report.execution = "classified-only";
   } catch (error) {
     report.failure = errorMessage(error);

@@ -17,6 +17,7 @@ import {
   publicationMilliseconds,
   integrityParts,
   maintenanceLimits,
+  maintenanceAgePolicy,
 } from "./lock-maintenance-registry.mts";
 import type { MaintenanceArtifact } from "./lock-maintenance-registry.mts";
 import {
@@ -154,7 +155,7 @@ function artifact(manager: "cargo" | "npm" = "cargo"): MaintenanceArtifact {
     integrity: `${algorithm}-${createHash(algorithm).update(payload).digest("base64")}`,
   };
 }
-const now = Date.parse("2026-10-29T15:48:44.286Z");
+const now = Date.parse("2026-10-29T16:18:44.286Z");
 function requestFixture(a: MaintenanceArtifact, published: string, corrupt = false): typeof fetch {
   return async (url: string | URL | Request) => {
     const value = requestUrl(url);
@@ -174,7 +175,12 @@ function requestFixture(a: MaintenanceArtifact, published: string, corrupt = fal
   };
 }
 void test("microsecond publication boundary rounds conservatively and requires a real timestamp", () => {
-  assert.equal(publicationMilliseconds("2026-10-28T15:48:44.285686Z"), now - 86_400_000);
+  assert.equal(
+    publicationMilliseconds("2026-10-28T15:48:44.285686Z"),
+    now - maintenanceLimits.ageMs,
+  );
+  assert.equal(maintenanceLimits.ageMs, 88_200_000);
+  assert.equal(maintenanceAgePolicy.minimumReleaseAgeBufferMs, 1_800_000);
   for (const bad of [undefined, "yesterday", "2026-02-30T00:00:00Z", "2026-10-28T15:48:44+01:00"])
     assert.throws(() => publicationMilliseconds(bad));
 });
@@ -187,6 +193,19 @@ void test("both managers accept exact boundary with actual bytes and reject youn
     ).verify(a);
     assert.equal(accepted.age, "eligible");
     assert.equal(accepted.archiveVerified, true);
+    t.mock.method(Date, "now", () => now - maintenanceAgePolicy.minimumReleaseAgeBufferMs);
+    const atUnbufferedBoundary = await new MaintenanceRegistry(
+      requestFixture(a, "2026-10-28T15:48:44.285686Z"),
+    ).verify(a);
+    assert.equal(atUnbufferedBoundary.age, "young");
+    assert.equal(atUnbufferedBoundary.archiveVerified, false);
+    t.mock.method(Date, "now", () => now - 1);
+    const beforeEffectiveBoundary = await new MaintenanceRegistry(
+      requestFixture(a, "2026-10-28T15:48:44.285686Z"),
+    ).verify(a);
+    assert.equal(beforeEffectiveBoundary.age, "young");
+    assert.equal(beforeEffectiveBoundary.archiveBytes, 0);
+    t.mock.method(Date, "now", () => now);
     const young = await new MaintenanceRegistry(
       requestFixture(a, "2026-10-28T15:48:44.286001Z"),
     ).verify(a);
@@ -396,7 +415,7 @@ void test("required maintenance execution binds complete inventories and never a
     process.env.GITHUB_EVENT_PATH = file;
     delete process.env.GITHUB_OUTPUT;
     delete process.env.GITHUB_STEP_SUMMARY;
-    await assert.rejects(runMaintenancePolicy("check", cwd), /24-hour boundary/);
+    await assert.rejects(runMaintenancePolicy("check", cwd), /24-hour-plus-30-minute boundary/);
     const reports = () =>
       readdirSync(path.join(cwd, "work/dependency-policy")).map((p) => {
         const value: unknown = JSON.parse(

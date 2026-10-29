@@ -7,6 +7,20 @@ export interface MaintenanceArtifact {
   version: string;
   integrity: string;
 }
+// Preserve the resolved Renovate 44.188.2 policy: configured one day plus
+// its inherited default buffer. This explicit contract has no clock/age override.
+export const maintenanceAgePolicy = Object.freeze({
+  minimumReleaseAge: "1 day",
+  minimumReleaseAgeMs: 86_400_000,
+  minimumReleaseAgeBuffer: "30 minutes",
+  minimumReleaseAgeBufferMs: 1_800_000,
+  provenance: {
+    renovateVersion: "44.188.2",
+    configuration: "renovate.json",
+    defaultSource: "lib/config/options/index.ts#minimumReleaseAgeBuffer",
+    calculationSource: "lib/util/minimum-release-age.ts",
+  },
+});
 export const maintenanceLimits = Object.freeze({
   lockBytes: 16 * 1024 * 1024,
   entries: 4096,
@@ -17,7 +31,7 @@ export const maintenanceLimits = Object.freeze({
   totalMetadataBytes: 256 * 1024 * 1024,
   archiveBytes: 128 * 1024 * 1024,
   totalArchiveBytes: 512 * 1024 * 1024,
-  ageMs: 24 * 60 * 60_000,
+  ageMs: maintenanceAgePolicy.minimumReleaseAgeMs + maintenanceAgePolicy.minimumReleaseAgeBufferMs,
 });
 const lengths = { sha1: 20, sha256: 32, sha384: 48, sha512: 64 } as const;
 type Algorithm = keyof typeof lengths;

@@ -1289,8 +1289,13 @@ Conflicting cross-document integrities and newly changed unsupported sources
 fail closed. Each introduced registry identity must match the exact authoritative
 version, publication timestamp and lock checksum. Cargo uses crates.io
 `created_at`; npm uses the full canonical packument's `time[version]`, never
-`modified`, a dist-tag, PR creation or branch regeneration. The check requires
-24 hours, conservatively rounds sub-millisecond publication boundaries, and
+`modified`, a dist-tag, PR creation or branch regeneration. The check preserves the resolved Renovate 44.188.2 policy: configured
+`minimumReleaseAge: "1 day"` plus its inherited
+`minimumReleaseAgeBuffer: "30 minutes"`, totaling 88,200,000 milliseconds.
+The buffer default is defined by Renovate `lib/config/options/index.ts`;
+`lib/util/minimum-release-age.ts` adds it to the configured minimum.
+The receipt records both explicit durations and this resolved-policy provenance.
+The check conservatively rounds sub-millisecond publication boundaries and
 streams mature archives to verify their actual declared hashes. Strong lock
 integrity cannot be downgraded to weaker registry metadata. Young artifacts are
 reported without downloading their archives and keep the check failing.
