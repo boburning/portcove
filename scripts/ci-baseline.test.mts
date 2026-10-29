@@ -206,6 +206,19 @@ void test("shared diagnostics inputs keep hosted frontend and quality plans runn
   }
 });
 
+void test("selected actual transport schema contracts provision their Desktop AJV dependency", () => {
+  const consumer = "scripts/transport-values.test.mts";
+  const plan = make([consumer]);
+  assert.ok(baselineContractTests(plan).includes(consumer));
+  assert.equal(plan.mode, "fast");
+  assert.equal(plan.qualification_required, false);
+  assert.equal(baselineRequiresDesktopDependencies(plan), true);
+  assert.equal(
+    baselineRequiresDesktopDependencies(make(["scripts/repository-settings.test.mts"])),
+    false,
+  );
+});
+
 void test("native source declarations start their cheap hosted consumer without release qualification", () => {
   const contract = "scripts/release-native-source-contract.test.mts";
   for (const source of nativeCompatibilitySourcePaths) {

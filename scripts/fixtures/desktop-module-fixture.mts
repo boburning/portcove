@@ -1,5 +1,24 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+/** Refuse real package dependencies even when owned scratch inherits node_modules. */
+export function fixtureModulePolicySource(ownedRoot?: string) {
+  const root = ownedRoot ? pathToFileURL(path.resolve(ownedRoot) + path.sep).href : null;
+  return `
+    import { registerHooks, isBuiltin } from "node:module";
+    const fixtureOwnedRoot = ${JSON.stringify(root)};
+    registerHooks({ resolve(specifier, context, next) {
+      if (!isBuiltin(specifier) && !specifier.startsWith(".") && !specifier.startsWith("file:") && !specifier.startsWith("data:"))
+        throw new Error("Unexpected package import: " + specifier);
+      const resolved = next(specifier, context);
+      if (fixtureOwnedRoot && resolved.url.startsWith("file:") && !resolved.url.startsWith(fixtureOwnedRoot))
+        throw new Error("Fixture import escapes owned closure: " + specifier);
+      return resolved;
+    }});
+  `;
+}
 
 /** Import full production modules before Desktop packages are installed.
  * Only inert package shapes cross this controlled dependency boundary. Browser
@@ -28,7 +47,7 @@ export function runDesktopModuleFixture(
       `
         import assert from 'node:assert/strict';
         import {mock} from 'node:test';
-        import {registerHooks,isBuiltin} from 'node:module';
+        ${fixtureModulePolicySource()}
         import * as childProcess from 'node:child_process';
         const entry=${JSON.stringify(entry.href)};
         const control=${JSON.stringify(control ?? null)};
@@ -52,8 +71,6 @@ export function runDesktopModuleFixture(
             'export class WebDriver{};export const By={css:value=>({using:"css selector",value}),xpath:value=>({using:"xpath",value}),id:value=>({using:"id",value})};export const Key={};export const until={elementLocated:value=>value,elementIsVisible:element=>({fn:()=>element.isDisplayed()}),elementIsEnabled:element=>({fn:()=>element.isEnabled()})};'
           ),shortCircuit:true};
           if(specifier==='axe-core')return {url:'data:text/javascript,export default {}',shortCircuit:true};
-          if(!isBuiltin(specifier)&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))
-            throw Error('Unexpected package import: '+specifier);
           return next(specifier,context);
         },load(url,context,next){
           const loaded=next(url,context);if(url!==entry||!control)return loaded;

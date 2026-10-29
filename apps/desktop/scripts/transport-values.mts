@@ -15,7 +15,15 @@ const ajv = new Ajv2020({
   removeAdditional: false,
   // Schemars numeric formats are annotations; exported type/minimum/maximum
   // keywords own their constraints. Unrecognized future formats still fail.
-  formats: { int32: true, int64: true, uint: true, uint32: true, uint64: true, uint8: true },
+  formats: {
+    int32: true,
+    int64: true,
+    uint: true,
+    uint32: true,
+    uint64: true,
+    uint8: true,
+    uint16: true,
+  },
 });
 function readSchemas(name: string) {
   const value: unknown = JSON.parse(
