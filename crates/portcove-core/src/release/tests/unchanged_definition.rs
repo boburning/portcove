@@ -42,6 +42,116 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn crispy_definitions_select_their_family_and_reject_unsafe_successors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let observed: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/crispy-release-selection-2026-10-29.json"
+    ))
+    .unwrap();
+    let observed = &observed["release"];
+    for (id, family) in [
+        ("doom-the-ultimate-doom-crispy-doom-family", "doom"),
+        ("doom-ii-crispy-doom-family", "doom"),
+        ("heretic-crispy-doom-family", "heretic"),
+        ("hexen-crispy-doom-family", "hexen"),
+        ("strife-crispy-doom-family", "strife"),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let definition = serde_json::to_value(port).unwrap();
+        let name = format!("crispy-{family}-7.2.0-win64.zip");
+        let selected = observed["assets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|asset| asset["name"] == name)
+            .unwrap();
+        // Only the first response is observed upstream metadata. N+1 and every
+        // refusal below are controlled fixtures, not accepted future artifacts.
+        let mut successor = observed.clone();
+        successor["tag_name"] = serde_json::json!("crispy-doom-7.3");
+        for asset in successor["assets"].as_array_mut().unwrap() {
+            let next = asset["name"].as_str().unwrap().replace("7.2.0", "7.3.0");
+            asset["name"] = serde_json::json!(next);
+            asset["browser_download_url"] =
+                serde_json::json!(format!("https://downloads.example.invalid/{next}"));
+            asset["digest"] = serde_json::json!(format!("sha256:{}", "a".repeat(64)));
+        }
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(observed)),
+            metadata(),
+            releases(std::slice::from_ref(&successor)),
+        ]);
+        let baseline = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(baseline.version, "crispy-doom-7.2");
+        assert_eq!(baseline.asset.name, name);
+        assert_eq!(baseline.asset.size, selected["size"].as_u64().unwrap());
+        assert_eq!(
+            baseline.asset.sha256,
+            selected["digest"]
+                .as_str()
+                .unwrap()
+                .strip_prefix("sha256:")
+                .unwrap()
+        );
+        let next = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(next.version, "crispy-doom-7.3");
+        assert_eq!(next.asset.name, name.replace("7.2.0", "7.3.0"));
+        assert_eq!(next.asset.sha256, "a".repeat(64));
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+
+        for mutation in [
+            "wrong-cpu",
+            "wrong-family",
+            "ambiguous",
+            "missing-integrity",
+        ] {
+            let mut player = selected.clone();
+            match mutation {
+                "wrong-cpu" => player["name"] = serde_json::json!(name.replace("win64", "arm64")),
+                "wrong-family" => {
+                    player["name"] = serde_json::json!(name.replace(family, "unrelated"))
+                }
+                "missing-integrity" => player["digest"] = serde_json::Value::Null,
+                _ => {}
+            }
+            let mut assets = vec![player.clone()];
+            if mutation == "ambiguous" {
+                player["name"] = serde_json::json!(name.replace("7.2.0", "7.2.1"));
+                assets.push(player);
+            }
+            let failure_release = release("crispy-doom-7.3", assets);
+            let (root, _, server) = serve_http(vec![metadata(), releases(&[failure_release])]);
+            let failure = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap_err();
+            assert_eq!(
+                failure.code,
+                match mutation {
+                    "ambiguous" => crate::ErrorCode::Conflict,
+                    "missing-integrity" => crate::ErrorCode::Verification,
+                    _ => crate::ErrorCode::NotFound,
+                },
+                "{id}: {mutation}"
+            );
+            server.join().unwrap();
+        }
+        assert_eq!(serde_json::to_value(port).unwrap(), definition);
+    }
+}
+
+#[tokio::test]
 async fn observed_rollout_metadata_progresses_with_unchanged_authored_definitions() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, platform, old_index, expected_tag, expected_name) in [

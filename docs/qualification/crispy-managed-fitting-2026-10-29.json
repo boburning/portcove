@@ -1,0 +1,651 @@
+{
+  "format_version": 1,
+  "kind": "crispy-shared-native4-managed-fitting",
+  "owners": [2510, 2926],
+  "status": "Candidate five-title Core operation qualification complete; final source review, exact-head delivery and canonical reconciliation pending.",
+  "scope": {
+    "frozen_identities": [
+      "doom-the-ultimate-doom-crispy-doom-family",
+      "doom-ii-crispy-doom-family",
+      "heretic-crispy-doom-family",
+      "hexen-crispy-doom-family",
+      "strife-crispy-doom-family"
+    ],
+    "canonical_issues": [2654, 2655, 2657, 2662, 2663],
+    "isolated_issue": 2656,
+    "new_identities": 0,
+    "historical_rows_added": 0,
+    "operational_definitions": 247,
+    "source_profiles": 112,
+    "supported_stage_changes": 0,
+    "inventory_overlap": "The five identities were already in the affected312 and prior49 prepared routes. These replacements do not add another five frozen identities."
+  },
+  "upstream": {
+    "repository": "fabiangreffrath/crispy-doom",
+    "tag": "crispy-doom-7.2",
+    "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+    "source_archive_sha256": "983c685d727806377a23cad8229266b2c1e29a3ca561c702e709f6906c865bc0",
+    "git_tree_query_ref": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+    "tree_entries": 830,
+    "truncated": false,
+    "git_blob_verified_selected_source_files": 627,
+    "io_sites_captured": 191,
+    "packages": [
+      {
+        "id": 633334505,
+        "name": "crispy-doom-7.2.0-win64.zip",
+        "size": 9924686,
+        "digest": "sha256:c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+        "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-doom-7.2.0-win64.zip",
+        "entries": 34,
+        "expanded_bytes": 21626270
+      },
+      {
+        "id": 633334439,
+        "name": "crispy-heretic-7.2.0-win64.zip",
+        "size": 9802800,
+        "digest": "sha256:a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b",
+        "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-heretic-7.2.0-win64.zip",
+        "entries": 33,
+        "expanded_bytes": 21052927
+      },
+      {
+        "id": 633334387,
+        "name": "crispy-hexen-7.2.0-win64.zip",
+        "size": 9934349,
+        "digest": "sha256:0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43",
+        "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-hexen-7.2.0-win64.zip",
+        "entries": 33,
+        "expanded_bytes": 21405506
+      },
+      {
+        "id": 633334350,
+        "name": "crispy-strife-7.2.0-win64.zip",
+        "size": 9823071,
+        "digest": "sha256:54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921",
+        "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-strife-7.2.0-win64.zip",
+        "entries": 34,
+        "expanded_bytes": 21085093
+      }
+    ],
+    "scope": "Computed package SHA256 values match independent publisher API digests; packaged PE files are AMD64. Git-blob source binding does not establish source/binary equivalence."
+  },
+  "shared_contract": {
+    "adapter": "native-portable",
+    "sdk": "Native5 Windows temporary-directory contract delivered by #3960; no new engine, console primitive or validator relaxation",
+    "coordinates": "Each entry owns a separate flat official package, selected setup executable parent as CWD, declared private data, originals and saves directories. Core derives TEMP/TMP=temp from windows_temp_directory=temp through Native5. The pristine publisher package and a no-active canonical data root must leave that namespace absent; existing active Native5 creating contracts retain their data authority.",
+    "entry": "Play opens the corresponding upstream setup/launch controller. Warp selects detected IWAD names; the PWAD/mod browser is not an original-file browser. No automated source preparation or authenticated original admission is claimed.",
+    "lifetime": {
+      "source": "src/setup/execute.c158-173,248-260",
+      "contract": "The Windows controller retains and waits its launched player process before returning.",
+      "limit": "mainmenu.c164-182 and multiplayer.c212-296 can return zero regardless of inner player failure. Controller completion is not game startup, gameplay or inner-game exit qualification."
+    },
+    "original_data": "Only deliberate copies of matching lawful original IWADs into the declared originals directory, or recognized external upstream installations. DOOMWADDIR=originals uses the existing upstream search contract and covers original filenames of arbitrary case inside that directory. No populated data/profile adoption, source conversion or cross-variant save compatibility.",
+    "external_data": "Upstream may read/write its SDL music-pack profile and custom paths outside the installation on Play. Those remain externally owned and excluded from Core backup/rollback. Custom outputs inside the installation outside declared paths are unclaimed and may hold maintenance. No populated profile is adopted.",
+    "maintenance": "Use the existing compatible-release GitHub provider and independently expected digest. Keep creating runtime/data identities and existing interruption/recovery, inventory and activation guards. This is not a promise of arbitrary future save compatibility.",
+    "final_doom": "#2656 remains on its existing upstream-owned route until TNT/Plutonia campaign selection, independent save namespaces and exact retained coordinates are qualified. No campaign remapping or populated-data expansion is inferred.",
+    "renderer_request": "No renderer environment is catalog-authored. The optional diagnostic native qualification session requests SDL_RENDER_DRIVER=direct3d11 only in the host-session environment. That request establishes neither the default renderer nor actual backend selection or game rendering.",
+    "source_variant_isolation": "Different title IDs retain separate entry data. Retained versions of the same canonical ID share that entry data; use a separate Portcove library or independently owned upstream copy for another original edition. Do not switch populated source variants in place.",
+    "temporary_data_transition": "Existing Native4 and user-selected contracts are not reinterpreted. TEMP/TMP and SDL_RENDER_DRIVER remain forbidden authored environment. After preserved removal a remaining canonical temp namespace, including an empty directory, holds fresh installation/reuse/activation/recovery without an active Native5 creating contract. No populated-data adoption or persistence-scope shrink is inferred.",
+    "provider_coverage": "The existing production-provider regression module replays all four observed 7.2 publisher-digest assets across five unchanged definitions, plus controlled N+1 selection, wrong CPU/family, ambiguity and missing-integrity refusals. Synthetic metadata is not accepted future runtime evidence. The focused production-provider regression passed locally (1.169s) and source16f passed all five contexts/all eight Windows partitions in CI40843915950/a1; these remain metadata/fixture evidence."
+  },
+  "retained_selected_fixture": {
+    "path": "crates/portcove-core/src/testdata/crispy-retained-selected-2026-10-29.json",
+    "sha256": "40fcf9831e217c7f5699c5fef852cc413ca591beb48233cfc2a9b7342ced761b",
+    "definitions": 5,
+    "preimage_head": "0e81ba2a96da27e7b6973b4775b24f11f4bc43ed",
+    "contract": "Exact five old operational objects, separate from managed defaults. Existing49 acceptance cases remain, using the two reviewed creating-definition snapshots without per-title production branches."
+  },
+  "native_observation": {
+    "version": {
+      "receipt": "work/beta-crispy-readonly/native-version-retry-result.json",
+      "sha256": "b7640816af907678d3b2be7b5bbd5104f6aba1ada15d43c3b32936a2601c142e",
+      "actual_windows_game_executables": 4,
+      "scope": "Version output only, exit0; all134 package files unchanged; complete owned-root/tree drain."
+    },
+    "setup_software": {
+      "receipt": "work/beta-crispy-readonly/native-setup-doom-software-continuation-result.json",
+      "sha256": "cb9e7fa3b7fceb4f7a031658514250b237ec0f6c75be51929359915f2fa3192a",
+      "scope": "One actual Doom setup main menu, observed Save settings? modal with Yes selected, normal exit0 and two config files. -game doom and SDL_RENDER_DRIVER=software were explicit; no originals, game startup or Core lifecycle.",
+      "external_profile": "Only the exact task-created280byte music-packs/README.txt was present; source-reconstructed SHA00513a4086a4124c703149fb41eafb890a1297db7fa7f83e0f8266a8782b8534, unchanged. Actual app-visible profile was MSIX-virtualized into the Codex package LocalCache/Roaming/crispy-doom, not a global-profile adoption."
+    },
+    "failures_preserved": [
+      "Version harness first attempt rejected a case-insensitive PowerShell variable collision before player execution; no player observation credited.",
+      "Default-renderer setup capture was black using PrintWindow and an owned foreground screen capture; synthetic normal quit did not produce exit. The failed/Unknown receipt remains unchanged. A minimal local dump showed the main thread in the SDL message wait; it does not establish an application deadlock.",
+      "Exact task-owned setup process was terminated only after path/hash/start/retained-handle validation and local minimal dumps; complete Root/descendant drain was verified. Both observer-owned native locks were recovered with exact owner preimages and reverse release. This is cleanup, not normal shutdown qualification.",
+      "Software retry correctly refused the first run’s task-created profile before player execution. A later continuation bound exact original receipt, README hash/creation and the known MSIX physical target before/after.",
+      "Computer Use failed to initialize (Windows sandbox cwd URI; WSL trusted-service configuration). No Computer Use app input executed; configuration was not widened.",
+      "Requested Direct3D11 retry was refused before lease/player because another worktree owned the native session."
+    ],
+    "setup_direct3d11_request": {
+      "receipt": "work/beta-crispy-readonly/native-setup-doom-direct3d11-result.json",
+      "sha256": "4a0c439ee10c5a40239c5208e8428e7c59b2319493efebcafbc51d91f24fd5d8",
+      "scope": "Actual Doom setup main menu and observed Save settings? Yes confirmation, normal exit0, exact34 publisher files unchanged, two existing task-created configs and external README retained. Same -game doom arguments; requested direct3d11 instead of software. Runtime renderer selection, default backend, other families, originals, game startup and Core lifecycle are not established."
+    },
+    "candidate_core": {
+      "evidence": "crispy-core-operations-2026-10-29.json",
+      "source_head": "16f96924ea0b229a94e6c87b767b6110a7e51f8a",
+      "build_checkout": "fadae34af2b5088cc330ef2623a3de84a318ac74",
+      "raw_report_sha256": "80f48de5a6986fb2a81ab158aedd121ea12bd92f2c02005f328e28295e5f5861",
+      "completed_cases": 5,
+      "normal_controller_and_cli_sessions": 10,
+      "result": "All five install/verify/controller/data-backup-restore/preserving-removal observations complete; final activity and exact-owned process drain complete; native leases released.",
+      "scope": "Actual setup configs plus three labelled live-session synthetic witnesses per title; no originals, game, source validation, actual future version or game-save compatibility."
+    }
+  },
+  "qualification_pending": [
+    "Independent review of final native evidence and complete final source/target interaction.",
+    "Required all-five exact final-head CI, guarded merge, remote readback and per-ID canonical reconciliation."
+  ],
+  "not_claimed": [
+    "Authentic original-game files or original SHA admission",
+    "Game startup, gameplay, original save compatibility or controller/game exit equivalence",
+    "Default renderer, all hardware, production/private-profile or installed desktop acceptance from the diagnostic run",
+    "Final Doom campaign separation or any of the six retained Direct transitions",
+    "Supported stage, whole parent completion or additive historical inventory expansion"
+  ],
+  "ports": [
+    {
+      "id": "doom-the-ultimate-doom-crispy-doom-family",
+      "canonical_issue": 2654,
+      "frozen_cohort": "affected-312",
+      "historical_1422_member": false,
+      "entry_executable": "crispy-doom-setup.exe",
+      "original_input_condition": "Supply DOOM.WAD from your original PC retail/Ultimate Doom copy. DOOM1.WAD provides only the separate shareware episode, not the full game. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "persistent_paths": [
+        "default.cfg",
+        "crispy-doom.cfg",
+        "heretic.cfg",
+        "crispy-heretic.cfg",
+        "hexen.cfg",
+        "crispy-hexen.cfg",
+        "strife.cfg",
+        "crispy-strife.cfg",
+        "saves",
+        "levelstat.txt",
+        "hexndata",
+        "demos",
+        "chocolat.rsp",
+        "tmp.cfg",
+        "extratmp.cfg",
+        "doom",
+        "doom.mid",
+        "timidity.cfg",
+        "temp.dsg",
+        "recovery.dsg",
+        "strfsav0.ssg",
+        "strfsav1.ssg",
+        "strfsav2.ssg",
+        "strfsav3.ssg",
+        "strfsav4.ssg",
+        "strfsav5.ssg",
+        "strfsav6.ssg",
+        "originals",
+        "temp"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "DOOM",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "DOOM",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "demo",
+          "suffix": ".lmp"
+        },
+        {
+          "prefix": "doomsav",
+          "suffix": ".dsg"
+        },
+        {
+          "prefix": "hticsav",
+          "suffix": ".hsg"
+        }
+      ],
+      "launch_arguments": ["-game", "doom", "-savedir", "saves", "-noautoload"],
+      "launch_environment": {
+        "DOOMWADDIR": "originals"
+      },
+      "definition_sha256": "5cd78849a238815b1f838014b8e25cddbaa03455fcceb2b0213bea8193a4b48e",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
+      "windows_temp_directory": "temp"
+    },
+    {
+      "id": "doom-ii-crispy-doom-family",
+      "canonical_issue": 2655,
+      "frozen_cohort": "affected-312",
+      "historical_1422_member": false,
+      "entry_executable": "crispy-doom-setup.exe",
+      "original_input_condition": "Supply DOOM2.WAD from your original PC Doom II copy; the separate French edition uses DOOM2F.WAD. Doom shareware does not provide Doom II. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "persistent_paths": [
+        "default.cfg",
+        "crispy-doom.cfg",
+        "heretic.cfg",
+        "crispy-heretic.cfg",
+        "hexen.cfg",
+        "crispy-hexen.cfg",
+        "strife.cfg",
+        "crispy-strife.cfg",
+        "saves",
+        "levelstat.txt",
+        "hexndata",
+        "demos",
+        "chocolat.rsp",
+        "tmp.cfg",
+        "extratmp.cfg",
+        "doom",
+        "doom.mid",
+        "timidity.cfg",
+        "temp.dsg",
+        "recovery.dsg",
+        "strfsav0.ssg",
+        "strfsav1.ssg",
+        "strfsav2.ssg",
+        "strfsav3.ssg",
+        "strfsav4.ssg",
+        "strfsav5.ssg",
+        "strfsav6.ssg",
+        "originals",
+        "temp"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "DOOM",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "DOOM",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "demo",
+          "suffix": ".lmp"
+        },
+        {
+          "prefix": "doomsav",
+          "suffix": ".dsg"
+        },
+        {
+          "prefix": "hticsav",
+          "suffix": ".hsg"
+        }
+      ],
+      "launch_arguments": ["-game", "doom", "-savedir", "saves", "-noautoload"],
+      "launch_environment": {
+        "DOOMWADDIR": "originals"
+      },
+      "definition_sha256": "fa1d1b08d05e562f1e5caa83863f4522f0bfa65f5e2545b6d6873ebc59c6dbbf",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
+      "windows_temp_directory": "temp"
+    },
+    {
+      "id": "heretic-crispy-doom-family",
+      "canonical_issue": 2657,
+      "frozen_cohort": "affected-312",
+      "historical_1422_member": false,
+      "entry_executable": "crispy-heretic-setup.exe",
+      "original_input_condition": "Supply HERETIC.WAD from your original PC Heretic copy. HERETIC1.WAD provides the separate limited shareware edition. Doom IWADs are not Heretic data. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "persistent_paths": [
+        "default.cfg",
+        "crispy-doom.cfg",
+        "heretic.cfg",
+        "crispy-heretic.cfg",
+        "hexen.cfg",
+        "crispy-hexen.cfg",
+        "strife.cfg",
+        "crispy-strife.cfg",
+        "saves",
+        "levelstat.txt",
+        "hexndata",
+        "demos",
+        "chocolat.rsp",
+        "tmp.cfg",
+        "extratmp.cfg",
+        "doom",
+        "doom.mid",
+        "timidity.cfg",
+        "temp.dsg",
+        "recovery.dsg",
+        "strfsav0.ssg",
+        "strfsav1.ssg",
+        "strfsav2.ssg",
+        "strfsav3.ssg",
+        "strfsav4.ssg",
+        "strfsav5.ssg",
+        "strfsav6.ssg",
+        "originals",
+        "temp"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "DOOM",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "DOOM",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "demo",
+          "suffix": ".lmp"
+        },
+        {
+          "prefix": "doomsav",
+          "suffix": ".dsg"
+        },
+        {
+          "prefix": "hticsav",
+          "suffix": ".hsg"
+        }
+      ],
+      "launch_arguments": ["-game", "heretic", "-savedir", "saves", "-noautoload"],
+      "launch_environment": {
+        "DOOMWADDIR": "originals"
+      },
+      "definition_sha256": "48615df11e0136a68448dae6b812b1c6014077425f4583cffa54a21b69a972d3",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
+      "windows_temp_directory": "temp"
+    },
+    {
+      "id": "hexen-crispy-doom-family",
+      "canonical_issue": 2662,
+      "frozen_cohort": "affected-312",
+      "historical_1422_member": false,
+      "entry_executable": "crispy-hexen-setup.exe",
+      "original_input_condition": "Supply HEXEN.WAD from your original PC Hexen copy. An expansion alone does not supply the base game, and Heretic is a different original. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "persistent_paths": [
+        "default.cfg",
+        "crispy-doom.cfg",
+        "heretic.cfg",
+        "crispy-heretic.cfg",
+        "hexen.cfg",
+        "crispy-hexen.cfg",
+        "strife.cfg",
+        "crispy-strife.cfg",
+        "saves",
+        "levelstat.txt",
+        "hexndata",
+        "demos",
+        "chocolat.rsp",
+        "tmp.cfg",
+        "extratmp.cfg",
+        "doom",
+        "doom.mid",
+        "timidity.cfg",
+        "temp.dsg",
+        "recovery.dsg",
+        "strfsav0.ssg",
+        "strfsav1.ssg",
+        "strfsav2.ssg",
+        "strfsav3.ssg",
+        "strfsav4.ssg",
+        "strfsav5.ssg",
+        "strfsav6.ssg",
+        "originals",
+        "temp"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "DOOM",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "DOOM",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "demo",
+          "suffix": ".lmp"
+        },
+        {
+          "prefix": "doomsav",
+          "suffix": ".dsg"
+        },
+        {
+          "prefix": "hticsav",
+          "suffix": ".hsg"
+        }
+      ],
+      "launch_arguments": ["-game", "hexen", "-savedir", "saves", "-noautoload"],
+      "launch_environment": {
+        "DOOMWADDIR": "originals"
+      },
+      "definition_sha256": "1b2cfc1a2c8beba57f8f967c54475d02ddecc67b57a1637e001ec7c67bf42c17",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
+      "windows_temp_directory": "temp"
+    },
+    {
+      "id": "strife-crispy-doom-family",
+      "canonical_issue": 2663,
+      "frozen_cohort": "affected-312",
+      "historical_1422_member": false,
+      "entry_executable": "crispy-strife-setup.exe",
+      "original_input_condition": "Supply STRIFE1.WAD from your original PC commercial Strife updated to at least v1.2; the Veteran Edition includes that data. The original demo is unsupported and v1.1 has known issues. Keep VOICES.WAD beside STRIFE1.WAD for speech; do not add it with -file. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls.",
+      "persistent_paths": [
+        "default.cfg",
+        "crispy-doom.cfg",
+        "heretic.cfg",
+        "crispy-heretic.cfg",
+        "hexen.cfg",
+        "crispy-hexen.cfg",
+        "strife.cfg",
+        "crispy-strife.cfg",
+        "saves",
+        "levelstat.txt",
+        "hexndata",
+        "demos",
+        "chocolat.rsp",
+        "tmp.cfg",
+        "extratmp.cfg",
+        "doom",
+        "doom.mid",
+        "timidity.cfg",
+        "temp.dsg",
+        "recovery.dsg",
+        "strfsav0.ssg",
+        "strfsav1.ssg",
+        "strfsav2.ssg",
+        "strfsav3.ssg",
+        "strfsav4.ssg",
+        "strfsav5.ssg",
+        "strfsav6.ssg",
+        "originals",
+        "temp"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "DOOM",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "DOOM",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "STRIFE",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "demo",
+          "suffix": ".lmp"
+        },
+        {
+          "prefix": "doomsav",
+          "suffix": ".dsg"
+        },
+        {
+          "prefix": "hticsav",
+          "suffix": ".hsg"
+        }
+      ],
+      "launch_arguments": ["-game", "strife", "-savedir", "saves", "-noautoload"],
+      "launch_environment": {
+        "DOOMWADDIR": "originals"
+      },
+      "definition_sha256": "149b52209ccae1fafc7a7963f00b0aa7641a573f2602e9cc9c01f4c1876b97fb",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
+      "windows_temp_directory": "temp"
+    }
+  ],
+  "independent_design_review": {
+    "contract": "Revised Native5 complete repair, retained snapshots, production-provider delta and committed source16f review CLEAR against35c10f72; additional87a91a27 interaction reviewed. Native protocol/stager/driver/invocation/array/capture/marker-continuation reviews CLEAR at their recorded scopes. Final evidence/source review remains pending.",
+    "repairs": [
+      "Generic retained fixture lookup uses Result::is_ok and keeps Windows exact retained-object assertions.",
+      "A declared originals directory avoids per-filename case-sensitive persistence gaps.",
+      "Different editions of the same canonical ID require a separate library or upstream copy; retained versions share entry data.",
+      "Custom outputs inside the managed tree are unclaimed and may hold maintenance; only outside-tree paths are external."
+    ],
+    "writer_review": "No missing ordinary default writer identified in the reviewed191-site source inventory. Five actual Windows Core controller/data cases now complete; raw source, synthetic probes and game/save compatibility retain their distinct evidence limits."
+  },
+  "failed_candidate": {
+    "head": "49b5151a08b6518c724114ab47797d0cc8ae712e",
+    "ci_run": 40808194373,
+    "attempt": 1,
+    "outcome": "Required catalog guard correctly rejected authored TEMP/TMP/SDL_RENDER_DRIVER. Preserved, not qualified or merged.",
+    "repair": "Consume merged Native5 #3960; author only DOOMWADDIR and windows_temp_directory; renderer remains an explicit diagnostic session input."
+  }
+}
