@@ -22,7 +22,7 @@
     border-block-end: 1px solid var(--color-border-subtle);
   }
   :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button,
-  .browse-navigation .filter-row > button {
+  :where(.browse-navigation) .filter-row > button {
     min-block-size: 2.75rem;
     padding-inline: var(--space-3);
     border-radius: 0;

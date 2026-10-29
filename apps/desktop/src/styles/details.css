@@ -1,9 +1,8 @@
 @layer components {
   .detail-hero-primary {
-    min-inline-size: 9rem;
+    min-inline-size: min(9rem, 100%);
     inline-size: max-content;
     max-inline-size: 100%;
-    min-inline-size: 0;
   }
   .detail-hero-action {
     inline-size: 100%;
@@ -271,17 +270,37 @@
   .backup-row > span:first-child > small {
     display: block;
   }
+  .detail-facts {
+    margin: 0;
+    display: grid;
+    gap: 0;
+    font-size: var(--text-sm);
+  }
+  .detail-facts > div {
+    padding-block: 0.875rem;
+    border-block-end: 1px solid var(--color-border-subtle);
+  }
+  .detail-facts > div:first-child {
+    padding-block-start: 0;
+  }
+  .detail-facts > div:last-child {
+    padding-block-end: 0;
+    border-block-end: 0;
+  }
+  .detail-facts dt {
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+  }
+  .detail-facts dd {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+  }
   [data-detail-section="manage"] [data-slot="management-row"] {
     align-items: center;
     padding-block: 1.5rem;
     gap: 1.5rem;
   }
-  [data-detail-section="manage"]
-    [data-slot="management-row"]:has(.artwork-controls[open])
-    > div:last-child {
-    flex-basis: 100%;
-    justify-content: stretch;
-  }
+
   .detail-version-main {
     min-inline-size: 0;
   }
@@ -338,31 +357,7 @@
   .detail-attention:empty {
     display: none;
   }
-  .detail-facts {
-    margin: 0;
-    display: grid;
-    gap: 0;
-    font-size: var(--text-sm);
-  }
-  .detail-facts > div {
-    padding-block: 0.875rem;
-    border-block-end: 1px solid var(--color-border-subtle);
-  }
-  .detail-facts > div:first-child {
-    padding-block-start: 0;
-  }
-  .detail-facts > div:last-child {
-    padding-block-end: 0;
-    border-block-end: 0;
-  }
-  .detail-facts dt {
-    color: var(--color-text-secondary);
-    font-size: var(--text-xs);
-  }
-  .detail-facts dd {
-    margin: 4px 0 0;
-    overflow-wrap: anywhere;
-  }
+
   .detail-setup-main .detail-group,
   [data-detail-section="saves"] .detail-group,
   .detail-version-main .detail-group {
@@ -450,6 +445,12 @@
       justify-self: start;
     }
   }
+  [data-detail-section="manage"]
+    [data-slot="management-row"]:has(.artwork-controls[open])
+    > div:last-child {
+    flex-basis: 100%;
+    justify-content: stretch;
+  }
   @media (forced-colors: active) {
     .detail-tab[data-active] {
       border-color: Highlight;
@@ -472,8 +473,8 @@
   }
   .detail-file-context h3 {
     margin-block: 0 1rem;
-    font-size: var(--text-base);
-    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    color: var(--color-text);
   }
   @media (min-width: 75rem) {
     .detail-files-workspace {
