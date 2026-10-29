@@ -87,7 +87,7 @@ import { CatalogFilters, queryFromFilter } from "../features/browsing/CatalogFil
 import type { GameFileFilterState } from "../features/browsing/use-game-file-filter-context";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
-  { value: "catalog", label: "Suggested order" },
+  { value: "catalog", label: "Catalog order" },
   { value: "name", label: "Title A–Z" },
   { value: "name-desc", label: "Title Z–A" },
   { value: "installed-first", label: "In library first" },
@@ -1071,7 +1071,7 @@ function PortCardStatus({
             data-focusable
             variant="outline"
             size="xs"
-            className="library-card-action"
+            className="library-card-action max-w-20"
             data-detail-origin={`${detailOrigin}:task`}
             onClick={() =>
               onTask
@@ -1087,7 +1087,7 @@ function PortCardStatus({
             data-focusable
             variant="outline"
             size="xs"
-            className="library-card-action"
+            className="library-card-action max-w-20"
             aria-label={`${reviewLabel}: ${gameIdentityLabel(port)}`}
             aria-describedby={inputDescriptionId}
             data-detail-origin={reviewOrigin}
@@ -1105,7 +1105,7 @@ function PortCardStatus({
             data-focusable
             variant="outline"
             size="xs"
-            className="library-card-action"
+            className="library-card-action max-w-20"
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
             aria-busy={Boolean(action.busy)}
@@ -1460,7 +1460,7 @@ function renderSortPortBrowserView(
 ) {
   return (
     model.setCatalogSort && (
-      <div className="browse-sort w-52 max-w-full min-w-0">
+      <div className="browse-sort w-60 max-w-full min-w-0">
         <ChoiceSelect
           inline
           label="Sort"
@@ -1474,7 +1474,11 @@ function renderSortPortBrowserView(
                   ),
                   { value: "recent", label: "Recently played" },
                 ]
-              : catalogSortOptions
+              : catalogSortOptions.map((option) =>
+                  option.value === "catalog" && model.queryContext?.devicePlatform
+                    ? { ...option, label: "Library & device" }
+                    : option,
+                )
           }
           onChange={model.setCatalogSort}
         />

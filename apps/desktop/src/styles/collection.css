@@ -219,10 +219,6 @@
     padding-inline: var(--space-2);
     font-size: var(--text-xs);
   }
-  .collection-cover .library-card-action {
-    max-inline-size: 5rem;
-    white-space: normal;
-  }
   .collection-rows {
     inline-size: 100%;
   }
@@ -296,11 +292,6 @@
     min-inline-size: 0;
     overflow-wrap: anywhere;
   }
-  @media (height <= 800px) {
-    .collection-covers {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.25rem), 1fr));
-    }
-  }
   @container library-query (20rem < width <= 32rem) {
     .collection-readiness [data-slot="select-trigger"] > span[aria-hidden="true"] {
       display: none;
@@ -325,10 +316,7 @@
       gap: 8px;
     }
   }
-  @container collection (max-width: 46em) {
-    .discover-game {
-      --collection-art-limit: 148px;
-    }
+  @container collection (max-width: 36em) {
     .collection-row {
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px 16px;
@@ -345,11 +333,6 @@
     .collection-row .collection-actions {
       grid-column: 2;
       grid-row: 1 / 4;
-    }
-  }
-  @container library-query (max-width: 46em) {
-    .discover-grid.discover-covers {
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
     }
   }
   @container collection (max-width: 28em) {

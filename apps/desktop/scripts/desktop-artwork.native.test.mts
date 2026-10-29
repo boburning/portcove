@@ -160,7 +160,10 @@ async function artworkContract(subject: Artwork) {
     1,
     "Retain the actual present artwork image count",
   );
-  const measured = await invokeBrowser(subject.readArtworkGeometry);
+  let measured: unknown;
+  await assert.doesNotReject(async () => {
+    measured = await invokeBrowser(subject.readArtworkGeometry);
+  }, "Measured artwork geometry");
   assert.deepEqual(
     structuredClone(measured),
     { ratio: 2 / 3, fit: "contain", titleOutsideImage: true },
