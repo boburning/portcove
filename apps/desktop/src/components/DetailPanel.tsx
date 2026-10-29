@@ -2298,7 +2298,7 @@ function MaintenanceActions({
     <>
       {!verificationPrimary && (
         <ManagementRow
-          title="File verification"
+          title="Installed file checks"
           description="Checks the full recorded installation manifest without changing saved data."
         >
           <Button
@@ -2314,11 +2314,11 @@ function MaintenanceActions({
       )}
       {verificationPrimary && (
         <ManagementRow
-          title="File verification"
+          title="Installed file checks"
           description="The recorded installation needs repair. Review its current requirements in Game files."
         >
           <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
-            Review file checks
+            View file checks
           </Button>
         </ManagementRow>
       )}

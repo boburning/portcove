@@ -12,7 +12,7 @@ const actionLabels: Readonly<Record<string, string>> = {
   check: "Check for game updates",
   install: "Install game",
   launch: "Launch game",
-  "open data folder": "Open saves and settings folder",
+  "open data folder": "Open saved data folder",
   "open setup folder": "Open installed setup folder",
   remove: "Remove installation",
   "delete backup": "Delete backup",
