@@ -4,6 +4,51 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import type { Socket } from "node:net";
 import path from "node:path";
+
+/** Host-level counts cannot attribute a CONNECT request to a selected image. */
+export function assertCachedCoverTraffic(origins: readonly string[], explicitScope: boolean) {
+  const count = origins.filter((origin) => origin === "images.igdb.com").length;
+  if (!explicitScope)
+    assert.equal(count, 0, "All mapped cached covers render after restart without an IGDB request");
+  return count;
+}
+
+export function assertDefaultCoverPresentation(image: {
+  background: string;
+  identitySurface: boolean;
+  surfaceBackground: string;
+  objectFit: string;
+  fallbackPalette: boolean;
+}) {
+  if (image.identitySurface)
+    assert.ok(image.surfaceBackground, "Identity surface token is present");
+  assert.equal(
+    image.background,
+    image.identitySurface ? image.surfaceBackground : "rgba(0, 0, 0, 0)",
+    "Artwork matte follows its surface",
+  );
+  assert.equal(image.objectFit, "contain", "The complete original cover remains visible");
+  assert.equal(image.fallbackPalette, false, "Real images do not inherit placeholder colors");
+}
+
+/** Select observation scope only; Core's accepted catalog still owns mappings. */
+export function selectDefaultCoverIds(
+  ports: readonly { id: string; presentation?: { artwork?: unknown } | null }[],
+  requested: readonly string[] = [],
+  cacheConditions = false,
+) {
+  const mapped = ports.filter((port) => port.presentation?.artwork).map((port) => port.id);
+  if (requested.length > 16 || new Set(requested).size !== requested.length)
+    throw new Error("Choose at most 16 unique --cover-port-id values");
+  for (const id of requested)
+    if (!mapped.includes(id))
+      throw new Error(`Cover observation requires an accepted mapping: ${id}`);
+  const ids = requested.length ? [...requested] : mapped;
+  if (!ids.length) throw new Error("The actual catalog must have accepted cover mappings");
+  if (cacheConditions && !ids.includes("dkr-r"))
+    throw new Error("Cache observations require dkr-r for the maintained missing-cache control");
+  return ids;
+}
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 
 export interface WithheldCover {

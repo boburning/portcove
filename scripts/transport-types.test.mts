@@ -9,6 +9,7 @@ import { vitePlusCommand } from "./viteplus-cli.mts";
 import {
   combineTransportSchemas,
   renderTransportTypes,
+  renderCatalogValues,
 } from "../apps/desktop/scripts/generate-transport-types.mts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -232,4 +233,25 @@ void test("schema composition preserves own prototype-named roots and definition
     '{"first":{"$defs":{"__proto__":{"type":"string"}}},"second":{"$defs":{"__proto__":{"type":"number"}}}}',
   );
   assert.throws(() => combineTransportSchemas(conflict), /disagree about __proto__/);
+});
+
+void test("small catalog inventories consume Core enums and reject incomplete schemas", () => {
+  const schemas = {
+    catalog: {
+      $defs: {
+        Platform: { enum: ["windows-x86-64"] as string[] },
+        ReleaseChannel: { enum: ["stable"] },
+        InstallationMethod: { enum: ["portable-package"] },
+      },
+    },
+  };
+  const rendered = renderCatalogValues(schemas);
+  assert.ok(Buffer.byteLength(rendered) < 2048);
+  assert.match(rendered, /windows-x86-64/);
+  const next = structuredClone(schemas);
+  next.catalog.$defs.Platform.enum.push("test-future-platform");
+  assert.match(renderCatalogValues(next), /test-future-platform/);
+  assert.doesNotMatch(rendered, /test-future-platform/);
+  delete (next.catalog.$defs as Partial<typeof next.catalog.$defs>).Platform;
+  assert.throws(() => renderCatalogValues(next), /unique string enum/);
 });

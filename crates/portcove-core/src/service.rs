@@ -1200,9 +1200,11 @@ impl PortcoveService {
                 &transaction,
                 &mut statuses,
             )?;
-            let activities = Library::activity_feed_from(&transaction, activity_limit)?;
+            let mut activities = Library::activity_feed_from(&transaction, activity_limit)?;
             let pending_setups = Self::pending_setups_from(&transaction)?;
             transaction.commit()?;
+            self.library
+                .observe_activity_liveness(&mut activities.records);
             tracing::debug!(
                 port_count = statuses.len(),
                 sqlite_query_count = metrics.sqlite_query_count + 2,

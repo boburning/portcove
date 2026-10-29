@@ -1,6 +1,9 @@
 import {
   createImageRefusal,
   restoreCacheAfterObservation,
+  selectDefaultCoverIds,
+  assertDefaultCoverPresentation,
+  assertCachedCoverTraffic,
   type WithheldCover,
 } from "./desktop-cover-observations.mts";
 import { revealDetailSection, selectCatalogPort } from "./desktop-review-controls.mts";
@@ -18,11 +21,14 @@ type CoverContext = Pick<
   setTheme: (theme: "light" | "dark") => Promise<unknown>;
   restart: PreparationContext["restartApplication"];
   cacheConditions?: boolean;
+  coverPortIds?: readonly string[];
 };
 interface CoverImage {
   width: number;
   height: number;
   background: string;
+  identitySurface: boolean;
+  surfaceBackground: string;
   objectFit: string;
   fallbackPalette: boolean;
 }
@@ -60,6 +66,7 @@ interface MissingCacheContext extends Pick<
   cache: string;
   offlineEnvironment: NodeJS.ProcessEnv | undefined;
   refusedOrigins: string[];
+  explicitScope: boolean;
   captureSettled: CaptureSettled;
   onWithheld: (value: WithheldCover) => void;
 }
@@ -93,6 +100,7 @@ export async function defaultCoverScenario({
   library,
   restart,
   cacheConditions = false,
+  coverPortIds = [],
 }: CoverContext) {
   await scenario(
     cacheConditions ? "native-default-cover-cache-conditions" : "native-default-cover-display",
@@ -124,10 +132,8 @@ export async function defaultCoverScenario({
           "open-nectar-pikmin",
           "diddy-kong-racing-golden-balloon",
         ]);
-        const ids = catalog.ports
-          .filter((port) => port.presentation?.artwork)
-          .map((port) => port.id);
-        assert.ok(ids.length > 0, "The actual catalog must have accepted cover mappings");
+        const ids = selectDefaultCoverIds(catalog.ports, coverPortIds, cacheConditions);
+        if (coverPortIds.length) for (const id of ids) detailIds.add(id);
         const rows: CoverRow[] = [];
         const captureSettled: CaptureSettled = async (name, selector, currentBrowser = browser) => {
           await currentBrowser.wait(
@@ -207,31 +213,35 @@ export async function defaultCoverScenario({
               const frame = document.querySelector(selector);
               const img = frame?.querySelector("img");
               if (!frame || !img) throw new Error("Rendered cover elements disappeared");
+              const style = getComputedStyle(frame);
+              // CSS minification may serialize the token as hex while WebKit
+              // serializes backgroundColor as rgba. Resolve both through CSS.
+              const surface = document.createElement("span");
+              surface.hidden = true;
+              surface.style.backgroundColor = "var(--color-bg-subtle)";
+              frame.appendChild(surface);
+              let surfaceBackground: string;
+              try {
+                surfaceBackground = getComputedStyle(surface).backgroundColor;
+              } finally {
+                surface.remove();
+              }
               return {
                 width: img.naturalWidth,
                 height: img.naturalHeight,
-                background: getComputedStyle(frame).backgroundColor,
+                background: style.backgroundColor,
+                identitySurface: frame.classList.contains("[--art-color:var(--color-bg-subtle)]"),
+                surfaceBackground,
                 objectFit: getComputedStyle(img).objectFit,
-                fallbackPalette: [...frame.classList].some((name) => /^palette-\d+$/.test(name)),
+                fallbackPalette: [...frame.classList].some(
+                  (name) =>
+                    /^palette-\d+$/.test(name) || name.startsWith("[--art-color:var(--color-art-"),
+                ),
               };
             },
             selector,
           );
-          assert.equal(
-            rendered.background,
-            "rgba(0, 0, 0, 0)",
-            "Artwork matte follows its surface",
-          );
-          assert.equal(
-            rendered.objectFit,
-            "contain",
-            "The complete original cover remains visible",
-          );
-          assert.equal(
-            rendered.fallbackPalette,
-            false,
-            "Real images do not inherit placeholder colors",
-          );
+          assertDefaultCoverPresentation(rendered);
           return rendered;
         };
         for (const [pass, theme, size] of coverPasses(cacheConditions)) {
@@ -273,6 +283,7 @@ export async function defaultCoverScenario({
               restart,
               offlineEnvironment,
               refusedOrigins,
+              explicitScope: coverPortIds.length > 0,
               invoke,
               captureSettled,
               onWithheld: (value) => {
@@ -290,7 +301,13 @@ export async function defaultCoverScenario({
             {
               scope: cacheConditions
                 ? "native app; isolated empty-cache first display and cached restart with backend image traffic rejected; missing-cache negative control. Package/installation provenance requires an independently joined outer receipt; no physical-device claim"
-                : "native app; every mapped catalog cover in both themes, representative details; first/warm same-session CDN display, not cold-request latency or offline. Package/installation provenance requires an independently joined outer receipt",
+                : "native app; mapped covers in both themes with the recorded detail subset; first/warm same-session CDN display, not cold-request latency or offline. Package/installation provenance requires an independently joined outer receipt",
+              selectionScope: coverPortIds.length ? "explicit-mapped-ports" : "all-mapped-ports",
+              requestedPortIds: coverPortIds,
+              observedPortIds: ids,
+              detailObservationPortIds: ids.filter((id) => detailIds.has(id)),
+              availableMappedCount: catalog.ports.filter((port) => port.presentation?.artwork)
+                .length,
               negativeControl,
               refusedOrigins,
               catalogCount: catalog.ports.length,
@@ -304,6 +321,12 @@ export async function defaultCoverScenario({
         artifacts.push(report);
       } catch (error) {
         primaryFailure = { error };
+        // Restoration starts a replacement app. Preserve the failing UI first.
+        try {
+          await capture("default-cover-before-restoration-failure", true);
+        } catch (captureError) {
+          console.error(`Could not retain the failing artwork UI: ${errorMessage(captureError)}`);
+        }
         throw error;
       } finally {
         await restoreCacheAfterObservation({
@@ -348,15 +371,12 @@ async function missingCacheNegativeControl({
   restart,
   offlineEnvironment,
   refusedOrigins,
+  explicitScope,
   invoke,
   captureSettled,
   onWithheld,
 }: MissingCacheContext) {
-  assert.equal(
-    refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
-    0,
-    "All mapped cached covers render after restart without an IGDB request",
-  );
+  const refusedImageRequestsBeforeControl = assertCachedCoverTraffic(refusedOrigins, explicitScope);
   const port = ports.find((port) => port.id === "dkr-r");
   assert.ok(port?.presentation?.artwork, "Negative control requires the maintained DKR mapping");
   const digest = port.presentation.artwork.image_sha256;
@@ -373,12 +393,13 @@ async function missingCacheNegativeControl({
     offlineEnvironment,
   );
   await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
-  const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
-  await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
+  await searchForCover(browser, port.name);
   const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
   await browser.wait(until.elementLocated(By.css(selector)), 10_000);
   await browser.wait(
-    () => refusedOrigins.includes("images.igdb.com"),
+    () =>
+      refusedOrigins.filter((origin) => origin === "images.igdb.com").length >
+      refusedImageRequestsBeforeControl,
     15_000,
     "Missing cache must exercise actual rejected backend image traffic",
   );
@@ -387,11 +408,14 @@ async function missingCacheNegativeControl({
       executeBrowserScript(
         browser,
         (selector) => {
-          const frame = document.querySelector<HTMLElement>(`${selector} .collection-art`);
+          const card = document.querySelector(selector)?.closest("article.discover-game");
+          const frame = card?.querySelector<HTMLElement>(".collection-art");
           return (
             frame?.dataset.artworkSource === "generated_fallback" &&
             !frame.querySelector("img") &&
-            frame.querySelector(".artwork-image-note")?.textContent === "Image unavailable"
+            Array.from(card?.querySelectorAll(".discover-game-metadata > p") ?? []).some(
+              (note) => note.textContent === "Image unavailable",
+            )
           );
         },
         selector,
@@ -410,6 +434,11 @@ async function missingCacheNegativeControl({
     id: port.id,
     digest,
     refusedImageRequests: refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
+    refusedImageRequestsBeforeControl,
+    refusedImageRequestsDuringControl:
+      refusedOrigins.filter((origin) => origin === "images.igdb.com").length -
+      refusedImageRequestsBeforeControl,
+    trafficAttribution: "aggregate-host-only",
     fallback: true,
   };
 }
@@ -440,11 +469,29 @@ async function inspectCoverPass({
     const port = ports.find((port) => port.id === id);
     assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
     await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
-    const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
-    await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
+    await searchForCover(browser, port.name);
     const started = performance.now();
     const selector = `[data-detail-origin="catalog:card:${id}"]`;
-    const card = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
+    const card = await browser
+      .wait(until.elementLocated(By.css(selector)), 10_000)
+      .catch(async (error: unknown) => {
+        let navigation: unknown;
+        try {
+          navigation = await executeBrowserScript(browser, () => ({
+            query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+            active: document.activeElement?.id,
+            origins: Array.from(document.querySelectorAll("[data-detail-origin^='catalog:card:']"))
+              .slice(0, 16)
+              .map((element) => element.getAttribute("data-detail-origin")),
+          }));
+        } catch (diagnosticError) {
+          navigation = { collectionFailure: errorMessage(diagnosticError) };
+        }
+        throw new Error(
+          `${pass}/${id}: ${errorMessage(error)}; cover navigation: ${JSON.stringify(navigation)}`,
+          { cause: error },
+        );
+      });
     await executeBrowserScript(browser, (card) => card.scrollIntoView({ block: "center" }), card);
     const cardImage = await image(`${selector} .collection-art`);
     const cardMs = performance.now() - started;
@@ -483,4 +530,28 @@ async function createCoverConditions(library: string, cacheConditions: boolean) 
     refusedOrigins: refusal.origins,
     offlineEnvironment: refusal.environment,
   };
+}
+
+async function searchForCover(browser: WebDriver, name: string) {
+  const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
+  const value = () =>
+    executeBrowserScript(
+      browser,
+      () => document.querySelector<HTMLInputElement>("#port-search")?.value,
+    );
+  const previous = await value();
+  assert.ok(typeof previous === "string");
+  // Real edit events update React's controlled query; no modifier can remain held.
+  await search.sendKeys(Key.END, ...Array.from(previous, () => Key.BACK_SPACE));
+  await browser.wait(
+    async () => (await value()) === "",
+    5_000,
+    "Keyboard editing must clear the controlled cover query",
+  );
+  await search.sendKeys(name);
+  await browser.wait(
+    async () => (await value()) === name,
+    5_000,
+    `Controlled cover query must equal ${name}`,
+  );
 }

@@ -1639,3 +1639,53 @@ void test("native exact-pin feedback does not borrow unrelated release hints or 
   assert.match(feedback.pinned_releases[0]!.scope, /Declared pin only/);
   assert.deepEqual(record, before);
 });
+
+void test("package hints surface older release tokens independently of current tag spelling", () => {
+  for (const tag of ["v2.4.0", "2.4.0", "release-next", null]) {
+    const hints = ["Game-v1.2.3-windows-x64.zip", "game_1.2.3_win64.zip"];
+    const record: AuthoredPort = {
+      format_version: 1,
+      listing: {
+        id: "fixture",
+        name: "Fixture",
+        summary: "Fixture",
+        project_url: "https://github.com/example/fixture",
+        download_asset_hints: { "windows-x86-64": hints },
+      },
+    };
+    const feedback = downloadPreparationFeedback(record, {
+      assets_complete: false,
+      assets: [],
+      ...(tag
+        ? {
+            release: {
+              endpoint: "https://api.github.com/repos/example/fixture/releases/latest",
+              status: "observed" as const,
+              body: { tag_name: tag },
+            },
+          }
+        : {}),
+    })!;
+    assert.deepEqual(feedback.maintenance.potential_version_restrictions, [
+      { platform: "windows-x86-64", hints },
+    ]);
+    assert.equal(feedback.assets_complete, false);
+  }
+});
+
+void test("numeric architecture ABI and engine-generation fragments remain legitimate hints", () => {
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "fixture",
+      name: "Fixture",
+      summary: "Fixture",
+      project_url: "https://github.com/example/fixture",
+      download_asset_hints: {
+        "linux-x86-64": ["x86_64", "SDL2", "d3d11", "libc6", "UE5", "SDL2.0"],
+      },
+    },
+  };
+  const feedback = downloadPreparationFeedback(record, { assets_complete: true, assets: [] })!;
+  assert.deepEqual(feedback.maintenance.potential_version_restrictions, []);
+});
