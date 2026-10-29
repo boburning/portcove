@@ -44,6 +44,29 @@ import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
+void test("maintenance registry and TOML sources retain explicit focused owners", () => {
+  const consumer = "scripts/lock-maintenance-policy.test.mts";
+  for (const file of [
+    "scripts/lock-maintenance-policy.mts",
+    "scripts/lock-maintenance-registry.mts",
+    "scripts/cargo-lock-inventory.py",
+    "scripts/dependency-security.mts",
+    "scripts/pnpm-lock-inventory.mts",
+  ]) {
+    for (const status of ["A", "M", "D"]) {
+      const selected = classifyChanges([{ status, path: file }], { fileExists: () => false });
+      assert.ok(selected.nodeTests.has(consumer), `${status}: ${file}`);
+      assert.ok(!selected.unknown.has(file), `${status}: ${file}`);
+    }
+  }
+  assert.ok(
+    classifyChanges([{ status: "M", path: "scripts/dependency-security.mts" }], {
+      fileExists: () => false,
+    }).nodeTests.has("scripts/dependency-security.test.mts"),
+  );
+  assert.ok(!classifyChanges([{ status: "M", path: "docs/README.md" }]).nodeTests.has(consumer));
+});
+
 const allFilesExist = () => true;
 
 void test("native helper consumers survive shared custody registration across lifecycle changes", async () => {
@@ -458,6 +481,7 @@ void test("workflow contract families preserve surviving consumers across direct
   const contracts = [
     "scripts/ci-workflow.test.mts",
     "scripts/ci-frontend-workflow.test.mts",
+    "scripts/ci-windows-helpers.test.mts",
     "scripts/ci-native-workflow.test.mts",
     "scripts/ci-release-workflow.test.mts",
     "scripts/ci-rust-workflow.test.mts",
@@ -699,6 +723,7 @@ void test("fixture module closure edits retain all independent policy and constr
   const helper = "scripts/fixtures/module-closure.mts";
   const consumers = [
     "scripts/catalog-proposal-costs.test.mts",
+    "scripts/ci-windows-helpers.test.mts",
     "scripts/daily-discovery.test.mts",
     "scripts/desktop-boundary-wiring.test.mts",
     "scripts/desktop-staged-layout.test.mts",
@@ -2117,6 +2142,7 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
     "scripts/ci-native-workflow.test.mts",
     "scripts/ci-release-workflow.test.mts",
     "scripts/ci-rust-workflow.test.mts",
+    "scripts/ci-windows-helpers.test.mts",
     "scripts/ci-workflow-fixture.test.mts",
     "scripts/ci-workflow.test.mts",
     "scripts/deep-audit-summary.test.mts",

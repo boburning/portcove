@@ -114,13 +114,16 @@ export function baselineRequiresPython(plan: ValidationPlan, options: ClassifyOp
   if (plan.mode === "qualification") return true;
   if (!["fast", "prose"].includes(plan.mode)) return false;
   const selected = baselineContractTests(plan, options);
+  const pythonTests = [
+    "scripts/nextest-equivalence.test.mts",
+    "scripts/lock-maintenance-policy.test.mts",
+    ...pythonContractTests,
+  ];
   return (
-    selected.some((file) =>
-      ["scripts/nextest-equivalence.test.mts", ...pythonContractTests].includes(file),
-    ) ||
+    selected.some((file) => pythonTests.includes(file)) ||
     plan.changes.some(
       (change) =>
-        change.oldPath === "scripts/nextest-equivalence.test.mts" &&
+        pythonTests.includes(change.oldPath) &&
         change.newPath !== change.oldPath &&
         selected.includes(change.newPath),
     )

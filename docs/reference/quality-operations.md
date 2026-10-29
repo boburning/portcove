@@ -1259,7 +1259,9 @@ filters routine proposals with `minimumReleaseAge: "1 day"`,
 `minimumReleaseAgeBehaviour: "timestamp-required"` and
 `internalChecksFilter: "strict"`. This is not a universal 24-hour installed-age
 guarantee, including for frozen lockfiles or newly resolved transitives. Keep
-native missing-timestamp handling; do not recreate the retired custom age gate.
+native missing-timestamp handling for supported updates. The narrowly scoped
+maintenance correction below replaces only unsupported lock-maintenance age
+handling; it does not restore the retired general three-day audit.
 
 The dependency-review lanes still execute the pinned dependency-review action
 with high-severity failure propagation. Advisory/license policy, vulnerability
@@ -1269,6 +1271,58 @@ age-only artifacts and delivery consumer are removed. Historical failures and
 eligibility times remain evidence of the superseded policy, not resume gates.
 The independent lock inventory remains a source/integrity input to build
 comparison; it supplies no publication-age verdict.
+
+### Lock-maintenance age and integrity
+
+Under #1372, the existing required `dependency-review` aggregate also executes
+`node scripts/dependency-security.mts maintenance classify` before parser setup,
+then `maintenance check`. The pinned GitHub security/license action remains
+required. No new status context, update authority, permission or schedule is added.
+Ordinary manual and supported direct-update PRs report not applicable; this is
+not maintenance age acceptance. The configured canonical Renovate maintenance
+branch must have the expected author, repository, public kind and exact Git
+source identities. Missing or contradictory identity fails before installation.
+Only the supported locks may differ from the merge base; manifests stay unchanged.
+
+Maintenance inventories the complete Cargo lock and every pnpm YAML document,
+including the package-manager toolchain closure, aliases and snapshot references.
+Conflicting cross-document integrities and newly changed unsupported sources
+fail closed. Each introduced registry identity must match the exact authoritative
+version, publication timestamp and lock checksum. Cargo uses crates.io
+`created_at`; npm uses the full canonical packument's `time[version]`, never
+`modified`, a dist-tag, PR creation or branch regeneration. The check preserves the resolved Renovate 44.188.2 policy: configured
+`minimumReleaseAge: "1 day"` plus its inherited
+`minimumReleaseAgeBuffer: "30 minutes"`, totaling 88,200,000 milliseconds.
+The buffer default is defined by Renovate `lib/config/options/index.ts`;
+`lib/util/minimum-release-age.ts` adds it to the configured minimum.
+The receipt records both explicit durations and this resolved-policy provenance.
+The check conservatively rounds sub-millisecond publication boundaries and
+streams mature archives to verify their actual declared hashes. Strong lock
+integrity cannot be downgraded to weaker registry metadata. Young artifacts are
+reported without downloading their archives and keep the check failing.
+
+The ordinary receipt records exact event/source/lock identities, complete
+inventory counts, all attempted observations and partial failures. Zero introduced
+artifacts and classification-only results are explicit; neither is an executed
+age acceptance. Registry requests are serial, have finite request/overall and
+byte/item bounds, and do not retry young or unknown timestamps. Existing frozen
+installation, advisory checks and affected consumer validation remain required.
+The existing artifact uploader retains these success, failure and partial
+receipts even when a prior step fails. Exact unchanged non-registry pnpm
+references remain visible in the receipt; newly changed references are refused.
+New legacy uppercase npm package identities are currently refused for controlled
+source review rather than omitted or silently normalized to another identity.
+
+Renovate remains the age owner for supported direct and digest updates.
+`minimumReleaseAge` is unsupported for lock-file maintenance, and its historical
+branch-stage missing-timestamp defect cannot be repaired by elapsed time alone.
+A later reviewed cutover may disable that inapplicable calculation **only for
+lockFileMaintenance**, after this real required enforcement is delivered and
+proved with live old/young inputs. Until then the existing Renovate configuration
+remains in force. The genuine repository result is the actual required check,
+never a fabricated `renovate/stability-days` status. Do not count old green checks,
+skipped execution or local fixtures as evidence that a final maintenance head
+executed this policy. Preserve failed observations and the original proposal.
 
 Vite+ releases are discovered automatically by Renovate. The primary proposal
 selects a target; it must be completed through the supported migrator from
