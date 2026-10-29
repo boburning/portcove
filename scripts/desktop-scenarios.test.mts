@@ -677,6 +677,19 @@ void test("history fixture helpers import without installed desktop packages", a
     ),
     native,
   );
+  // The shared loader always replaces this adjacent transport boundary. Supply
+  // only its resolution identity; real schema admission remains forbidden.
+  await writeFile(path.join(root, "apps/desktop/scripts/transport-values.mts"), "export {};\n", {
+    flag: "wx",
+  });
+  await mkdir(path.join(root, "scripts/fixtures"));
+  await copyFile(
+    new URL("./fixtures/desktop-module-fixture.mts", import.meta.url),
+    path.join(root, "scripts/fixtures/desktop-module-fixture.mts"),
+  );
+  const catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
+  await mkdir(path.dirname(catalog), { recursive: true });
+  await copyFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), catalog);
   const guard = path.join(root, "no-packages.mjs");
   await writeFile(
     guard,
@@ -691,7 +704,19 @@ void test("history fixture helpers import without installed desktop packages", a
   );
   assert.ifError(execution.error);
   assert.equal(execution.status, 0, execution.stderr + execution.stdout);
-  assert.match(execution.stdout, /^# pass 3$/mu);
+  const observed: string[] = [];
+  for (const line of execution.stdout.split("\n")) {
+    const match = /^ok\s+\d+\s+-\s+(.+)$/u.exec(line);
+    if (match?.[1]) observed.push(match[1]);
+  }
+  const expected = [
+    "serialized historical read hook forwards unmatched bodies and retains original fetch",
+    "historical cleanup retains malformed replies after all cleanup and preserves primitive primary failure",
+    "history restoration validation retains mandatory observations and narrow malformed-reply refusals",
+    "history cleanup joins independent window restoration and evidence before settlement",
+    "actual history scenario restores after its Linux failure or refuses other platforms before I/O",
+  ];
+  assert.deepEqual([...observed].sort(), [...expected].sort());
   assert.match(execution.stdout, /^# skipped 0$/mu);
 });
 

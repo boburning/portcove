@@ -745,9 +745,13 @@ void test("native tool inputs retain affected Windows proof without frontend ins
     "apps/desktop/scripts/cli-command-shell.native.test.mts",
     "scripts/dev-storage.mts",
     "scripts/tool-cache.mts",
+    "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
   ]) {
     for (const selected of [
       plan(file),
+      plan(file, file, "A"),
+      plan("docs/moved.md", file, "R100"),
       plan(file, "docs/moved.md", "R100"),
       plan(file, file, "D"),
     ]) {
