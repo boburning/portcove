@@ -11533,7 +11533,12 @@
         "immutable_review_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
         "live_review_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "v1.3.4",
+            "artifact_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },
@@ -11555,7 +11560,12 @@
         "immutable_review_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
         "live_review_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "v1.3.4",
+            "artifact_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       }
