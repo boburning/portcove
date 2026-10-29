@@ -390,3 +390,80 @@ void test("Playnite qualification installs pinned workspace dependencies before 
     assert.throws(() => assertPlayniteLifecycle(changed), { name: "AssertionError" }, variant);
   }
 });
+
+function assertOriginalControllerImportSetup(job: Record<string, unknown>) {
+  assert.ok(Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const index = (name: string) =>
+    steps.findIndex((step: unknown) => isRecord(step) && step.name === name);
+  const managerIndex = index("Provision pinned package manager for repository contracts"),
+    installationIndex = index("Install frozen root dependencies for repository contracts"),
+    accountIndex = index("Test inert fixed-account setup and capability contracts on Windows");
+  const nodeIndex = steps.findIndex(
+    (step: unknown) =>
+      isRecord(step) && step.uses === "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+  );
+  assert.ok(
+    nodeIndex >= 0 &&
+      nodeIndex < managerIndex &&
+      managerIndex < installationIndex &&
+      installationIndex < accountIndex,
+    "actual pinned Node and locked dependencies must precede original-C fixture",
+  );
+  const manager: unknown = steps[managerIndex],
+    installation: unknown = steps[installationIndex],
+    node: unknown = steps[nodeIndex];
+  assert.ok(
+    isRecord(manager) &&
+      isRecord(manager.with) &&
+      isRecord(installation) &&
+      isRecord(node) &&
+      isRecord(node.with),
+  );
+  assert.equal(node.with["node-version-file"], ".node-version");
+  assert.equal(manager.uses, "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413");
+  assert.equal(manager.with.package_json_file, "package.json");
+  assert.equal(typeof installation.run, "string");
+  assert.deepEqual(executableLines(String(installation.run)), [
+    "pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts",
+  ]);
+  for (const step of [manager, installation]) {
+    assert.ok(!("if" in step), "original-C import prerequisites are unconditional in this job");
+    assert.ok(
+      !("continue-on-error" in step),
+      "failed dependency preparation must stop before C launch",
+    );
+  }
+}
+void test("both Windows original-C plans prepare pinned frozen imports before their actual account controls", () => {
+  for (const name of ["windows_helpers", "windows_storage"]) {
+    const original = workflowJob(name);
+    assertOriginalControllerImportSetup(original);
+    for (const fault of ["missing", "late", "unfrozen", "wrong-pin", "disabled", "suppressed"]) {
+      const changed = structuredClone(original);
+      assert.ok(Array.isArray(changed.steps));
+      const steps: unknown[] = changed.steps;
+      const manager = steps.findIndex(
+          (step: unknown) =>
+            isRecord(step) &&
+            step.name === "Provision pinned package manager for repository contracts",
+        ),
+        install = steps.findIndex(
+          (step: unknown) =>
+            isRecord(step) &&
+            step.name === "Install frozen root dependencies for repository contracts",
+        );
+      const preparation: unknown = steps[install],
+        provision: unknown = steps[manager];
+      assert.ok(isRecord(preparation) && isRecord(provision));
+      if (fault === "missing") steps.splice(manager, 1);
+      if (fault === "late") steps.push(...steps.splice(install, 1));
+      if (fault === "unfrozen")
+        preparation.run = String(preparation.run).replace("--frozen-lockfile", "");
+      if (fault === "wrong-pin") provision.uses = "pnpm/action-setup@unreviewed";
+      if (fault === "disabled") preparation.if = "false";
+      if (fault === "suppressed") preparation["continue-on-error"] = true;
+      assert.throws(() => assertOriginalControllerImportSetup(changed), fault);
+    }
+  }
+});

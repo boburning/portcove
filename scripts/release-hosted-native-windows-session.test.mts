@@ -140,8 +140,7 @@ void test("actual final settlement refuses late role or custody changes after in
         return { deadline: 1000 };
       },
       requireActualHostedNativeParentSource: async (value: object) => assert.ok(parents.has(value)),
-      readProcessIdentity: () => (scenario === "live-owner" ? "original-owner" : null),
-      filetime: () => "1",
+      readWindowsNativeProcessFiletime: () => (scenario === "live-owner" ? "1" : null),
       recheck: async () => assert.ok(!state.stopped && state.status === undefined),
       writeRequest: () => {
         state.status = 0;
@@ -526,11 +525,17 @@ void test("fixed diagnostic acquisition reuses signature verification and refuse
     new URL("./release-hosted-native-windows-diagnostic-source.mts", import.meta.url),
     "utf8",
   );
-  const code = body(
-    "export async function readOriginalHostedWindowsDiagnosticInputs()",
-    "export const hostedWindowsDiagnosticOwnerMilliseconds",
-    implementation,
-  );
+  const code =
+    body(
+      "export function requireOriginalHostedWindowsDiagnosticContext()",
+      "export async function readOriginalHostedWindowsDiagnosticInputs()",
+      implementation,
+    ) +
+    body(
+      "export async function readOriginalHostedWindowsDiagnosticInputs()",
+      "export const hostedWindowsDiagnosticOwnerMilliseconds",
+      implementation,
+    );
   for (const scenario of [
     "success",
     "foreign-source",
@@ -756,7 +761,7 @@ void test("shared original owner handshake retains lineage, helper bytes and ind
       path,
       performance,
       readProcessIdentity: (pid: number) => `generation:${pid}`,
-      windowsOwnerFiletime: () => (scenario === "owner-generation" ? "101" : "100"),
+      readWindowsNativeProcessFiletime: () => (scenario === "owner-generation" ? "101" : "100"),
       hostedWindowsOwnerDeadline: () => "9000000",
       readControllerToolFile: async (filename: string) =>
         Buffer.from(
@@ -1195,8 +1200,8 @@ void test("shared original A/B stage mechanics reject altered worker generations
         isRecord,
         errorCode: (error: unknown) => (isRecord(error) ? error.code : undefined),
         delay: async () => {},
-        readProcessIdentity: () => null,
-        windowsOwnerFiletime: () => "200",
+        readWindowsNativeProcessFiletime: () => (stage.worker ? null : "200"),
+        originalControllerCreated: "200",
         readControllerToolFile: async (file: string) =>
           file.endsWith("bridge-state.json")
             ? Buffer.from(
@@ -1464,5 +1469,319 @@ void test("actual diagnostic first-stage failure preserves recovery success or U
       recoveryFails ? "Unknown; original recovery refused or unavailable" : "verified",
     );
     assert.equal(final.recovery.account_disabled, recoveryFails ? "Unknown" : true);
+  }
+});
+
+void test("diagnostic startup errors retain only closed classifications and bounded message digests", () => {
+  const implementation = readFileSync(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    "utf8",
+  );
+  const code = body(
+    "export function projectDiagnosticStartupFailure(",
+    "\nfunction held()",
+    implementation,
+  );
+  const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
+  const classify = (error: unknown): unknown =>
+    runInNewContext(code + "\nprojectDiagnosticStartupFailure(error)", {
+      Buffer,
+      Error,
+      hash,
+      error,
+      diagnosticStartupSourceSites: [
+        {
+          script: "diagnostic-inputs",
+          paths: ["file:///owned/scripts/release-hosted-native-windows-diagnostic-source.mts"],
+        },
+      ],
+      errorCode: (value: unknown) =>
+        isRecord(value) && typeof value.code === "string" ? value.code : undefined,
+    });
+  const marker = "synthetic-private-startup-secret";
+  const located = Object.assign(new Error("private path and message"), {
+    stack:
+      "Error: private path and message\n    at readInputs (file:///owned/scripts/release-hosted-native-windows-diagnostic-source.mts:412:7)",
+  });
+  const locatedProjection = classify(located);
+  assert.ok(isRecord(locatedProjection));
+  assert.equal(
+    JSON.stringify(locatedProjection.source_site),
+    JSON.stringify({ script: "diagnostic-inputs", line: 412, column: 7 }),
+  );
+  assert.equal(JSON.stringify(locatedProjection).includes("file:///owned"), false);
+
+  const classified = classify(Object.assign(new Error(marker), { code: "ERR_ASSERTION" }));
+  assert.ok(isRecord(classified));
+  assert.equal(classified.name, "Error");
+  assert.equal(classified.code, "ERR_ASSERTION");
+  assert.equal(classified.message_utf8_bytes, Buffer.byteLength(marker));
+  assert.equal(classified.message_sha256, hash(Buffer.from(marker)));
+  assert.equal(classified.message_disposition, "digest-only");
+  assert.equal(JSON.stringify(classified).includes(marker), false);
+  const unknown = classify(Object.assign(new Error(marker), { name: marker, code: marker }));
+  assert.ok(isRecord(unknown));
+  assert.equal(unknown.name, "unclassified");
+  assert.equal(unknown.code, "unclassified");
+  assert.equal(JSON.stringify(unknown).includes(marker), false);
+  const oversized = classify(new Error("x".repeat(16385)));
+  assert.ok(isRecord(oversized));
+  assert.equal(oversized.message_utf8_bytes, 16385);
+  assert.equal(oversized.message_sha256, null);
+  assert.equal(oversized.message_disposition, "oversize-not-retained");
+});
+
+void test("unavailable controller startup telemetry preserves the original refusal exit without output or effects", async () => {
+  const implementation = readFileSync(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    "utf8",
+  );
+  const start = implementation.lastIndexOf(".catch(async (error: unknown) => {"),
+    end = implementation.lastIndexOf(");");
+  assert.ok(start > 0 && end > start);
+  const callback = stripTypeScriptTypes("(" + implementation.slice(start + 7, end) + ")");
+  for (const failure of ["root-evaluation", "projection-evaluation", "write-rejection"]) {
+    const context = {
+      argv: ["node", "owned-controller.mts", "run"],
+      env: {},
+      pid: 123,
+      exitCode: undefined as number | undefined,
+    };
+    const output: string[] = [];
+    let writes = 0;
+    const handler: unknown = runInNewContext(callback, {
+      process: context,
+      hostedWindowsConnectedDiagnosticExecutionAuthorized: true,
+      requireOriginalHostedWindowsDiagnosticContext: () => {},
+      readWindowsNativeProcessFiletime: () => "123",
+      originalControllerCreated: null,
+      performance,
+      readProcessIdentity: () => ({}),
+      controlRoot: () => {
+        if (failure === "root-evaluation") throw new Error("unavailable original root");
+        return "/fixed-owned-control";
+      },
+      path,
+      execFileSync: () => "a".repeat(40),
+      project: "/fixed-owned-source",
+      startupPhase: "inputs-verifying",
+      projectDiagnosticStartupFailure: () => {
+        if (failure === "projection-evaluation") throw new Error("unavailable safe projection");
+        return {};
+      },
+      retain: () => {
+        writes++;
+        return Promise.reject(new Error("unavailable owned retention"));
+      },
+      console: { error: (value: string) => output.push(value) },
+    });
+    assert.equal(typeof handler, "function");
+    await (handler as (error: unknown) => Promise<void>)(
+      new Error("synthetic-original-private-refusal"),
+    );
+    assert.equal(context.exitCode, 2, failure);
+    assert.deepEqual(output, []);
+    assert.equal(writes, failure === "write-rejection" ? 1 : 0);
+  }
+});
+
+void test("native original owner creation remains exact and a live nonaligned owner blocks both recovery routes", async () => {
+  const native = "134377123349904143",
+    cim = "134377123349904140";
+  for (const [filename, begin, end] of [
+    [
+      "release-hosted-native-windows-diagnostic.mts",
+      "async function recover(state:",
+      "export function projectHostedWindowsDiagnosticSettlementRecord",
+    ],
+    [
+      "release-hosted-native-windows-session.mts",
+      "async function recoverState(state:",
+      "export async function refuseActualHostedWindowsSession",
+    ],
+  ] as const) {
+    const implementation = readFileSync(new URL("./" + filename, import.meta.url), "utf8");
+    const start = implementation.indexOf(begin),
+      next = implementation.indexOf(end, start);
+    assert.ok(start > 0 && next > start);
+    const code = stripTypeScriptTypes(implementation.slice(start, next));
+    const state = {
+      recoveryAttempted: false,
+      stopped: false,
+      signal: { emit: () => {} },
+      running: Promise.resolve(0),
+      owner: { pid: 42, created: native },
+      deadline: performance.now() + 1000,
+    };
+    let directories = 0,
+      legacyReads = 0,
+      nativeReads = 0;
+    const run: unknown = runInNewContext(
+      code + "\n" + (filename.includes("diagnostic") ? "recover" : "recoverState"),
+      {
+        assert,
+        readWindowsNativeProcessFiletime: (pid: number, deadline: number) => {
+          nativeReads++;
+          assert.equal(pid, 42);
+          assert.equal(deadline, state.deadline);
+          return native;
+        },
+        readProcessIdentity: () => {
+          legacyReads++;
+          return "win32:42:" + (BigInt(cim) + 504911232000000000n);
+        },
+        mkdir: () => {
+          directories++;
+        },
+        performance,
+      },
+    );
+    assert.equal(typeof run, "function");
+    await assert.rejects(
+      (run as (state: unknown) => Promise<unknown>)(state),
+      /original owner.*live|Original owner.*live/u,
+    );
+    assert.equal(nativeReads, 1);
+    assert.equal(legacyReads, 0);
+    assert.equal(directories, 0);
+    assert.equal(state.recoveryAttempted, true);
+  }
+});
+
+void test("native FILETIME observer preserves nonaligned precision and distinguishes verified absence from query failure", () => {
+  const implementation = readFileSync(
+    new URL("./release-native-runtime-custody.mts", import.meta.url),
+    "utf8",
+  );
+  const code = body(
+    "export function readWindowsNativeProcessFiletime(",
+    "// Fixed OS reader",
+    implementation,
+  );
+  const system = "C:\\Windows",
+    native = "134377123349904143";
+  let calls = 0;
+  const observe = (
+    reply: string,
+    pid = 42,
+    deadline = 2000,
+    fails = false,
+    tracking = "original-provider-tracking",
+  ): unknown =>
+    runInNewContext(code + "\nreadWindowsNativeProcessFiletime(pid,deadline)", {
+      assert,
+      process: {
+        platform: "win32",
+        env: {
+          SystemRoot: system,
+          TEMP: "C:\\owned",
+          TMP: "C:\\owned",
+          RUNNER_TRACKING_ID: tracking,
+        },
+      },
+      performance: { now: () => 1000 },
+      path,
+      pid,
+      deadline,
+      windowsSourceSystemExecutables: { powershell: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" },
+      execFileSync: (
+        exe: string,
+        args: string[],
+        options: { timeout: number; maxBuffer: number; env: Record<string, string> },
+      ) => {
+        calls++;
+        assert.match(exe, /pwsh[.]exe$/u);
+        assert.ok(args.at(-1)?.includes("StartTime.ToUniversalTime().ToFileTimeUtc()"));
+        assert.equal(args.at(-1)?.includes("Get-CimInstance"), false);
+        assert.equal(options.timeout, 1000);
+        assert.equal(options.maxBuffer, 1024);
+        assert.equal(options.env.RUNNER_TRACKING_ID, tracking);
+        assert.equal(
+          Object.keys(options.env).some((k) => k.startsWith("GITHUB") || k.includes("TOKEN")),
+          false,
+        );
+        if (fails) throw new Error("query unavailable");
+        return reply;
+      },
+    });
+  assert.equal(observe(native), native);
+  assert.equal(observe("absent"), null);
+  for (const value of ["", "0", "-1", "1e17", "134377123349904143 extra"])
+    assert.throws(() => observe(value));
+  assert.throws(() => observe(native, 42, 2000, true), /query unavailable/u);
+  const before = calls;
+  assert.throws(() => observe(native, 0));
+  assert.throws(() => observe(native, 42, 999));
+  assert.throws(() => observe(native, 42, 2000, false, "x".repeat(32769)));
+  assert.throws(() => observe(native, 42, 2000, false, "invalid\0tracking"));
+  assert.equal(calls, before);
+});
+
+void test("optional native exit observation never discards final settlement after original expiry or query refusal", async () => {
+  const implementation = readFileSync(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    "utf8",
+  );
+  const code = body(
+    "async function retainDiagnosticPublicSettlement(",
+    "export async function runHostedWindowsConnectedDiagnostic",
+    implementation,
+  );
+  for (const scenario of ["expired", "query-refused", "live", "absent"]) {
+    const records = Array.from({ length: 24 }, (_, index) => ({
+      path: "fixed-public-slot-" + index,
+      status: "missing",
+    }));
+    const recovery = { status: "verified", account_disabled: true, station_restored: true };
+    const state = {
+      root: "/original-owner",
+      owner: { pid: 42, created: "134377123349904143" },
+      deadline: scenario === "expired" ? 999 : 2000,
+      inputs: {
+        source: "a".repeat(40),
+        tree: "b".repeat(40),
+        run_id: "123",
+        workflow: "fixed-original-workflow",
+      },
+      account: null,
+    };
+    let queries = 0;
+    const retained: Record<string, unknown>[] = [];
+    const run: unknown = runInNewContext(code + "\nretainDiagnosticPublicSettlement", {
+      performance: { now: () => 1000 },
+      collectHostedWindowsDiagnosticPublicSettlement: async (root: string, deadline: number) => {
+        assert.equal(root, state.root);
+        assert.equal(deadline, 6000);
+        return records;
+      },
+      readWindowsNativeProcessFiletime: (pid: number, deadline: number) => {
+        queries++;
+        assert.equal(pid, 42);
+        assert.equal(deadline, state.deadline);
+        if (scenario === "query-refused") throw new Error("native query unavailable");
+        return scenario === "absent" ? null : state.owner.created;
+      },
+      retain: async (filename: string, value: Record<string, unknown>, maximum: number) => {
+        assert.equal(filename, path.join("/fixed-control", "diagnostic-public-settlement.json"));
+        assert.equal(maximum, 65536);
+        retained.push(value);
+      },
+      diagnosticRoot: "/fixed-control",
+      originalControllerCreated: "100",
+      process: { pid: 1 },
+      path,
+    });
+    assert.equal(typeof run, "function");
+    await (run as (state: unknown, recovery: unknown, outcome: string) => Promise<void>)(
+      state,
+      recovery,
+      "failed",
+    );
+    assert.equal(retained.length, 1);
+    assert.equal(retained[0]?.records, records);
+    assert.equal(retained[0]?.recovery, recovery);
+    assert.equal(retained[0]?.outcome, "failed");
+    assert.equal(retained[0]?.original_owner_exited, scenario === "absent" ? true : "Unknown");
+    assert.equal(queries, scenario === "expired" ? 0 : 1);
   }
 });
