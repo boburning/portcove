@@ -1025,7 +1025,7 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        assert_eq!(projected.listing_document().format_version, 3);
+        assert_eq!(projected.listing_document().format_version, 4);
     }
 
     #[test]
