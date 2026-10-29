@@ -341,7 +341,8 @@ class DependencyGraph(unittest.TestCase):
                         with scan(directory) as entries:
                             yield entries
                 staging_created = []
-                def changing_scan(directory, outcome=outcome):
+                def changing_scan(directory, outcome=outcome, staging_created=staging_created,
+                                  vanished=vanished, scan=scan, changing_entries=changing_entries):
                     directory = Path(directory)
                     if directory.name == "native-dependency-home":
                         if outcome == "missing-inventory-root":
