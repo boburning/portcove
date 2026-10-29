@@ -33,7 +33,7 @@ function actualDiagnosticOwnerEnvironment(directory: string): NodeJS.ProcessEnv 
     GITHUB_SHA: "a".repeat(40),
     GITHUB_RUN_ID: "123",
     GITHUB_WORKFLOW_REF:
-      "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028",
+      "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-ready-canary-20261029",
     PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
     PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
     PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
@@ -65,11 +65,12 @@ void test("actual bridge entry separates held production from fixed diagnostic s
   assert.ok(boundary > 0);
   const prefix = source.slice(0, boundary);
   assert.equal(prefix.split("$hostedCandidateExecutionAuthorized = $false").length, 2);
-  assert.equal(prefix.split("$hostedDiagnosticCandidateExecutionAuthorized = $false").length, 2);
+  assert.equal(prefix.split("$hostedDiagnosticCandidateExecutionAuthorized = $true").length, 2);
   const script = String.raw`
 $ErrorActionPreference='Stop'
 $original=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:PORTCOVE_TEST_BRIDGE_PREFIX))
-$activated=$original.Replace('$hostedDiagnosticCandidateExecutionAuthorized = $false','$hostedDiagnosticCandidateExecutionAuthorized = $true')
+$held=$original.Replace('$hostedDiagnosticCandidateExecutionAuthorized = $true','$hostedDiagnosticCandidateExecutionAuthorized = $false')
+$activated=$original
 # Inert entry-only fixture. No owner identity, ACL, credential, account, group or candidate operation is evaluated.
 $activated=$activated.Replace('[Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT','$false')
 $activated+=";Write-Output 'entry-only-diagnostic-accepted'"
@@ -83,8 +84,8 @@ function Invoke-Entry([string]$code,$memory,[string]$expected) {
 }
 $fixed=@{};($env:PORTCOVE_TEST_ACTUAL_A_ENVIRONMENT|ConvertFrom-Json).PSObject.Properties|ForEach-Object{$fixed[$_.Name]=[string]$_.Value}
 foreach($key in $fixed.Keys){[Environment]::SetEnvironmentVariable($key,$fixed[$key])}
-Invoke-Entry $original @{} 'awaits separate candidate execution authority'
-Invoke-Entry $original @{diagnostic=$true} 'awaits separate diagnostic execution authority'
+Invoke-Entry $held @{} 'awaits separate candidate execution authority'
+Invoke-Entry $held @{diagnostic=$true} 'awaits separate diagnostic execution authority'
 Invoke-Entry $activated @{} 'awaits separate candidate execution authority'
 Invoke-Entry $activated @{diagnostic=$false} 'Fixed diagnostic memory scope required'
 Invoke-Entry $activated @{diagnostic='true'} 'Fixed diagnostic memory scope required'
@@ -94,7 +95,7 @@ foreach($key in @($fixed.Keys|Where-Object{$_ -like 'GITHUB_*' -or $_ -ceq 'RUNN
  Invoke-Entry $activated @{diagnostic=$true} 'Fixed hosted diagnostic bridge context required'
  [Environment]::SetEnvironmentVariable($key,$fixed[$key])
 }
-foreach($ref in @('boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/main','boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-other','boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/tags/feature/534-connected-native-s2-20261028')){
+foreach($ref in @('boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/main','boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-other','boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/tags/feature/534-connected-native-ready-canary-20261029')){
  $env:GITHUB_WORKFLOW_REF=$ref;Invoke-Entry $activated @{diagnostic=$true} 'Fixed hosted diagnostic bridge context required'
 }
 Write-Output 'held-production-fixed-diagnostic-entry-controls-pass'
@@ -565,9 +566,10 @@ if($mutation){
  $source=$source.Replace('[Diagnostics.Stopwatch]::GetTimestamp()','[Portcove.MemoryBridgeClock]::Now')
 }
 $diagnostic=$env:PORTCOVE_TEST_NATIVE_DIAGNOSTIC -ceq 'true'
-$held=if($diagnostic){'$hostedDiagnosticCandidateExecutionAuthorized = $false'}else{'$hostedCandidateExecutionAuthorized = $false'}
+$held=if($diagnostic){'$hostedDiagnosticCandidateExecutionAuthorized = $true'}else{'$hostedCandidateExecutionAuthorized = $false'}
 if($source.Split($held).Count -ne 2){throw 'Expected one shipping memory hold'}
-# Only this disposable bridge copy exercises the owner-memory loop. C# launch stays false.
+# Only this disposable bridge copy exercises the owner-memory loop; no candidate launch occurs.
+# The C# production launcher remains false. The diagnostic uses its actual scoped source gate.
 [IO.File]::WriteAllText($bridge,$source.Replace($held,$held.Replace('$false','$true')))
 $helper=Join-Path $scripts 'native-qualification-account.cs.txt';[IO.File]::Copy($env:PORTCOVE_TEST_NATIVE_HELPER,$helper)
 $capture=Join-Path $root 'capture';[Portcove.HostedNative.Setup]::Directory($capture,$owner,$null,$false)
@@ -868,13 +870,27 @@ void test(
       emptyGitConfig = path.join(root, "empty-git-config");
     mkdirSync(emptyHooks);
     writeFileSync(emptyGitConfig, "");
-    const launcherOriginal = readFileSync(
+    const launcherActivated = readFileSync(
       new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
       "utf8",
     );
-    const controllerOriginal = readFileSync(
+    assert.equal(launcherActivated.split("$connectedDiagnosticLaunchAuthorized=$true").length, 2);
+    const launcherOriginal = launcherActivated.replace(
+      "$connectedDiagnosticLaunchAuthorized=$true",
+      "$connectedDiagnosticLaunchAuthorized=$false",
+    );
+    const controllerActivated = readFileSync(
       new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
       "utf8",
+    );
+    assert.equal(
+      controllerActivated.split("hostedWindowsConnectedDiagnosticExecutionAuthorized = true")
+        .length,
+      2,
+    );
+    const controllerOriginal = controllerActivated.replace(
+      "hostedWindowsConnectedDiagnosticExecutionAuthorized = true",
+      "hostedWindowsConnectedDiagnosticExecutionAuthorized = false",
     );
     const once = (value: string, before: string, after: string) => {
       assert.equal(
@@ -1041,7 +1057,7 @@ void test(
             GITHUB_RUN_ID: "123",
             GITHUB_SHA: sha,
             GITHUB_WORKFLOW_REF:
-              "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+              "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-ready-canary-20261029",
             RUNNER_TEMP: temporary,
             RUNNER_TRACKING_ID: process.env.RUNNER_TRACKING_ID ?? "owned-startup-fixture",
             PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
@@ -1082,7 +1098,7 @@ void test(
         assert.equal(ready.authority, "none");
         assert.equal(
           ready.workflow,
-          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-ready-canary-20261029",
         );
         const readySha = createHash("sha256").update(observedReady).digest("hex");
         assert.equal(readySha, report.ready_sha256);
@@ -1159,7 +1175,7 @@ void test(
         assert.equal(ready.attempt, 1);
         assert.equal(
           ready.workflow,
-          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-ready-canary-20261029",
         );
         assert.equal(ready.authority, "none");
         assert.equal(report.ready_sha256, createHash("sha256").update(readyBytes).digest("hex"));

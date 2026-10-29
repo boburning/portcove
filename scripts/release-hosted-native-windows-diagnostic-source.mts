@@ -1,3 +1,4 @@
+import { hostedWindowsDiagnosticWorkflowRef } from "./release-hosted-native-windows-worker-contract.mts";
 /** Unbranded same-job diagnostic data only. No protected admission or receipts. */
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
@@ -288,11 +289,12 @@ export function requireOriginalHostedWindowsDiagnosticContext() {
     run_id = process.env.GITHUB_RUN_ID;
   assert.match(source ?? "", /^[a-f0-9]{40}$/u);
   assert.match(run_id ?? "", /^[1-9][0-9]{0,15}$/u);
-  assert.match(
-    workflow ?? "",
-    /^boburning\/portcove\/[.]github\/workflows\/hosted-native-continuity[.]yml@refs\/heads\/(?:main|feature\/534-[A-Za-z0-9-]+)$/u,
+  assert.equal(
+    workflow,
+    hostedWindowsDiagnosticWorkflowRef,
+    "Fixed diagnostic workflow ref required",
   );
-  return { source: source!, workflow: workflow!, run_id: run_id! };
+  return { source: source!, workflow: workflow, run_id: run_id! };
 }
 export async function readOriginalHostedWindowsDiagnosticInputs() {
   const { source, workflow, run_id } = requireOriginalHostedWindowsDiagnosticContext();

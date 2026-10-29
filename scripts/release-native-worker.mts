@@ -190,14 +190,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       );
     } else {
       const [file, sha, ...rest] = process.argv.slice(3);
-      if (!file || !sha || rest.length || !/^[a-f0-9]{64}$/u.test(sha))
-        throw new Error("fixed hosted stage requires bounded input path and SHA only");
+      if (
+        !file ||
+        !sha ||
+        !/^[a-f0-9]{64}$/u.test(sha) ||
+        (diagnostic ? rest.length !== 1 : rest.length !== 0)
+      )
+        throw new Error(
+          "fixed hosted stage requires bounded input/SHA and only the diagnostic scope literal",
+        );
       console.log(
         JSON.stringify(
-          await (diagnostic ? runHostedWindowsDiagnosticWorkerStage : runHostedWindowsWorkerStage)(
-            file,
-            sha,
-          ),
+          await (diagnostic
+            ? runHostedWindowsDiagnosticWorkerStage(file, sha, rest[0]!)
+            : runHostedWindowsWorkerStage(file, sha)),
         ),
       );
     }

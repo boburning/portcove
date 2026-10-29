@@ -1115,7 +1115,7 @@ void test("connected diagnostic workflow stays source-held and writes exactly th
       },
     );
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Connected Windows S2 diagnostic remains held/u);
+    assert.match(result.stderr, /Fixed hosted Windows diagnostic context required/u);
   }
 });
 
@@ -1125,6 +1125,10 @@ void test("source-held diagnostic controller refuses every transport operation b
   const entry = fileURLToPath(
     new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
   );
+  // Even a pre-existing control directory cannot receive a failure write from
+  // an invocation outside the one hosted task scope.
+  const control = path.join(root, "portcove-hosted-windows-connected-diagnostic");
+  await mkdir(control);
   for (const operation of [
     ["run"],
     ["request", "payload-signing"],
@@ -1139,6 +1143,6 @@ void test("source-held diagnostic controller refuses every transport operation b
     });
     assert.equal(result.status, 2, result.stderr);
     assert.equal(result.stdout, "");
-    assert.deepEqual(await readdir(root), []);
+    assert.deepEqual(await readdir(control), []);
   }
 });

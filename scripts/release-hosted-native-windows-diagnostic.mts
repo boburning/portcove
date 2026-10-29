@@ -60,7 +60,7 @@ import {
   awaitOriginalNativeUploadAcknowledgment,
 } from "./release-hosted-native-runner.mts";
 
-export const hostedWindowsConnectedDiagnosticExecutionAuthorized = false;
+export const hostedWindowsConnectedDiagnosticExecutionAuthorized = true;
 const project = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const diagnosticRoot = path.join(project, "work/hosted-windows-connected-diagnostic");
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
