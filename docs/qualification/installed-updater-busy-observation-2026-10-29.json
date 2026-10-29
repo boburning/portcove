@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
-  "recorded_at": "2026-10-29T18:10:43.674250+00:00",
+  "recorded_at": "2026-10-29T20:18:41.758661+00:00",
   "owners": [224, 225, 52],
-  "owner_state": "open; Windows busy journey complete at stated scope, Linux fresh-restart failure retained; no production authority",
+  "owner_state": "open; Windows busy journey and current Linux busy/restart/preservation journey pass at stated scope; current Windows copied guidance and isolated Linux reboot remain pending; production authority held by534",
   "source_composition": {
     "controller_and_core_busy_helper": "846d659bf0071d7602c91f57a44310c921313574",
     "windows_shipping_packages": "f5f4917654819db99c2f9a9cc0f671623cf8c55f",
     "linux_shipping_packages": "846d659bf0071d7602c91f57a44310c921313574",
-    "scope": "Qualification-instrumented disposable signed feeds; controller/source equivalence to retained Windows packages is not claimed; production candidate/default-feed join remains #534"
+    "scope": "Qualification-instrumented disposable signed feeds; controller/source equivalence to retained Windows packages is not claimed; production candidate/default-feed join remains #534",
+    "linux_current_shipping_and_controller": "38cc869f1f1db165351d65a9b490d8d35c71dd56"
   },
   "windows": {
     "scope": "One ordinary non-elevated current-user installed NSIS chain with real Core dataset; real independent Core Running activity, ordinary Restart refusal, safe cancellation and fresh explicit Restart, authenticated skipped update, repair/relaunch/uninstall",
@@ -6718,12 +6719,12 @@
         "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage",
         "sha256": "22bad9869525e4f46c8ce27ef665e4271ed96929badfdda72a00dcf9518ef54d"
       },
-      "stable_path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/Applications/Portcove/Portcove Public beta \u03b2.AppImage",
+      "stable_path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/Applications/Portcove/Portcove Public beta β.AppImage",
       "apply_revision": 5,
       "rootless_lifecycle": {
         "package_format": "appimage",
         "install_scope": "current-user-direct-file",
-        "stable_path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/Applications/Portcove/Portcove Public beta \u03b2.AppImage",
+        "stable_path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/Applications/Portcove/Portcove Public beta β.AppImage",
         "current_user_owned": true,
         "caller_uid": "1001",
         "caller_gid": "1001",
@@ -6878,7 +6879,7 @@
             "effective_capabilities": "0000000000000000"
           },
           "image": {
-            "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/noexec-appimage-filesystem/Portcove noexec \u03b2.AppImage",
+            "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/noexec-appimage-filesystem/Portcove noexec β.AppImage",
             "bytes": 98847224,
             "sha256": "2a2ce892c0ae2ddc4fd41a294a808245b57992317f5a29e1c097340f816a1075"
           },
@@ -6902,7 +6903,7 @@
             "pid": 0,
             "exit_code": null,
             "signal": null,
-            "error": "Error: spawnSync /home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/noexec-appimage-filesystem/Portcove noexec \u03b2.AppImage EACCES",
+            "error": "Error: spawnSync /home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/noexec-appimage-filesystem/Portcove noexec β.AppImage EACCES",
             "error_code": "EACCES",
             "errno": -13
           }
@@ -6920,7 +6921,7 @@
       "schema_version": 1,
       "phase": "failed",
       "source_commit": "846d659bf0071d7602c91f57a44310c921313574",
-      "app": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/Applications/Portcove/Portcove Public beta \u03b2.AppImage",
+      "app": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/Applications/Portcove/Portcove Public beta β.AppImage",
       "initial_sha256": "2a2ce892c0ae2ddc4fd41a294a808245b57992317f5a29e1c097340f816a1075",
       "candidate_sha256": "22bad9869525e4f46c8ce27ef665e4271ed96929badfdda72a00dcf9518ef54d",
       "candidate_version": "0.3.0",
@@ -7234,7 +7235,7 @@
         "saved_library_selection": {
           "root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
           "source": "saved",
-          "card_text": "WHOLE PORTCOVE LIBRARYStartup selection/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/librarySaved host preference. Switching opens another existing empty folder or Portcove library. It does not move files or change any game\u2019s Export / install folder.Review library switchReview platform default"
+          "card_text": "WHOLE PORTCOVE LIBRARYStartup selection/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/librarySaved host preference. Switching opens another existing empty folder or Portcove library. It does not move files or change any game’s Export / install folder.Review library switchReview platform default"
         },
         "normal_close_before_driver_teardown": true,
         "driver_log": "libEGL warning: DRI3 error: Could not get DRI3 device\nlibEGL warning: Ensure your X server supports DRI3 to get accelerated rendering\n/lib/x86_64-linux-gnu/libcurl-gnutls.so.4: undefined symbol: nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation\nFailed to load module: /usr/lib/x86_64-linux-gnu/gio/modules/libgiolibproxy.so\n/usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so: undefined symbol: g_assertion_message_cmpint\nFailed to load module: /usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so\n/lib/x86_64-linux-gnu/libcurl-gnutls.so.4: undefined symbol: nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation\nFailed to load module: /usr/lib/x86_64-linux-gnu/gio/modules/libgiolibproxy.so\n/usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so: undefined symbol: g_assertion_message_cmpint\nFailed to load module: /usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so\n",
@@ -10271,9 +10272,9 @@
     ]
   },
   "remaining_boundaries": [
-    "Linux second explicit Restart diagnosis and successful same-run return/data readback",
+    "Complete current Linux archive custody and independent payload-signature readback; earlier846 first divergent cause remains unresolved historical evidence",
     "Current-package native readback of idle copied-install recovery guidance",
-    "Actual Linux OS reboot unobserved; no demonstrated isolated route and no authority to reboot shared host",
+    "Actual Linux OS reboot unobserved; task-owned isolated guest route being prepared, no shared-host reboot",
     "Actual production candidate/package/default-feature source/Root/key/grant/feed/custody/signing/publication/readback remain held by #534"
   ],
   "excluded_claims": [
@@ -10288,5 +10289,274 @@
     "expires_utc": "2026-11-15T04:59:00Z",
     "earlier_trigger": "relevant second beta publication",
     "release_time_reconfirmation": "Exact candidate, complete scanner result, publication count and current policy; no presumed renewal"
+  },
+  "linux_current": {
+    "scope": "Actual current attempt collected before any replacement; no duplicate native run. Earlier846 failure remains retained and causally unresolved.",
+    "observation": {
+      "recorded_at": "2026-10-29T19:52:11.259964+00:00",
+      "head": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+      "run": 40934887557,
+      "attempt": 1,
+      "job": 123662699025,
+      "artifact": 12926701381,
+      "native_renderer_phase": "complete",
+      "native_lifecycle_phase": "complete",
+      "all_requested_sequence_actions_present": [
+        "stable-manual-settings-saved",
+        "stable-waiting-without-staging-or-current-claim",
+        "stable-manual-settings-already-saved",
+        "stable-waiting-without-staging-or-current-claim",
+        "owned-file-feed-unreachable-without-current-or-new-intent",
+        "owned-file-feed-original-inode-and-bytes-restored",
+        "stable-manual-settings-already-saved",
+        "stable-waiting-without-staging-or-current-claim",
+        "owned-file-feed-explicit-retry-completed",
+        "installed-gui-opened",
+        "preview-manual-settings-saved",
+        "signed-candidate-presented",
+        "exact-installed-candidate-status-read-back",
+        "renderer-downloaded-and-verified",
+        "ordinary-restart-requested-while-real-core-activity-held",
+        "real-core-busy-restart-refused-without-apply-intent",
+        "held-core-activity-cancelled-and-helper-os-exit-observed",
+        "candidate-restarted-and-reconciled",
+        "game-authored-save-config-and-installed-runtime-preserved"
+      ],
+      "busy_refusal_preserved_status": true,
+      "core_holder_pid": 49724,
+      "core_activity_id": "e55ee74c-cf03-4c84-b007-6f80a8a469b5",
+      "core_child_os_exit": {
+        "code": 0,
+        "signal": null
+      },
+      "public_cancellation_finished": {
+        "schema_version": 3,
+        "operation_id": "e55ee74c-cf03-4c84-b007-6f80a8a469b5",
+        "parent_operation_id": null,
+        "sequence": 1,
+        "timestamp_ms": 1793301615434,
+        "operation": "update",
+        "target": {
+          "kind": "port",
+          "id": "opentyrian-opentyrian"
+        },
+        "type": "finished",
+        "result": "cancelled"
+      },
+      "library_idle": true,
+      "fresh_restart_click": "returned",
+      "helper_marker": {
+        "executable": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoGPgfJK/usr/bin/portcove-desktop",
+        "process_id": 49882,
+        "schema_version": 1
+      },
+      "helper_identity": {
+        "pid": 49882,
+        "start_ticks": "167163",
+        "command": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoGPgfJK/usr/bin/portcove-desktop --portcove-apply-update 2 "
+      },
+      "relaunch_marker": {
+        "executable": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/Applications/Portcove/Portcove Public beta β.AppImage",
+        "process_id": 49890,
+        "schema_version": 1
+      },
+      "relaunch_identity": {
+        "pid": 49890,
+        "start_ticks": "167251",
+        "command": "portcove-desktop "
+      },
+      "restart": {
+        "marker": {
+          "process_id": 49890,
+          "schema_version": 1,
+          "stage": "Tauri setup"
+        },
+        "stable_sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+        "candidate_exit_observed": true
+      },
+      "preservation": {
+        "baseline_deep_equals_after": true,
+        "runtime_entries": 115,
+        "runtime_file_bytes": 16043524,
+        "player_file_count": 3,
+        "scope": "Normal Core installed record/policy/runtime and game-authored files; same installed dataset across current renderer journey, not synthetic lifecycle fault data"
+      },
+      "cleanup": {
+        "remaining_owned_processes": [],
+        "helper": "helper-exited",
+        "candidate": "candidate-exited"
+      },
+      "limits": [
+        "Core child retained close is OS0; helper/candidate disappearance/markers are not independent OS0",
+        "Range receipts have length/CRC/SHA and immutableHTTPETag verification; complete archive SHA and independent payload verification remain queued",
+        "Original846 missing-marker failure remains failed, exactcause unresolved; current38success is not a claimed causal product repair"
+      ]
+    },
+    "selected_report_custody": {
+      "run": 40934887557,
+      "attempt": 1,
+      "source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+      "artifact": 12926701381,
+      "artifact_total_bytes": 629666242,
+      "api_archive_sha256": "cfc5f19d45839d45bdecc1ff36944f48c59d91d51744af4d5f362503bb3e8478",
+      "entire_archive_sha256_verified": false,
+      "scope": "Bounded HTTP206 immutableETag rawZIPdirectory and selectedreceipt length/CRC/SHA readback only; no package execution or wholearchive digest claim. Full queued archive audit remains separate.",
+      "raw_directory_members": 525,
+      "selected": [
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/renderer-update-evidence.json",
+          "bytes": 187537,
+          "sha256": "28d97a1219c5d1fdca915c43169ec4e391e6efd19a66fed9aa4f5e08569ea9d4",
+          "crc32": "ddaf4d32",
+          "phase": "complete"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/application-update-evidence.json",
+          "bytes": 10605,
+          "sha256": "60202d9fcef37166cecb2c24830d4ccec6101094da29f7c8218e8f0ce7359a08",
+          "crc32": "b1218dbb",
+          "phase": "complete"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-activity/activity-holder.json",
+          "bytes": 3188,
+          "sha256": "17257b01175913d31ed9dd8c7c8ff8fe3aa1b06693a71c4fe6f2887235a11485",
+          "crc32": "93d2f0bb",
+          "phase": "cancelled-and-exit-observed"
+        }
+      ]
+    },
+    "selected_public_trust_custody": {
+      "scope": "Bounded HTTP206 immutableETag rawZIPdirectory and selectedreceipt length/CRC/SHA readback only; no package execution or wholearchive digest claim. Full queued archive audit remains separate.",
+      "entire_archive_sha256_verified": false,
+      "selected": [
+        {
+          "member": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage.sig",
+          "bytes": 440,
+          "sha256": "510bd5b8cd74bc1a55e8801ccd438abfaea014afaa9a578c8bcf41a49037b920",
+          "crc32": "ee55fd45"
+        },
+        {
+          "member": "updater-rehearsal/disposable.key.pub",
+          "bytes": 152,
+          "sha256": "5dde708dbcac98f757704ae0c4fedbaa6e3bd3fe99a552e957c7e56be3264b4e",
+          "crc32": "8f0cf7aa"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.preview.json",
+          "bytes": 700,
+          "sha256": "66596a19e8a9758e6f913274d51137b4d08aa4435e6c9191f2f7b419f8d78078",
+          "crc32": "ae741f9d"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.releases.json",
+          "bytes": 693,
+          "sha256": "28c67d5021be300a864634f2f0f514472245b35eb7004684a12e30400234af18",
+          "crc32": "3be617e6"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.root.json",
+          "bytes": 3072,
+          "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+          "crc32": "ba2b8009"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.snapshot.json",
+          "bytes": 1205,
+          "sha256": "bf3c26d3c83e508ca35580b9b6a8d2226c5b27f1ae8f54890c6a85098cb6ec2b",
+          "crc32": "85749419"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.stable.json",
+          "bytes": 486,
+          "sha256": "e6723f4ce455b0445e5c97930200f5766ff5dd2e628cf889936161cc9341504b",
+          "crc32": "e4824c8d"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.targets.json",
+          "bytes": 2428,
+          "sha256": "08a2da1700d74217446076c160e774408d7f4fd82870be638369204685141776",
+          "crc32": "cb5de8f3"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/timestamp.json",
+          "bytes": 622,
+          "sha256": "55bc5ebf5088adb7bf7c3a102e53723d94505cc66be61247651d6ad645b83d33",
+          "crc32": "eb737a5e"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/repository-manifest.json",
+          "bytes": 1888,
+          "sha256": "a90b66b4a92c60d321ac275ee2e9ed574c4c2868ddaf8cddcab5e457da5a2102",
+          "crc32": "3182c4d3"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883.releases/0.3.0/linux-x86_64/appimage.json",
+          "bytes": 1953,
+          "sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+          "crc32": "7435ce10"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e.channels/preview/linux-x86_64/appimage/0.3.0.json",
+          "bytes": 395,
+          "sha256": "6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e",
+          "crc32": "d1ef6f7f"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289.keys/payload.json",
+          "bytes": 315,
+          "sha256": "e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289",
+          "crc32": "e9e02cc8"
+        },
+        {
+          "member": "updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+          "bytes": 3072,
+          "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+          "crc32": "ba2b8009"
+        },
+        {
+          "member": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage.sig",
+          "bytes": 440,
+          "sha256": "a2f9ed256dcf4ed72776ab9110fe072fca573502f02abf34e064761346af8dec",
+          "crc32": "4a70be43"
+        }
+      ],
+      "payload_directory_identity": [
+        {
+          "path": "updater-rehearsal/0.1.0-linux-x86_64/Portcove_0.1.0_amd64.AppImage",
+          "bytes": 98662904,
+          "packed": 98000278,
+          "local": 21923002
+        },
+        {
+          "path": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage",
+          "bytes": 98675192,
+          "packed": 98012789,
+          "local": 178824718
+        },
+        {
+          "path": "updater-rehearsal/ordinary-appimage/Portcove.AppImage",
+          "bytes": 98621944,
+          "packed": 97977710,
+          "local": 314229866
+        },
+        {
+          "path": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage",
+          "bytes": 98859512,
+          "packed": 98207529,
+          "local": 531271723
+        }
+      ]
+    },
+    "independent_payload_verification": "pending complete archive retention and independent verification; native staging/replacement receipt identifies authenticated exact payload",
+    "qualified_predecessor": {
+      "bytes": 98859512,
+      "sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da"
+    },
+    "candidate": {
+      "bytes": 98675192,
+      "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552"
+    },
+    "original_failure_cause": "unresolved; current positive run does not establish a causal product repair"
   }
 }

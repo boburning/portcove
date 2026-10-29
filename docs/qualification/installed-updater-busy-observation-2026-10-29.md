@@ -52,7 +52,7 @@ Windows credential store/application lease is not isolated by private paths.
 The screenshot paints Conflict, Library 1 and verified Preview 0.3.0 with the
 existing interface-size warning; the PNG alone does not prove an active hold.
 
-## Linux: complete lifecycle, failed renderer return
+## Linux: earlier failure retained
 
 [Run 40916008131/1](https://github.com/boburning/portcove/actions/runs/40916008131),
 job `123596299413`, uses source 846 on Ubuntu 24.04.5 x64, UID/GID/owner 1001.
@@ -91,6 +91,39 @@ Artifact `12919420415` is 531,549,039 bytes, SHA-256 `2b7ff68b…`. All 514 memb
 audit before inert selected extraction. Neither AppImage executes during custody
 or independent payload-signature readback.
 
+## Linux: current native sequence passes
+
+[Run 40934887557/1](https://github.com/boburning/portcove/actions/runs/40934887557),
+job `123662699025`, source `38cc869f1f1db165351d65a9b490d8d35c71dd56`,
+completes both lifecycle and renderer reports. The existing attempt was collected
+before any replacement; no duplicate native execution was launched. The qualified
+predecessor is 98,859,512 bytes (`cda06e2d…`); candidate 0.3.0 is 98,675,192 bytes
+(`d2e8d962…`). The machine-readable receipt pins full hashes, the two 440-byte
+payload signatures, public key, Root, seven metadata envelopes and feed records.
+
+Real Core activity `e55ee74c-cf03-4c84-b007-6f80a8a469b5` (holder 49724)
+is already active before renderer staging. The verified stage precedes the
+ordinary Restart click, which is refused with unchanged status and no apply
+intent. Public cancellation produces the matching Cancelled Finished event,
+acknowledged Preparing cancellation, provider polls 0, idle library and retained
+child close OS exit 0. A fresh explicit renderer Restart then reaches helper 49882,
+replacement and candidate 49890 relaunch/reconciliation. Helper/candidate markers,
+identities and eventual disappearance are observed; they are not independent
+OS exit 0 observations. Owned cleanup inventory is empty.
+
+The original normal Core installed dataset matches after the update: installed
+record/policy, 115 runtime entries (16,043,524 file bytes) and three checksum-valid
+game-authored save/configuration files. These are continuous renderer-journey data;
+synthetic lifecycle fault markers remain separate. The older missing-marker
+failure remains failed, with its first divergent cause unresolved. This current
+positive run does not establish that the added diagnostics repaired the product.
+
+Selected reports and public trust files have bounded raw-directory, immutable
+HTTP ETag, exact range, length, SHA and CRC readback, independently reviewed.
+Artifact `12926701381` is 629,666,242 bytes, API SHA-256 `cfc5f19d…`, 525 raw members.
+Complete archive retention/audit and independent payload-signature readback are
+still queued; selected range custody is not a whole-archive digest claim.
+
 ## Copied-install guidance and remaining boundary
 
 A separate fresh empty-library Windows control extracts the exact predecessor
@@ -106,10 +139,10 @@ The presentation fix now shows existing ownership/recovery guidance whenever
 known noneligible status has no staged update. Four browser cases cover copied,
 unconfigured and package-managed status without enabling Restart. The failed
 old-binary native control cannot qualify that new UI; current-package native
-readback and Linux successful fresh return remain pending.
+readback remains pending. The current Linux fresh-return sequence passes above.
 
-Actual Linux OS reboot remains unobserved: no demonstrated isolated route or
-authority to reboot the shared host exists. Production candidate/default-feature
+Actual Linux OS reboot remains unobserved. A task-owned isolated guest route is
+being prepared; the shared host will not be rebooted and the row is not waived. Production candidate/default-feature
 source, Root/key/grant/feed/custody/signing/publication and readback remain held
 by [#534](https://github.com/boburning/portcove/issues/534). Full 1.0 #46, macOS
 #226 and Steam Deck #535 remain independent.
