@@ -5,7 +5,7 @@ retail Aliens of Gold #2555 and Planet Strike #2556. It replaces two existing
 non-owning default definitions; it adds no identities, historical members,
 operational definitions or Supported credit. The [exact packet](bstone-managed-fitting-2026-10-29.json)
 records source, package, original tables, writers and remaining qualification.
-It is not delivered or playable evidence yet.
+Actual Windows Core diagnostic/data evidence is captured in the [native packet](bstone-core-operations-2026-10-29.json); final delivery remains pending. It is not original-game or gameplay evidence.
 
 The unchanged v1.3.4 win64 asset matches the previous read-only package checkpoint
 and today's publisher API ID, size and SHA256. Its versioned wrapper contains one
@@ -40,6 +40,6 @@ exec extra argument can therefore qualify only diagnostic process/log/coordinate
 and data-preservation observations without searching for originals. It cannot
 qualify default game startup, source edition dispatch, actual game settings,
 screenshots, real saves or save ABI. Capture the private log after the final
-invocation; another diagnostic can rewrite it. Native and fixture qualification,
-complete independent review, exact-head CI, guarded merge/readback and canonical
-reconciliation remain pending.
+invocation; another diagnostic can rewrite it. Both titles completed actual Core install/immutable verification, diagnostic-only process/log observations, backup/mutate/restore and preserving removal. Each retained27 declared files:26 explicit task-written byte witnesses and one actual log. The original title-mismatch failure remains failed and unchanged; its first normally closed dialog is recorded separately from three continued dialogs. All four captures were independently viewed, with normal player/Core exits0/0. Final process/activity drain and both native-lease releases were verified. No original files were supplied or searched by the version branch, and no engine consumed synthetic probes.
+
+Final independent complete/target review, current exact-head CI, guarded merge/readback and canonical reconciliation remain pending.
