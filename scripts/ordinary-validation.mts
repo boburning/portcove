@@ -1264,6 +1264,7 @@ for (const [file, tests] of [
       "scripts/ui-test-selection.test.mts",
       "scripts/updater-historical-inputs.test.mts",
       "scripts/installed-game-data-fixture.test.mts",
+      "scripts/windows-installed-game-data.test.mts",
       "scripts/windows-historical-bootstrap.test.mts",
     ],
   ],
@@ -1507,6 +1508,7 @@ for (const [file, tests] of [
   [
     "scripts/test-windows-installer.ps1",
     [
+      "scripts/windows-installed-game-data.test.mts",
       "scripts/repository-skills.test.mts",
       "scripts/native-qualification-account-adapter.test.mts",
       "scripts/desktop-scenarios.test.mts",
@@ -1827,6 +1829,7 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
   "scripts/renovate-engine-probe.test.mts",
   "scripts/desktop-staged-layout.test.mts",

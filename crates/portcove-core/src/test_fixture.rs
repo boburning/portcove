@@ -205,7 +205,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if port.adapter == crate::AdapterKind::NativePortable
+        let capability_version = if port.windows_temp_directory.is_some() {
+            5
+        } else if port.adapter == crate::AdapterKind::NativePortable
             && port.windows_runtime_path_policy.is_some()
         {
             4

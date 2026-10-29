@@ -14,7 +14,7 @@ component fixtures do not complete either production outcome.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises native portable versions 2 and 3,
+The public inventory additionally advertises native portable versions 2–5,
 managed PS1 version 2, N64 portable versions 2 and 3 and
 staged-source portable versions 2–5, 8, 10–12 and 15–24. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
@@ -46,6 +46,22 @@ headroom, and does not claim a general long-path fix or external-profile coverag
 New and retained independent entries declaring this policy require minimum4;
 Direct-only version3 and earlier versions retain their separate meanings. This
 capability grants no additional publisher or protected-operation authority.
+
+Native portable version 5 consumes `windows_temp_directory`: a dedicated,
+declared Windows entry-data directory used internally for relative `TEMP`/`TMP`.
+Its ASCII basename and `relative-file-max-path` contract preserve the existing
+working/data namespace; publishers cannot supply members in that directory.
+Read-only inspection stays inert, existing launch preparation validates/creates
+the directory, and the fenced spawn path rechecks it. Temporary bytes use the
+existing persistence, interruption, backup and removal authority. The upstream
+process must preserve the reviewed working directory. Arbitrary catalog
+session-environment overrides remain rejected.
+
+Fresh and retained indexed consumption requires a Native5 lower bound, with
+normal unsupported-range refusal. Native1–4 and omitted-field serialization
+retain their meanings. Legacy retained catalog projection still checks complete
+canonical semantics; older readers cannot silently drop the field. This is an
+engine capability, separate from CLI/API envelope versions and publisher trust.
 
 Native portable version 2 observes an upstream-owned manual setup completion
 record beneath declared player data. New and retained indexed entries using

@@ -39,6 +39,10 @@ impl EngineTemplateCapability {
             contract_version: 4,
         });
         supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 5,
+        });
+        supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });
@@ -282,6 +286,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn native5_temporary_data_excludes_older_readers_without_changing_native1_through4() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 5
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 5, 5), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 5, 5))
+                .unwrap()
+                .compatible
+        );
+        for version in 1..=4 {
+            assert!(
+                check_with_inventory(&request("native-portable", version, version), &previous)
+                    .unwrap()
+                    .compatible
+            );
+        }
+    }
+
+    #[test]
     fn native_packaged_paths_exclude_the_previous_direct_only_inventory() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -352,7 +383,7 @@ mod tests {
                 .compatible
         );
         assert!(
-            !check_definition_capabilities(&request("native-portable", 5, 5))
+            !check_definition_capabilities(&request("native-portable", 6, 6))
                 .unwrap()
                 .compatible
         );

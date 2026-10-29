@@ -185,6 +185,33 @@ game data remain unclaimed. A selected mode or component pass is not installed
 updater preservation evidence. Production authority and real release-to-release
 acceptance remain with their owning gates.
 
+For a separate Windows real-data observation, the existing disposable renderer
+upgrade accepts `-InstalledGameDataConfigurationPath` and its exact SHA-256.
+It excludes public/account-bound routes and the historical bootstrap prelude;
+those retain their separate receipts. Use a new private case directory containing
+an empty retained-library sibling of `TestBase`, a source/version/hash-bound
+matching Core CLI receipt, and a closed configuration with `schema_version: 1`,
+`cli_receipt`, `cli_source_commit`, `library` and `preferences_path`. Set
+`APPDATA`, `LOCALAPPDATA` and `PORTCOVE_PREFERENCES` to private children of that
+case. Preflight requires both stores empty and host preferences absent before
+any installer or Core mutation.
+
+After the predecessor is verified, normal Core saves the library choice,
+installs OpenTyrian and copies the same three game-authored files once. Existing
+damaged-stage/repair/update controls then run. The empty-library WebView startup
+smoke uses separate new library/preferences paths for either transport and
+restores the original absent/empty/value environment exactly before the real
+updater renderer starts. Its empty-state assertions remain intact; that smoke
+supplies no observation of the populated game library. After uninstall's original
+recursive-library comparison, the observer captures original runtime/player
+files before additional Core status, checks the original installed record/policy
+and exact saved-library preference bytes, and writes retained evidence outside
+the disposable installer run. A selected option is not evidence of completion.
+The fixed Windows OS credential store is not isolated by these private paths;
+credential continuity, gameplay and raw database-preimage claims remain absent.
+The caller must retain the configuration, CLI/package/source custody and all
+phase reports, including failures. No signing/publication authority is added.
+
 It checks native package versions and
 executable permissions. The Linux job defaults to the approved Ubuntu 24.04
 support environment; `linux_runner` retains Ubuntu 22.04 for scoped diagnostic

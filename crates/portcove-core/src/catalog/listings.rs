@@ -247,10 +247,10 @@ impl PortListing {
         let invalid = || {
             PortcoveError::usage("invalid descriptive listing observation or maintenance metadata")
         };
-        if let Some(reason) = &self.availability_override_reason {
-            if !valid_text(reason, 4096) || self.availability == ListingAvailability::Unknown {
-                return Err(invalid());
-            }
+        if let Some(reason) = &self.availability_override_reason
+            && (!valid_text(reason, 4096) || self.availability == ListingAvailability::Unknown)
+        {
+            return Err(invalid());
         }
         let clock = |value: &str| {
             time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)

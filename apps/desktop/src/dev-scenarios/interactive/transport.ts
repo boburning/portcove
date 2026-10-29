@@ -130,8 +130,13 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       const next = structuredClone(organization);
       const membership = (values: string[], id: string, included: boolean) =>
         included ? [...new Set([...values, id])] : values.filter((value) => value !== id);
-      switch (change.kind) {
-        case "set_followed_project":
+      function applyFollowing(
+        change: Extract<
+          OrganizationChange,
+          { kind: "set_followed_project" | "acknowledge_followed_release" }
+        >,
+      ) {
+        if (change.kind === "set_followed_project") {
           next.followed_port_ids = membership(
             next.followed_port_ids,
             change.port_id,
@@ -145,14 +150,26 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
                 change.observed_identity,
               ]),
             ];
-          break;
-        case "acknowledge_followed_release":
+        } else {
           next.followed_release_acknowledgments[change.port_id] = [
             ...new Set([
               ...(next.followed_release_acknowledgments[change.port_id] ?? []),
               change.identity,
             ]),
           ];
+        }
+      }
+      function applySavedGroup(change: Extract<OrganizationChange, { kind: "set_saved_group" }>) {
+        next.saved_game_ids = membership(next.saved_game_ids, change.game_id, change.saved);
+        if (!change.saved)
+          next.saved_game_ids = next.saved_game_ids.filter(
+            (id) => !change.legacy_port_ids.some((port) => id === `port-${port}`),
+          );
+      }
+      switch (change.kind) {
+        case "set_followed_project":
+        case "acknowledge_followed_release":
+          applyFollowing(change);
           break;
         case "set_hidden":
           next.hidden_port_ids = membership(next.hidden_port_ids, change.port_id, change.hidden);
@@ -161,11 +178,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
           next.saved_game_ids = membership(next.saved_game_ids, change.game_id, change.saved);
           break;
         case "set_saved_group":
-          next.saved_game_ids = membership(next.saved_game_ids, change.game_id, change.saved);
-          if (!change.saved)
-            next.saved_game_ids = next.saved_game_ids.filter(
-              (id) => !change.legacy_port_ids.some((port) => id === `port-${port}`),
-            );
+          applySavedGroup(change);
           break;
         case "upsert_collection":
           next.collections[change.collection_id] = {
