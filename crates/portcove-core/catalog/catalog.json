@@ -962,6 +962,16 @@
         "immutable_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
         "live_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
         "claim": "Upstream get_aog_full_v1_0_resources, get_aog_full_v2_0_resources, get_aog_full_v2_1_resources, get_aog_full_v3_0_resources and get_ps_resources bind each complete original resource set by filename and SHA1. Each retail AOG set has twelve BS6 members; Planet Strike has ten VSI members. These upstream byte identities do not establish gameplay, Portcove preparation or cross-version player-data compatibility. BS1 shareware sets are distinct and are not admitted by these retail contracts."
+      },
+      {
+        "id": "sonic-3-and-knuckles-recomp-0-6-2-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/Sonic3AndKnucklesRecomp",
+        "authority_ref": "6ce74a70161f0fe42dd8deda5cc9108c4ed0fd90",
+        "reviewed_at": "2026-10-29",
+        "claim": "Tagged combined-game v0.6.2 requires four-MiB original CRC63522553; joins the existing independently admitted exact-stock original identity. Bound only to publisher-matched combined Windows package 16a84a6e536f832e6ed9195f67dcf9ce29f0efa7c1f00fcfd93af7302f3c4471. This is source applicability, not native execution or legacy state/data compatibility.",
+        "immutable_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/6ce74a70161f0fe42dd8deda5cc9108c4ed0fd90/game/sonic3k/sonic3k_spec.c",
+        "live_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c"
       }
     ],
     "identities": [
@@ -11172,10 +11182,11 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
-          "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+          "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity",
+          "sonic-3-and-knuckles-recomp-0-6-2-source-contract"
         ],
         "authority_ref": "74e8aeadb5b8b8da7e776beb0d28f915e3efeb85",
-        "reviewed_at": "2026-10-18",
+        "reviewed_at": "2026-10-29",
         "immutable_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/74e8aeadb5b8b8da7e776beb0d28f915e3efeb85/game/sonic3k/sonic3k_spec.c",
         "live_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c",
         "evidence_gap": null,
@@ -11183,6 +11194,10 @@
           {
             "upstream_ref": "v0.5.3",
             "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+          },
+          {
+            "upstream_ref": "v0.6.2",
+            "artifact_sha256": "16a84a6e536f832e6ed9195f67dcf9ce29f0efa7c1f00fcfd93af7302f3c4471"
           }
         ],
         "aliases": [],

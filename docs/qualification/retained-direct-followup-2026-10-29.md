@@ -24,11 +24,12 @@ framework `ae1c742adef48b6ef6ed5b4c1dd4b64514086edd`, and combined Windows ZIP
 SHA256 `16a84a6e536f832e6ed9195f67dcf9ce29f0efa7c1f00fcfd93af7302f3c4471`.
 Actual bounded ZIP/AMD64/header/build-info inspection identifies the root player
 separately from `scd_pack_validate.exe`; no helper was executed. Tagged source
-retains combined-ROM identity and build-bound state callbacks. These are static
-package/source observations, not gameplay, old-state compatibility or a new
-source-contract applicability admission. The current typed contract's explicit
-release binding still names v0.5.3; do not label a later release reviewed from
-an unchanged original hash alone.
+retains combined-ROM identity and build-bound state callbacks. These static
+package/source observations establish no native execution, gameplay or retained
+state compatibility. This candidate adds the exact v0.6.2 publisher
+package/source binding to the existing typed contract, retaining v0.5.3 and its
+evidence unchanged. Other releases remain unreviewed; an unchanged original hash
+alone does not admit them.
 
 **Repair in this candidate:** generic empty expansion checks only added paths.
 That does not prove common settings, SRAM or quickstates empty. The bounded S3
@@ -46,7 +47,7 @@ creating-runtime Play, inspection, backup and preserving removal retain their
 contracts. Populated old-to-new adoption and state compatibility remain held.
 Resume with an exact creating-runtime/data packet and reviewed transition
 compatibility/preservation evidence, plus explicit authority for any populated
-mapping. A later exact source-applicability addition does not supply that proof.
+mapping. The exact source-applicability addition does not supply that proof.
 
 ## Sonic 1 — #152
 

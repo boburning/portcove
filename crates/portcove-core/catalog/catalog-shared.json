@@ -616,7 +616,7 @@
         "authority": "alexbeavs-ps1-ports/dino-crisis-recomp",
         "authority_ref": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/7fd9deaa0ef7f8b689b1092821c19ac6a0de87db/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/main/game.toml"
       },
@@ -626,7 +626,7 @@
         "authority": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
         "authority_ref": "38514024f3a7cea54ff05ae3afdad0929920cb5a",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/38514024f3a7cea54ff05ae3afdad0929920cb5a/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/main/game.toml"
       },
@@ -636,7 +636,7 @@
         "authority": "alexbeavs-ps1-ports/alien-resurrection-recomp",
         "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/main/game.toml"
       },
@@ -646,7 +646,7 @@
         "authority": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
         "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/54ddfe971dfd79134f2593b00dbd9b78ae51536b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/main/game.toml"
       },
@@ -962,6 +962,16 @@
         "immutable_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
         "live_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
         "claim": "Upstream get_aog_full_v1_0_resources, get_aog_full_v2_0_resources, get_aog_full_v2_1_resources, get_aog_full_v3_0_resources and get_ps_resources bind each complete original resource set by filename and SHA1. Each retail AOG set has twelve BS6 members; Planet Strike has ten VSI members. These upstream byte identities do not establish gameplay, Portcove preparation or cross-version player-data compatibility. BS1 shareware sets are distinct and are not admitted by these retail contracts."
+      },
+      {
+        "id": "sonic-3-and-knuckles-recomp-0-6-2-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/Sonic3AndKnucklesRecomp",
+        "authority_ref": "6ce74a70161f0fe42dd8deda5cc9108c4ed0fd90",
+        "reviewed_at": "2026-10-29",
+        "claim": "Tagged combined-game v0.6.2 requires four-MiB original CRC63522553; joins the existing independently admitted exact-stock original identity. Bound only to publisher-matched combined Windows package 16a84a6e536f832e6ed9195f67dcf9ce29f0efa7c1f00fcfd93af7302f3c4471. This is source applicability, not native execution or legacy state/data compatibility.",
+        "immutable_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/6ce74a70161f0fe42dd8deda5cc9108c4ed0fd90/game/sonic3k/sonic3k_spec.c",
+        "live_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c"
       }
     ],
     "identities": [
@@ -2918,12 +2928,12 @@
       },
       {
         "id": "pokemon-gen-1",
-        "label": "Pok\u00e9mon Red (US) source",
+        "label": "Pokémon Red (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pok\u00e9mon Red (US) source",
+            "title": "Pokémon Red (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -2958,12 +2968,12 @@
       },
       {
         "id": "pokemon-gold",
-        "label": "Pok\u00e9mon Gold (US) source",
+        "label": "Pokémon Gold (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pok\u00e9mon Gold (US) source",
+            "title": "Pokémon Gold (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -2998,12 +3008,12 @@
       },
       {
         "id": "pokemon-silver",
-        "label": "Pok\u00e9mon Silver (US) source",
+        "label": "Pokémon Silver (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pok\u00e9mon Silver (US) source",
+            "title": "Pokémon Silver (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -3038,12 +3048,12 @@
       },
       {
         "id": "pokemon-crystal",
-        "label": "Pok\u00e9mon Crystal (US) source",
+        "label": "Pokémon Crystal (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pok\u00e9mon Crystal (US) source",
+            "title": "Pokémon Crystal (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -4009,12 +4019,12 @@
       },
       {
         "id": "masters-of-teras-kasi-psx",
-        "label": "Star Wars: Masters of Ter\u00e4s K\u00e4si (USA) disc",
+        "label": "Star Wars: Masters of Teräs Käsi (USA) disc",
         "kind": "optical-disc",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Star Wars: Masters of Ter\u00e4s K\u00e4si (USA) disc",
+            "title": "Star Wars: Masters of Teräs Käsi (USA) disc",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -11172,10 +11182,11 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
-          "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+          "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity",
+          "sonic-3-and-knuckles-recomp-0-6-2-source-contract"
         ],
         "authority_ref": "74e8aeadb5b8b8da7e776beb0d28f915e3efeb85",
-        "reviewed_at": "2026-10-18",
+        "reviewed_at": "2026-10-29",
         "immutable_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/74e8aeadb5b8b8da7e776beb0d28f915e3efeb85/game/sonic3k/sonic3k_spec.c",
         "live_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c",
         "evidence_gap": null,
@@ -11183,6 +11194,10 @@
           {
             "upstream_ref": "v0.5.3",
             "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+          },
+          {
+            "upstream_ref": "v0.6.2",
+            "artifact_sha256": "16a84a6e536f832e6ed9195f67dcf9ce29f0efa7c1f00fcfd93af7302f3c4471"
           }
         ],
         "aliases": [],
