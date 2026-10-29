@@ -51,6 +51,7 @@ import {
 } from "./release-windows-owner-mechanism.mts";
 import {
   readOriginalHostedWindowsDiagnosticInputs,
+  requireOriginalHostedWindowsDiagnosticContext,
   readOrdinaryHostedWindowsDiagnosticDeadline,
   readBoundedDiagnosticProviderBody,
 } from "./release-hosted-native-windows-diagnostic-source.mts";
@@ -96,11 +97,99 @@ type State = WindowsOwnerMechanismState & {
   stage?: Stage;
   recoveryAttempted: boolean;
 };
+let startupPhase:
+  | "module-loaded"
+  | "source-gate-verified"
+  | "inputs-verifying"
+  | "provider-clock-verifying"
+  | "publishing-ready"
+  | "awaiting-start-ack"
+  | "start-ack-verified" = "module-loaded";
+
+const diagnosticStartupSourceSites = [
+  ["diagnostic-controller", "release-hosted-native-windows-diagnostic.mts"],
+  ["diagnostic-inputs", "release-hosted-native-windows-diagnostic-source.mts"],
+  ["hosted-runtime-input", "hosted-windows-runtime-input.mts"],
+  ["webview-driver", "release-windows-webview-driver.mts"],
+  ["owner-mechanism", "release-windows-owner-mechanism.mts"],
+  ["native-custody", "release-native-runtime-custody.mts"],
+  ["controller-tools", "release-controller-tools.mts"],
+].map(([script, filename]) => {
+  const url = new URL(`./${filename}`, import.meta.url);
+  return { script, paths: [url.href, fileURLToPath(url)] };
+});
+
+/** Public classification only. Unknown strings, stacks and paths never leave C. */
+export function projectDiagnosticStartupFailure(error: unknown) {
+  const names = ["Error", "AssertionError", "TypeError", "RangeError", "SyntaxError"];
+  const codes = [
+    "ERR_ASSERTION",
+    "ERR_MODULE_NOT_FOUND",
+    "MODULE_NOT_FOUND",
+    "ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX",
+    "ERR_UNKNOWN_FILE_EXTENSION",
+    "ERR_INVALID_ARG_VALUE",
+    "ERR_INVALID_ARG_TYPE",
+    "ENOENT",
+    "EACCES",
+    "EPERM",
+    "EINVAL",
+    "ETIMEDOUT",
+  ];
+  let name: unknown, code: string | undefined, message: unknown, stack: unknown;
+  try {
+    if (error instanceof Error) {
+      name = error.name;
+      message = error.message;
+      stack = error.stack;
+    }
+    code = errorCode(error);
+  } catch {
+    /* A hostile accessor is unavailable telemetry, not a replacement failure. */
+  }
+  const bytes = typeof message === "string" ? Buffer.byteLength(message) : null;
+  let source_site: { script: string; line: number; column: number } | null = null;
+  if (typeof stack === "string" && Buffer.byteLength(stack) <= 16384) {
+    for (const frame of stack.split("\n").slice(1, 65)) {
+      for (const site of diagnosticStartupSourceSites)
+        for (const filename of site.paths) {
+          const escaped = filename.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+          const match = new RegExp(
+            `^\\s{0,8}at (?:[^()\\r\\n]{1,160} \\()?${escaped}:([1-9][0-9]{0,6}):([1-9][0-9]{0,4})\\)?$`,
+            "u",
+          ).exec(frame);
+          if (match) {
+            source_site = {
+              script: site.script!,
+              line: Number(match[1]),
+              column: Number(match[2]),
+            };
+            break;
+          }
+        }
+      if (source_site) break;
+    }
+  }
+  return {
+    source_site,
+    name: typeof name === "string" && names.includes(name) ? name : "unclassified",
+    code: code !== undefined && codes.includes(code) ? code : "unclassified",
+    message_utf8_bytes: bytes,
+    message_sha256:
+      typeof message === "string" && bytes !== null && bytes <= 16384
+        ? hash(Buffer.from(message))
+        : null,
+    message_disposition:
+      bytes === null ? "unavailable" : bytes <= 16384 ? "digest-only" : "oversize-not-retained",
+  };
+}
+
 function held() {
   assert.ok(
     hostedWindowsConnectedDiagnosticExecutionAuthorized,
     "Connected Windows diagnostic awaits exact new source/account/candidate/recovery authority",
   );
+  requireOriginalHostedWindowsDiagnosticContext();
 }
 function environment(root: string) {
   return {
@@ -1085,13 +1174,17 @@ async function retainDiagnosticPublicSettlement(
 /** The source-false gate precedes provider, source, tool, account and station work. */
 export async function runHostedWindowsConnectedDiagnostic() {
   held();
-  const inputs = await readOriginalHostedWindowsDiagnosticInputs(),
-    budget = await readOrdinaryHostedWindowsDiagnosticDeadline({
-      source: inputs.source,
-      run_id: inputs.run_id,
-      attempt: "1",
-    });
+  startupPhase = "source-gate-verified";
+  startupPhase = "inputs-verifying";
+  const inputs = await readOriginalHostedWindowsDiagnosticInputs();
+  startupPhase = "provider-clock-verifying";
+  const budget = await readOrdinaryHostedWindowsDiagnosticDeadline({
+    source: inputs.source,
+    run_id: inputs.run_id,
+    attempt: "1",
+  });
   await acknowledgeOriginalControllerStart(inputs, budget.deadline);
+  startupPhase = "start-ack-verified";
   const built = await freshTools(inputs, budget.deadline),
     root = path.join(diagnosticRoot, "owner"),
     binding = randomBytes(32).toString("hex"),
@@ -1377,6 +1470,7 @@ function controlRoot() {
   return path.join(temporary, "portcove-hosted-windows-connected-diagnostic");
 }
 async function acknowledgeOriginalControllerStart(inputs: Inputs, deadline: number) {
+  startupPhase = "publishing-ready";
   const file = path.join(controlRoot(), "controller-ready.json"),
     value = {
       schema_version: 1,
@@ -1395,6 +1489,7 @@ async function acknowledgeOriginalControllerStart(inputs: Inputs, deadline: numb
       authority: "none",
     },
     bytes = await retain(file, value);
+  startupPhase = "awaiting-start-ack";
   const until = Math.min(deadline, performance.now() + 30000);
   for (;;) {
     assert.ok(performance.now() < until, "Original controller start acknowledgement exhausted");
@@ -1567,13 +1662,43 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (process.argv[2] !== "run") console.log(JSON.stringify(result));
     })
     .catch(async (error: unknown) => {
-      if (hostedWindowsConnectedDiagnosticExecutionAuthorized) {
+      let originalContextVerified = false;
+      try {
+        requireOriginalHostedWindowsDiagnosticContext();
+        originalContextVerified = true;
+      } catch {
+        /* Wrong context cannot write failure evidence. */
+      }
+      if (hostedWindowsConnectedDiagnosticExecutionAuthorized && originalContextVerified) {
+        let created: string = "Unknown";
+        try {
+          created = windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid);
+        } catch {
+          /* Failed identity observation remains Unknown; never masks the original refusal. */
+        }
         await retain(path.join(controlRoot(), "controller-failure.json"), {
+          schema_version: 1,
           source: process.env.GITHUB_SHA,
+          tree: (() => {
+            try {
+              return execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
+                cwd: project,
+                encoding: "utf8",
+                timeout: 5000,
+                maxBuffer: 1024,
+                windowsHide: true,
+              }).trim();
+            } catch {
+              return "Unknown";
+            }
+          })(),
           run_id: process.env.GITHUB_RUN_ID,
-          attempt: process.env.GITHUB_RUN_ATTEMPT,
-          failure:
-            error instanceof Error ? error.message.slice(0, 1024) : "Original controller refused",
+          attempt: 1,
+          workflow: process.env.GITHUB_WORKFLOW_REF,
+          pid: process.pid,
+          created_filetime: created,
+          phase: startupPhase,
+          error: projectDiagnosticStartupFailure(error),
           authority: "none",
           automatic_retry: false,
         }).catch(() => {});

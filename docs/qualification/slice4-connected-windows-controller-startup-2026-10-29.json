@@ -1,0 +1,182 @@
+{
+  "source": "855187d23b54150391b17ab8853acfd8b63be738",
+  "tree": "5859ee786a28aca5d60b1bc291d8810422ae6c4e",
+  "run": 40786468754,
+  "attempt": 1,
+  "job": 123160802381,
+  "provider_result": "failure",
+  "provider_seconds": 4518,
+  "failed_step": "Start the separately held original connected diagnostic controller",
+  "failure_observed": "Original controller startup/source preflight failed or expired; launcher line89, within~3seconds; original deadline not reached",
+  "cause": "Unknown; no child exit/failure projection retained by this source",
+  "ready_and_settlement": "absent; upload emitted explicit no-files warning",
+  "effects": "Source-observed C creation followed by early exit; no ready/ACK admits freshTools/account/station. No independent post-VM OS inventory or private/connected acceptance.",
+  "runtime": {
+    "source": "855187d23b54150391b17ab8853acfd8b63be738",
+    "run_id": "40786468754",
+    "attempt": "1",
+    "workflow": "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-node-canary-20261028",
+    "scope": "hosted runtime prerequisite only; not native acceptance",
+    "minimum": "155.0.4283.62",
+    "before": ["131.0.2903.86"],
+    "after": ["156.0.4314.50"],
+    "stage": "ready-installed",
+    "installed": true,
+    "automatic_retry": false,
+    "runtime_preparation_observation": {
+      "scope": "reviewed diagnostic after workflow gate through terminal readback/disposal; cold setup and final receipt write excluded",
+      "elapsed_milliseconds": 67128.0,
+      "phases": [
+        {
+          "phase": "entry",
+          "elapsed_milliseconds": 3.0
+        },
+        {
+          "phase": "initial-runtime-readback",
+          "elapsed_milliseconds": 116.0
+        },
+        {
+          "phase": "download-starting",
+          "elapsed_milliseconds": 125.0
+        },
+        {
+          "phase": "download-disposed",
+          "elapsed_milliseconds": 701.0
+        },
+        {
+          "phase": "signature-hash-verified",
+          "elapsed_milliseconds": 849.0
+        },
+        {
+          "phase": "installer-starting",
+          "elapsed_milliseconds": 863.0
+        },
+        {
+          "phase": "installer-process-disposed",
+          "elapsed_milliseconds": 67063.0
+        },
+        {
+          "phase": "post-install-runtime-readback",
+          "elapsed_milliseconds": 67124.0
+        },
+        {
+          "phase": "terminal-receipt-ready",
+          "elapsed_milliseconds": 67128.0
+        }
+      ]
+    },
+    "installer_sha256": "13f6d9cdc8c3e7186e4b180db7f48e199ee97d631480e8391fb3106f338fb21a",
+    "signer_thumbprint": "4028CAD637509D4744B17EC5B42AED8D7A31E6AF",
+    "exit_code": 0,
+    "observed_at": "2026-10-28T23:23:25.8410348Z"
+  },
+  "driver_baseline": {
+    "captured_at": "2026-10-29T00:34:25.3596149Z",
+    "process_integrity_sid": "S-1-16-12288",
+    "process_integrity_group_count": 1,
+    "whoami_exit_code": 0,
+    "administrator_token": true,
+    "webview2_runtime_versions": ["156.0.4314.50"],
+    "cached_webview2_version": "156.0.4314.50",
+    "drivers": {
+      "tauri_driver": {
+        "reported": "Error: unused arguments left: [\"--version\"]\r\nUSAGE: tauri-driver [FLAGS] [OPTIONS]\r\n\r\nFLAGS:\r\n  -h, --help              Prints help information\r\n\r\nOPTIONS:\r\n  --port NUMBER           Sets the tauri-driver intermediary port\r\n  --native-port NUMBER    Sets the port of the underlying WebDriver\r\n  --native-host HOST      Sets the host of the underlying WebDriver (Linux only)\r\n  --native-driver PATH    Sets the path to the native WebDriver binary",
+        "exit_code": 1,
+        "sha256": "9c4cdf9d861b6f8cbe31bdd9460da55fc4a997bf748fc92b6c2543b26f9d338f"
+      },
+      "native_driver": {
+        "reported": "Microsoft Edge WebDriver 156.0.4314.50 (af2ba23ae0ecf7084d900446fc59d5119dd5fd5e)",
+        "exit_code": 0,
+        "sha256": "dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3"
+      }
+    },
+    "os_version": "Microsoft Windows NT 10.0.20348.0",
+    "os_architecture": "X64"
+  },
+  "fixture_packages": [
+    {
+      "version": "1.0.0-rc.2",
+      "artifacts": [
+        {
+          "path": "work/updater-rehearsal/1.0.0-rc.2-windows-x86_64/Portcove_1.0.0-rc.2_x64-setup.exe",
+          "bytes": 13789010,
+          "sha256": "2bb540536ede6fe2e71b8fc1484aadf15ec9cb387f816560ebbdaa06b81d4d7e"
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "artifacts": [
+        {
+          "path": "work/updater-rehearsal/1.0.0-windows-x86_64/Portcove_1.0.0_x64-setup.exe",
+          "bytes": 13798819,
+          "sha256": "76f3a77d8b49b3127056d02b25fb976175102b93785d5138b7119d956d10e602"
+        }
+      ]
+    }
+  ],
+  "artifact_identity": [
+    {
+      "kind": "resource",
+      "id": 12863586265,
+      "bytes": 483691,
+      "sha256": "1c03cdb1e208223fceae0af560736e9e1d78f59df1105c3791eb0df18e0dba57"
+    },
+    {
+      "kind": "native",
+      "id": 12863371700,
+      "bytes": 98703,
+      "sha256": "4150ac9cfe600c0f91e2fe05fe4c6033058c063cbe46a10381b7d2f659d96483"
+    }
+  ],
+  "resource": {
+    "context": {
+      "source": "855187d23b54150391b17ab8853acfd8b63be738",
+      "run_id": "40786468754",
+      "attempt": "1",
+      "workflow": "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-node-canary-20261028",
+      "job": "installed-prerequisite",
+      "platform": "windows-x86_64",
+      "mode": "false"
+    },
+    "pid": 1196,
+    "birth_ticks": "windows-start-ticks:639288264361764629",
+    "raw_bytes": 479208,
+    "raw_sha256": "1a398b075dc86b1ae6dc9405284f081ba2daab18569c42271c44db9005a38a3c",
+    "rows": 898,
+    "first_observed_at": "2026-10-28T23:20:36.7059440Z",
+    "last_observed_at": "2026-10-29T00:35:21.6676862Z",
+    "first_elapsed_milliseconds": 17,
+    "last_elapsed_milliseconds": 4485058,
+    "sampled_span_milliseconds": 4485041,
+    "maximum_gap_milliseconds": 5146,
+    "terminal_elapsed_milliseconds": 4487338,
+    "counter_error_rows": 0,
+    "missed_intervals": 0,
+    "maximum_sampled_machine_used_bytes": 6558609408,
+    "volumes": [
+      {
+        "root": "D:\\",
+        "available_samples": 898,
+        "minimum_free_bytes": 146087497728,
+        "minimum_available_to_caller_bytes": 146087497728
+      },
+      {
+        "root": "C:\\",
+        "available_samples": 898,
+        "minimum_free_bytes": 84267782144,
+        "minimum_available_to_caller_bytes": 84267782144
+      }
+    ],
+    "scope": "Raw-byte/count/terminal/context/observer-identity closure and sampled machine counters only; no continuous peaks, job attribution, provider setup or post-last-sample observation"
+  },
+  "stable_waiting": {
+    "requested": false,
+    "observed": false,
+    "reason": "preview-final maps candidate_production_eligible=true; source passes VerifyStableWaiting only when false. This fixture field is not production authorization."
+  },
+  "retention": "/home/boburning/code/portcove/work/qualification-534/windows-connected-native-855187d2-40786468754-1/retention-manifest-v2.json",
+  "remote_ref": "conditionally retired after terminal and independent complete readback; local source retained; PR3937closed/unmerged",
+  "owning_receipt": "https://github.com/boburning/portcove/issues/534#issuecomment-6484749175",
+  "scope": "Actual ordinary package/runtime/machine-counter evidence plus retained original-controller startup failure; no private qualification, protected production, S1, signing/publication,315managed or246unchanged-client acceptance"
+}

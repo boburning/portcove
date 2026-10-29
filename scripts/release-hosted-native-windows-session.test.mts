@@ -526,11 +526,17 @@ void test("fixed diagnostic acquisition reuses signature verification and refuse
     new URL("./release-hosted-native-windows-diagnostic-source.mts", import.meta.url),
     "utf8",
   );
-  const code = body(
-    "export async function readOriginalHostedWindowsDiagnosticInputs()",
-    "export const hostedWindowsDiagnosticOwnerMilliseconds",
-    implementation,
-  );
+  const code =
+    body(
+      "export function requireOriginalHostedWindowsDiagnosticContext()",
+      "export async function readOriginalHostedWindowsDiagnosticInputs()",
+      implementation,
+    ) +
+    body(
+      "export async function readOriginalHostedWindowsDiagnosticInputs()",
+      "export const hostedWindowsDiagnosticOwnerMilliseconds",
+      implementation,
+    );
   for (const scenario of [
     "success",
     "foreign-source",
@@ -1465,4 +1471,63 @@ void test("actual diagnostic first-stage failure preserves recovery success or U
     );
     assert.equal(final.recovery.account_disabled, recoveryFails ? "Unknown" : true);
   }
+});
+
+void test("diagnostic startup errors retain only closed classifications and bounded message digests", () => {
+  const implementation = readFileSync(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    "utf8",
+  );
+  const code = body(
+    "export function projectDiagnosticStartupFailure(",
+    "\nfunction held()",
+    implementation,
+  );
+  const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
+  const classify = (error: unknown): unknown =>
+    runInNewContext(code + "\nprojectDiagnosticStartupFailure(error)", {
+      Buffer,
+      Error,
+      hash,
+      error,
+      diagnosticStartupSourceSites: [
+        {
+          script: "diagnostic-inputs",
+          paths: ["file:///owned/scripts/release-hosted-native-windows-diagnostic-source.mts"],
+        },
+      ],
+      errorCode: (value: unknown) =>
+        isRecord(value) && typeof value.code === "string" ? value.code : undefined,
+    });
+  const marker = "synthetic-private-startup-secret";
+  const located = Object.assign(new Error("private path and message"), {
+    stack:
+      "Error: private path and message\n    at readInputs (file:///owned/scripts/release-hosted-native-windows-diagnostic-source.mts:412:7)",
+  });
+  const locatedProjection = classify(located);
+  assert.ok(isRecord(locatedProjection));
+  assert.equal(
+    JSON.stringify(locatedProjection.source_site),
+    JSON.stringify({ script: "diagnostic-inputs", line: 412, column: 7 }),
+  );
+  assert.equal(JSON.stringify(locatedProjection).includes("file:///owned"), false);
+
+  const classified = classify(Object.assign(new Error(marker), { code: "ERR_ASSERTION" }));
+  assert.ok(isRecord(classified));
+  assert.equal(classified.name, "Error");
+  assert.equal(classified.code, "ERR_ASSERTION");
+  assert.equal(classified.message_utf8_bytes, Buffer.byteLength(marker));
+  assert.equal(classified.message_sha256, hash(Buffer.from(marker)));
+  assert.equal(classified.message_disposition, "digest-only");
+  assert.equal(JSON.stringify(classified).includes(marker), false);
+  const unknown = classify(Object.assign(new Error(marker), { name: marker, code: marker }));
+  assert.ok(isRecord(unknown));
+  assert.equal(unknown.name, "unclassified");
+  assert.equal(unknown.code, "unclassified");
+  assert.equal(JSON.stringify(unknown).includes(marker), false);
+  const oversized = classify(new Error("x".repeat(16385)));
+  assert.ok(isRecord(oversized));
+  assert.equal(oversized.message_utf8_bytes, 16385);
+  assert.equal(oversized.message_sha256, null);
+  assert.equal(oversized.message_disposition, "oversize-not-retained");
 });
