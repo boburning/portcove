@@ -680,6 +680,14 @@
       ]
     },
     {
+      "file": "scripts/native-qualification-inventory.test.mts",
+      "memberships": [
+        ["windows-storage-4", 301],
+        ["frontend-full-4", 301],
+        ["development-tools", 2101]
+      ]
+    },
+    {
       "file": "scripts/desktop-input-observation.test.mts",
       "memberships": [
         ["catalog-full-2", 4100],
