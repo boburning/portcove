@@ -656,6 +656,16 @@ attempt status. A first failure has no successful observation or invented digest
 Collection never accepts, signs or publishes these candidates. Actual protected
 provisioning and unchanged-client production acceptance remain #534/#246 work.
 
+The same report carries `descriptive_listing_preimages`, keyed by stable ID and
+binding the prior accepted observation hash. Feed a retained source report to
+`prepare-port.mts --listing-observations REPORT --validator-cli TRUSTED_CLI
+--output-dir CHECKPOINT` to obtain complete authored-record proposals through the
+existing preparation machinery. It checks the current declaration and observation
+preimage, preserves integration/artwork/restriction fields and makes no provider
+requests. This removes manual record reconstruction while preserving ordinary
+acceptance and signing. Preimages prevent stale proposal application; they do not
+authenticate provider data or grant publication authority.
+
 Reason-bearing pin maintenance comes from authored `release_maintenance`; exact
 versions and publication dates derive from the accepted Direct contract. Newer
 observed headers trigger a bounded reconsideration report with its reason and

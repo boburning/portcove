@@ -9,6 +9,7 @@ import {
   rmSync,
   writeFileSync,
   mkdirSync,
+  existsSync,
 } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
@@ -23,11 +24,13 @@ import {
 import {
   preparePort,
   prepareArtworkBatch,
+  prepareListingObservations,
   portablePreparationFeedback,
   downloadPreparationFeedback,
   canonicalPreparationFeedback,
 } from "./prepare-port.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
+import { observationHash } from "./upstream-observer.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import type { ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
@@ -1439,7 +1442,7 @@ void test("batch exact-image invalidation includes an unselected listing-only re
       artwork: inspector,
     });
     assert.deepEqual(
-      result.report.changed_records.sort(),
+      [...result.report.changed_records].sort(),
       entries.map((record) => record.listing.id).sort(),
     );
     assert.deepEqual(
@@ -1688,4 +1691,213 @@ void test("numeric architecture ABI and engine-generation fragments remain legit
   };
   const feedback = downloadPreparationFeedback(record, { assets_complete: true, assets: [] })!;
   assert.deepEqual(feedback.maintenance.potential_version_restrictions, []);
+});
+
+function listingObservationCandidate(listing: Record<string, unknown>) {
+  const repository =
+    typeof listing.release_url === "string"
+      ? githubReleaseRepository(listing.release_url)
+      : undefined;
+  const fallback =
+    typeof listing.project_url === "string" ? githubRepository(listing.project_url) : undefined;
+  assert.ok(repository ?? fallback);
+  return {
+    ...structuredClone(listing),
+    id: listing.id,
+    upstream_observation: {
+      provider: "github",
+      repository: repository ?? fallback,
+      repository_id: null,
+      status: "failed",
+      attempted_at: "2026-10-29T00:00:00Z",
+      observed_at: null,
+      fresh_until: null,
+      facts_sha256: null,
+      release_limit: 4,
+      releases: [],
+    },
+  };
+}
+
+void test("retained observation preparation preserves contracts and authored facts without collection", (context) => {
+  const f = fixture();
+  const accepted = readCatalogSource(catalogRoot);
+  const ids = ["marathon-aleph-one", "3d-pinball-for-windows-space-cadet-spacecadetpinball"];
+  const candidates = ids.map((id) => {
+    const listing = accepted.directory.listings.find((listing) => listing.id === id);
+    assert.ok(listing);
+    return listingObservationCandidate(listing);
+  });
+  const handoff = { descriptive_listing_candidates: candidates, execution: { kind: "fixture" } };
+  const before = structuredClone(handoff);
+  let network = 0;
+  context.mock.method(globalThis, "fetch", () => {
+    network++;
+    throw new Error("Provider access is forbidden");
+  });
+  try {
+    const options = { catalogRoot, outputDirectory: join(f.root, "output"), handoff };
+    const result = prepareListingObservations(options);
+    assert.deepEqual(result.report.selected_port_ids, [...ids].sort());
+    assert.deepEqual([...result.report.changed_records].sort(), [...ids].sort());
+    assert.equal(result.report.operational_changed, false);
+    assert.equal(result.report.artwork_reused, true);
+    assert.equal(result.report.files.records.length, 2);
+    assert.deepEqual(
+      JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
+      accepted.catalog,
+    );
+    for (const change of result.report.record_changes) {
+      assert.equal(change.integration_changed, false);
+      assert.deepEqual(change.listing_fields, ["upstream_observation"]);
+    }
+    for (const file of result.report.files.records) {
+      const record = JSON.parse(readFileSync(file.path, "utf8")) as AuthoredPort;
+      const prior = accepted.records.find((entry) => entry.listing.id === record.listing.id)!;
+      const { upstream_observation, ...listing } = record.listing;
+      assert.deepEqual(listing, prior.listing);
+      assert.deepEqual(record.integration, prior.integration);
+      assert.deepEqual(record.release_maintenance, prior.release_maintenance);
+      assert.deepEqual(
+        upstream_observation,
+        candidates.find((entry) => entry.id === record.listing.id)!.upstream_observation,
+      );
+    }
+    assert.deepEqual(readCatalogSource(catalogRoot), accepted);
+    assert.deepEqual(handoff, before);
+    assert.equal(network, 0);
+    assert.equal(existsSync(join(options.outputDirectory, "active.lock")), false);
+    const resumed = prepareListingObservations(options);
+    assert.deepEqual(resumed.report.files.records, result.report.files.records);
+    assert.equal(resumed.report.handoff_semantic_sha256, result.report.handoff_semantic_sha256);
+    assert.equal(network, 0);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("observation preparation refuses stale declarations, duplicate and unknown identities before writing", () => {
+  const f = fixture();
+  try {
+    const accepted = readCatalogSource(catalogRoot);
+    const listing = accepted.directory.listings.find((value) => value.id === "marathon-aleph-one")!;
+    const candidate = listingObservationCandidate(listing);
+    const invalid = [
+      { descriptive_listing_candidates: [{ ...candidate, name: "Old authored name" }] },
+      { descriptive_listing_candidates: [{ ...candidate, release_maintenance: null }] },
+      {
+        descriptive_listing_candidates: [
+          { ...candidate, download_block_reason: "Invented restriction" },
+        ],
+      },
+      { descriptive_listing_candidates: [candidate, candidate] },
+      { descriptive_listing_candidates: [{ ...candidate, id: "unknown-project" }] },
+      { descriptive_listing_candidates: [{ ...candidate, upstream_observation: null }] },
+      { descriptive_listing_candidates: "incomplete" },
+      null,
+    ];
+    for (const handoff of invalid) {
+      const outputDirectory = join(f.root, "refused");
+      assert.throws(
+        () => prepareListingObservations({ catalogRoot, outputDirectory, handoff }),
+        /declaration changed|unique existing|requires an exact|requires.*stable ID|Each descriptive|handoff is required/,
+      );
+      assert.equal(existsSync(outputDirectory), false);
+    }
+    assert.deepEqual(readCatalogSource(catalogRoot), accepted);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("listing observation CLI rejects mixed investigation and artwork routes", () => {
+  const f = fixture();
+  try {
+    for (const extra of [
+      ["--project", project],
+      ["--artwork-ids", "marathon-aleph-one"],
+      ["--record", "absent.json"],
+      ["--identities", "absent.json"],
+    ]) {
+      const result = childProcess.spawnSync(
+        process.execPath,
+        [
+          "scripts/prepare-port.mts",
+          "--listing-observations",
+          "absent.json",
+          "--output-dir",
+          join(f.root, "output"),
+          ...extra,
+        ],
+        { encoding: "utf8" },
+      );
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Listing observation batches cannot mix/);
+      assert.equal(existsSync(join(f.root, "output")), false);
+    }
+  } finally {
+    f.clean();
+  }
+});
+
+void test("prepared observations bind the accepted observation preimage and cannot erase a later snapshot", () => {
+  const f = fixture();
+  try {
+    const localCatalog = join(f.root, "catalog");
+    cpSync(catalogRoot, localCatalog, { recursive: true });
+    const initial = readCatalogSource(localCatalog);
+    const listing = initial.directory.listings.find((value) => value.id === "marathon-aleph-one")!;
+    const candidate = listingObservationCandidate(listing);
+    const first = prepareListingObservations({
+      catalogRoot: localCatalog,
+      outputDirectory: join(f.root, "first"),
+      handoff: { descriptive_listing_candidates: [candidate] },
+    });
+    // Model acceptance through the existing canonical-record owner, not a new feed.
+    writeFileSync(
+      join(localCatalog, "ports/marathon-aleph-one.json"),
+      readFileSync(first.report.files.records[0]!.path),
+    );
+    const accepted = readCatalogSource(localCatalog);
+    const oldPreimage = {
+      "marathon-aleph-one": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    };
+    for (const descriptive_listing_preimages of [
+      undefined,
+      oldPreimage,
+      { "marathon-aleph-one": "bad" },
+    ]) {
+      assert.throws(
+        () =>
+          prepareListingObservations({
+            catalogRoot: localCatalog,
+            outputDirectory: join(f.root, "stale"),
+            handoff: {
+              descriptive_listing_candidates: [candidate],
+              ...(descriptive_listing_preimages ? { descriptive_listing_preimages } : {}),
+            },
+          }),
+        /Accepted listing observation changed/,
+      );
+      assert.equal(existsSync(join(f.root, "stale")), false);
+    }
+    const current = accepted.directory.listings.find((value) => value.id === "marathon-aleph-one")!;
+    const updated = listingObservationCandidate(current);
+    updated.upstream_observation.attempted_at = "2026-10-29T01:00:00Z";
+    const prepared = prepareListingObservations({
+      catalogRoot: localCatalog,
+      outputDirectory: join(f.root, "current"),
+      handoff: {
+        descriptive_listing_candidates: [updated],
+        descriptive_listing_preimages: {
+          "marathon-aleph-one": observationHash(current.upstream_observation),
+        },
+      },
+    });
+    assert.deepEqual(prepared.report.changed_records, ["marathon-aleph-one"]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.deepEqual(readCatalogSource(localCatalog), accepted);
+  } finally {
+    f.clean();
+  }
 });

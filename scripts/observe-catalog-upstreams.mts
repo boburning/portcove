@@ -386,6 +386,13 @@ export async function runCatalogUpstreams(
             new Date(now()).toISOString(),
             source,
           ),
+          descriptive_listing_preimages: Object.fromEntries(
+            source.ports.flatMap((consumer) =>
+              consumer.listing
+                ? [[consumer.id, observationHash(consumer.listing.upstream_observation ?? null)]]
+                : [],
+            ),
+          ),
           descriptive_candidate_scope:
             "Unaccepted descriptive corrections only; existing protected acceptance and signed listing delivery are required. No managed eligibility is granted.",
           unassessed_current_port_ids: observation.report.exception
