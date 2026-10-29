@@ -2534,6 +2534,10 @@ export interface RecommendationScope {
 }
 export interface RecommendationRegression {
   affected_scope: RecommendationScope1;
+  /**
+   * Missing in legacy history: retain the failure, withhold automatic correction.
+   */
+  dimension: RecommendationDimension | null;
   explanation: string;
   id: string;
   observed_at: number;

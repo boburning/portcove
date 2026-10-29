@@ -35,7 +35,8 @@ function Fixture({ generation = 1 }: { generation?: number }) {
         <DialogContent
           finalFocus={trigger}
           aria-describedby={undefined}
-          className="max-h-[90vh] overflow-y-auto"
+          reviewSize="large"
+          className="port-comparison-dialog"
         >
           <DialogTitle>Compare independent projects</DialogTitle>
           <GameComparisonControls comparison={comparison} />
@@ -204,7 +205,7 @@ it("selects a displayed source edition and target platform without changing libr
     .toBe("fixture-edition");
   const platform = page.getByRole("combobox", { name: /Target platform/ });
   await userEvent.click(platform);
-  await userEvent.click(page.getByRole("option", { name: "Linux x64", exact: true }));
+  await userEvent.click(page.getByRole("option", { name: "Linux", exact: true }));
   await expect
     .poll(() => vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].platform)
     .toBe("linux-x86-64");
