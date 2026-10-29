@@ -139,7 +139,8 @@ export async function installScenarios({
   restartApplication,
 }: InstallContext) {
   const statuses = async () => transportValues("status", success(await invoke("get_statuses")));
-  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const button = (label: string) =>
+    By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
   const buttonStarting = (label: string) =>
     By.xpath(`//button[starts-with(normalize-space(.),"${label}")]`);
   const openFixture = async (port: FixturePort, installed = false) => {

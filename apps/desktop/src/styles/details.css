@@ -34,7 +34,7 @@
     font-size: clamp(1.75rem, 2.4vw, 2.5rem);
     font-weight: 650;
     text-wrap: balance;
-    line-height: 1.15;
+    line-height: 1.3;
     letter-spacing: -0.035em;
   }
   .detail-header-actions .primary-actions {

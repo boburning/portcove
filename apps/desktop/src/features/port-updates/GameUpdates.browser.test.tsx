@@ -103,7 +103,9 @@ afterEach(async () => {
 });
 async function click(label: string, contains = false) {
   const control = [...document.querySelectorAll<HTMLElement>('button, [role="option"]')].find(
-    (item) => (contains ? item.textContent?.includes(label) : item.textContent === label),
+    (item) =>
+      !item.closest("[hidden]") &&
+      (contains ? item.textContent?.includes(label) : item.textContent === label),
   );
   expect(control).toBeDefined();
   await act(async () => control?.click());

@@ -669,7 +669,8 @@ async function assertReviewedUpdateOutcomes({
   generation: number;
   command: FixtureCommand;
 }) {
-  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const button = (label: string) =>
+    By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
   const dialog = By.css("[data-game-update-review]");
   interface CaseObservation extends ReviewObservation, Partial<ProbeCleanup> {
     availability?: string;
@@ -1119,7 +1120,8 @@ export async function preparationScenarios({
     seeded.set(portId, { mode, chd, value });
     return value;
   }
-  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const button = (label: string) =>
+    By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
   async function dismissApplicationUpdateChoice() {
     const preferences = await invoke("get_application_update_preferences");
     assert.equal(preferences.ok, true);
@@ -2514,7 +2516,7 @@ export async function preparationScenarios({
     );
     assert.equal(
       (await updateControl.findElements(By.css('[data-slot="select-trigger"]'))).length,
-      1,
+      0,
     );
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
@@ -2529,7 +2531,10 @@ export async function preparationScenarios({
     );
     // The immediate disposition is explicit; changing it requests a new bound plan.
     const initialReviewText = await review.getText();
-    const keepForLater = await review.findElements(button("Review prepare for later"));
+    const keepForLater = [
+      ...(await review.findElements(button("Prepare for later"))),
+      ...(await review.findElements(button("Keep for later"))),
+    ];
     if (keepForLater.length) {
       assert.ok(initialReviewText.includes("Confirm the release"));
       await clickVisible(browser, keepForLater[0]!);
@@ -2547,12 +2552,18 @@ export async function preparationScenarios({
     });
     assert.ok(reviewText.includes("Confirm the release"));
     assert.ok(reviewText.includes(candidate.plan.release.version));
-    if (["download", "use_staged", "reuse_retained"].includes(candidate.plan.action))
+    if (["download", "use_staged", "reuse_retained"].includes(candidate.plan.action)) {
+      assert.equal(
+        keepForLater.length,
+        1,
+        "A usable update must expose its real keep-for-later action",
+      );
       assert.ok(
         reviewText.includes(
           "This keeps the prepared update for later. Your current version stays unchanged.",
         ),
       );
+    }
     assert.ok(
       reviewText.includes("Saved update settings are unchanged") ||
         reviewText.includes("already active") ||
@@ -2577,7 +2588,15 @@ export async function preparationScenarios({
     );
     await browser.wait(
       () =>
-        executeBrowserScript(browser, "return document.activeElement === arguments[0];", trigger),
+        browser
+          .findElement(button("Update now"))
+          .then((currentTrigger) =>
+            executeBrowserScript(
+              browser,
+              "return document.activeElement === arguments[0];",
+              currentTrigger,
+            ),
+          ),
       5_000,
       "Game update review trigger did not regain focus after Escape",
     );

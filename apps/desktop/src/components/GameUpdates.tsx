@@ -537,7 +537,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       reviewButton.current.getClientRects().length > 0
     )
       return reviewButton.current;
-    return false;
+    return actionRegion.current?.isConnected ? actionRegion.current : false;
   };
   return (
     <section
@@ -555,25 +555,33 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         </p>
       )}
       <RetainedUpdateArchive control={control} portId={props.portId} />
-      {!archiveOnly && !plan && (
-        <div className="game-update-actions">
+      {!archiveOnly && (
+        <div
+          className={plan ? "game-update-actions hidden" : "game-update-actions"}
+          hidden={Boolean(plan)}
+        >
           <div className="flex flex-wrap items-center gap-2">
             <Button
-              ref={selectedIntent === "install" ? reviewButton : undefined}
+              ref={reviewButton}
               data-focusable
               variant={compact || props.primary === false ? "outline" : "primary"}
               disabled={exclusiveBusy || pending || !perform}
-              onClick={() => void review("install")}
+              onClick={(event) => {
+                reviewButton.current = event.currentTarget;
+                void review("install");
+              }}
             >
               {pending && selectedIntent === "install" ? "Checking update…" : "Update now"}
             </Button>
             {!existingArchive && (
               <Button
-                ref={selectedIntent === "download" ? reviewButton : undefined}
                 data-focusable
                 variant="outline"
                 disabled={acquireBusy || pending || !perform}
-                onClick={() => void review("download")}
+                onClick={(event) => {
+                  reviewButton.current = event.currentTarget;
+                  void review("download");
+                }}
               >
                 {pending && selectedIntent === "download"
                   ? "Checking download…"
@@ -581,14 +589,16 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
               </Button>
             )}
           </div>
-          <details inert={pending || applying} open={selectedIntent === "prepare"}>
+          <details inert={pending || applying}>
             <summary data-focusable>Advanced update choice</summary>
             <Button
-              ref={selectedIntent === "prepare" ? reviewButton : undefined}
               data-focusable
               variant="outline"
               disabled={pending || exclusiveBusy || !perform}
-              onClick={() => void review("prepare")}
+              onClick={(event) => {
+                reviewButton.current = event.currentTarget;
+                void review("prepare");
+              }}
             >
               {pending && selectedIntent === "prepare"
                 ? "Checking preparation…"
