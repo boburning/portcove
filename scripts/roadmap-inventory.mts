@@ -444,14 +444,18 @@ export function collectRoadmapInventory(
     }
     hydrate(changed);
     if (observationHash(marker()) !== observationHash(stableMarker))
-      throw new Error(
+      throw new GitHubApiError(
+        "repository_changed",
         "Repository changed during the single inventory reconciliation; resume on a later run",
       );
     rows = refreshed;
     // Discard the entire first Project observation, including dependencies and fields.
     project = collectProject();
     if (observationHash(marker()) !== observationHash(stableMarker))
-      throw new Error("Repository changed during inventory collection");
+      throw new GitHubApiError(
+        "repository_changed",
+        "Repository changed during inventory collection",
+      );
   }
   const { items: allItems, projectId } = project;
   const byId = new Map(rows.map((i) => [i.id, i]));

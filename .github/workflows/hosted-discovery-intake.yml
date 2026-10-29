@@ -46,7 +46,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-      - run: node --test scripts/hosted-discovery-intake.test.mts
+      - run: node --test scripts/hosted-discovery-intake*.test.mts
   intake:
     if: >-
       github.event_name != 'pull_request' &&
@@ -56,7 +56,8 @@ jobs:
       (github.event.issue.number == 177 &&
       startsWith(github.event.comment.body, '<!-- portcove-hosted-intake:v1 -->')))
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # At most three joined 31-minute workers, each with its existing 30-minute budget.
+    timeout-minutes: 100
     permissions:
       contents: read
       issues: write
@@ -74,7 +75,7 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Reconcile retained hosted requests through maintained intake and doctor
-        run: node scripts/hosted-discovery-intake.mts
+        run: node scripts/hosted-discovery-intake-runner.mts
         env:
           GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
           REPOSITORY_TOKEN: ${{ github.token }}
@@ -86,9 +87,11 @@ jobs:
           node --input-type=module - <<'JS'
           import { existsSync, readdirSync, readFileSync } from 'node:fs';
           const root = 'work/hosted-discovery-intake';
-          if (existsSync(root)) for (const name of readdirSync(root)) {
+          for (const directory of [root, ...[1, 2, 3].map(pass => `${root}/pass-${pass}`)]) {
+          if (existsSync(directory)) for (const name of readdirSync(directory)) {
             if (!/^(?:summary|inventory-recollection|write-probe|write-proof-\d+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
-            const bytes = readFileSync(`${root}/${name}`);
-            if (bytes.length <= 262144) console.log(JSON.stringify({ file: name, evidence: JSON.parse(bytes) }));
+            const bytes = readFileSync(`${directory}/${name}`);
+            if (bytes.length <= 262144) console.log(JSON.stringify({ file: `${directory}/${name}`, evidence: JSON.parse(bytes) }));
+          }
           }
           JS
