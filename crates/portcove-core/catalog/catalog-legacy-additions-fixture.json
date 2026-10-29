@@ -45,7 +45,9 @@
     "super-bomberman-snes-usa",
     "gundam-wing-endless-duel-snes-japan",
     "donkey-kong-country-2-snes-usa",
-    "ctr-native-ntsc-u-raw-bin"
+    "ctr-native-ntsc-u-raw-bin",
+    "bstone-aliens-of-gold-originals",
+    "bstone-planet-strike-originals"
   ],
   "port_ids": [
     "snap64-recomp",

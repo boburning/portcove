@@ -75,46 +75,74 @@
       "windows-x86-64": ["bstone.exe"]
     },
     "windows_runtime_path_policy": "relative-file-max-path",
-    "launch_arguments": ["--ps", "--data_dir", "originals", "--profile_dir", "."],
-    "persistent_paths": [
-      "originals",
-      "bstone_config.txt",
-      "bstone_config.txt.temp",
-      "bstone_log.txt",
-      "bstone_ps_high_scores",
-      "bstone_ps_high_scores.temp",
-      "bstone_ps_saved_game_0",
-      "bstone_ps_saved_game_0.temp",
-      "bstone_ps_saved_game_1",
-      "bstone_ps_saved_game_1.temp",
-      "bstone_ps_saved_game_2",
-      "bstone_ps_saved_game_2.temp",
-      "bstone_ps_saved_game_3",
-      "bstone_ps_saved_game_3.temp",
-      "bstone_ps_saved_game_4",
-      "bstone_ps_saved_game_4.temp",
-      "bstone_ps_saved_game_5",
-      "bstone_ps_saved_game_5.temp",
-      "bstone_ps_saved_game_6",
-      "bstone_ps_saved_game_6.temp",
-      "bstone_ps_saved_game_7",
-      "bstone_ps_saved_game_7.temp",
-      "bstone_ps_saved_game_8",
-      "bstone_ps_saved_game_8.temp",
-      "bstone_ps_saved_game_9",
-      "bstone_ps_saved_game_9.temp"
-    ],
-    "persistent_file_patterns": [
-      {
-        "prefix": "bstone_ps_sshot_",
-        "suffix": ".png"
-      }
-    ],
+    "launch_arguments": ["--ps", "--data_dir", "originals", "--profile_dir", "profile"],
+    "persistent_paths": ["profile"],
     "presentation": {
       "installation_method": "portable-package",
-      "source_requirements": [],
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "bstone-planet-strike-originals",
+          "label": "Planet Strike complete original resources",
+          "verification": "catalog-identity"
+        }
+      ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Supply the complete matching lawful Planet Strike VSI set (not Aliens of Gold BS1/BS6). Keep original files and their edition unchanged; do not rename another game’s files. Portcove does not authenticate originals or claim completed original preparation. Deliberately copy your matching set into an originals subfolder beside bstone.exe inside the versioned package wrapper, the actual executable-parent working directory; keep your original copies. An upstream-recognized installation is another source choice. --data_dir originals is preferred, not exclusive: upstream still searches working/profile and recognized GOG/Steam installations. This managed offer uses --ps for Planet Strike only. Play starts bstone.exe; upstream validates its selected original set. Missing or wrong originals may stop startup; a successful Core invocation or version diagnostic is not game success. --profile_dir . keeps default configuration, log, high scores, exact save/atomic-temporary slots and timestamped screenshots in the executable-parent coordinate. Core preserves those declared names and originals deliberately copied under originals. Different original versions or another source edition need a separate Portcove library or independently owned upstream copy; no in-place source switching, external profile adoption or cross-version save ABI is established. Preserve the creating runtime and data before changing versions. Custom outside-tree outputs remain externally owned and outside Core backups; unclaimed inside-tree outputs can hold maintenance. Existing external registrations keep their creating contracts. Fresh non-owning registration is still available through the broader upstream guide. One canonical entry in a library cannot hold managed and external runtimes concurrently. Keep the output path short to leave room for runtime-generated filenames. Generic fixtures and a diagnostic version dialog establish neither actual originals nor settings/screenshots/game-save compatibility or gameplay."
-    }
+      "manual_preparation": "Select a folder or ZIP containing your complete matching Planet Strike VSI set. Portcove verifies the reviewed upstream SHA1 identities as one complete edition, prepares immutable copies in originals and places settings, high scores, saves, screenshots and temporary files in the separate profile folder. Originals are not included. The --ps argument selects this game. Upstream may search recognized outside locations as well; those files stay externally owned and outside Portcove backup. This fresh managed offer does not convert existing registrations or adopt an older Native4 runtime/profile. Older contracts retain their originals directory and root-level persistence; shrinking or remapping that populated data is held. Preserve the creating runtime and profile before changing versions. Backup and preserving removal cover the declared profile; no save conversion or future-version save compatibility is established. The upstream guide remains the non-owning alternative for other original editions or existing players."
+    },
+    "source_profile": "bstone-planet-strike-originals",
+    "runtime_source_set": [
+      {
+        "source_filenames": ["AUDIOHED.VSI", "audiohed.vsi"],
+        "destination": "originals/audiohed.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["AUDIOT.VSI", "audiot.vsi"],
+        "destination": "originals/audiot.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["EANIM.VSI", "eanim.vsi"],
+        "destination": "originals/eanim.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["IANIM.VSI", "ianim.vsi"],
+        "destination": "originals/ianim.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["MAPHEAD.VSI", "maphead.vsi"],
+        "destination": "originals/maphead.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["MAPTEMP.VSI", "maptemp.vsi"],
+        "destination": "originals/maptemp.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGADICT.VSI", "vgadict.vsi"],
+        "destination": "originals/vgadict.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGAGRAPH.VSI", "vgagraph.vsi"],
+        "destination": "originals/vgagraph.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGAHEAD.VSI", "vgahead.vsi"],
+        "destination": "originals/vgahead.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VSWAP.VSI", "vswap.vsi"],
+        "destination": "originals/vswap.vsi",
+        "materialization": "copy"
+      }
+    ],
+    "windows_temp_directory": "profile"
   }
 }

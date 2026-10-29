@@ -422,9 +422,12 @@ fn interpreted_semantics_survive_existing_manifest_capture() {
 
 #[test]
 fn legacy_schema_one_keeps_its_original_source_profiles() {
-    let mut catalog = Catalog::embedded().unwrap().document().clone();
-    catalog.schema_version = 1;
-    catalog.source_catalog = None;
+    // Exercise the actual legacy authority; modern Native6 source contracts
+    // cannot be represented by deleting schema-2 authority from today's catalog.
+    let catalog = Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
+        .unwrap()
+        .document()
+        .clone();
     let document =
         json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog});
     let contract = serde_json::to_vec(&document).unwrap();
