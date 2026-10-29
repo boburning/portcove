@@ -385,6 +385,7 @@ fn support_bundle_survives_unavailable_and_corrupt_library_with_host_diagnostics
 
 fn activity_fixture() -> ActivityRecord {
     ActivityRecord {
+        liveness: None,
         id: "activity-1".into(),
         operation: ActivityOperation::Prepare,
         target_kind: ActivityTargetKind::Source,

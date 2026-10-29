@@ -780,6 +780,26 @@ impl OperationCoordinator {
     ) -> OperationEvent {
         self.event(OperationEventKind::Progress {
             phase: phase.into(),
+            phase_id: None,
+            unit: None,
+            completed,
+            total,
+        })
+    }
+
+    /// Producer-owned semantics. A full progress range is never a terminal result.
+    pub fn progress_with_unit(
+        &self,
+        phase_id: impl Into<String>,
+        unit: crate::ProgressUnit,
+        completed: u64,
+        total: Option<u64>,
+    ) -> OperationEvent {
+        let phase_id = phase_id.into();
+        self.event(OperationEventKind::Progress {
+            phase: phase_id.clone(),
+            phase_id: Some(phase_id),
+            unit: Some(unit),
             completed,
             total,
         })
@@ -906,6 +926,7 @@ mod tests {
 
     fn activity() -> ActivityRecord {
         ActivityRecord {
+            liveness: None,
             id: "durable-activity".into(),
             operation: ActivityOperation::Install,
             target_kind: ActivityTargetKind::Port,
@@ -960,5 +981,32 @@ mod tests {
         assert_eq!(events[4].sequence, 1);
         assert_eq!(events[2].sequence, 0);
         assert_eq!(events[5].sequence, 1);
+    }
+}
+
+#[cfg(test)]
+mod progress_semantics_tests {
+    use super::*;
+    #[test]
+    fn producer_semantics_roundtrip_and_legacy_progress_remains_unitless() {
+        let coordinator = OperationCoordinator::new("install", None);
+        let event =
+            coordinator.progress_with_unit("download", crate::ProgressUnit::Bytes, 4, Some(8));
+        let value = serde_json::to_value(event).unwrap();
+        assert_eq!(value["unit"], "bytes");
+        assert_eq!(value["phase_id"], "download");
+        let mut renamed = value.clone();
+        renamed["phase"] = "Different display wording".into();
+        let decoded: OperationEvent = serde_json::from_value(renamed).unwrap();
+        assert!(matches!(
+            decoded.event,
+            OperationEventKind::Progress {
+                unit: Some(crate::ProgressUnit::Bytes),
+                ..
+            }
+        ));
+        let legacy = serde_json::to_value(coordinator.progress("download", 4, Some(8))).unwrap();
+        assert!(legacy.get("unit").is_none());
+        assert!(legacy.get("phase_id").is_none());
     }
 }

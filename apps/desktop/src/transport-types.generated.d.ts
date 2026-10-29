@@ -25,6 +25,7 @@ export type FailureRecoveryTarget = {
   [k: string]: unknown;
 };
 export type FailureTone = "neutral" | "error";
+export type ActivityLiveness = "active" | "interrupted" | "unknown";
 export type ActivityOperation =
   | "download_package"
   | "prepare"
@@ -574,8 +575,16 @@ export type OutputOperationEvent1 =
   | {
       completed: number;
       phase: string;
+      /**
+       * Stable producer identity, independent of translated display wording.
+       */
+      phase_id?: string | null;
       total: number | null;
       type: "progress";
+      /**
+       * Absent on older producers; clients must not infer it from phase text.
+       */
+      unit?: ProgressUnit | null;
       [k: string]: unknown;
     }
   | {
@@ -589,6 +598,7 @@ export type OutputOperationEvent1 =
       type: "finished";
       [k: string]: unknown;
     };
+export type ProgressUnit = "bytes" | "items" | "ports" | "indeterminate";
 export type OperationResult = "succeeded" | "failed" | "cancelled";
 export type OutputDestinationAvailability = "available" | "full" | "unavailable";
 export type OutputDestinationOwnership =
@@ -860,6 +870,10 @@ export interface ActivityRecord {
   failure: FailureReport | null;
   finished_at: number | null;
   id: string;
+  /**
+   * Best-effort ownership observation, not a replacement for terminal results.
+   */
+  liveness?: ActivityLiveness | null;
   message: string | null;
   operation: ActivityOperation;
   started_at: number;

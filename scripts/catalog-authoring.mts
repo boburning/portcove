@@ -1,3 +1,4 @@
+import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -149,7 +150,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       !isRecord(listing.download_asset_hints) ||
       Object.entries(listing.download_asset_hints).some(
         ([platform, hints]) =>
-          !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(platform) ||
+          !(platforms as readonly string[]).includes(platform) ||
           !Array.isArray(hints) ||
           hints.length < 1 ||
           hints.length > 8 ||
@@ -172,9 +173,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!Array.isArray(listing.platforms) ||
       listing.platforms.length > 32 ||
       listing.platforms.some(
-        (v: unknown) =>
-          typeof v !== "string" ||
-          !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(v),
+        (v: unknown) => typeof v !== "string" || !(platforms as readonly string[]).includes(v),
       ) ||
       new Set(listing.platforms).size !== listing.platforms.length)
   )
