@@ -119,8 +119,13 @@ settlement records return to the existing public artifact sinks.
 
 ## Finite clocks and qualification status
 
-Preparation has one original 480000ms monotonic allowance inside the unchanged
-90-minute provider job. The original provider start must leave that preparation
+Preparation has one original 480000ms monotonic allowance. Ordinary Windows and
+Linux qualification retain their 90-minute provider jobs, and instrumentation-only
+retains three minutes. The separately held connected Windows diagnostic has a
+100-minute provider envelope and matching finite observer cap (1200 five-second
+samples, unchanged eight-MiB log and 64-KiB metadata limits). This source change
+is inside the effective100 policy; it activates no diagnostic/production gate
+and does not ratify the separate165 proposal. The original provider start must leave that preparation
 window, the complete future 570000ms owner window and the existing 60000ms
 provider finalizer reserve before effects. The child inherits the remaining
 original preparation clock; it does not demand or appoint another full window.
@@ -190,3 +195,40 @@ valid startup projection in the public sink. Portable controls exercise forged
 ready, conflicting retained startup, missing optional ready, valid publication
 and repeated publication. Fresh actual Windows and five-context qualification
 remain required; no connected diagnostic dispatch follows from these controls.
+
+## Consumed 90-minute qualification and corrected planning envelope
+
+Actual source `c1ebbe522e2ff870b18f768c6668921dbe5bb0d8`, run
+`40938808791/1`, job `123676391688`, failed the pre-effect preparation reserve
+guard at `diagnostic-preparation:74:10`. The closed record observes
+`controller_launch_requested=false`. The ordinary updater rehearsal passed in
+3995 seconds; full job time was 4452 seconds (74m12), including finalizers.
+No original C/A/B, private candidate or ACK acceptance is inferred; post-VM
+OS absence was not inventoried. The exact remote source was retired after
+complete evidence retention and independent readback; PR4030 is closed unmerged.
+Earlier failed attempts and their different causes/Unknowns remain preserved.
+
+The actual prefix to Prepare was4439 seconds. Preserving preparation480,
+owner570 (including recovery30) and provider finalizer60 requires1110 more
+seconds:5549 total (92m29), exceeding the consumed90-minute envelope. The held
+100-minute envelope leaves451 seconds (7m31) planning contingency. This is not
+a worst-case guarantee, protected35-minute graph fit or production evidence.
+The provider still anchors once to its original start; no later phase renews
+that clock or enlarges the inner preparation/owner/source/dependency/input
+bounds. A reserve refusal exposes only closed finite observed/required numbers,
+never private exception text, paths, credentials or authority.
+
+The original resource records are888 rows/473864 bytes, SHA-256
+`885e085352fb466a980f6b710a00d2b6a92ca0b81806c99a387fed87106f9649`.
+Independent closure finds maximum gap5193ms, zero error rows/missed intervals,
+and maximum sampled machine used memory6713987072 bytes. Provider setup,
+post-last-sample values, continuous peaks and job attribution remain unobserved.
+Canonical retention is
+`/home/boburning/code/portcove/work/qualification-534/windows-connected-custody-c1ebbe52-40938808791-1`;
+v2 preserves436 files/6905728 bytes with manifest SHA-256
+`10374200544127b0a931ea8d0f6914e4a332288a7a09bed7ca32716e4530af14`.
+
+After closed-source review/CI/delivery, a new local immutable activation
+commit/tree and exact100-minute packet require review and one new human execution
+decision before publication or dispatch. The old90-minute attempt is consumed;
+no repeat, production key/signing/publication scope or165 ratification follows.

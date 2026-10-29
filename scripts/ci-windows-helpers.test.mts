@@ -782,3 +782,27 @@ void test("workflow runs bounded Windows controls and pinned lint under the exis
     }
   }
 });
+
+void test("both Windows plans execute the whole hosted continuity suite exactly once at its original case bound", async () => {
+  const source = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const registry = parseNodeTestSuites(
+    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+  );
+  const file = "scripts/hosted-native-continuity.test.mts";
+  assert.deepEqual(registry.suites["windows-helpers-4"]?.files, [file]);
+  assert.ok(registry.suites["windows-helpers-4"]?.arguments.includes("--test-timeout=60000"));
+  assert.equal(registry.suites["windows-storage-3"]?.files.includes(file), false);
+  assert.ok(registry.suites["catalog-full-2"]?.files.includes(file));
+  assert.ok(registry.suites["release-check"]?.files.includes(file));
+  for (const name of ["windows_helpers", "windows_storage"]) {
+    const job = workflowJob(name, source),
+      steps = helperSteps(job);
+    const commands = steps.flatMap((step) =>
+      typeof step.run === "string" ? executableNodeCommands(step.run, registry) : [],
+    );
+    const owners = commands.filter((command) => command.files.includes(file));
+    assert.equal(owners.length, 1, name);
+    assert.equal(owners[0]?.id, "windows-helpers-4", name);
+    assert.ok(owners[0]?.arguments.includes("--test-timeout=60000"));
+  }
+});

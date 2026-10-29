@@ -58,6 +58,10 @@ interface HelperSelectionPlan {
 
 const helperPaths = new Set([
   "scripts/node-test-suites.json",
+  ".github/workflows/hosted-native-continuity.yml",
+  "scripts/release-hosted-native-windows-diagnostic-source.mts",
+  "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+  "scripts/release-hosted-native-windows-diagnostic.mts",
   ...nodeTestRegistry.tests
     .filter((entry) =>
       entry.memberships.some(

@@ -1516,6 +1516,17 @@ for (const [file, tests] of [
     "scripts/pr-delivery-snapshot.mts",
     ["scripts/pr-delivery.test.mts", "scripts/pr-delivery-snapshot.test.mts"],
   ],
+  ...[
+    "scripts/release-hosted-native-windows-diagnostic-source.mts",
+    "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+    "scripts/release-hosted-native-windows-diagnostic.mts",
+  ].map((file): [string, readonly string[]] => [
+    file,
+    [
+      "scripts/release-hosted-native-windows-session.test.mts",
+      "scripts/hosted-native-continuity.test.mts",
+    ],
+  ]),
   [
     "scripts/rehearse-updater-artifacts.ps1",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],

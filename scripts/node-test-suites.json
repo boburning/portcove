@@ -31,6 +31,14 @@
         "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
+    "windows-helpers-4": {
+      "arguments": [
+        "--test",
+        "--test-timeout=60000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ],
+      "localResourceProfile": "analysis"
+    },
     "windows-storage": {
       "arguments": [
         "--test",
@@ -1131,16 +1139,16 @@
       "memberships": [
         ["catalog-full-2", 2500],
         ["release-check", 600],
-        ["windows-storage-3", 1000110]
+        ["windows-helpers-4", 100]
       ],
       "platform_skips": [
         {
           "platform": "win32",
-          "owner": "windows-storage-3",
+          "owner": "windows-helpers-4",
           "category": "platform",
           "prerequisite": "Actual win32 process/filesystem semantics",
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-4",
           "cases": [
             "hosted runtime timings retain eligible and refused observations without installer effects"
           ]
