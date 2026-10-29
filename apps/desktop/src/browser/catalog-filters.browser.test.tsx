@@ -413,6 +413,9 @@ it.each(["dark", "light"])(
   },
 );
 
+// macOS job 123627550913 exceeded the 15s harness budget for this multi-step
+// return/restart/library-isolation journey; the light case completed in 11.1s.
+// Keep every assertion, cleanup and zero retries; allow 30s for this family only.
 it.each(["dark", "light"])(
   "composes installation attention with return, restart, unavailable correction and zero IPC in %s",
   async (theme) => {
@@ -467,6 +470,7 @@ it.each(["dark", "light"])(
     await closeFilters();
     expect(invoke).not.toHaveBeenCalled();
   },
+  30_000,
 );
 
 it.each(["dark", "light"])(
