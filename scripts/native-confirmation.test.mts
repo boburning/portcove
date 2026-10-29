@@ -281,9 +281,20 @@ if ($source -notmatch '-Profile standard\\|frontend\\|core\\|daily\\|native-desk
   const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
     encoding: "utf8",
     windowsHide: true,
-    timeout: 15_000,
+    // The Linux producer 123417842979 returned status null at 15.063s.
+    // Retain finite room inside this suite's 30s outer case budget.
+    timeout: 25_000,
   });
-  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    result.status,
+    0,
+    JSON.stringify({
+      error: errorCode(result.error) ?? null,
+      signal: result.signal,
+      stdout: result.stdout?.slice(0, 2048),
+      stderr: result.stderr?.slice(0, 2048),
+    }),
+  );
   assert.match(result.stdout, /bootstrap-binding-preserved/);
 });
 
