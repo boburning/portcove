@@ -497,6 +497,74 @@ export type RepairItemKind =
   | "missing_registered_path"
   | "degraded_backup"
   | "backup_recovery_required";
+export type RecommendationDimension = "gameplay" | "stability" | "performance" | "controls" | "setup" | "maintenance";
+export type RecommendationDimensionState = "known" | "unknown" | "not-applicable" | "conflicting";
+export type RecommendationEvidenceDisposition =
+  "current" | "historical-scope" | "future-observation" | "unsupported-observation-kind" | "superseded" | "invalid";
+export type RecommendationClaim =
+  | {
+      kind: "rating";
+      value: number;
+      [k: string]: unknown;
+    }
+  | {
+      kind: "unknown";
+      [k: string]: unknown;
+    }
+  | {
+      kind: "not-applicable";
+      [k: string]: unknown;
+    };
+export type RecommendationEvidenceKind =
+  | "upstream-declared"
+  | "artifact-inspected"
+  | "setup-observed"
+  | "launch-observed"
+  | "gameplay-observed"
+  | "performance-observed"
+  | "maintenance-observed";
+export type RecommendationOperationEligibility =
+  | {
+      kind: "allowed";
+      [k: string]: unknown;
+    }
+  | {
+      kind: "unknown";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      kind: "held";
+      reason: string;
+      [k: string]: unknown;
+    };
+export type RecommendationReason =
+  | "different-game-or-edition"
+  | "different-platform-or-environment"
+  | "source-not-selected"
+  | "operation-unknown"
+  | "operation-held"
+  | "requirement-unknown"
+  | "requirement-unsupported"
+  | "invalid-evidence"
+  | "conflicting-evidence"
+  | "critical-regression"
+  | "insufficient-coverage"
+  | "gameplay-unobserved"
+  | "stability-unobserved"
+  | "gameplay-below-default-floor"
+  | "stability-below-default-floor"
+  | "materially-worse-playing-experience";
+export type RecommendationRequirement = "satisfied" | "unknown" | "unsupported";
+export type PortRecommendationStatus =
+  | "recommended-starting-point"
+  | "comparable-alternatives"
+  | "assessed-single-candidate"
+  | "insufficient-evidence"
+  | "no-suitable-candidate";
+export type ComparisonReleaseState =
+  "catalog-pinned" | "provider-resolved" | "collection-failed" | "definition-changed" | "unobserved" | "not-offered";
+export type RecommendationMetadataState = "available" | "missing" | "invalid" | "unsupported-version";
 export type GameFileRouteKind = "managed_install" | "external_registration" | "managed_launch" | "external_launch";
 export type GameFileQueryReason =
   | "complete_compatible_observation"
@@ -601,6 +669,84 @@ export type OutputDestinationOwnership =
   | "unknown";
 export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputPendingSetups = PendingSetupRecord[];
+/**
+ * One documented outcome in the assessed scope, not a universal judgment about a project.
+ */
+export type RecommendationOutcome =
+  | {
+      dimension: "gameplay";
+      outcome: GameplayOutcome;
+    }
+  | {
+      dimension: "stability";
+      outcome: StabilityOutcome;
+    }
+  | {
+      dimension: "performance";
+      outcome: PerformanceOutcome;
+    }
+  | {
+      dimension: "controls";
+      outcome: ControlsOutcome;
+    }
+  | {
+      dimension: "setup";
+      outcome: SetupOutcome;
+    }
+  | {
+      dimension: "maintenance";
+      outcome: MaintenanceOutcome;
+    }
+  | {
+      dimension: "unknown";
+      outcome: RecommendationDimension;
+    }
+  | {
+      dimension: "not-applicable";
+      outcome: RecommendationDimension;
+    };
+export type GameplayOutcome =
+  | "cannot-play"
+  | "required-content-missing"
+  | "progression-defects"
+  | "main-loop-with-limitations"
+  | "progression-with-minor-defects"
+  | "assessed-scope-complete";
+export type StabilityOutcome =
+  | "destructive-or-unusable"
+  | "frequent-crashes-or-save-failures"
+  | "material-reliability-gaps"
+  | "repeatable-play-and-save-with-limitations"
+  | "repeated-reliable-sessions"
+  | "assessed-lifecycle-and-recovery-reliable";
+export type PerformanceOutcome =
+  | "unusable"
+  | "severe-interruption"
+  | "material-pacing-problems"
+  | "playable-within-measured-limits"
+  | "consistent-measured-performance"
+  | "assessed-target-met";
+export type ControlsOutcome =
+  | "required-interaction-unusable"
+  | "major-interaction-gaps"
+  | "material-control-limitations"
+  | "assessed-interaction-with-limitations"
+  | "useful-controls-and-accessibility"
+  | "assessed-interaction-goals-met";
+export type SetupOutcome =
+  | "cannot-complete"
+  | "unrecoverable-problems"
+  | "manual-or-recovery-limitations"
+  | "repeatable-setup-with-limitations"
+  | "repeatable-setup-verification-and-update"
+  | "assessed-setup-update-and-recovery-goals-met";
+export type MaintenanceOutcome =
+  | "explicit-abandonment"
+  | "unresolved-continuity-failure"
+  | "stated-continuity-limits"
+  | "attributable-continuity-with-limitations"
+  | "demonstrated-regression-handling"
+  | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
@@ -711,6 +857,8 @@ export interface TransportOutputs {
   external_runtime_record: ExternalRuntimeRecord;
   external_runtime_relink_preview: OutputExternalRuntimeRelinkPreview;
   external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
+  game_comparison: OutputGameComparison;
+  game_comparison_request: OutputGameComparisonRequest;
   game_file_query_request: OutputGameFileQueryRequest;
   game_file_query_snapshot: OutputGameFileQuerySnapshot;
   game_file_roots: OutputGameFileRoots;
@@ -752,6 +900,7 @@ export interface TransportOutputs {
   preparation_cleanup_preview: OutputPreparationCleanupPreview;
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
+  recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
   restore_result: OutputRestoreResult;
@@ -805,6 +954,7 @@ export interface TransportOutputs {
   desktop_external_runtime_record: ExternalRuntimeRecord;
   desktop_external_runtime_relink_preview: OutputExternalRuntimeRelinkPreview;
   desktop_external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
+  desktop_game_comparison: OutputGameComparison;
   desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
@@ -1501,6 +1651,13 @@ export interface PortPresentation {
    * release or library identity. Explicit original_game metadata owns display grouping.
    */
   original_game_title?: string | null;
+  /**
+   * Optional inert quality observations. Unknown or malformed recommendation
+   * schemas are retained for compatible readers but never invalidate operations.
+   */
+  recommendation?: {
+    [k: string]: unknown;
+  };
   saves_and_settings: SavesAndSettingsBehavior;
   source_requirements: SourceRequirementPresentation[];
   variant_label?: string | null;
@@ -2184,6 +2341,234 @@ export interface OutputExternalRuntimeRemovalPreview {
   preview_sha256: string;
   version: string;
   [k: string]: unknown;
+}
+export interface OutputGameComparison {
+  assessment: PortRecommendationAssessment | null;
+  edition_id: string | null;
+  editions: ComparisonEdition[];
+  environment_id: string;
+  evaluated_at: number;
+  format_version: number;
+  game_id: string | null;
+  input_id: string;
+  limitations: string[];
+  platform: Platform;
+  policy_version: string;
+  ports: ComparisonPort[];
+  required_capabilities: string[];
+  source_context_is_hypothetical: boolean;
+  source_profile_ids: string[];
+  [k: string]: unknown;
+}
+export interface PortRecommendationAssessment {
+  candidates: RecommendationCandidateAssessment[];
+  comparable: RecommendationScope[];
+  evaluated_at: number;
+  evidence_snapshot_id: string;
+  policy_version: string;
+  recommended: RecommendationScope | null;
+  /**
+   * Feed this union back through the existing observation store on refresh.
+   * Corrections do not erase original failure evidence.
+   */
+  retained_regressions: RecommendationRegression[];
+  status: PortRecommendationStatus;
+  [k: string]: unknown;
+}
+export interface RecommendationCandidateAssessment {
+  dimensions: RecommendationDimensionAssessment[];
+  evidence: RecommendationEvidenceAssessment[];
+  /**
+   * Coverage of this policy's evidence, not probability of successful play.
+   */
+  evidence_coverage_permille: number;
+  operation_eligibility: RecommendationOperationEligibility;
+  /**
+   * Diagnostic 0..10000, never a cross-game public quality score. All-unknown
+   * evidence is None, not a displayed neutral 50/100.
+   */
+  ranking_score_basis_points: number | null;
+  reasons: RecommendationReason[];
+  recommendation_eligible: boolean;
+  required_capabilities: {
+    [k: string]: RecommendationRequirement;
+  };
+  scope: RecommendationScope;
+  unresolved_regression_ids: string[];
+  [k: string]: unknown;
+}
+export interface RecommendationDimensionAssessment {
+  dimension: RecommendationDimension;
+  evidence_ids: string[];
+  rating: number | null;
+  state: RecommendationDimensionState;
+  strength_permille: number;
+  weight_percent: number;
+  [k: string]: unknown;
+}
+export interface RecommendationEvidenceAssessment {
+  disposition: RecommendationEvidenceDisposition;
+  evidence: RecommendationEvidence;
+  [k: string]: unknown;
+}
+export interface RecommendationEvidence {
+  claim: RecommendationClaim;
+  dimension: RecommendationDimension;
+  explanation: string;
+  id: string;
+  kind: RecommendationEvidenceKind;
+  observed_at: number;
+  scope: RecommendationScope;
+  source: string;
+  /**
+   * Explicit accepted corrections, never implicit latest-report-wins ordering.
+   */
+  supersedes: string[];
+}
+export interface RecommendationScope {
+  /**
+   * Accepted artifact identity, not a mutable tag or download URL.
+   */
+  artifact_id: string;
+  edition_id: string;
+  /**
+   * Explicit relevant environment identity; not inferred from the current host.
+   */
+  environment_id: string;
+  game_id: string;
+  platform: Platform;
+  port_id: string;
+  release_id: string;
+  route_id: string;
+  source_profile_id: string;
+}
+export interface RecommendationRegression {
+  affected_scope: RecommendationScope1;
+  explanation: string;
+  id: string;
+  observed_at: number;
+  source: string;
+}
+/**
+ * Retain the originally affected artifact as provenance. A new artifact does
+ * not itself resolve this accepted failure for the same route/environment.
+ */
+export interface RecommendationScope1 {
+  /**
+   * Accepted artifact identity, not a mutable tag or download URL.
+   */
+  artifact_id: string;
+  edition_id: string;
+  /**
+   * Explicit relevant environment identity; not inferred from the current host.
+   */
+  environment_id: string;
+  game_id: string;
+  platform: Platform;
+  port_id: string;
+  release_id: string;
+  route_id: string;
+  source_profile_id: string;
+}
+export interface ComparisonEdition {
+  evidence_urls: string[];
+  id: string;
+  system: string | null;
+  title: string;
+  [k: string]: unknown;
+}
+export interface ComparisonPort {
+  declared_platforms: Platform[];
+  edition_ids: string[];
+  followed: boolean;
+  freshness: ComparisonFreshness;
+  installed: boolean;
+  launch_ready: boolean;
+  limitations: string[];
+  metadata: RecommendationMetadataState;
+  name: string;
+  offered_identity: string | null;
+  offered_release: ComparisonRelease | null;
+  /**
+   * Existing Core assessment, not recommendation policy. Never an execution token.
+   */
+  operation:
+    | {
+        kind: "allowed";
+        [k: string]: unknown;
+      }
+    | {
+        kind: "unknown";
+        reason: string;
+        [k: string]: unknown;
+      }
+    | {
+        kind: "held";
+        reason: string;
+        [k: string]: unknown;
+      };
+  port_id: string;
+  project_url: string;
+  source_health: SourceHealth | null;
+  source_profile_ids: string[];
+  /**
+   * A single current observed change, deduplicated by exact release/artifact identity.
+   */
+  update_notice: ComparisonUpdateNotice | null;
+  [k: string]: unknown;
+}
+export interface ComparisonFreshness {
+  last_attempt_at: number | null;
+  /**
+   * Successful provider resolution may use the provider's existing cache. This
+   * is deliberately not labelled a fresh network request or upstream change time.
+   */
+  last_successful_resolution_at: number | null;
+  offered_identity_changed_at: number | null;
+  state: ComparisonReleaseState;
+  [k: string]: unknown;
+}
+export interface ComparisonRelease {
+  artifact_sha256: string;
+  asset_name: string;
+  channel: ReleaseChannel;
+  published_at: string | null;
+  size: number;
+  version: string;
+}
+export interface ComparisonUpdateNotice {
+  artifact_sha256: string;
+  identity: string;
+  observed_at: number;
+  version: string;
+  [k: string]: unknown;
+}
+export interface OutputGameComparisonRequest {
+  edition_id: string | null;
+  /**
+   * An explicit observation environment, not a claim that this machine matches it.
+   * Omission uses an unqualified environment and cannot inherit another device's evidence.
+   */
+  environment_id: string | null;
+  /**
+   * Explicit replay clock. Adapters must not replace a supplied clock.
+   */
+  evaluated_at: number | null;
+  platform: Platform | null;
+  /**
+   * A current or retained listing. Only explicit original-game IDs relate alternatives.
+   */
+  port_id: string;
+  /**
+   * Reuse the existing provider's conditional requests, cache and network limits.
+   */
+  refresh: boolean;
+  required_capabilities: string[];
+  /**
+   * Catalog profile IDs only. Omission uses this library's explicit registrations;
+   * presence describes a hypothetical source context, not a fresh file verification.
+   */
+  source_profile_ids: string[] | null;
 }
 /**
  * Explicit refresh inputs. Inspection reports are never accepted from a client.
@@ -2985,6 +3370,35 @@ export interface SourceInspectionProblem {
   tool_id?: string | null;
   [k: string]: unknown;
 }
+export interface OutputRecommendationMetadata {
+  capabilities: RecommendationCapabilityObservation[];
+  format_version: number;
+  observations: RecommendationObservation[];
+}
+export interface RecommendationCapabilityObservation {
+  capability: string;
+  explanation: string;
+  id: string;
+  kind: RecommendationEvidenceKind;
+  observed_at: number;
+  scope: RecommendationScope;
+  source: string;
+  state: RecommendationRequirement;
+}
+export interface RecommendationObservation {
+  explanation: string;
+  /**
+   * Explicit accepted fixes. Only exact-scope observed gameplay/save success can clear a failure.
+   */
+  fixes: string[];
+  id: string;
+  kind: RecommendationEvidenceKind;
+  observed_at: number;
+  outcome: RecommendationOutcome;
+  scope: RecommendationScope;
+  source: string;
+  supersedes: string[];
+}
 export interface OutputReconcileBatchOutcome {
   error: FailureReport | null;
   ok: boolean;
@@ -3391,6 +3805,13 @@ export interface OutputDesktopLaunchResult {
 export interface OutputDesktopLibraryOrganization {
   collections: {
     [k: string]: CollectionPreference;
+  };
+  /**
+   * Explicit opt-in, separate from Saved or Favorites and never automatic installation.
+   */
+  followed_port_ids: string[];
+  followed_release_acknowledgments: {
+    [k: string]: string[];
   };
   hidden_port_ids: string[];
   revision: number;

@@ -2232,3 +2232,14 @@ The exact ReGaiden v0.4.1 Windows prepared-runtime route uses this closed
 shared-preference contract. Its [qualification report](qualification/slice6-regaiden-prepared-windows-2026-10-19.md)
 records original/artifact identity, the preserved ImGui failure, corrected
 consent and operation acceptance, and the separate delivery boundaries.
+
+## Optional recommendation observations
+
+`presentation.recommendation` is inert optional format-1 metadata. Its named
+outcomes, attributable public sources, explicit observation kinds and complete
+artifact/edition/environment/source/route scopes feed the shared Core query.
+It is not a numeric quality field or executable policy. Missing, malformed and
+future versions preserve ordinary project listings; older catalog readers can
+ignore it. Accepted regression and correction authority remains with the existing
+reviewed catalog inputs, not arbitrary release notes. See the
+[recommendation contract](reference/port-recommendation-policy.md).

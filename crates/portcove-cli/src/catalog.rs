@@ -6,6 +6,7 @@ use crate::{
     OutputMode, human, progress_renderer, render_read_success, render_success, require_confirmation,
 };
 
+mod comparison;
 mod render;
 use render::{
     catalog_result, catalog_update_plan, definition_authority_result, definition_authority_review,
@@ -37,6 +38,32 @@ impl CatalogSourceArgs {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum CatalogCommand {
+    /// Compare independent implementations with scoped evidence; never install or switch a port.
+    Compare {
+        /// Anchor project ID; only explicit game identity joins alternatives.
+        port_id: String,
+        /// Exact source edition ID; different editions are never assumed interchangeable.
+        #[arg(long)]
+        edition: Option<String>,
+        /// Target operating system/architecture, independent of the source console.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+        /// Explicit evidence environment ID; omission does not borrow other-device gameplay.
+        #[arg(long)]
+        environment: Option<String>,
+        /// Required capability ID, repeatable. Unknown is not treated as satisfied.
+        #[arg(long = "require")]
+        requirements: Vec<String>,
+        /// Explicit hypothetical catalog source profile ID, repeatable; no files are uploaded.
+        #[arg(long = "source-profile")]
+        source_profiles: Vec<String>,
+        /// Resolve through the existing provider/cache; does not download executable assets.
+        #[arg(long)]
+        refresh: bool,
+        /// Unix timestamp for deterministic historical policy evaluation.
+        #[arg(long)]
+        evaluated_at: Option<u64>,
+    },
     /// List ports in the active catalog.
     List,
     /// Export the complete active catalog document.
@@ -178,6 +205,7 @@ pub(crate) enum CatalogCommand {
 impl CatalogCommand {
     pub fn name(&self) -> &'static str {
         match self {
+            Self::Compare { .. } => "catalog.compare",
             Self::List => "catalog.list",
             Self::Export => "catalog.export",
             Self::Listings => "catalog.listings",
@@ -211,6 +239,33 @@ pub(crate) async fn execute(
     let name = command.name();
     let library = service.library();
     match command {
+        CatalogCommand::Compare {
+            port_id,
+            edition,
+            platform,
+            environment,
+            requirements,
+            source_profiles,
+            refresh,
+            evaluated_at,
+        } => {
+            let request = portcove_core::GameComparisonRequest {
+                port_id,
+                edition_id: edition,
+                platform: platform
+                    .map(|value| serde_json::from_value(serde_json::Value::String(value)))
+                    .transpose()?,
+                environment_id: environment,
+                required_capabilities: requirements.into_iter().collect(),
+                source_profile_ids: (!source_profiles.is_empty())
+                    .then(|| source_profiles.into_iter().collect()),
+                refresh,
+                evaluated_at,
+            };
+            let preferences = portcove_core::HostPreferenceStore::open_configured()?;
+            let report = service.compare_game_ports(&request, &preferences).await?;
+            render_read_success(mode, name, report, comparison::render)
+        }
         CatalogCommand::List => {
             render_read_success(mode, name, service.catalog().ports().to_vec(), |ports| {
                 human::catalog_list(ports)

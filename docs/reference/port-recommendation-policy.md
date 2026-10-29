@@ -1,41 +1,54 @@
-# Port recommendation assessment foundation
+# Game-centered port recommendations
 
-This reference describes the proposed Core assessment primitive for #251. It is
-not a shipped game-comparison feature. The primitive has no collector, catalog
-schema, service entry point, CLI command, Desktop IPC or UI caller yet. Those
-integration and acceptance obligations remain open on #251; the existing listing
-and operation paths are unchanged.
+`PortcoveService::compare_game_ports` supplies the same Core-owned result to
+`catalog compare` and Desktop's game comparison / **Why this port?** surface.
+The pure `assess_port_recommendations` policy remains independently replayable.
+Recommendations never install, launch, switch an implementation, change a channel
+or pin, register original files, or move saves. Ordinary project pages and permitted
+operations remain available when optional recommendation information is unusable.
 
 ## Ownership and inputs
 
-`assess_port_recommendations` is a read-only function over an explicitly supplied
-snapshot. It makes no network requests, opens no Library and changes no installed
-or selected identity, source, channel, pin, save or preference. Inputs are accepted
-Core facts, not arbitrary upstream text. The eventual existing observation owner
-must normalize claims, preserve their actual authority and retain snapshots and
-corrections. Merely constructing a `GameplayObserved` record does not prove that
-any gameplay occurred.
+Existing catalog `original_game` IDs relate independently catalogable projects.
+Names, repository sharing and artwork IDs do not establish that relationship.
+An unambiguous source edition is required for a quality recommendation; missing
+or contradictory edition identity does not merge editions or hide alternatives.
 
-An assessment binds game, edition, independent port, offered release, accepted
-artifact, platform, relevant environment, source profile and route. Observation
-applicability requires equality across that complete identity. Historical records
-remain inspectable but supply no current-artifact confidence. Context joins use
-explicit IDs, never names, repository sharing or guessed source interchangeability.
-Only catalog profile IDs are needed for selected-source applicability. The engine
-has no original-file bytes, hashes or filesystem-path input and performs no upload.
+A request selects a project, optional edition/platform/environment, explicit
+capability requirements and optional catalog source-profile IDs. Without an
+explicit source context, Core uses this library's registrations. A supplied source
+context is labelled hypothetical, not newly verified. Source matching, current
+library readiness, operation eligibility and gameplay evidence remain separate.
+The default `unqualified-host` environment cannot inherit another device's
+observations. Selecting an environment explicitly is not hardware qualification.
 
-The caller supplies the evidence snapshot identity and evaluation time. The
-`balanced-v1` policy is explicit and unsupported versions refuse assessment. The
-caller must treat malformed optional inputs as unavailable recommendations and
-retain ordinary listings and otherwise permitted operations. This primitive does
-not yet implement that fallback in the real listing adapters.
+Optional `presentation.recommendation` format 1 holds attributable observations,
+not a per-port numeric ranking. Each record binds game, edition, independent port,
+offered release, exact artifact, platform, environment, source profile and route.
+Named outcomes map to the six rubrics below; the same accepted facts generate
+scores and explanations. Unknown/not-applicable are explicit outcomes. Provenance
+must use bounded public HTTPS URLs without credentials or query strings. No
+original-file bytes, private paths or private library inventory are uploaded.
+
+The public `recommendation_metadata` schema describes record fields, named outcomes,
+evidence kinds, supersession and explicit fixes. Metadata is limited to 128 KiB
+and 64 observation/capability records. Missing, malformed or future optional
+versions supply no quality evidence, rather than rejecting the ordinary catalog.
+Existing authored-catalog review and delivery remain the acceptance boundary:
+a typed `gameplay-observed` assertion alone is not proof that gameplay occurred.
+Provider text cannot authorize new observations, restrictions or corrections.
+
+Assessment time is an explicit replay input. Unsupported policy versions refuse
+pure assessment; the integrated optional query falls back without changing ordinary
+operation eligibility. API schema 83 exposes the comparison and context contracts;
+old catalog readers can ignore the additive inert presentation field.
 
 ## Balanced policy and rubrics
 
 Weights sum to 100 and never change because a dimension is unknown or genuinely
 not applicable. Ratings below are scoped assertions supported by attributable
-facts, not per-port numeric catalog fields. The collector-to-rubric interpretation
-is not implemented by this foundation and remains part of #251 integration.
+facts, not per-port numeric catalog fields. The metadata normalizer maps the named outcome enums to these levels. No AI
+percentage, popularity metric or automatic gameplay inference is involved.
 
 | Dimension                  | Weight | 0                                           | 1                                       | 2                                       | 3                                                              | 4                                             | 5                                                                                       |
 | -------------------------- | -----: | ------------------------------------------- | --------------------------------------- | --------------------------------------- | -------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -117,8 +130,8 @@ The input separates retained failures from newly observed accepted failures. The
 result returns their deterministic union, preserving originals even after a fix.
 Future failures remain in that union but affect eligibility only from their
 observation time. Correction ambiguity uses the same evaluation-time cutoff.
-The existing observation owner must carry that union into the next refresh; the
-engine creates no second store. A failure persists across omission from the latest
+The shared query retains that union in a bounded extension of the existing host
+preference store; the pure engine performs no IO. A failure persists across omission from the latest
 collection, elapsed time and a new release/artifact for the same game, edition,
 implementation, platform, environment, source profile and route. This means an
 unresolved regression prevents a default; it does not assert that every later
@@ -127,20 +140,77 @@ artifact is proven broken or create an executable hold.
 Only an explicitly accepted, later, exact-artifact gameplay correction can resolve
 it for that candidate. A future fix, release note, closed issue, launch-only pass,
 new tag or fix on another artifact cannot. Conflicting retained regression IDs
-cannot be cleared by one ambiguous correction. The existing observation owner
-must retain accepted correction records too; automatic collection and persistence
-integration are not part of this primitive.
+cannot be cleared by one ambiguous correction. Accepted corrections are retained with the original failures. A fix record must
+also survive current evidence validation and conflict checks before it can clear
+a recommendation exclusion.
 
-## Evidence and remaining delivery
+## Refresh, failure and unchanged-input behavior
 
-The adjacent tests are synthetic policy fixtures. They are not observations of
-SymphonyRecomp, Nocturne, Golden Balloon, DKR-R or any other real game, nor measured
-performance or installed-application evidence. Execution and review results belong
-on the PR, not in this document as assumed passes.
+The query consumes current catalog metadata and existing release/update inputs.
+Exact direct-manifest and accepted prepared-package identities can be inspected
+offline. Other providers are resolved only on explicit refresh or a changed saved
+update observation. A saved update is an invalidation signal, not artifact proof;
+the existing scoped provider still selects and verifies the release identity.
+Its conditional-request, cache, rate and network limits remain in force. Refresh
+does not promise an unconditional new network fetch.
 
-Remaining #251 work includes mapping existing accepted observations to these
-inputs, real pinned comparison calibration, incremental refresh and failed-check
-freshness, optional metadata/old-reader fallback, shared service/CLI/Tauri adapters,
-game-centered UI and opt-in followed-project updates, accessible interaction,
-independent review and exact-head validation. No catalog support, protected
-publication authority, public machine API version or Library schema changes here.
+Changing quality metadata does not repeat release research. Unchanged release
+inputs reuse retained observations; an eight-entry in-memory memo reuses the pure
+assessment for identical policy, evidence, context and evaluation time. There is
+no new crawler, scheduler, feed, hosted service or persisted derived-score store.
+A new artifact receives a distinct identity, so old-artifact evidence stays
+inspectable but cannot become current-build gameplay qualification.
+
+Last successful provider resolution, last attempt, upstream publication time and
+locally observed offered-identity change time are distinct. Collection failures
+retain prior release information with an explicit failed-check state and withhold
+a new default. Changed definitions invalidate incompatible release observations.
+Historical queries cannot overwrite newer release memory. Compare-and-swap slot
+updates and committed readback prevent concurrent refreshes from replacing an
+unseen newer observation.
+
+The existing atomic host-preference writer retains at most 64 release slots and
+128 accepted failures/corrections per library, within its existing aggregate size
+limit. Capacity, unknown versions or corrupt history withhold recommendations;
+they never evict critical failures into apparent success or block game operations.
+Old host-preference readers preserve unknown extension fields. This changes no
+Library database, installed contract or executable-trust authority.
+
+## Followed projects and comparison interaction
+
+Following a project is explicit and local, independent of Saved and installed
+choices. The current offered identity is acknowledged when following from the
+comparison, so an existing release is not announced as new. An observed changed
+identity can produce a notice; acknowledged identities remain deduplicated even
+if another release is acknowledged between two observations of the same artifact.
+Pause and skip-release choices reuse the existing organization controls. Unfollowing
+removes that project's follow state. No background scheduler or notification
+service is implied; notices update when the comparison consumes refreshed inputs.
+The Discover **Followed** filter selects exact independent project IDs.
+
+Desktop presents the Core status, unknowns, freshness, explicit context and
+attributable evidence alongside visible alternatives. Numeric aggregate scores
+remain in developer/CLI diagnostics, not universal best-port badges. Existing
+keyboard, focus and controller-navigation behavior remains the interaction path.
+Late responses from another project/context/library cannot replace the current
+comparison. Unsupported optional responses retain the ordinary comparison.
+
+## Bounded calibration and evidence scope
+
+The retained catalog at main `6886393c69588a744789253878ce6962a2a6ea02`
+provides real, separate Render96ex and SM64 co-op DX identities related to Super
+Mario 64. Their missing source-edition/quality observations must not manufacture
+a winner or transfer qualification between implementations. Related implementations
+with their own edition data do not supply the missing identity of another project.
+SDL Sopwith provides a sparse single-project case; being the only implementation
+is not a best-port claim. No new support or gameplay assertion is authored for
+these projects by this feature.
+
+Synthetic exact-artifact provider cases exercise a justified winner, comparable
+alternatives, insufficient evidence, explicit requirement changes, changed releases,
+retained failures and accepted corrections. Named-outcome fixtures cover all six
+rubrics. Real CLI JSON and JSONL comparisons use the same Core result. Registered
+installation/save fixtures check that metadata and recommendation refreshes cannot
+rewrite player state. Browser fixtures exercise keyboard/focus and the production
+virtual-controller path; they are not physical-controller or gameplay observations.
+Actual execution, independent review and delivery receipts belong on the PR.

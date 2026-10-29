@@ -1,3 +1,4 @@
+import type { GameComparison, GameComparisonRequest } from "./types";
 import type {
   ArtworkSlot,
   ArtworkState,
@@ -120,6 +121,8 @@ export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "c
 };
 
 export const desktopApi = {
+  compareGamePorts: (request: GameComparisonRequest, generation: number) =>
+    invoke<GameComparison>("compare_game_ports", { request, generation }),
   organizationPreferences: (generation: number) =>
     invoke<LibraryOrganization>("get_library_organization", { generation }),
   changeOrganization: (expectedRevision: number, change: OrganizationChange, generation: number) =>

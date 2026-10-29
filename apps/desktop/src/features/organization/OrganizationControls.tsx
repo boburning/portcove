@@ -35,6 +35,7 @@ export function organizedPorts(
     if (selected === "hidden") return hidden;
     if (hidden && !discover) return false;
     if (selected === "saved") return savedGroups.has(gameGroupId(port));
+    if (selected === "followed") return snapshot.followed_port_ids.includes(port.id);
     if (selected.startsWith("collection:"))
       return snapshot.collections[selected.slice(11)]?.port_ids.includes(port.id) ?? false;
     return true;
@@ -64,22 +65,28 @@ export function OrganizationControls({
       role="group"
       aria-label={discover ? "Discover collections" : "Library collections"}
     >
-      {[["all", "All games"], ...(discover ? [["saved", "Saved"]] : [["hidden", "Hidden"]])].map(
-        ([id, label]) => (
-          <Button
-            key={id}
-            ref={id === "all" ? allGames : undefined}
-            data-focusable
-            variant={selected === id ? "selected" : "ghost"}
-            size="sm"
-            aria-pressed={selected === id}
-            disabled={!snapshot && id !== "all"}
-            onClick={() => onSelect(id!)}
-          >
-            {label}
-          </Button>
-        ),
-      )}
+      {[
+        ["all", "All games"],
+        ...(discover
+          ? [
+              ["saved", "Saved"],
+              ["followed", "Followed"],
+            ]
+          : [["hidden", "Hidden"]]),
+      ].map(([id, label]) => (
+        <Button
+          key={id}
+          ref={id === "all" ? allGames : undefined}
+          data-focusable
+          variant={selected === id ? "selected" : "ghost"}
+          size="sm"
+          aria-pressed={selected === id}
+          disabled={!snapshot && id !== "all"}
+          onClick={() => onSelect(id!)}
+        >
+          {label}
+        </Button>
+      ))}
       {!discover &&
         snapshot &&
         Object.entries(snapshot.collections).map(([id, collection]) => (
