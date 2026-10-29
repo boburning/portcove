@@ -425,6 +425,17 @@
       "package": "portcove-core",
       "platforms": ["win32"],
       "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/native_temp.rs",
+      "test": "windows_temp_child",
+      "reason": "owned Native5 child entrypoint; explicitly launched by the parent environment and Unicode working-directory control",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "supervised-parent",
+      "parents": [
+        "windows_real_child_overrides_inherited_temp_and_writes_inside_unicode_working_directory"
+      ]
     }
   ]
 }

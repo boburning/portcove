@@ -1422,12 +1422,22 @@ mod tests {
 
     #[test]
     fn external_cleanup_preserves_unowned_sibling_after_authority_commit() {
+        let started = std::time::Instant::now();
+        let phase = |name: &str| {
+            eprintln!(
+                "unowned relocation sibling phase={name} elapsed={:?}",
+                started.elapsed()
+            )
+        };
+        phase("fixture begin");
         let fixture = Fixture::new();
+        phase("fixture ready");
         let first_service = PortcoveService::new(fixture.library.clone()).unwrap();
         let first_token = authorize(&first_service, &fixture.destination);
         let first = first_service
             .relocate_output(PORT, &fixture.destination, &first_token)
             .unwrap();
+        phase("first relocation complete");
         let old_external_paths = first
             .relocated_installs
             .iter()
@@ -1449,11 +1459,13 @@ mod tests {
             .relocate_output(PORT, &second_destination, &second_token)
             .unwrap();
         assert!(pending.cleanup_pending);
+        phase("second relocation authority committed with cleanup pending");
 
         let unrelated = fixture.destination.join("unrelated");
         fs::create_dir(&unrelated).unwrap();
         fs::write(unrelated.join("sentinel.bin"), b"preserve me").unwrap();
         let recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+        phase("recovery reopened");
 
         assert!(recovered.output_relocation_status(PORT).unwrap().is_some());
         assert!(old_external_paths.iter().all(|path| path.is_dir()));
@@ -1474,6 +1486,7 @@ mod tests {
                 .all(|install| install.path.starts_with(&expected_destination))
         );
         fixture.assert_protected_files_unchanged();
+        phase("all preservation assertions complete");
     }
 
     fn status_record_ids(
