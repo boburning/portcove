@@ -1508,6 +1508,49 @@ function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useA
   return (data.catalog?.ports ?? []).filter((port) => model.statusMap.get(port.id)?.active);
 }
 
+function renderSelectedPortFavoriteControl({
+  favorites,
+  favoritePortId,
+  displayPort,
+}: {
+  favorites: ReturnType<typeof useFavorites>;
+  favoritePortId: string;
+  displayPort: Parameters<typeof gameIdentityLabel>[0];
+}) {
+  return (
+    <>
+      <Button
+        data-focusable
+        variant={favorites.ids?.has(favoritePortId) ? "selected" : "outline"}
+        size="icon-lg"
+        aria-label={`Favorite ${gameIdentityLabel(displayPort)}`}
+        aria-pressed={favorites.ids?.has(favoritePortId) ?? false}
+        disabled={!favorites.ids || favorites.busy}
+        focusableWhenDisabled={Boolean(favorites.ids) && favorites.busy}
+        aria-busy={favorites.busy}
+        onClick={() => void favorites.toggle(favoritePortId)}
+      >
+        <Star aria-hidden="true" />
+      </Button>
+      {favorites.failure && (
+        <span role="alert" className="max-w-prose text-sm text-pc-warning-foreground">
+          {favorites.failure === "write"
+            ? "The favorite change could not be confirmed. Refresh to reconcile."
+            : "Favorites could not be loaded."}{" "}
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={favorites.busy}
+            onClick={() => void favorites.refresh()}
+          >
+            Refresh favorites
+          </Button>
+        </span>
+      )}
+    </>
+  );
+}
+
 function SelectedPortPanel({
   favorites,
   organization,
@@ -1584,38 +1627,11 @@ function SelectedPortPanel({
   return (
     <DetailPanel
       backLabel={backLabel}
-      favoriteControl={
-        <>
-          <Button
-            data-focusable
-            variant={favorites.ids?.has(favoritePortId) ? "selected" : "outline"}
-            size="icon-lg"
-            aria-label={`Favorite ${gameIdentityLabel(model.entry ?? model.port)}`}
-            aria-pressed={favorites.ids?.has(favoritePortId) ?? false}
-            disabled={!favorites.ids || favorites.busy}
-            focusableWhenDisabled={Boolean(favorites.ids) && favorites.busy}
-            aria-busy={favorites.busy}
-            onClick={() => void favorites.toggle(favoritePortId)}
-          >
-            <Star aria-hidden="true" />
-          </Button>
-          {favorites.failure && (
-            <span role="alert" className="max-w-prose text-sm text-pc-warning-foreground">
-              {favorites.failure === "write"
-                ? "The favorite change could not be confirmed. Refresh to reconcile."
-                : "Favorites could not be loaded."}{" "}
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={favorites.busy}
-                onClick={() => void favorites.refresh()}
-              >
-                Refresh favorites
-              </Button>
-            </span>
-          )}
-        </>
-      }
+      favoriteControl={renderSelectedPortFavoriteControl({
+        favorites,
+        favoritePortId,
+        displayPort: model.entry ?? model.port,
+      })}
       organization={organization}
       openSupport={openSupport}
       extraFiles={extraFiles}
