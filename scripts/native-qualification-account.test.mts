@@ -857,7 +857,7 @@ Write-Output 'actual-multiple-node-path-and-wrong-first-version-controls-pass'
 
 void test(
   "diagnostic original controller reaches ready before ACK and retains startup refusal without private effects",
-  { skip: process.platform !== "win32", timeout: 240000 },
+  { skip: process.platform !== "win32", timeout: 300000 },
   (t) => {
     const root = disposableDirectory(t, path.join(homedir(), ".pc-diagnostic-startup-"));
     const emptyHooks = path.join(root, "empty hooks"),
@@ -887,6 +887,7 @@ void test(
       "wrong-birth",
       "refused-input",
       "exit-259",
+      "unavailable-retention",
     ] as const) {
       const source = path.join(root, variant, "source with spaces"),
         temporary = path.join(root, variant, "temporary");
@@ -919,10 +920,16 @@ void test(
       controller = once(
         controller,
         "const inputs = await readOriginalHostedWindowsDiagnosticInputs();",
-        variant === "refused-input"
+        variant === "refused-input" || variant === "unavailable-retention"
           ? 'const inputs: Inputs = await (async () => { requireOriginalHostedWindowsDiagnosticContext(); throw Object.assign(new Error("synthetic-private-startup-marker"), {code:"ERR_ASSERTION"}); })();'
           : 'requireOriginalHostedWindowsDiagnosticContext(); const inputs = {source:process.env.GITHUB_SHA,tree:execFileSync("git",["rev-parse","HEAD^{tree}"],{encoding:"utf8",timeout:5000}).trim(),run_id:process.env.GITHUB_RUN_ID,workflow:process.env.GITHUB_WORKFLOW_REF} as Inputs;',
       );
+      if (variant === "unavailable-retention")
+        controller = once(
+          controller,
+          'throw Object.assign(new Error("synthetic-private-startup-marker")',
+          'delete process.env.RUNNER_TEMP; throw Object.assign(new Error("synthetic-private-startup-marker")',
+        );
       const budget =
         'const budget = await readOrdinaryHostedWindowsDiagnosticDeadline({\n    source: inputs.source,\n    run_id: inputs.run_id,\n    attempt: "1",\n  });'.replaceAll(
           "\\n",
@@ -1068,7 +1075,11 @@ void test(
       assert.equal(typeof originalController.created_filetime, "string");
       assert.match(String(originalController.created_filetime), /^[1-9][0-9]{0,18}$/u);
       assert.equal(report.ready_verified, variant === "ready");
-      if (variant !== "refused-input" && variant !== "exit-259") {
+      if (
+        variant !== "refused-input" &&
+        variant !== "unavailable-retention" &&
+        variant !== "exit-259"
+      ) {
         const readyBytes = readFileSync(path.join(control, "controller-ready.json"));
         const ready: unknown = JSON.parse(readyBytes.toString("utf8"));
         assert.ok(isRecord(ready));
@@ -1116,6 +1127,12 @@ void test(
         assert.equal(report.controller_failure.phase, "inputs-verifying");
         assert.ok(isRecord(report.controller_failure.error));
         assert.equal(report.controller_failure.error.code, "ERR_ASSERTION");
+      } else if (variant === "unavailable-retention") {
+        assert.equal(before.Alive, false);
+        assert.equal(before.ExitCode, 2);
+        assert.ok(isRecord(report.controller_failure));
+        assert.equal(report.controller_failure.status, "missing");
+        assert.equal(existsSync(path.join(control, "controller-failure.json")), false);
       } else if (variant === "exit-259") {
         assert.equal(before.Alive, false);
         assert.equal(before.ExitCode, 259);

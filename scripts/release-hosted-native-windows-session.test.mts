@@ -1531,3 +1531,55 @@ void test("diagnostic startup errors retain only closed classifications and boun
   assert.equal(oversized.message_sha256, null);
   assert.equal(oversized.message_disposition, "oversize-not-retained");
 });
+
+void test("unavailable controller startup telemetry preserves the original refusal exit without output or effects", async () => {
+  const implementation = readFileSync(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    "utf8",
+  );
+  const start = implementation.lastIndexOf(".catch(async (error: unknown) => {"),
+    end = implementation.lastIndexOf(");");
+  assert.ok(start > 0 && end > start);
+  const callback = stripTypeScriptTypes("(" + implementation.slice(start + 7, end) + ")");
+  for (const failure of ["root-evaluation", "projection-evaluation", "write-rejection"]) {
+    const context = {
+      argv: ["node", "owned-controller.mts", "run"],
+      env: {},
+      pid: 123,
+      exitCode: undefined as number | undefined,
+    };
+    const output: string[] = [];
+    let writes = 0;
+    const handler: unknown = runInNewContext(callback, {
+      process: context,
+      hostedWindowsConnectedDiagnosticExecutionAuthorized: true,
+      requireOriginalHostedWindowsDiagnosticContext: () => {},
+      windowsOwnerFiletime: () => "123",
+      readProcessIdentity: () => ({}),
+      controlRoot: () => {
+        if (failure === "root-evaluation") throw new Error("unavailable original root");
+        return "/fixed-owned-control";
+      },
+      path,
+      execFileSync: () => "a".repeat(40),
+      project: "/fixed-owned-source",
+      startupPhase: "inputs-verifying",
+      projectDiagnosticStartupFailure: () => {
+        if (failure === "projection-evaluation") throw new Error("unavailable safe projection");
+        return {};
+      },
+      retain: () => {
+        writes++;
+        return Promise.reject(new Error("unavailable owned retention"));
+      },
+      console: { error: (value: string) => output.push(value) },
+    });
+    assert.equal(typeof handler, "function");
+    await (handler as (error: unknown) => Promise<void>)(
+      new Error("synthetic-original-private-refusal"),
+    );
+    assert.equal(context.exitCode, 2, failure);
+    assert.deepEqual(output, []);
+    assert.equal(writes, failure === "write-rejection" ? 1 : 0);
+  }
+});

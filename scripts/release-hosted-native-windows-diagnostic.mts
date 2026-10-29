@@ -1670,38 +1670,42 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         /* Wrong context cannot write failure evidence. */
       }
       if (hostedWindowsConnectedDiagnosticExecutionAuthorized && originalContextVerified) {
-        let created: string = "Unknown";
         try {
-          created = windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid);
+          let created: string = "Unknown";
+          try {
+            created = windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid);
+          } catch {
+            /* Failed identity observation remains Unknown; never masks the original refusal. */
+          }
+          await retain(path.join(controlRoot(), "controller-failure.json"), {
+            schema_version: 1,
+            source: process.env.GITHUB_SHA,
+            tree: (() => {
+              try {
+                return execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
+                  cwd: project,
+                  encoding: "utf8",
+                  timeout: 5000,
+                  maxBuffer: 1024,
+                  windowsHide: true,
+                }).trim();
+              } catch {
+                return "Unknown";
+              }
+            })(),
+            run_id: process.env.GITHUB_RUN_ID,
+            attempt: 1,
+            workflow: process.env.GITHUB_WORKFLOW_REF,
+            pid: process.pid,
+            created_filetime: created,
+            phase: startupPhase,
+            error: projectDiagnosticStartupFailure(error),
+            authority: "none",
+            automatic_retry: false,
+          }).catch(() => {});
         } catch {
-          /* Failed identity observation remains Unknown; never masks the original refusal. */
+          /* Telemetry construction or retention must never replace the original refusal. */
         }
-        await retain(path.join(controlRoot(), "controller-failure.json"), {
-          schema_version: 1,
-          source: process.env.GITHUB_SHA,
-          tree: (() => {
-            try {
-              return execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
-                cwd: project,
-                encoding: "utf8",
-                timeout: 5000,
-                maxBuffer: 1024,
-                windowsHide: true,
-              }).trim();
-            } catch {
-              return "Unknown";
-            }
-          })(),
-          run_id: process.env.GITHUB_RUN_ID,
-          attempt: 1,
-          workflow: process.env.GITHUB_WORKFLOW_REF,
-          pid: process.pid,
-          created_filetime: created,
-          phase: startupPhase,
-          error: projectDiagnosticStartupFailure(error),
-          authority: "none",
-          automatic_retry: false,
-        }).catch(() => {});
       }
       if (process.argv[2] !== "run")
         console.error(
