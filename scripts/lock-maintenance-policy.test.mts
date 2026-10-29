@@ -529,7 +529,7 @@ void test("unchanged non-registry references remain explicit, changed references
     const coverage = registrySnapshotCoverage(original, original);
     assert.equal(coverage.unchangedUnsupported.length, 2);
     assert.throws(() => registrySnapshotCoverage(original), /unsupported/);
-    fixtureRecord(document.importers["."].dependencies.local).version = "changed-source";
+    fixtureRecord(document.importers["."].dependencies.local).version = `${version}-changed`;
     assert.throws(() => registrySnapshotCoverage(stringify(document), original), /unsupported/);
   }
   const base = lock(artifact("npm").integrity);
