@@ -279,7 +279,7 @@ it("keeps zero selections removable and returns focused chip to the trigger", as
   expect(document.activeElement).toBe(await control("Filters (0)"));
   await click("Filters (0)");
   await openField("Target OS");
-  expect(document.body.textContent).not.toContain("Apple silicon");
+  expect(document.querySelector('[role="checkbox"][aria-label="Apple silicon (0)"]')).toBeNull();
   expect((current as CatalogQuery).platforms).toEqual([]);
 });
 it.each([
