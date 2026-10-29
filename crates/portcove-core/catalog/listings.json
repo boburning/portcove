@@ -20398,7 +20398,7 @@
         "steps": [
           {
             "title": "Supply the matching original game files",
-            "instruction": "Supply HEXEN.WAD from your original PC Hexen copy. An expansion alone does not supply the base game, and Heretic is a different original. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
+            "instruction": "Supply HEXEN.WAD from an original PC Hexen retail v1.1 copy. The offered Crispy7.2 runtime rejects retail v1.0; use the upstream-recommended official upgrade to v1.1 while preserving your original copy. The unsafe -v10override bypass is not offered, and demo/shareware data is not qualified by this managed base-game route. An expansion alone does not supply the base game, and Heretic is a different original. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
           },
           {
             "title": "Use the upstream setup and launch controls",

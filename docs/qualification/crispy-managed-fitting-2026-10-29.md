@@ -36,8 +36,12 @@ the declared `originals` directory, discovered through `DOOMWADDIR=originals`,
 or use recognized upstream installations. A directory preserves original
 filename case and bytes without treating each spelling as another declaration.
 Retail/shareware, French DoomII, Heretic shareware and Strife version/voice
-conditions remain distinct. Manual copying is not evidence of completed game
-preparation or gameplay.
+conditions remain distinct. The managed Hexen base-game offer specifically
+requires retail v1.1 HEXEN.WAD. Pinned h2_main.c349–367 rejects retail v1.0
+(nonshareware without CLUS1MSG); the unsafe -v10override bypass remains unoffered.
+Demo/shareware data is not qualified by this managed offer. This source-backed
+revision correction does not turn controller observations into original-file
+acceptance. Manual copying is not evidence of completed game preparation or gameplay.
 
 The Windows controller retains and waits its launched player. Its own exit 0 can
 mask inner-game failure, so controller completion is not game success. Known
