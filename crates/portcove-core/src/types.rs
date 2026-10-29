@@ -358,7 +358,7 @@ pub struct SourceProfile {
     pub members: Vec<SourceMemberProfile>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RuntimeSourceTarget {
     pub source_filenames: Vec<String>,
     pub destination: String,

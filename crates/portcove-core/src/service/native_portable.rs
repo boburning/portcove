@@ -91,6 +91,7 @@ impl PortcoveService {
             || retained.launch_environment != to.launch_environment
             || retained.user_data_environment != to.user_data_environment
             || retained.source_profile != to.source_profile
+            || retained.runtime_source_set != to.runtime_source_set
             || retained.runtime_source_filename != to.runtime_source_filename
             || retained.runtime_source_materialization != to.runtime_source_materialization
             || retained.runtime_source_hashes != to.runtime_source_hashes
@@ -104,6 +105,26 @@ impl PortcoveService {
                     && to.setup_marker.is_none()))
         {
             return Err(portable_data_change());
+        }
+        if crate::preparation::source::native(&retained) {
+            let installer = Installer::new(self.library.clone())?;
+            if installer.retained_preparation_mode(from)?
+                == Some(crate::PreparationMode::SourceOnly)
+            {
+                // Registered originals cannot replace the source authority sealed
+                // into this installation, including a same-profile edition change.
+                crate::preparation::source::require_publication(&self.library, from, None)
+                    .map_err(|_| portable_data_change())?;
+                if let Some(previous) = retained_rollback {
+                    if installer.retained_preparation_mode(previous)?
+                        != Some(crate::PreparationMode::SourceOnly)
+                    {
+                        return Err(portable_data_change());
+                    }
+                    crate::preparation::source::require_publication(&self.library, previous, None)
+                        .map_err(|_| portable_data_change())?;
+                }
+            }
         }
         if retained.persistent_paths != to.persistent_paths {
             if let Some(previous) = retained_rollback
@@ -129,6 +150,18 @@ impl PortcoveService {
         let to = self.installed_port(target)?;
         self.require_portable_transition(from, &to)?;
         let retained = self.installed_port(from)?;
+        if crate::preparation::source::native(&retained)
+            && Installer::new(self.library.clone())?.retained_preparation_mode(from)?
+                == Some(crate::PreparationMode::SourceOnly)
+        {
+            if Installer::new(self.library.clone())?.retained_preparation_mode(target)?
+                != Some(crate::PreparationMode::SourceOnly)
+            {
+                return Err(portable_data_change());
+            }
+            crate::preparation::source::require_publication(&self.library, target, None)
+                .map_err(|_| portable_data_change())?;
+        }
         if crate::persistence::ready_staged_archive(&retained)
             && crate::persistence::ready_staged_archive(&to)
             && retained.persistent_paths != to.persistent_paths

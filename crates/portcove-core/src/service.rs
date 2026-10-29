@@ -3145,6 +3145,7 @@ impl PortcoveService {
         if let Some(active) = &status.active {
             self.require_portable_transition(active, port)?;
         }
+        crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;
         let runtime = crate::runtime::required(port, Platform::current()?);
         let active_matches = status
@@ -3991,6 +3992,7 @@ impl PortcoveService {
             if let Some(active) = self.status(&port_id)?.active {
                 self.require_portable_transition(&active, port)?;
             }
+            crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             crate::native_temp::require_canonical_data(port, &self.library)?;
             let locked_preview = self.preview_adoption(source, selected_port_id)?;
             let target = adoption_authorization_target(source, selected_port_id)?;
@@ -4033,6 +4035,11 @@ impl PortcoveService {
             let copied_executable =
                 crate::install::resolve_declared_executable(&payload_root, &qualification)?;
             let persistent_root = qualification.persistence_root(&payload_root, &copied_executable);
+            crate::preparation::source::require_pristine_adoption(
+                port,
+                &payload_root,
+                &copied_executable,
+            )?;
             for relative in crate::persistence::entries(port, &[&persistent_root])? {
                 let candidate = persistent_root.join(&relative);
                 if candidate.exists() {
@@ -6094,6 +6101,7 @@ impl PortcoveService {
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
+        crate::preparation::source::require_canonical_originals(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;
         self.require_psx_data_receipt_readable(port, &install_root)?;
         let marker = install_root.join(LAUNCH_MARKER);

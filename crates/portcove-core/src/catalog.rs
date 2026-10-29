@@ -434,7 +434,6 @@ impl Catalog {
                     }));
             if port.adapter == AdapterKind::NativePortable
                 && (!native_archive_release
-                    || port.source_profile.is_some()
                     || port.bios_source_profile.is_some()
                     || !port.bundled_runtime.is_empty()
                     || !port.release.managed_build.is_empty()
@@ -453,6 +452,7 @@ impl Catalog {
                     "native portable packages require a GitHub or exactly pinned archive, reviewed executable/persistence paths and upstream-owned game setup; mutable runtimes and installers use the external route",
                 ));
             }
+            crate::preparation::source::validate_native(self, port)?;
             if port.id.is_empty()
                 || !port.id.chars().all(|character| {
                     character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
