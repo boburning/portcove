@@ -1365,14 +1365,14 @@ void test("Linux fixture failure tail preserves primary and cleanup rejection id
   );
   await assert.rejects(
     verifyMatrix(async (operation, cleanup) => {
-      let failure: unknown;
+      let failure: { error: unknown } | undefined;
       try {
         await operation();
       } catch (error) {
-        failure = error;
+        if (error) failure = { error };
       }
       await cleanup();
-      if (failure) throw failure;
+      if (failure) throw failure.error;
     }),
     named("LINUX_FIXTURE_FAILURE_IDENTITY"),
   );
