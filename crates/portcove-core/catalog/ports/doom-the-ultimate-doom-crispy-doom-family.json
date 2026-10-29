@@ -69,7 +69,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Supply DOOM.WAD from your original PC retail/Ultimate Doom copy. DOOM1.WAD provides only the separate shareware episode, not the full game. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies. Play opens crispy-doom-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully. Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime. Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
+      "manual_preparation": "Supply DOOM.WAD from your original PC retail/Ultimate Doom copy. DOOM1.WAD provides only the separate shareware episode, not the full game. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies. Play opens crispy-doom-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully. Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime. Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility. Windows temporary files stay in this entry’s temp folder and are preserved with its data. After removal, an existing temp folder can prevent a fresh installation in that library; no existing temporary data or upstream profile is adopted."
     },
     "executable_hints": {
       "windows-x86-64": ["crispy-doom-setup.exe"]
@@ -102,7 +102,8 @@
       "strfsav4.ssg",
       "strfsav5.ssg",
       "strfsav6.ssg",
-      "originals"
+      "originals",
+      "temp"
     ],
     "persistent_file_patterns": [
       {
@@ -153,10 +154,8 @@
     "windows_runtime_path_policy": "relative-file-max-path",
     "launch_arguments": ["-game", "doom", "-savedir", "saves", "-noautoload"],
     "launch_environment": {
-      "TEMP": ".",
-      "TMP": ".",
-      "DOOMWADDIR": "originals",
-      "SDL_RENDER_DRIVER": "direct3d11"
-    }
+      "DOOMWADDIR": "originals"
+    },
+    "windows_temp_directory": "temp"
   }
 }

@@ -2,7 +2,7 @@
 
 This candidate changes five catalog definitions' default offers from
 upstream-owned registration to fresh official-package setup controllers under
-existing Native4. Existing registrations retain their creating contracts.
+Native5 delivered by #3960. Existing registrations retain their creating contracts.
 The owning issues are #2510 and #2926. Canonical titles remain #2654, #2655,
 #2657, #2662 and #2663; Final Doom #2656 remains separate. The [exact packet](crispy-managed-fitting-2026-10-29.json)
 binds source, packages, coordinates, retained definitions and observation limits.
@@ -23,9 +23,12 @@ Source binding does not establish binary/source equivalence.
 
 Play opens the upstream setup/launch controller. The corresponding explicit
 `-game` argument selects its family; `-savedir saves -noautoload`, private working
-coordinates and `TEMP=TMP=.` bound the offered defaults. This candidate requests
-`SDL_RENDER_DRIVER=direct3d11`; the request does not establish actual backend
-selection or universal hardware support.
+coordinates and Core-derived `TEMP=TMP=temp` bound the offered defaults.
+The authored `windows_temp_directory: temp` is a declared persistent directory;
+TEMP/TMP and renderer variables remain forbidden catalog environment. A native
+diagnostic session may request `SDL_RENDER_DRIVER=direct3d11` through the host
+session only. That observation does not establish the default renderer, actual
+backend selection or universal hardware support.
 
 Warp chooses detected IWAD names. Its PWAD browser is not an original-file
 browser or an authenticity check. Players supply matching lawful originals in
@@ -42,7 +45,12 @@ configuration, save, screenshot, recording and temporary witnesses are declared
 private data. Optional music packs and custom locations outside the installation
 remain upstream/user-owned; upstream can read/write that profile on Play and
 Core backups exclude it. Unclaimed custom outputs inside the installation can
-hold maintenance. There is no populated-profile adoption.
+hold maintenance. There is no populated-profile adoption. Native5 also refuses a preexisting
+canonical `temp` namespace without an active creating contract, including an
+empty directory left after preserving removal. Fresh installation, artifact
+reuse, activation and recovery remain held at that boundary; existing active
+Native5 maintenance retains its data authority. All earlier root temporary
+witnesses remain declared; no persistence scope is removed.
 
 Different title IDs have separate entry data. Retained runtime versions of one
 canonical ID share that entry’s data; another original edition needs a separate
@@ -77,6 +85,11 @@ The five previous selected-runtime definitions are retained exactly in
 to exercise their original contracts; the shared test helper selects retained
 snapshots without adding production per-title behavior. Other 242 definitions,
 SourceCatalog and Final Doom are unchanged.
+
+The initial candidate `49b5151a08b6518c724114ab47797d0cc8ae712e` failed
+CI40808194373/attempt1 because its authored reserved environment was correctly
+rejected. That failure remains retained. The revised candidate consumes the
+merged Native5 contract rather than weakening the guard.
 
 ## Remaining qualification
 

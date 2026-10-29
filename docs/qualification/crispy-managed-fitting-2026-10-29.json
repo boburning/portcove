@@ -72,8 +72,8 @@
   },
   "shared_contract": {
     "adapter": "native-portable",
-    "sdk": "existing Native4; no new engine, console primitive or validator relaxation",
-    "coordinates": "Each entry owns a separate flat official package, selected setup executable parent as CWD, declared private data, originals directory and saves directory. TEMP/TMP=. scope fixed temporary witnesses to that runtime.",
+    "sdk": "Native5 Windows temporary-directory contract delivered by #3960; no new engine, console primitive or validator relaxation",
+    "coordinates": "Each entry owns a separate flat official package, selected setup executable parent as CWD, declared private data, originals and saves directories. Core derives TEMP/TMP=temp from windows_temp_directory=temp through Native5. The pristine publisher package and a no-active canonical data root must leave that namespace absent; existing active Native5 creating contracts retain their data authority.",
     "entry": "Play opens the corresponding upstream setup/launch controller. Warp selects detected IWAD names; the PWAD/mod browser is not an original-file browser. No automated source preparation or authenticated original admission is claimed.",
     "lifetime": {
       "source": "src/setup/execute.c158-173,248-260",
@@ -84,8 +84,10 @@
     "external_data": "Upstream may read/write its SDL music-pack profile and custom paths outside the installation on Play. Those remain externally owned and excluded from Core backup/rollback. Custom outputs inside the installation outside declared paths are unclaimed and may hold maintenance. No populated profile is adopted.",
     "maintenance": "Use the existing compatible-release GitHub provider and independently expected digest. Keep creating runtime/data identities and existing interruption/recovery, inventory and activation guards. This is not a promise of arbitrary future save compatibility.",
     "final_doom": "#2656 remains on its existing upstream-owned route until TNT/Plutonia campaign selection, independent save namespaces and exact retained coordinates are qualified. No campaign remapping or populated-data expansion is inferred.",
-    "renderer_request": "SDL_RENDER_DRIVER=direct3d11 is an explicit creating-definition request. The observed setup-only control uses that same request; actual renderer selection and game rendering are not inferred.",
-    "source_variant_isolation": "Different title IDs retain separate entry data. Retained versions of the same canonical ID share that entry data; use a separate Portcove library or independently owned upstream copy for another original edition. Do not switch populated source variants in place."
+    "renderer_request": "No renderer environment is catalog-authored. The optional diagnostic native qualification session requests SDL_RENDER_DRIVER=direct3d11 only in the host-session environment. That request establishes neither the default renderer nor actual backend selection or game rendering.",
+    "source_variant_isolation": "Different title IDs retain separate entry data. Retained versions of the same canonical ID share that entry data; use a separate Portcove library or independently owned upstream copy for another original edition. Do not switch populated source variants in place.",
+    "temporary_data_transition": "Existing Native4 and user-selected contracts are not reinterpreted. TEMP/TMP and SDL_RENDER_DRIVER remain forbidden authored environment. After preserved removal a remaining canonical temp namespace, including an empty directory, holds fresh installation/reuse/activation/recovery without an active Native5 creating contract. No populated-data adoption or persistence-scope shrink is inferred.",
+    "provider_coverage": "The existing production-provider regression module replays all four observed 7.2 publisher-digest assets across five unchanged definitions, plus controlled N+1 selection, wrong CPU/family, ambiguity and missing-integrity refusals. Synthetic metadata is not accepted future runtime evidence. Test execution remains pending until its source-bound check completes."
   },
   "retained_selected_fixture": {
     "path": "crates/portcove-core/src/testdata/crispy-retained-selected-2026-10-29.json",
@@ -122,7 +124,7 @@
     }
   },
   "qualification_pending": [
-    "Validate the explicit Direct3D11 request through the candidate Core lifecycle without promoting diagnostic observations.",
+    "Qualify Native5 metadata, derived temporary coordinates and the diagnostic host-session renderer request through the actual candidate Core lifecycle without promoting diagnostic observations.",
     "Actual candidate Core install/verify/controller lifecycle, declared-data backup/restore, immutable integrity and preserving removal.",
     "Complete independent non-writing diff/target review, all required exact-head CI, guarded merge, remote readback and scoped canonical reconciliation."
   ],
@@ -169,7 +171,8 @@
         "strfsav4.ssg",
         "strfsav5.ssg",
         "strfsav6.ssg",
-        "originals"
+        "originals",
+        "temp"
       ],
       "persistent_file_patterns": [
         {
@@ -219,13 +222,11 @@
       ],
       "launch_arguments": ["-game", "doom", "-savedir", "saves", "-noautoload"],
       "launch_environment": {
-        "TEMP": ".",
-        "TMP": ".",
-        "DOOMWADDIR": "originals",
-        "SDL_RENDER_DRIVER": "direct3d11"
+        "DOOMWADDIR": "originals"
       },
-      "definition_sha256": "15f719e0f96dbe1ceb74220d5d2a31a87f606ecc4471ee78c7a250d5e9f69213",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure"
+      "definition_sha256": "5cd78849a238815b1f838014b8e25cddbaa03455fcceb2b0213bea8193a4b48e",
+      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "windows_temp_directory": "temp"
     },
     {
       "id": "doom-ii-crispy-doom-family",
@@ -262,7 +263,8 @@
         "strfsav4.ssg",
         "strfsav5.ssg",
         "strfsav6.ssg",
-        "originals"
+        "originals",
+        "temp"
       ],
       "persistent_file_patterns": [
         {
@@ -312,13 +314,11 @@
       ],
       "launch_arguments": ["-game", "doom", "-savedir", "saves", "-noautoload"],
       "launch_environment": {
-        "TEMP": ".",
-        "TMP": ".",
-        "DOOMWADDIR": "originals",
-        "SDL_RENDER_DRIVER": "direct3d11"
+        "DOOMWADDIR": "originals"
       },
-      "definition_sha256": "6dfe31811861e00201893145d2c4c5a22c300ba56947ea612095e08f54e1a819",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure"
+      "definition_sha256": "fa1d1b08d05e562f1e5caa83863f4522f0bfa65f5e2545b6d6873ebc59c6dbbf",
+      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "windows_temp_directory": "temp"
     },
     {
       "id": "heretic-crispy-doom-family",
@@ -355,7 +355,8 @@
         "strfsav4.ssg",
         "strfsav5.ssg",
         "strfsav6.ssg",
-        "originals"
+        "originals",
+        "temp"
       ],
       "persistent_file_patterns": [
         {
@@ -405,13 +406,11 @@
       ],
       "launch_arguments": ["-game", "heretic", "-savedir", "saves", "-noautoload"],
       "launch_environment": {
-        "TEMP": ".",
-        "TMP": ".",
-        "DOOMWADDIR": "originals",
-        "SDL_RENDER_DRIVER": "direct3d11"
+        "DOOMWADDIR": "originals"
       },
-      "definition_sha256": "f1de0718a560bd5c905b3ad7411d8f931e124b53516560bd0667d54012ba2826",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure"
+      "definition_sha256": "48615df11e0136a68448dae6b812b1c6014077425f4583cffa54a21b69a972d3",
+      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "windows_temp_directory": "temp"
     },
     {
       "id": "hexen-crispy-doom-family",
@@ -448,7 +447,8 @@
         "strfsav4.ssg",
         "strfsav5.ssg",
         "strfsav6.ssg",
-        "originals"
+        "originals",
+        "temp"
       ],
       "persistent_file_patterns": [
         {
@@ -498,13 +498,11 @@
       ],
       "launch_arguments": ["-game", "hexen", "-savedir", "saves", "-noautoload"],
       "launch_environment": {
-        "TEMP": ".",
-        "TMP": ".",
-        "DOOMWADDIR": "originals",
-        "SDL_RENDER_DRIVER": "direct3d11"
+        "DOOMWADDIR": "originals"
       },
-      "definition_sha256": "b0463c0f20807974d4c20645ceb18a46c9f36212236183c7b7d4ebba2dbc6b99",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure"
+      "definition_sha256": "1b2cfc1a2c8beba57f8f967c54475d02ddecc67b57a1637e001ec7c67bf42c17",
+      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "windows_temp_directory": "temp"
     },
     {
       "id": "strife-crispy-doom-family",
@@ -541,7 +539,8 @@
         "strfsav4.ssg",
         "strfsav5.ssg",
         "strfsav6.ssg",
-        "originals"
+        "originals",
+        "temp"
       ],
       "persistent_file_patterns": [
         {
@@ -591,17 +590,15 @@
       ],
       "launch_arguments": ["-game", "strife", "-savedir", "saves", "-noautoload"],
       "launch_environment": {
-        "TEMP": ".",
-        "TMP": ".",
-        "DOOMWADDIR": "originals",
-        "SDL_RENDER_DRIVER": "direct3d11"
+        "DOOMWADDIR": "originals"
       },
-      "definition_sha256": "356d8874fe1e4e0e824b91c510a8c6517f082fa50fd34cd802e9534f4a43bf4f",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure"
+      "definition_sha256": "149b52209ccae1fafc7a7963f00b0aa7641a573f2602e9cc9c01f4c1876b97fb",
+      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "windows_temp_directory": "temp"
     }
   ],
   "independent_design_review": {
-    "contract": "Existing Native4 setup-controller fitting viable; no new primitive. Keep controller completion separate from inner-game success and retain external-profile ownership.",
+    "contract": "Earlier setup-controller/source/retained-contract review remains scoped to those observations. The Native4 candidate was correctly refused for authored reserved environment; it is superseded by Native5 #3960. Revised complete-diff and native-protocol review remains pending.",
     "repairs": [
       "Generic retained fixture lookup uses Result::is_ok and keeps Windows exact retained-object assertions.",
       "A declared originals directory avoids per-filename case-sensitive persistence gaps.",
@@ -609,5 +606,12 @@
       "Custom outputs inside the managed tree are unclaimed and may hold maintenance; only outside-tree paths are external."
     ],
     "writer_review": "No missing ordinary default writer identified in the reviewed191-site source inventory; actual candidate lifecycle still pending."
+  },
+  "failed_candidate": {
+    "head": "49b5151a08b6518c724114ab47797d0cc8ae712e",
+    "ci_run": 40808194373,
+    "attempt": 1,
+    "outcome": "Required catalog guard correctly rejected authored TEMP/TMP/SDL_RENDER_DRIVER. Preserved, not qualified or merged.",
+    "repair": "Consume merged Native5 #3960; author only DOOMWADDIR and windows_temp_directory; renderer remains an explicit diagnostic session input."
   }
 }
