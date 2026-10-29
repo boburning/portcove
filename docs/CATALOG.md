@@ -1720,7 +1720,10 @@ its creating contract. An established target's exact retained contract and match
 installation/manifest data-restore receipt preserve its administrative restore
 behavior; that receipt does not establish state ABI or authorize legacy adoption.
 A separate empty library remains the fresh creation case. Other ports retain the
-generic common-data preservation rule above.
+generic common-data preservation rule above. New indexed fresh definitions for
+these newer routes must declare staged-source capability version 25, so readers
+without this behavior refuse them. Retained entries keep their creating reader
+requirements; current runtime checks remain independent of that envelope.
 
 Explicit rollback between two authenticated retained ready-archive copies may use
 that same empty-path proof in either direction when one persistence scope strictly

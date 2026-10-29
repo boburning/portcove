@@ -211,6 +211,17 @@ impl DefinitionContentIndex {
             ));
         }
         if !retained
+            && crate::persistence::requires_fresh_direct_data_guard(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 25
+            })
+        {
+            return Err(PortcoveError::verification(
+                "fresh Direct reader data isolation requires staged-source capability version 25",
+            ));
+        }
+        if !retained
             && crate::persistence::ready_staged_archive(&port)
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
