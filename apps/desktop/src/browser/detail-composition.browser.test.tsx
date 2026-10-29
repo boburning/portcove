@@ -54,6 +54,14 @@ async function open(index = 0) {
     })
     .click();
   await expect.element(page.getByRole("heading", { name: entry.title, exact: true })).toHaveFocus();
+  await expect
+    .poll(
+      () =>
+        !entry.artwork ||
+        (document.querySelector<HTMLImageElement>(".game-hero-foreground img")?.naturalWidth ?? 0) >
+          0,
+    )
+    .toBe(true);
 }
 function contained() {
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
@@ -95,10 +103,10 @@ for (const theme of ["dark", "light"]) {
       await page.viewport(width, height);
       await mount(theme);
       await open();
-      const cover = document.querySelector(".detail-cover")!.getBoundingClientRect();
+      const cover = document.querySelector(".game-hero-foreground")!.getBoundingClientRect();
       expect(cover.width).toBeGreaterThanOrEqual(72);
-      expect(cover.width).toBeLessThanOrEqual(148);
-      expect(cover.height).toBe(cover.width * 1.5);
+      expect(cover.right).toBeLessThanOrEqual(innerWidth);
+      expect(cover.height).toBeGreaterThan(cover.width);
       const play = page.getByRole("button", { name: "Play", exact: true });
       expect(play.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(180);
       expect(play.element().getBoundingClientRect().width).toBeLessThanOrEqual(220);
@@ -145,13 +153,13 @@ it.each(["dark", "light"])(
     document.documentElement.style.fontSize = "200%";
     contained();
     expect(
-      document.querySelector(".detail-cover")!.getBoundingClientRect().width,
-    ).toBeLessThanOrEqual(108);
+      document.querySelector(".game-hero-foreground")!.getBoundingClientRect().right,
+    ).toBeLessThanOrEqual(innerWidth);
     await capture(`enlarged-text-${theme}`);
     document.documentElement.style.removeProperty("font-size");
     await page.viewport(320, 720);
     contained();
-    const cover = document.querySelector(".detail-cover")!.getBoundingClientRect();
+    const cover = document.querySelector(".game-hero-foreground")!.getBoundingClientRect();
     expect([cover.width, cover.height]).toEqual([96, 144]);
     await capture(`long-identity-${theme}-320`);
     const spacing = document.createElement("style");
@@ -177,12 +185,15 @@ it.each(["dark", "light"])(
 it("keeps whole-image portrait, landscape, square and missing artwork at a fixed frame size", async () => {
   await page.viewport(1600, 1000);
   await mount("dark");
+  let reservedFrame: { width: number; height: number } | undefined;
   for (const index of [0, 1, 2]) {
     await open(index);
-    const cover = document.querySelector<HTMLElement>(".detail-cover")!;
+    const cover = document.querySelector<HTMLElement>(".game-hero-foreground")!;
     const frame = cover.getBoundingClientRect();
-    expect(frame.width).toBeLessThanOrEqual(148);
-    expect(frame.height).toBe(frame.width * 1.5);
+    expect(frame.right).toBeLessThanOrEqual(innerWidth);
+    expect(frame.height).toBeGreaterThan(frame.width);
+    reservedFrame ??= { width: frame.width, height: frame.height };
+    expect({ width: frame.width, height: frame.height }).toEqual(reservedFrame);
     await expect.poll(() => cover.querySelector("img")?.naturalWidth ?? 0).toBeGreaterThan(0);
     expect(getComputedStyle(cover.querySelector("img")!).objectFit).toBe("contain");
     await capture(`artwork-${index}-dark`);
@@ -192,7 +203,7 @@ it("keeps whole-image portrait, landscape, square and missing artwork at a fixed
   await expect
     .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
-  expect(document.querySelector(".detail-cover img")).toBeNull();
+  expect(document.querySelector(".game-hero-foreground img")).toBeNull();
   await capture("artwork-4-dark");
 });
 
@@ -328,9 +339,14 @@ it.each(["dark", "light"])("preserves transparent artwork against the %s frame",
   await mount(theme);
   await open();
   await expect
-    .poll(() => document.querySelector<HTMLImageElement>(".detail-cover img")?.naturalWidth ?? 0)
+    .poll(
+      () =>
+        document.querySelector<HTMLImageElement>(".game-hero-foreground img")?.naturalWidth ?? 0,
+    )
     .toBe(120);
-  expect(getComputedStyle(document.querySelector(".detail-cover img")!).objectFit).toBe("contain");
+  expect(getComputedStyle(document.querySelector(".game-hero-foreground img")!).objectFit).toBe(
+    "contain",
+  );
   contained();
   await capture(`transparent-${theme}-960`);
 });

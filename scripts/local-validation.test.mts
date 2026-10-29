@@ -3327,6 +3327,48 @@ void test("catalog generator families retain shared inputs and narrow authoring 
   }
 });
 
+void test("isolated executor recovery fixture edits retain the local and hosted controller consumer", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const file = "scripts/fixtures/release-executor-recovery-fixture.mts",
+    consumer = "scripts/release-catalog-site-controller.test.mts";
+  for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+    const change = {
+      status: variant.startsWith("R") ? "R100" : variant,
+      oldPath: variant === "R-new" ? "docs/moved.md" : file,
+      newPath: variant === "R-old" ? "docs/moved.md" : file,
+      oldMode: variant === "A" ? "000000" : "100644",
+      newMode: variant === "D" ? "000000" : "100644",
+    };
+    const selected = classifyChanges(
+      [
+        {
+          status: change.status,
+          path: change.newPath,
+          ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
+        },
+      ],
+      { fileExists: () => false },
+    );
+    assert.ok(selected.nodeTests.has(consumer), variant);
+    assert.ok(!selected.unknown.has(file), variant);
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.equal(
+      baselineContractTests(plan, { fileExists: () => false }).filter((value) => value === consumer)
+        .length,
+      1,
+      variant,
+    );
+  }
+  assert.ok(!classifyChanges([{ status: "M", path: "docs/README.md" }]).nodeTests.has(consumer));
+});
+
 void test("coordinator phase diagnostics select their integration consumer without historical siblings", async () => {
   const { buildValidationPlan } = await import("./validation-plan.mts");
   const { baselineContractTests } = await import("./ci-baseline.mts");
@@ -4001,6 +4043,7 @@ void test("native transport producers retain their actual Node consumers across 
         "scripts/desktop-boundary-wiring.test.mts",
         "scripts/desktop-execution-plan.test.mts",
         "scripts/desktop-real-runtime.test.mts",
+        "scripts/native-compatibility.test.mts",
         "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
         "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
         "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",

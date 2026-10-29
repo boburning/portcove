@@ -111,7 +111,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–83/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–84/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -257,8 +257,8 @@ builds or require clients to acquire compilers. See
 Clients display Core's complete current plan, acquisitions and capacity when
 offered, obtain its required consent and consume its action/readiness decisions.
 They must not execute catalog build instructions or derive eligibility from a
-historical recipe name. The maintained reference accepts API83 within its reviewed
-42–57, 60–63 or 65–83 membership and event schemas 2–3; unknown future APIs,
+historical recipe name. The maintained reference accepts API84 within its reviewed
+42–57, 60–63 or 65–84 membership and event schemas 2–3; unknown future APIs,
 unsupported required capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
@@ -333,7 +333,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–83 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–84 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core

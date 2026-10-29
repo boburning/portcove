@@ -14,7 +14,7 @@ Other destructive reviews retain their own consent contracts.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover retains deterministic Suggested order, Title A–Z, Title Z–A and In library first. Counts describe entries, including separate ports for one game.
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover offers Catalog order, Title A–Z, Title Z–A and In library first. With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; Discover names reviewed game groups and matching independent ports separately.
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
 no hidden duplicate controls or second query owner are introduced. Active filter
@@ -26,15 +26,18 @@ name. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit
 selection scope, including filtered-out entries in supported Steam commands.
 
-Covers use content-driven columns with a 180px preferred minimum, reduced to
-160px when the window is at most 680px high, always limited by the available
-width. Whole-image 2:3 artwork caps at 220 CSS pixels ordinarily, 180px when the
-window is at most 800px high and 160px at most 680px high. Text enlargement
-reflows text without increasing those artwork bounds. Narrow artwork still caps
-at 160px below 28em of collection width. Titles reserve two ordinary lines and expand on focus; port
-labels wrap completely. Full identity wraps below 40em. The action follows each
-entry's state instead of being pushed away by the tallest neighboring exception.
-No fixed column count, crop inference or provider mapping is implied.
+Covers use content-driven columns with a preferred minimum of 12.75rem, giving
+five columns at the matched 1440px desktop viewport with the normal interface
+size and full sidebar. Available width and interface size change the count.
+Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
+it caps at 160px. Short windows retain the same density rules. Supporting text
+scales and wraps without growing artwork beyond its CSS bound; native interface
+zoom still enlarges the physical rendering. Titles and project labels use their natural one- or two-line footprint
+and expand on focus. Full identity wraps below
+40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play
+controls use quiet ghost styling; hover and keyboard focus use the signature red.
+The quick views read as underlined navigation above the search/filter toolbar.
+Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
 Library entries have separate identity, Play/review and More actions controls.
 Favorite choices live in More actions alongside the existing update/activity and
@@ -47,7 +50,7 @@ The candidate has a concise update review link. Healthy update entries omit the 
 
 Compact rows keep 32x48px contained thumbnails (up to 40x60px with text enlargement),
 10px block padding, full wrapping identity and a bounded action span. The list
-caps at max(840px, 52.5rem). Below 46em readiness stacks beneath identity with
+uses the available workspace width. Below 36em readiness stacks beneath identity with
 thumbnail alignment indentation; its separate column has no indentation. Below
 28em actions follow readiness. Artwork loading, stale/failed notices and user
 precedence remain with the existing artwork owner.
@@ -82,20 +85,36 @@ shrinking essential text, hiding consequences or replacing the domain projection
 ## Game details
 
 Managed games, registered external installations and catalog/self-service entries
-use one responsive detail composition, bounded at 97.5rem. The complete game title uses the existing large
+use one responsive detail composition, bounded at 87.5rem. The complete game title uses the existing large
 heading token. Project and variant, observed readiness, a natural-width primary
 action and adjacent overflow follow it. Green readiness and direct red Play retain
 their existing authoritative projections. The installation fact is independently
 observed: managed version, registered external installation, downloaded setup or
 not installed. Readiness never establishes ownership.
 
-The contained 2:3 cover frame is independent of title length: 128 by 192 CSS pixels
-ordinarily, 148 by 222 in wide detail containers and 96 by 144 in compact
-containers. Narrow layouts omit the cover and retain the complete identity and
-actions. The illustrated hero uses a directional opacity mask behind transparent identity copy. A single compact Continue strip shares the same header-artwork selection and attribution owner, preserving local-artwork precedence and a normal surface fallback. The shared directional artwork mask keeps Continue copy readable while exposing more image toward its action edge. Loaded galleries use three columns in wide containers when at least three images exist, two at medium widths, and one in compact containers; per-slot attribution, errors and lightbox focus remain with the media owner. Forced colors suppress decorative backdrop images. Controls and focus retain production semantic colors. Existing artwork precedence,
-cache/provenance, overrides and quiet fallback remain with Artwork; both artwork
-slots are accessible through Change artwork in Manage. No cover crop or provider
-mapping is inferred.
+Details and the single Continue strip share one foreground identity system:
+a suitable admitted game logo, then the appropriate existing Cover,
+then the typeset title. Prefer the exact port within each role, then an accurately
+matched applicable original game/edition. A missing logo never skips the Cover.
+Keep project/variant identity visible beside original-game branding. Foreground,
+atmospheric landscape background and gallery resolve independently through the
+existing media authority, with provenance, user customization, bounded cached
+assets and quiet failure. Never stretch a portrait cover into a landscape header.
+
+Foreground art preserves its natural aspect ratio in a reserved, responsive
+frame. Cover fallback stays deliberately portrait, including narrow layouts;
+logos use wider bounded frames where useful. Compact details stack
+the foreground above complete identity/actions. The directional background mask
+protects text, while a solid narrow text stage and sufficient heading leading
+keep the complete glyph bounds over a readable surface. Logo ink/contrast and
+minimum rendered size are checked; unsuitable or failed assets advance to the
+next fallback without arbitrary pixel recoloring. Continue uses recorded launch
+history and relaunches that installation; it does not load a save automatically.
+Loaded galleries use three columns in wide containers when at least three images
+exist, two at medium widths, and one in compact containers; per-slot attribution,
+errors and lightbox focus remain with the media owner. Forced colors suppress
+decorative backdrop images. Change artwork in Manage retains the existing user
+artwork choices. No title-based identity or edition mapping is inferred.
 
 Five permanent sections use Base UI manual-activation tabs. Arrow keys and
 Home/End move focus; Enter/Space select. Narrow tab lists wrap with visible labels.
@@ -215,14 +234,14 @@ build targets, operating-system minima or publication qualification.
 
 ## Foundations
 
-- CSS custom properties in `apps/desktop/src/styles/tokens.css` are the canonical runtime token authority. Tailwind exposes approved aliases and variants rather than maintaining a second independently valued theme. Components consume semantic roles, never raw palette primitives or arbitrary utility colors. The standard theme/base/components/utilities cascade and Tailwind Preflight replace the old global stylesheet. Shared controls own appearance; actual shared row/notice patterns and local artwork geometry replace broad feature selectors. A legacy layer or override sheet is not a final destination.
+- CSS custom properties in `apps/desktop/src/styles/tokens.css` are the canonical runtime token authority. Tailwind exposes approved aliases and variants rather than maintaining a second independently valued theme. Components consume semantic roles, never raw palette primitives or arbitrary utility colors. The standard theme/base/components/utilities cascade and Tailwind Preflight replace the old global stylesheet. Shared controls own appearance; actual shared row/notice patterns and local artwork geometry replace broad feature selectors. A legacy layer or override sheet is not a final destination. Shared game-hero geometry belongs to `styles/heroes.css`; Settings rows, field compositions and theme previews belong to `styles/settings.css`. Keep their control semantics in the existing UI primitives and their colors in the canonical tokens, rather than reintroducing feature-wide utility overrides.
 - The migration checks official shadcn/ui component source into Portcove; it then becomes Portcove-owned control code. Initialization explicitly selects Base UI and the compact Nova style, records React/Vite rather than Next.js assumptions, keeps React Server Components disabled, retains Lucide, and uses semantic CSS variables. Nova is initial density and composition scaffolding, not the visual acceptance target: the reference compositions must deliberately establish Portcove typography, spacing, radii, surfaces, and artwork hierarchy. Exact compatible stable versions and generated configuration are verified at implementation time instead of relying on CLI defaults.
 - Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
 - Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
 - Graphite and warm controller-gray surfaces carry most of the interface. In the light theme, navigation is darker than the warm workspace and elevated surfaces are brighter. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
 - Selected state and focus are deliberately different: shared selected buttons use blue fill and a bottom-line marker with a transparent border; destination and Settings category navigation use the fill and current-page semantics. A gold outline communicates the current keyboard or controller target independently. Selecting an ordinary control preserves its regular font weight and geometry; forced colors retain a visible state cue.
-- Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use gradients, glass, blur, neon glow, scanlines, or pixel-interface typography.
+- Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use decorative gradients, glass, blur, neon glow, scanlines, or pixel-interface typography. Hero artwork uses the shared directional opacity mask solely to protect foreground readability.
 - The bundled Geist variable font is the intended default interface typeface, with an intentional monospace stack for technical content and offline system/script fallbacks coordinated with #203. The desktop must not make a network request to render its interface.
 - A second token interchange format is unnecessary while CSS has one runtime consumer. If a demonstrated second consumer later needs exchange, evaluate the then-current Design Tokens Community Group format without treating a community-group specification as a W3C Recommendation or manually maintaining competing CSS and JSON authorities.
 
@@ -591,6 +610,18 @@ disclosure to this generated fallback without changing the durable local choice.
 Catalog-mapped covers keep imagery clear of provider labels. The existing details
 source disclosure shows IGDB attribution and the reviewed source link.
 
+Game details and Continue share a foreground identity composition: suitable verified
+IGDB game logo, existing Cover choice, then a real text heading. Each role
+prefers the exact port and only then an applicable original/edition; project identity
+remains visible. Atmospheric landscape art and screenshots resolve independently.
+Keep full natural proportions, reserve space while loading, constrain logo dimensions
+and preserve headings/actions across failures. A cover fallback is a deliberate
+portrait element, never a manufactured landscape or cropped logo. Read decoded
+foreground suitability rather than trusting a non-null URL or alpha hint. Reassess
+logo legibility on resize and advance the same fallback chain when necessary. Use a
+deliberate contrasting logo stage when necessary without recoloring brand pixels. Expose image
+provenance and rights through the shared credits disclosure.
+
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects
 only the selected slot's explicit choice; unavailable preferred art retains its
@@ -889,9 +920,13 @@ owner survives navigation. Only its owned API channel may bind an operation ID;
 global events cannot assign that identity. Exact terminal Activity readback retires
 late progress, even when it precedes the first channel event.
 
-Game update review starts with an explicit Install update / Download for later
-choice. Compact mode and future update policy do not choose the current action.
-Changing disposition re-plans before confirmation; a downloaded update remains
+Game updates expose direct Update now and Download for later entry actions;
+Prepare for later remains an advanced choice. Each action requests the existing
+Core plan before confirmation or execution. Compact mode and future update policy
+do not choose the current action. Initial controls remain mounted while review
+hides them, so cancellation restores the actual initiating control when available;
+a connected contextual region is the fallback. Changing disposition inside review
+re-plans before confirmation; a downloaded update remains
 separate from the current playable installation. Without an observed candidate,
 Check for updates is the entry point. Shared invocation feedback owns execution
 failures; a quiet, unchanged cancellation can remain local without duplicating an
@@ -945,3 +980,44 @@ outcomes and announcements. The primitive does not fetch, redact, copy or store
 diagnostics. Existing failure and Activity semantics remain authoritative.
 
 Saved-file verification failures use a contextual check message. Keep Core error code, mutation metadata and diagnostic context in collapsed technical details, but do not project generic preparation or mutation-outcome claims into the ordinary saved-file check. Current inspection results and reconnect/relink guidance remain separately visible; pending, cancelled and unavailable inspection states retain their own contracts. This presentation rule does not change Core error authority or claim database-byte immutability.
+
+Setup review facts and startup recovery share `styles/journeys.css`. File inputs,
+computed space, activation consequences and retained work stay visible; diagnostic
+and external-window guidance remains secondary. Startup recovery groups only the
+actual unfinished library operation, preserves its unknown outcome and keeps
+retry, library selection and support-bundle paths available.
+
+Game files lead with the current file state and next action, followed by the
+existing requirements/input controls. File-matching evidence is one inline
+advanced disclosure. Saves lead with the authoritative backup-coverage result,
+known location and backup actions; exclusions and history stay visible. Manage
+keeps one ownership/path summary and puts future-install choices after its
+regular action rows.
+
+Activity recovery uses flat linked rows with recorded paths and guidance behind
+each row's disclosure. Recovery observations remain separate from task records;
+links use a real operation reference when one is available. Failed/unfinished
+outcomes and cancellation settlement remain visible on task rows. Operation IDs
+and retained preparation logs share Task details; they do not compete with the
+next action or hide mutation/uncertainty summaries.
+
+Port comparison shares `styles/comparison.css`: a concise evidence status, one
+optional settings disclosure and aligned project facts/actions. Exact artifact,
+freshness, file health and evidence provenance remain in each project's existing
+explanation. Advisory context remains distinct from setup/launch checks, and
+shared compatibility cautions are stated once rather than repeated on every card.
+
+## Prototype presentation alignment
+
+The October 29 pass retains the v58-based prototype’s graphite hierarchy: quiet
+canvas, slightly raised panels, restrained dividers, readable secondary text and
+a blue selected navigation edge. The shared control and typography tokens apply
+to Library, Discover, details, Activity, Settings and dialogs; light theme remains
+an independently readable palette, not an inverted screenshot.
+
+Game detail identity prefers an admitted exact-port logo, then an applicable
+original-game logo, then the existing cover and text fallback. Key art does not
+precede that identity chain. Header and screenshot selection remain independent.
+A logo sits above the game identity/actions; a cover retains its portrait column.
+Supporting detail and settings text scales with interface size. No artwork or
+prototype fixture creates readiness, launch history or operation eligibility.

@@ -412,7 +412,7 @@ describe("desktop components", () => {
     ];
     expect(radios).toHaveLength(3);
     expect(radios.filter((radio) => /aria-checked="true"/u.test(radio[1] ?? ""))).toHaveLength(1);
-    expect(radios.find((radio) => /System<\/span>/u.test(radio[2] ?? ""))?.[1]).toContain(
+    expect(radios.find((radio) => /Follow system<\/span>/u.test(radio[2] ?? ""))?.[1]).toContain(
       'aria-checked="true"',
     );
     expect(radios.find((radio) => /Dark<\/span>/u.test(radio[2] ?? ""))?.[1]).toContain(

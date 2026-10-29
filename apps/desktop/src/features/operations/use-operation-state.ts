@@ -5,6 +5,7 @@ import { failurePresentation, isCancellation } from "../../view-model";
 import {
   invocationFailure,
   pendingInvocationConflict,
+  settleInvocationResult,
   type InvocationContext,
   type InvocationRecord,
 } from "./invocation-state";
@@ -268,8 +269,7 @@ export function useOperationState(configuration: {
             );
         }
       }
-      if (isCurrent() && options.propagateFailure && taskFailure) throw taskFailure.value;
-      return isCurrent() ? result : undefined;
+      return settleInvocationResult({ isCurrent, options, taskFailure, result });
     },
     [
       defaultContext,

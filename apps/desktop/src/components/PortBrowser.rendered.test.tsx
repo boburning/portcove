@@ -295,7 +295,7 @@ describe("desktop components", () => {
       />,
     );
     expect(cards).toContain("Sample Port");
-    expect(cards).toContain("Suggested order");
+    expect(cards).toContain("Catalog order");
     expect(cards).toContain("Sort");
     expect(cards).toContain("Setup status unknown");
     expect(cards).toContain("Installation status unknown");
@@ -394,7 +394,7 @@ describe("desktop components", () => {
       .match(/<button\b[^>]*>[\s\S]*?<\/button>/gu)
       ?.find((button) => button.endsWith(">Play</button>"));
     expect(play).toBeDefined();
-    expect(play).toContain('data-variant="outline"');
+    expect(play).toContain('data-variant="ghost"');
     expect(play).not.toContain('data-variant="primary"');
     expect(html).not.toContain("Release channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
@@ -554,7 +554,7 @@ describe("desktop components", () => {
         />,
       );
       expect(html).toContain(launches ? "Continue playing" : `aria-label="Play ${port.name}"`);
-      expect(html).toContain(launches ? "Play again" : ">Play</button>");
+      expect(html).toContain(launches ? "Continue playing" : ">Play</button>");
       expect(html).not.toContain(`Version ${install.version}`);
       expect(html).not.toContain("Last played ·");
       expect(html).toContain(`data-successful-launches="${launches}"`);
@@ -596,6 +596,6 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Review launch");
-    expect(html).not.toContain("Play again");
+    expect(html).not.toContain("Continue playing");
   });
 });

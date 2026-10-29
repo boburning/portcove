@@ -521,7 +521,6 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
     compact,
     completionNeedsRefresh,
     selectedIntent,
-    setIntent,
     reviewScope,
     gameName,
     operation,
@@ -532,9 +531,13 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
   } = control;
   const finalFocus = () => {
     if ((applying || pending) && actionRegion.current?.isConnected) return actionRegion.current;
-    if (reviewButton.current?.isConnected && !reviewButton.current.disabled)
+    if (
+      reviewButton.current?.isConnected &&
+      !reviewButton.current.disabled &&
+      reviewButton.current.getClientRects().length > 0
+    )
       return reviewButton.current;
-    return false;
+    return actionRegion.current?.isConnected ? actionRegion.current : false;
   };
   return (
     <section
@@ -544,7 +547,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         archiveOnly ? `Manage archive for ${gameName ?? props.portId}` : "Review game update"
       }
     >
-      {!compact && <h3>{archiveOnly ? "Update archive" : "Game update"}</h3>}
+      {!compact && archiveOnly && <h3>Update archive</h3>}
       {completionNeedsRefresh && (
         <p role="status" className="my-3 text-xs text-pc-muted-foreground">
           The operation finished, but library status could not be refreshed. Refresh status before
@@ -552,32 +555,54 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         </p>
       )}
       <RetainedUpdateArchive control={control} portId={props.portId} />
-      {!archiveOnly && !plan && (
-        <div className="grid gap-2">
-          <ChoiceSelect<UpdateIntent>
-            label="What would you like to do?"
-            value={selectedIntent}
-            disabled={pending || (exclusiveBusy && acquireBusy)}
-            onChange={setIntent}
-            options={[
-              { value: "install", label: "Update now" },
-              ...(selectedIntent === "prepare"
-                ? [{ value: "prepare" as const, label: "Prepare for later" }]
-                : []),
-              ...(!existingArchive
-                ? [{ value: "download" as const, label: "Download for later" }]
-                : []),
-            ]}
-          />
+      {!archiveOnly && (
+        <div
+          className={plan ? "game-update-actions hidden" : "game-update-actions"}
+          hidden={Boolean(plan)}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              ref={reviewButton}
+              data-focusable
+              variant={compact || props.primary === false ? "outline" : "primary"}
+              disabled={exclusiveBusy || pending || !perform}
+              onClick={(event) => {
+                reviewButton.current = event.currentTarget;
+                void review("install");
+              }}
+            >
+              {pending && selectedIntent === "install" ? "Checking update…" : "Update now"}
+            </Button>
+            {!existingArchive && (
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={acquireBusy || pending || !perform}
+                onClick={(event) => {
+                  reviewButton.current = event.currentTarget;
+                  void review("download");
+                }}
+              >
+                {pending && selectedIntent === "download"
+                  ? "Checking download…"
+                  : "Download for later"}
+              </Button>
+            )}
+          </div>
           <details inert={pending || applying}>
             <summary data-focusable>Advanced update choice</summary>
             <Button
               data-focusable
               variant="outline"
-              disabled={pending || (exclusiveBusy && acquireBusy)}
-              onClick={() => setIntent("prepare")}
+              disabled={pending || exclusiveBusy || !perform}
+              onClick={(event) => {
+                reviewButton.current = event.currentTarget;
+                void review("prepare");
+              }}
             >
-              Prepare for later
+              {pending && selectedIntent === "prepare"
+                ? "Checking preparation…"
+                : "Prepare for later"}
             </Button>
             <p>
               Prepare verified staged content without activating it. A downloaded archive still
@@ -585,21 +610,6 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
             </p>
           </details>
         </div>
-      )}
-      {!archiveOnly && (
-        <Button
-          ref={reviewButton}
-          data-focusable
-          className={plan ? "hidden" : undefined}
-          hidden={Boolean(plan)}
-          variant={compact || props.primary === false ? "outline" : "primary"}
-          disabled={
-            (selectedIntent === "download" ? acquireBusy : exclusiveBusy) || pending || !perform
-          }
-          onClick={() => void review()}
-        >
-          {pending ? "Checking update…" : "Review game update"}
-        </Button>
       )}
       {!archiveOnly && plan && reviewScope?.active !== false && (
         <GameUpdatePlanDialog
@@ -923,7 +933,11 @@ function GameUpdateDiscardDialog({
           if (applying) return actionRegion.current;
           if (discardButton.current?.isConnected && !discardButton.current.disabled)
             return discardButton.current;
-          if (reviewButton.current?.isConnected && !reviewButton.current.disabled)
+          if (
+            reviewButton.current?.isConnected &&
+            !reviewButton.current.disabled &&
+            reviewButton.current.getClientRects().length > 0
+          )
             return reviewButton.current;
           return actionRegion.current;
         }}

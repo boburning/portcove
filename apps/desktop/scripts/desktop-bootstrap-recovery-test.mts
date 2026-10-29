@@ -2,7 +2,7 @@ import {
   requiredFixtureValue as required,
   fixtureObject as object,
 } from "./desktop-scenario-state.mts";
-import type { WebDriver, By, until } from "selenium-webdriver";
+import type { WebDriver, WebElement, By, until } from "selenium-webdriver";
 import type { ScenarioArtifacts } from "./desktop-scenario-context.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { DesktopSelection } from "../../../scripts/desktop-scenarios.mts";
@@ -12,6 +12,29 @@ import type {
 } from "../src/transport-types.generated.d.ts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import type { captureAccessibilityReport as captureAccessibility } from "./desktop-review-controls.mts";
+
+export function observeTechnicalDetails(browser: WebDriver, root: WebElement) {
+  return executeBrowserScript(
+    browser,
+    (root) =>
+      [...root.querySelectorAll("dl > div")].map((row) => {
+        const label = row.querySelector("dt");
+        const value = row.querySelector("dd");
+        if (!label || !value) throw new Error("Technical detail row unavailable");
+        return {
+          label: label.textContent,
+          value: value.textContent,
+          labelWidth: label.clientWidth,
+          labelScrollWidth: label.scrollWidth,
+          labelRight: label.getBoundingClientRect().right,
+          valueLeft: value.getBoundingClientRect().left,
+          labelBottom: label.getBoundingClientRect().bottom,
+          valueTop: value.getBoundingClientRect().top,
+        };
+      }),
+    root,
+  );
+}
 
 export function technicalDetailHasSeparation(row: {
   labelRight: number;
@@ -145,26 +168,7 @@ export async function preferencesRecoveryScenario({
     await failure.getText(),
     /host preferences are malformed; explicitly reset or repair them/,
   );
-  const technicalRows = await executeBrowserScript(
-    browser,
-    (root) =>
-      [...root.querySelectorAll("dl > div")].map((row) => {
-        const label = row.querySelector("dt");
-        const value = row.querySelector("dd");
-        if (!label || !value) throw new Error("Technical detail row unavailable");
-        return {
-          label: label.textContent,
-          value: value.textContent,
-          labelWidth: label.clientWidth,
-          labelScrollWidth: label.scrollWidth,
-          labelRight: label.getBoundingClientRect().right,
-          valueLeft: value.getBoundingClientRect().left,
-          labelBottom: label.getBoundingClientRect().bottom,
-          valueTop: value.getBoundingClientRect().top,
-        };
-      }),
-    failure,
-  );
+  const technicalRows = await observeTechnicalDetails(browser, failure);
   assert.ok(technicalRows.length > 0);
   for (const row of technicalRows) {
     assert.ok(row.labelScrollWidth <= row.labelWidth, `Technical label overflows: ${row.label}`);

@@ -807,7 +807,9 @@ failure and must pass the existing size and checksum guards.
 The cache uses one existing library OS lock. Retaining a new entry inventories
 at most 256 entries and 8 GiB of retained bytes, including interrupted partial
 copies, and refuses unexpected members or over-bound inventories. An existing
-hit verifies its own bytes and path without auditing unrelated members. Lock
+hit verifies its own bytes and path without auditing unrelated members, then
+rechecks the same current scope and artifact policy before reporting retention
+success. A hold admitted during hashing refuses reuse and preserves the bytes. Lock
 contention or exhausted capacity permits ordinary verified acquisition without
 new cache retention. Symlinks and corruption are refused and preserved.
 Private `.partial-<UUID>` copies never qualify as hits; no eviction
@@ -1166,8 +1168,14 @@ client implementation boundary.
 
 The existing compiled adapter-conformance route consumes the signed managed
 ordinary-release fixture. It builds and hashes the fixture-capable CLI and Desktop
-once before publication, then starts those same binaries in fresh sessions after
-the new definition, both owned artifact acquisitions and compatible corrections.
+once before the journey. After fixture authority installation and before policy
+admission or definition selection, the same CLI must refuse both `catalog show`
+and `installation plan` for the absent independent ID with `not_found`, without
+provider requests, activities, installs or catalog/selection changes. It then
+starts those same binaries in fresh sessions after the new definition, both owned
+artifact acquisitions and compatible corrections. Each owned consumer has a finite
+60-second test-harness wait, followed by kill and positive reap on failure before
+output cleanup; product deadlines and the lifecycle assertions remain unchanged.
 The CLI uses canonical reviewed first-install authority for v1 and reviewed update
 authority for v2. Its hidden qualification-only update commands forward Core's
 existing plan fingerprint, explicit confirmation, activation and one-use authorization

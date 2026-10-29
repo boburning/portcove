@@ -2155,12 +2155,14 @@ export class RoadmapClient {
       includeDependencies = false,
       includeBodies = true,
       includeArchived = false,
+      includeFields = true,
       pageSize = 50,
       details: suppliedDetails = null,
     }: {
       includeDependencies?: boolean;
       includeBodies?: boolean;
       includeArchived?: boolean;
+      includeFields?: boolean;
       pageSize?: 50 | 100;
       details?: ProjectDetails | null;
     } = {},
@@ -2173,7 +2175,10 @@ export class RoadmapClient {
       : "";
     const body = includeBodies ? "body" : "";
     const archive = includeArchived ? "archivedStates: [ARCHIVED, NOT_ARCHIVED]," : "";
-    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: ${pageSize}, ${archive} after: $after) { totalCount nodes { id isArchived content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } pageInfo { hasNextPage endCursor } } } } }`;
+    const fields = includeFields
+      ? "fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } }"
+      : "";
+    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: ${pageSize}, ${archive} after: $after) { totalCount nodes { id isArchived content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields} } pageInfo { hasNextPage endCursor } } } } }`;
     return this.readInventory(
       query,
       { id: details.id },
@@ -2194,7 +2199,7 @@ export class RoadmapClient {
         title: content?.title,
         type: content?.type,
         content,
-        fieldValues: projectFieldValues(node),
+        ...(includeFields ? { fieldValues: projectFieldValues(node) } : {}),
       });
     });
   }
@@ -3290,7 +3295,7 @@ export class RoadmapClient {
   }) {
     const issueTitle = `[Port] ${title}`;
     const issues = inventory
-      ? requireRoadmapInventory(inventory, this.config.repository, this).issues
+      ? requireRoadmapInventory(inventory, this.config.repository, this, "identity").issues
       : requireRepositoryIssueInventory(this.repositoryIssues(), this).issues;
     const duplicates = findPortIssueDuplicates(issues, {
       title,
@@ -3376,7 +3381,8 @@ export class RoadmapClient {
       throw new Error(`issue #${number} claims unknown catalog ID ${catalogId}`);
     }
     const repositoryIssues = inventory
-      ? requireRoadmapInventory(inventory, this.config.repository, this).issues
+      ? requireRoadmapInventory(inventory, this.config.repository, this, { planningIssue: number })
+          .issues
       : requireRepositoryIssueInventory(this.repositoryIssues(), this).issues;
     const duplicates = findPortIssueDuplicates(
       repositoryIssues.filter((candidate) => issueNumber(candidate) !== number),

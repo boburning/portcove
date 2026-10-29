@@ -79,7 +79,7 @@ import { copyFile, lstat, mkdir, readFile, readdir, rm, stat, writeFile } from "
 import path from "node:path";
 import {
   revealDetailSection,
-  chooseGameUpdateDisposition,
+  reviewGameUpdateDisposition,
   selectCatalogPort,
 } from "./desktop-review-controls.mts";
 import { By, Key, until } from "selenium-webdriver";
@@ -139,7 +139,8 @@ export async function installScenarios({
   restartApplication,
 }: InstallContext) {
   const statuses = async () => transportValues("status", success(await invoke("get_statuses")));
-  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const button = (label: string) =>
+    By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
   const buttonStarting = (label: string) =>
     By.xpath(`//button[starts-with(normalize-space(.),"${label}")]`);
   const openFixture = async (port: FixturePort, installed = false) => {
@@ -682,8 +683,7 @@ export async function installScenarios({
     await browser.findElement(button("Check for updates")).click();
     const updateControl = By.css('section[aria-label="Review game update"]');
     await browser.wait(until.elementLocated(updateControl), 15_000);
-    await chooseGameUpdateDisposition(browser, "prepare");
-    await browser.findElement(button("Review game update")).click();
+    await reviewGameUpdateDisposition(browser, "prepare");
     const review = By.css("[data-game-update-review]");
     await browser.wait(until.elementLocated(review), 15_000);
     assert.match(await browser.findElement(review).getText(), /current version stays unchanged/i);
@@ -990,8 +990,7 @@ export async function installScenarios({
       );
       assert.equal(plan.activate, false);
       assert.equal(plan.plan.release.asset.sha256, release.sha256);
-      await chooseGameUpdateDisposition(browser, "download");
-      await click("Review game update");
+      await reviewGameUpdateDisposition(browser, "download");
       await browser.wait(until.elementLocated(By.css("[data-game-update-review]")), 15_000);
       await click("Download archive for later");
       const pathname = new URL(release.url).pathname;
@@ -1106,8 +1105,7 @@ export async function installScenarios({
       assert.ok(fresh.acquisition);
       assert.equal(fresh.acquisition.id, acquired.acquired.id);
       assert.equal(fresh.acquisition.release.asset.sha256, release.sha256);
-      await chooseGameUpdateDisposition(browser, activate ? "install" : "prepare");
-      await click("Review game update");
+      await reviewGameUpdateDisposition(browser, activate ? "install" : "prepare");
       const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
         15_000,
@@ -1329,7 +1327,7 @@ export async function installScenarios({
       );
       assert.equal(
         await row
-          .findElements(By.xpath('.//button[normalize-space(.)="Review game update"]'))
+          .findElements(By.xpath('.//button[normalize-space(.)="Update now"]'))
           .then((items) => items.length),
         0,
         "An orphan archive must never offer Apply",

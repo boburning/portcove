@@ -225,7 +225,9 @@ it.each([undefined, null, { launchable: false, pending_setup: false, blockers: [
         port.id,
         `library:continue-review:${port.id}`,
       );
-      expect(host.querySelector(".continue-actions")?.textContent).not.toContain("Play again");
+      expect(host.querySelector(".continue-actions")?.textContent).not.toContain(
+        "Continue playing",
+      );
     } finally {
       await act(async () => root.unmount());
     }
@@ -278,7 +280,7 @@ it("restores Continue only after a new positive core assessment without changing
     expect(
       host.querySelector('.continue-actions [data-slot="button"][data-variant="primary"]')
         ?.textContent,
-    ).toBe("Play again");
+    ).toBe("Continue playing");
     await act(async () =>
       host
         .querySelector<HTMLButtonElement>(

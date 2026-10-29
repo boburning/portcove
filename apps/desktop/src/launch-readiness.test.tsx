@@ -46,7 +46,7 @@ it.each([false, true])(
       />,
     );
     expect(card.includes("Compatibility unconfirmed")).toBe(!confirmed);
-    expect(card.includes("Play again")).toBe(confirmed);
+    expect(card.includes("Continue playing")).toBe(confirmed);
   },
 );
 
@@ -79,7 +79,7 @@ it.each(["blocker", "action"] as const)(
       />,
     );
     expect(html).not.toContain(">Play</button>");
-    expect(html).not.toContain("Play again");
+    expect(html).not.toContain("Continue playing");
     expect(html).not.toContain("Ready to play");
     expect(html).not.toContain("All can launch");
     expect(html).toContain("Review launch");

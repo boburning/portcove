@@ -1,20 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
-import { readFile } from "node:fs/promises";
-import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 
-const source = stripTypeScriptTypes(
-  await readFile(new URL("./desktop-artwork-correction-test.mts", import.meta.url), "utf8"),
-  { mode: "strip" },
-);
-function segment(from: string, until: string) {
-  const start = source.indexOf(from),
-    end = source.indexOf(until, start);
-  assert.ok(start >= 0 && end > start);
-  return source.slice(start, end);
-}
 function object(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
   return value as Record<string, unknown>;
@@ -114,8 +102,9 @@ void test("serialized artwork correction reads cached pixels and preserves fallb
   }
 });
 
-void test("serialized stale catalog intent retains the reviewed identity and unregisters callbacks", async () => {
-  const call = segment("await browser.executeAsyncScript", "reviewedPlan.source,");
+async function reviewedIntentBehavior(
+  subject: (browser: unknown, source: unknown, expectedPlan: string) => Promise<unknown>,
+) {
   for (const outcome of ["success", "failure"] as const) {
     const calls: unknown[][] = [];
     const unregistered: number[] = [];
@@ -148,11 +137,8 @@ void test("serialized stale catalog intent retains the reviewed identity and unr
           }
         }),
     };
-    const serialized: unknown = await runInNewContext(
-      `(async () => {return ${call} expectedSource, "reviewed-plan-hash");})()`,
-      { browser, expectedSource },
-    );
-    assert.ok(typeof serialized === "string");
+    const serialized = await subject(browser, expectedSource, "reviewed-plan-hash");
+    assert.ok(typeof serialized === "string", "STALE_INTENT_CONTRACT serialized reply");
     const result: unknown = JSON.parse(serialized);
     assert.equal(object(result).ok, outcome === "success");
     if (outcome === "failure")
@@ -167,5 +153,32 @@ void test("serialized stale catalog intent retains the reviewed identity and unr
     assert.equal(input.onEvent, "__CHANNEL__:17");
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.deepEqual(unregistered, [17]);
+    Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+    await assert.rejects(
+      () => subject(browser, expectedSource, "reviewed-plan-hash"),
+      /Native bridge unavailable/,
+    );
+    assert.equal(calls.length, 1, "Unavailable bridge cannot invoke a command");
+    assert.deepEqual(unregistered, [17]);
+  }
+}
+
+void test("serialized stale catalog intent retains the reviewed identity and unregisters callbacks", () => {
+  const entry = new URL("./desktop-artwork-correction-test.mts", import.meta.url);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        entry,
+        `
+      import {runInNewContext} from 'node:vm';
+      const {repeatReviewedCatalogIntent} = await import(entry);
+      const object = ${String(object)};
+      await (${String(reviewedIntentBehavior)})(repeatReviewedCatalogIntent);
+    `,
+        variant === "original" ? undefined : { exportName: "repeatReviewedCatalogIntent", variant },
+      );
+    if (variant === "wrong-export")
+      assert.throws(execute, /STALE_INTENT_CONTRACT serialized reply/);
+    else execute();
   }
 });

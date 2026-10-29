@@ -1,4 +1,4 @@
-import { MediaCredit } from "./CatalogMedia";
+import { GameHero } from "./GameHero";
 import {
   browsePortPresentation,
   browseStatusSummary,
@@ -68,7 +68,7 @@ import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
 import { ArtworkFrame, artworkDisplayNotice } from "./Artwork";
-import { useArtwork, useArtworkVisibility, useHeaderArtwork } from "../artwork";
+import { useArtwork, useArtworkVisibility } from "../artwork";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
 import { Menu } from "@base-ui/react/menu";
@@ -87,7 +87,7 @@ import { CatalogFilters, queryFromFilter } from "../features/browsing/CatalogFil
 import type { GameFileFilterState } from "../features/browsing/use-game-file-filter-context";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
-  { value: "catalog", label: "Suggested order" },
+  { value: "catalog", label: "Catalog order" },
   { value: "name", label: "Title A–Z" },
   { value: "name-desc", label: "Title Z–A" },
   { value: "installed-first", label: "In library first" },
@@ -387,12 +387,12 @@ function PortBrowserView({
         )}
       >
         <BrowserQuickViews model={model} favorites={favorites} filterButton={filterButton} />
-        {model.organization && (
+        {model.view === "catalog" && model.organization && (
           <OrganizationControls
             organization={model.organization}
             selected={model.organizationView}
             onSelect={model.setOrganizationView}
-            discover={model.view === "catalog"}
+            discover
           >
             {renderSteamBatch()}
           </OrganizationControls>
@@ -754,29 +754,19 @@ function ContinueCard({
   details: (portId: string, originKey?: string) => void;
 }) {
   const { port, status } = recent;
-  const { element, visible } = useArtworkVisibility();
-  const { display: artwork, catalogMedia } = useHeaderArtwork(port, visible);
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
   const launchable = continueLaunchable(port, status, action.readiness.blocked);
   const trial = hasUnconfirmedLaunchInput(status, port);
   const previouslyPlayed = status.successful_launches > 0;
   return (
-    <section
-      ref={element}
-      className="continue-card mb-4 grid min-w-0 items-center rounded-pc-lg border border-pc-border bg-pc-surface"
-      data-focus-group
-      data-successful-launches={status.successful_launches}
-      aria-label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
+    <GameHero
+      port={port}
+      variant="continue"
+      className="continue-card mb-4"
+      successfulLaunches={status.successful_launches}
+      label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
     >
-      {artwork.image && (
-        <div className="continue-art" aria-hidden="true">
-          <img src={artwork.image} alt="" onError={artwork.onImageError} />
-        </div>
-      )}
       <div className="continue-identity min-w-0 wrap-anywhere">
-        <p className="mb-1 text-xs text-pc-muted-foreground">
-          {previouslyPlayed ? "Continue playing" : "Play"}
-        </p>
         <h2 className="m-0 text-base">{gameTitle(port)}</h2>
         {gameProjectLabel(port) && (
           <p className="m-0 mt-1 text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</p>
@@ -784,7 +774,6 @@ function ContinueCard({
         {trial && (
           <p className="m-0 mt-1 text-xs text-pc-warning-foreground">Compatibility unconfirmed</p>
         )}
-        {catalogMedia && <MediaCredit media={catalogMedia} />}
       </div>
       <div className="continue-actions min-w-0">
         <Button
@@ -812,16 +801,16 @@ function ContinueCard({
           <Icon glyph={Gamepad2} />
           {launchable
             ? status.readiness?.pending_setup
-              ? "Start setup"
+              ? "Launch to finish setup"
               : trial
                 ? "Try launch"
                 : previouslyPlayed
-                  ? "Play again"
+                  ? "Continue playing"
                   : "Play"
             : "Review launch"}
         </Button>
       </div>
-    </section>
+    </GameHero>
   );
 }
 
@@ -1081,8 +1070,8 @@ function PortCardStatus({
           <Button
             data-focusable
             variant="outline"
-            size="sm"
-            className="library-card-action"
+            size="xs"
+            className="library-card-action max-w-20"
             data-detail-origin={`${detailOrigin}:task`}
             onClick={() =>
               onTask
@@ -1097,8 +1086,8 @@ function PortCardStatus({
           <Button
             data-focusable
             variant="outline"
-            size="sm"
-            className="library-card-action"
+            size="xs"
+            className="library-card-action max-w-20"
             aria-label={`${reviewLabel}: ${gameIdentityLabel(port)}`}
             aria-describedby={inputDescriptionId}
             data-detail-origin={reviewOrigin}
@@ -1114,9 +1103,9 @@ function PortCardStatus({
         {!taskPrimary && canLaunch && (
           <Button
             data-focusable
-            variant="outline"
-            size="sm"
-            className="library-card-action"
+            variant="ghost"
+            size="xs"
+            className="library-card-action library-card-play max-w-20"
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
             aria-busy={Boolean(action.busy)}
@@ -1471,7 +1460,7 @@ function renderSortPortBrowserView(
 ) {
   return (
     model.setCatalogSort && (
-      <div className="browse-sort w-52 max-w-full min-w-0">
+      <div className="browse-sort w-60 max-w-full min-w-0">
         <ChoiceSelect
           inline
           label="Sort"
@@ -1485,12 +1474,90 @@ function renderSortPortBrowserView(
                   ),
                   { value: "recent", label: "Recently played" },
                 ]
-              : catalogSortOptions
+              : catalogSortOptions.map((option) =>
+                  option.value === "catalog" && model.queryContext?.devicePlatform
+                    ? { ...option, label: "Library & device" }
+                    : option,
+                )
           }
           onChange={model.setCatalogSort}
         />
       </div>
     )
+  );
+}
+
+function CollectionResultSummary({
+  model,
+}: {
+  model: Pick<
+    ReturnType<typeof usePortBrowser>,
+    | "resultsUnavailable"
+    | "resultCount"
+    | "organizationView"
+    | "organization"
+    | "libraryReadiness"
+    | "view"
+    | "collectionLayoutFailure"
+  >;
+}) {
+  return (
+    <>
+      <span>{model.resultsUnavailable ? "Ports unavailable" : model.resultCount}</span>
+      {model.organizationView !== "all" && (
+        <span>
+          Collection:{" "}
+          {model.organizationView.startsWith("collection:")
+            ? (model.organization?.snapshot?.collections[model.organizationView.slice(11)]?.name ??
+              "Unavailable collection")
+            : model.organizationView}
+        </span>
+      )}
+      {model.libraryReadiness !== "all" && model.view === "library" && (
+        <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
+      )}
+      {model.collectionLayoutFailure && (
+        <span role="status">
+          {model.collectionLayoutFailure === "read"
+            ? "The saved collection view could not be read. Covers are shown."
+            : "This collection view is available for this session; it could not be saved."}
+        </span>
+      )}
+    </>
+  );
+}
+
+function CollectionLayoutToggle({
+  layout,
+  onChange,
+}: {
+  layout: "covers" | "rows";
+  onChange: (layout: "covers" | "rows") => void;
+}) {
+  return (
+    <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">
+      <span className="self-center text-xs text-pc-muted-foreground">View</span>
+      {(["covers", "rows"] as const).map((nextLayout) => (
+        <Button
+          key={nextLayout}
+          variant={layout === nextLayout ? "selected" : "ghost"}
+          size="sm"
+          aria-pressed={layout === nextLayout}
+          aria-label={nextLayout === "rows" ? "Compact rows" : undefined}
+          data-focusable
+          onClick={() => onChange(nextLayout)}
+        >
+          {nextLayout === "covers" ? (
+            "Covers"
+          ) : (
+            <>
+              <span className="max-[42rem]:hidden">Compact rows</span>
+              <span className="hidden max-[42rem]:inline">Rows</span>
+            </>
+          )}
+        </Button>
+      ))}
+    </div>
   );
 }
 
@@ -1525,59 +1592,24 @@ function BrowserCollectionTools({
   );
   const after = (
     <>
+      {model.view === "library" && model.organization && (
+        <OrganizationControls
+          organization={model.organization}
+          selected={model.organizationView}
+          onSelect={model.setOrganizationView}
+          discover={false}
+        >
+          {renderSteamBatch()}
+        </OrganizationControls>
+      )}
       {renderSort()}
       {setCollectionLayout && (
-        <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">
-          <span className="self-center text-xs text-pc-muted-foreground">View</span>
-          {(["covers", "rows"] as const).map((layout) => (
-            <Button
-              key={layout}
-              variant={model.collectionLayout === layout ? "selected" : "ghost"}
-              size="sm"
-              aria-pressed={model.collectionLayout === layout}
-              aria-label={layout === "rows" ? "Compact rows" : undefined}
-              data-focusable
-              onClick={() => setCollectionLayout(layout)}
-            >
-              {layout === "covers" ? (
-                "Covers"
-              ) : (
-                <>
-                  <span className="max-[42rem]:hidden">Compact rows</span>
-                  <span className="hidden max-[42rem]:inline">Rows</span>
-                </>
-              )}
-            </Button>
-          ))}
-        </div>
+        <CollectionLayoutToggle layout={model.collectionLayout} onChange={setCollectionLayout} />
       )}
       {!model.organization && renderSteamBatch()}
     </>
   );
-  const summary = (
-    <>
-      <span>{model.resultsUnavailable ? "Ports unavailable" : model.resultCount}</span>
-      {model.organizationView !== "all" && (
-        <span>
-          Collection:{" "}
-          {model.organizationView.startsWith("collection:")
-            ? (model.organization?.snapshot?.collections[model.organizationView.slice(11)]?.name ??
-              "Unavailable collection")
-            : model.organizationView}
-        </span>
-      )}
-      {model.libraryReadiness !== "all" && model.view === "library" && (
-        <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
-      )}
-      {model.collectionLayoutFailure && (
-        <span role="status">
-          {model.collectionLayoutFailure === "read"
-            ? "The saved collection view could not be read. Covers are shown."
-            : "This collection view is available for this session; it could not be saved."}
-        </span>
-      )}
-    </>
-  );
+  const summary = <CollectionResultSummary model={model} />;
   return (
     <div className="library-query-tools mb-4">
       {model.view === "catalog" || model.composedLibrary ? (

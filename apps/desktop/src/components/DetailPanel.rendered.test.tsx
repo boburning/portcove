@@ -286,7 +286,7 @@ describe("desktop components", () => {
         />,
       );
       const check = html.indexOf("Check for updates</button>");
-      const review = html.indexOf("Review game update</button>");
+      const review = html.indexOf("Update now</button>");
       expect(check).toBeGreaterThan(-1);
       expect(review >= 0).toBe(state === "available");
       expect(review < check).toBe(true);
@@ -1067,7 +1067,7 @@ describe("desktop components", () => {
     expect(html.indexOf("Choose and add the game files again before playing.")).toBeLessThan(
       html.indexOf(port.summary),
     );
-    expect(detailSection(html, "manage")).toContain("Installation management");
+    expect(detailSection(html, "manage")).toContain("Managed installation");
     expect(detailSection(html, "files")).toContain("Requirements");
     expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(detailSection(html, "versions")).toContain("Installed version");
@@ -1399,7 +1399,7 @@ describe("desktop components", () => {
           .trim(),
     );
     expect(uninstalled).toContain("Choose game files");
-    const heroStart = uninstalled.indexOf('class="detail-hero"');
+    const heroStart = uninstalled.indexOf("data-hero-identity=");
     const tabsStart = uninstalled.indexOf('class="detail-tabs');
     expect(heroStart).toBeGreaterThanOrEqual(0);
     expect(tabsStart).toBeGreaterThan(heroStart);
@@ -1924,7 +1924,7 @@ describe("desktop components", () => {
       expect(files).toContain(content);
     expect(manage).toContain('id="detail-artwork"');
     expect(saves).toContain('aria-labelledby="detail-saves-and-storage"');
-    for (const content of ["Installation management", "Technical details", install.path])
+    for (const content of ["Managed installation", "Technical details", install.path])
       expect(manage).toContain(content);
     for (const content of ["Saves &amp; backups", "Back up now", "E:/Portcove/user/sample"])
       expect(saves).toContain(content);
@@ -2112,7 +2112,7 @@ it("uses descriptive display metadata only in the shared detail shell", () => {
       actions={actions}
     />,
   );
-  const heroStart = html.indexOf('class="detail-hero"');
+  const heroStart = html.indexOf("data-hero-identity=");
   const tabsStart = html.indexOf('class="detail-tabs');
   expect(html.slice(heroStart, tabsStart)).toContain("Display project");
   expect(detailSection(html, "manage")).toContain(`Uninstall ${port.name}`);
