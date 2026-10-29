@@ -503,3 +503,71 @@ it("keeps suitable key art, then advances to a legible logo when the Continue fo
   expect(document.activeElement).toBe(action);
   expect(media.mock.calls.map((call) => call[1])).toEqual([keyArt.id, logo.id]);
 });
+
+it.each(
+  (["detail", "continue"] as const).flatMap((variant) =>
+    (["readable", "blank", "padded", "sliver"] as const).map((ink) => ({ variant, ink })),
+  ),
+)("measures $ink opaque logo ink rather than its matte in $variant", async ({ variant, ink }) => {
+  const { logo, port } = controlledHeroMedia(true);
+  port.presentation.media = [logo];
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 160;
+  const drawing = canvas.getContext("2d");
+  if (!drawing) throw new Error("Fixture canvas unavailable");
+  drawing.fillStyle = "white";
+  drawing.fillRect(0, 0, 160, 160);
+  drawing.fillStyle = "black";
+  if (ink === "readable" || ink === "padded") {
+    drawing.font = ink === "readable" ? "bold 112px sans-serif" : "12px sans-serif";
+    drawing.fillText("PC", ink === "readable" ? 5 : 70, ink === "readable" ? 128 : 80);
+  } else if (ink === "sliver") drawing.fillRect(78, 0, 4, 160);
+  const logoBytes = canvas.toDataURL("image/png").split(",")[1]!;
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+    automaticArtwork(id, slot),
+  );
+  vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+    asset_sha256: "b".repeat(64),
+    choice_revision: 0,
+    png_base64: png,
+  });
+  const media = vi
+    .spyOn(desktopApi, "catalogMediaThumbnail")
+    .mockImplementation(async (_id, _media, hash) => ({
+      asset_sha256: hash,
+      choice_revision: 0,
+      png_base64: logoBytes,
+    }));
+  await page.viewport(1200, 900);
+  await render(
+    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+      <GameHero port={port} variant={variant}>
+        <h1>Opaque controlled game</h1>
+        <button>Play opaque controlled game</button>
+      </GameHero>
+    </ArtworkProvider>,
+  );
+  const readable = ink === "readable";
+  await expect
+    .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe(readable ? "logo" : "cover");
+  await expect
+    .poll(() => document.querySelector(".game-hero-image")?.getAttribute("data-plate") ?? null)
+    .toBe(readable ? "true" : null);
+  await expect
+    .poll(() => {
+      const image = document.querySelector<HTMLImageElement>(".game-hero-image");
+      return image?.complete && image.naturalWidth > 0;
+    })
+    .toBe(true);
+  expect(document.querySelector(".game-hero-image")?.getAttribute("src")).toBe(
+    `data:image/png;base64,${readable ? logoBytes : png}`,
+  );
+  await expect
+    .element(page.getByRole("heading", { name: "Opaque controlled game", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Play opaque controlled game", exact: true }))
+    .toBeVisible();
+  expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
+});

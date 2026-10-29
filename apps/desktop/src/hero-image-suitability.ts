@@ -12,6 +12,30 @@ function luminance(r: number, g: number, b: number) {
   };
   return linear(r) * 0.2126 + linear(g) * 0.7152 + linear(b) * 0.0722;
 }
+function inkFootprint(pixels: Uint8ClampedArray, opaque: boolean, background: number) {
+  let firstX = SAMPLE_SIZE,
+    firstY = SAMPLE_SIZE,
+    lastX = -1,
+    lastY = -1;
+  for (let index = 0; index < pixels.length; index += 4) {
+    if (pixels[index + 3]! < 51) continue;
+    const value = luminance(pixels[index]!, pixels[index + 1]!, pixels[index + 2]!);
+    // An opaque matte is not the logo. Keep only distinguishable ink; source pixels remain untouched.
+    if (opaque && (Math.max(value, background) + 0.05) / (Math.min(value, background) + 0.05) < 1.5)
+      continue;
+    const x = (index / 4) % SAMPLE_SIZE,
+      y = Math.floor(index / 4 / SAMPLE_SIZE);
+    firstX = Math.min(firstX, x);
+    lastX = Math.max(lastX, x);
+    firstY = Math.min(firstY, y);
+    lastY = Math.max(lastY, y);
+  }
+  return {
+    glyphWidth: Math.max(0, lastX - firstX + 1) / SAMPLE_SIZE,
+    glyphHeight: Math.max(0, lastY - firstY + 1) / SAMPLE_SIZE,
+  };
+}
+
 function sampleSurface(pixels: Uint8ClampedArray) {
   let opaque = true,
     red = 0,
@@ -19,9 +43,7 @@ function sampleSurface(pixels: Uint8ClampedArray) {
     blue = 0,
     edges = 0;
   let alpha = 0,
-    light = 0,
-    firstY = SAMPLE_SIZE,
-    lastY = -1;
+    light = 0;
   for (let index = 0; index < pixels.length; index += 4) {
     const x = (index / 4) % SAMPLE_SIZE,
       y = Math.floor(index / 4 / SAMPLE_SIZE);
@@ -36,14 +58,12 @@ function sampleSurface(pixels: Uint8ClampedArray) {
     if (weight < 0.2) continue;
     alpha += weight;
     light += luminance(pixels[index]!, pixels[index + 1]!, pixels[index + 2]!) * weight;
-    firstY = Math.min(firstY, y);
-    lastY = Math.max(lastY, y);
   }
   return {
     opaque,
     alpha,
     light: light / alpha,
-    glyphHeight: (lastY - firstY + 1) / SAMPLE_SIZE,
+    ...inkFootprint(pixels, opaque, luminance(red / edges, green / edges, blue / edges)),
     backing: `rgb(${Math.round(red / edges)} ${Math.round(green / edges)} ${Math.round(blue / edges)})`,
   };
 }
@@ -66,7 +86,13 @@ export function inspectHeroLogo(element: HTMLImageElement): HeroLogoSurface | un
   const height =
     bounds.height - parseFloat(computed.paddingTop) - parseFloat(computed.paddingBottom);
   const width = bounds.width - parseFloat(computed.paddingLeft) - parseFloat(computed.paddingRight);
-  if (!surface.alpha || height * surface.glyphHeight < 18 || width < 36) return undefined;
+  if (
+    !surface.alpha ||
+    height * surface.glyphHeight < 18 ||
+    width * surface.glyphWidth < 24 ||
+    width < 36
+  )
+    return undefined;
   return {
     plate: surface.opaque,
     backing: surface.backing,

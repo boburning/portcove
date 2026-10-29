@@ -160,7 +160,7 @@ it("carries reviewed listing identity and media from grouped old definitions int
   await expect.element(enlarge).toBeEnabled();
   await enlarge.click();
   const viewer = page.getByRole("dialog");
-  await expect.element(viewer.getByText(/Edition: reviewed-edition/)).toBeVisible();
+  await expect.element(viewer.getByText(/Original release · reviewed-edition/)).toBeVisible();
   await expect
     .element(viewer.getByRole("link", { name: "CC0-1.0", exact: true }))
     .toHaveAttribute("href", screenshot.rights_url);
