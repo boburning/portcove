@@ -108,7 +108,7 @@ export async function runReadinessFetchProbeOracle(
     __TAURI_INTERNALS__: { convertFileSrc: ipcSource(target), invoke: async () => {} },
   };
   const browser = {
-    executeScript: (callback: unknown, ...args: unknown[]) => {
+    executeScript: (callback: unknown, ...args: unknown[]): unknown => {
       assert.ok(typeof callback === "function");
       return runInNewContext(
         `(${callback.toString()})(...args)`,
@@ -332,7 +332,7 @@ export async function runReadinessCallerProbe(
     },
   };
   const browser = {
-    executeScript: (callback: unknown, ...args: unknown[]) => {
+    executeScript: (callback: unknown, ...args: unknown[]): unknown => {
       assert.ok(typeof callback === "function");
       return runInNewContext(
         `(${callback.toString()})(...args)`,
@@ -361,7 +361,8 @@ export async function runReadinessCallerProbe(
   let selected = 0;
   let stopped = false;
   try {
-    const subject: Readonly<Record<string, unknown>> = await import(entry);
+    const imported: unknown = await import(entry);
+    const subject = record(imported);
     try {
       await nativeCall(subject, "readinessScenario", [
         {
@@ -415,7 +416,7 @@ export async function runInstallCallerProbe(entry: string) {
   };
   const element = { click: async () => {}, sendKeys: async () => {} };
   const browser = {
-    executeScript: (callback: unknown, ...args: unknown[]) => {
+    executeScript: (callback: unknown, ...args: unknown[]): unknown => {
       assert.ok(typeof callback === "function");
       return runInNewContext(
         `(${callback.toString()})(...args)`,
@@ -436,14 +437,15 @@ export async function runInstallCallerProbe(entry: string) {
           reject(error);
         }
       }),
-    findElement: async () => {
+    findElement: () => {
       if (window.__portcoveInstallRefreshProbe) throw sentinel;
       return element;
     },
     wait: async () => element,
   };
   const controlsUrl = new URL("./desktop-review-controls.mts", entry).href;
-  const controls: Readonly<Record<string, unknown>> = await import(controlsUrl);
+  const importedControls: unknown = await import(controlsUrl);
+  const controls = record(importedControls);
   mock.module(controlsUrl, {
     namedExports: {
       ...controls,
@@ -456,7 +458,8 @@ export async function runInstallCallerProbe(entry: string) {
   let selected = 0;
   let stopped = false;
   try {
-    const subject: Readonly<Record<string, unknown>> = await import(entry);
+    const imported: unknown = await import(entry);
+    const subject = record(imported);
     try {
       await nativeCall(subject, "installScenarios", [
         {
