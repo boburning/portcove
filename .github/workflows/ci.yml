@@ -610,7 +610,7 @@ jobs:
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: |
           # node-suite: windows-helpers-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts scripts/ci-windows-helpers.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts scripts/ci-windows-helpers.test.mts scripts/release-windows-webview-driver.test.mts
       - name: Lint PowerShell scripts and exercise the causal fixture
         shell: pwsh
         run: |
@@ -907,7 +907,7 @@ jobs:
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: |
           # node-suite: windows-helpers-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts scripts/ci-windows-helpers.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts scripts/ci-windows-helpers.test.mts scripts/release-windows-webview-driver.test.mts
       - name: Test Windows CI setup contract
         run: |
           # node-suite: windows-storage-3

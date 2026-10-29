@@ -4376,7 +4376,8 @@
       "file": "scripts/release-windows-webview-driver.test.mts",
       "memberships": [
         ["catalog-full-2", 1000010],
-        ["release-check", 16209]
+        ["release-check", 16209],
+        ["windows-helpers-3", 800]
       ]
     },
     {
