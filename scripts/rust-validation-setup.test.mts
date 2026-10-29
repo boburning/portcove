@@ -119,7 +119,8 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
     installerSteps(packageOwnershipRehearsal).filter(
       (step) =>
         step.run ===
-          defaultInstall + " --include-rpm --install-timeout-seconds=600 --prefer-archive-mirror" &&
+          defaultInstall +
+            " --include-rpm --include-dialog-tests --install-timeout-seconds=600 --prefer-archive-mirror" &&
         step["timeout-minutes"] === 30,
     ).length,
     1,

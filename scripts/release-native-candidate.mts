@@ -228,6 +228,27 @@ export function inspectNativeSourceCommand(args: readonly string[], input?: unkn
   return { scope: "read-only-route-integrity", authority: "none" } as const;
 }
 
+/** Passive, read-only source transport; callers retain credential/tool custody. */
+export function createNativeSourceApiReader(
+  cwd: string,
+  spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>,
+) {
+  return new GitHubApiClient((args, input) => {
+    const command = [...args, "--hostname", "github.com"];
+    inspectNativeSourceCommand(command, input);
+    // A 4 MiB catalog needs base64 plus JSON framing. Only an immutable source
+    // blob gets this allowance; all unrelated metadata retains its 2 MiB bound.
+    const blob = command.some((item) =>
+      /^repos\/boburning\/portcove\/git\/blobs\/[a-f0-9]{40}$/u.test(item),
+    );
+    return createGitHubRunner({
+      cwd,
+      maxBuffer: (blob ? 8 : 2) * 1024 * 1024,
+      spawn,
+    })(command, input);
+  });
+}
+
 /** Only the existing fixed GitHub/Sigstore verifier over retained public files.
  * This command validation cannot authenticate a statement or native result. */
 export function inspectNativeControllerVerificationCommand(
@@ -408,12 +429,7 @@ async function sourceTransport(parent: Parent, directory: string) {
     checkToolIdentity();
     return result;
   };
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({ cwd: directory, maxBuffer: 2 * 1024 * 1024, spawn: textSpawn })(
-      [...args, "--hostname", "github.com"],
-      input,
-    ),
-  );
+  const api = createNativeSourceApiReader(directory, textSpawn);
   const opaque =
     (reader: typeof readGitHubArtifactArchive): typeof readGitHubArtifactArchive =>
     (endpoint, options) =>
@@ -2047,11 +2063,14 @@ export async function readActualNativeSourceDeclarations(receipt: object) {
   const retained = selections.get(receipt);
   if (!retained) throw new Error("actual native source selection required");
   const selected = await requireActualNativeCandidate(receipt);
-  const declaration = await retainNativeSourceDeclarations(retained.directory, (pathname) =>
-    retained.api.request(
-      "GET",
-      `repos/boburning/portcove/contents/${pathname}?ref=${selected.request.request.candidate.source_commit}`,
-    ),
+  const declaration = await retainNativeSourceDeclarations(
+    retained.directory,
+    (pathname) =>
+      retained.api.request(
+        "GET",
+        `repos/boburning/portcove/contents/${pathname}?ref=${selected.request.request.candidate.source_commit}`,
+      ),
+    (sha) => retained.api.request("GET", `repos/boburning/portcove/git/blobs/${sha}`),
   );
   await requireActualNativeCandidate(receipt);
   return Object.freeze({

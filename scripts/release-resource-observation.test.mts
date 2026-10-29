@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { parse, stringify } from "yaml";
 import { observeReleaseResources } from "./release-resource-observation.mts";
@@ -87,4 +88,177 @@ void test("resource observations reconcile current purposes and keep provider, b
       ?.maximum_job_minutes,
     null,
   );
+});
+
+void test("measured resource amendment remains concrete, complete and unratified under effective100", async () => {
+  const proposal = JSON.parse(
+    await readFile(
+      new URL(
+        "../docs/qualification/slice4-resource-amendment-proposal-2026-10-28.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    status: string;
+    authority: string;
+    source_scope: { current_workflow_sha256: string; current_policy_sha256: string };
+    proposed_policy: {
+      application_minutes: number;
+      catalog_alternative_minutes: number;
+      hard_cap_minutes: number;
+    };
+    jobs: { job: string; effective_minutes: number | null; proposed_minutes: number }[];
+    allocations: Record<string, Record<string, number>>;
+  };
+  assert.equal(proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
+  assert.equal(proposal.authority, "none");
+  const constraint = (
+    proposal as unknown as {
+      windows_owner_constraint: {
+        effective_total_milliseconds: number;
+        full_signing_job_maximum_milliseconds: number;
+        job_ceiling_does_not_extend_owner: boolean;
+        full_signing_wait_fit: string;
+      };
+    }
+  ).windows_owner_constraint;
+  assert.equal(constraint.effective_total_milliseconds, 570000);
+  assert.equal(constraint.full_signing_job_maximum_milliseconds, 600000);
+  assert.equal(constraint.job_ceiling_does_not_extend_owner, true);
+  assert.match(constraint.full_signing_wait_fit, /^Unknown/u);
+  const linux = (
+    proposal as unknown as {
+      linux_owner_constraint: {
+        effective_total_milliseconds: number;
+        full_signing_job_maximum_milliseconds: number;
+        job_ceiling_does_not_extend_owner: boolean;
+        full_signing_wait_fit: string;
+      };
+    }
+  ).linux_owner_constraint;
+  assert.equal(linux.effective_total_milliseconds, 570000);
+  assert.equal(linux.full_signing_job_maximum_milliseconds, 600000);
+  assert.equal(linux.job_ceiling_does_not_extend_owner, true);
+  assert.match(linux.full_signing_wait_fit, /^Unknown/u);
+
+  assert.equal(slice4CapacityResources.total_job_minutes, 100);
+  assert.equal(proposal.proposed_policy.application_minutes, 163);
+  assert.equal(proposal.proposed_policy.hard_cap_minutes, 163);
+  assert.equal(proposal.proposed_policy.catalog_alternative_minutes, 40);
+  const workflow = await readFile(
+      new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+    ),
+    actual = parse(workflow.toString()) as { jobs: Record<string, { "timeout-minutes": number }> };
+  assert.deepEqual(
+    proposal.jobs.map((row) => row.job).sort(),
+    [
+      ...Object.keys(actual.jobs).filter((name) => !name.startsWith("catalog_")),
+      "native_windows",
+      "wake",
+    ].sort(),
+  );
+  assert.equal(
+    proposal.jobs.reduce((sum, row) => sum + row.proposed_minutes, 0),
+    163,
+  );
+  for (const row of proposal.jobs) {
+    assert.equal(
+      row.effective_minutes,
+      row.job === "wake" ? 1 : (actual.jobs[row.job]?.["timeout-minutes"] ?? null),
+    );
+    assert.ok(Number.isSafeInteger(row.proposed_minutes) && row.proposed_minutes > 0);
+  }
+  for (const allocation of Object.values(proposal.allocations))
+    assert.equal(
+      Object.entries(allocation)
+        .filter(([name]) => name !== "total")
+        .reduce((sum, [, value]) => sum + value, 0),
+      allocation.total,
+    );
+  assert.equal(
+    proposal.source_scope.current_workflow_sha256,
+    createHash("sha256").update(workflow).digest("hex"),
+  );
+  assert.equal(
+    proposal.source_scope.current_policy_sha256,
+    createHash("sha256")
+      .update(await readFile(new URL("./release-capacity.mts", import.meta.url)))
+      .digest("hex"),
+  );
+});
+
+void test("complete source amendment projects application163/catalog40 without activating policy or native execution", async () => {
+  const { prepareReleaseResourceAmendmentProposal: prepare } =
+      await import("./release-resource-amendment-proposal.mts"),
+    {
+      protectedWindowsNativeRuntimePreparationExecutionAuthorized,
+      prepareAdmittedWindowsNativeRuntime,
+    } = await import("./release-windows-bootstrap-runtime.mts");
+  const [production, wake, candidate] = await Promise.all(
+    ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
+      (name) => readFile(new URL("../.github/workflows/" + name, import.meta.url)),
+    ),
+  );
+  assert.ok(production && wake && candidate);
+  const original = Buffer.from(production),
+    result = prepare(production, wake, candidate);
+  assert.ok(production.equals(original));
+  assert.equal(result.proposal.authority, "none");
+  assert.equal(result.proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
+  assert.equal(result.proposal.observation.accounting.application, 163);
+  assert.equal(result.proposal.observation.accounting.catalog_alternative, 40);
+  assert.equal(result.proposal.observation.accounting.policy_envelope, 100);
+  assert.equal(slice4CapacityResources.total_job_minutes, 100);
+  assert.equal(result.proposal.proposed_resources.total_job_minutes, 163);
+  assert.equal(
+    result.proposal.proposed_resource_digest,
+    capacityDigest(result.proposal.proposed_resources),
+  );
+  assert.equal(result.proposal.proposed_resources.paid_fallback, false);
+  assert.equal(result.proposal.proposed_resources.shared_cache, false);
+  const proposed: unknown = parse(result.proposedWorkflow.toString());
+  assert.ok(
+    isRecord(proposed) &&
+      isRecord(proposed.jobs) &&
+      isRecord(proposed.jobs.native_windows) &&
+      isRecord(proposed.jobs.tool_bootstrap),
+  );
+  assert.equal(
+    proposed.jobs.tool_bootstrap["timeout-minutes"],
+    "${{ inputs.publication_purpose == 'application' && 12 || 4 }}",
+  );
+  const native = proposed.jobs.native_windows;
+  assert.equal(native["timeout-minutes"], 35);
+  assert.equal(native["runs-on"], "windows-2022");
+  assert.equal(native.environment, "production-native-windows");
+  assert.match(String(native.if), /^\$\{\{ false &&/u);
+  assert.ok(Array.isArray(native.needs) && native.needs.includes("tool_bootstrap_windows"));
+  assert.ok(Array.isArray(native.steps));
+  const runtime = native.steps.findIndex(
+      (step: unknown) =>
+        isRecord(step) &&
+        step.run ===
+          "node scripts/release-controller-tool-bootstrap.mts prepare-windows-native-runtime",
+    ),
+    pre = native.steps.findIndex(
+      (step: unknown) => isRecord(step) && isRecord(step.with) && step.with.stage === "pre-sign",
+    );
+  assert.ok(runtime > 0 && pre > runtime);
+  const stages = native.steps.filter(
+    (step: unknown) => isRecord(step) && step.uses === "./.github/actions/release-native-windows",
+  );
+  assert.equal(stages.length, 2);
+  assert.equal(protectedWindowsNativeRuntimePreparationExecutionAuthorized, false);
+  await assert.rejects(
+    prepareAdmittedWindowsNativeRuntime(),
+    /Protected Windows runtime preparation remains held/u,
+  );
+  const changed: unknown = parse(production.toString());
+  assert.ok(isRecord(changed) && isRecord(changed.jobs) && isRecord(changed.jobs.tool_bootstrap));
+  changed.jobs.tool_bootstrap["timeout-minutes"] = 5;
+  assert.throws(() => prepare(Buffer.from(stringify(changed)), wake, candidate));
+  changed.jobs.tool_bootstrap["timeout-minutes"] = 4;
+  changed.jobs.native_windows = {};
+  assert.throws(() => prepare(Buffer.from(stringify(changed)), wake, candidate), /Do not replace/u);
 });

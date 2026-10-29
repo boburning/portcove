@@ -448,9 +448,137 @@ retained verification result; a partial cache, alias or changed bytes refuses
 without reinstalling or overwriting the original attempt. Downloads and commands
 have finite bounds under the maintained process/resource supervisor.
 
-This supplies no encryption, key generation, vault restore, credential placement,
-production signing or publication authority. The complete appointed-key inventory
-and encrypted create/restore adapter remain separate implementation work.
+This tool bootstrap supplies no custody, credential placement, production signing
+or publication authority.
+
+`scripts/catalog-recovery-vault.mts` supplies the separate offline catalog-only
+adapter. `prepareCatalogRecoveryPlan` requires independently ratified release-tools
+binary/source identities, the exact selected catalog configuration bytes, its
+public Root/Targets pins, and public fingerprints from the appointed two-App
+captures. It snapshots the binary and public inputs privately and invokes the
+read-only `inspect-catalog-key-inventory` command. That command verifies signed
+Root/Targets structure and derives every appointed catalog role key; it deliberately
+does not grant freshness, signing or private custody. The public-only
+`inspectCatalogRecoveryPlan` cannot create a usable vault session.
+
+`createCatalogRecoveryVault` accepts an already-authorized owner custody callback,
+invoked only for the derived complete appointments. Each catalog key must pass
+the existing Tough `inspect-existing-tuf-key` projection through that same pinned
+binary; each App RSA key must match its captured SPKI fingerprint. A parsed
+configuration, prepared local session or available credential never authorizes
+that callback. Vault preparation and custody acquisition reject Actions runtimes
+and UID 0; reviewer identity and owner custody still require the separate grant.
+Actual custody reads remain held until their separate prerequisites
+are satisfied. No discovery, key generation, Root rotation or provider operation
+exists in this adapter.
+
+The create-only private output contains an authenticated age ciphertext and a
+public completion receipt. The native recipient API remains available for
+separately appointed identity holders: identity bytes travel through stdin,
+never arguments, environment variables, logs or temporary identity files.
+The ordinary-owner CLI uses the selected passphrase profile instead. It shares
+the same complete catalog vault, inspectors and durable completion boundary.
+It does not appoint an additional age identity.
+
+Existing `prepareRecoveryTools` qualifies the exact standard age executable
+before private reads. Native recipient subprocesses retain their 30-second
+ceiling. Direct passphrase subprocesses have a 120-second ceiling, a sanitized
+environment and bounded output. Pinned age 1.3.2 creates the single-scrypt logN18
+profile (256 MiB principal KDF memory); restore refuses any other header before
+asking for a secret. This resource fence and the separately retained ciphertext
+SHA do not replace age authentication. Bundle size is at most 1 MiB and each
+private key at most 32 KiB. Caller custody callbacks must themselves be bounded
+and return a fresh transferred buffer; returned buffers are cleared after
+consumption. JavaScript heap strings do not provide guaranteed secure erasure.
+
+`scripts/catalog-recovery-vault-cli.mts` accepts a closed public JSON configuration:
+
+```json
+{
+  "schema_version": 1,
+  "profile": "catalog-owner-passphrase-tty-v1",
+  "configuration": { "path": "/absolute/selected-catalog.json", "sha256": "RATIFIED_SHA256" },
+  "app_public_captures": {
+    "semantic": { "app_id": 101, "public_key_sha256": "ACTUAL_CAPTURE_SHA256" },
+    "protection_observer": { "app_id": 202, "public_key_sha256": "ACTUAL_CAPTURE_SHA256" }
+  },
+  "inspector": {
+    "path": "/absolute/qualified-release-tools",
+    "sha256": "RATIFIED_BINARY_SHA256",
+    "source_commit": "RATIFIED_SOURCE_COMMIT",
+    "source_tree": "RATIFIED_SOURCE_TREE"
+  },
+  "public_inputs": {
+    "trusted_root": "/absolute/appointed-root.json",
+    "offline_targets": "/absolute/appointed-targets.json"
+  },
+  "tool_parent": "/absolute/qualified-public-tool-cache",
+  "private_parent": "/absolute/owner-private-0700-working-directory",
+  "key_paths": { "ACTUAL_DERIVED_ROLE": "/absolute/existing-appointed-private-key" }
+}
+```
+
+The example IDs and digest labels are placeholders, never production captures
+or pins. `key_paths` must name exactly every role derived from the authenticated
+public Root/Targets and the appointed two-App captures, with distinct ordinary-owner
+single-link private files. The CLI never discovers, generates or installs keys.
+The owner configuration SHA (provided separately as `--config-sha256`), selected
+configuration and binary/source pins must be independently ratified. The owner
+config pin is checked before parsing or executing its selected inspector;
+config parsing does not grant custody. App IDs, public fingerprints, the appointed
+public Root/Targets and actual existing custody paths remain prerequisites.
+
+After those appointments and the separate custody grant are satisfied, review
+only public data and private-file metadata, then use that exact returned
+`expected_plan` in the owner's **private, unrecorded ordinary-user terminal**:
+
+```sh
+node scripts/catalog-recovery-vault-cli.mts review --for create --config /absolute/owner-recovery.json --config-sha256 RATIFIED_OWNER_CONFIG_SHA256
+node scripts/catalog-recovery-vault-cli.mts create --config /absolute/owner-recovery.json --config-sha256 RATIFIED_OWNER_CONFIG_SHA256 --expected-plan RETURNED_SHA256 --name initial-backup
+```
+
+Enter and confirm a **nonempty** passphrase directly into age's terminal prompt;
+do not send it to an agent, captured terminal, argument, environment variable,
+configuration or recording channel. The wrapper never receives the phrase.
+Standard age can generate and display a phrase on that private terminal if the
+owner deliberately leaves the prompt empty; this is not an appointed recovery
+identity or a recorded transport. Nonterminal invocation, Actions, UID 0 and an
+`AGE_PASSPHRASE` environment override refuse before custody reads. The existing root-maintained `/usr/bin/stty` (resolved to a regular,
+non-group-writable root-owned executable) snapshots a bounded nonsecret state
+from a held `/dev/tty` descriptor. It restores and reads back that exact state
+after age settles and before the API returns, including failed prompts. No
+PATH or shell fallback, machine installation or secret input channel is used.
+Interrupting a prompt kills and settles age, restores terminal state and leaves no completion
+marker. A stale review refuses before custody content is read.
+
+To recover after losing the primary files, retain the same independently ratified
+public appointments and review **for restore**, which never stats or reads the
+primary paths. Supply the independently retained ciphertext digest and a new
+quarantine name; the same private terminal receives the secret:
+
+```sh
+node scripts/catalog-recovery-vault-cli.mts review --for restore --config /absolute/owner-recovery.json --config-sha256 RATIFIED_OWNER_CONFIG_SHA256
+node scripts/catalog-recovery-vault-cli.mts restore --config /absolute/owner-recovery.json --config-sha256 RATIFIED_OWNER_CONFIG_SHA256 --expected-plan RETURNED_SHA256 --name recovered-quarantine --ciphertext /absolute/catalog.age --sha256 RETAINED_SHA256
+```
+
+`restoreCatalogRecoveryVault` requires the retained ciphertext digest, the separate
+native identity or direct owner passphrase, and a newly prepared plan for the same
+public appointments.
+It accepts decrypted bytes only after age exits successfully, then verifies the
+exact complete inventory and every private/public projection before writing any
+recovered `.key` file. The create-only output is quarantine, never an installed
+signing store. Interrupted or failed attempts retain their private directory and
+cannot be overwritten; a successful durable `complete.json` is the sole local
+completion marker. No completion marker grants activation or signing. Changed
+appointments, wrong recipients, aliases, missing backups and corrupt ciphertext
+refuse. Losing both primary material and the decryptable backup never regenerates
+Root. Recipient rotation means a new encrypted copy of the same recovered keys;
+TUF and App key rotation remain their existing separate authorities.
+
+Ciphertext-only transport may use a shared recovery volume: its bounded
+single-link/canonical read, retained digest and age authentication remain required,
+while Linux 0700/0600 custody requirements apply only to plaintext working and
+quarantine material. This adapter does not provision or copy to that storage.
 
 For that explicitly selected profile, `top_level_targets_profile:
 "online-unchanged-authority-v1"` permits separately isolated Targets signing only

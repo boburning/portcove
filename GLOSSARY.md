@@ -2,11 +2,167 @@
 
 <a id="portcove"></a>
 
-Use this glossary to distinguish domain objects, evidence and authority. It
-describes the current contracts unless a section explicitly says **proposed**.
-Player wording follows the task: “Game files” or “Saved file location” can be
-clearer than a developer type name. [Content design](docs/CONTENT-DESIGN.md)
-owns how those meanings appear in messages and controls.
+This glossary defines Portcove's concepts and distinguishes them from preferred
+player wording. [Content design](docs/CONTENT-DESIGN.md) owns communication rules;
+the [design system](docs/DESIGN-SYSTEM.md#public-beta-writing-and-terminology) owns
+concrete interface labels. Definitions describe current contracts; proposed
+names remain explicitly proposed.
+
+Start with [collection and installations](#player-collection-and-storage),
+[original files](#game-files), [saves and backups](#installations-and-saved-data),
+[releases and updates](#games-ports-and-releases), [setup](#setup-and-readiness)
+and [actions and recovery](#review-execution-and-recovery). [Operational
+meaning](#evidence-designation-and-permission), [delivery evidence](#delivery-evidence)
+and [developer mappings](#developer-mappings) follow.
+
+## Player collection and storage
+
+| Concept                          | Meaning and context                                                                                                                                       | Preferred player wording and example                                                                                                                      |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Game / original game             | The original title a player recognizes. Its title or artwork does not identify a particular port or installation.                                         | **Game** for play-oriented tasks: “Continue playing {game}.”                                                                                              |
+| Port                             | An independently identified native implementation or variant of a game. Several ports can implement one game.                                             | **Port** or **port project** when choosing implementations: “2 ports for this game.”                                                                      |
+| Catalog port                     | A catalog entry for an identified port integration. Listing does not establish a runnable release, current-device compatibility or permission to install. | Name the project and its actual setup options, rather than promising every listed port is available.                                                      |
+| Original system                  | The hardware for which the original game was made, separate from the port's runtime operating system.                                                     | **Original system**, for example Nintendo 64. Do not infer absent metadata.                                                                               |
+| Target platform                  | The operating system and architecture a port targets. A target declaration does not establish compatibility with a particular device or tested gameplay.  | **Platform** or **Runs on**, for example Windows x86-64; explain architecture variants when needed.                                                       |
+| Library                          | The selected collection, durable records and managed content. The library identity and port identity distinguish operational context.                     | **Library** for the destination; **Library folder** for its location.                                                                                     |
+| Library entry                    | One port's managed, registered external or retained unfinished-setup context in the selected library. Separate ports of one game remain separate entries. | Count **ports**, **entries** or **installations** according to the actual collection. Two projects for one game are two entries, not two different games. |
+| Installation                     | A particular local installed or registered instance of a port. It can be managed by Portcove or registered from an existing runtime.                      | **Installation** when a local copy matters: “Choose this installation.”                                                                                   |
+| Managed installation             | A port release whose installed files and lifecycle belong to Portcove's supported managed route.                                                          | **Managed by Portcove**, with the actual managed capabilities nearby.                                                                                     |
+| Registered external installation | An existing runtime recorded for launch. Registration gives Portcove no file-replacement, backup or deletion ownership.                                   | **Existing installation**; “Updates handled by {project}” or “You manage updates” only when that fact is known.                                           |
+| Library folder                   | The chosen location containing Portcove's managed content and records.                                                                                    | **Library folder**, not an original-games folder.                                                                                                         |
+| Install folder                   | The location for a particular managed installation; a configured future placement is distinct from an existing installed path.                            | **Install folder** or **Future install folder**, according to the actual path.                                                                            |
+
+Counts name their actual unit. A Discover group can represent one game with two
+ports; a Library can contain two installations of that game. Retained previous
+and staged versions do not automatically become extra Library entries. Names,
+artwork and matching paths never replace library/port identity.
+
+## Game files
+
+| Concept                | Meaning and context                                                                                                                             | Preferred player wording and example                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Game files             | User-supplied original inputs required by a route, separate from saved progress.                                                                | **Game files**; name the ROM, disc image, file set or separately modeled BIOS when its format matters.                               |
+| Game-file location     | A remembered reference to original files used by one or more ports. Remembering it does not copy or transfer ownership of the files.            | **Saved file location**: “Saved file location could not be checked.” **Remove saved location** removes this original-file reference. |
+| Saved folder           | A remembered folder selected for discovering game files. It is not continuously monitored merely because it was saved.                          | **Saved folder**, not “Watched folder.”                                                                                              |
+| Managed game-file copy | A copy admitted and stored by the relevant managed-file operation. Using the existing location, copying and moving have different consequences. | Name the actual copy or location in review; **Move** can remove an original only under its owning plan.                              |
+| Connected files        | Inputs connected in the relevant current, admitted context. A path or record alone is insufficient.                                             | **Files connected** only for that assessed state; otherwise say saved, missing, unchecked, changed or unavailable.                   |
+| Saved-file baseline    | The stored identity against which current bytes can be compared. Matching it does not strengthen the original admission evidence.               | “Game files are unchanged since they were saved,” with actual check scope.                                                           |
+
+Portcove checks selected bytes; it does not determine legal provenance. Removing
+a saved location removes its registration, not its original files. The
+[property checked](docs/CONTENT-DESIGN.md#name-the-property-checked) determines
+what a result may claim.
+
+**Game-file observation**: A Core-produced, scope-bound check of connected game
+files accepted for specified ports, routes, target platforms and channels at
+Core's recorded observation time. Acceptance includes negative and inconclusive
+results; it is not a positive file match or permission to operate. Current
+classifications require the existing context and freshness checks. Retained
+history contains only accepted time, scope and original expiry information and
+cannot provide classifications, counts or matching-build evidence.
+_Avoid_: File availability guarantee
+
+## Installations and saved data
+
+| Concept               | Meaning and context                                                                                                                              | Preferred player wording and example                                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Game saves            | Game progress and related player data, separate from original game files.                                                                        | **Saves** when progress is the actual scope.                                                                                                           |
+| Saves and settings    | Saves and configuration within the named operation's declared scope.                                                                             | **Saves and settings** for that data scope; **Saves & backups** for the detail destination.                                                            |
+| Saved data            | The broader declared persistent files, potentially including settings, bindings and applicable mods. Management follows the route and operation. | **Saved data** when more than saves are included: “Open saved data folder.” Explain the actual covered files.                                          |
+| Backup                | A recorded snapshot of the selected managed saved-data scope. Restore preconditions and any checked inventory/content belong to that snapshot.   | **Back up now** starts an eligible backup; **Review backup** opens an existing review. “Backup history unavailable” is distinct from “No backups yet.” |
+| Metadata export       | Exported library records and references, with an inventory of separate payload roots. It does not include those payload trees.                   | **Export library metadata**, distinct from a game-save backup.                                                                                         |
+| Library recovery copy | The metadata and separately copied payload roots needed for the owning library recovery route.                                                   | **Library recovery copy**, distinct from a metadata-only export or a saved-data snapshot.                                                              |
+
+Do not promise all user files or cross-version save compatibility. A retained
+snapshot is not proof of an exercised restore. See [library recovery](docs/UPGRADING.md)
+and [CLI transfer tasks](docs/CLI.md).
+
+## Games, ports and releases
+
+| Concept                      | Meaning and context                                                                                                                                                                                    | Preferred player wording and example                                                                                                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Port release                 | A release of one port resolved by its release provider. A version/tag alone does not identify the artifact bytes.                                                                                      | **Version** in a selected installation; **release** when choosing a project release.                                                                                                          |
+| Release provider             | The mechanism resolving a port release, such as GitHub releases or a pinned direct manifest. It is separate from the publisher and channel.                                                            | Name the project/download where useful; retain provider detail in technical contexts.                                                                                                         |
+| Release channel              | A project's selected stream. Stable is its stable stream; Preview its preview/testing stream; Rolling its continuously updated stream.                                                                 | **Release channel: Stable / Preview / Rolling**. Rolling does not mean unstable; none guarantees quality, security, gameplay or Portcove qualification.                                       |
+| Portcove application release | A release of Portcove itself, with its own installer, updater, stage and trust contract.                                                                                                               | **Portcove update**. Portcove's Public beta stage is separate from a port's Preview channel.                                                                                                  |
+| Catalog update               | An update to port definitions, not an installation/update of every listed port.                                                                                                                        | **Catalog update**, separate from **Game updates** and application updates.                                                                                                                   |
+| Active installation          | The managed version selected for launch. Selection still requires current Core checks at launch.                                                                                                       | **Current version** or **Installed version**.                                                                                                                                                 |
+| Previous installation        | The prior managed version retained in Core's rollback history, if it still exists.                                                                                                                     | **Previous version**; its presence does not guarantee rollback or save compatibility.                                                                                                         |
+| Retained archive             | A completed acquired download kept for a later preparation/install review. It is not yet a checked staged installation merely because its bytes were downloaded.                                       | **Archive downloaded** when the acquisition owner reports completion; unfinished downloads keep their progress/recovery state.                                                                |
+| Staged installation          | A checked managed release retained locally for later activation, distinct from an unfinished download or the active version.                                                                           | **Update saved for later** for the retained version. **Downloaded for later** needs established download facts; reuse does not perform a new transfer. Activation still needs current checks. |
+| Update policy                | The saved notify, keep-for-later or automatic-install preference for a managed port.                                                                                                                   | Describe the actual saved preference separately from a one-off action.                                                                                                                        |
+| Immediate update             | A reviewed update that checks and applies the eligible version, downloading only when needed.                                                                                                          | **Update now** for the intention; **Review update** when opening its review.                                                                                                                  |
+| Download for later           | An intention to retain a download or prepared version for later while keeping the active version. The actual review distinguishes archive-only acquisition from preparation and may reuse local bytes. | **Download for later**, not an unfinished download or an applied update.                                                                                                                      |
+| Keep current version         | A one-time choice not to apply a reviewed release now.                                                                                                                                                 | **Keep current version** does not change saved policy or skip future notices.                                                                                                                 |
+| Skipped release notice       | Notice suppression for an exact release identity in the selected library and port, currently version plus artifact digest.                                                                             | **Skip this version**, with the exact-download scope explained. A rebuilt release with different bytes can appear again; installed/staged files and policy are unchanged.                     |
+| Paused update notices        | Notice suppression for the selected library and port until resumed. Checks and updates remain available.                                                                                               | **Pause update notices**, not “Pause updates,” “Pause downloads” or “Pin version.”                                                                                                            |
+| Pinned version               | A distinct version-following constraint. Notice suppression and a one-off keep-current choice are not a pin.                                                                                           | Do not present a pin control as implemented by those existing choices; exact historical version selection is separately owned by [#40](https://github.com/boburning/portcove/issues/40).      |
+
+The [design system](docs/DESIGN-SYSTEM.md#public-beta-writing-and-terminology)
+records actual update controls. An available download, retained checked version,
+partial download and activation in progress are different facts.
+
+## Setup and readiness
+
+Setup, launch eligibility and verification are independent dimensions supplied by
+the owning assessment. Installing a runtime or launching once does not prove its
+game data is configured. These labels communicate facts; they are not a new state
+machine or permanent rules keyed by port ID.
+
+| Wording                         | Applicable meaning                                                       | Example or limit                                                                                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Needs game files                | Required original inputs are missing for the selected route.             | Name the file and offer its existing selection/review route.                                                                                                                                  |
+| Setup needed                    | The selected route has known setup work remaining.                       | Keep known setup visible even if the runtime can launch to finish it.                                                                                                                         |
+| Finish setup in {project}       | Setup is performed by the named upstream runtime/project.                | A launch action may say **Launch to finish setup** when it actually opens configuration.                                                                                                      |
+| Ready to play                   | The relevant current launch assessment permits ordinary play launch.     | This is not tested-gameplay evidence.                                                                                                                                                         |
+| Ready to launch                 | Launch is permitted but the next runtime task can be configuration.      | Explain the known first-run task beside the action.                                                                                                                                           |
+| Setup not verified              | The relevant setup check has not established completion.                 | Do not equate a user's setup statement, absent data or a remembered path with a completed check. Retain more precise supplied states.                                                         |
+| Update available                | An applicable successful check found an eligible update.                 | Keep earlier observations labeled as earlier.                                                                                                                                                 |
+| Downloaded for later            | A completed download has been checked and retained for later activation. | Requires established download facts; a staged record can instead reuse local bytes. Partial downloads and merely available releases do not qualify.                                           |
+| Applying update                 | Activation/application is actually in progress.                          | A request or downloaded file alone does not establish this.                                                                                                                                   |
+| Up to date                      | A successful applicable check found no eligible update within its scope. | Prefer **No update found at last check** for the current retained observation.                                                                                                                |
+| Not checked / Check failed      | A check was not performed, or an attempted check failed.                 | Neither is up to date. Keep unavailable, changed, missing and stale distinct too.                                                                                                             |
+| No original game files required | Explicit route evidence establishes that no original inputs are needed.  | Absent declarations mean **Requirements not available** or **Check project requirements**. The current qualified **No files to add in Portcove** does not make an upstream requirement claim. |
+
+## Review, execution and recovery
+
+| Concept                  | Meaning and context                                                                                                                                          | Preferred player wording and example                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan or preview          | A proposed operation with actual targets, consequences and preconditions; reading it applies nothing.                                                        | **Review installation / Review setup / Review update** when the next action opens the existing review.                                                          |
+| Execution                | Performing the reviewed operation under its existing consent and freshness contract.                                                                         | **Install / Start setup / Apply update** only when that is the operation performed. Do not add another review merely to standardize a label.                    |
+| Installed-file check     | The current Check installed files operation checks the full recorded installation manifest. Separate launch checks can cover a narrower launch-critical set. | **Check installed files**; its result names which scope was checked.                                                                                            |
+| Restore previous version | Recovery of retained installed code/content through the owning rollback operation.                                                                           | **Restore previous version**, distinct from restoring player data.                                                                                              |
+| Restore backup           | Recovery of the recorded saved-data snapshot under its restore preconditions.                                                                                | **Restore backup**, naming the snapshot and covered data.                                                                                                       |
+| Restore library copy     | Recovery of a library's records and required payload roots.                                                                                                  | **Restore library copy**, not a metadata-only import or saved-data restore.                                                                                     |
+| Uninstall                | Removal of managed installed files under the reviewed removal plan.                                                                                          | **Uninstall** for the managed target. State actual retained/deleted data before confirming.                                                                     |
+| Remove registration      | Removal of a record/reference to an existing external installation.                                                                                          | **Remove registration**, or contextual **Remove from library**, for the external installation; registration grants no deletion ownership.                       |
+| Steam shortcut           | A launch integration object in Steam, separate from an installation and its management ownership.                                                            | **Steam shortcut**; **Review Steam shortcut** opens its existing add/repair/remove review. **Add to Steam** is appropriate when that is the actual next action. |
+| Cancellation request     | A request to stop at supported boundaries. Acknowledgment does not prove work stopped or cleanup completed.                                                  | **Cancel** requests; **Cancelling** describes unsettled work.                                                                                                   |
+| Terminal outcome         | The authoritative result and its committed, retained, recovery-required or unknown consequences.                                                             | **Cancelled** only for that settled result; retained recovery facts remain visible.                                                                             |
+| Interrupted recovery     | Continuation/reconciliation under the owning journal, identities, locks and phase rules.                                                                     | Name **Retry**, **Resume** or **Remove unfinished files** only for the supported action. Retained files are not automatically disposable.                       |
+| Dismiss notice           | Hiding the notice, independent of the operation.                                                                                                             | **Dismiss notice** does not cancel, resume or clean work.                                                                                                       |
+
+Controls and results follow [content design](docs/CONTENT-DESIGN.md#controls-confirmations-and-shortcuts).
+Core owns durable library operations/recovery; Tauri owns native consent and
+application replacement; React owns presentation. Logs, progress and client caches
+never become another durable authority.
+
+## Evidence, designation and permission
+
+| Term                           | Meaning and limit                                                                                                                                                                                                                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catalog designation            | The catalog's declared category for a port. The current type/field is `SupportTier` / `support_tier`; its stable/beta/rolling values do not replace platform qualification, current readiness or operation permission. `CatalogDesignation` is a proposed name, not a shipped type.    |
+| Qualification or test evidence | A recorded method and result for identified source/artifact, platform, operation and environment. Automated checks, direct application observations, gameplay and physical-device observations establish different properties. An old platform summary is not a current-binary result. |
+| Observation                    | Facts returned by a particular check, within its stated scope and time. An unavailable or unperformed check is unknown, not a failed check or an inferred pass.                                                                                                                        |
+| Assessment                     | Core's interpretation of relevant facts for a requested route or operation. A rendered assessment can become stale; execution still takes the required locks and revalidates current state.                                                                                            |
+| Permission or authorization    | Authority to perform the particular operation under its current contract, including required review, consent and freshness. Discovery, a catalog entry, a stored record or a green presentation does not supply it.                                                                    |
+| Readiness                      | Whether the requested setup or launch route can proceed under current Core checks. Optional missing gameplay evidence does not by itself create an execution hold; a known mandatory failure retains its owning refusal.                                                               |
+| Publisher trust                | An explicit trust decision about an authority/key and its allowed role. Official/community/local origin, a valid signature and artifact integrity remain separate facts.                                                                                                               |
+
+Use the [verification wording table](docs/CONTENT-DESIGN.md#name-the-property-checked)
+for exact claims. [Catalog qualification](docs/CATALOG.md#channels-support-and-qualification),
+[signed catalogs](docs/SIGNED-CATALOG.md) and [application updater trust](docs/UPDATER-TRUST.md)
+retain their own admission rules. A glossary entry cannot promote catalog support.
 
 ## Delivery evidence
 
@@ -40,89 +196,42 @@ _Avoid_: Completed evidence
 **Completed packet**: Actual outcomes and retained artifacts bound to process closure, exact-image inspection, separate review and final delivery. It records evidence without granting acceptance or merge authority.
 _Avoid_: Acceptance authority
 
-## Game files
+## Developer mappings
 
-**Game-file observation**: A Core-produced, scope-bound check of connected game
-files accepted for specified ports, routes, target platforms and channels at
-Core's recorded observation time. Acceptance includes negative and inconclusive
-results; it is not a positive file match or permission to operate. Current
-classifications require the existing context and freshness checks. Retained
-history contains only accepted time, scope and original expiry information and
-cannot provide classifications, counts or matching-build evidence.
-_Avoid_: File availability guarantee
+Player concepts do not rename implemented types. Managed installations use
+`InstallRecord`; registered external installations use `ExternalRuntimeRecord`.
+The broad player concept **installation** does not give the external record the
+managed record's ownership or capabilities. Current release structures include
+`PortDefinition`, `ReleaseSpec`, `ReleaseSource`, `ReleaseAsset`, `ResolvedRelease`,
+`ScopedResolvedRelease` and `ReleaseChannel`; the resolver is `ReleaseProvider`.
+See [catalog policy](docs/CATALOG.md) and [Core ownership](docs/ARCHITECTURE.md#find-the-owning-boundary).
 
-## Player collection and storage
+Human channel labels are Stable / Preview / Rolling. Serialized fields keep
+`stable` / `beta` / `rolling`. Current CLI channel input prefers `preview` and
+accepts `beta` as a compatibility alias; this glossary does not rename fields,
+flags or command contracts.
 
-**Game**: The original title a player recognizes. More than one port can implement the same game.
-_Avoid_: Port project
+**Review fingerprint**: The exact identity/hash binding an operation's reviewed
+plan or state. A hash is not consent; execution verifies current authorization
+and facts.
 
-**Port**: An independently identified native implementation or variant of a game.
-_Avoid_: Original game
+**Consent**: Approval for an identified action and consequences. A changed target,
+plan or relevant state requires the owning fresh-review path; old consent does
+not authorize translated work.
 
-**Library entry**: One port's installed, external or retained unfinished-setup context in the selected library. Separate ports for one game remain separate entries.
-_Avoid_: Unique game
+**Authenticated historical representation**: Original versioned bytes admitted
+through applicable historical authentication/codec rules and projected for
+current use. Rewriting them with today's serializer does not prove original
+authenticity.
 
-**Game-file location**: A remembered reference to original files used by one or more ports. Remembering the location does not itself copy or transfer ownership of those files.
-_Avoid_: Game saves
-
-**Saved folder**: A remembered folder selected for discovering game files. Saving it does not establish continuous monitoring or current verification.
-_Avoid_: Watched folder
-
-**Game saves**: Game progress and related player data, separate from original game files.
-_Avoid_: Game-file location
-
-**Library folder**: The chosen location containing Portcove's managed library content and records.
-_Avoid_: Original-games folder
-
-## Games, ports and releases
-
-| Term                         | Meaning and limit                                                                                                                                                                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Original game                | The game a port implements. Its title or artwork does not identify one runnable port, release or local installation.                                                                                                                     |
-| Catalog port                 | One runnable native-port integration identified by its catalog port ID. Several ports can implement the same original game. Names and artwork are presentation, not replacement identifiers.                                             |
-| Port release                 | A release of that specific catalog port, resolved through its release provider. A displayed version/tag alone does not identify bytes: an artifact also has a filename, size and digest.                                                 |
-| Portcove application release | A release of Portcove itself. Its installer, updater, release stage and trust contract are separate from a game's release or update.                                                                                                     |
-| Library                      | The selected Core-owned collection, durable records and managed content. Operational context includes the library identity and catalog port ID; a matching title, path or version in another library does not supply the same authority. |
-| Release provider             | The mechanism that resolves a port's release, such as GitHub releases or a pinned direct manifest. It is separate from who published the artifact and which channel is selected.                                                         |
-| Release channel              | A selected port stream: human **Stable / Preview / Rolling**, with compatible values `stable` / `beta` / `rolling`. A channel is not a quality score or evidence of gameplay. Application Public beta is a separate release-stage term.  |
-| Update policy                | The saved notify, stage or automatic-install preference for a managed port. A preference is not a completed update, and a one-off reviewed action does not implicitly change it.                                                         |
-
-Current structures include `PortDefinition`, `ReleaseSpec`, `ReleaseSource`,
-`ReleaseAsset`, `ResolvedRelease`, `ScopedResolvedRelease` and `ReleaseChannel`;
-the resolver abstraction is `ReleaseProvider`. See [catalog policy](docs/CATALOG.md)
-and [Core ownership](docs/ARCHITECTURE.md#find-the-owning-boundary).
-
-## Evidence, designation and permission
-
-| Term                           | Meaning and limit                                                                                                                                                                                                                                                                      |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Catalog designation            | The catalog's declared category for a port. The current type/field is `SupportTier` / `support_tier`; its stable/beta/rolling values do not replace platform qualification, current readiness or operation permission. `CatalogDesignation` is a proposed name, not a shipped type.    |
-| Qualification or test evidence | A recorded method and result for identified source/artifact, platform, operation and environment. Automated checks, direct application observations, gameplay and physical-device observations establish different properties. An old platform summary is not a current-binary result. |
-| Observation                    | Facts returned by a particular check, within its stated scope and time. An unavailable or unperformed check is unknown, not a failed check or an inferred pass.                                                                                                                        |
-| Assessment                     | Core's interpretation of relevant facts for a requested route or operation. A rendered assessment can become stale; execution still takes the required locks and revalidates current state.                                                                                            |
-| Permission or authorization    | Authority to perform the particular operation under its current contract, including required review, consent and freshness. Discovery, a catalog entry, a stored record or a green presentation does not supply it.                                                                    |
-| Readiness                      | Whether the requested setup or launch route can proceed under current Core checks. Optional missing gameplay evidence does not by itself create an execution hold; a known mandatory failure retains its owning refusal.                                                               |
-| Publisher trust                | An explicit trust decision about an authority/key and its allowed role. Official/community/local origin, a valid signature and artifact integrity remain separate facts.                                                                                                               |
-
-Use the [verification wording table](docs/CONTENT-DESIGN.md#name-the-property-checked)
-for exact claims. [Catalog qualification](docs/CATALOG.md#channels-support-and-qualification),
-[signed catalogs](docs/SIGNED-CATALOG.md) and [application updater trust](docs/UPDATER-TRUST.md)
-retain their own admission rules. A glossary entry cannot promote catalog support.
-
-## Game files, inspection and registration
-
-**Game files** are user-supplied original inputs required by a route. Name the
-actual ROM, disc, file set or separately modeled BIOS when it matters. Portcove
-checks selected bytes; it does not determine legal provenance. A saved external
-location, a managed copy and an explicitly authorized Move have different
-consequences. Removing a saved registration does not mean deleting its original.
+### Game files, inspection and registration
 
 Current `SourceInspectionReport` separates observed inspection, a possible
 registered record, health, applicability, evidence and a next action. Current
 `SourceRecord` is also used for a not-yet-committed replacement inside
 `SourceRelinkPlan`: `original` is registered, while `replacement` is inspected
-planning data until the reviewed relink commits. **The Rust type name alone
-does not prove registration.** See [source inspection](crates/portcove-core/src/source_report.rs)
+planning data until the reviewed relink commits. The Rust type name alone
+does not prove registration. See [source inspection](crates/portcove-core/src/source_report.rs)
 and [relink ownership](crates/portcove-core/src/source.rs).
 
 The accepted naming direction below is **proposed**, owned by
@@ -145,38 +254,6 @@ into a single supported/unsupported label.
 The [domain decision record](docs/adr/0005-distinguish-source-observations-and-registration.md)
 records the proposed cutover and compatibility boundaries. Use current commands
 from [CLI documentation](docs/CLI.md) until that migration is delivered.
-
-## Installations and saved data
-
-| Term                             | Meaning and limit                                                                                                                                                                                                                                                |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Installation                     | A managed local installation of a port release, currently represented by `InstallRecord`. Its identity and immutable-file checks are separate from its display version.                                                                                          |
-| Active installation              | The managed version currently selected for launch. Being selected does not bypass current source, integrity, preparation or launch checks.                                                                                                                       |
-| Previous installation            | The retained prior managed version selected by Core's rollback history. Report whether it actually exists; a previous version does not guarantee save compatibility or a successful future rollback.                                                             |
-| Staged installation              | A downloaded/checked managed release retained for later activation. It is not the active version; activation still requires the current Core checks.                                                                                                             |
-| Registered external installation | An existing runtime whose location and checked contract are recorded for launch. Registration does not give Portcove ownership of its files or imply managed updates, backup or deletion.                                                                        |
-| Saved data                       | The port's declared persistent files, such as saves, settings, bindings and applicable mods. Scope follows the catalog and actual operation; do not promise all user files or version compatibility.                                                             |
-| Backup                           | A recorded snapshot of the selected managed saved-data scope. Name any verified inventory/content property and the actual restore preconditions; “backup” alone is not proof that recovery has been exercised.                                                   |
-| Metadata export                  | Exported library records and references. Metadata alone is not a copy of game files, managed applications, saved data or other payload trees. Its content-root inventory identifies the separate payload folders that must be copied alongside it for a restore. |
-
-See [library ownership and recovery](docs/ARCHITECTURE.md),
-[CLI transfer tasks](docs/CLI.md) and [upgrade safety](docs/UPGRADING.md).
-
-## Review, execution and recovery
-
-| Term                                    | Meaning and limit                                                                                                                                                                                                   |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan or preview                         | A proposed operation with its actual target, consequences and preconditions. Reading it does not apply it.                                                                                                          |
-| Review fingerprint                      | The exact identity/hash used by an operation's existing contract to bind a reviewed plan or state. A hash is not consent; execution still verifies the required authorization and current facts.                    |
-| Consent                                 | Approval for the identified action and consequences. A changed target, plan or relevant library state requires the owning fresh-review path; old consent cannot authorize translated work.                          |
-| Cancellation request                    | A request to stop at supported boundaries. Its acknowledgment does not prove work has stopped, no changes occurred or cleanup completed.                                                                            |
-| Terminal outcome                        | The authoritative operation result, such as succeeded, failed or cancelled, together with its committed, retained, recovery-required or unknown consequences. A UI dismissal or lost response is not a result.      |
-| Interrupted recovery                    | Continuation or reconciliation under the owning journal, identities, locks and phase-specific rules. Retained files are not automatically disposable; ambiguous output never authorizes replay.                     |
-| Authenticated historical representation | Original versioned bytes admitted through the applicable historical authentication/codec rules, then projected for current use. Rewriting them with today's serializer is not proof of their original authenticity. |
-
-Core owns durable library operations and recovery. Tauri owns native consent and
-Portcove application replacement; React owns presentation. Runtime logs, progress
-events and client caches do not become another durable state authority.
 
 ## Delivery language
 

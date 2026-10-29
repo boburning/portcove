@@ -3,7 +3,8 @@ packages:
 
 # The active environment (Vite+ by default) owns runtime and package-manager selection.
 runtimeOnFail: ignore
-pmOnFail: ignore
+# Refuse mismatched providers; unlike ignore, error preserves pnpm's toolchain lock.
+pmOnFail: error
 
 allowBuilds:
   "@swc/core": true

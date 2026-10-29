@@ -43,7 +43,7 @@ function portSetupLabel(status?: PortStatus) {
   if (!action) return "Readiness unavailable; refresh the workspace";
   if (action.reason === "unsupported_platform") return "Unavailable on this platform";
   if (action.reason === "missing_bios") return "BIOS file needed";
-  if (action.reason === "missing_source") return "Game files needed";
+  if (action.reason === "missing_source") return "Needs game files";
   if (action.reason === "definition_ineligible") return "Setup on hold";
   if (action.availability === "allowed") return "Ready for setup review";
   if (action.action === "register_external" && action.reason === "review_required")

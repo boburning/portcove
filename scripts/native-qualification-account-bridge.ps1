@@ -8,7 +8,19 @@ $ErrorActionPreference = 'Stop'
 $hostedMode = $null -ne $HostedMemoryContext
 if ($hostedMode) {
     $hostedCandidateExecutionAuthorized = $false
-    if (-not $hostedCandidateExecutionAuthorized) { throw 'Hosted memory bridge awaits separate candidate execution authority' }
+    $hostedDiagnosticCandidateExecutionAuthorized = $false
+    $diagnosticMemoryMode = $HostedMemoryContext -is [hashtable] -and $HostedMemoryContext.ContainsKey('diagnostic')
+    if ($diagnosticMemoryMode) {
+        if ($HostedMemoryContext.diagnostic -isnot [bool] -or -not $HostedMemoryContext.diagnostic) { throw 'Fixed diagnostic memory scope required' }
+        if (-not $hostedDiagnosticCandidateExecutionAuthorized) { throw 'Hosted diagnostic memory bridge awaits separate diagnostic execution authority' }
+        if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+            [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne 'X64' -or
+            $env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+            $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or $env:GITHUB_JOB -cne 'installed-prerequisite' -or
+            $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
+            $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,15}$' -or
+            $env:GITHUB_WORKFLOW_REF -cne 'boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028') { throw 'Fixed hosted diagnostic bridge context required' }
+    } elseif (-not $hostedCandidateExecutionAuthorized) { throw 'Hosted memory bridge awaits separate candidate execution authority' }
 }
 
 # This is fixed owner-side launch plumbing, not an acceptance report importer.
@@ -126,7 +138,7 @@ if ($hostedMode) {
     if ($HostedMemoryContext -isnot [hashtable]) { throw 'Original in-process hosted memory context required' }
     $hostedMemory = $HostedMemoryContext.Clone()
     if (
-        (@($hostedMemory.Keys | Sort-Object) -join ',') -cne 'configuration,credential,deadline_ticks,desktop_name,frequency,group,helper_sha256,owner_created_filetime,owner_pid' -or
+        (@($hostedMemory.Keys | Sort-Object) -join ',') -cne $(if($hostedMemory.ContainsKey('diagnostic')){'configuration,credential,deadline_ticks,desktop_name,diagnostic,frequency,group,helper_sha256,owner_created_filetime,owner_pid'}else{'configuration,credential,deadline_ticks,desktop_name,frequency,group,helper_sha256,owner_created_filetime,owner_pid'}) -or
         $hostedMemory.credential -isnot [Security.SecureString] -or
         -not $hostedMemory.credential.IsReadOnly() -or
         $hostedMemory.configuration -isnot [Portcove.NativeQualification.AccountConfiguration] -or
@@ -140,6 +152,7 @@ if ($hostedMode) {
         $hostedMemory.deadline_ticks -le [Diagnostics.Stopwatch]::GetTimestamp() -or
         $hostedMemory.deadline_ticks - [Diagnostics.Stopwatch]::GetTimestamp() -gt 570L * [Diagnostics.Stopwatch]::Frequency -or
         $hostedMemory.desktop_name -cnotmatch '^PortcoveHosted_[a-f0-9]{32}$') { throw 'Original in-process hosted memory context required' }
+    if($hostedMemory.ContainsKey('diagnostic') -and $hostedMemory.diagnostic -isnot [bool]){throw 'Fixed diagnostic memory scope required'}
     $memoryConfig = $hostedMemory.configuration
     foreach ($field in @('UserName','AccountSid','BrokerSid','ProfileRoot','WorkRoot')) {
         if ($memoryConfig.$field -cne $config.$field) { throw 'Hosted memory account context differs' }
@@ -202,7 +215,7 @@ try {
                 }
                 Assert-BridgeDeadline
                 $process = if ($hostedMode) {
-                    [Portcove.NativeQualification.AccountLauncher]::StartHostedCandidateVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis,$hostedDesktopName)
+                    $(if($hostedMemory.ContainsKey('diagnostic') -and $hostedMemory.diagnostic){[Portcove.NativeQualification.AccountLauncher]::StartHostedDiagnosticCandidateVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis,$hostedDesktopName)}else{[Portcove.NativeQualification.AccountLauncher]::StartHostedCandidateVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis,$hostedDesktopName)})
                 } else { [Portcove.NativeQualification.AccountLauncher]::StartVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis) }
                 $roots.Add($request.id,$process)
                 # This digest is bound by StartVerifiedInGroup's deny-write /

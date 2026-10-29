@@ -8,6 +8,16 @@ on:
         required: true
         type: choice
         options: [windows-x86_64, linux-x86_64]
+      resource_observer_only:
+        description: Read-only cross-step counter qualification; no runtime, driver or install
+        required: false
+        type: boolean
+        default: false
+      connected_private_diagnostic:
+        description: Separately held S2 private-session diagnostic; source/account approval required
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,182 +30,219 @@ jobs:
   installed-prerequisite:
     if: github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public'
     runs-on: ${{ inputs.platform == 'windows-x86_64' && 'windows-2022' || 'ubuntu-24.04' }}
-    timeout-minutes: 90
+    timeout-minutes: ${{ inputs.resource_observer_only && 3 || 90 }}
     env:
       pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
       CARGO_BUILD_JOBS: "2"
       CARGO_NET_RETRY: "0"
       PORTCOVE_HOSTED_PLATFORM: ${{ inputs.platform }}
+      PORTCOVE_HOSTED_OBSERVATION_ONLY: ${{ inputs.resource_observer_only && 'true' || 'false' }}
+      PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: ${{ inputs.connected_private_diagnostic && 'true' || 'false' }}
     steps:
       - name: Start bounded runner resource observation before checkout
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $taskObserverSource = @'
-          param([ValidateSet('Start','Observe','Stop')][string]$Operation = 'Start')
+          param([ValidateSet('Start','Observe','Check','Stop')][string]$Operation = 'Start')
           $ErrorActionPreference = 'Stop'
-          $taskContext = [ordered]@{source=$env:GITHUB_SHA;run_id=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;workflow=$env:GITHUB_WORKFLOW_REF;job=$env:GITHUB_JOB;platform=$env:PORTCOVE_HOSTED_PLATFORM}
+          $taskContext = [ordered]@{source=$env:GITHUB_SHA;run_id=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;workflow=$env:GITHUB_WORKFLOW_REF;job=$env:GITHUB_JOB;platform=$env:PORTCOVE_HOSTED_PLATFORM;mode=$env:PORTCOVE_HOSTED_OBSERVATION_ONLY}
           if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
-              $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_JOB -cne 'installed-prerequisite' -or
-              $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,15}$' -or $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,5}$' -or
-              $env:GITHUB_WORKFLOW_REF -cnotmatch '^boburning/portcove/\.github/workflows/hosted-native-continuity\.yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$' -or
-              $env:PORTCOVE_HOSTED_PLATFORM -cnotin @('windows-x86_64','linux-x86_64') -or $IsWindows -ne ($env:PORTCOVE_HOSTED_PLATFORM -ceq 'windows-x86_64')) { throw 'Fixed credential-free hosted measurement context required' }
+          $env:PORTCOVE_HOSTED_OBSERVATION_ONLY -cnotin @('true','false') -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_JOB -cne 'installed-prerequisite' -or
+          $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,15}$' -or $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,5}$' -or
+          $env:GITHUB_WORKFLOW_REF -cnotmatch '^boburning/portcove/\.github/workflows/hosted-native-continuity\.yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$' -or
+          $env:PORTCOVE_HOSTED_PLATFORM -cnotin @('windows-x86_64','linux-x86_64') -or $IsWindows -ne ($env:PORTCOVE_HOSTED_PLATFORM -ceq 'windows-x86_64')) { throw 'Hosted counter context required' }
           foreach ($taskPath in @($env:RUNNER_TEMP,$env:GITHUB_WORKSPACE)) {
-              if (-not [IO.Path]::IsPathFullyQualified($taskPath) -or $taskPath -match '["\r\n]') { throw 'Absolute fixed measurement paths required' }
+          if (-not [IO.Path]::IsPathFullyQualified($taskPath) -or $taskPath -match '["\r\n]') { throw 'Absolute counter paths required' }
           }
           $taskRoot = Join-Path $env:RUNNER_TEMP 'portcove-hosted-resource-observation'
           $taskUtf8 = [Text.UTF8Encoding]::new($false,$true)
           $taskInterval = 5000
-          $taskMaximumMilliseconds = 5400000
-          $taskMaximumSamples = 1080
+          $taskMaximumMilliseconds = if($env:PORTCOVE_HOSTED_OBSERVATION_ONLY -ceq 'true'){180000}else{5400000}
+          $taskMaximumSamples = [int]($taskMaximumMilliseconds/$taskInterval)
           $taskMaximumBytes = 8388608
           function Write-MeasurementJson([string]$Name,$Value) {
-              $taskBytes=$taskUtf8.GetBytes(($Value | ConvertTo-Json -Depth 12 -Compress))
-              if ($taskBytes.Length -gt 65536) { throw 'Measurement metadata exceeds bound' }
-              $taskPending=Join-Path $taskRoot ($Name+'.partial')
-              $taskFile=[IO.File]::Open($taskPending,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-              try {$taskFile.Write($taskBytes);$taskFile.Flush($true)} finally {$taskFile.Dispose()}
-              [IO.File]::Move($taskPending,(Join-Path $taskRoot $Name),$false)
+          $taskBytes=$taskUtf8.GetBytes(($Value | ConvertTo-Json -Depth 12 -Compress))
+          if ($taskBytes.Length -gt 65536) { throw 'Metadata bound exceeded' }
+          $taskPending=Join-Path $taskRoot ($Name+'.partial')
+          $taskFile=[IO.File]::Open($taskPending,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+          try {$taskFile.Write($taskBytes);$taskFile.Flush($true)} finally {$taskFile.Dispose()}
+          [IO.File]::Move($taskPending,(Join-Path $taskRoot $Name),$false)
           }
           function Read-MeasurementBytes([string]$Name,[int]$Maximum) {
-              $taskFile=Get-Item -LiteralPath (Join-Path $taskRoot $Name)
-              if ($taskFile.PSIsContainer -or ($taskFile.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $taskFile.Length -gt $Maximum) {throw 'Measurement data unavailable or oversized'}
-              $taskInput=[IO.File]::OpenRead($taskFile.FullName);$taskReadOutput=[IO.MemoryStream]::new();$taskReadTotal=0
-              try {
-                  $taskReadBuffer=[byte[]]::new(8192)
-                  while (($taskReadLength=$taskInput.Read($taskReadBuffer,0,[math]::Min($taskReadBuffer.Length,$Maximum+1-$taskReadTotal))) -gt 0) {
-                      $taskReadTotal+=$taskReadLength;if ($taskReadTotal -gt $Maximum) {throw 'Measurement read exceeds bound'}
-                      $taskReadOutput.Write($taskReadBuffer,0,$taskReadLength)
-                  }
-                  return ,$taskReadOutput.ToArray()
-              } finally {$taskInput.Dispose();$taskReadOutput.Dispose()}
+          $taskFile=Get-Item -LiteralPath (Join-Path $taskRoot $Name)
+          if ($taskFile.PSIsContainer -or ($taskFile.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $taskFile.Length -gt $Maximum) {throw 'Counter data absent or oversized'}
+          $taskInput=if($Operation -ceq 'Check' -and $Name -ceq 'samples.jsonl'){[IO.File]::Open($taskFile.FullName,'Open','Read','ReadWrite')}else{[IO.File]::OpenRead($taskFile.FullName)};$taskReadOutput=[IO.MemoryStream]::new();$taskReadTotal=0
+          try {
+           $taskReadBuffer=[byte[]]::new(8192)
+           while (($taskReadLength=$taskInput.Read($taskReadBuffer,0,[math]::Min($taskReadBuffer.Length,$Maximum+1-$taskReadTotal))) -gt 0) {
+            $taskReadTotal+=$taskReadLength;if ($taskReadTotal -gt $Maximum) {throw 'Counter read bound exceeded'}
+            $taskReadOutput.Write($taskReadBuffer,0,$taskReadLength)
+           }
+           return ,$taskReadOutput.ToArray()
+          } finally {$taskInput.Dispose();$taskReadOutput.Dispose()}
           }
           function Read-MeasurementJson([string]$Name) {
-              $taskJsonBytes=Read-MeasurementBytes $Name 65536
-              if ($taskJsonBytes.Length -lt 1) {throw 'Measurement metadata absent'}
-              return $taskUtf8.GetString($taskJsonBytes) | ConvertFrom-Json -AsHashtable -Depth 12
+          $taskJsonBytes=Read-MeasurementBytes $Name 65536
+          if ($taskJsonBytes.Length -lt 1) {throw 'Counter metadata absent'}
+          return $taskUtf8.GetString($taskJsonBytes) | ConvertFrom-Json -AsHashtable -Depth 12
           }
           function Assert-MeasurementContext($Value) {
-              foreach ($taskKey in $taskContext.Keys) {if ($Value[$taskKey] -cne $taskContext[$taskKey]) {throw 'Original measurement context changed'}}
+          foreach ($taskKey in $taskContext.Keys) {if ($Value[$taskKey] -cne $taskContext[$taskKey]) {throw 'Counter context changed'}}
           }
           function Get-MeasurementBirth($Process) {
-              if ($IsWindows) {return 'windows-start-ticks:'+$Process.StartTime.ToUniversalTime().Ticks.ToString()}
-              $taskStatFile=[IO.File]::OpenRead('/proc/'+$Process.Id+'/stat')
-              try {$taskStatBuffer=[byte[]]::new(4097);$taskStatLength=$taskStatFile.Read($taskStatBuffer,0,$taskStatBuffer.Length);if ($taskStatLength -gt 4096) {throw 'Observer identity exceeds bound'};$taskStat=$taskUtf8.GetString($taskStatBuffer,0,$taskStatLength)} finally {$taskStatFile.Dispose()}
-              $taskStatSuffix=$taskStat.Substring($taskStat.LastIndexOf(')')+2).Split(' ')
-              if ($taskStatSuffix.Count -lt 20 -or $taskStatSuffix[19] -cnotmatch '^[1-9][0-9]*$') {throw 'Observer kernel identity unavailable'}
-              return 'linux-start-ticks:'+$taskStatSuffix[19]
+          if ($IsWindows) {return 'windows-start-ticks:'+$Process.StartTime.ToUniversalTime().Ticks.ToString()}
+          $taskStatFile=[IO.File]::OpenRead('/proc/'+$Process.Id+'/stat')
+          try {$taskStatBuffer=[byte[]]::new(4097);$taskStatLength=$taskStatFile.Read($taskStatBuffer,0,$taskStatBuffer.Length);if ($taskStatLength -gt 4096) {throw 'Observer identity bound'};$taskStat=$taskUtf8.GetString($taskStatBuffer,0,$taskStatLength)} finally {$taskStatFile.Dispose()}
+          $taskStatSuffix=$taskStat.Substring($taskStat.LastIndexOf(')')+2).Split(' ')
+          if ($taskStatSuffix.Count -lt 20 -or $taskStatSuffix[19] -cnotmatch '^[1-9][0-9]*$') {throw 'Kernel identity unavailable'}
+          return 'linux-start-ticks:'+$taskStatSuffix[19]
           }
           function Get-MeasurementMemory {
-              if ($IsWindows) {
-                  $taskOs=Get-CimInstance -ClassName Win32_OperatingSystem -OperationTimeoutSec 2
-                  $taskTotal=[long]$taskOs.TotalVisibleMemorySize*1024
-                  $taskAvailable=[long]$taskOs.FreePhysicalMemory*1024
-                  $taskMethod='Win32_OperatingSystem.FreePhysicalMemory'
-              } else {
-                  $taskHandle=[IO.File]::OpenRead('/proc/meminfo')
-                  try {$taskBuffer=[byte[]]::new(16385);$taskLength=$taskHandle.Read($taskBuffer,0,$taskBuffer.Length);if ($taskLength -gt 16384) {throw 'Memory counter input exceeds bound'};$taskText=$taskUtf8.GetString($taskBuffer,0,$taskLength)} finally {$taskHandle.Dispose()}
-                  $taskTotalMatch=[regex]::Match($taskText,'(?m)^MemTotal:\s+([0-9]+) kB$')
-                  $taskAvailableMatch=[regex]::Match($taskText,'(?m)^MemAvailable:\s+([0-9]+) kB$')
-                  if (-not $taskTotalMatch.Success -or -not $taskAvailableMatch.Success) {throw 'Memory counters unavailable'}
-                  $taskTotal=[long]$taskTotalMatch.Groups[1].Value*1024
-                  $taskAvailable=[long]$taskAvailableMatch.Groups[1].Value*1024
-                  $taskMethod='/proc/meminfo.MemAvailable'
-              }
-              if ($taskTotal -le 0 -or $taskAvailable -lt 0 -or $taskAvailable -gt $taskTotal) {throw 'Memory counter identity differs'}
-              return @{total_bytes=$taskTotal;available_bytes=$taskAvailable;used_bytes=$taskTotal-$taskAvailable;counter=$taskMethod}
+          if ($IsWindows) {
+           $taskOs=Get-CimInstance -ClassName Win32_OperatingSystem -OperationTimeoutSec 2
+           $taskTotal=[long]$taskOs.TotalVisibleMemorySize*1024
+           $taskAvailable=[long]$taskOs.FreePhysicalMemory*1024
+           $taskMethod='Win32_OperatingSystem.FreePhysicalMemory'
+          } else {
+           $taskHandle=[IO.File]::OpenRead('/proc/meminfo')
+           try {$taskBuffer=[byte[]]::new(16385);$taskLength=$taskHandle.Read($taskBuffer,0,$taskBuffer.Length);if ($taskLength -gt 16384) {throw 'Memory input bound exceeded'};$taskText=$taskUtf8.GetString($taskBuffer,0,$taskLength)} finally {$taskHandle.Dispose()}
+           $taskTotalMatch=[regex]::Match($taskText,'(?m)^MemTotal:\s+([0-9]+) kB$')
+           $taskAvailableMatch=[regex]::Match($taskText,'(?m)^MemAvailable:\s+([0-9]+) kB$')
+           if (-not $taskTotalMatch.Success -or -not $taskAvailableMatch.Success) {throw 'Memory unavailable'}
+           $taskTotal=[long]$taskTotalMatch.Groups[1].Value*1024
+           $taskAvailable=[long]$taskAvailableMatch.Groups[1].Value*1024
+           $taskMethod='/proc/meminfo.MemAvailable'
+          }
+          if ($taskTotal -le 0 -or $taskAvailable -lt 0 -or $taskAvailable -gt $taskTotal) {throw 'Memory identity differs'}
+          return @{total_bytes=$taskTotal;available_bytes=$taskAvailable;used_bytes=$taskTotal-$taskAvailable;counter=$taskMethod}
           }
           if ($Operation -ceq 'Start') {
-              $null=New-Item -ItemType Directory -Path $taskRoot
-              $taskRoots=@([IO.Path]::GetPathRoot($env:RUNNER_TEMP),[IO.Path]::GetPathRoot($env:GITHUB_WORKSPACE),$(if ($IsWindows) {[IO.Path]::GetPathRoot($env:SystemRoot)} else {'/'})) | Select-Object -Unique
-              if ($taskRoots.Count -gt 3) {throw 'Fixed measurement volume count exceeded'}
-              Write-MeasurementJson 'intent.json' @{context=$taskContext;script_sha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash;interval_milliseconds=$taskInterval;maximum_milliseconds=$taskMaximumMilliseconds;maximum_samples=$taskMaximumSamples;maximum_bytes=$taskMaximumBytes;volume_roots=@($taskRoots);authority='none';automatic_retry=$false;scope='Sampled machine memory and fixed workspace/temp/system-root volume counters from before checkout through finalizer; provider setup and post-last-sample work unobserved. No admission, billing, quota or continuous-peak claim.'}
-              $taskQuotedScript='"'+$PSCommandPath+'"'
-              $taskProcess=Start-Process -FilePath ([Environment]::ProcessPath) -ArgumentList @('-NoLogo','-NoProfile','-NonInteractive','-File',$taskQuotedScript,'-Operation','Observe') -RedirectStandardOutput (Join-Path $taskRoot 'observer.stdout.txt') -RedirectStandardError (Join-Path $taskRoot 'observer.stderr.txt') -PassThru
-              $taskBirth=$null
-              try {
-                  $taskBirth=(Get-MeasurementBirth $taskProcess)
-                  Write-MeasurementJson 'observer-started.json' @{context=$taskContext;pid=$taskProcess.Id;birth_ticks=$taskBirth;authority='none'}
-                  $taskReadyClock=[Diagnostics.Stopwatch]::StartNew()
-                  while (-not (Test-Path -LiteralPath (Join-Path $taskRoot 'observer-ready.json')) -and $taskReadyClock.ElapsedMilliseconds -lt 10000 -and -not $taskProcess.HasExited) {Start-Sleep -Milliseconds 100}
-                  $taskReady=Read-MeasurementJson 'observer-ready.json'
-                  Assert-MeasurementContext $taskReady.context
-                  if ($taskReady.pid -ne $taskProcess.Id -or $taskReady.birth_ticks -cne $taskBirth -or $taskProcess.HasExited) {throw 'Original measurement observer did not become ready'}
-              } catch {
-                  $taskStartFailure=$_
-                  try {
-                      if (-not $taskProcess.HasExited) {
-                          if ($null -eq $taskBirth) {$taskBirth=Get-MeasurementBirth $taskProcess}
-                          if ((Get-MeasurementBirth $taskProcess) -cne $taskBirth) {throw 'Original startup observer changed; no signal'}
-                          $taskProcess.Kill()
-                          if (-not $taskProcess.WaitForExit(5000)) {throw 'Original startup observer stop unconfirmed'}
-                      }
-                  } catch {Write-Warning 'Original startup observer cleanup unconfirmed'}
-                  throw $taskStartFailure
-              } finally {$taskProcess.Dispose()}
-              exit 0
+          $null=New-Item -ItemType Directory -Path $taskRoot
+          $taskRoots=@([IO.Path]::GetPathRoot($env:RUNNER_TEMP),[IO.Path]::GetPathRoot($env:GITHUB_WORKSPACE),$(if ($IsWindows) {[IO.Path]::GetPathRoot($env:SystemRoot)} else {'/'})) | Select-Object -Unique
+          if ($taskRoots.Count -gt 3) {throw 'Volume count exceeded'}
+          Write-MeasurementJson 'intent.json' @{context=$taskContext;script_sha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash;interval_milliseconds=$taskInterval;maximum_milliseconds=$taskMaximumMilliseconds;maximum_samples=$taskMaximumSamples;maximum_bytes=$taskMaximumBytes;volume_roots=@($taskRoots);authority='none';automatic_retry=$false;scope='Sampled machine counters; no job attribution or continuous peaks; setup and post-sample work unobserved.'}
+          $taskStart=[Diagnostics.ProcessStartInfo]::new();$taskStart.FileName=[Environment]::ProcessPath;$taskStart.UseShellExecute=$false;$taskStart.CreateNoWindow=$true
+          $taskStart.RedirectStandardInput=$true;$taskStart.RedirectStandardOutput=$true;$taskStart.RedirectStandardError=$true
+          foreach($taskArgument in @('-NoLogo','-NoProfile','-NonInteractive','-File',$PSCommandPath,'-Operation','Observe')){$taskStart.ArgumentList.Add($taskArgument)}
+          $taskProcess=$null;$taskBirth=$null
+          try {
+           if($IsWindows){
+            Add-Type -TypeDefinition @"
+          using System;using System.Diagnostics;using System.IO;using System.Text;using System.Runtime.InteropServices;using System.ComponentModel;
+          public static class PortcoveCounterProcess {
+          [StructLayout(LayoutKind.Sequential)]struct SI {public int cb;public IntPtr r,d,t;public int x,y,sx,sy,cx,cy,f,flags;public short show,r2;public IntPtr rp,input,output,error;}
+          [StructLayout(LayoutKind.Sequential)]struct PI {public IntPtr process,thread;public int pid,tid;}
+          [DllImport("kernel32",CharSet=CharSet.Unicode,ExactSpelling=true,SetLastError=true)]static extern bool CreateProcessW(string e,StringBuilder c,IntPtr p,IntPtr t,bool inherit,uint flags,IntPtr env,string cwd,ref SI s,out PI i);
+          [DllImport("kernel32",SetLastError=true)]static extern bool GetProcessTimes(IntPtr h,out long c,out long e,out long k,out long u);
+          [DllImport("kernel32")]static extern bool CloseHandle(IntPtr h);
+          [DllImport("kernel32")]static extern bool TerminateProcess(IntPtr h,uint code);
+          [DllImport("kernel32")]static extern uint WaitForSingleObject(IntPtr h,uint ms);
+          public static Process Start(string script){string exe=Environment.ProcessPath;string root=Environment.GetEnvironmentVariable("RUNNER_TEMP");if(!String.Equals(Path.GetFileName(exe),"pwsh.exe",StringComparison.OrdinalIgnoreCase)||Path.GetFileName(script)!="portcove-hosted-job-observer.ps1"||!String.Equals(Path.GetDirectoryName(script),root,StringComparison.OrdinalIgnoreCase)||script.Contains('"'))throw new InvalidOperationException("Fixed observer only");var si=new SI{cb=Marshal.SizeOf<SI>()};PI pi;var cmd=new StringBuilder("\""+exe+"\" -NoLogo -NoProfile -NonInteractive -File \""+script+"\" -Operation Observe");if(!CreateProcessW(exe,cmd,IntPtr.Zero,IntPtr.Zero,false,0x08000000,IntPtr.Zero,root,ref si,out pi))throw new Win32Exception(Marshal.GetLastWin32Error());Process process=null;try{long c,e,k,u;if(!GetProcessTimes(pi.process,out c,out e,out k,out u))throw new Win32Exception(Marshal.GetLastWin32Error());process=Process.GetProcessById(pi.pid);var h=process.Handle;if(process.StartTime.ToFileTimeUtc()!=c)throw new InvalidOperationException("Observer generation changed");return process;}catch(Exception error){TerminateProcess(pi.process,1);if(WaitForSingleObject(pi.process,5000)!=0)throw new InvalidOperationException("Observer startup cleanup unconfirmed",error);if(process!=null)process.Dispose();throw;}finally{CloseHandle(pi.thread);CloseHandle(pi.process);}}
+          }
+          "@
+            $taskProcess=[PortcoveCounterProcess]::Start($PSCommandPath)
+           }else{
+            $taskProcess=[Diagnostics.Process]::Start($taskStart)
+            $taskProcess.StandardInput.Close();$taskProcess.StandardOutput.Close();$taskProcess.StandardError.Close()
+           }
+           $taskBirth=(Get-MeasurementBirth $taskProcess)
+           Write-MeasurementJson 'observer-started.json' @{context=$taskContext;pid=$taskProcess.Id;birth_ticks=$taskBirth;authority='none'}
+           $taskReadyClock=[Diagnostics.Stopwatch]::StartNew()
+           while (-not (Test-Path -LiteralPath (Join-Path $taskRoot 'observer-ready.json')) -and $taskReadyClock.ElapsedMilliseconds -lt 10000 -and -not $taskProcess.HasExited) {Start-Sleep -Milliseconds 100}
+           $taskReady=Read-MeasurementJson 'observer-ready.json'
+           Assert-MeasurementContext $taskReady.context
+           if ($taskReady.pid -ne $taskProcess.Id -or $taskReady.birth_ticks -cne $taskBirth -or $taskProcess.HasExited) {throw 'Observer did not become ready'}
+          } catch {
+           $taskStartFailure=$_
+           try {
+            if ($null -ne $taskProcess -and -not $taskProcess.HasExited) {
+             if ($null -eq $taskBirth) {$taskBirth=Get-MeasurementBirth $taskProcess}
+             if ((Get-MeasurementBirth $taskProcess) -cne $taskBirth) {throw 'Startup observer changed; no signal'}
+             $taskProcess.Kill()
+             if (-not $taskProcess.WaitForExit(5000)) {throw 'Startup observer stop unconfirmed'}
+            }
+           } catch {Write-Warning 'Startup observer cleanup unconfirmed'}
+           throw $taskStartFailure
+          } finally {if($null -ne $taskProcess){$taskProcess.Dispose()}}
+          exit 0
           }
           $taskIntent=Read-MeasurementJson 'intent.json'
           Assert-MeasurementContext $taskIntent.context
-          if ((Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash -cne $taskIntent.script_sha256) {throw 'Original measurement script changed'}
+          if ((Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash -cne $taskIntent.script_sha256) {throw 'Counter script changed'}
           if ($Operation -ceq 'Observe') {
-              $taskClock=[Diagnostics.Stopwatch]::StartNew();$taskCount=0;$taskBytesWritten=0;$taskLastSample=$null;$taskReason='deadline';$taskFailure=$null
-              $taskCurrent=[Diagnostics.Process]::GetCurrentProcess()
-              try {$taskObserverBirth=(Get-MeasurementBirth $taskCurrent)} finally {$taskCurrent.Dispose()}
-              $taskOutput=[IO.File]::Open((Join-Path $taskRoot 'samples.jsonl'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
-              try {
-                  while ($taskClock.ElapsedMilliseconds -lt $taskMaximumMilliseconds -and $taskCount -lt $taskMaximumSamples) {
-                      if (Test-Path -LiteralPath (Join-Path $taskRoot 'stop')) {$taskReason='stop-requested';break}
-                      $taskElapsed=[long]$taskClock.ElapsedMilliseconds;$taskErrors=[Collections.Generic.List[string]]::new();$taskMemory=$null
-                      try {$taskMemory=Get-MeasurementMemory} catch {$taskErrors.Add('memory-unavailable')}
-                      $taskVolumes=@(foreach ($taskVolumeRoot in $taskIntent.volume_roots) {
-                          try {$taskDrive=[IO.DriveInfo]::new($taskVolumeRoot);if (-not $taskDrive.IsReady) {throw 'Volume unavailable'};@{root=$taskVolumeRoot;total_bytes=$taskDrive.TotalSize;free_bytes=$taskDrive.TotalFreeSpace;available_bytes=$taskDrive.AvailableFreeSpace}}
-                          catch {$taskErrors.Add('volume-unavailable');@{root=$taskVolumeRoot;observation='unavailable'}}
-                      })
-                      $taskIntervalObserved=if ($null -eq $taskLastSample) {$null} else {$taskElapsed-$taskLastSample}
-                      $taskMissed=if ($null -eq $taskIntervalObserved) {0} else {[math]::Max(0,[math]::Floor($taskIntervalObserved/$taskInterval)-1)}
-                      $taskSample=@{sample=$taskCount;observed_at=[DateTime]::UtcNow.ToString('o');elapsed_milliseconds=$taskElapsed;duration_milliseconds=[long]$taskClock.ElapsedMilliseconds-$taskElapsed;interval_milliseconds=$taskIntervalObserved;missed_intervals=$taskMissed;memory=$taskMemory;volumes=$taskVolumes;errors=@($taskErrors)}
-                      $taskLine=$taskUtf8.GetBytes(($taskSample | ConvertTo-Json -Depth 8 -Compress)+"`n")
-                      if ($taskBytesWritten+$taskLine.Length -gt $taskMaximumBytes) {$taskReason='byte-bound';break}
-                      $taskOutput.Write($taskLine);$taskOutput.Flush($true);$taskBytesWritten+=$taskLine.Length;$taskCount++;$taskLastSample=$taskElapsed
-                      if ($taskCount -eq 1) {Write-MeasurementJson 'observer-ready.json' @{context=$taskContext;pid=$PID;birth_ticks=$taskObserverBirth;authority='none'}}
-                      $taskNext=([math]::Floor($taskClock.ElapsedMilliseconds/$taskInterval)+1)*$taskInterval
-                      while ($taskClock.ElapsedMilliseconds -lt $taskNext -and $taskClock.ElapsedMilliseconds -lt $taskMaximumMilliseconds -and -not (Test-Path -LiteralPath (Join-Path $taskRoot 'stop'))) {[Threading.Thread]::Sleep(100)}
-                  }
-                  if ($taskCount -ge $taskMaximumSamples) {$taskReason='sample-bound'}
-              } catch {$taskReason='observer-error';$taskFailure=$_.Exception.GetType().Name}
-              finally {
-                  $taskOutput.Dispose()
-                  Write-MeasurementJson 'observer-terminal.json' @{context=$taskContext;reason=$taskReason;samples=$taskCount;bytes=$taskBytesWritten;elapsed_milliseconds=[long]$taskClock.ElapsedMilliseconds;failure=$taskFailure;authority='none'}
-              }
-              exit 0
+          $taskClock=[Diagnostics.Stopwatch]::StartNew();$taskCount=0;$taskBytesWritten=0;$taskLastSample=$null;$taskReason='deadline';$taskFailure=$null
+          $taskCurrent=[Diagnostics.Process]::GetCurrentProcess()
+          try {$taskObserverBirth=(Get-MeasurementBirth $taskCurrent)} finally {$taskCurrent.Dispose()}
+          $taskOutput=[IO.File]::Open((Join-Path $taskRoot 'samples.jsonl'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
+          try {
+           while ($taskClock.ElapsedMilliseconds -lt $taskMaximumMilliseconds -and $taskCount -lt $taskMaximumSamples) {
+            if (Test-Path -LiteralPath (Join-Path $taskRoot 'stop')) {$taskReason='stop-requested';break}
+            $taskElapsed=[long]$taskClock.ElapsedMilliseconds;$taskErrors=[Collections.Generic.List[string]]::new();$taskMemory=$null
+            try {$taskMemory=Get-MeasurementMemory} catch {$taskErrors.Add('memory-unavailable')}
+            $taskVolumes=@(foreach ($taskVolumeRoot in $taskIntent.volume_roots) {
+             try {$taskDrive=[IO.DriveInfo]::new($taskVolumeRoot);if (-not $taskDrive.IsReady) {throw 'Volume unavailable'};@{root=$taskVolumeRoot;total_bytes=$taskDrive.TotalSize;free_bytes=$taskDrive.TotalFreeSpace;available_bytes=$taskDrive.AvailableFreeSpace}}
+             catch {$taskErrors.Add('volume-unavailable');@{root=$taskVolumeRoot;observation='unavailable'}}
+            })
+            $taskIntervalObserved=if ($null -eq $taskLastSample) {$null} else {$taskElapsed-$taskLastSample}
+            $taskMissed=if ($null -eq $taskIntervalObserved) {0} else {[math]::Max(0,[math]::Floor($taskIntervalObserved/$taskInterval)-1)}
+            $taskSample=@{sample=$taskCount;observed_at=[DateTime]::UtcNow.ToString('o');elapsed_milliseconds=$taskElapsed;duration_milliseconds=[long]$taskClock.ElapsedMilliseconds-$taskElapsed;interval_milliseconds=$taskIntervalObserved;missed_intervals=$taskMissed;memory=$taskMemory;volumes=$taskVolumes;errors=@($taskErrors)}
+            $taskLine=$taskUtf8.GetBytes(($taskSample | ConvertTo-Json -Depth 8 -Compress)+"`n")
+            if ($taskBytesWritten+$taskLine.Length -gt $taskMaximumBytes) {$taskReason='byte-bound';break}
+            $taskOutput.Write($taskLine);$taskOutput.Flush($true);$taskBytesWritten+=$taskLine.Length;$taskCount++;$taskLastSample=$taskElapsed
+            if ($taskCount -eq 1) {Write-MeasurementJson 'observer-ready.json' @{context=$taskContext;pid=$PID;birth_ticks=$taskObserverBirth;authority='none'}}
+            $taskNext=([math]::Floor($taskClock.ElapsedMilliseconds/$taskInterval)+1)*$taskInterval
+            while ($taskClock.ElapsedMilliseconds -lt $taskNext -and $taskClock.ElapsedMilliseconds -lt $taskMaximumMilliseconds -and -not (Test-Path -LiteralPath (Join-Path $taskRoot 'stop'))) {[Threading.Thread]::Sleep(100)}
+           }
+           if ($taskCount -ge $taskMaximumSamples) {$taskReason='sample-bound'}
+          } catch {$taskReason='observer-error';$taskFailure=$_.Exception.GetType().Name}
+          finally {
+           $taskOutput.Dispose()
+           Write-MeasurementJson 'observer-terminal.json' @{context=$taskContext;reason=$taskReason;samples=$taskCount;bytes=$taskBytesWritten;elapsed_milliseconds=[long]$taskClock.ElapsedMilliseconds;failure=$taskFailure;authority='none'}
+          }
+          exit 0
           }
           $taskStarted=Read-MeasurementJson 'observer-started.json'
           Assert-MeasurementContext $taskStarted.context
-          if ($taskStarted.pid -isnot [long] -and $taskStarted.pid -isnot [int]) {throw 'Original observer PID unavailable'}
-          if ($taskStarted.pid -le 1 -or $taskStarted.birth_ticks -cnotmatch '^(windows|linux)-start-ticks:[1-9][0-9]*$') {throw 'Original observer identity unavailable'}
+          if ($taskStarted.pid -isnot [long] -and $taskStarted.pid -isnot [int]) {throw 'Observer PID unavailable'}
+          if ($taskStarted.pid -le 1 -or $taskStarted.birth_ticks -cnotmatch '^(windows|linux)-start-ticks:[1-9][0-9]*$') {throw 'Observer identity unavailable'}
+          if($Operation -ceq 'Check'){
+          $taskAlive=Get-Process -Id $taskStarted.pid -ErrorAction Stop
+          try{
+           if((Get-MeasurementBirth $taskAlive) -cne $taskStarted.birth_ticks){throw 'Original observer changed'}
+           $taskBytes=Read-MeasurementBytes 'samples.jsonl' $taskMaximumBytes
+           $taskText=$taskUtf8.GetString($taskBytes);$taskEnd=$taskText.LastIndexOf("`n")
+           if($taskEnd -lt 1){throw 'No complete observer sample'}
+           $taskRows=@($taskText.Substring(0,$taskEnd).Split("`n"));$taskLast=$taskRows[-1]|ConvertFrom-Json -AsHashtable -Depth 8
+           if($null -eq $taskLast.memory -or @($taskLast.volumes|Where-Object{-not $_.ContainsKey('free_bytes')}).Count){throw 'Counter unavailable'}
+          if($taskRows.Count -gt $taskMaximumSamples -or [Math]::Abs(([DateTime]::UtcNow-([DateTime]$taskLast.observed_at).ToUniversalTime()).TotalMilliseconds) -gt 15000){throw 'Observer heartbeat stale'}
+           if((Get-MeasurementBirth $taskAlive) -cne $taskStarted.birth_ticks){throw 'Observer changed during check'}
+           @{context=$taskContext;pid=$taskStarted.pid;birth_ticks=$taskStarted.birth_ticks;samples=$taskRows.Count;last_elapsed_milliseconds=$taskLast.elapsed_milliseconds;authority='none'}|ConvertTo-Json -Depth 4 -Compress
+          }finally{$taskAlive.Dispose()}
+          exit 0
+          }
           $taskObserver=Get-Process -Id $taskStarted.pid -ErrorAction SilentlyContinue
           $taskForced=$false
           try {
-              if ($null -ne $taskObserver -and (Get-MeasurementBirth $taskObserver) -cne $taskStarted.birth_ticks) {throw 'Original observer PID reused; no signal'}
-              $taskStop=[IO.File]::Open((Join-Path $taskRoot 'stop'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read);$taskStop.Dispose()
-              if ($null -ne $taskObserver -and -not $taskObserver.WaitForExit(15000)) {
-                  $taskFresh=Get-Process -Id $taskStarted.pid -ErrorAction SilentlyContinue
-                  try {if ($null -eq $taskFresh -or (Get-MeasurementBirth $taskFresh) -cne $taskStarted.birth_ticks) {throw 'Original observer changed before bounded stop'};$taskFresh.Kill();if (-not $taskFresh.WaitForExit(5000)) {throw 'Observer stop unconfirmed'};$taskForced=$true} finally {if ($null -ne $taskFresh) {$taskFresh.Dispose()}}
-              }
+          if ($null -ne $taskObserver -and (Get-MeasurementBirth $taskObserver) -cne $taskStarted.birth_ticks) {throw 'Observer PID reused; no signal'}
+          $taskStop=[IO.File]::Open((Join-Path $taskRoot 'stop'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read);$taskStop.Dispose()
+          if ($null -ne $taskObserver -and -not $taskObserver.WaitForExit(15000)) {
+           $taskFresh=Get-Process -Id $taskStarted.pid -ErrorAction SilentlyContinue
+           try {if ($null -eq $taskFresh -or (Get-MeasurementBirth $taskFresh) -cne $taskStarted.birth_ticks) {throw 'Observer changed before stop'};$taskFresh.Kill();if (-not $taskFresh.WaitForExit(5000)) {throw 'Observer stop unconfirmed'};$taskForced=$true} finally {if ($null -ne $taskFresh) {$taskFresh.Dispose()}}
+          }
           } finally {if ($null -ne $taskObserver) {$taskObserver.Dispose()}}
           $taskSampleBytes=Read-MeasurementBytes 'samples.jsonl' $taskMaximumBytes
           $taskSampleText=$taskUtf8.GetString($taskSampleBytes)
           $taskLines=@($taskSampleText.Split("`n") | Where-Object {$_.Length -gt 0})
-          if ($taskLines.Count -gt $taskMaximumSamples) {throw 'Measurement sample count exceeds bound'}
+          if ($taskLines.Count -gt $taskMaximumSamples) {throw 'Sample count bound exceeded'}
           $taskRows=[Collections.Generic.List[object]]::new();$taskParseErrors=0;$taskPreviousElapsed=-1
           foreach ($taskLine in $taskLines) {
-              if ($taskUtf8.GetByteCount($taskLine) -gt 8192) {throw 'Measurement row exceeds bound'}
-              try {
-                  $taskRow=$taskLine | ConvertFrom-Json -AsHashtable -Depth 12
-                  if ($taskRow -isnot [Collections.IDictionary] -or $taskRow.sample -ne $taskRows.Count -or $taskRow.elapsed_milliseconds -lt 0 -or $taskRow.elapsed_milliseconds -lt $taskPreviousElapsed -or $taskRow.elapsed_milliseconds -gt $taskMaximumMilliseconds -or $taskRow.volumes.Count -gt 3) {throw 'Measurement row differs'}
-                  $taskRows.Add($taskRow);$taskPreviousElapsed=$taskRow.elapsed_milliseconds
-              } catch {$taskParseErrors++;break}
+          if ($taskUtf8.GetByteCount($taskLine) -gt 8192) {throw 'Row bound exceeded'}
+          try {
+           $taskRow=$taskLine | ConvertFrom-Json -AsHashtable -Depth 12
+           if ($taskRow -isnot [Collections.IDictionary] -or $taskRow.sample -ne $taskRows.Count -or $taskRow.elapsed_milliseconds -lt 0 -or $taskRow.elapsed_milliseconds -lt $taskPreviousElapsed -or $taskRow.elapsed_milliseconds -gt $taskMaximumMilliseconds -or $taskRow.volumes.Count -gt 3) {throw 'Counter row differs'}
+           $taskRows.Add($taskRow);$taskPreviousElapsed=$taskRow.elapsed_milliseconds
+          } catch {$taskParseErrors++;break}
           }
           $taskTerminal=if (Test-Path -LiteralPath (Join-Path $taskRoot 'observer-terminal.json')) {Read-MeasurementJson 'observer-terminal.json'} else {$null}
           if ($null -ne $taskTerminal) {Assert-MeasurementContext $taskTerminal.context}
@@ -207,6 +254,7 @@ jobs:
           '@
           $taskObserver = Join-Path $env:RUNNER_TEMP 'portcove-hosted-job-observer.ps1'
           $taskObserverBytes = [Text.UTF8Encoding]::new($false).GetBytes($taskObserverSource)
+          if($taskObserverBytes.Length -lt 1 -or $taskObserverBytes.Length -gt 32768){throw 'Observer source bound exceeded'}
           $taskObserverFile = [IO.File]::Open($taskObserver,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
           try { $taskObserverFile.Write($taskObserverBytes); $taskObserverFile.Flush($true) } finally { $taskObserverFile.Dispose() }
           & $taskObserver -Operation Start
@@ -214,15 +262,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: Refuse held S2 before runtime, driver, dependency or build work
+        id: diagnostic_preflight
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        shell: pwsh
+        run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Preflight
+      - if: ${{ !inputs.resource_observer_only }}
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           package_json_file: package.json
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - if: ${{ !inputs.resource_observer_only }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - uses: ./.github/actions/setup-rust
+      - if: ${{ !inputs.resource_observer_only }}
+        uses: ./.github/actions/setup-rust
       - name: Bind the original job and scope before native effects
+        if: ${{ !inputs.resource_observer_only }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -240,15 +297,16 @@ jobs:
             production_credentials = 'none'; automatic_retry = $false
           } | ConvertTo-Json | Set-Content work/hosted-continuity-evidence/intent.json
       - name: Install existing Linux desktop and AppImage prerequisites
-        if: runner.os == 'Linux'
+        if: ${{ !inputs.resource_observer_only && runner.os == 'Linux' }}
         timeout-minutes: 15
         run: |
           ./scripts/install-linux-desktop-prerequisites.sh --include-rpm --include-appimage-runtime --include-webdriver
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version"
-      - run: pnpm install --frozen-lockfile
+      - if: ${{ !inputs.resource_observer_only }}
+        run: pnpm install --frozen-lockfile
       - name: Provision pinned Windows native driver
-        if: runner.os == 'Windows'
+        if: ${{ !inputs.resource_observer_only && runner.os == 'Windows' }}
         shell: pwsh
         run: |
           ./scripts/prepare-hosted-windows-runtime.ps1
@@ -256,14 +314,16 @@ jobs:
           ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
           if ($LASTEXITCODE -ne 0) { throw 'Pinned native prerequisite failed' }
       - name: Compile the actual qualification feature boundary before packaging
+        if: ${{ !inputs.resource_observer_only }}
         run: cargo check --locked -p portcove-desktop --lib --features application-update-qualification,native-compatibility-qualification --jobs 2
       - name: Exercise the maintained installed updater on this one machine
+        if: ${{ !inputs.resource_observer_only }}
         shell: pwsh
         run: |
           ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel $env:PORTCOVE_HOSTED_PLATFORM -TransitionProfile preview-final -EvidenceWorkflow .github/workflows/hosted-native-continuity.yml
           if ($LASTEXITCODE -ne 0) { throw 'Installed prerequisite failed; preserve its original result' }
       - name: Read back the original host and actual native result
-        if: always()
+        if: ${{ always() && !inputs.resource_observer_only }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -273,6 +333,117 @@ jobs:
           $taskResult = if (Test-Path -LiteralPath $taskResultPath) { Get-Content -Raw $taskResultPath | ConvertFrom-Json } else { $null }
           @{ observed_at = [DateTime]::UtcNow.ToString('o'); original_host_preserved = $true; result = $taskResult; production_acceptance = 'not-established' } | ConvertTo-Json -Depth 8 | Set-Content work/hosted-continuity-evidence/readback.json
           if ($null -eq $taskResult -or $taskResult.status -cne 'passed') { throw 'Native result absent/failed; not a continuity success' }
+      - name: Qualify the original observer across independent runner steps
+        if: inputs.resource_observer_only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA -or $LASTEXITCODE -ne 0){throw 'Actual measurement source differs'}
+          $taskObserver=Join-Path $env:RUNNER_TEMP 'portcove-hosted-job-observer.ps1'
+          $taskPrevious=$null
+          foreach($taskIndex in 0..2){
+            $taskCurrent=(& $taskObserver -Operation Check)|ConvertFrom-Json
+            if($LASTEXITCODE -ne 0){throw 'Original observer absent across runner step'}
+            if($null -ne $taskPrevious -and ($taskCurrent.pid -ne $taskPrevious.pid -or $taskCurrent.birth_ticks -cne $taskPrevious.birth_ticks -or $taskCurrent.samples -le $taskPrevious.samples -or $taskCurrent.last_elapsed_milliseconds -le $taskPrevious.last_elapsed_milliseconds)){throw 'Original observer did not advance'}
+            $taskPrevious=$taskCurrent
+            if($taskIndex -lt 2){Start-Sleep -Seconds 6}
+          }
+      - name: Start the separately held original connected diagnostic controller
+        id: diagnostic_start
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        timeout-minutes: 6
+        shell: pwsh
+        run: ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Start
+      - name: Read original diagnostic initial-stage upload request
+        id: diagnostic_pre
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $taskRequest = (& node scripts/release-hosted-native-windows-diagnostic.mts request payload-signing) | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage request refused' }
+          $taskDelimiter = 'PORTCOVE_DIAGNOSTIC_PATHS'
+          $taskOutput = @(('request_sha256=' + $taskRequest.request_sha256), ('name=' + $taskRequest.name), ('paths<<' + $taskDelimiter)) + @($taskRequest.files) + @($taskDelimiter)
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ($taskOutput -join "`n") + "`n")
+      - name: Upload only four original diagnostic initial-stage public records
+        id: diagnostic_pre_upload
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.diagnostic_pre.outputs.name }}
+          path: ${{ steps.diagnostic_pre.outputs.paths }}
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+          compression-level: 0
+      - name: Acknowledge the original diagnostic initial-stage provider upload
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        shell: pwsh
+        env:
+          DIAGNOSTIC_REQUEST: ${{ steps.diagnostic_pre.outputs.request_sha256 }}
+          DIAGNOSTIC_ARTIFACT: ${{ steps.diagnostic_pre_upload.outputs.artifact-id }}
+          DIAGNOSTIC_DIGEST: ${{ steps.diagnostic_pre_upload.outputs.artifact-digest }}
+        run: |
+          & node scripts/release-hosted-native-windows-diagnostic.mts ack payload-signing $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic initial-stage acknowledgement refused' }
+      - name: Read original diagnostic compatible-transition upload request
+        id: diagnostic_post
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $taskRequest = (& node scripts/release-hosted-native-windows-diagnostic.mts request release-publication) | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition request refused' }
+          $taskDelimiter = 'PORTCOVE_DIAGNOSTIC_PATHS'
+          $taskOutput = @(('request_sha256=' + $taskRequest.request_sha256), ('name=' + $taskRequest.name), ('paths<<' + $taskDelimiter)) + @($taskRequest.files) + @($taskDelimiter)
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, ($taskOutput -join "`n") + "`n")
+      - name: Upload only four original diagnostic compatible-transition public records
+        id: diagnostic_post_upload
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.diagnostic_post.outputs.name }}
+          path: ${{ steps.diagnostic_post.outputs.paths }}
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+          compression-level: 0
+      - name: Acknowledge the original diagnostic compatible-transition provider upload
+        if: ${{ inputs.connected_private_diagnostic && !inputs.resource_observer_only }}
+        shell: pwsh
+        env:
+          DIAGNOSTIC_REQUEST: ${{ steps.diagnostic_post.outputs.request_sha256 }}
+          DIAGNOSTIC_ARTIFACT: ${{ steps.diagnostic_post_upload.outputs.artifact-id }}
+          DIAGNOSTIC_DIGEST: ${{ steps.diagnostic_post_upload.outputs.artifact-digest }}
+        run: |
+          & node scripts/release-hosted-native-windows-diagnostic.mts ack release-publication $env:DIAGNOSTIC_REQUEST $env:DIAGNOSTIC_ARTIFACT $env:DIAGNOSTIC_DIGEST
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic transition acknowledgement refused' }
+      - name: Request original diagnostic recovery after a failed Actions transition
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && failure() && steps.diagnostic_start.outcome == 'success' }}
+        timeout-minutes: 1
+        shell: pwsh
+        run: |
+          & node scripts/release-hosted-native-windows-diagnostic.mts abort
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic abort request unavailable; retain its original bounded recovery evidence' }
+      - name: Read the original diagnostic terminal result without resuming another owner
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_start.outcome == 'success' }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          & node scripts/release-hosted-native-windows-diagnostic.mts settle
+          if ($LASTEXITCODE -ne 0) { throw 'Original diagnostic did not settle successfully; preserve partial evidence' }
+      - name: Retain only bounded diagnostic source and cleanup records
+        if: ${{ always() && inputs.connected_private_diagnostic && !inputs.resource_observer_only && steps.diagnostic_preflight.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hosted-native-diagnostic-settlement-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json
+            ${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json
+          if-no-files-found: warn
+          retention-days: 7
+          overwrite: false
+          compression-level: 0
       - name: Stop the original resource observer and retain sampled coverage
         if: always()
         shell: pwsh
@@ -298,13 +469,14 @@ jobs:
           overwrite: false
           compression-level: 0
       - name: Retain only selected public diagnostics
-        if: always()
+        if: ${{ always() && !inputs.resource_observer_only }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: hosted-native-prerequisite-${{ inputs.platform }}-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             work/hosted-continuity-evidence/*.json
             work/updater-rehearsal/rehearsal-result.json
+            work/updater-rehearsal/windows-fixture-derivation.json
             work/updater-rehearsal/windows-installed-update.json
             work/updater-rehearsal/windows-installed-update-summary.json
             work/updater-rehearsal/windows-renderer-evidence/*.json

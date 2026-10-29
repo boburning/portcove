@@ -105,7 +105,9 @@ try {
     By,
     Key,
     until,
-    embeddedMacKeyboard: true,
+    // Synthetic Enter does not supply native button activation; ArrowDown has
+    // an explicit Select key handler and the driver now dispatches it directly.
+    selectActivationKey: Key.ARROW_DOWN,
   });
   await writeFile(
     path.join(evidenceDirectory, "design-compatibility-environment.json"),
@@ -179,6 +181,16 @@ try {
     path.join(evidenceDirectory, "result.json"),
     `${JSON.stringify({ ...result, applicationExit: exit }, null, 2)}\n`,
     { flag: "wx" },
+  );
+  console.log(
+    `Native compatibility result: ${JSON.stringify({
+      artifact: result.artifact,
+      revision: result.revision,
+      status: result.status,
+      applicationExit: exit,
+      hasError: result.error !== undefined,
+      hasCleanupError: result.cleanupError !== undefined,
+    })}`,
   );
 }
 if (failure) throw failure.error;

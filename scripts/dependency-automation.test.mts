@@ -5,14 +5,21 @@ import desktopPackageManifest from "../apps/desktop/package.json" with { type: "
 import rootPackage from "../package.json" with { type: "json" };
 import qualityManifest from "../.github/quality-tools.json" with { type: "json" };
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, readdir, lstat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { parseDocument } from "yaml";
+import { parseDocument, parseAllDocuments } from "yaml";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  nativePnpmVersion,
+  nativePnpmArchive,
+  nativeWindowsPnpmArchive,
+} from "./release-pnpm-runtime.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { validateRootPnpmToolchain } from "./pnpm-lock-inventory.mts";
 
 function required<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined);
@@ -24,7 +31,40 @@ function record(value: unknown) {
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+void test("root lock maintenance retains provider-owned pnpm platform integrity", async () => {
+  const result = validateRootPnpmToolchain(
+    await readFile(path.join(root, "pnpm-lock.yaml"), "utf8"),
+    rootPackage.packageManager,
+    await readFile(path.join(root, "pnpm-workspace.yaml"), "utf8"),
+  );
+  assert.ok(result.artifacts > 1);
+});
 const read = (name: string) => readFile(path.join(root, name), "utf8");
+
+void test("fixed native pnpm consumers match the root pin and publisher integrity", async () => {
+  assert.equal(rootPackage.packageManager, `pnpm@${nativePnpmVersion}`);
+  const environment = record(parseAllDocuments(await read("pnpm-lock.yaml"))[0]?.toJS());
+  const packages = record(environment.packages);
+  for (const [platform, archive] of [
+    ["linux-x64", nativePnpmArchive],
+    ["win32-x64", nativeWindowsPnpmArchive],
+  ] as const) {
+    assert.equal(
+      archive.url,
+      `https://registry.npmjs.org/@pnpm/exe.${platform}/-/exe.${platform}-${nativePnpmVersion}.tgz`,
+    );
+    assert.equal(
+      record(record(packages[`@pnpm/exe.${platform}@${nativePnpmVersion}`]).resolution).integrity,
+      archive.integrity,
+    );
+  }
+  const linux = await read("scripts/prepare-hosted-native-linux-installation.py");
+  assert.equal(
+    linux.match(/metadata.get\("packageManager"\) == "pnpm@([^"\n]+)"/u)?.[1],
+    nativePnpmVersion,
+  );
+  assert.equal(linux.match(/environment=environment\) == "([^"\n]+)"/u)?.[1], nativePnpmVersion);
+});
 
 void test("Rust Node and pnpm authorities and isolated runtime representations stay coordinated", async () => {
   const quality = qualityManifest;
@@ -112,7 +152,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "yaml",
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
-  assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "2.3.2");
+  assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "3.0.4");
   assert.equal(repositoryPackage.devDependencies["@vitest/coverage-v8"], "5.0.5");
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "@vitest/coverage-v8"), false);
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "es-module-lexer"), false);
@@ -179,8 +219,8 @@ void test("Renovate is the sole conservative routine update authority", async ()
   assert.equal(renovate.minimumReleaseAge, "1 day");
   assert.equal(renovate.minimumReleaseAgeBehaviour, "timestamp-required");
   assert.equal(renovate.internalChecksFilter, "strict");
-  assert.equal(renovate.prConcurrentLimit, 4);
-  assert.equal(renovate.branchConcurrentLimit, 4);
+  assert.equal(renovate.prConcurrentLimit, 6);
+  assert.equal(renovate.branchConcurrentLimit, 6);
   assert.equal(renovate.prHourlyLimit, 0);
   assert.equal(renovate.commitHourlyLimit, 0);
   assert.equal(renovate.rebaseWhen, "conflicted");
@@ -428,13 +468,14 @@ void test("the RPM prerelease hold excludes only the affected npm CLI version", 
   assert.ok(hold);
   assert.deepEqual(hold.matchManagers, ["npm"]);
   assert.deepEqual(hold.matchPackageNames, ["@tauri-apps/cli"]);
-  assert.equal(hold.allowedVersions, "!/^2\\.12\\.3$/");
+  assert.equal(hold.allowedVersions, "!/^2\\.12\\.(?:3|4)$/");
   assert.match(hold.description, /#2014/);
   assert.equal(hold.enabled, undefined);
   assert.equal(hold.groupName, undefined);
   const excluded = new RegExp(hold.allowedVersions.slice(2, -1), "u");
   assert.equal(excluded.test("2.12.3"), true);
-  for (const version of ["2.12.1", "2.12.2", "2.12.4", "2.12.30", "2.13.0", "3.0.0"]) {
+  assert.equal(excluded.test("2.12.4"), true);
+  for (const version of ["2.12.1", "2.12.2", "2.12.5", "2.12.30", "2.12.40", "2.13.0", "3.0.0"]) {
     assert.equal(excluded.test(version), false, version);
   }
 });
@@ -687,4 +728,51 @@ void test("Node proposals update every maintained isolated pin without rewriting
       }
     }
   }
+});
+
+void test("RFD backport retains the publisher closure and only the reviewed format patch", async () => {
+  const provenance = record(JSON.parse(await read("vendor/rfd-provenance.json")));
+  assert.equal(provenance.version, "0.17.2");
+  assert.equal(provenance.fix_revision, "9eb59f2716738ebf44ff6e9524450c8e703957a8");
+  const originals = record(provenance.original_files);
+  const modified = record(provenance.modified_files);
+  assert.deepEqual(Object.keys(modified), ["src/backend/gtk3/message_dialog.rs"]);
+  const files: string[] = [];
+  async function visit(directory: string, prefix = "") {
+    const info = await lstat(directory);
+    assert.ok(info.isDirectory() && !info.isSymbolicLink());
+    for (const entry of await readdir(directory)) {
+      const relative = `${prefix}${entry}`;
+      const filename = path.join(directory, entry);
+      const stat = await lstat(filename);
+      assert.ok(!stat.isSymbolicLink());
+      if (stat.isDirectory()) await visit(filename, `${relative}/`);
+      else {
+        assert.ok(stat.isFile());
+        files.push(relative);
+      }
+    }
+  }
+  await visit(path.join(root, "vendor/rfd"));
+  assert.deepEqual(files.sort(), Object.keys(originals).sort());
+  for (const name of files) {
+    const expected = modified[name] ?? originals[name];
+    assert.equal(typeof expected, "string");
+    assert.match(String(expected), /^[a-f0-9]{64}$/u);
+    assert.equal(
+      createHash("sha256")
+        .update(await readFile(path.join(root, "vendor/rfd", name)))
+        .digest("hex"),
+      expected,
+      name,
+    );
+  }
+  assert.match(await read("Cargo.toml"), /rfd = \{ path = "vendor\/rfd" \}/u);
+  const rfd = (await read("Cargo.lock"))
+    .split("[[package]]")
+    .find((entry) => /^name = "rfd"$/mu.test(entry));
+  assert.ok(rfd);
+  assert.match(rfd, /^version = "0\.17\.2"$/mu);
+  assert.doesNotMatch(rfd, /^(?:source|checksum) =/mu);
+  assert.match(await read("vendor/rfd/LICENSE"), /Permission is hereby granted/u);
 });

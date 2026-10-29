@@ -1,5 +1,5 @@
 {
-  "format_version": 3,
+  "format_version": 4,
   "listings": [
     {
       "id": "shipwright",
@@ -2431,7 +2431,18 @@
       },
       "platforms": [
         "windows-x86-64"
-      ]
+      ],
+      "release_maintenance": {
+        "reason": "The accepted managed build is retained for build-specific quickstates and its accepted original, launch and persistence contracts. Newer external Preview instructions describe a separately owned route.",
+        "reconsider_when": "Reassess a newly observed Windows package only after exact original/arguments, package companions, SRAM/quickstate preservation, developer options and full process lifetime have a bounded compatible transition.",
+        "pinned_releases": [
+          {
+            "platform": "windows-x86-64",
+            "version": "v0.3.12",
+            "published_at": "2026-10-17T22:09:41Z"
+          }
+        ]
+      }
     },
     {
       "id": "mega-man-x2-snes-recomp",
@@ -8720,9 +8731,6 @@
       "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate II (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "issue_number": 2629,
@@ -8749,7 +8757,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "baldur-s-gate-original-gemrb",
@@ -8757,9 +8768,6 @@
       "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "issue_number": 2628,
@@ -8786,7 +8794,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "banjo-kazooie-nuts-bolts-renut",
@@ -9201,12 +9212,9 @@
     {
       "id": "bio-menace-reflectionhle",
       "name": "Bio Menace (ReflectionHLE)",
-      "summary": "Use Bio Menace with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Bio Menace through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Bio Menace",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "artwork": {
@@ -9224,22 +9232,26 @@
         "steps": [
           {
             "title": "Use the matching original DOS edition",
-            "instruction": "Use the complete matching original DOS episode folders with BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE and their corresponding BM1/BM2/BM3 data. The upstream tables distinguish shareware, registered and freeware revisions. Keep companion files; a BioMenace Remastered installation is not established as an interchangeable input. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            "instruction": "Use the complete matching original DOS episode data. Episode1 has separate shareware, registered, freeware and Gold Medallion revisions; episodes2/3 have their own registered/freeware revisions. Most use BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE, while Gold Medallion uses BM1GM.EXE. The tagged source also recognizes the BioHazard1992 beta with BHAZARD1.EXE. Keep every companion for that exact revision. The launcher lists supported sets with exact names, sizes and CRCs. BioMenace Remastered is not established as interchangeable. Select legally obtained originals without moving them; a DOS executable is input, while reflectionhle.exe is the Windows player."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -9247,7 +9259,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "bitsandbreakpoints-d-psx-pc-recomp",
@@ -9431,9 +9446,6 @@
       "original_game_title": "Blake Stone: Aliens of Gold",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2555,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
       "artwork": {
@@ -9467,7 +9479,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "blake-stone-planet-strike-bstone",
@@ -9476,9 +9491,6 @@
       "original_game_title": "Blake Stone: Planet Strike",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2556,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
       "artwork": {
@@ -9512,7 +9524,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "blast-corps-blastcorps-recompiled",
@@ -10880,9 +10895,6 @@
       "summary": "Set up Cannon Fodder 2 through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Cannon Fodder 2",
       "project_url": "https://github.com/OpenFodder/openfodder",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
       "artwork": {
@@ -10922,7 +10934,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cannon-fodder-open-fodder",
@@ -10930,9 +10945,6 @@
       "summary": "Set up Cannon Fodder through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Cannon Fodder",
       "project_url": "https://github.com/OpenFodder/openfodder",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
       "issue_number": 2641,
@@ -10964,7 +10976,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cannonball-dx-outrun",
@@ -11195,9 +11210,6 @@
       "summary": "Use Catacomb 3-D: The Descent with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Catacomb 3-D: The Descent",
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
       "issue_number": 2643,
@@ -11232,17 +11244,17 @@
           "CatacombGL-Windows-64bit-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "catacomb-3-d-the-descent-reflectionhle",
       "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
-      "summary": "Use Catacomb 3-D: The Descent with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Catacomb 3-D: The Descent through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Catacomb 3-D: The Descent",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2684,
@@ -11255,19 +11267,23 @@
             "instruction": "Keep your own complete matching DOS Descent data, including CAT3D.EXE, AUDIO.C3D, EGAGRAPH.C3D and GAMEMAPS.C3D. The upstream tables distinguish v1.00 and v1.22 by sizes and CRCs. Abyss shareware does not provide Descent. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -11275,7 +11291,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cave-story-nxengine-evo",
@@ -11939,9 +11958,6 @@
       "summary": "Use Commander Keen 4 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 4",
       "project_url": "https://github.com/sulix/omnispeak",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
       "issue_number": 2648,
@@ -11974,7 +11990,10 @@
           "omnispeak-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "commander-keen-5-omnispeak",
@@ -11982,9 +12001,6 @@
       "summary": "Use Commander Keen 5 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 5",
       "project_url": "https://github.com/sulix/omnispeak",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
       "issue_number": 2649,
@@ -12017,7 +12033,10 @@
           "omnispeak-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "commander-keen-6-omnispeak",
@@ -12025,9 +12044,6 @@
       "summary": "Use Commander Keen 6 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 6",
       "project_url": "https://github.com/sulix/omnispeak",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
       "artwork": {
@@ -12070,7 +12086,10 @@
           "omnispeak-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "conan2007recomp-crazyriddler-conan-2007",
@@ -14154,9 +14173,6 @@
       "summary": "Set up Descent through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
       "issue_number": 2652,
@@ -14181,7 +14197,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "descent-ii-dxx-rebirth",
@@ -14189,9 +14208,6 @@
       "summary": "Set up Descent II through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent II",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
       "issue_number": 2653,
@@ -14216,7 +14232,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "dethrace-labs-dethrace",
@@ -14286,9 +14305,6 @@
       "original_game_title": "Diablo",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2563,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
       "release_url": "https://github.com/diasurgical/DevilutionX/releases",
@@ -14319,7 +14335,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "diablo-hellfire-devilutionx",
@@ -14328,9 +14347,6 @@
       "original_game_title": "Diablo: Hellfire",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2564,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
       "artwork": {
@@ -14369,7 +14385,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "diablo-ii-resurrected-reign-of-the-warlock-d2r-mobile",
@@ -15042,9 +15061,6 @@
       "original_game_title": "Doom 3 (classic)",
       "project_url": "https://github.com/dhewm/dhewm3",
       "issue_number": 2567,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
       "release_url": "https://github.com/dhewm/dhewm3/releases",
@@ -15076,7 +15092,10 @@
         ],
         "warnings": [],
         "help_url": "https://dhewm3.org/#how-to-install"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
@@ -15085,9 +15104,6 @@
       "original_game_title": "Doom 3 (classic)",
       "project_url": "https://github.com/Inkub0/dude",
       "issue_number": 2565,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md",
       "release_url": "https://github.com/Inkub0/dude/releases/tag/v0.9.6",
@@ -15121,7 +15137,10 @@
           "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
         ],
         "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dhewm3",
@@ -15130,9 +15149,6 @@
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
       "project_url": "https://github.com/dhewm/dhewm3",
       "issue_number": 2568,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
       "release_url": "https://github.com/dhewm/dhewm3/releases",
@@ -15164,7 +15180,10 @@
         ],
         "warnings": [],
         "help_url": "https://dhewm3.org/#how-to-install"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
@@ -15173,9 +15192,6 @@
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
       "project_url": "https://github.com/Inkub0/dude",
       "issue_number": 2566,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md",
       "release_url": "https://github.com/Inkub0/dude/releases/tag/v0.9.6",
@@ -15209,7 +15225,10 @@
           "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
         ],
         "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-ii-crispy-doom-family",
@@ -15217,9 +15236,6 @@
       "summary": "Use Doom II with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Doom II",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "issue_number": 2655,
@@ -15252,7 +15268,10 @@
           "crispy-doom-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-ii-rpg-doomiirpg-re",
@@ -15354,9 +15373,6 @@
       "summary": "Use Doom / The Ultimate Doom with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Doom / The Ultimate Doom",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "issue_number": 2654,
@@ -15389,7 +15405,10 @@
           "crispy-doom-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom-macnativeports",
@@ -17519,9 +17538,6 @@
       "summary": "Use Final Doom with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Final Doom",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "issue_number": 2656,
@@ -17554,7 +17570,10 @@
           "crispy-doom-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "final-fantasy-resonance-ffresonancerecomp",
@@ -20273,9 +20292,6 @@
       "summary": "Use Heretic with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Heretic",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "artwork": {
@@ -20316,7 +20332,10 @@
           "crispy-heretic-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "heroes-of-might-and-magic-ii-fheroes2",
@@ -20361,9 +20380,6 @@
       "summary": "Use Hexen with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Hexen",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "issue_number": 2662,
@@ -20396,7 +20412,10 @@
           "crispy-hexen-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "hg-kunodemetries-haunting-ground",
@@ -20676,9 +20695,6 @@
       "summary": "Set up Icewind Dale II through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale II",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
@@ -20713,7 +20729,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "icewind-dale-original-gemrb",
@@ -20721,9 +20740,6 @@
       "summary": "Set up Icewind Dale (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
@@ -20758,7 +20774,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "ico-pc-nathanialf",
@@ -22104,12 +22123,9 @@
     {
       "id": "keen-dreams-reflectionhle",
       "name": "Keen Dreams (ReflectionHLE)",
-      "summary": "Use Keen Dreams with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Keen Dreams through ReflectionHLE with the matching game files.",
       "original_game_title": "Keen Dreams",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "artwork": {
@@ -22127,22 +22143,26 @@
         "steps": [
           {
             "title": "Use the matching original DOS edition",
-            "instruction": "Keep the complete matching DOS edition, including KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and its EGA or CGA graphics. The exact executable and data revision must match one launcher entry; the modern Keen Dreams remaster and Keen 4/5/6 data are separate products. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            "instruction": "Select the complete legally obtained data folder for one supported edition: DOS EGA v1.00/v1.13/v1.20/v1.93, DOS CGA v1.00/v1.05, or Keen Dreams 2015. DOS editions require their matching KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and EGA/CGA files. The 2015 edition instead uses its complete external data set, including KDREAMS.CGA/CMP/EGA/MAP/SND and required KDR tables; it requires no DOS executable. The launcher lists each exact file, size and CRC requirement. Other remasters and Keen 4/5/6 data are not established as interchangeable. Select the original folder without moving it. Any required DOS executable is input data; reflectionhle.exe is the Windows player."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -22150,7 +22170,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "keriew-augustus",
@@ -23654,7 +23677,7 @@
         "steps": [
           {
             "title": "Play the complete official game package",
-            "instruction": "The complete official Windows package includes this game’s scenario data and native player; no separately supplied commercial original, ROM or setup helper is required. Keep all package companions. This route pins release-20260930; automatic updates are not offered. Explicit Play can read and update an existing shared upstream profile. Core does not adopt that profile. Do not copy legacy Prefs or other old-runtime files into this fresh package. This route starts this bundled game; use a separate upstream copy for custom scenarios or extra data-search paths. Upstream owns shared profiles in Documents/AlephOne (saves, quick saves, recordings, screenshots and logs) and LocalAppData/AlephOne (preferences). Existing legacy Prefs in a separately owned upstream copy remain external. Core manages this separate runtime only; its backups do not include those external profiles. Preserve the creating runtime and actual profile before upstream replacement or older-runtime use; no save/state conversion, populated profile adoption or gameplay compatibility is inferred."
+            "instruction": "The complete official Windows package includes this game’s scenario data and native player; no separately supplied commercial original, ROM or setup helper is required. Keep all package companions. Explicit Play can read and update an existing shared upstream profile. Core does not adopt that profile. Do not copy legacy Prefs or other old-runtime files into this fresh package. This route starts this bundled game; use a separate upstream copy for custom scenarios or extra data-search paths. Upstream owns shared profiles in Documents/AlephOne (saves, quick saves, recordings, screenshots and logs) and LocalAppData/AlephOne (preferences). Existing legacy Prefs in a separately owned upstream copy remain external. Core manages this separate runtime only; its backups do not include those external profiles. Preserve the creating runtime and actual profile before upstream replacement or older-runtime use; no save/state conversion, populated profile adoption or gameplay compatibility is inferred."
           }
         ],
         "warnings": [
@@ -23665,7 +23688,18 @@
       },
       "platforms": [
         "windows-x86-64"
-      ]
+      ],
+      "release_maintenance": {
+        "reason": "The accepted package has a release-specific runtime directory and reads upstream-owned shared profiles. A later package must not reinterpret either contract.",
+        "reconsider_when": "Reassess a newly observed official Windows game package against archive layout, executable identity, Windows path limits, profile ownership and retained runtime compatibility.",
+        "pinned_releases": [
+          {
+            "platform": "windows-x86-64",
+            "version": "release-20260930",
+            "published_at": "2026-10-01T01:46:14Z"
+          }
+        ]
+      }
     },
     {
       "id": "marathon-infinity-aleph-one",
@@ -24155,9 +24189,6 @@
       "summary": "Prepare Medal of Honor: Allied Assault Breakthrough through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
       "project_url": "https://github.com/openmoh/openmohaa",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
       "issue_number": 2594,
@@ -24190,7 +24221,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "medal-of-honor-allied-assault-openmohaa",
@@ -24198,9 +24232,6 @@
       "summary": "Prepare Medal of Honor: Allied Assault through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Medal of Honor: Allied Assault",
       "project_url": "https://github.com/openmoh/openmohaa",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
       "artwork": {
@@ -24241,7 +24272,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
@@ -24249,9 +24283,6 @@
       "summary": "Prepare Medal of Honor: Allied Assault Spearhead through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Medal of Honor: Allied Assault Spearhead",
       "project_url": "https://github.com/openmoh/openmohaa",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/README.md",
       "issue_number": 2593,
@@ -24284,7 +24315,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "medievil-ps4-native-runtime-bc160201983-medievil-2019",
@@ -28978,7 +29012,6 @@
       "summary": "Prepare Perimeter: Emperor's Testament through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Perimeter: Emperor's Testament",
       "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/README.md",
       "artwork": {
@@ -29014,7 +29047,10 @@
           "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit."
         ],
         "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "perimeter-perimeter-community-engine",
@@ -29022,7 +29058,6 @@
       "summary": "Prepare Perimeter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Perimeter",
       "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/README.md",
       "issue_number": 2889,
@@ -29050,7 +29085,10 @@
           "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit."
         ],
         "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "persona2recomp-jermspeaks-persona-2-innocent-sin",
@@ -29424,9 +29462,6 @@
       "summary": "Set up Planescape: Torment (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Planescape: Torment (original)",
       "project_url": "https://github.com/gemrb/gemrb",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
       "artwork": {
@@ -29461,7 +29496,10 @@
           "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
         ],
         "help_url": "https://gemrb.org/Install.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "poka-poka-jm5557-monster-hunter-diary-poka-poka-felyne-village-g",
@@ -29527,9 +29565,6 @@
       "summary": "Import your own exact blue original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Blue",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "issue_number": 2866,
@@ -29564,7 +29599,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-crystal-gen1recomp",
@@ -29588,12 +29626,11 @@
     {
       "id": "pokemon-emerald-emeraldrecomp",
       "name": "Pokémon Emerald / EmeraldRecomp",
-      "summary": "Explore Pokémon Emerald / EmeraldRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream EmeraldRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/EmeraldRecomp",
       "issue_number": 334,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/EmeraldRecomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/EmeraldRecomp/blob/1bd517bc8ce8def93b91b4363af12c4ae540dce2/README.md",
       "artwork": {
         "game_id": 1517,
         "cover_id": 92655,
@@ -29601,7 +29638,37 @@
         "image_sha256": "f044cb533d5abbe24cca261e4785ce37a957bb2507aeb1a6c0dc541005c73d51",
         "game_slug": "pokemon-emerald-version",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon Emerald USA GBA original, SHA-1 f3ae088181bf583e55daf962a92bb46f4f1d07b7, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.1.3 release and extract its complete EmeraldRecomp-windows-x64-v0.1.3.zip package into a separate writable folder for this exact game. Keep EmeraldRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working EmeraldRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/EmeraldRecomp/releases/tag/v0.1.3"
+      },
+      "original_game_title": "Pokémon Emerald",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-emerald-gen1recomp",
@@ -29609,9 +29676,6 @@
       "summary": "Import your own exact emerald original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Emerald",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -29654,17 +29718,19 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-firered-fireredleafgreenrecomp",
       "name": "Pokémon FireRed / FireRedLeafGreenRecomp",
-      "summary": "Explore Pokémon FireRed / FireRedLeafGreenRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream FireRedRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "issue_number": 335,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp/blob/6174de77a599d0c1e125747b9553d90409a76a27/README.md",
       "artwork": {
         "game_id": 1559,
         "cover_id": 92690,
@@ -29672,7 +29738,37 @@
         "image_sha256": "118a2c3a72c7fd65b0d71dd804c31f6cfb3d674004593f455c00bd1e6a78b808",
         "game_slug": "pokemon-firered-version",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon FireRed USA v1.0/rev0 GBA original, SHA-1 41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+      },
+      "original_game_title": "Pokémon FireRed",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-firered-gen1recomp",
@@ -29680,9 +29776,6 @@
       "summary": "Import your own exact firered original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon FireRed",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -29725,7 +29818,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-gold-gen1recomp",
@@ -29749,12 +29845,11 @@
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
       "name": "Pokémon LeafGreen / FireRedLeafGreenRecomp",
-      "summary": "Explore Pokémon LeafGreen / FireRedLeafGreenRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream LeafGreenRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "issue_number": 336,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp/blob/6174de77a599d0c1e125747b9553d90409a76a27/README.md",
       "artwork": {
         "game_id": 1516,
         "cover_id": 92689,
@@ -29762,7 +29857,37 @@
         "image_sha256": "0d1252f456aa2893afbfe1dfb54884c984966c49aa9acc3219f8933e069d04d0",
         "game_slug": "pokemon-leafgreen-version",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon LeafGreen USA v1.0/rev0 GBA original, SHA-1 574fa542ffebb14be69902d1d36f1ec0a4afd71e, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+      },
+      "original_game_title": "Pokémon LeafGreen",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-leafgreen-gen1recomp",
@@ -29770,9 +29895,6 @@
       "summary": "Import your own exact leafgreen original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon LeafGreen",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -29815,7 +29937,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-legends-z-a-pokez-arecomp",
@@ -29898,9 +30023,6 @@
       "summary": "Import your own exact ruby original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Ruby",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -29943,17 +30065,19 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
       "name": "Pokémon Ruby / RubySapphireRecomp",
-      "summary": "Explore Pokémon Ruby / RubySapphireRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream RubyRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "issue_number": 337,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/RubySapphireRecomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/RubySapphireRecomp/blob/308071c623af3e611a03b151625ecd7c282b550d/README.md",
       "artwork": {
         "game_id": 1557,
         "cover_id": 92654,
@@ -29961,7 +30085,37 @@
         "image_sha256": "ea548cc345d8a4abd1f98ec519e5be484431cef94bf340735cf82cacfa358dfe",
         "game_slug": "pokemon-ruby-version",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon Ruby USA rev1 GBA original, SHA-1 610b96a9c9a7d03d2bafb655e7560ccff1a6d894, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_ruby.ini, keybinds_ruby.ini, rom_ruby.cfg and bios_ruby.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+      },
+      "original_game_title": "Pokémon Ruby",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-sapphire-gen1recomp",
@@ -29969,9 +30123,6 @@
       "summary": "Import your own exact sapphire original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Sapphire",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "artwork": {
@@ -30014,17 +30165,19 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
       "name": "Pokémon Sapphire / RubySapphireRecomp",
-      "summary": "Explore Pokémon Sapphire / RubySapphireRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream SapphireRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
       "project_url": "https://github.com/mstan/RubySapphireRecomp",
       "issue_number": 338,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/RubySapphireRecomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/RubySapphireRecomp/blob/308071c623af3e611a03b151625ecd7c282b550d/README.md",
       "artwork": {
         "game_id": 1515,
         "cover_id": 92653,
@@ -30032,7 +30185,37 @@
         "image_sha256": "0d2217a9ea352407dbc491b55a004f8aaf07b46ad7173e784acab1be41dcf073",
         "game_slug": "pokemon-sapphire-version",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Preserve the exact game original and separate BIOS",
+            "instruction": "Use your own unchanged Pokémon Sapphire USA rev1 GBA original, SHA-1 4722efb8cd45772ca32555b98fd3b9719f8e60a9, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
+          },
+          {
+            "title": "Finish upstream setup and select this game player",
+            "instruction": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+          },
+          {
+            "title": "Preserve the actual data and compiler coordinates",
+            "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_sapphire.ini, keybinds_sapphire.ini, rom_sapphire.cfg and bios_sapphire.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
+          },
+          {
+            "title": "Register the prepared player and use explicit Play",
+            "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          }
+        ],
+        "warnings": [
+          "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
+          "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        ],
+        "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
+      },
+      "original_game_title": "Pokémon Sapphire",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-silver-gen1recomp",
@@ -30056,12 +30239,11 @@
     {
       "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
       "name": "Pokémon Stadium / SS Anne / PokemonStadiumRecomp",
-      "summary": "Explore Pokémon Stadium / SS Anne / PokemonStadiumRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register your already working SS Anne Pokémon Stadium US v1.0 player. Upstream setup, runtime replacement and all game and Transfer Pak data remain yours.",
       "project_url": "https://github.com/mstan/PokemonStadiumRecomp",
       "issue_number": 331,
-      "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/mstan/PokemonStadiumRecomp",
+      "setup_url": "https://github.com/mstan/PokemonStadiumRecomp/blob/fb68669321b02ba8eb7e5743d04079d252bd466f/README.md",
       "artwork": {
         "game_id": 2289,
         "cover_id": 91957,
@@ -30069,7 +30251,37 @@
         "image_sha256": "313a80282d458179c2eb1f5d0a2c0e5fb3a173c1920727a166cf9ae41b930416",
         "game_slug": "pokemon-stadium",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Pokémon Stadium",
+      "release_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the exact originals and complete data",
+            "instruction": "Use your own Pokémon Stadium US v1.0 original: canonical big-endian .z64 is 33554432 bytes, MD5 ed1378bc12115f71209a77844965ba50. Upstream also documents .n64/.v64 input; Rev A/v1.1 is incompatible. Optional Game Boy/Color Transfer Pak games and saves are separate user-owned inputs. No originals or cartridge data are supplied by Portcove."
+          },
+          {
+            "title": "Choose a working upstream Windows folder",
+            "instruction": "Use an already permitted, working Windows x64 upstream-prepared v0.4.7-beta folder with PokemonStadiumRecomp.exe, all DLLs, assets and packaged GPL/component notices. This route registers an existing prepared folder; Portcove does not acquire or extract this package. Keep any archive or operating-system trust refusal in force; do not change protection settings to make the runtime pass. Select the actual PokemonStadiumRecomp.exe and its containing folder as working directory, then use its integrated SS Anne setup/PLAY screen. Keep all companions rather than selecting a helper or an isolated EXE."
+          },
+          {
+            "title": "Preserve runtime and separate cartridge coordinates",
+            "instruction": "Preserve the complete executable/working folder: rom.cfg, launcher.cfg, the registered configuration/FlashRAM store, actual logs/crash reports and all other created files. launcher.cfg p1_rom/p1_save through p4_rom/p4_save resolve relative to the executable folder or as absolute paths. PSR_TRANSFER_PAK_P1_ROM/SAVE through P4 override them. Transfer Pak and GB Tower can write these separate cartridge saves during Play; keep complete original/safe writable copies, configured paths, creating runtimes and saves together. Registration/removal does not adopt, copy, migrate or delete these files; no save/state compatibility or managed backup is promised."
+          },
+          {
+            "title": "Review upstream limits before explicit Play",
+            "instruction": "Maintenance has ceased; known bugs and incomplete cup/Gym Leader Castle coverage remain. The tagged source keeps its SS Anne launcher and game in the player process, and starts unauthenticated loopback debug control at 127.0.0.1:4371, including input/memory mutation and quit; PSR_DEBUG_PORT changes the valid port rather than disabling it. No network/debug isolation is claimed. User-selected trust requires your explicit review and consent. Upstream/user own preparation and replacement; preserve complete actual runtime/data first. Core offers registration, explicit supervised Play and reviewed registration-only removal; managed Install/Update/Backup/Rollback/migration/external deletion remain unavailable."
+          }
+        ],
+        "warnings": [
+          "This route only registers a permitted, already working external player. Core does not acquire or extract the selected archive, authenticate the original, or provide managed maintenance or save/state compatibility.",
+          "The inspected tagged source starts unauthenticated loopback debug control. Transfer Pak and GB Tower can write separately configured cartridge saves; preserve the actual paths and creating runtimes. No actual game or Transfer Pak execution has been qualified."
+        ],
+        "help_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-sword-swsh-recomp",
@@ -30096,9 +30308,6 @@
       "summary": "Import your own exact yellow original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Yellow",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
       "issue_number": 2867,
@@ -30133,7 +30342,10 @@
           "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "pokemon-yellow-recomp",
@@ -30256,9 +30468,6 @@
       "summary": "Prepare Poseidon: Master of Atlantis through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Poseidon: Master of Atlantis",
       "project_url": "https://github.com/MaurycyLiebner/eZeus",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md",
       "artwork": {
@@ -30300,7 +30509,10 @@
           "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified."
         ],
         "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "potiondweller-azure-dreams-hd-recompilation",
@@ -31181,7 +31393,6 @@
       "summary": "Prepare Quake III Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Quake III Arena",
       "project_url": "https://github.com/ioquake/ioq3",
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md",
       "artwork": {
@@ -31217,7 +31428,10 @@
           "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
         ],
         "help_url": "https://ioquake3.org/help/players-guide/"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "quake-iii-team-arena-ioquake3",
@@ -31225,7 +31439,6 @@
       "summary": "Prepare Quake III: Team Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Quake III: Team Arena",
       "project_url": "https://github.com/ioquake/ioq3",
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md",
       "artwork": {
@@ -31261,7 +31474,10 @@
           "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
         ],
         "help_url": "https://ioquake3.org/help/players-guide/"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "quake-ironwail",
@@ -33115,9 +33331,6 @@
       "summary": "Prepare S.T.A.L.K.E.R.: Call of Pripyat through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "S.T.A.L.K.E.R.: Call of Pripyat",
       "project_url": "https://github.com/OpenXRay/xray-16",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenXRay/xray-16/blob/c62d9d343981d50f6ed176412b85d94c61b578b5/README.md",
       "artwork": {
@@ -33159,7 +33372,10 @@
           "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
         ],
         "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "s-t-a-l-k-e-r-clear-sky-openxray",
@@ -33167,9 +33383,6 @@
       "summary": "Prepare S.T.A.L.K.E.R.: Clear Sky through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "S.T.A.L.K.E.R.: Clear Sky",
       "project_url": "https://github.com/OpenXRay/xray-16",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenXRay/xray-16/blob/c62d9d343981d50f6ed176412b85d94c61b578b5/README.md",
       "artwork": {
@@ -33211,7 +33424,10 @@
           "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
         ],
         "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "saints-row-xbox-360-2006-static-recompilation-sp00nznet-saints-row-2006",
@@ -33420,9 +33636,6 @@
       "summary": "Prepare Serious Sam: The First Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Serious Sam: The First Encounter",
       "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
       "artwork": {
@@ -33463,7 +33676,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "serious-sam-the-second-encounter-serioussamclassic",
@@ -33471,9 +33687,6 @@
       "summary": "Prepare Serious Sam: The Second Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Serious Sam: The Second Encounter",
       "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
       "artwork": {
@@ -33514,7 +33727,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sexy-parodius-sexyparorecomp",
@@ -34087,12 +34303,11 @@
     {
       "id": "sonic-3-knuckles-sonic-3-a-i-r",
       "name": "Sonic 3 & Knuckles / Sonic 3 A.I.R.",
-      "summary": "Explore Sonic 3 & Knuckles / Sonic 3 A.I.R. and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an upstream-prepared Sonic 3 & Knuckles / Sonic 3 A.I.R. player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/Eukaryot/sonic3air",
       "issue_number": 323,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Eukaryot/sonic3air",
+      "availability": "packages",
+      "setup_url": "https://github.com/Eukaryot/sonic3air/blob/29cf83c9dcc22c949e9a3e4cafda3f76b945981a/README.md",
       "artwork": {
         "game_id": 11219,
         "cover_id": 342176,
@@ -34100,7 +34315,37 @@
         "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
         "game_slug": "sonic-the-hedgehog-3-and-knuckles",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the matching original",
+            "instruction": "Use your own compatible original combined Sonic 3 & Knuckles ROM, such as Sonic_Knuckles_wSonic3.bin from an existing lawful Steam copy. The separate Sonic 3 or Sonic & Knuckles games and unrelated collections are different inputs. Upstream can discover an existing Steam copy or ask for the ROM on first startup; it does not provide the original. The old Steam product is no longer sold."
+          },
+          {
+            "title": "Finish upstream setup and select the real player",
+            "instruction": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+          },
+          {
+            "title": "Preserve the actual runtime and player data",
+            "instruction": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices."
+          },
+          {
+            "title": "Register the existing player and use explicit Play",
+            "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+          }
+        ],
+        "warnings": [
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+          "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration."
+        ],
+        "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
+      },
+      "original_game_title": "Sonic 3 & Knuckles",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sonic-advance-2-sat-r-sa2-repository",
@@ -34715,12 +34960,9 @@
     {
       "id": "spear-of-destiny-reflectionhle",
       "name": "Spear of Destiny (ReflectionHLE)",
-      "summary": "Use Spear of Destiny with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Spear of Destiny through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Spear of Destiny",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2689,
@@ -34733,19 +34975,23 @@
             "instruction": "Use your complete matching DOS Spear folder, including SPEAR.EXE and its SOD/SD data. The upstream version tables distinguish the original game and mission packs. Preserve each owned mission and its matching files; Wolfenstein WL6 files are not Spear data. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -34753,7 +34999,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "spicywonda-castlevania-chronicles-recomp",
@@ -35227,9 +35476,6 @@
       "summary": "Prepare Star Wars Jedi Knight II: Jedi Outcast (single player) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
       "project_url": "https://github.com/JACoders/OpenJK",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
       "issue_number": 2611,
@@ -35263,7 +35509,10 @@
           "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here."
         ],
         "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
@@ -35271,9 +35520,6 @@
       "summary": "Prepare Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
       "project_url": "https://github.com/JACoders/OpenJK",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
       "issue_number": 2612,
@@ -35305,7 +35551,10 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "star-wars-rogue-squadron-64-recompiled",
@@ -35729,9 +35978,6 @@
       "summary": "Use Strife with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Strife",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
       "artwork": {
@@ -35772,7 +36018,10 @@
           "crispy-strife-",
           "-win64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "strike-gunner-s-t-g-strike-gunner-stg-recomp",
@@ -35858,12 +36107,9 @@
     {
       "id": "super-3-d-noah-s-ark-dos-reflectionhle",
       "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
-      "summary": "Use Super 3-D Noah's Ark (DOS) with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Super 3-D Noah's Ark (DOS) through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Super 3-D Noah's Ark (DOS)",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "artwork": {
@@ -35884,19 +36130,23 @@
             "instruction": "Use your complete original DOS folder with NOAH3D.EXE or NOAH3DOS.EXE and matching N3D data, including AUDIOHED, AUDIOT, GAMEMAPS, MAPHEAD, VGADICT, VGAGRAPH, VGAHEAD and VSWAP. The upstream table requires exact sizes and CRCs; the SNES original is a different representation. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -35904,17 +36154,19 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "super-mario-64-sm64-co-op-dx",
       "name": "Super Mario 64 / SM64 Co-op DX",
-      "summary": "Explore Super Mario 64 / SM64 Co-op DX and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an upstream-prepared Super Mario 64 / SM64 Co-op DX player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/coop-deluxe/sm64coopdx",
       "issue_number": 322,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/coop-deluxe/sm64coopdx",
+      "availability": "packages",
+      "setup_url": "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md",
       "artwork": {
         "game_id": 1074,
         "cover_id": 329251,
@@ -35930,7 +36182,37 @@
           "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md"
         ],
         "source_editions": []
-      }
+      },
+      "release_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the matching original",
+            "instruction": "Use your own unchanged US Super Mario 64 big-endian .z64 original. The selected v1.5.1 runtime accepts MD5 20b854b239203baf6c961b850a4a51a2; its other regional table entries are disabled. Upstream scans the player/user folders or accepts a deliberate ROM drop, and may copy the accepted original to its user profile as baserom.us.z64. Preserve the original independently; byte-swapped, modified and other-region files are different inputs. An already existing cached baserom.us.z64 is not overwritten by a newly selected ROM; preserve and check the actual upstream copy rather than assuming selection replaced it."
+          },
+          {
+            "title": "Finish upstream setup and select the real player",
+            "instruction": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+          },
+          {
+            "title": "Preserve the actual runtime and player data",
+            "instruction": "Before explicit Play, preserve the actual existing user profile and creating runtime. On Windows the upstream default checks %APPDATA%/sm64coopdx and can instead reuse a populated %APPDATA%/sm64ex-coop folder; an existing --savepath override changes that selection. Preserve both relevant roots and the actual selected path, copied ROM, saves, configuration, mods and caches. A new executable folder does not isolate these profiles. Do not change the path, adopt populated legacy data, add mods or migrate profiles through this guide. Upstream can start its own updater and successor process; close all game/updater windows and confirm they stopped before copying or replacing files."
+          },
+          {
+            "title": "Register the existing player and use explicit Play",
+            "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+          }
+        ],
+        "warnings": [
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+          "A managed route must first settle upstream updater/replacement ownership, legacy profile fallback and original copying without adopting populated data. Preserve the non-owning already prepared player; no new generic N64/source planner is requested."
+        ],
+        "help_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1"
+      },
+      "original_game_title": "Super Mario 64",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "super-mario-all-stars-smas-launcher",
@@ -36244,12 +36526,11 @@
     {
       "id": "super-mario-world-snesrev-smw",
       "name": "Super Mario World / snesrev smw",
-      "summary": "Explore Super Mario World / snesrev smw and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an upstream-prepared Super Mario World / snesrev smw player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/snesrev/smw",
       "issue_number": 339,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/snesrev/smw",
+      "availability": "packages",
+      "setup_url": "https://github.com/snesrev/smw/blob/eae20c65c58930c8b62c76188d259579ad4130f1/README.md",
       "artwork": {
         "game_id": 1070,
         "cover_id": 401336,
@@ -36257,7 +36538,37 @@
         "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
         "game_slug": "super-mario-world",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/snesrev/smw/releases/tag/v0.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the matching original",
+            "instruction": "Use your own unchanged USA Super Mario World original. The selected upstream runtime requires a 524288-byte unheadered smw.sfc for its matching packaged smw_assets.bps; BPS validation can reject a different original. Preserve the original unchanged outside the player folder. Super Mario All-Stars, translations, patched files and other editions are different inputs."
+          },
+          {
+            "title": "Finish upstream setup and select the real player",
+            "instruction": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+          },
+          {
+            "title": "Preserve the actual runtime and player data",
+            "instruction": "Preserve the complete working player folder, smw.ini and saves tree, including title-specific SRAM, backup, snapshots, playthrough and mismatch evidence. Keep the creating runtime with every existing state. The upstream RAM comparison and replay features do not prove compatibility between builds or with another SNES runtime; do not transplant retained state."
+          },
+          {
+            "title": "Register the existing player and use explicit Play",
+            "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+          }
+        ],
+        "warnings": [
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+          "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute."
+        ],
+        "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"
+      },
+      "original_game_title": "Super Mario World",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "super-metroid-snesrev-sm",
@@ -37315,9 +37626,6 @@
       "summary": "Use The Catacomb Abyss with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Abyss",
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
       "artwork": {
@@ -37360,17 +37668,17 @@
           "CatacombGL-Windows-64bit-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-abyss-reflectionhle",
       "name": "The Catacomb Abyss (ReflectionHLE)",
-      "summary": "Use The Catacomb Abyss with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Abyss through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Abyss",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "artwork": {
@@ -37388,22 +37696,26 @@
         "steps": [
           {
             "title": "Use the matching original DOS edition",
-            "instruction": "Use a complete supported DOS Abyss edition, including CATABYSS.EXE and its ABS files. The upstream tables distinguish the shareware and registered revisions and require companion help/shape files. An arbitrary Abyss EXE or another Catacomb game is not a substitute. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            "instruction": "Select your complete matching DOS Abyss edition. Version1.13 requires CATABYSS.EXE and DEMOCAT.EXE; version1.24 requires ABYSGAME.EXE and HINTCAT.EXE. Keep matching ABS data and every required help/shape companion. The upstream tables and launcher distinguish editions by exact file sizes and CRCs; another Catacomb game or arbitrary executable is not a substitute. Select the original folder without moving it. Those DOS executables are inputs; reflectionhle.exe is the Windows player."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -37411,7 +37723,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-apocalypse-catacombgl",
@@ -37419,9 +37734,6 @@
       "summary": "Use The Catacomb Apocalypse with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Apocalypse",
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
       "issue_number": 2646,
@@ -37456,17 +37768,17 @@
           "CatacombGL-Windows-64bit-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-apocalypse-reflectionhle",
       "name": "The Catacomb Apocalypse (ReflectionHLE)",
-      "summary": "Use The Catacomb Apocalypse with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Apocalypse through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Apocalypse",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2687,
@@ -37479,19 +37791,23 @@
             "instruction": "Use your complete matching DOS Apocalypse folder, including APOCGAME.EXE, AUDIO.APC, EGAGRAPH.APC, GAMEMAPS.APC and the required SHP companion files. Abyss shareware does not supply Apocalypse. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -37499,7 +37815,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-armageddon-catacombgl",
@@ -37507,9 +37826,6 @@
       "summary": "Use The Catacomb Armageddon with its upstream CatacombGL Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Armageddon",
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
       "issue_number": 2645,
@@ -37544,17 +37860,17 @@
           "CatacombGL-Windows-64bit-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-catacomb-armageddon-reflectionhle",
       "name": "The Catacomb Armageddon (ReflectionHLE)",
-      "summary": "Use The Catacomb Armageddon with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Armageddon through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Armageddon",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2686,
@@ -37567,19 +37883,23 @@
             "instruction": "Use your complete matching DOS Armageddon folder, including ARMGAME.EXE, AUDIO.ARM, EGAGRAPH.ARM, GAMEMAPS.ARM and the required SHP companion files. Abyss shareware does not supply Armageddon. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -37587,7 +37907,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-darkness-xbox-360-2007-estacado",
@@ -37606,9 +37929,6 @@
       "summary": "Set up The Elder Scrolls III: Morrowind through its upstream openmw player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "The Elder Scrolls III: Morrowind",
       "project_url": "https://github.com/OpenMW/openmw",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenMW/openmw/blob/f4bec41444214a7903bebd178389ca22ca13f646/README.md",
       "artwork": {
@@ -37649,7 +37969,10 @@
         ],
         "warnings": [],
         "help_url": "https://openmw.readthedocs.io/en/latest/manuals/installation/index.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
@@ -39936,9 +40259,6 @@
       "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",
       "project_url": "https://github.com/OpenXcom/OpenXcom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
       "issue_number": 2619,
@@ -39963,7 +40283,10 @@
         ],
         "warnings": [],
         "help_url": "https://openxcom.org/"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "ultima-vii-part-two-serpent-isle-exult",
@@ -39971,9 +40294,6 @@
       "summary": "Set up Ultima VII Part Two: Serpent Isle through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII Part Two: Serpent Isle",
       "project_url": "https://github.com/exult/exult",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
       "issue_number": 2622,
@@ -39998,7 +40318,10 @@
         ],
         "warnings": [],
         "help_url": "https://exult.info/docs.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "ultima-vii-the-black-gate-exult",
@@ -40006,9 +40329,6 @@
       "summary": "Set up Ultima VII: The Black Gate through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII: The Black Gate",
       "project_url": "https://github.com/exult/exult",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
       "artwork": {
@@ -40041,7 +40361,10 @@
         ],
         "warnings": [],
         "help_url": "https://exult.info/docs.html"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "umjamlamrecomp-njh-1001-um-jammer-lammy",
@@ -42085,12 +42408,11 @@
     {
       "id": "wipeout-phantom-edition",
       "name": "WipeOut Phantom Edition",
-      "summary": "Explore WipeOut Phantom Edition and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an upstream-prepared WipeOut Phantom Edition player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
       "issue_number": 119,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
+      "availability": "packages",
+      "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/blob/1d0141ebc6594902c7de176d034529a763079ed2/README.md",
       "artwork": {
         "game_id": 1083,
         "cover_id": 200827,
@@ -42098,7 +42420,37 @@
         "image_sha256": "5d3fb7f3e64b5b51edd29df22c7c15d5f8abdc6849443f284a5bbed6453360c3",
         "game_slug": "wipeout",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the matching original",
+            "instruction": "Use data from your own PlayStation USA-region WipeOut disc; the official PC version is incompatible. Upstream supports the matching multi-bin/cue image with nine BIN tracks and one CUE, first data track MODE2/2352 and other tracks AUDIO, or its complete 517-file loose game set. Preserve every original image/track and cue outside the player folder. A generic ISO, another region or another game is a different input."
+          },
+          {
+            "title": "Finish upstream setup and select the real player",
+            "instruction": "Use the official v1.2.256 Windows x64 ZIP and keep its complete wipeout folder. Follow the packaged README: provide matching original image copies in diskimages for upstream extraction, or the matching complete loose set in wipeoutgame with optional correctly named music in music. Finish normal upstream setup successfully before registration. The upstream player performs extraction during startup; this is not Portcove disc preparation or source authentication. Register wipeout.exe from the wipeout folder, not an extraction helper. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+          },
+          {
+            "title": "Preserve the actual runtime and player data",
+            "instruction": "Preserve the whole working wipeout folder, generated game/music data, configuration and progress files, plus the actual existing external profile if this installation uses one. The published source repository provides documentation and images rather than the player implementation, so a complete writer map is not established here. Keep the creating runtime and originals; do not delete source tracks just because upstream no longer needs them after extraction, transplant progress, or assume that replacing an executable preserves compatibility."
+          },
+          {
+            "title": "Register the existing player and use explicit Play",
+            "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+          }
+        ],
+        "warnings": [
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+          "Managed disc preparation and exact writer/retained-data coordinates remain unqualified; missing PS1 family primitives belong to #135. This safe existing prepared-player guide does not substitute a per-title parser or claim complete loose-file authentication."
+        ],
+        "help_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256"
+      },
+      "original_game_title": "WipeOut",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "witherblitz-nsmb-wii-multiplayer-recompilation",
@@ -42121,12 +42473,9 @@
     {
       "id": "wolfenstein-3d-reflectionhle",
       "name": "Wolfenstein 3D (ReflectionHLE)",
-      "summary": "Use Wolfenstein 3D with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Wolfenstein 3D through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Wolfenstein 3D",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
       "issue_number": 2688,
@@ -42139,19 +42488,23 @@
             "instruction": "Use your complete original DOS Wolfenstein 3D folder with WOLF3D.EXE and the matching WL1 or WL6 data. Shareware, registered and publisher revisions are separate launcher entries with exact size/CRC checks. Spear of Destiny and remastered/console data are not this game. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -42159,7 +42512,10 @@
           "reflectionhle-win64-",
           ".zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "wolfenstein-enemy-territory-et-legacy",
@@ -42948,9 +43304,6 @@
       "summary": "Set up X-COM: Terror from the Deep through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "X-COM: Terror from the Deep",
       "project_url": "https://github.com/OpenXcom/OpenXcom",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
       "artwork": {
@@ -42983,7 +43336,10 @@
         ],
         "warnings": [],
         "help_url": "https://openxcom.org/"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "x-men-destiny-xmd-recompiled",
@@ -43494,12 +43850,11 @@
     {
       "id": "zelda3",
       "name": "Zelda3",
-      "summary": "Explore Zelda3 and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an upstream-prepared Zelda3 player with matching originals; runtime maintenance and player data stay upstream-owned.",
       "project_url": "https://github.com/snesrev/zelda3",
       "issue_number": 127,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/snesrev/zelda3",
+      "availability": "packages",
+      "setup_url": "https://github.com/snesrev/zelda3/blob/43db8cc0f529a2b8004a684526d91582d0d6d5d7/README.md",
       "artwork": {
         "game_id": 237542,
         "cover_id": 287380,
@@ -43507,7 +43862,37 @@
         "image_sha256": "e9221854a846773e843fd5d6c8d1fd9f2a9e426a20786f8ebe6acbfb01a2713f",
         "game_slug": "zelda3",
         "match_kind": "port"
-      }
+      },
+      "release_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the matching original",
+            "instruction": "Use your own unchanged USA The Legend of Zelda: A Link to the Past original. The upstream extraction tools identify the US original by SHA-1 6d4f10a8b10e10dbe624cb23cf03b88bb8252973. Preserve the original outside the player folder; do not substitute a headered, translated, patched or other-region file."
+          },
+          {
+            "title": "Finish upstream setup and select the real player",
+            "instruction": "Use only an already working upstream Windows zelda3.exe with its matching generated zelda3_assets.dat, SDL2.dll, zelda3.ini and companions. If setup is incomplete, follow the linked upstream source-build and asset-extraction instructions with your matching USA original before registration. The selected v0.3 release has a BPS asset, while its tagged source loader requires DAT; these instructions do not claim that placing a ROM beside that package completes setup. Do not mix generated assets between source revisions or select a launcher, extraction batch file or compiler as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
+          },
+          {
+            "title": "Preserve the actual runtime and player data",
+            "instruction": "Preserve the entire working player folder and its actual data, including zelda3.ini, saves/sram.dat and its backup, snapshots, replays, shaders and any optional audio. Keep the creating runtime for retained SRAM, snapshots and replays; do not copy them to another runtime or infer compatibility from a matching title or RAM-comparison feature."
+          },
+          {
+            "title": "Register the existing player and use explicit Play",
+            "instruction": "You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide."
+          }
+        ],
+        "warnings": [
+          "This upstream setup / existing-player guide uses explicit user-selected registration and Play. It does not qualify managed packages, original-file authenticity, gameplay or state compatibility.",
+          "Managed asset preparation and retained state compatibility remain separate #136 work. The v0.3 release asset includes a BPS file although the tag main.c asset loader uses DAT inputs; source-to-binary build provenance/complete output ownership is not established. Keep this a non-owning prepared-player route until those facts and exact runtime data coordinates are qualified."
+        ],
+        "help_url": "https://github.com/snesrev/zelda3/releases/tag/v0.3"
+      },
+      "original_game_title": "The Legend of Zelda: A Link to the Past",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "zeldawwhdrecomp-zeldawwhdrecomp",
@@ -43544,9 +43929,6 @@
       "summary": "Prepare Zeus: Master of Olympus through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Zeus: Master of Olympus",
       "project_url": "https://github.com/MaurycyLiebner/eZeus",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md",
       "artwork": {
@@ -43588,7 +43970,10 @@
           "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified."
         ],
         "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "zinexda-sonic-r-android",

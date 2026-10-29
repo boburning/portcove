@@ -43,7 +43,7 @@ it("retains the selected game and search through details, navigation and closing
   await expect
     .element(page.getByRole("heading", { name: "Harbor Adventure", level: 1 }))
     .toHaveFocus();
-  await page.getByRole("button", { name: "Back to previous workspace" }).click();
+  await page.getByRole("button", { name: "Back to Add games" }).click();
   await expect
     .element(page.getByRole("button", { name: "Review setup for Harbor Adventure" }))
     .toHaveFocus();

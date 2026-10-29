@@ -31,7 +31,7 @@ export function useDetailWorkspaceNavigation(
         token,
       };
       scrollWorkspaceTo(workspace.current, 0);
-      setOpening({ token, destination });
+      setOpening({ token, destination, originKey });
       setSelectedId(portId);
     },
     [setSelectedId, workspace],

@@ -4,6 +4,7 @@ import {
 } from "./repository-issue-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { GitHubApiError } from "./github-api.mts";
 import type { RoadmapClient } from "./roadmap.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 
@@ -19,6 +20,42 @@ export interface RoadmapInventory extends InventoryCache {
   items: RoadmapIssueItem[];
   archivedItems: RoadmapIssueItem[];
   body_reads: number;
+}
+export function collectRoadmapInventoryWithRecollection(
+  client: RoadmapClient,
+  collect: () => RoadmapInventory,
+  state: { inventoryRecollections: number },
+  hooks: {
+    before: (error: GitHubApiError) => void;
+    after: (status: "complete" | "failed", error: unknown) => void;
+  },
+): RoadmapInventory {
+  try {
+    return collect();
+  } catch (error) {
+    if (
+      !(error instanceof GitHubApiError) ||
+      error.code !== "inventory_changed" ||
+      state.inventoryRecollections !== 0
+    )
+      throw error;
+    state.inventoryRecollections++;
+    let status: "complete" | "failed" = "failed";
+    let failure: unknown;
+    try {
+      hooks.before(error);
+      client._completeProjectContext = undefined;
+      client._projectContext = undefined;
+      const result = collect();
+      status = "complete";
+      return result;
+    } catch (second) {
+      failure = second;
+      throw second;
+    } finally {
+      hooks.after(status, failure);
+    }
+  }
 }
 const validated = new WeakMap<RoadmapInventory, { client: RoadmapClient; hash: string }>();
 export function invalidateRoadmapInventory(value: RoadmapInventory) {
@@ -283,8 +320,19 @@ export function collectRoadmapInventory(
       items.flatMap((item) => (ids.has(item.content!.id) ? [] : [item.content!])),
       reconcileForeign,
     );
-    if (observationHash(projectMarker()) !== observationHash(before))
-      throw new Error("Project changed during inventory collection");
+    const after = projectMarker();
+    if (observationHash(after) !== observationHash(before)) {
+      const revision = (value: Record<string, unknown>) => ({
+        id: value.id,
+        updatedAt: value.updatedAt,
+        totalCount: object(value.items).totalCount,
+      });
+      throw new GitHubApiError(
+        "inventory_changed",
+        `Project changed during inventory collection: ${JSON.stringify({ before: revision(before), after: revision(after) })}`,
+        { operation: "collect Roadmap Project revision" },
+      );
+    }
     return { items, projectId: context.details.id };
   };
   let project = collectProject(true);

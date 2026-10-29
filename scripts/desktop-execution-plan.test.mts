@@ -6,6 +6,7 @@ import {
   observeDesktopHarnessInputs,
 } from "./native-helper-dependencies.mts";
 import assert from "node:assert/strict";
+import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 import { readFile, mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { verifyConsumedInputs } from "./retained-evidence.mts";
 import os from "node:os";
@@ -567,7 +568,10 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
-          added === nativeHelperRegistryPath,
+          added === nativeHelperRegistryPath ||
+          (added === "apps/desktop/scripts/desktop-qualification-history-test.mts" &&
+            row.platform === "linux" &&
+            selection.selected_scenarios.includes("native-default-cover-cache-conditions")),
         added,
       );
     assert.equal(new Set(actualInputs).size, actualInputs.length);
@@ -636,6 +640,13 @@ void test("execution planning preserves the independently reviewed pre-change or
         )
           expectedSession.cleanupName = "steam-batch";
       }
+      // #1155 cache restarts reuse the existing Linux birth-identity/exit owner.
+      // Keep the historical oracle; only this intentional custody delta changes.
+      if (
+        row.platform === "linux" &&
+        selection.selected_scenarios.includes("native-default-cover-cache-conditions")
+      )
+        expectedSession.historySession = true;
       assert.deepEqual(plan.session, expectedSession);
     }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
@@ -949,67 +960,6 @@ void test("Steam batch adds Windows custody without changing builds, setup or cl
       });
       assert.equal(plan.session.identityBoundSession, true);
       assert.equal(plan.session.cleanupName, cleanupName);
-    }
-  }
-});
-
-void test("qualified reviews and a running setup restart reject missing or foreign native identities", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("function validateBackupFocusInventory(");
-  const end = source.indexOf("function captureBackupFocusCleanup(", start);
-  assert(start >= 0 && end > start);
-  for (const { scenario, outcome = "passed", requireQualified = false } of [
-    { scenario: "native-host-publication-recovery" },
-    { scenario: "native-real-prepared-runtime" },
-    { scenario: "native-reviewed-backup-restore-and-delete" },
-    { scenario: "native-reviewed-source-reference-removal" },
-    { scenario: "native-reviewed-steam-batch-add" },
-    { scenario: "native-preliminary-source-review" },
-    { scenario: "native-late-listener-disposal" },
-    { scenario: "native-rejected-listener-registration" },
-    { scenario: "native-selected-setup-completion", outcome: "running", requireQualified: true },
-  ]) {
-    const validate = callable(
-      runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
-        assert,
-        path,
-        performance,
-        executionPlan: { fixtures: { acquisitionJourney: false } },
-        savedLibraryRecoverySession: false,
-        checks: [{ scenario, outcome }],
-        application: "/owned/app.exe",
-        nativeDriverPath: "/owned/driver.exe",
-      }),
-    );
-    const entries = [
-      { path: "/owned/app.exe" },
-      { path: "/owned/driver.exe" },
-      { path: "/owned/msedgewebview2.exe" },
-    ];
-    validate({ processes: entries }, requireQualified);
-    for (let missing = 0; missing < entries.length; missing++) {
-      assert.throws(() =>
-        validate({ processes: entries.filter((_, i) => i !== missing) }, requireQualified),
-      );
-    }
-    assert.throws(() =>
-      validate(
-        { processes: [{ path: "/foreign/app.exe" }, ...entries.slice(1)] },
-        requireQualified,
-      ),
-    );
-    if (
-      scenario === "native-reviewed-source-reference-removal" ||
-      scenario === "native-reviewed-steam-batch-add"
-    ) {
-      assert.throws(() =>
-        validate({ processes: [entries[0], { path: "/foreign/driver.exe" }, entries[2]] }),
-      );
-      assert.throws(() => validate({ processes: [...entries, entries[0]] }));
-      assert.throws(() => validate({ processes: [...entries, entries[1]] }));
     }
   }
 });
@@ -1350,6 +1300,7 @@ void test("publication repeat callback requires the complete owned native quiesc
       const restart = callable(
         runInNewContext(`${source.slice(start, end)}; restartApplication`, {
           linuxSelectedSession: false,
+          process: { platform: "win32" },
           savedLibraryRecoverySession: false,
           cleanupName: "host-publication",
           hostPublicationSession: !acquisition,
@@ -1417,85 +1368,86 @@ void test("publication repeat callback requires the complete owned native quiesc
     }
 });
 
-void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-host-publication-test.mts", import.meta.url),
-    "utf8",
+void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", () => {
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-host-publication-test.mts",
+    import.meta.url,
   );
-  const start = source.indexOf("    move.result.redirected_write = redirectedWrite;");
-  const end = source.indexOf("    await assertIdentity(newer);", start);
-  assert.ok(start >= 0 && end > start);
-  const guard = source.slice(start, end);
-  const destination = String.raw`E:\owned\published-move-destination`;
-  const child = path.win32.join(destination, "backups", "port", "backup-id");
-  const run = async (root: string, candidate: string, canonicalCandidate = candidate) => {
-    const observations: string[] = [];
-    const move = { result: {} };
-    await runInNewContext(`(async()=>{${guard}})()`, {
-      assert,
-      path: path.win32,
-      destination: root,
-      redirectedWrite: { path: candidate },
-      move,
-      realpath: async (value: string) => {
-        observations.push(value);
-        return value === root ? root : canonicalCandidate;
-      },
-    });
-    assert.deepEqual(observations, [root, candidate]);
-    return move;
-  };
-  for (const root of [destination, path.win32.toNamespacedPath(destination)]) {
-    for (const candidate of [child, path.win32.toNamespacedPath(child)]) await run(root, candidate);
-    for (const candidate of [
-      destination,
-      String.raw`E:\owned\published-move-destination-other\backup`,
-      String.raw`E:\owned\outside\backup`,
-      String.raw`H:\outside\backup`,
-    ]) {
-      for (const value of [candidate, path.win32.toNamespacedPath(candidate)])
-        await assert.rejects(run(root, value));
+  const program = `
+    import path from 'node:path';
+    const {recordRedirectedPublicationWrite}=await import(entry);
+    const destination=String.raw\`E:\\owned\\published-move-destination\`;
+    const child=path.win32.join(destination,'backups','port','backup-id');
+    const run=async(root,candidate,canonicalCandidate=candidate)=>{
+      const observations=[],result={};
+      try{
+        await recordRedirectedPublicationWrite(result,root,candidate,{paths:path.win32,read:async(value)=>{
+          observations.push(value);return value===root?root:canonicalCandidate;
+        }});
+      } finally {
+        assert.deepEqual(observations,[root,candidate]);
+        assert.deepEqual(result.redirected_write_realpaths,{destination:root,backup:canonicalCandidate});
+      }
+      return result;
+    };
+    for(const root of [destination,path.win32.toNamespacedPath(destination)]){
+      for(const candidate of [child,path.win32.toNamespacedPath(child)])await run(root,candidate);
+      for(const candidate of [destination,String.raw\`E:\\owned\\published-move-destination-other\\backup\`,String.raw\`E:\\owned\\outside\\backup\`,String.raw\`H:\\outside\\backup\`])
+        for(const value of [candidate,path.win32.toNamespacedPath(candidate)])await assert.rejects(run(root,value));
+      await assert.rejects(run(root,child,String.raw\`H:\\outside\\backup\`));
     }
-    await assert.rejects(run(root, child, String.raw`H:\outside\backup`));
-  }
+  `;
+  runDesktopModuleFixture(entry, program);
+  runDesktopModuleFixture(entry, program, {
+    exportName: "recordRedirectedPublicationWrite",
+    variant: "aliased",
+  });
+  assert.throws(() =>
+    runDesktopModuleFixture(entry, program, {
+      exportName: "recordRedirectedPublicationWrite",
+      variant: "wrong-export",
+    }),
+  );
 });
 
-void test("publication import readback derives the expected payload from physical Windows aliases", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-host-publication-test.mts", import.meta.url),
-    "utf8",
+void test("publication import readback derives the expected payload from physical Windows aliases", () => {
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-host-publication-test.mts",
+    import.meta.url,
   );
-  const start = source.indexOf("    const exportedRelative = path.relative(");
-  const end = source.indexOf("    await writeFile(importedSave,", start);
-  assert.ok(start >= 0 && end > start);
-  const guard = source.slice(start, end);
-  const destination = String.raw`E:\owned\published-move-destination`;
-  const importRoot = String.raw`E:\owned\published-import-destination`;
-  const suffix = path.win32.join("versions", "port", "payload");
-  const child = path.win32.join(destination, suffix);
-  const imported = path.win32.toNamespacedPath(path.win32.join(importRoot, suffix));
-  const run = async (exported: string, actual = imported) =>
-    runInNewContext(`(async()=>{${guard}})()`, {
-      assert,
-      path: path.win32,
-      destination,
-      importRoot,
-      exportedInstallation: { path: exported },
-      importedInstallation: { path: actual },
-      realpath: async (value: string) => value,
-      samePath: (a: string, b: string) =>
-        path.win32.toNamespacedPath(a).toLowerCase() ===
-        path.win32.toNamespacedPath(b).toLowerCase(),
-    });
-  await run(child);
-  await run(path.win32.toNamespacedPath(child));
-  for (const escaped of [
-    destination,
-    String.raw`E:\owned\published-move-destination-other\payload`,
-    String.raw`H:\outside\payload`,
-  ])
-    await assert.rejects(run(escaped));
-  await assert.rejects(run(child, String.raw`E:\owned\wrong-import\payload`));
+  const program = `
+    import path from 'node:path';
+    const {assertPublicationImportReadback}=await import(entry);
+    const destination=String.raw\`E:\\owned\\published-move-destination\`;
+    const importRoot=String.raw\`E:\\owned\\published-import-destination\`;
+    const suffix=path.win32.join('versions','port','payload'),child=path.win32.join(destination,suffix);
+    const imported=path.win32.toNamespacedPath(path.win32.join(importRoot,suffix));
+    const run=async(exported,actual=imported)=>{
+      const observations=[];
+      try{await assertPublicationImportReadback(destination,exported,importRoot,actual,{paths:path.win32,read:async(value)=>{observations.push(value);return value;}});}
+      finally{assert.deepEqual(observations,[destination,exported]);}
+    };
+    await run(child);await run(path.win32.toNamespacedPath(child));
+    for(const escaped of [destination,String.raw\`E:\\owned\\published-move-destination-other\\payload\`,String.raw\`H:\\outside\\payload\`])await assert.rejects(run(escaped));
+    await assert.rejects(run(child,String.raw\`E:\\owned\\wrong-import\\payload\`));
+    // Containment must reject even when the unsafe derived import happens to match.
+    await assert.rejects(run(destination,importRoot));
+    for(const escaped of [String.raw\`E:\\owned\\published-move-destination-other\\payload\`,String.raw\`H:\\outside\\payload\`]){
+      const relative=path.win32.relative(path.win32.toNamespacedPath(destination),path.win32.toNamespacedPath(escaped));
+      await assert.rejects(run(escaped,path.win32.join(importRoot,relative)));
+    }
+  `;
+  runDesktopModuleFixture(entry, program);
+  runDesktopModuleFixture(entry, program, {
+    exportName: "assertPublicationImportReadback",
+    variant: "aliased",
+  });
+  assert.throws(() =>
+    runDesktopModuleFixture(entry, program, {
+      exportName: "assertPublicationImportReadback",
+      variant: "wrong-export",
+    }),
+  );
 });
 
 void test("native enlargement observations bind their statically imported helper exactly once", () => {

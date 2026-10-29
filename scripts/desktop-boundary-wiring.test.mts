@@ -6,12 +6,13 @@ import { spawnSync } from "node:child_process";
 import { isBuiltin } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import { stripTypeScriptTypes } from "node:module";
 import { parseAst } from "vite-plus";
 import { isRecord } from "./runtime-values.mts";
+import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 
 function* nodes(value: unknown): Generator<Record<string, unknown>> {
   if (Array.isArray(value)) {
@@ -477,5 +478,513 @@ void test("installed update entrypoints consume their imported observation owner
         /Import installed observation owner/u,
       );
     }
+  }
+});
+
+void test("preparation and artwork scenarios consume their tested owner seams", async () => {
+  for (const policy of [
+    {
+      file: "desktop-preparation-test.mts",
+      owner: "preparationScenarios",
+      seam: "settleDirectPreparationRecovery",
+      awaited: true,
+      capture: false,
+    },
+    {
+      file: "desktop-artwork-correction-test.mts",
+      owner: "artworkCorrectionScenario",
+      seam: "renderCorrectedArtwork",
+      awaited: false,
+      capture: false,
+    },
+    {
+      file: "desktop-preparation-test.mts",
+      owner: "preparationScenarios",
+      seam: "captureLibraryAction",
+      awaited: false,
+      capture: true,
+    },
+  ]) {
+    const source = stripTypeScriptTypes(
+      await readFile(new URL("../apps/desktop/scripts/" + policy.file, import.meta.url), "utf8"),
+      { mode: "strip" },
+    );
+    function route(code: string, seamName = policy.seam) {
+      const syntax = [...nodes(parseAst(code))];
+      let inventory: Record<string, unknown> | undefined;
+      function exportedFunction(name: string) {
+        const exports = syntax.filter((node) => node.type === "ExportNamedDeclaration");
+        const direct = exports.find(
+          (node) =>
+            isRecord(node.declaration) &&
+            node.declaration.type === "FunctionDeclaration" &&
+            identifier(node.declaration.id) === name,
+        );
+        if (direct) return direct.declaration as Record<string, unknown>;
+        const exported = exports
+          .flatMap((node) =>
+            Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : [],
+          )
+          .find((node) => (identifier(node.exported) ?? literal(node.exported)) === name);
+        return (
+          exported &&
+          syntax.find(
+            (node) =>
+              node.type === "FunctionDeclaration" &&
+              identifier(node.id) === identifier(exported.local),
+          )
+        );
+      }
+      const owner = exportedFunction(policy.owner);
+      const seam = exportedFunction(seamName);
+      assert.ok(seam, "Retain tested exported seam " + seamName);
+      const localSeam = identifier(seam.id);
+      assert.ok(owner, "Retain scenario owner " + policy.owner);
+      const body = [...nodes(owner.body)];
+      const calls = body.filter(
+        (node) => node.type === "CallExpression" && identifier(node.callee) === localSeam,
+      );
+      assert.equal(calls.length, 1, "Delegate to tested seam " + seamName);
+      if (policy.capture) {
+        assert.ok(
+          body.some((node) => awaited(node) === calls[0]),
+          "Await Library capture evidence",
+        );
+        assert.equal(args(calls[0]).length, 6, "Pass complete Library capture context");
+        assert.ok(Array.isArray(owner.params) && isRecord(owner.params[0]));
+        const properties = owner.params[0].properties;
+        assert.ok(Array.isArray(properties));
+        const artifacts = properties
+          .filter(isRecord)
+          .find((node) => identifier(node.key) === "artifacts");
+        assert.ok(artifacts && identifier(artifacts.value));
+        assert.equal(
+          identifier(args(calls[0])[5]),
+          identifier(artifacts.value),
+          "Retain scenario artifact receiver",
+        );
+      } else if (policy.awaited) {
+        assert.ok(
+          body.some((node) => awaited(node) === calls[0]),
+          "Await settled recovery before reading Activity",
+        );
+        const activityReader = body.find(
+          (node) =>
+            node.type === "FunctionDeclaration" &&
+            [...nodes(node.body)].some(
+              (child) =>
+                child.type === "CallExpression" &&
+                args(child).some((argument) => literal(argument) === "get_activities"),
+            ),
+        );
+        assert.ok(activityReader, "Retain actual Activity inventory reader");
+        const block = body
+          .filter(
+            (node) =>
+              node.type === "BlockStatement" &&
+              [...nodes(node)].some((child) => awaited(child) === calls[0]),
+          )
+          .sort(
+            (left, right) =>
+              range(left).end - range(left).start - (range(right).end - range(right).start),
+          )[0];
+        assert.ok(block && Array.isArray(block.body), "Locate recovery statement block");
+        const statements = block.body.filter(isRecord);
+        const settlement = statements.findIndex((statement) =>
+          [...nodes(statement)].some((child) => awaited(child) === calls[0]),
+        );
+        const inventories = statements.flatMap((statement, index) =>
+          statement.type === "VariableDeclaration" &&
+          Array.isArray(statement.declarations) &&
+          statement.declarations.some(
+            (declaration) =>
+              isRecord(declaration) &&
+              identifier(awaited(declaration.init)?.callee) === identifier(activityReader.id),
+          )
+            ? [index]
+            : [],
+        );
+        assert.ok(
+          inventories.length > 0 && inventories.every((index) => index > settlement),
+          "Settle recovery before Activity inventory reads",
+        );
+        const firstInventory = inventories[0];
+        assert.ok(firstInventory !== undefined);
+        inventory = statements[firstInventory];
+      } else {
+        const closure = body.find(
+          (node) =>
+            node.type === "VariableDeclarator" &&
+            isRecord(node.init) &&
+            node.init.type === "ArrowFunctionExpression" &&
+            node.init.body === calls[0],
+        );
+        assert.ok(closure, "Return artwork observation to the scenario renderer");
+        const renders = body.filter(
+          (node) =>
+            node.type === "CallExpression" && identifier(node.callee) === identifier(closure.id),
+        );
+        assert.ok(
+          renders.length > 0 &&
+            renders.every((call) => body.some((node) => awaited(node) === call)),
+          "Await every artwork observation in the scenario",
+        );
+      }
+      return { syntax, owner, seam, calls, inventory };
+    }
+    const actual = route(source);
+    const ownerAlias = "$locallyRenamedScenario";
+    const ownerExport = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === actual.owner,
+    );
+    const exportedSpecifier = (name: string) =>
+      actual.syntax.find(
+        (node) =>
+          node.type === "ExportSpecifier" &&
+          (identifier(node.exported) ?? literal(node.exported)) === name,
+      );
+    const ownerSpecifier = exportedSpecifier(policy.owner);
+    assert.ok(ownerExport || ownerSpecifier);
+    route(
+      edit(source, [
+        { ...range(actual.owner.id), text: ownerAlias },
+        ...(ownerSpecifier
+          ? [{ ...range(ownerSpecifier.local), text: ownerAlias }]
+          : [{ start: range(ownerExport).start, end: range(actual.owner).start, text: "" }]),
+      ]) + (!ownerSpecifier ? "\nexport {" + ownerAlias + " as " + policy.owner + "};" : ""),
+    );
+    const seam = actual.seam;
+    const alias = "$testedOwnerSeam";
+    const seamExport = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
+    );
+    const seamSpecifier = exportedSpecifier(policy.seam);
+    assert.ok(seamExport || seamSpecifier);
+    const renamed = edit(source, [
+      { ...range(seam.id), text: alias },
+      ...(seamSpecifier
+        ? [{ ...range(seamSpecifier.local), text: alias }]
+        : [{ start: range(seamExport).start, end: range(seam).start, text: "" }]),
+      ...actual.calls.map((node) => ({ ...range(node.callee), text: alias })),
+    ]);
+    route(renamed + (!seamSpecifier ? "\nexport {" + alias + " as " + policy.seam + "};" : ""));
+    // A moved declaration and formatting preserve the same executable binding.
+    const exportedSeam = actual.syntax.find(
+      (node) => node.type === "ExportNamedDeclaration" && node.declaration === seam,
+    );
+    const selected = range(exportedSeam ?? seam);
+    route(
+      edit(source, [{ ...selected, text: "/* declaration moved */" }]) +
+        "\n" +
+        source.slice(selected.start, selected.end),
+    );
+    const bypassed = edit(
+      source,
+      actual.calls.map((node) => ({ ...range(node.callee), text: "unreviewedObservation" })),
+    );
+    assert.throws(() => route(bypassed), /Delegate to tested seam/u);
+    assert.throws(
+      () => route(bypassed + "\n/* " + policy.seam + "() */"),
+      /Delegate to tested seam/u,
+    );
+    if (!policy.awaited && !policy.capture) {
+      const body = [...nodes(actual.owner.body)];
+      const closure = body.find(
+        (node) =>
+          node.type === "VariableDeclarator" &&
+          isRecord(node.init) &&
+          node.init.type === "ArrowFunctionExpression" &&
+          node.init.body === actual.calls[0],
+      );
+      assert.ok(closure);
+      for (const wait of body.filter(
+        (node) => identifier(awaited(node)?.callee) === identifier(closure.id),
+      )) {
+        const call = awaited(wait);
+        assert.ok(call);
+        assert.throws(
+          () =>
+            route(
+              edit(source, [
+                { ...range(wait), text: source.slice(range(call).start, range(call).end) },
+              ]),
+            ),
+          /Await every artwork/u,
+        );
+      }
+    }
+    if (policy.capture) {
+      const wait = actual.syntax.find((node) => awaited(node) === actual.calls[0]);
+      assert.ok(wait);
+      assert.throws(
+        () =>
+          route(
+            edit(source, [
+              {
+                ...range(wait),
+                text: source.slice(range(actual.calls[0]).start, range(actual.calls[0]).end),
+              },
+            ]),
+          ),
+        /Await Library capture/u,
+      );
+      assert.throws(
+        () =>
+          route(
+            edit(source, [{ ...range(args(actual.calls[0])[5]), text: "unreviewedArtifacts" }]),
+          ),
+        /Retain scenario artifact receiver/u,
+      );
+    }
+    if (policy.awaited) {
+      const recoveryDeclaration = actual.syntax.find(
+        (node) =>
+          node.type === "VariableDeclaration" &&
+          [...nodes(node)].some((child) => awaited(child) === actual.calls[0]),
+      );
+      assert.ok(recoveryDeclaration);
+      const selected = range(recoveryDeclaration);
+      assert.ok(actual.inventory);
+      const endOfInventory = range(actual.inventory).end;
+      assert.ok(endOfInventory > selected.end);
+      assert.throws(
+        () =>
+          route(
+            edit(source, [
+              { ...selected, text: "" },
+              {
+                start: endOfInventory,
+                end: endOfInventory,
+                text: "\n" + source.slice(selected.start, selected.end) + "\n",
+              },
+            ]),
+          ),
+        /Settle recovery before Activity/u,
+      );
+      const wait = actual.syntax.find((node) => awaited(node) === actual.calls[0]);
+      assert.ok(wait);
+      assert.throws(
+        () =>
+          route(
+            edit(source, [
+              {
+                ...range(wait),
+                text: source.slice(range(actual.calls[0]).start, range(actual.calls[0]).end),
+              },
+            ]),
+          ),
+        /Await settled recovery/u,
+      );
+    }
+  }
+});
+
+void test("publication scenario retains its exported path observation callers", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-host-publication-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const syntax = [...nodes(parseAst(code))];
+    return ["recordRedirectedPublicationWrite", "assertPublicationImportReadback"].map((name) => {
+      const exported = syntax.filter((node) => node.type === "ExportNamedDeclaration");
+      const alias = exported
+        .flatMap((node) => (Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : []))
+        .find((node) => (identifier(node.exported) ?? literal(node.exported)) === name);
+      const declaration = exported.find(
+        (node) => isRecord(node.declaration) && identifier(node.declaration.id) === name,
+      );
+      const local = alias ? identifier(alias.local) : declaration ? name : undefined;
+      assert.ok(local, "Retain the publication observation owner " + name);
+      const waiting = syntax.filter((node) => identifier(awaited(node)?.callee) === local);
+      const calls = waiting.map((node) => {
+        const call = awaited(node);
+        assert.ok(call);
+        return call;
+      });
+      assert.equal(calls.length, 1, "Consume the publication observation owner " + name);
+      return { name, local, calls, waiting };
+    });
+  }
+  for (const owner of route(source)) {
+    const alias = "$publicationObservation";
+    route(source.replaceAll(owner.name, alias) + "\nexport {" + alias + " as " + owner.name + "};");
+    const bypass = edit(
+      source,
+      owner.calls.map((node) => ({ ...range(node.callee), text: "unreviewedObservation" })),
+    );
+    const unawaited = edit(
+      source,
+      owner.waiting.map((node, index) => {
+        const call = range(owner.calls[index]);
+        return { ...range(node), text: source.slice(call.start, call.end) };
+      }),
+    );
+    assert.throws(() => route(unawaited), /Consume the publication observation owner/u);
+
+    assert.throws(() => route(bypass), /Consume the publication observation owner/u);
+    assert.throws(
+      () =>
+        route(
+          bypass +
+            "\n/* " +
+            source.slice(range(owner.calls[0]).start, range(owner.calls[0]).end) +
+            " */",
+        ),
+      /Consume the publication observation owner/u,
+    );
+  }
+});
+
+void test("selected setup awaits disabled review before unavailable-root observations", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-source-dialog-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const syntax = [...nodes(parseAst(code))];
+    const exports = syntax.filter((node) => node.type === "ExportNamedDeclaration");
+    function binding(name: string) {
+      const direct = exports.find(
+        (node) =>
+          isRecord(node.declaration) &&
+          node.declaration.type === "FunctionDeclaration" &&
+          identifier(node.declaration.id) === name,
+      );
+      if (direct && isRecord(direct.declaration))
+        return { declaration: direct.declaration, wrapper: direct, specifier: undefined };
+      const alias = exports
+        .flatMap((node) => (Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : []))
+        .find((node) => (identifier(node.exported) ?? literal(node.exported)) === name);
+      const declaration =
+        alias &&
+        syntax.find(
+          (node) =>
+            node.type === "FunctionDeclaration" && identifier(node.id) === identifier(alias.local),
+        );
+      assert.ok(declaration, "Retain exported source review owner " + name);
+      return {
+        declaration,
+        wrapper: exports.find((node) => node.declaration === declaration),
+        specifier: alias,
+      };
+    }
+    const helper = binding("waitForDisabledSourceReview"),
+      owner = binding("selectedSetupScenario");
+    const body = [...nodes(owner.declaration.body)];
+    const block = body.find(
+      (node) =>
+        node.type === "BlockStatement" &&
+        Array.isArray(node.body) &&
+        node.body.some(
+          (statement) =>
+            isRecord(statement) &&
+            identifier(awaited(statement.expression)?.callee) === identifier(helper.declaration.id),
+        ),
+    );
+    assert.ok(
+      block && Array.isArray(block.body),
+      "Await the disabled-review owner in selected setup",
+    );
+    const statements = block.body.filter(isRecord);
+    const waiting = statements.find(
+      (statement) =>
+        identifier(awaited(statement.expression)?.callee) === identifier(helper.declaration.id),
+    );
+    assert.ok(waiting);
+    const checkpoint = (name: string) =>
+      statements.find(
+        (statement) =>
+          isRecord(statement.expression) &&
+          statement.expression.type === "AssignmentExpression" &&
+          literal(statement.expression.right) === name &&
+          isRecord(statement.expression.left) &&
+          statement.expression.left.type === "MemberExpression" &&
+          identifier(statement.expression.left.property) === "checkpoint",
+      );
+    const before = checkpoint("unavailable-root-disabled-review"),
+      after = checkpoint("unavailable-root-observations");
+    assert.ok(before && after, "Retain both source review observation checkpoints");
+    assert.ok(
+      range(before).end < range(waiting).start && range(waiting).end < range(after).start,
+      "Settle disabled review before unavailable-root observations",
+    );
+    return { helper, owner, waiting };
+  }
+  const actual = route(source);
+  const alias = "$disabledReviewObservation";
+  const call = awaited(actual.waiting.expression);
+  assert.ok(call && isRecord(call.callee));
+  const helper = actual.helper;
+  route(
+    edit(source, [
+      { ...range(helper.declaration.id), text: alias },
+      { ...range(call.callee), text: alias },
+      ...(helper.specifier && isRecord(helper.specifier.local)
+        ? [{ ...range(helper.specifier.local), text: alias }]
+        : helper.wrapper
+          ? [{ start: range(helper.wrapper).start, end: range(helper.declaration).start, text: "" }]
+          : []),
+    ]) + (!helper.specifier ? "\nexport {" + alias + " as waitForDisabledSourceReview};" : ""),
+  );
+  const selected = range(helper.wrapper ?? helper.declaration);
+  route(
+    edit(source, [{ ...selected, text: "/* declaration moved */" }]) +
+      "\n" +
+      source.slice(selected.start, selected.end),
+  );
+  const bypass = edit(source, [{ ...range(call.callee), text: "unreviewedObservation" }]);
+  assert.throws(() => route(bypass), /Await the disabled-review owner/u);
+  assert.throws(
+    () => route(bypass + "\n/* await waitForDisabledSourceReview() */"),
+    /Await the disabled-review owner/u,
+  );
+  assert.throws(
+    () =>
+      route(
+        edit(source, [
+          {
+            ...range(actual.waiting.expression),
+            text: source.slice(range(call).start, range(call).end),
+          },
+        ]),
+      ),
+    /Await the disabled-review owner/u,
+  );
+});
+
+void test("module fixtures preserve API aliases and opaque identities before optional packages", (context) => {
+  const directory = disposableDirectory(context, path.join(tmpdir(), "pcv-module-alias-"));
+  const entry = path.join(directory, "owned.mts");
+  writeFileSync(path.join(directory, "transport-values.mts"), "export const unused = true;\n");
+  for (const source of [
+    'export const sentinel={tag:"owned"};export function publicDecision(){return sentinel}',
+    'const sentinel={tag:"owned"};function localDecision(){return sentinel}export {sentinel,localDecision as publicDecision};',
+    'export {sentinel,localDecision as "publicDecision"};function localDecision(){return sentinel}const sentinel={tag:"owned"};',
+  ]) {
+    writeFileSync(entry, source);
+    const program = `
+      assert.throws(()=>process.kill(process.pid,0),/Native process execution is forbidden/);
+      const processes=await import('node:child_process');
+      assert.throws(()=>processes.execFileSync(new URL('./missing-owned-executable',entry).pathname),/Native process execution is forbidden/);
+      const transport=await import(new URL('./transport-values.mts',entry));
+      assert.throws(()=>transport.transportValue('unowned-command',{}),/Native process execution is forbidden/);
+      const subject=await import(entry);assert.deepEqual(subject.sentinel,{tag:"owned"});assert.equal(subject.publicDecision(),subject.sentinel);
+    `;
+    const target = pathToFileURL(entry);
+    runDesktopModuleFixture(target, program);
+    runDesktopModuleFixture(target, program, { exportName: "publicDecision", variant: "aliased" });
+    assert.throws(() =>
+      runDesktopModuleFixture(target, program, {
+        exportName: "publicDecision",
+        variant: "wrong-export",
+      }),
+    );
   }
 });

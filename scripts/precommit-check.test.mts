@@ -144,6 +144,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
   assert.deepEqual(
     readFixtureModuleClosure(root, fixtureEntries).modules.map((module) => module.path),
     [
+      "apps/desktop/src/catalog-values.generated.ts",
       "scripts/bounded-summary.mts",
       "scripts/catalog-authoring.mts",
       "scripts/catalog-staged-check.mts",

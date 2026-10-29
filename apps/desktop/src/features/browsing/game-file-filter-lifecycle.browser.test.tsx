@@ -1,3 +1,5 @@
+import { filterChoice } from "../../../test/filter-fields";
+import { userEvent } from "vite-plus/test/browser";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
@@ -129,14 +131,22 @@ const button = (text: string) => {
   return element!;
 };
 const click = async (text: string) => {
-  await act(async () => button(text).click());
+  if (/^Filters \(/.test(text) || text === "Check game-file filters") {
+    await act(async () => button(text).click());
+    return;
+  }
+  await userEvent.click(await filterChoice(text));
 };
 
 it("checks one complete catalog once, then composes choices and counts without inspection IPC", async () => {
   await render();
   expect(desktopApi.refreshGameFileQuery).not.toHaveBeenCalled();
   await click("Filters (0)");
-  expect(button("Compatible complete files available (unavailable)").disabled).toBe(true);
+  expect(
+    (await filterChoice("Compatible complete files available (unavailable)"))
+      .element()
+      .matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
   await click("Check game-file filters");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
   expect(
@@ -152,7 +162,9 @@ it("checks one complete catalog once, then composes choices and counts without i
     "No files to add in Portcove",
     "Unavailable context",
   ])
-    expect(button(`${label} (1)`).disabled).toBe(false);
+    expect(
+      (await filterChoice(`${label} (1)`)).element().matches(":disabled,[aria-disabled=true]"),
+    ).toBe(false);
   await click("Compatible complete files available (1)");
   expect(host.querySelector("[data-matches]")?.textContent).toBe("matched:complete");
   await click("Needs checking (1)");
@@ -263,13 +275,21 @@ it("keeps history while retry and failure make classifications and counts unavai
   await click("Check game-file filters");
   expect(state.context).toBeUndefined();
   expect(state.observation.lastAccepted).toBe(metadata);
-  expect(button("Compatible complete files available (unavailable)").disabled).toBe(true);
+  expect(
+    (await filterChoice("Compatible complete files available (unavailable)"))
+      .element()
+      .matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
   expect(document.body.textContent).toContain("Previous check");
   expect(document.body.textContent).toContain("Checking game files for the catalog");
   await act(async () => reject(new Error("offline")));
   expect(state.context).toBeUndefined();
   expect(state.observation.lastAccepted).toBe(metadata);
-  expect(button("Compatible complete files available (unavailable)").disabled).toBe(true);
+  expect(
+    (await filterChoice("Compatible complete files available (unavailable)"))
+      .element()
+      .matches(":disabled,[aria-disabled=true]"),
+  ).toBe(true);
   expect(document.body.textContent).toContain("latest check failed");
   expect(document.body.textContent).not.toContain("Last checked");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);

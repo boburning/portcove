@@ -22,7 +22,7 @@ export function discoveryPost<T>(
       !candidate.created_issue &&
       !candidate.created_comment
     )
-      candidate.status = "reviewed";
+      candidate.status = "prepared";
     persist();
     throw error;
   }
@@ -41,7 +41,10 @@ export function recordDiscoveryComment(
   persist();
 }
 export function assertDiscoveryCommentMayPost(candidate: DiscoveryMutation) {
-  if (candidate.status !== "reviewed" || candidate.created_comment)
+  if (
+    !["prepared", "needs-review", "reviewed"].includes(candidate.status) ||
+    candidate.created_comment
+  )
     throw new Error(
       "Unresolved comment response has no confirmed marker; retain for reconciliation without reposting",
     );

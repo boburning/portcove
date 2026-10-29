@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
+import { replacePreparedFileSync } from "./prepared-file-replacement.mts";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -6,7 +7,7 @@ import { runScopedDoctor, doctorFailureDiagnostics } from "./roadmap-scoped.mts"
 import { createInterface } from "node:readline";
 import { Transform } from "node:stream";
 import { spawnSync } from "node:child_process";
-import { isRecord, errorMessage, errorCode } from "./runtime-values.mts";
+import { isRecord, errorMessage } from "./runtime-values.mts";
 import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import {
   discoveryPost,
@@ -29,7 +30,11 @@ import {
   isNonCatalogResearchBody,
 } from "./roadmap-issue.mts";
 import type { RoadmapInventory, InventoryCache } from "./roadmap-inventory.mts";
-import { collectRoadmapInventory, requireRoadmapInventory } from "./roadmap-inventory.mts";
+import {
+  collectRoadmapInventory,
+  collectRoadmapInventoryWithRecollection,
+  requireRoadmapInventory,
+} from "./roadmap-inventory.mts";
 import {
   DiscoveryBudget,
   selectDiscoveryProfile,
@@ -102,7 +107,7 @@ interface Candidate {
   hold?: { reason: string; resume: string };
   superseded_by?: string;
   amendment?: { expected_body_sha256: string; status: "prepared" | "attempted" | "applied" };
-  reconciliation?: { snapshot_sha256: string; evidence: string; doctor: string; review: unknown };
+  reconciliation?: { snapshot_sha256: string; evidence: string; doctor: string; review?: unknown };
 }
 interface Evidence {
   repository: string;
@@ -146,27 +151,7 @@ const text = (v: unknown) => {
 export function atomic(file: string, value: unknown) {
   const temp = `${file}.${randomUUID()}.next`;
   writeFileSync(temp, JSON.stringify(value, null, 2), { flag: "wx" });
-  const deadline = performance.now() + 1000;
-  const waiter = new Int32Array(new SharedArrayBuffer(4));
-  for (let attempt = 0; ; attempt++) {
-    try {
-      renameSync(temp, file);
-      return;
-    } catch (error) {
-      const remaining = deadline - performance.now();
-      if (
-        process.platform !== "win32" ||
-        !["EPERM", "EACCES", "EBUSY"].includes(errorCode(error) ?? "") ||
-        attempt >= 40 ||
-        remaining <= 0
-      )
-        throw error;
-      // Retry only replacement of these already prepared bytes. Never unlink the
-      // old target. Persistent failure retains both files and the original error.
-      // This local wait counts toward the unchanged discovery session deadline.
-      Atomics.wait(waiter, 0, 0, Math.min(25, remaining));
-    }
-  }
+  replacePreparedFileSync(temp, file);
 }
 const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =>
   observationHash({
@@ -252,10 +237,10 @@ export function intakeAmendmentAction(
 export function validateDiscoveryIntakeBody(body: string, upstream: string, portKey: string) {
   validateDurableIssueBody(body);
   if (reconcilePortIssueMarkers(body, { upstream, portKey }) !== body)
-    throw new Error("Intake requires the maintained canonical body markers before review");
+    throw new Error("Intake requires the maintained canonical body markers before delivery");
   if (!isNonCatalogResearchBody(body))
     throw new Error(
-      "Intake requires canonical research/watchlist metadata and a support disclaimer before review",
+      "Intake requires canonical research/watchlist metadata and a support disclaimer before delivery",
     );
 }
 export class DiscoverySession {
@@ -371,6 +356,8 @@ export class DiscoverySession {
           c.evidence_sha256 ||
         typeof c.status !== "string" ||
         ![
+          "prepared",
+          "needs-research",
           "needs-review",
           "reviewed",
           "create-attempted",
@@ -393,28 +380,29 @@ export class DiscoverySession {
       )
         throw new Error("Interrupted amendment binding is invalid; preserve and reconcile");
       if (
-        !["needs-review", "held", "superseded"].includes(String(c.status)) &&
+        c.review !== undefined &&
         (!isRecord(c.review) ||
           c.review.verdict !== "clear" ||
           c.review.body_sha256 !== c.body_sha256 ||
           c.review.evidence_sha256 !== c.evidence_sha256)
       )
-        throw new Error("Interrupted candidate lacks its matching separate review");
+        throw new Error("Interrupted candidate review provenance does not match its body/evidence");
       if (c.reconciliation !== undefined) {
         const proof = object(c.reconciliation),
-          approval = object(proof.review);
+          approval = proof.review === undefined ? undefined : object(proof.review);
         if (
           c.status !== "delivered" ||
           c.kind !== "intake" ||
           !c.created_issue ||
           typeof proof.snapshot_sha256 !== "string" ||
           !/^[a-f0-9]{64}$/u.test(proof.snapshot_sha256) ||
-          approval.snapshot_sha256 !== proof.snapshot_sha256 ||
-          approval.verdict !== "clear" ||
-          approval.model !== "gpt-6.1-sol" ||
-          approval.reasoning !== "high" ||
-          typeof approval.reviewer !== "string" ||
-          !approval.reviewer.trim() ||
+          (approval !== undefined &&
+            (approval.snapshot_sha256 !== proof.snapshot_sha256 ||
+              approval.verdict !== "clear" ||
+              approval.model !== "gpt-6.1-sol" ||
+              approval.reasoning !== "high" ||
+              typeof approval.reviewer !== "string" ||
+              !approval.reviewer.trim())) ||
           ![proof.evidence, proof.doctor].every(
             (file) =>
               typeof file === "string" &&
@@ -503,53 +491,34 @@ export class DiscoverySession {
         this.budget.usage.profile === "cold" && !this.inventoryStarted ? undefined : old,
       );
     const started = this.budget.usage.requests;
-    try {
-      this.inventory = collect();
-    } catch (error) {
-      if (
-        !(error instanceof GitHubApiError) ||
-        error.code !== "inventory_changed" ||
-        this.inventoryRecollections !== 0
-      )
-        throw error;
-      this.inventoryRecollections++;
-      const observation = {
-        phase: "inventory-recollection",
-        allowance: this.inventoryRecollections,
-        first: {
-          error: errorMessage(error),
-          requests_before: started,
-          requests_after: this.budget.usage.requests,
-        },
-        second: {
-          requests_before: this.budget.usage.requests,
-          requests_after: this.budget.usage.requests,
-          status: "pending",
-          error: "",
-        },
-      };
-      this.journal.notes.push(observation);
-      this.persist();
-      try {
+    const observation = {
+      phase: "inventory-recollection",
+      allowance: 0,
+      first: { error: "", requests_before: started, requests_after: started },
+      second: { requests_before: started, requests_after: started, status: "pending", error: "" },
+    };
+    this.inventory = collectRoadmapInventoryWithRecollection(this.client, collect, this, {
+      before: (error) => {
+        observation.allowance = this.inventoryRecollections;
+        observation.first.error = errorMessage(error);
+        observation.first.requests_after = this.budget.usage.requests;
+        observation.second.requests_before = this.budget.usage.requests;
+        this.journal.notes.push(observation);
+        this.persist();
         if (this.inventory) {
           // The batch reserve already includes this one replacement inventory.
           // Do not require another doctor plus another recollection reserve here.
           const cost = discoveryInventoryCost(this.inventory);
           this.budget.admit(cost.requests, cost.bytes);
         } else this.budget.admit(1, 1);
-        this.client._completeProjectContext = undefined;
-        this.client._projectContext = undefined;
-        this.inventory = collect();
-        observation.second.status = "complete";
-      } catch (second) {
-        observation.second.status = "failed";
-        observation.second.error = errorMessage(second);
-        throw second;
-      } finally {
+      },
+      after: (status, error) => {
+        observation.second.status = status;
+        observation.second.error = status === "failed" ? errorMessage(error) : "";
         observation.second.requests_after = this.budget.usage.requests;
         this.persist();
-      }
-    }
+      },
+    });
     this.inventoryCache = this.inventory;
     this.inventoryStarted = true;
     if (this.budget.usage.profile === "cold")
@@ -643,7 +612,7 @@ export class DiscoverySession {
       })),
       remaining: this.budget.remaining(),
       leads: this.leadSummary(),
-      next: "Recover unfinished candidates, collect/discover, research and dispose leads before recheck, propose, separate review, apply, finish",
+      next: "Recover unfinished candidates, collect/discover, research and dispose leads before recheck, propose, apply, finish",
     };
   }
   research(repository: string) {
@@ -984,7 +953,7 @@ export class DiscoverySession {
       body_sha256: observationHash(marked),
       evidence_ids: evidenceIds,
       evidence_sha256: evidenceHash,
-      status: "needs-review",
+      status: "prepared",
       ...(typeof v.game === "string" ? { game: v.game } : {}),
       ...(v.identity_kind !== undefined
         ? { identity_kind: v.identity_kind as ReviewedDiscoveryIdentity["kind"] }
@@ -1021,7 +990,7 @@ export class DiscoverySession {
               c.upstream === candidate.upstream &&
               c.kind === candidate.kind &&
               c.portKey === candidate.portKey &&
-              ["needs-review", "held"].includes(c.status)
+              ["prepared", "needs-review", "needs-research", "held"].includes(c.status)
             ),
         ),
         candidate,
@@ -1046,7 +1015,8 @@ export class DiscoverySession {
         old.upstream === candidate.upstream &&
         old.kind === candidate.kind &&
         old.portKey === candidate.portKey &&
-        ["needs-review", "held"].includes(old.status)
+        ["prepared", "needs-review", "needs-research", "held"].includes(old.status) &&
+        !old.created_issue
       ) {
         old.status = "superseded";
         old.superseded_by = id;
@@ -1070,7 +1040,7 @@ export class DiscoverySession {
       (!markers.length && (candidate.game !== undefined || candidate.identity_kind !== undefined))
     )
       throw new Error(
-        "Reviewed body does not bind the game/architecture identity; propose and review again",
+        "Prepared body does not bind the game/architecture identity; prepare a fresh proposal",
       );
     const primary = candidate.evidence_ids
       .map((id) => this.journal.evidence[id])
@@ -1127,7 +1097,7 @@ export class DiscoverySession {
       c = this.journal.candidates[text(v.candidate_id)];
     if (
       !c ||
-      c.status !== "needs-review" ||
+      !["prepared", "needs-review"].includes(c.status) ||
       v.verdict !== "clear" ||
       v.model !== "gpt-6.1-sol" ||
       v.reasoning !== "high" ||
@@ -1146,7 +1116,11 @@ export class DiscoverySession {
   hold(raw: unknown) {
     const v = object(raw),
       c = this.journal.candidates[text(v.candidate_id)];
-    if (!c || !["needs-review", "reviewed", "held"].includes(c.status) || c.created_issue)
+    if (
+      !c ||
+      !["prepared", "needs-review", "needs-research", "reviewed", "held"].includes(c.status) ||
+      c.created_issue
+    )
       throw new Error("Only a candidate without an unresolved public mutation can be held");
     c.status = "held";
     c.hold = { reason: text(v.reason), resume: text(v.resume) };
@@ -1160,9 +1134,15 @@ export class DiscoverySession {
       throw new Error("Reconciliation requires a retained created intake");
     if (c.status === "delivered" && c.reconciliation)
       return { reconciled: c.id, already_completed: true };
-    if (!["created", "doctor-pending"].includes(c.status) || c.amendment)
+    const unappliedAmendment = c.status === "needs-research" && c.amendment?.status === "prepared";
+    if (!unappliedAmendment && (!["created", "doctor-pending"].includes(c.status) || c.amendment))
       throw new Error("Reconciliation requires an unamended pending intake");
     const snapshot = () => {
+      if (
+        unappliedAmendment &&
+        (c.status !== "needs-research" || c.amendment?.status !== "prepared")
+      )
+        throw new Error("Unapplied amendment state changed; preserve mutation evidence");
       requireRoadmapInventory(this.inventory, this.client.config.repository, this.client);
       const issue = this.inventory.issues.find((row) => row.number === c.created_issue);
       const matches = findPortIssueDuplicates(this.inventory.issues, c);
@@ -1195,26 +1175,31 @@ export class DiscoverySession {
         candidate_id: c.id,
         original_body_sha256: c.body_sha256,
         original_evidence_sha256: c.evidence_sha256,
+        ...(unappliedAmendment ? { unapplied_amendment: c.amendment } : {}),
         issue,
         item,
       };
     };
-    if (!v.review) {
+    const review = v.review === undefined ? undefined : object(v.review);
+    const expectedSnapshot = v.snapshot_sha256 ?? review?.snapshot_sha256;
+    if (expectedSnapshot === undefined) {
       const observed = snapshot(),
         hash = observationHash(observed);
       this.save(`reconcile-${hash}`, observed);
       return { snapshot_sha256: hash, file: path.join(this.runDir, `reconcile-${hash}.json`) };
     }
-    const review = object(v.review);
     if (
-      review.verdict !== "clear" ||
-      review.model !== "gpt-6.1-sol" ||
-      review.reasoning !== "high" ||
-      typeof review.reviewer !== "string" ||
-      !review.reviewer.trim() ||
-      typeof review.snapshot_sha256 !== "string"
+      typeof expectedSnapshot !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(expectedSnapshot) ||
+      (review !== undefined &&
+        (review.verdict !== "clear" ||
+          review.model !== "gpt-6.1-sol" ||
+          review.reasoning !== "high" ||
+          typeof review.reviewer !== "string" ||
+          !review.reviewer.trim() ||
+          review.snapshot_sha256 !== expectedSnapshot))
     )
-      throw new Error("Reconciliation requires separate exact-snapshot Sol High review");
+      throw new Error("Reconciliation requires the exact retained snapshot binding");
     this.budget.delivery = true;
     try {
       const cost = discoveryInventoryCost(this.inventory);
@@ -1223,7 +1208,7 @@ export class DiscoverySession {
       this.refresh();
       const observed = snapshot(),
         hash = observationHash(observed);
-      if (hash !== review.snapshot_sha256)
+      if (hash !== expectedSnapshot)
         throw new Error("Reconciliation snapshot changed; preserve current owner state");
       const doctor = await runScopedDoctor(this.client.config, this.client, {
         issues: [c.created_issue],
@@ -1235,8 +1220,9 @@ export class DiscoverySession {
         snapshot_sha256: hash,
         evidence: path.join(this.runDir, `reconcile-${hash}.json`),
         doctor: path.join(this.runDir, `reconcile-doctor-${hash}.json`),
-        review,
+        ...(review === undefined ? {} : { review }),
       };
+      if (unappliedAmendment) delete c.amendment;
       c.status = "delivered";
       c.readback = String(observed.issue.url);
       for (const pending of c.pending_ids ?? [])
@@ -1324,7 +1310,7 @@ export class DiscoverySession {
     c.body = body;
     c.body_sha256 = observationHash(body);
     c.amendment = amendment;
-    c.status = "needs-review";
+    c.status = "prepared";
     delete c.review;
     this.persist();
     return c;
@@ -1489,7 +1475,14 @@ export class DiscoverySession {
     const delivered: { id: string; issue: number | undefined; readback: string | undefined }[] = [];
     while (true) {
       const pending = Object.values(this.journal.candidates).filter((c) =>
-        ["reviewed", "create-attempted", "created", "doctor-pending"].includes(c.status),
+        [
+          "prepared",
+          "needs-review",
+          "reviewed",
+          "create-attempted",
+          "created",
+          "doctor-pending",
+        ].includes(c.status),
       );
       if (!pending.length) {
         if (this.journal.global_doctor_pending) await this.applyBatch([]);
@@ -1571,7 +1564,9 @@ export class DiscoverySession {
     try {
       this.checkProviderCapacity(cost.requests);
       for (const c of candidates) {
-        for (const id of c.status === "reviewed" ? c.evidence_ids : []) {
+        for (const id of ["prepared", "needs-review", "reviewed"].includes(c.status)
+          ? c.evidence_ids
+          : []) {
           const old = this.journal.evidence[id];
           if (!old) throw new Error("Missing reviewed evidence");
           const fresh = old.url
@@ -1584,9 +1579,11 @@ export class DiscoverySession {
             : material(fresh as ReturnType<typeof investigateDiscoveryUpstream>);
           if (!old.url) delete this.journal.research_progress![old.repository.toLowerCase()];
           if (current !== old.material) {
-            c.status = "needs-review";
+            c.status = "needs-research";
             this.persist();
-            throw new Error("Primary evidence changed; review invalidated before mutation");
+            throw new Error(
+              "Primary evidence changed; research and prepare fresh metadata before mutation",
+            );
           }
         }
         this.refresh();
@@ -1753,7 +1750,7 @@ export class DiscoverySession {
       const finalBatch = !Object.values(this.journal.candidates).some(
         (candidate) =>
           !candidates.includes(candidate) &&
-          ["reviewed", "create-attempted", "created", "doctor-pending"].includes(candidate.status),
+          !["delivered", "held", "superseded"].includes(candidate.status),
       );
       const fullDoctor =
         new Set(deliveredIssues).size > 10 ||
@@ -1778,7 +1775,7 @@ export class DiscoverySession {
         evidence: path.join(this.runDir, `${doctorName}.json`),
       };
       (this.journal.doctors ??= []).push(this.journal.doctor);
-      if (fullDoctor) delete this.journal.global_doctor_pending;
+      if (fullDoctor && finalBatch) delete this.journal.global_doctor_pending;
       for (const c of candidates)
         if (c.status === "doctor-pending") {
           c.status = "delivered";
@@ -1812,7 +1809,7 @@ export class DiscoverySession {
   async finish(error?: unknown) {
     if (!error && this.journal.global_doctor_pending) {
       try {
-        // A held or re-reviewed final candidate cannot erase prior substantial
+        // A held or stale final candidate cannot erase prior substantial
         // changes' global obligation. An empty batch performs only validation.
         await this.applyBatch([]);
       } catch (failure) {

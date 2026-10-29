@@ -44,26 +44,29 @@ export function LibraryRecovery({
       <p>
         Keep a manual recovery copy, restore a checked copy, or change where this library is stored.
       </p>
-      <dl className="my-4 grid gap-3 text-sm [&_dd]:m-0 [&_dt]:font-semibold">
-        <div>
-          <dt>Game-save backups</dt>
-          <dd>Back up supported managed saves from each game’s Saves and storage page.</dd>
-        </div>
-        <div>
-          <dt>Metadata export</dt>
-          <dd>
-            Records versions, saved file locations and settings. It contains no game content, saves,
-            backups or credentials.
-          </dd>
-        </div>
-        <div>
-          <dt>Manual recovery copy</dt>
-          <dd>
-            Keep a matching metadata export and library content copy. Original game files, BIOS
-            files and external installations need separate handling.
-          </dd>
-        </div>
-      </dl>
+      <details>
+        <summary className="cursor-pointer py-2 text-sm">What each recovery copy includes</summary>
+        <dl className="my-4 grid gap-3 text-sm [&_dd]:m-0 [&_dt]:font-semibold">
+          <div>
+            <dt>Game-save backups</dt>
+            <dd>Back up supported managed saves from each game’s Saves & backups page.</dd>
+          </div>
+          <div>
+            <dt>Metadata export</dt>
+            <dd>
+              Records versions, saved file locations and settings. It contains no game content,
+              saves, backups or credentials.
+            </dd>
+          </div>
+          <div>
+            <dt>Manual recovery copy</dt>
+            <dd>
+              Keep a matching metadata export and library content copy. Original game files, BIOS
+              files and external installations need separate handling.
+            </dd>
+          </div>
+        </dl>
+      </details>
       <details>
         <summary className="cursor-pointer py-2 font-semibold">Prepare a recovery copy</summary>
         <p>
@@ -80,7 +83,7 @@ export function LibraryRecovery({
           Review tasks &amp; history
         </Button>
         <p>
-          Create applicable save backups from each game’s Saves and storage page before exporting.
+          Create applicable save backups from each game’s Saves & backups page before exporting.
           That page checks whether Portcove owns the saves and can back them up. External game saves
           may need a separate copy using that game’s instructions.
         </p>

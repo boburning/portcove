@@ -5002,6 +5002,214 @@
         ],
         "type": "string"
       },
+      "ListingObservationStatus": {
+        "enum": [
+          "complete",
+          "incomplete",
+          "unavailable",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "ListingObservedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform_hints": {
+            "description": "Descriptive authored filename hints, never execution capabilities.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "description": "Provider-reported claim; this does not verify downloaded bytes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform_hints",
+          "id",
+          "name",
+          "url",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ListingObservedRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/$defs/ListingObservedAsset"
+            },
+            "type": "array"
+          },
+          "assets_complete": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_prerelease": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "release_url",
+          "published_at",
+          "provider_prerelease",
+          "assets_complete",
+          "assets"
+        ],
+        "type": "object"
+      },
+      "ListingPinnedRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "version",
+          "published_at"
+        ],
+        "type": "object"
+      },
+      "ListingReleaseMaintenance": {
+        "additionalProperties": false,
+        "properties": {
+          "pinned_releases": {
+            "description": "Derived from accepted direct contracts, not independently maintained versions.",
+            "items": {
+              "$ref": "#/$defs/ListingPinnedRelease"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "reconsider_when": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "reconsider_when",
+          "pinned_releases"
+        ],
+        "type": "object"
+      },
+      "ListingUpstreamObservation": {
+        "additionalProperties": false,
+        "properties": {
+          "attempted_at": {
+            "type": "string"
+          },
+          "facts_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fresh_until": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "release_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/ListingObservedRelease"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/$defs/ListingObservationStatus"
+          }
+        },
+        "required": [
+          "provider",
+          "repository",
+          "repository_id",
+          "status",
+          "attempted_at",
+          "observed_at",
+          "fresh_until",
+          "facts_sha256",
+          "release_limit",
+          "releases"
+        ],
+        "type": "object"
+      },
       "ManualSetupGuide": {
         "additionalProperties": false,
         "description": "Authored instructions only; these steps grant no operation or file authority.",
@@ -5115,6 +5323,13 @@
             "$ref": "#/$defs/ListingAvailability",
             "default": "unknown"
           },
+          "availability_override_reason": {
+            "description": "Authored exception takes precedence over observations only with this reason.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "download_asset_hints": {
             "additionalProperties": false,
             "description": "Advisory literal filename hints for an upstream-owned download. They do\nnot authenticate a package or grant installation/execution ownership.",
@@ -5221,6 +5436,16 @@
             ],
             "description": "Initial self-service release choice only; never the installed update policy."
           },
+          "release_maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingReleaseMaintenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "release_url": {
             "type": [
               "string",
@@ -5235,6 +5460,17 @@
           },
           "summary": {
             "type": "string"
+          },
+          "upstream_observation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingUpstreamObservation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Accepted descriptive observation, never a package or execution grant."
           },
           "variant_label": {
             "type": [
@@ -9013,6 +9249,14 @@
         ],
         "type": "object"
       },
+      "ActivityLiveness": {
+        "enum": [
+          "active",
+          "interrupted",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "ActivityOperation": {
         "enum": [
           "download_package",
@@ -9077,6 +9321,17 @@
           },
           "id": {
             "type": "string"
+          },
+          "liveness": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ActivityLiveness"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Best-effort ownership observation, not a replacement for terminal results."
           },
           "message": {
             "type": [
@@ -9586,7 +9841,7 @@
       },
       "CatalogListingDocument": {
         "additionalProperties": false,
-        "description": "Independently versioned directory projection. Format 2 can restrict fresh\ndownloads; format 3 adds descriptive game/edition identity. No format grants operations.",
+        "description": "Independently versioned directory projection. Format 2 can restrict fresh\ndownloads; format 3 adds game/edition identity; format 4 adds inert observations\nand reason-bearing display overrides/maintenance. No format grants operations.",
         "properties": {
           "format_version": {
             "format": "uint32",
@@ -10559,6 +10814,17 @@
               "null"
             ]
           },
+          "setup_contract": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SetupExplanation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mechanical explanation from the effective (possibly retained) contract."
+          },
           "source": {
             "anyOf": [
               {
@@ -10645,6 +10911,214 @@
           "unavailable"
         ],
         "type": "string"
+      },
+      "ListingObservationStatus": {
+        "enum": [
+          "complete",
+          "incomplete",
+          "unavailable",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "ListingObservedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform_hints": {
+            "description": "Descriptive authored filename hints, never execution capabilities.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "description": "Provider-reported claim; this does not verify downloaded bytes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform_hints",
+          "id",
+          "name",
+          "url",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ListingObservedRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/$defs/ListingObservedAsset"
+            },
+            "type": "array"
+          },
+          "assets_complete": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_prerelease": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "release_url",
+          "published_at",
+          "provider_prerelease",
+          "assets_complete",
+          "assets"
+        ],
+        "type": "object"
+      },
+      "ListingPinnedRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "version",
+          "published_at"
+        ],
+        "type": "object"
+      },
+      "ListingReleaseMaintenance": {
+        "additionalProperties": false,
+        "properties": {
+          "pinned_releases": {
+            "description": "Derived from accepted direct contracts, not independently maintained versions.",
+            "items": {
+              "$ref": "#/$defs/ListingPinnedRelease"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "reconsider_when": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "reconsider_when",
+          "pinned_releases"
+        ],
+        "type": "object"
+      },
+      "ListingUpstreamObservation": {
+        "additionalProperties": false,
+        "properties": {
+          "attempted_at": {
+            "type": "string"
+          },
+          "facts_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fresh_until": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "release_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/ListingObservedRelease"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/$defs/ListingObservationStatus"
+          }
+        },
+        "required": [
+          "provider",
+          "repository",
+          "repository_id",
+          "status",
+          "attempted_at",
+          "observed_at",
+          "fresh_until",
+          "facts_sha256",
+          "release_limit",
+          "releases"
+        ],
+        "type": "object"
       },
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
@@ -11459,6 +11933,13 @@
             "$ref": "#/$defs/ListingAvailability",
             "default": "unknown"
           },
+          "availability_override_reason": {
+            "description": "Authored exception takes precedence over observations only with this reason.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "download_asset_hints": {
             "additionalProperties": false,
             "description": "Advisory literal filename hints for an upstream-owned download. They do\nnot authenticate a package or grant installation/execution ownership.",
@@ -11565,6 +12046,16 @@
             ],
             "description": "Initial self-service release choice only; never the installed update policy."
           },
+          "release_maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingReleaseMaintenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "release_url": {
             "type": [
               "string",
@@ -11579,6 +12070,17 @@
           },
           "summary": {
             "type": "string"
+          },
+          "upstream_observation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingUpstreamObservation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Accepted descriptive observation, never a package or execution grant."
           },
           "variant_label": {
             "type": [
@@ -12312,6 +12814,89 @@
           "external-user-owned"
         ],
         "type": "string"
+      },
+      "SetupExplanation": {
+        "properties": {
+          "definition_sha256": {
+            "type": "string"
+          },
+          "installation_method": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallationMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "manual_preparation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "persistent_file_patterns": {
+            "items": {
+              "$ref": "#/$defs/PersistentFilePattern"
+            },
+            "type": "array"
+          },
+          "persistent_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "retained": {
+            "type": "boolean"
+          },
+          "saves_and_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SavesAndSettingsBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_requirements": {
+            "items": {
+              "$ref": "#/$defs/SourceRequirementPresentation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "definition_sha256",
+          "retained",
+          "platforms",
+          "installation_method",
+          "source_requirements",
+          "saves_and_settings",
+          "persistent_paths",
+          "persistent_file_patterns",
+          "manual_preparation",
+          "manual_setup"
+        ],
+        "type": "object"
       },
       "SourceAdmission": {
         "oneOf": [

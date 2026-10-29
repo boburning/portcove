@@ -124,12 +124,10 @@ it.each(["remove", "replace"])(
     }
     await root.rerender(<SelectedRequirements />);
     container.querySelector("button")?.focus();
-    await click("Review game preparation");
+    await click("Review setup");
     await click("Prepare game data");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-    expect(document.body.textContent?.includes("Review game preparation")).toBe(
-      completion === "replace",
-    );
+    expect(document.body.textContent?.includes("Review setup")).toBe(completion === "replace");
     expect(document.activeElement).toBe(container.querySelector("summary"));
   },
 );
@@ -154,7 +152,7 @@ it("does not restore stale preparation focus after its owning workspace disappea
     );
   }
   await root.rerender(<SelectedRequirements />);
-  await click("Review game preparation");
+  await click("Review setup");
   await root.rerender(<button>Other selected game</button>);
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(document.activeElement).toBe(document.body);
@@ -196,7 +194,7 @@ it.each(["other:7", "sample:8"])(
       );
     }
     await root.rerender(<SelectedRequirements owner="sample:7" />);
-    await click("Review game preparation");
+    await click("Review setup");
     await root.rerender(<SelectedRequirements owner={nextOwner} />);
     const navigation = container.querySelector("button");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
@@ -233,7 +231,7 @@ it.each(["disabled", "unavailable"])(
       );
     }
     await root.rerender(<SelectedRequirements />);
-    await click("Review game preparation");
+    await click("Review setup");
     await click("Prepare game data");
     expect(container.querySelector("button")?.disabled).toBe(true);
     expect(document.activeElement).toBe(container.querySelector("summary"));
@@ -246,7 +244,7 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   await root.rerender(
     <PreparationControl portId="sample" generation={7} disabled={false} run={run} />,
   );
-  await click("Review game preparation");
+  await click("Review setup");
   expect(review).toHaveBeenCalledWith("sample", 7);
   expect(run).not.toHaveBeenCalled();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
@@ -266,8 +264,8 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   expect(document.activeElement?.id).toBe("preparation-review-title");
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  expect(document.activeElement?.textContent).toBe("Review game preparation");
-  await click("Review game preparation");
+  expect(document.activeElement?.textContent).toBe("Review setup");
+  await click("Review setup");
   await click("Prepare game data");
   expect(run).toHaveBeenCalledWith("reviewed-plan", expect.any(Function));
   expect(document.body.textContent).toContain("Game data is prepared");
@@ -295,7 +293,7 @@ it("keeps the reviewed preparation and cancellation control available while setu
   await root.rerender(
     <PreparationControl portId="sample" generation={7} disabled={false} run={run} />,
   );
-  await click("Review game preparation");
+  await click("Review setup");
   await click("Prepare game data");
   expect(document.body.textContent).toContain("Cancel preparation");
   await pressEscape();
@@ -310,13 +308,13 @@ it("requires a fresh review after an execution error and reports no success", as
   await root.rerender(
     <PreparationControl portId="sample" generation={7} disabled={false} run={run} />,
   );
-  await click("Review game preparation");
+  await click("Review setup");
   await click("Prepare game data");
   expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("Inputs changed");
   expect(document.body.textContent).not.toContain("Game data is prepared");
-  expect(document.activeElement?.textContent).toBe("Review game preparation");
+  expect(document.activeElement?.textContent).toBe("Review setup");
   expect([...container.querySelectorAll("button")].map((button) => button.textContent)).toContain(
-    "Review game preparation",
+    "Review setup",
   );
 });
 
@@ -331,10 +329,10 @@ it.each(["cancelled", "refused"])(
     await root.rerender(
       <PreparationControl portId="sample" generation={7} disabled={false} run={run} />,
     );
-    await click("Review game preparation");
+    await click("Review setup");
     await click("Prepare game data");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-    expect(document.activeElement?.textContent).toBe("Review game preparation");
+    expect(document.activeElement?.textContent).toBe("Review setup");
     expect(document.body.textContent).not.toContain("Game data is prepared");
     expect(document.body.textContent).toContain(
       outcome === "cancelled" ? "Setup cancelled" : "Preparation did not complete",
@@ -354,7 +352,7 @@ it("does not carry a late review across a library or port switch", async () => {
   await root.rerender(
     <PreparationControl key="old" portId="sample" generation={7} disabled={false} run={run} />,
   );
-  await click("Review game preparation");
+  await click("Review setup");
   await root.rerender(
     <PreparationControl key="new" portId="other" generation={8} disabled={false} run={run} />,
   );
@@ -381,7 +379,7 @@ it("can leave running preparation without cancellation or completion stealing fo
       onPrepared={onPrepared}
     />,
   );
-  await click("Review game preparation");
+  await click("Review setup");
   await click("Prepare game data");
   await click("Continue browsing");
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();

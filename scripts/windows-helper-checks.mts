@@ -12,6 +12,7 @@ const nativeToolInputs = new Set([
   "scripts/rust-test-impact.mts",
   "scripts/desktop-linux-x11.mts",
   "scripts/resource-capacity.mts",
+  "scripts/prepared-file-replacement.mts",
   "scripts/resource-paths.mts",
   "scripts/resource-capacity.test.mts",
   "scripts/resource-command.mts",

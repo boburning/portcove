@@ -1181,7 +1181,7 @@ post-upgrade execution or replace Aqua's install-time checksum and attestation
 verification.
 
 Routine non-security development-tool proposals are eligible throughout the week
-after the existing release-age check, within the four concurrent proposal slots.
+after the existing release-age check, within the six concurrent proposal slots.
 Aqua and its managed Ruff, actionlint, and ShellCheck pins are proposed as one
 qualification group. Renovate does not independently advance the standard
 registry ref: if an actual tool update is unavailable in the pinned registry, or
@@ -2218,6 +2218,32 @@ contains an isolated library, host and application-update state files, WebView2 
 screenshots, bounded driver logs, accessibility results and `evidence.json`.
 Never reuse a failed run directory or point this harness at an existing library.
 
+Default-cover display/cache observations can use repeated `--cover-port-id ID`
+arguments for at most 16 unique accepted mapped ports. Omission retains the full
+mapped-catalog observation. Unknown or unmapped IDs refuse the selection;
+cache observations must include `dkr-r` for the existing missing-cache negative
+control. Selected ports receive detail observations as well as card observations.
+The report records the requested/observed IDs, selection scope and available
+mapped denominator. A focused result is not whole-catalog evidence. This option
+requires `native-default-cover-display` or `native-default-cover-cache-conditions`;
+it does not change image acceptance, cache policy or the frozen cohort's fallback
+credit.
+Linux cache restarts reuse the existing driver birth-identity and descendant-exit
+observations. Cache fixture changes and replacement startup wait for the complete
+captured process set to exit, so a surviving server cannot supply a session with
+the previous environment. Unknown exit refuses the restart and preserves failure.
+Reconnect readiness polls root presence and loading state as booleans inside the
+webview, retaining the separate 30-second waits without transporting DOM handles.
+Matching-birth Linux zombies count as exited execution and are retained as exact
+`unreaped_terminal` observations with `all_reaped: false`. They cannot serve the
+old session. Reaping remains a separate outer-supervisor cleanup observation;
+these restart receipts do not claim complete process disappearance.
+Full-catalog cache observations require zero rejected image-host requests before
+the missing-cache control. Explicit selections instead record the aggregate
+host baseline alongside selected cache digests and rendered images. The control
+requires fresh rejected traffic and the withheld DKR image's honest fallback;
+host-level counts do not attribute a request to an individual image.
+
 The native harness opens application windows, takes focus and sends keyboard
 input in the current desktop session. Its isolated files do not isolate the
 keyboard or pointer. Run it in a dedicated graphical session or an agreed window
@@ -2381,8 +2407,12 @@ closes that anchored group; reaper pipe
 loss makes the Node supervisor close its own group without inventing a receipt.
 The reaper stays outside the killed group, drains direct and adopted children, and
 publishes an atomic positive receipt only after actual group absence and completed
-reaping, within the existing five-second cleanup bound. A failed, missing or late
-receipt, failed handshake or failed reaper exit preserves ownership and the
+reaping, within the existing five-second cleanup bound. If procfs omits
+`task/<pid>/children`, Linux cleanup
+uses a bounded process-stat inventory to find only the reaper's direct children,
+then revalidates each parent before signaling; it still requires completed reaping
+and actual group absence. An unreadable or incomplete inventory fails closed.
+A failed, missing or late receipt, failed handshake or failed reaper exit preserves ownership and the
 invocation's original evidence directory. Other Unix hosts retain the detached
 group and out-of-group watchdog; Windows retains the kill-on-close Job Object.
 A new acquirer still requires valid cleanup evidence before reclaiming a dead

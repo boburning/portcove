@@ -62,6 +62,8 @@ param(
     [Parameter(Position = 25)]
     [string]$InstalledUpdatePredecessorVersion,
     [switch]$RendererUpdate,
+    [switch]$VerifyStableWaiting,
+    [string]$HistoricalBootstrapManifestPath,
     [ValidateSet('official', 'embedded')]
     [Parameter(Position = 26)]
     [string]$RendererTransport = 'official',
@@ -88,6 +90,8 @@ Required:
 
 Lifecycle options:
   -UpgradeFromInstallerPath FILE  Retained predecessor installer for replacement checks.
+  -HistoricalBootstrapManifestPath FILE  Optional exact published updater-less package identity;
+                                 isolated non-elevated fixture chain only, before manual bootstrap.
   -ExpectedExecutablePath FILE  Expected candidate desktop bytes.
   -ExpectedVersion VERSION  Expected installed version.
   -InstallMode Silent|Passive  Installer interaction mode (default: Silent).
@@ -109,6 +113,7 @@ Qualification modes (use their documented admitted parent commands):
     -InstalledUpdateTargetsPath DIRECTORY, -InstalledUpdateCandidatePath FILE,
     -InstalledUpdatePredecessorVersion VERSION
   -RendererUpdate, -RendererTransport official|embedded
+  -VerifyStableWaiting (opt-in disposable renderer fixture; no eligible Stable candidate)
   -TestFault post-spawn-verification  Isolated fault fixture only.
   -Help, --help  Show this help before storage, Registry, or process operations.
 
@@ -131,6 +136,15 @@ $ordinaryPublicInputs = $null
 $ordinaryPublicPark = $false
 $ordinaryPublicContinue = $false
 $ordinaryPublicMode = [bool]($OrdinaryPublicUpdateInputsPath -or $OrdinaryPublicUpdateInputsSha256 -or $OrdinaryPublicUpdateRemainingMilliseconds)
+if ($HistoricalBootstrapManifestPath -and ($ordinaryPublicMode -or $NativeAccountBindingPath -or
+        $NativeAccountBindingSha256 -or $NativeParentOwnsFinish -or $NormalPackageManifestPath -or
+        $NormalPackageAdmissionPath -or $QualifyPackageRollback -or -not $RendererUpdate -or
+        -not $UpgradeFromInstallerPath -or -not $InstalledUpdateTrustedRootPath -or -not $RequireSigningAuthorityAbsent -or -not $EvidencePath)) {
+    throw 'Historical bootstrap requires the disposable installed renderer chain; public/account/ordinary-package routes remain separate'
+}
+if ($VerifyStableWaiting -and ($ordinaryPublicMode -or $NativeAccountBindingPath -or $NativeAccountBindingSha256 -or $NativeParentOwnsFinish -or $NormalPackageManifestPath -or $NormalPackageAdmissionPath)) {
+    throw 'Stable waiting fixture verification cannot widen public, dedicated-account or ordinary-package routes'
+}
 if ($ordinaryPublicMode) {
     if (-not $NativeParentOwnsFinish -or -not $NativeAccountBindingPath -or -not $OrdinaryPublicUpdateInputsPath -or
         $OrdinaryPublicUpdateInputsSha256 -cnotmatch '^[a-f0-9]{64}$' -or $OrdinaryPublicUpdateRemainingMilliseconds -lt 1 -or
@@ -291,7 +305,133 @@ function Get-ComparableWindowsPath([string]$Path) {
     [IO.Path]::GetFullPath($Path)
 }
 
-function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
+function Read-HistoricalBootstrapManifest([string]$HistoricalBootstrapManifestPath) {
+    $manifestPath = (Resolve-Path -LiteralPath $HistoricalBootstrapManifestPath).Path
+    Assert-NoReparseAncestry $manifestPath
+    if (-not [IO.File]::Exists($manifestPath) -or (Get-Item -LiteralPath $manifestPath).Length -gt 65536) {
+        throw 'Historical bootstrap manifest must be a bounded direct file'
+    }
+    $stream = [IO.File]::Open($manifestPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try {
+        if ($stream.Length -lt 1 -or $stream.Length -gt 65536) { throw 'Historical bootstrap manifest exceeds read bound' }
+        $bytes = [byte[]]::new([int]$stream.Length)
+        $stream.ReadExactly($bytes)
+        $text = [Text.UTF8Encoding]::new($false,$true).GetString($bytes).TrimStart([char]0xfeff)
+        $historicalBootstrap = $text | ConvertFrom-Json -DateKind String
+    } finally { $stream.Dispose() }
+    $fields = @('schema_version','version','source_commit','installer_path','installer_sha256','installer_bytes','release_tag','release_asset_id','release_url')
+    foreach ($field in @('version','source_commit','installer_path','installer_sha256','release_tag','release_url')) {
+        if ($historicalBootstrap.$field -isnot [string]) { throw 'Historical bootstrap identity field is not text' }
+    }
+    foreach ($field in @('schema_version','installer_bytes','release_asset_id')) {
+        if ($historicalBootstrap.$field -isnot [int] -and $historicalBootstrap.$field -isnot [long]) { throw 'Historical bootstrap identity field is not an integer' }
+    }
+    if ((@($historicalBootstrap.PSObject.Properties.Name | Sort-Object) -join ',') -cne (@($fields | Sort-Object) -join ',') -or
+        $historicalBootstrap.schema_version -ne 1 -or
+        $historicalBootstrap.source_commit -cnotmatch '^[0-9a-f]{40}$' -or
+        $historicalBootstrap.installer_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
+        $historicalBootstrap.version -cnotmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$' -or
+        $historicalBootstrap.installer_bytes -lt 1 -or $historicalBootstrap.installer_bytes -gt 536870912 -or
+        $historicalBootstrap.release_asset_id -lt 1 -or -not $historicalBootstrap.release_tag -or
+        -not ([string]$historicalBootstrap.release_url).StartsWith('https://github.com/boburning/portcove/releases/tag/',[StringComparison]::Ordinal) -or
+        -not [IO.Path]::IsPathFullyQualified([string]$historicalBootstrap.installer_path) -or
+        ([string]$historicalBootstrap.installer_path).StartsWith('\\')) {
+        throw 'Historical bootstrap manifest must declare exact bounded package/source identities; it grants no publication authority'
+    }
+    $historicalPath = [IO.Path]::GetFullPath([string]$historicalBootstrap.installer_path)
+    Assert-NoReparseAncestry $historicalPath
+    if (-not [IO.File]::Exists($historicalPath) -or [IO.Path]::GetExtension($historicalPath) -cne '.exe' -or
+        (Get-Item -LiteralPath $historicalPath).Length -ne $historicalBootstrap.installer_bytes -or
+        (Get-FileHash -LiteralPath $historicalPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $historicalBootstrap.installer_sha256) {
+        throw 'Historical bootstrap package differs from the supplied published identity'
+    }
+    $historicalBootstrap.installer_path = $historicalPath
+    $historicalBootstrap
+}
+
+function Get-HistoricalWebViewProfile($Process, [string]$ExpectedDirectory) {
+    Assert-NoReparseAncestry $ExpectedDirectory
+    if (-not ('Portcove.HistoricalBootstrap.Arguments' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+namespace Portcove.HistoricalBootstrap {
+ public static class Arguments {
+  [DllImport("shell32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  static extern IntPtr CommandLineToArgvW(string command, out int count);
+  [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr memory);
+  public static string[] Parse(string command) {
+   if (command == null || command.Length > 32767) throw new ArgumentException("Invalid command length");
+   int count; var memory=CommandLineToArgvW(command,out count);
+   if(memory==IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+   try { var result=new string[count]; for(int i=0;i<count;i++) result[i]=Marshal.PtrToStringUni(Marshal.ReadIntPtr(memory,i*IntPtr.Size)); return result; }
+   finally { LocalFree(memory); }
+  }
+ }
+}
+'@
+    }
+    $Process.Refresh()
+    if ($Process.HasExited) { throw 'Historical app exited before profile observation' }
+    $parentCreated = $Process.StartTime.ToUniversalTime()
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($Process.Id) AND Name = 'msedgewebview2.exe'" -OperationTimeoutSec 3)
+    $profiles = @()
+    $configured = (Get-ComparableWindowsPath $ExpectedDirectory).TrimEnd('\')
+    # WebView2 Runtime normally adds exactly this browser-data child to the
+    # configured UDF. Do not accept arbitrary descendants or reparse ancestry.
+    # https://learn.microsoft.com/en-us/microsoft-edge/web-platform/devtools-mcp-server
+    $sdkDirectory = Join-Path $configured 'EBWebView'
+    foreach ($child in $children) {
+        if ($child.CreationDate.ToUniversalTime() -lt $parentCreated) { throw 'Historical WebView child predates held application identity' }
+        $arguments = @([Portcove.HistoricalBootstrap.Arguments]::Parse([string]$child.CommandLine))
+        $values = @()
+        for ($index=0; $index -lt $arguments.Count; $index++) {
+            if ($arguments[$index].StartsWith('--user-data-dir=',[StringComparison]::Ordinal)) { $values += $arguments[$index].Substring(16) }
+            elseif ($arguments[$index] -ceq '--user-data-dir') {
+                if ($index+1 -ge $arguments.Count) { throw 'Historical WebView profile argument is incomplete' }
+                $values += $arguments[++$index]
+            }
+        }
+        $attempt = [ordered]@{
+            pid=[int]$child.ProcessId; parent_pid=$Process.Id
+            created_utc=$child.CreationDate.ToUniversalTime().ToString('o')
+            image=([string]$child.ExecutablePath).Substring(0,[Math]::Min(4096,([string]$child.ExecutablePath).Length))
+            configured_user_data_directory=$configured; argument_count=$values.Count
+            diagnostic_arguments=@($values|Select-Object -First 4|ForEach-Object{$_.Substring(0,[Math]::Min(4096,$_.Length))})
+            diagnostic_arguments_truncated=($values.Count -gt 4 -or @($values|Where-Object{$_.Length -gt 4096}).Count -gt 0)
+            identity_verified=$false; accepted=$false
+        }
+        if ($evidence -and $evidence.historical_bootstrap) {
+            $evidence.historical_bootstrap.webview_profile_observations += $attempt
+            Write-InstallerEvidence $evidence.phase
+        }
+        if ($values.Count -eq 0) { continue }
+        if ($values.Count -ne 1) { throw 'Historical WebView profile argument is ambiguous; no isolation claim' }
+        $observedDirectory=(Get-ComparableWindowsPath $values[0]).TrimEnd('\')
+        if (-not [string]::Equals($observedDirectory,$configured,[StringComparison]::OrdinalIgnoreCase) -and
+            -not [string]::Equals($observedDirectory,$sdkDirectory,[StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Historical WebView used a different profile; no isolation claim'
+        }
+        Assert-NoReparseAncestry $observedDirectory
+        $observed = [Diagnostics.Process]::GetProcessById([int]$child.ProcessId)
+        try {
+            $null=$observed.Handle
+            if ($observed.HasExited -or [Math]::Abs(($observed.StartTime.ToUniversalTime() - $child.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt $ProcessIdentityClockToleranceMilliseconds -or
+                -not [string]::Equals($observed.Path,[string]$child.ExecutablePath,[StringComparison]::OrdinalIgnoreCase)) {
+                throw 'Historical WebView creation/image identity changed'
+            }
+            $attempt.identity_verified=$true; $attempt.accepted=$true
+            if ($evidence -and $evidence.historical_bootstrap) { Write-InstallerEvidence $evidence.phase }
+            $profiles += [ordered]@{ pid=$child.ProcessId; parent_pid=$Process.Id; created_utc=$child.CreationDate.ToUniversalTime().ToString('o'); image=$observed.Path; user_data_directory=$values[0]; configured_user_data_directory=$configured; sdk_browser_subdirectory=([string]::Equals($observedDirectory,$sdkDirectory,[StringComparison]::OrdinalIgnoreCase)); observation='held live application plus exact CIM/browser creation and image identity' }
+        } finally { $observed.Dispose() }
+    }
+    $Process.Refresh()
+    if ($Process.HasExited -or $Process.StartTime.ToUniversalTime() -ne $parentCreated -or $profiles.Count -eq 0) { throw 'Historical private WebView profile was not positively observed' }
+    $profiles
+}
+
+function Invoke-ApplicationSmoke([string]$Application, [string]$Role, [string]$ExpectedWebViewDirectory = '') {
     $launch = Start-JournaledProcess $Role $Application @()
     $process = $launch.process
     try {
@@ -308,6 +448,7 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
             throw "The installed app did not open a responsive Portcove window. Inspect the retained installer test evidence at $runRoot before retrying."
         }
         $title = $process.MainWindowTitle
+        $observedWebView = if ($ExpectedWebViewDirectory) { @(Get-HistoricalWebViewProfile $process $ExpectedWebViewDirectory) } else { @() }
         $launch.run.close_request = [ordered]@{
             requested_at = (Get-Date).ToUniversalTime().ToString("o")
             window_title = $title
@@ -333,7 +474,9 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
         if ($process.ExitCode -ne 0) {
             throw "Installed application exited with code $($process.ExitCode)"
         }
-        [pscustomobject]@{ responding = $true; window_title = $title; exit_code = $process.ExitCode }
+        $result = [pscustomobject]@{ responding = $true; window_title = $title; exit_code = $process.ExitCode }
+        if ($ExpectedWebViewDirectory) { $result | Add-Member -NotePropertyName historical_webview_profile -NotePropertyValue $observedWebView }
+        $result
     }
     finally {
         if (-not $process.HasExited) {
@@ -426,6 +569,7 @@ if ($QualifyPackageRollback -and (-not $nativeAccount -or -not $predecessor -or 
 if ($ExpectedPredecessorVersion -and -not $QualifyPackageRollback) {
     throw 'ExpectedPredecessorVersion belongs only to the explicit package rollback mode'
 }
+if ($VerifyStableWaiting -and -not $RendererUpdate) { throw "Stable waiting verification requires the installed renderer journey" }
 if ($RendererUpdate -and -not $installedUpdate) {
     throw "Renderer update qualification requires an installed application update"
 }
@@ -433,6 +577,14 @@ if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPa
         -not $InstalledUpdateTargetsPath -or -not $InstalledUpdateCandidatePath -or
         -not $InstalledUpdatePredecessorVersion -or -not $ExpectedVersion -or -not $RequireSigningAuthorityAbsent)) {
     throw "Installed update qualification requires a predecessor, complete signed repository paths, and absent signing authority"
+}
+$historicalBootstrap = $null
+if ($HistoricalBootstrapManifestPath) {
+    if ([Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'Historical bootstrap requires an ordinary non-elevated caller'
+    }
+    $historicalBootstrap = Read-HistoricalBootstrapManifest $HistoricalBootstrapManifestPath
 }
 $expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path } else { $null }
 if ($NormalPackageManifestPath) {
@@ -472,6 +624,13 @@ if ($NormalPackageManifestPath) {
             throw "Current-installed package configuration identity differs"
         }
     }
+}
+$historicalProcessPreflight = @()
+if ($historicalBootstrap) {
+    # Read-only refusal: a fixed legacy application identity must have no live
+    # desktop owner before touching its registration or credential namespace.
+    $historicalProcessPreflight = @(Get-CimInstance Win32_Process -Filter "Name = 'portcove-desktop.exe'" -OperationTimeoutSec 3 | Select-Object ProcessId,ParentProcessId,CreationDate,ExecutablePath)
+    if ($historicalProcessPreflight.Count -ne 0) { throw 'A Portcove desktop process exists; refusing historical bootstrap' }
 }
 if (-not $ordinaryPublicContinue -and @(Get-UninstallEntries "").Count -ne 0) {
     throw "A Portcove installer registration already exists. Refusing to replace another installation during qualification."
@@ -560,6 +719,7 @@ $evidence = if ($EvidencePath) {
         package_inputs = [ordered]@{
             installer_sha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
             predecessor_installer_sha256 = if ($predecessor) { (Get-FileHash -LiteralPath $predecessor -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+            historical_bootstrap = $historicalBootstrap
         }
         phase = "initialized"
         process_runs = @()
@@ -1024,7 +1184,9 @@ $updateEnvironmentNames = @(
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
+    "PORTCOVE_PREFERENCES",
+    "WEBVIEW2_USER_DATA_FOLDER"
 )
 $previousUpdateEnvironment = @{}
 foreach ($name in $updateEnvironmentNames) {
@@ -1041,6 +1203,39 @@ try {
     $uninstaller = Join-Path $installRoot "uninstall.exe"
     [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $libraryRoot, "Process")
     $upgrade = $null
+    $historicalBoundary = $null
+    if ($historicalBootstrap) {
+        $historicalRoot = Join-Path $runRoot 'historical-bootstrap'
+        [IO.Directory]::CreateDirectory($historicalRoot) | Out-Null
+        $historicalPreferences = Join-Path $historicalRoot 'preferences.json'
+        $historicalWebView = Join-Path $historicalRoot 'webview-profile'
+        [Environment]::SetEnvironmentVariable('PORTCOVE_PREFERENCES',$historicalPreferences,'Process')
+        [Environment]::SetEnvironmentVariable('WEBVIEW2_USER_DATA_FOLDER',$historicalWebView,'Process')
+        $sentinelRoot = Join-Path $libraryRoot 'user\installer-qualification'
+        [IO.Directory]::CreateDirectory($sentinelRoot) | Out-Null
+        $sentinel = Join-Path $sentinelRoot 'preserve.txt'
+        [IO.File]::WriteAllText($sentinel,[Guid]::NewGuid().ToString('N'))
+        $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
+        $historicalBoundary = [ordered]@{ webview_profile_observations=@(); declared_package=$historicalBootstrap; source_scope='published updater-less manual bootstrap into one existing installed chain'; library_root=$libraryRoot; preferences_path=$historicalPreferences; expected_webview_directory=$historicalWebView; credential_scope='fixed historical namespace; startup/close only, no authentication-changing actions; neither isolated credential store nor credential preservation proven'; before_install=Get-PreservationManifest $libraryRoot }
+        $historicalBoundary.existing_desktop_processes_before_install=$historicalProcessPreflight
+        $evidence.historical_bootstrap=$historicalBoundary
+        Write-InstallerEvidence 'historical_bootstrap_installing'
+        if ((Get-FileHash -LiteralPath $historicalBootstrap.installer_path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $historicalBootstrap.installer_sha256) { throw 'Historical package changed before native launch' }
+        $historicalInstall=Invoke-JournaledProcess -Role 'historical_bootstrap_installer' -Executable $historicalBootstrap.installer_path -Arguments @('/S',"/D=$installRoot") -AllowedRelocationRoot $runRoot
+        if ($historicalInstall.ExitCode -ne 0 -or -not [IO.File]::Exists($application) -or -not [IO.File]::Exists($uninstaller)) { throw 'Historical bootstrap installer did not publish the expected installation' }
+        $historicalRegistration=@(Get-UninstallEntries $installRoot)
+        if ($historicalRegistration.Count -ne 1 -or $historicalRegistration[0].DisplayVersion -cne $historicalBootstrap.version) { throw 'Historical registration identity/version differs' }
+        Assert-InstallerUserRegistration ([string]$historicalRegistration[0].PSPath)
+        $evidence.uninstaller_sha256=(Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+        $historicalBoundary.registration_path=[string]$historicalRegistration[0].PSPath
+        $historicalBoundary.installed_executable_sha256=(Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant()
+        Write-InstallerEvidence 'historical_bootstrap_installed'
+        $historicalBoundary.smoke=Invoke-ApplicationSmoke $application 'historical_bootstrap_smoke' $historicalWebView
+        if (-not [IO.File]::Exists((Join-Path $libraryRoot 'portcove.sqlite3')) -or
+            (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -cne $sentinelHash) { throw 'Historical startup did not initialize and retain its private library' }
+        $historicalBoundary.after_startup=Get-PreservationManifest $libraryRoot
+        Write-InstallerEvidence 'historical_bootstrap_closed'
+    }
     if($ordinaryPublicContinue){
         # Reuse only the already settled B installation. No installer, smoke
         # startup, profile/library seed or sentinel write precedes raw capture.
@@ -1056,7 +1251,8 @@ try {
     }else{
     if ($predecessor) {
         Write-InstallerEvidence "predecessor_installing"
-        $previousInstall = Invoke-JournaledProcess -Role "predecessor_installer" -Executable $predecessor -Arguments @("/S", "/D=$installRoot") -AllowedRelocationRoot $runRoot
+        $previousArguments = if ($historicalBootstrap) { @('/P','/UPDATE') } else { @('/S',"/D=$installRoot") }
+        $previousInstall = Invoke-JournaledProcess -Role "predecessor_installer" -Executable $predecessor -Arguments $previousArguments -AllowedRelocationRoot $runRoot
         if ($previousInstall.ExitCode -ne 0) {
             throw "Predecessor installer exited with code $($previousInstall.ExitCode)"
         }
@@ -1065,7 +1261,21 @@ try {
             $evidence.uninstaller_sha256 = (Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
             Write-InstallerEvidence "predecessor_installed"
         }
+        if ($historicalBootstrap) {
+            $manualRegistration=@(Get-UninstallEntries $installRoot)
+            if ($manualRegistration.Count -ne 1 -or [string]$manualRegistration[0].PSPath -cne $historicalBoundary.registration_path -or
+                $manualRegistration[0].DisplayVersion -cne $InstalledUpdatePredecessorVersion -or
+                (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -cne $sentinelHash) { throw 'Manual bootstrap changed installation identity or retained marker' }
+            $historicalBoundary.after_manual_install=Get-PreservationManifest $libraryRoot
+            Write-InstallerEvidence 'historical_bootstrap_manually_replaced'
+        }
         $previousSmoke = Invoke-ApplicationSmoke $application "predecessor_smoke"
+        if ($historicalBootstrap) {
+            if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -cne $sentinelHash) { throw 'Historical marker changed during updater-enabled startup' }
+            $historicalBoundary.after_updater_enabled_startup=Get-PreservationManifest $libraryRoot
+            $historicalBoundary.preservation_scope='same selected library and untouched synthetic sentinel; snapshots record migration bytes, not semantic existing-record/preference/credential continuity'
+            Write-InstallerEvidence 'historical_bootstrap_updater_enabled_started'
+        }
         $previousHash = (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant()
         $database = Join-Path $libraryRoot "portcove.sqlite3"
         if (-not [System.IO.File]::Exists($database)) {
@@ -1093,12 +1303,17 @@ try {
             if ($evidence) { $evidence.driver_preflight_baseline = "passed"; Write-InstallerEvidence "driver_preflight_baseline_passed" }
         }
     }
-    # This is a qualification marker, not a fabricated game save.
-    $sentinelRoot = Join-Path $libraryRoot "user\installer-qualification"
-    [System.IO.Directory]::CreateDirectory($sentinelRoot) | Out-Null
-    $sentinel = Join-Path $sentinelRoot "preserve.txt"
-    [System.IO.File]::WriteAllText($sentinel, [System.Guid]::NewGuid().ToString("N"))
-    $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
+    # This is a qualification marker, not a fabricated game save. A historical
+    # chain creates it before its first installer and must never reseed it.
+    if (-not $historicalBootstrap) {
+        $sentinelRoot = Join-Path $libraryRoot "user\installer-qualification"
+        [System.IO.Directory]::CreateDirectory($sentinelRoot) | Out-Null
+        $sentinel = Join-Path $sentinelRoot "preserve.txt"
+        [System.IO.File]::WriteAllText($sentinel, [System.Guid]::NewGuid().ToString("N"))
+        $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
+    } elseif ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -cne $sentinelHash) {
+        throw 'Historical bootstrap marker changed before the authenticated leg'
+    }
     Write-InstallerEvidence "candidate_installing"
     if ($installedUpdate) {
         $updateRoot = Join-Path $runRoot "application-update"
@@ -1265,6 +1480,7 @@ try {
                 "--candidate-version", $ExpectedVersion
             )
             $rendererArguments += @('--transport', $RendererTransport)
+            if ($VerifyStableWaiting) { $rendererArguments += '--verify-stable-waiting' }
             & node @rendererArguments
             if ($LASTEXITCODE -ne 0) { throw "Installed Windows renderer update qualification failed" }
             $rendererReport = Get-Content -LiteralPath (Join-Path $rendererEvidence "renderer-update-evidence.json") -Raw | ConvertFrom-Json

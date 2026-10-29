@@ -172,6 +172,13 @@ replacing a nonzero native exit. Invalid declarations or pre-execution IO can
 leave the command unexecuted, with no inferred native outcome.
 These declarations never execute ignored cases or grant their prerequisites.
 
+Frontend case observations also declare the Windows-only lifecycle timeout unit
+case's platform prerequisite and maintained Windows frontend-unit route. Its skip
+is expected only off Windows; a skip on Windows remains unexpected, and a missing
+case remains a missing route. These case declarations do not widen whole-file UI
+skip permissions or execute the route. A non-Windows skip is not a Windows process
+observation or native application acceptance.
+
 Windows archive consumers retain the same compiled skip-route observations under
 `work/test-results/windows-rust-skip-routes/`, including the complete native listing,
 its hash, the source/run binding, report and report hash. Both ordinary and Core
@@ -280,8 +287,10 @@ The payload replaces its shell with `exec` so runner cancellation reaches the
 supervised controller. GitHub may report the deadline as `cancelled`; the verifier
 requires its exact timeout annotation as well as the owned-process drain receipt.
 Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
-45 minutes, and exhaustive producers at 120 minutes; the existing 10-minute
-Windows helpers and 15-minute portability limits remain. These generous outer
+45 minutes, and exhaustive producers at 120 minutes. Windows helpers retain
+10 minutes. The macOS no-global frontend route allows
+25 minutes for cold provider setup, its full browser stages and evidence retention;
+other portability probes retain 15 minutes. These generous outer
 envelopes include cold setup and evidence upload above the audit's sampled
 ordinary jobs and failed qualification producers. They are hang
 limits, not latency targets or evidence that cleanup can survive a whole-job kill.

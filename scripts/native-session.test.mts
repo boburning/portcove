@@ -38,6 +38,113 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { observeStartup } from "../apps/desktop/scripts/desktop-startup-observation.mts";
 import { startEmbeddedInstalledSession } from "../apps/desktop/scripts/desktop-windows-embedded-session.mts";
+import { startWindowsUpdateExitObservation } from "../apps/desktop/scripts/desktop-installed-update-harness.mts";
+
+void test(
+  "marked helper observation retains actual OS exits without inventing or forcing them",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await temporaryRoot();
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const emitter = path.join(root, "marked.cjs");
+    await writeFile(
+      emitter,
+      `
+const fs = require('node:fs');
+const [marker, release, code] = process.argv.slice(2);
+fs.writeFileSync(marker, JSON.stringify({schema_version:1,process_id:process.pid,executable:process.execPath}));
+process.stdout.write('ready');
+setInterval(() => { if (fs.existsSync(release)) process.exit(Number(code)); }, 20);
+setTimeout(() => process.exit(99), 20000);
+`,
+    );
+    for (const scenario of [
+      "zero",
+      "nonzero",
+      "already-exited",
+      "timeout",
+      "wrong-path",
+      "wrong-start",
+    ]) {
+      const marker = path.join(root, `${scenario}-marker.json`);
+      const identity = path.join(root, `${scenario}-identity.json`);
+      const release = path.join(root, `${scenario}-release`);
+      const earliest = new Date().toISOString();
+      const child = spawn(
+        process.execPath,
+        [emitter, marker, release, scenario === "nonzero" ? "7" : "0", "--portcove-apply-update"],
+        { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+      );
+      const exited = once(child, "exit");
+      let observer: ReturnType<typeof startWindowsUpdateExitObservation> | undefined;
+      try {
+        await once(child.stdout, "data");
+        if (scenario === "already-exited") {
+          await writeFile(release, "release");
+          await exited;
+        }
+        observer = startWindowsUpdateExitObservation(
+          fileURLToPath(
+            new URL("../apps/desktop/scripts/native-marked-update-process.ps1", import.meta.url),
+          ),
+          [
+            "-MarkerPath",
+            marker,
+            "-IdentityPath",
+            identity,
+            "-ExpectedPath",
+            scenario === "wrong-path" ? required(process.env.ComSpec) : process.execPath,
+            "-EarliestStart",
+            scenario === "wrong-start" ? new Date(Date.now() + 60_000).toISOString() : earliest,
+            "-Helper",
+            "-ObservationTimeoutMilliseconds",
+            scenario === "timeout" ? "1000" : "15000",
+          ],
+        );
+        if (scenario === "zero" || scenario === "nonzero") {
+          const deadline = Date.now() + 10_000;
+          for (;;) {
+            try {
+              await access(identity);
+              break;
+            } catch (error) {
+              if (!isRecord(error) || error.code !== "ENOENT") throw error;
+            }
+            assert.ok(Date.now() < deadline, "observer did not retain its identity/handle");
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+          await writeFile(release, "release");
+        }
+        const result = await observer.result;
+        if (scenario === "wrong-path" || scenario === "wrong-start") {
+          assert.equal(result.kind, "failed");
+          assert.equal(child.exitCode, null, "identity refusal stopped the fixture");
+        } else {
+          assert.ok(result.kind === "observation");
+          assert.equal(result.observation.pid, child.pid);
+          assert.equal(
+            result.observation.status,
+            scenario === "already-exited"
+              ? "unobserved"
+              : scenario === "timeout"
+                ? "timeout"
+                : "exit-observed",
+          );
+          assert.equal(
+            result.observation.exit_code,
+            scenario === "nonzero" ? 7 : scenario === "zero" ? 0 : null,
+          );
+          if (scenario === "timeout")
+            assert.equal(child.exitCode, null, "observer timeout stopped the fixture");
+        }
+      } finally {
+        observer?.cancel();
+        await observer?.result;
+        await stop(child);
+      }
+    }
+  },
+);
 
 const script = fileURLToPath(
   new URL("../apps/desktop/scripts/native-session.ps1", import.meta.url),

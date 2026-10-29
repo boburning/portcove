@@ -5,6 +5,11 @@ import path from "node:path";
 import { it } from "vite-plus/test";
 import type { Reporter, TestCase, TestModule, TestSuite } from "vite-plus/test/node";
 import { createFrontendCaseObservations } from "../../../scripts/frontend-case-observations.ts";
+import {
+  declaredFrontendCaseSkip,
+  declaredUiSkip,
+  frontendCaseSkipAllowed,
+} from "../../../scripts/ui-test-selection.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 import { browserTraceProbe } from "../src/browser/failure-probe-contract.ts";
 
@@ -292,4 +297,71 @@ it("keeps unknown paths and invalid durations unknown while hashing full definit
   assert.equal(result[0]!.retry_count, null);
   assert.equal(result[1]!.name_truncated, true);
   assert.notEqual(result[1]!.definition_id, result[2]!.definition_id);
+});
+
+it("records the original Windows-only lifecycle case route without permitting a Windows skip or a wholly skipped UI file", async () => {
+  const file = path.join(root, "apps/desktop/scripts/desktop-install-fixture.test.mts");
+  const name = "lifecycle timeout terminates a ready descendant process tree within a second bound";
+  const desktop = path.join(root, "apps/desktop");
+  const declaration = declaredFrontendCaseSkip(file, desktop);
+  assert.ok(declaration && declaration.category === "platform");
+  assert.equal(declaration.platform, "win32");
+  assert.deepEqual(declaration.cases, [name]);
+  assert.equal(
+    declaration.intended_route,
+    "Windows: node scripts/run-viteplus.mts test --project unit (frontend:unit)",
+  );
+  assert.equal(
+    declaredUiSkip(file, desktop),
+    null,
+    "case metadata must not widen whole-file UI permissions",
+  );
+  for (const platform of ["linux", "darwin", "win32"] as const) {
+    assert.equal(frontendCaseSkipAllowed(declaration, {}, platform), platform !== "win32");
+    assert.equal(
+      frontendCaseSkipAllowed(declaration, { [browserTraceProbe.environment]: "1" }, platform),
+      platform !== "win32",
+    );
+  }
+  assert.equal(declaredFrontendCaseSkip(file + ".foreign", desktop), null);
+  for (const actualName of [name, "replacement Windows skipped case"]) {
+    const { reporter, lines } = capture();
+    const test = fixture({
+      fullName: actualName,
+      module: { moduleId: file } as TestModule,
+      result: () => ({
+        state: "skipped",
+        note: "original runner platform skip",
+        errors: undefined,
+      }),
+    });
+    await reporter.onTestCaseResult?.(test);
+    await end(reporter, [module([test], { moduleId: file })]);
+    const row = rows(lines).find((item) => item.kind === "test");
+    assert.ok(row);
+    assert.equal(row.outcome, "skipped");
+    assert.equal(row.skip_reason, "original runner platform skip");
+    assert.equal(row.unexpected_skip, actualName !== name || process.platform === "win32");
+    assert.deepEqual(
+      rows(lines, true)[0]?.missing_skip_routes,
+      actualName === name
+        ? []
+        : [{ file: "apps/desktop/scripts/desktop-install-fixture.test.mts", cases: [name] }],
+    );
+    if (actualName === name) assert.deepEqual(row.skip_contract, declaration);
+    else assert.equal(row.skip_contract, null);
+  }
+});
+
+it("reports disappearance of the declared platform case without rewriting the original module outcome", async () => {
+  const file = path.join(root, "apps/desktop/scripts/desktop-install-fixture.test.mts");
+  const { reporter, lines } = capture();
+  await end(reporter, [module([], { moduleId: file })]);
+  assert.deepEqual(rows(lines, true)[0]?.missing_skip_routes, [
+    {
+      file: "apps/desktop/scripts/desktop-install-fixture.test.mts",
+      cases: ["lifecycle timeout terminates a ready descendant process tree within a second bound"],
+    },
+  ]);
+  assert.equal(rows(lines).find((item) => item.kind === "module")?.outcome, "passed");
 });

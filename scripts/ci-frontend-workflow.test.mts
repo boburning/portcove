@@ -18,6 +18,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { AUDIT_STAGES } from "./audit.mts";
+import { commandTokens } from "./node-test-suites.mts";
 
 import {
   requiredFixture,
@@ -25,6 +26,7 @@ import {
   workflowJob,
   workflowJobSource,
   workflowStep,
+  executableLines,
   rustQuality,
   frontend,
   dependencyReview,
@@ -130,17 +132,132 @@ void test("shared browser uploader preserves the original three caller contracts
   }
 });
 
-void test("Fallow execution provisions its pinned process-custody compiler before analysis", () => {
-  const job = workflowJob("frontend_full");
-  assert.ok(Array.isArray(job.steps));
+function literalStepCommands(step: Record<string, unknown>) {
+  if (typeof step.run !== "string") return [];
+  // Inspect the complete body: unsupported shell control must not hide an
+  // unreachable literal command that could impersonate the required gate.
+  try {
+    return executableLines(step.run).map(commandTokens);
+  } catch {
+    return [];
+  }
+}
+
+function assertFullFrontendFallowPolicy(job: unknown) {
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
   const steps: unknown[] = job.steps;
-  const compiler = steps.findIndex(
-    (step) => isRecord(step) && step.uses === "./.github/actions/setup-rust",
+  assert.ok(steps.every(isRecord));
+  const owners = steps.filter(isRecord);
+  const analyzers = owners.flatMap((step) =>
+    literalStepCommands(step)
+      .filter(
+        (args) => args.length === 2 && args[0] === "node" && args[1] === "scripts/run-fallow.mts",
+      )
+      .map(() => step),
   );
-  const analyzer = steps.findIndex(
-    (step) => isRecord(step) && step.run === "node scripts/run-fallow.mts",
+  assert.equal(analyzers.length, 1, "one executable full Fallow gate must remain");
+  const analyzer = requiredFixture(analyzers[0]);
+  assert.deepEqual(
+    literalStepCommands(analyzer),
+    [["node", "scripts/run-fallow.mts"]],
+    "the Fallow gate body must contain only its executable invocation",
   );
-  assert.ok(compiler >= 0 && analyzer > compiler);
+  assert.equal(analyzer.if, undefined, "the full Fallow gate must run unconditionally");
+  assert.ok(!analyzer["continue-on-error"], "the Fallow gate must propagate failure");
+  const compiler = owners.findIndex((step) => step.uses === "./.github/actions/setup-rust");
+  const analysis = owners.indexOf(analyzer);
+  const browser = owners.findIndex((step) =>
+    literalStepCommands(step).some(
+      (args) => args.length === 2 && args[0] === "pnpm" && args[1] === "browser:bootstrap",
+    ),
+  );
+  assert.ok(compiler >= 0 && compiler < analysis, "compiler custody must precede Fallow");
+  assert.ok(browser > analysis, "Fallow must precede browser composition");
+  const uploaders = owners.filter(
+    (step) => isRecord(step.with) && step.with.path === "work/fallow-reports/",
+  );
+  assert.equal(uploaders.length, 1, "original Fallow report artifact input must remain");
+  const uploader = requiredFixture(uploaders[0]);
+  assert.ok(
+    typeof uploader.uses === "string" &&
+      /^actions\/upload-artifact@[a-f0-9]{40}$/u.test(uploader.uses),
+  );
+  assert.ok(isRecord(uploader.with));
+  assert.equal(uploader.if, "always()", "Fallow reports must survive a failed gate");
+  assert.match(String(uploader.with.name), /^fallow-full-/u);
+  assert.equal(uploader.with["retention-days"], 7);
+}
+
+void test("Fallow execution provisions its pinned process-custody compiler before analysis", () => {
+  assertFullFrontendFallowPolicy(workflowJob("frontend_full"));
+});
+
+void test("frontend Fallow policy accepts labels, command quoting and YAML layout but rejects removed gates and evidence", (t) => {
+  const original = workflowJob("frontend_full");
+  const harmless = structuredClone(original);
+  assert.ok(Array.isArray(harmless.steps));
+  for (const step of harmless.steps) {
+    assert.ok(isRecord(step));
+    if (typeof step.name === "string") step.name = "Renamed harmless step label";
+    if (step.run === "node scripts/run-fallow.mts")
+      step.run = "# harmless comment\n 'node'   \"scripts/run-fallow.mts\"  ";
+  }
+  const flow = parseDocument(
+    JSON.stringify({ jobs: { frontend_full: harmless } }),
+  ).toJS() as unknown;
+  assert.ok(isRecord(flow) && isRecord(flow.jobs));
+  const jobs = flow.jobs;
+  assert.doesNotThrow(() => assertFullFrontendFallowPolicy(jobs.frontend_full));
+  assertFullFrontendFallowPolicy(original);
+  for (const [mutation, oracle] of [
+    ["removed-gate", "one executable full Fallow gate must remain"],
+    ["unreachable-gate", "one executable full Fallow gate must remain"],
+    ["duplicate-invocation", "one executable full Fallow gate must remain"],
+    ["early-exit", "the Fallow gate body must contain only its executable invocation"],
+    ["failure-suppression", "the Fallow gate must propagate failure"],
+    ["conditional-gate", "the full Fallow gate must run unconditionally"],
+    ["missing-compiler", "compiler custody must precede Fallow"],
+    ["browser-before-gate", "Fallow must precede browser composition"],
+    ["missing-artifact", "original Fallow report artifact input must remain"],
+    ["success-only-artifact", "Fallow reports must survive a failed gate"],
+  ] as const) {
+    const changed = structuredClone(original);
+    assert.ok(Array.isArray(changed.steps));
+    const steps: unknown[] = changed.steps;
+    const gate = steps.find((step) => isRecord(step) && step.run === "node scripts/run-fallow.mts");
+    const artifact = steps.find(
+      (step) => isRecord(step) && isRecord(step.with) && step.with.path === "work/fallow-reports/",
+    );
+    assert.ok(isRecord(gate) && isRecord(artifact) && isRecord(artifact.with));
+    if (mutation === "removed-gate") changed.steps = steps.filter((step) => step !== gate);
+    if (mutation === "unreachable-gate")
+      gate.run = "if false; then\nnode scripts/run-fallow.mts\nfi";
+    if (mutation === "duplicate-invocation")
+      gate.run = "node scripts/run-fallow.mts\nnode scripts/run-fallow.mts";
+    if (mutation === "early-exit") gate.run = "exit 0\nnode scripts/run-fallow.mts";
+    if (mutation === "failure-suppression") gate["continue-on-error"] = true;
+    if (mutation === "conditional-gate") gate.if = "success() && false";
+    if (mutation === "missing-compiler")
+      changed.steps = steps.filter(
+        (step) => !isRecord(step) || step.uses !== "./.github/actions/setup-rust",
+      );
+    if (mutation === "browser-before-gate") {
+      const browser = steps.find((step) => isRecord(step) && step.run === "pnpm browser:bootstrap");
+      assert.ok(isRecord(browser));
+      changed.steps = [browser, ...steps.filter((step) => step !== browser)];
+    }
+    if (mutation === "missing-artifact") delete artifact.with.path;
+    if (mutation === "success-only-artifact") artifact.if = "success()";
+    assert.throws(
+      () => assertFullFrontendFallowPolicy(changed),
+      (error: unknown) => {
+        assert.ok(error instanceof assert.AssertionError);
+        assert.ok(error.message.includes(oracle), `${mutation}: ${error.message}`);
+        return true;
+      },
+    );
+    t.diagnostic(JSON.stringify({ mutation, oracle }));
+  }
 });
 
 void test("screenshot-only diagnostic is manual, preserves failure guards and verifies all attempt packets", async () => {
@@ -244,19 +361,7 @@ void test("maintained first-party sources default to checked TypeScript", () => 
 });
 
 void test("selected full Fallow runs once before browser work and retains successful evidence", async () => {
-  const full = workflowJobSource(workflow, "frontend_full");
-  assert.equal(full.match(/run: node scripts\/run-fallow\.mts/g)?.length, 1);
-  assert.ok(full.indexOf("run-fallow.mts") < full.indexOf("pnpm browser:bootstrap"));
-  const owner = workflowJob("frontend_full");
-  assert.ok(Array.isArray(owner.steps));
-  const uploader: unknown = owner.steps.find(
-    (step: unknown) => isRecord(step) && step.name === "Retain original Fallow reports",
-  );
-  assert.ok(isRecord(uploader) && isRecord(uploader.with));
-  assert.equal(uploader.if, "always()");
-  assert.equal(uploader.with.path, "work/fallow-reports/");
-  assert.match(String(uploader.with.name), /^fallow-full-/u);
-  assert.equal(uploader.with["retention-days"], 7);
+  assertFullFrontendFallowPolicy(workflowJob("frontend_full"));
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const check = requiredFixture(requiredFixture(recipes.split("\nui-check:")[1]).split(/\n\S/)[0]);
   assert.equal(check.match(/run-fallow\.mts/g)?.length, 1);
@@ -593,6 +698,7 @@ for (const closeFails of [false, true]) {
 void test("native recovery and Unix custody changes retain macOS no-global portability coverage", () => {
   const job = workflowJob("frontend_portability");
   assert.equal(job["runs-on"], "macos-26");
+  assert.equal(job["timeout-minutes"], 25);
   assert.ok(typeof job.if === "string");
   const ordinaryInputs = Array.from(
     job.if.matchAll(/contains\(needs\.classify\.outputs\.files_json, '([^']+)'\)/gu),
@@ -616,6 +722,34 @@ void test("native recovery and Unix custody changes retain macOS no-global porta
   );
 });
 
+const frontendToolInputs = [
+  ["frontend:static", ["node", "apps/desktop/scripts/browser-package-compatibility.mts"]],
+  ["frontend:static", ["vp", "-C", "apps/desktop", "run", "lint:style"]],
+  ["frontend:content", ["node", "apps/desktop/scripts/generate-transport-types.mts"]],
+  ["frontend:content", ["node", "scripts/check-transport-contract.mts", "--ipc-only"]],
+] as const;
+
+function assertFrontendToolInputs(tasks: unknown) {
+  assert.ok(isRecord(tasks));
+  for (const [name, input] of frontendToolInputs) {
+    const task = tasks[name];
+    assert.ok(isRecord(task));
+    const commands: unknown[] = Array.isArray(task.command) ? task.command : [task.command];
+    const invocations = commands.flatMap((command) => {
+      assert.equal(typeof command, "string");
+      const body = literalStepCommands({ run: command });
+      return body.length === 1 ? body : [];
+    });
+    assert.ok(
+      invocations.some(
+        (args) =>
+          args.length === input.length && args.every((value, index) => value === input[index]),
+      ),
+      `${name} must execute ${input.join(" ")}`,
+    );
+  }
+}
+
 void test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -625,12 +759,77 @@ void test("frontend tools resolve through the pinned Vite+ bundle", async () => 
   for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
     assert.equal(manifest.devDependencies[superseded], undefined);
   assert.equal(manifest.scripts.check, "vp run frontend:static");
-  const configuration = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
-  assert.match(configuration, /browser-package-compatibility.mts/);
-  assert.match(configuration, /vp -C apps\/desktop run lint:style/);
-  assert.match(configuration, /generate-transport-types.mts/);
-  assert.match(configuration, /check-transport-contract.mts --ipc-only/);
+  const { default: configuration } = await import("../vite.config.ts");
+  assertFrontendToolInputs(configuration.run?.tasks);
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mts");
+});
+
+void test("actual frontend task inputs tolerate declaration layout and reject missing or unreachable tool dependencies", async (t) => {
+  const { default: configuration } = await import("../vite.config.ts");
+  const tasks: unknown = configuration.run?.tasks;
+  assert.ok(isRecord(tasks));
+  const copyTasks = (): Record<string, unknown> =>
+    Object.fromEntries(
+      [...new Set(frontendToolInputs.map(([name]) => name))].map((name) => {
+        const task = tasks[name];
+        assert.ok(isRecord(task));
+        return [
+          name,
+          {
+            ...task,
+            command: Array.isArray(task.command)
+              ? task.command.map((value: unknown) => value)
+              : task.command,
+          },
+        ];
+      }),
+    );
+  const harmless: Record<string, unknown> = Object.fromEntries(
+    Object.entries(copyTasks()).reverse(),
+  );
+  for (const name of ["frontend:static", "frontend:content"]) {
+    const task = harmless[name];
+    assert.ok(isRecord(task) && Array.isArray(task.command));
+    task.command = task.command.map((command: unknown) => {
+      assert.equal(typeof command, "string");
+      const [args] = literalStepCommands({ run: command });
+      assert.ok(args);
+      return "# harmless task comment\n" + args.map((arg) => JSON.stringify(arg)).join("   ");
+    });
+  }
+  assert.doesNotThrow(() => assertFrontendToolInputs(harmless));
+  for (const [name, input] of frontendToolInputs) {
+    for (const mode of ["missing", "unreachable", "foreign-owner"] as const) {
+      const changed = copyTasks();
+      const task = changed[name];
+      assert.ok(isRecord(task) && Array.isArray(task.command));
+      const commands: unknown[] = task.command;
+      const selected = commands.findIndex((command) => {
+        if (typeof command !== "string") return false;
+        const body = literalStepCommands({ run: command });
+        const args = body[0];
+        return (
+          body.length === 1 &&
+          args?.length === input.length &&
+          args.every((arg, index) => arg === input[index])
+        );
+      });
+      assert.ok(selected >= 0);
+      if (mode === "unreachable") task.command[selected] = "exit 0\n" + input.join(" ");
+      else task.command.splice(selected, 1);
+      if (mode === "foreign-owner") changed["unused:foreign-owner"] = { command: input.join(" ") };
+      const oracle = `${name} must execute ${input.join(" ")}`;
+      assert.throws(
+        () => assertFrontendToolInputs(changed),
+        (error: unknown) => {
+          assert.ok(error instanceof assert.AssertionError);
+          assert.ok(error.message.includes(oracle), error.message);
+          return true;
+        },
+      );
+      t.diagnostic(JSON.stringify({ name, input, mode, oracle }));
+    }
+  }
 });
 
 void test("full frontend tests retain fresh unit and browser stages", async () => {
@@ -661,61 +860,82 @@ void test("routine checks retain architecture enforcement but make cycles option
   assert.match(recipes, /^cycles:\r?\n.*cargo modules/m);
 });
 
-void test("full frontend tasks stop after a failed unit stage and propagate browser failures", async (t) => {
-  const { default: configuration } = await import("../vite.config.ts");
-  const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
-  t.after(() => rm(parent, { recursive: true, force: true }));
-  // A synthetic parent catches accidental execution of a contributor's real tasks.
-  await writeFile(path.join(parent, "package.json"), '{"private":true,"type":"module"}');
-  await writeFile(path.join(parent, "pnpm-workspace.yaml"), "packages: []\n");
-  await writeFile(path.join(parent, "foreign.mjs"), "process.exit(97);\n");
-  const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
-  await writeFile(
-    path.join(parent, "vite.config.ts"),
-    `export default ${JSON.stringify({
-      run: { tasks: { "frontend:tests": { command: `${executable} foreign.mjs`, cache: false } } },
-    })}`,
-  );
-  const root = path.join(parent, "fixture");
-  await mkdir(root);
-  await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
-  await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
-  await writeFile(
-    path.join(root, "leaf.mjs"),
-    `
+void test(
+  "full frontend tasks stop after a failed unit stage and propagate browser failures",
+  { timeout: 240_000 },
+  async (t) => {
+    const { default: configuration } = await import("../vite.config.ts");
+    const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    // A synthetic parent catches accidental execution of a contributor's real tasks.
+    await writeFile(path.join(parent, "package.json"), '{"private":true,"type":"module"}');
+    await writeFile(path.join(parent, "pnpm-workspace.yaml"), "packages: []\n");
+    await writeFile(path.join(parent, "foreign.mjs"), "process.exit(97);\n");
+    const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
+    await writeFile(
+      path.join(parent, "vite.config.ts"),
+      `export default ${JSON.stringify({
+        run: {
+          tasks: { "frontend:tests": { command: `${executable} foreign.mjs`, cache: false } },
+        },
+      })}`,
+    );
+    const root = path.join(parent, "fixture");
+    await mkdir(root);
+    await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
+    await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
+    await writeFile(
+      path.join(root, "leaf.mjs"),
+      `
     import { appendFileSync, readFileSync } from "node:fs";
     const stage = process.argv[2];
     appendFileSync("events.txt", stage + "\\n");
     process.exit(readFileSync("failure.txt", "utf8") === stage ? 17 : 0);
   `,
-  );
-  await writeFile(
-    path.join(root, "vite.config.ts"),
-    `export default ${JSON.stringify({
-      run: {
-        tasks: {
-          "frontend:tests": requiredFixture(configuration.run?.tasks)["frontend:tests"],
-          "frontend:unit": { command: `${executable} leaf.mjs unit`, cache: false },
-          "frontend:browser": { command: `${executable} leaf.mjs browser`, cache: false },
-        },
-      },
-    })}`,
-  );
-  const cli = vitePlusCommand(fileURLToPath(new URL("../", import.meta.url)));
-  for (const failure of ["none", "unit", "browser"]) {
-    await writeFile(path.join(root, "failure.txt"), failure);
-    await writeFile(path.join(root, "events.txt"), "");
-    const result = spawnSync(cli.command, [...cli.args, "-C", root, "run", "frontend:tests"], {
-      encoding: "utf8",
-      timeout: 15_000,
-      windowsHide: true,
-    });
-    assert.ifError(result.error);
-    assert.equal(result.signal, null, result.stderr);
-    assert.equal(result.status === 0, failure === "none", result.stdout + result.stderr);
-    assert.equal(
-      await readFile(path.join(root, "events.txt"), "utf8"),
-      failure === "unit" ? "unit\n" : "unit\nbrowser\n",
     );
-  }
-});
+    await writeFile(
+      path.join(root, "vite.config.ts"),
+      `export default ${JSON.stringify({
+        run: {
+          tasks: {
+            "frontend:tests": requiredFixture(configuration.run?.tasks)["frontend:tests"],
+            "frontend:unit": { command: `${executable} leaf.mjs unit`, cache: false },
+            "frontend:browser": { command: `${executable} leaf.mjs browser`, cache: false },
+          },
+        },
+      })}`,
+    );
+    const cli = vitePlusCommand(fileURLToPath(new URL("../", import.meta.url)));
+    for (const failure of ["none", "unit", "browser"]) {
+      await writeFile(path.join(root, "failure.txt"), failure);
+      await writeFile(path.join(root, "events.txt"), "");
+      const began = performance.now();
+      const result = spawnSync(cli.command, [...cli.args, "-C", root, "run", "frontend:tests"], {
+        encoding: "utf8",
+        // Retain the already delivered cold-workspace startup calibration.
+        timeout: 60_000,
+        windowsHide: true,
+      });
+      if (result.error || result.signal !== null)
+        t.diagnostic(
+          JSON.stringify({
+            failure,
+            elapsedMilliseconds: performance.now() - began,
+            status: result.status,
+            signal: result.signal,
+            error: result.error ? String(result.error) : null,
+            events: await readFile(path.join(root, "events.txt"), "utf8"),
+            stdout: result.stdout?.slice(-8192),
+            stderr: result.stderr?.slice(-8192),
+          }),
+        );
+      assert.ifError(result.error);
+      assert.equal(result.signal, null, result.stderr);
+      assert.equal(result.status === 0, failure === "none", result.stdout + result.stderr);
+      assert.equal(
+        await readFile(path.join(root, "events.txt"), "utf8"),
+        failure === "unit" ? "unit\n" : "unit\nbrowser\n",
+      );
+    }
+  },
+);

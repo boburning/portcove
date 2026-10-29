@@ -14,6 +14,7 @@ export default defineConfig({
       functions: ["cn", "cva"],
     },
     ignorePatterns: [
+      "vendor/rfd/**", // Preserve third-party bytes; provenance and GTK probes cover the backport.
       "apps/desktop/node_modules/**",
       "apps/desktop/dist/**",
       "apps/desktop/src-tauri/gen/**",

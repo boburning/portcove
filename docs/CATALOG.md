@@ -44,6 +44,58 @@ for identified consumers and retirement conditions. Preserve installed runtimes,
 originals, saves, settings, backups and recovery independently of whether the
 builder that created them remains an active feature.
 
+## Port-driven capability selection
+
+Port integration is the product outcome for every console family. Use this
+sequence on the canonical port issue:
+
+1. **Discover:** identify the direct upstream, game, release and applicable platform.
+2. **Evaluate:** select the most useful reasonable installation, preparation and launch route.
+3. **Reuse:** prefer existing Core/adapters, official packages, supported upstream tools and safe non-owning existing-installation registration.
+4. **Identify gaps:** name the exact unsupported operation and why existing or upstream routes do not suffice.
+5. **Prioritize:** weigh known ports unlocked and expected player usefulness, reusable breadth, upstream tooling, implementation/testing complexity, maintenance cost, and source/security/rights/preservation risks.
+6. **Implement when justified:** extend the existing Core or adapter owner. Small per-port integration changes are appropriate when no shared abstraction is justified; preserve one durable lifecycle authority.
+7. **Integrate:** apply the capability to all genuinely fitting selected consumers. One shared change may justify a coherent multi-port batch.
+8. **Validate and deliver:** prove the operations actually offered, preserve installed compatibility and safety, and reconcile canonical issues, catalog evidence and the live Project.
+
+Record the short prioritization rationale with the selected consumers and missing
+operation on the existing owner. Use existing Project Priority, Horizon, Target
+release and Release commitment fields; do not add a score, adapter registry or
+parallel backlog. Many useful consumers can justify shared work ahead of isolated
+integrations; one immature consumer with a costly adapter can justify deferral.
+An adapter is independently valuable only when it serves a demonstrated
+integration need. Do not build universal console frameworks for hypothetical ports.
+
+[#135](https://github.com/boburning/portcove/issues/135),
+[#136](https://github.com/boburning/portcove/issues/136),
+[#137](https://github.com/boburning/portcove/issues/137) and
+[#138](https://github.com/boburning/portcove/issues/138) retain canonical technical
+ownership for demonstrated PS1, NES/SNES/Genesis, GameCube/Wii and Xbox 360 gaps.
+They are demand-driven dependencies of selected ports, not a separate mandatory
+implementation campaign. A port need not wait for a whole-family adapter;
+consume the smallest proven component or a fitting existing route. Broader
+manifest/build/configuration/container/lifecycle work uses the same owner when
+real consumers justify it. Planned does not commit every speculative enhancement.
+
+The existing seven-slice initial-beta plan keeps its numbering. Slice 1 owns port
+adoption, investigations and already-supported integrations through
+[#2510](https://github.com/boburning/portcove/issues/2510),
+[#2926](https://github.com/boburning/portcove/issues/2926) and canonical port issues.
+Former Slice 2, Console-Family Beta Primitives, is not a separate beta or mandatory
+1.0 campaign. New #135–#138 infrastructure does not gate initial Public beta;
+their approved 1.0 / Planned commitments remain non-gating. Other slices and
+independent protected delivery requirements retain their owners.
+
+[#1422](https://github.com/boburning/portcove/issues/1422) preserves its historical
+317 rows / 316 canonical identities, duplicate mapping, accepted routes and prior
+deferrals. For an unavailable route, retain discoverability and record the exact
+missing capability, rejected existing/upstream alternatives, source/rights/
+ownership/safety restrictions, any still-usable operations and reconsideration
+condition. Deferral is not delivery; listing is not Supported. Never delay or
+downgrade a working route because another title in the family needs new machinery.
+Later discoveries retain continuous intake; the existing daily investigation's
+approved metadata/intake scope and scheduling remain unchanged.
+
 ## Managed native portable packages
 
 The `native-portable` adapter offers the existing managed installation, update,
@@ -1150,8 +1202,10 @@ Managed preparation records observed release facts in its receipt and preserves
 authored listing links, including a useful separate upstream launcher. It does
 not add a current-tag listing URL to an otherwise reusable managed definition.
 
-Preparation flags hints containing the observed release version for applicability
-review. Prefer stable discriminating fragments, including the actual package
+Preparation flags delimited dotted release tokens, including older versions absent
+from the observed tag, for applicability review. This advisory is not a numeric
+capability classifier; architecture, ABI and engine-generation fragments remain
+valid selectors. Prefer stable discriminating fragments, including the actual package
 variant. Preserve numeric ABI/engine-generation requirements where intentional.
 Test unchanged rules through the production provider for N, N+1 and a fresh
 installation after N+1, including competing variants, foreign architectures and
@@ -1791,6 +1845,7 @@ to each record. These checks add no runtime inheritance or shared policy registr
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
+node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
 ```
 
 The command accepts a canonical Portcove issue number/URL, a direct public
@@ -1804,6 +1859,19 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+`--listing-observations` consumes a retained source handoff from the existing
+catalog observer. It prepares complete canonical records through the same
+projection, compatibility, Core-inspection and immutable-checkpoint path, without
+provider requests or artwork refresh. Only `listing.upstream_observation` changes;
+authored setup, acquisition restrictions, integration contracts, artwork and pin
+maintenance remain with their existing owners. The handoff must match the current
+declaration and, after any observation has been accepted, its exact observation
+preimage. An older proposal cannot erase a later accepted snapshot. Legacy
+handoffs without preimages work only before the first accepted observation.
+Prepared records remain unsigned proposals for normal catalog review and existing
+protected delivery. The receipt preserves the handoff and its semantic digest;
+Core inspection is reported as pending when no compatible validator is supplied.
 
 When a record names a canonical issue, `canonical_preparation` points to its exact
 retained specification in `files.upstream`, with the observed timestamp and UTF-8
@@ -2129,6 +2197,11 @@ collection nor an accounted condition establishes installability.
 DirectManifest entries retain their exact version/platform/digest/size and
 acquisition URL. Declared project and acquisition roles are inventoried
 separately, so a project URL change does not erase an older release repository.
+A user-prepared runtime may name its repository with a hosted slug or a complete
+HTTPS GitHub/GitLab repository URL. The health collector applies its existing
+upstream URL validation and retains the acquisition role independently of the
+project role; this observes repository metadata without inferring a delivered
+runtime or accepted artifact. Other hosted providers retain their slug contract.
 Hosted endpoints use bounded metadata requests; direct artifact and other project
 endpoints use credential-free HEAD without following redirects. Matching
 Content-Length establishes endpoint reachability only. Accepted bytes remain
@@ -2227,3 +2300,36 @@ The exact ReGaiden v0.4.1 Windows prepared-runtime route uses this closed
 shared-preference contract. Its [qualification report](qualification/slice6-regaiden-prepared-windows-2026-10-19.md)
 records original/artifact identity, the preserved ImGui failure, corrected
 consent and operation acceptance, and the separate delivery boundaries.
+
+### Accepted descriptive freshness and retained setup explanations
+
+Listing format 4 adds optional inert `upstream_observation`, reason-bearing
+`availability_override_reason`, and `release_maintenance` metadata. Formats 1–3
+refuse these fields; accepted projection/registration paths promote the effective
+format while preserving older serialized documents. Signed listing delivery
+retains the same publisher, revision, integrity, atomic selection and recovery
+boundary. Unsupported or invalid replacement data does not replace last-good
+cached listings or grant managed operations.
+
+Authored availability remains attributable. An explicit availability override
+requires its reason and takes display precedence. Otherwise accepted observations
+show package candidates or release assets with their provenance, original fact
+clock, expiry and complete/incomplete/unavailable/failed attempt state. An empty
+or incomplete bounded window never means source-only, unsupported or unavailable
+upstream. Provider digest claims remain unverified. The renderer does not query
+providers, update action permissions or rewrite acquisition links.
+
+Authored pin reasons and reconsideration conditions have one source; projected
+pin versions/dates come from existing Direct contracts. Listing observations can
+request compatibility reassessment without changing those immutable artifacts.
+Newer external setup guidance can intentionally describe another route.
+
+Core's optional `LaunchReadiness.setup_contract` explains the effective route:
+installation method, source requirements, saves/settings ownership, declared
+persistence and authored guidance. Installed routes derive these facts from their
+retained catalog; invalid retained metadata supplies no substituted new-catalog
+facts. Older clients lacking that projection may still show the authored guide
+under an explicit current-catalog scope; recorded mechanical facts stay unavailable. Existing activity, artifact records, source assessments and action
+assessments retain their own owners. Mechanical explanation does not authorize
+preparation, updates or backups. Marathon's shared authored guide replaces its
+identical duplicated preparation paragraph; game-specific guidance is retained.

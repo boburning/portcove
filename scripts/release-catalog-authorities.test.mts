@@ -28,6 +28,7 @@ import {
 import {
   liveControlRuntimeFixture,
   protectionFixture,
+  catalogProtectionFixture,
   capacityDocumentFixture,
 } from "./fixtures/release-live-control-fixture.mts";
 import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
@@ -70,17 +71,9 @@ function configuration() {
 }
 function runtime(catalogCoverage = true) {
   const control = releaseControlInputsFixture(capacityDocumentFixture());
-  const observation = protectionFixture(control.head());
-  if (catalogCoverage) {
-    observation.coverage = "current-repository-catalog-maintenance-only";
-    observation.inventory.branches = observation.inventory.branches.filter(
-      (row) => row.branch === "portcove-release-pause",
-    );
-    observation.inventory.rulesets = observation.inventory.rulesets.filter(
-      (rule) => rule.conditions.ref_name.include[0] === "refs/heads/portcove-release-pause",
-    );
-    observation.inventory_sha256 = digest(observation.inventory);
-  }
+  const observation = catalogCoverage
+    ? catalogProtectionFixture(control.head())
+    : protectionFixture(control.head());
   const actual = liveControlRuntimeFixture(observation, undefined, "coordinator", true);
   const config = configuration();
   config.apps.dispatch.actor_id = actual.policy.actor_id;

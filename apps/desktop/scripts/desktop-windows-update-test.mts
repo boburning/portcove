@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseArgs } from "node:util";
+import { parseArgs, type ParseArgsConfig } from "node:util";
 import { By } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import type { EmbeddedSession, EmbeddedCleanup } from "./desktop-windows-embedded-session.mts";
@@ -17,13 +17,18 @@ import type {
 } from "./desktop-owned-native-session.mts";
 import { readNativeSessionObservation } from "./desktop-owned-native-session.mts";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mts";
-import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
+import {
+  driveInstalledUpdateToRestart,
+  driveInstalledStableWaiting,
+} from "./desktop-application-update-journey.mts";
 import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mts";
 import {
   readWindowsUpdateProcessMarker as processMarker,
   readWindowsUpdateProcessObservation as markedObservation,
   type WindowsUpdateProcessMarker as ProcessMarker,
   type WindowsUpdateProcessObservation as MarkedObservation,
+  type WindowsUpdateExitCapture,
+  startWindowsUpdateExitObservation,
   awaitInstalledUpdateDriver,
   connectInstalledUpdateDriver,
   hashFile,
@@ -46,8 +51,9 @@ if (process.argv[2] === "--ordinary-public") {
   // The public route has completed its own positive owned-tree cleanup. Never enter the marker route.
   process.exit(0);
 }
-const { values } = parseArgs({
-  options: Object.fromEntries(
+const updateOptions: NonNullable<ParseArgsConfig["options"]> = {
+  "verify-stable-waiting": { type: "boolean", default: false },
+  ...Object.fromEntries(
     [
       "app",
       "output",
@@ -61,7 +67,8 @@ const { values } = parseArgs({
       "transport",
     ].map((name) => [name, { type: "string" }] as const),
   ),
-});
+};
+const { values } = parseArgs({ options: updateOptions });
 function requiredOption(name: string): string {
   const value = values[name];
   assert.ok(typeof value === "string" && value.length > 0, `--${name} is required`);
@@ -112,6 +119,10 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
   embedded_listener?: EmbeddedSession["listener"];
   embedded_startup?: EmbeddedSession["startup"];
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
+  stable_waiting?: Awaited<ReturnType<typeof driveInstalledStableWaiting>> & {
+    installed_executable_sha256_before: string;
+    installed_executable_sha256_after: string;
+  };
   ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
   native_processes_before_restart?: NativeProcessSnapshot;
   bootstrap_before_restart?: unknown;
@@ -125,6 +136,7 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
     installed_executable_sha256: string;
   };
   helper_result?: Record<string, unknown>;
+  helper_os_exit?: WindowsUpdateExitCapture;
   natural_process_exit?: Record<ProcessLabel, MarkedExit>;
   restart_command?: unknown;
   failure_capture?: string;
@@ -173,6 +185,7 @@ let snapshot: NativeProcessSnapshot | undefined;
 let activeSnapshotPath = snapshotPath;
 let restartStarted: string | undefined;
 let embeddedSession: EmbeddedSession | undefined;
+let helperExitObserver: ReturnType<typeof startWindowsUpdateExitObservation> | undefined;
 
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
@@ -300,6 +313,19 @@ try {
     await awaitInstalledUpdateDriver(driver);
     browser = await connectInstalledUpdateDriver(app, webviewProfile);
   }
+  if (values["verify-stable-waiting"]) {
+    const beforeWaiting = (await hashFile(app)).sha256;
+    assert.equal(beforeWaiting, report.initial_executable_sha256);
+    const waiting = await driveInstalledStableWaiting(browser, report.actions);
+    const afterWaiting = (await hashFile(app)).sha256;
+    assert.equal(afterWaiting, beforeWaiting);
+    report.stable_waiting = {
+      ...waiting,
+      installed_executable_sha256_before: beforeWaiting,
+      installed_executable_sha256_after: afterWaiting,
+    };
+    await save();
+  }
   report.ordinary_staging = await driveInstalledUpdateToRestart(
     browser,
     report.actions,
@@ -399,6 +425,18 @@ try {
   );
   assert.equal((await hashFile(helper.executable)).sha256, report.initial_executable_sha256);
   report.helper_process_marker = helper;
+  assert.ok(restartStarted);
+  helperExitObserver = startWindowsUpdateExitObservation(markedProcess, [
+    "-MarkerPath",
+    helperMarker,
+    "-IdentityPath",
+    path.join(output, "helper-os-exit-identity.json"),
+    "-ExpectedPath",
+    helper.executable,
+    "-EarliestStart",
+    restartStarted,
+    "-Helper",
+  ]);
   const relaunch = processMarker(
     await waitFor(() => readJson(relaunchMarker), "helper-owned candidate process marker", 90_000),
   );
@@ -436,6 +474,16 @@ try {
   assert.equal(helperResult.process_id, helper.process_id);
   assert.equal(helperResult.exit_code, 0);
   report.helper_result = helperResult;
+  report.helper_os_exit = await helperExitObserver.result;
+  assert.equal(report.helper_os_exit.kind, "observation", "Helper OS exit observation failed");
+  assert.ok(report.helper_os_exit.kind === "observation");
+  assert.equal(report.helper_os_exit.observation.pid, helper.process_id);
+  assert.equal(
+    report.helper_os_exit.observation.status,
+    "exit-observed",
+    "Helper OS exit was not captured",
+  );
+  assert.equal(report.helper_os_exit.observation.exit_code, 0);
   report.natural_process_exit = {
     candidate: await awaitMarkedProcessExit(relaunchMarker, "candidate"),
     helper: await awaitMarkedProcessExit(helperMarker, "helper"),
@@ -471,6 +519,12 @@ try {
   await recordInstalledUpdateFailure(report, error, helperMarker);
   process.exitCode = 1;
 } finally {
+  if (helperExitObserver) {
+    // Settle this read-only child before existing cleanup can stop the helper;
+    // forced cleanup must never become a claimed natural OS exit observation.
+    if (!report.helper_os_exit) helperExitObserver.cancel();
+    report.helper_os_exit ??= await helperExitObserver.result;
+  }
   if (!snapshot && driver?.exitCode === null) {
     try {
       snapshot = nativeSessionCommand("Snapshot");

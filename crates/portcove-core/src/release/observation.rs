@@ -100,7 +100,7 @@ fn observation_timestamp(value: &Value) -> Option<time::OffsetDateTime> {
 // Provider paths may escape a literal '+' (or another byte) in a release
 // component. Compare exactly one decoding within each existing path segment;
 // an encoded separator must never create a new repository or release boundary.
-fn encoded_segment_matches(encoded: &str, expected: &str) -> bool {
+pub(crate) fn encoded_segment_matches(encoded: &str, expected: &str) -> bool {
     let mut bytes = encoded.bytes();
     for expected in expected.bytes() {
         let Some(mut observed) = bytes.next() else {

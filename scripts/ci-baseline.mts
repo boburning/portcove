@@ -170,7 +170,14 @@ export function baselineLintPlan(plan: ValidationPlan, options: ClassifyOptions 
   if (!plan.groups.includes("rust-quality")) throw new Error("Plan omitted repository quality");
   const selection = baselineSelection(plan, options);
   return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
-    ["repository-lint", "oxfmt", "actionlint", "shell-lint", "python-lint"].includes(entry.id),
+    [
+      "repository-lint",
+      "oxfmt",
+      "actionlint",
+      "shell-lint",
+      "python-lint",
+      "lint-tool-fixtures",
+    ].includes(entry.id),
   );
 }
 

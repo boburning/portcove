@@ -1,4 +1,13 @@
 @layer components {
+  .detail-hero-primary {
+    inline-size: 12rem;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+  }
+  .detail-hero-action {
+    inline-size: 100%;
+  }
+
   .detail-panel {
     max-width: 97.5rem;
     margin-inline: auto;
@@ -11,7 +20,7 @@
     grid-template-columns: 128px minmax(0, 1fr);
     gap: 28px;
     align-items: center;
-    min-height: 300px;
+    min-height: 16rem;
     padding: 34px;
     border-radius: 1rem;
     background: var(--color-bg-elevated);
@@ -30,14 +39,17 @@
   .detail-identity {
     width: fit-content;
     padding-block: 0.25rem;
-    background: var(--color-bg-elevated);
+    background: transparent;
   }
   .detail-header-artwork {
     position: absolute;
     z-index: 0;
     inset: 0 0 0 auto;
-    width: 85%;
+    width: 100%;
     opacity: 0.9;
+    mask-image: url("../assets/header-artwork-mask.svg");
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
   }
   .detail-header-artwork img {
     width: 100%;
@@ -61,13 +73,6 @@
     height: auto;
     margin-inline: auto;
     object-fit: contain;
-  }
-  .detail-header-artwork::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--color-bg-elevated);
-    opacity: 0.55;
   }
   :root[data-theme="light"] .detail-header-artwork {
     opacity: 0.38;
@@ -270,11 +275,14 @@
     }
   }
   @container detail (min-width: 64em) {
-    .media-gallery-grid:has(> :nth-child(3):last-child) {
+    .media-gallery-grid:has(> :nth-child(3)) {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
   @container detail (max-width: 48em) {
+    .media-gallery-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
     .detail-hero {
       grid-template-columns: 96px minmax(0, 1fr);
       gap: 22px;
@@ -322,7 +330,7 @@
       min-width: 0;
     }
     .detail-header-artwork {
-      opacity: 0.45;
+      display: none;
     }
     .detail-overview-support,
     .detail-journey-links {

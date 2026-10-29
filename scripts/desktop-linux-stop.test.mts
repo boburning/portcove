@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
+import { planDesktopExecution } from "./desktop-execution-plan.mts";
+import { resolveDesktopSelection } from "./desktop-scenarios.mts";
 
 const source = await readFile(
   new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
@@ -15,6 +17,104 @@ const between = (start: string, end: string) => {
   assert.ok(first >= 0 && last > first);
   return source.slice(first, last);
 };
+
+void test("Linux cover restart joins exact captured processes before fixture mutation or replacement", async () => {
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      platform: "linux",
+      scenarios: ["native-default-cover-cache-conditions"],
+    }),
+    { platform: "linux" },
+  );
+  assert.equal(plan.session.historySession, true);
+  assert.equal(
+    plan.receiptInputs.filter(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    ).length,
+    1,
+  );
+  const restart = between("async function restartApplication(", "// Interrupt only this harness");
+  for (const failure of [false, true]) {
+    const calls: string[] = [];
+    const inventory = { driver: { start_ticks: "7" }, processes: [{ pid: 23, start_ticks: "7" }] };
+    const context = {
+      process: { platform: "linux" },
+      linuxSelectedSession: false,
+      historySession: true,
+      driver: { pid: 23 },
+      driverPath: "/owned/driver",
+      application: "/owned/app",
+      historyInventory: inventory,
+      browser: {
+        quit: async () => {
+          calls.push("quit");
+        },
+      },
+      captureHistorySession: async () => {
+        calls.push("capture");
+        return inventory;
+      },
+      stopDriver: async () => {
+        calls.push("stop");
+      },
+      waitHistorySessionExit: async () => {
+        calls.push("join");
+        if (failure) throw new Error("exit unknown");
+        return { all_exited: true };
+      },
+      writeFile: async () => {
+        calls.push("receipt");
+      },
+      artifacts: [],
+      output: "/owned",
+      startDriver: async (environment: unknown) => {
+        assert.deepEqual(environment, { HTTPS_PROXY: "owned-refusal" });
+        calls.push("start");
+      },
+      connect: async () => {
+        calls.push("connect");
+      },
+      driverBrowser: () => "fresh-browser",
+      assert,
+      required: <T,>(value: T) => {
+        assert.ok(value);
+        return value;
+      },
+      path,
+    };
+    runInNewContext(`${restart}\nglobalThis.restart=restartApplication;`, context);
+    const fn: unknown = Reflect.get(context, "restart");
+    assert.ok(typeof fn === "function");
+    const invoke = () =>
+      Promise.resolve(
+        Reflect.apply(fn, undefined, [
+          "offline",
+          async () => {
+            calls.push("mutate");
+          },
+          { HTTPS_PROXY: "owned-refusal" },
+        ]),
+      );
+    if (failure) {
+      await assert.rejects(invoke(), /exit unknown/);
+      assert.deepEqual(calls, ["capture", "quit", "stop", "join"]);
+    } else {
+      assert.equal(await invoke(), "fresh-browser");
+      assert.deepEqual(calls, [
+        "capture",
+        "quit",
+        "stop",
+        "join",
+        "receipt",
+        "mutate",
+        "start",
+        "connect",
+      ]);
+    }
+  }
+});
 const stop = between("async function stopDriver()", "function stopBackupFocusDriver()");
 const start = between("async function startDriver(", "async function captureSelectedDriverLaunch(");
 
@@ -199,5 +299,163 @@ void test("forced Linux recovery invalidates the session and requires positive j
       assert.deepEqual(calls, ["preparing", "join", "receipt", "start", "connect"]);
       assert.deepEqual(context.artifacts, ["/owned/preparation-restart.json"]);
     }
+  }
+});
+
+void test("history exit distinguishes exact terminal identities from reaping, live states and uncertainty", async () => {
+  const historySource = await readFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = historySource.indexOf("export async function waitHistorySessionExit(");
+  const end = historySource.indexOf("// The repository-level", start);
+  assert.ok(start >= 0 && end > start);
+  const waitSource = historySource.slice(start, end).replace("export ", "");
+  const captured = {
+    pid: 41,
+    parent: 1,
+    group: 41,
+    start_ticks: "100",
+    state: "S",
+    executable: "/owned/application",
+  };
+  const zombie = { ...captured, state: "Z", executable: null };
+  const other = { ...captured, pid: 42 };
+  const readError = new Error("procfs identity unreadable");
+  for (const observation of [
+    "zombie",
+    "absent",
+    "reused",
+    "all-absent",
+    "all-reused",
+    "live",
+    "unknown",
+    "read-error",
+    "wrong-pid",
+  ]) {
+    let elapsed = 0;
+    const context = {
+      assert,
+      Date: class extends Date {
+        static override now() {
+          return elapsed;
+        }
+      },
+      setTimeout: (callback: () => void) => {
+        elapsed += 1000;
+        callback();
+      },
+      readHistoryProcess: async (pid: number) => {
+        if (observation === "read-error") throw readError;
+        if (observation === "all-absent") return null;
+        if (observation === "all-reused") return { ...other, pid, state: "Z", start_ticks: "101" };
+        if (pid === captured.pid) return zombie;
+        if (observation === "absent") return null;
+        if (observation === "reused") return { ...other, state: "Z", start_ticks: "101" };
+        if (observation === "wrong-pid") return { ...zombie, pid: 99 };
+        return {
+          ...other,
+          state: observation === "zombie" ? "Z" : observation === "unknown" ? "?" : "R",
+          executable: null,
+        };
+      },
+    };
+    runInNewContext(`${waitSource}\nglobalThis.wait = waitHistorySessionExit;`, context);
+    const wait: unknown = Reflect.get(context, "wait");
+    assert.ok(typeof wait === "function");
+    const invoke = () =>
+      Promise.resolve(Reflect.apply(wait, undefined, [{ processes: [captured, other] }]));
+    if (["live", "unknown"].includes(observation)) {
+      await assert.rejects(invoke(), /did not exit within 5 seconds: 42/);
+    } else if (observation === "read-error") {
+      await assert.rejects(invoke(), (error) => error === readError);
+    } else if (observation === "wrong-pid") {
+      await assert.rejects(invoke(), /Expected values to be strictly equal/);
+    } else {
+      const result = object(await invoke());
+      assert.equal(result.all_exited, true);
+      assert.equal(result.all_reaped, observation.startsWith("all-"));
+      assert.deepEqual(
+        JSON.parse(JSON.stringify(result.unreaped_terminal)),
+        observation.startsWith("all-")
+          ? []
+          : observation === "zombie"
+            ? [
+                { captured, observed: zombie },
+                { captured: other, observed: { ...other, state: "Z", executable: null } },
+              ]
+            : [{ captured, observed: zombie }],
+      );
+    }
+  }
+});
+
+void test("connection readiness polls scalar DOM state through rerenders with unchanged roots and budgets", async () => {
+  const connectSource = between(
+    "async function connect() {",
+    "async function requestApplicationShutdown(",
+  );
+  for (const kind of [
+    "ordinary",
+    "bootstrap-first",
+    "preferences-first",
+    "bootstrap-reconnected",
+    "design-fixture",
+  ]) {
+    const expectedRoot = kind.endsWith("-first")
+      ? ".bootstrap-error"
+      : kind === "design-fixture"
+        ? ".design-compatibility-fixture"
+        : 'nav[aria-label="Primary navigation"]';
+    const queries: string[] = [];
+    const budgets: number[] = [];
+    const counts = new Map<string, number>();
+    const browser = {
+      manage: () => ({
+        setTimeouts: async (timeouts: unknown) =>
+          assert.deepEqual(JSON.parse(JSON.stringify(timeouts)), { script: 15000 }),
+      }),
+      findElements: () => {
+        throw new Error("Readiness must not create stale WebElement handles");
+      },
+      wait: async (condition: () => Promise<boolean>, budget: number) => {
+        budgets.push(budget);
+        for (let attempt = 0; attempt < 3; attempt++) if (await condition()) return;
+        throw new Error("Readiness did not converge");
+      },
+    };
+    const context = {
+      connectObservedDriver: async () => {},
+      linuxPackagedInspector: false,
+      driverBrowser: () => browser,
+      bootstrapRecoverySession: kind.startsWith("bootstrap"),
+      preferencesRecoverySession: kind.startsWith("preferences"),
+      connectedLaunches: kind === "bootstrap-reconnected" ? 1 : 0,
+      selection: {
+        prerequisites: kind === "design-fixture" ? ["design-compatibility-fixture"] : [],
+      },
+      executionPlan: { fixtures: { acquisitionJourney: false } },
+      document: {
+        querySelector: (selector: string) => {
+          queries.push(selector);
+          const n = (counts.get(selector) ?? 0) + 1;
+          counts.set(selector, n);
+          if (selector === ".loading-state") return n === 1 ? {} : null;
+          assert.equal(selector, expectedRoot);
+          return n === 1 ? null : {};
+        },
+      },
+      executeBrowserScript: async (_browser: unknown, callback: unknown, ...args: unknown[]) => {
+        assert.ok(typeof callback === "function");
+        const result: unknown = Reflect.apply(callback, undefined, args);
+        assert.equal(typeof result, "boolean", "DOM nodes must stay inside the webview");
+        return result;
+      },
+    };
+    runInNewContext(`${connectSource}\nglobalThis.connect = connect;`, context);
+    await callable(Reflect.get(context, "connect"))();
+    assert.deepEqual(queries, [expectedRoot, expectedRoot, ".loading-state", ".loading-state"]);
+    assert.deepEqual(budgets, [30000, 30000]);
+    assert.equal(context.connectedLaunches, kind === "bootstrap-reconnected" ? 2 : 1);
   }
 });

@@ -1,3 +1,4 @@
+import { Star } from "lucide-react";
 import {
   addRequiredSource,
   replaceRegisteredSource,
@@ -484,6 +485,14 @@ function useWorkspace(props: WorkspaceProps) {
   const [pendingToolId, setPendingToolId] = useState<string>();
   const [addGamesOpen, setAddGamesOpen] = useState(false);
   const [addGamesStarted, setAddGamesStarted] = useState(false);
+  const detailBackLabel =
+    addGamesOpen && detailOpening?.originKey?.startsWith("add-games:")
+      ? "Back to Add games"
+      : detailOpening?.originKey?.startsWith("library:")
+        ? "Back to Library"
+        : detailOpening?.originKey?.startsWith("catalog:")
+          ? "Back to Discover"
+          : undefined;
   const addGamesReturn = useRef(0);
   const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
@@ -654,6 +663,7 @@ function useWorkspace(props: WorkspaceProps) {
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
+        backLabel={detailBackLabel}
         libraryRoot={bootstrap.library_root ?? undefined}
         organization={organization}
         openSupport={() => {
@@ -674,6 +684,8 @@ function useWorkspace(props: WorkspaceProps) {
     ) : model.port ? (
       <>
         <SelectedPortPanel
+          backLabel={detailBackLabel}
+          favorites={favorites}
           extraFiles={
             model.entry?.listing &&
             !model.status?.active &&
@@ -1052,7 +1064,7 @@ function useAppModel(
         ui.view,
         ui.filter,
         ui.query,
-        ui.catalogSort,
+        ui.view === "library" ? ui.librarySort : ui.catalogSort,
         queryContext,
       ),
     [
@@ -1063,6 +1075,7 @@ function useAppModel(
       ui.libraryReadiness,
       ui.query,
       ui.catalogSort,
+      ui.librarySort,
       queryContext,
     ],
   );
@@ -1159,6 +1172,24 @@ function selectedPort(
   };
 }
 
+function launchKnownPort(
+  portId: string,
+  port: Parameters<typeof gameIdentityLabel>[0] | undefined,
+  perform: OperationState["perform"],
+  generation: BootstrapStatus["generation"],
+) {
+  if (!port) return;
+  void perform("launch", () => desktopApi.launch(portId, "", generation), {
+    context: {
+      action: "Launch",
+      operation: "launch",
+      target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
+      libraryGeneration: generation,
+      exclusionScope: "target",
+    },
+  });
+}
+
 function CurrentView({
   onAddGames,
   collection,
@@ -1232,23 +1263,14 @@ function CurrentView({
         }
         checkAll={updates.checkAll}
         perform={operations.perform}
-        onLaunch={(portId) => {
-          const port = data.catalog?.ports.find((port) => port.id === portId);
-          if (port)
-            void operations.perform(
-              "launch",
-              () => desktopApi.launch(portId, "", bootstrap.generation),
-              {
-                context: {
-                  action: "Launch",
-                  operation: "launch",
-                  target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
-                  libraryGeneration: bootstrap.generation,
-                  exclusionScope: "target",
-                },
-              },
-            );
-        }}
+        onLaunch={(portId) =>
+          launchKnownPort(
+            portId,
+            data.catalog?.ports.find((port) => port.id === portId),
+            operations.perform,
+            bootstrap.generation,
+          )
+        }
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
           ui.setSettingsCategory(settingsCategoryForTarget(target));
@@ -1259,112 +1281,22 @@ function CurrentView({
     );
   if (ui.view === "settings")
     return (
-      <SettingsView
-        category={ui.settingsCategory}
-        onCategoryChange={ui.setSettingsCategory}
-        generation={bootstrap.generation}
-        ports={data.catalog?.ports ?? []}
-        statuses={model.statusMap}
-        doctor={data.doctor}
-        storage={data.storage}
+      <CurrentSettingsView
+        data={data}
+        ui={ui}
+        model={model}
+        operations={operations}
         github={github}
-        busy={operations.busy}
-        sources={data.sources}
-        workspaceRefreshFailed={Boolean(data.refreshFailure)}
+        sourceHealth={sourceHealth}
         appearance={appearance}
-        librarySelection={bootstrap.selection ?? undefined}
-        chooseLibrary={pickLibraryFolder}
+        bootstrap={bootstrap}
         switchLibrary={switchLibrary}
         resetLibrary={resetLibrary}
-        sourceProfiles={data.catalog?.source_profiles ?? []}
-        onSourceAdded={data.refreshAfterMutation}
-        onOpenPort={openPortDetails}
-        onReviewSaves={(portId, origin) => openPortDetails(portId, origin, "saves")}
-        onOpenActivity={() => {
-          ui.setView("updates");
-          ui.setActivitySection("tasks");
-          window.requestAnimationFrame(() =>
-            document.querySelector<HTMLElement>("main h1")?.focus(),
-          );
-        }}
-        setupSource={setupSource}
-        setSetupSource={setSetupSource}
-        onCatalogChanged={data.refreshAfterMutation}
-        onOpenGameUpdates={() => {
-          ui.setView("updates");
-          ui.setActivitySection("updates");
-          window.requestAnimationFrame(() => {
-            const heading = document.querySelector<HTMLElement>("main h1");
-            heading?.scrollIntoView({ block: "start" });
-            heading?.focus({ preventScroll: true });
-          });
-        }}
         hostToolActions={hostToolActions}
         applicationUpdates={applicationUpdates}
-        diagnosticsRefreshing={data.diagnosticRefreshing}
-        diagnosticsStale={data.diagnosticsStale}
-        diagnosticFailure={data.diagnosticFailure?.error}
-        refreshDiagnostics={data.refreshDiagnostics}
-        createSupportBundle={() =>
-          operations.perform("support bundle", desktopApi.createSupportBundle, {
-            refresh: "none",
-            invalidateDiagnostics: false,
-          })
-        }
-        exportMetadata={() =>
-          operations.perform(
-            "export library metadata",
-            async () => {
-              const path = await pickMetadataExportPath();
-              return path ? desktopApi.exportLibraryMetadata(path) : undefined;
-            },
-            { refresh: "none", invalidateDiagnostics: false },
-          )
-        }
-        sourceOutcomes={sourceHealth.outcomes}
-        sourceInspections={{
-          reports: sourceHealth.inspections,
-          reads: sourceHealth.inspectionReads,
-          retry: sourceHealth.inspectSource,
-        }}
-        verifySources={() => {
-          void sourceHealth.verifyAll();
-        }}
-        openSourceEvidence={(evidenceId) => {
-          void operations.perform(
-            "open source evidence",
-            () => desktopApi.openSourceEvidence(evidenceId),
-            { refresh: "none", invalidateDiagnostics: false },
-          );
-        }}
-        replaceSource={(source) => {
-          const profile = data.catalog?.source_profiles?.find(
-            (candidate) => candidate.id === source.profile_id,
-          );
-          void replaceRegisteredSource(
-            profile,
-            source,
-            sourcePickerPurpose(source.profile_id, data.catalog?.ports ?? []),
-            operations.perform,
-            operations.setError,
-            bootstrap.generation,
-          );
-        }}
-        sourceNeeds={model.sourceNeeds}
-        installedCount={model.overview.installed}
-        sourceRequirementsState={
-          data.catalog ? "available" : data.refreshFailure ? "unavailable" : "loading"
-        }
-        addSource={(profile, archive) => {
-          void addRequiredSource(
-            profile,
-            archive,
-            sourcePickerPurpose(profile.id, data.catalog?.ports ?? []),
-            operations.perform,
-            operations.setError,
-            bootstrap.generation,
-          );
-        }}
+        openPortDetails={openPortDetails}
+        setupSource={setupSource}
+        setSetupSource={setSetupSource}
       />
     );
   if (!data.catalog && data.refreshFailure) return null;
@@ -1390,26 +1322,23 @@ function CurrentView({
       filter={ui.filter}
       query={ui.query}
       setQuery={ui.setQuery}
-      catalogSort={ui.catalogSort}
-      setCatalogSort={ui.setCatalogSort}
+      catalogSort={ui.view === "library" ? ui.librarySort : ui.catalogSort}
+      setCatalogSort={ui.view === "library" ? ui.setLibrarySort : ui.setCatalogSort}
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
-      onContinue={(portId) => {
-        const port = model.entries.find((port) => port.id === portId);
-        if (port)
-          void operations.perform(
-            "launch",
-            () => desktopApi.launch(portId, "", bootstrap.generation),
-            {
-              context: {
-                action: "Launch",
-                operation: "launch",
-                target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
-                libraryGeneration: bootstrap.generation,
-                exclusionScope: "target",
-              },
-            },
-          );
+      onContinue={(portId) =>
+        launchKnownPort(
+          portId,
+          model.entries.find((port) => port.id === portId),
+          operations.perform,
+          bootstrap.generation,
+        )
+      }
+      onTask={(activityId) => {
+        ui.setReviewedActivityId(activityId);
+        ui.setView("updates");
+        ui.setActivitySection("tasks");
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
       }}
       onBrowseCatalog={onAddGames}
       onConnectGameFiles={() => {
@@ -1432,16 +1361,161 @@ function CurrentView({
   );
 }
 
+function CurrentSettingsView({
+  data,
+  ui,
+  model,
+  operations,
+  github,
+  sourceHealth,
+  appearance,
+  bootstrap,
+  switchLibrary,
+  resetLibrary,
+  hostToolActions,
+  applicationUpdates,
+  openPortDetails,
+  setupSource,
+  setSetupSource,
+}: Pick<
+  Parameters<typeof CurrentView>[0],
+  | "data"
+  | "ui"
+  | "model"
+  | "operations"
+  | "github"
+  | "sourceHealth"
+  | "appearance"
+  | "bootstrap"
+  | "switchLibrary"
+  | "resetLibrary"
+  | "hostToolActions"
+  | "applicationUpdates"
+  | "openPortDetails"
+  | "setupSource"
+  | "setSetupSource"
+>) {
+  return (
+    <SettingsView
+      category={ui.settingsCategory}
+      onCategoryChange={ui.setSettingsCategory}
+      generation={bootstrap.generation}
+      ports={data.catalog?.ports ?? []}
+      statuses={model.statusMap}
+      doctor={data.doctor}
+      storage={data.storage}
+      github={github}
+      busy={operations.busy}
+      sources={data.sources}
+      workspaceRefreshFailed={Boolean(data.refreshFailure)}
+      appearance={appearance}
+      librarySelection={bootstrap.selection ?? undefined}
+      chooseLibrary={pickLibraryFolder}
+      switchLibrary={switchLibrary}
+      resetLibrary={resetLibrary}
+      sourceProfiles={data.catalog?.source_profiles ?? []}
+      onSourceAdded={data.refreshAfterMutation}
+      onOpenPort={openPortDetails}
+      onReviewSaves={(portId, origin) => openPortDetails(portId, origin, "saves")}
+      onOpenActivity={() => {
+        ui.setView("updates");
+        ui.setActivitySection("tasks");
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+      }}
+      setupSource={setupSource}
+      setSetupSource={setSetupSource}
+      onCatalogChanged={data.refreshAfterMutation}
+      onOpenGameUpdates={() => {
+        ui.setView("updates");
+        ui.setActivitySection("updates");
+        window.requestAnimationFrame(() => {
+          const heading = document.querySelector<HTMLElement>("main h1");
+          heading?.scrollIntoView({ block: "start" });
+          heading?.focus({ preventScroll: true });
+        });
+      }}
+      hostToolActions={hostToolActions}
+      applicationUpdates={applicationUpdates}
+      diagnosticsRefreshing={data.diagnosticRefreshing}
+      diagnosticsStale={data.diagnosticsStale}
+      diagnosticFailure={data.diagnosticFailure?.error}
+      refreshDiagnostics={data.refreshDiagnostics}
+      createSupportBundle={() =>
+        operations.perform("support bundle", desktopApi.createSupportBundle, {
+          refresh: "none",
+          invalidateDiagnostics: false,
+        })
+      }
+      exportMetadata={() =>
+        operations.perform(
+          "export library metadata",
+          async () => {
+            const path = await pickMetadataExportPath();
+            return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+          },
+          { refresh: "none", invalidateDiagnostics: false },
+        )
+      }
+      sourceOutcomes={sourceHealth.outcomes}
+      sourceInspections={{
+        reports: sourceHealth.inspections,
+        reads: sourceHealth.inspectionReads,
+        retry: sourceHealth.inspectSource,
+      }}
+      verifySources={() => {
+        void sourceHealth.verifyAll();
+      }}
+      openSourceEvidence={(evidenceId) => {
+        void operations.perform(
+          "open source evidence",
+          () => desktopApi.openSourceEvidence(evidenceId),
+          { refresh: "none", invalidateDiagnostics: false },
+        );
+      }}
+      replaceSource={(source) => {
+        const profile = data.catalog?.source_profiles?.find(
+          (candidate) => candidate.id === source.profile_id,
+        );
+        void replaceRegisteredSource(
+          profile,
+          source,
+          sourcePickerPurpose(source.profile_id, data.catalog?.ports ?? []),
+          operations.perform,
+          operations.setError,
+          bootstrap.generation,
+        );
+      }}
+      sourceNeeds={model.sourceNeeds}
+      installedCount={model.overview.installed}
+      sourceRequirementsState={
+        data.catalog ? "available" : data.refreshFailure ? "unavailable" : "loading"
+      }
+      addSource={(profile, archive) => {
+        void addRequiredSource(
+          profile,
+          archive,
+          sourcePickerPurpose(profile.id, data.catalog?.ports ?? []),
+          operations.perform,
+          operations.setError,
+          bootstrap.generation,
+        );
+      }}
+    />
+  );
+}
+
 function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useAppModel>) {
   return (data.catalog?.ports ?? []).filter((port) => model.statusMap.get(port.id)?.active);
 }
 
 function SelectedPortPanel({
+  favorites,
   organization,
   openSupport,
   extraFiles,
   openActivity,
   opening,
+  backLabel,
   model,
   ui,
   operations,
@@ -1456,11 +1530,13 @@ function SelectedPortPanel({
   openLibraryStorage,
   close,
 }: {
+  favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
   extraFiles?: ReactNode;
   openActivity: () => void;
   opening?: DetailOpening | undefined;
+  backLabel?: string | undefined;
   model: ReturnType<typeof useAppModel>;
   ui: UiState;
   operations: OperationState;
@@ -1476,6 +1552,7 @@ function SelectedPortPanel({
   close: () => void;
 }) {
   if (!model.port) return null;
+  const favoritePortId = model.port.id;
   const pickSource = model.sourceProfile
     ? () => {
         return applyPathChoice(
@@ -1506,6 +1583,39 @@ function SelectedPortPanel({
     : undefined;
   return (
     <DetailPanel
+      backLabel={backLabel}
+      favoriteControl={
+        <>
+          <Button
+            data-focusable
+            variant={favorites.ids?.has(favoritePortId) ? "selected" : "outline"}
+            size="icon-lg"
+            aria-label={`Favorite ${gameIdentityLabel(model.entry ?? model.port)}`}
+            aria-pressed={favorites.ids?.has(favoritePortId) ?? false}
+            disabled={!favorites.ids || favorites.busy}
+            focusableWhenDisabled={Boolean(favorites.ids) && favorites.busy}
+            aria-busy={favorites.busy}
+            onClick={() => void favorites.toggle(favoritePortId)}
+          >
+            <Star aria-hidden="true" />
+          </Button>
+          {favorites.failure && (
+            <span role="alert" className="max-w-prose text-sm text-pc-warning-foreground">
+              {favorites.failure === "write"
+                ? "The favorite change could not be confirmed. Refresh to reconcile."
+                : "Favorites could not be loaded."}{" "}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={favorites.busy}
+                onClick={() => void favorites.refresh()}
+              >
+                Refresh favorites
+              </Button>
+            </span>
+          )}
+        </>
+      }
       organization={organization}
       openSupport={openSupport}
       extraFiles={extraFiles}
@@ -1762,7 +1872,6 @@ function useWorkspaceLibrary({
   returnToSelection,
 }: WorkspaceProps) {
   const data = usePortcoveData(bootstrap.generation);
-  const collection = useCollectionLayout(bootstrap.library_root);
   const favorites = useFavorites(bootstrap.generation);
   const organization = useOrganization(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
@@ -1810,6 +1919,10 @@ function useWorkspaceLibrary({
         ]).size
       : undefined,
   });
+  const collection = useCollectionLayout(
+    bootstrap.library_root,
+    ui.view === "catalog" ? "catalog" : "library",
+  );
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
     if (

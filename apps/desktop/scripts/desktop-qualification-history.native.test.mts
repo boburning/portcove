@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
+import { assertHistoryRestoration } from "./desktop-qualification-history-test.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 
 const source = stripTypeScriptTypes(
@@ -77,12 +78,13 @@ void test("historical cleanup retains malformed replies after all cleanup and pr
   );
   const end = source.lastIndexOf("\n    }\n    if (primaryFailure)");
   const tail = source.slice(end + "\n    }".length, source.lastIndexOf("\n  });"));
-  const helpers = source.slice(
-    source.indexOf("function object("),
-    source.indexOf("// Linux history"),
-  );
   assert.ok(start >= 0 && end > start);
+  // The actual imported function carries its local declaration name through
+  // an API-preserving export alias, without requiring an optional parser here.
+  const localName = assertHistoryRestoration.name;
+  assert.ok(localName.length > 0);
   const goodRestoration = { restored: true, snapshots: 1, reports: 1 };
+  const noObservationsRestoration = { restored: true, snapshots: 0, reports: 0 };
   const cases: [unknown, unknown][] = [
     [null, { ok: true, value: [] }],
     [false, { ok: true, value: [] }],
@@ -95,6 +97,7 @@ void test("historical cleanup retains malformed replies after all cleanup and pr
     [goodRestoration, { ok: "yes", value: [] }],
     [goodRestoration, { ok: true, value: { length: 0 } }],
     [goodRestoration, { ok: true, value: [] }],
+    [noObservationsRestoration, { ok: true, value: [] }],
   ];
   for (const [restored, nativeReply] of cases) {
     for (const failWrite of [false, true])
@@ -111,8 +114,7 @@ void test("historical cleanup retains malformed replies after all cleanup and pr
         const records: unknown[] = [];
         const observation = primaryFailure ? { failure: { message: "original" } } : {};
         const result: unknown = runInNewContext(
-          `${helpers}
-        (async () => {
+          `(async () => {
           let validationFailure;
           let evidenceFailure;
           try {}
@@ -121,6 +123,7 @@ void test("historical cleanup retains malformed replies after all cleanup and pr
         })()`,
           {
             assert,
+            [localName]: assertHistoryRestoration,
             isRecord,
             errorMessage,
             primaryFailure,
@@ -155,7 +158,8 @@ void test("historical cleanup retains malformed replies after all cleanup and pr
           { timeout: 1000 },
         );
         const positive =
-          restored === goodRestoration &&
+          (restored === goodRestoration ||
+            (restored === noObservationsRestoration && primaryFailure !== undefined)) &&
           isRecord(nativeReply) &&
           nativeReply.ok === true &&
           Array.isArray(nativeReply.value);
@@ -178,7 +182,42 @@ void test("historical cleanup retains malformed replies after all cleanup and pr
           assert.ok(isRecord(records[0]));
           assert.ok(Object.hasOwn(records[0], "restoration"));
           assert.ok(Object.hasOwn(records[0], "native_source_restoration"));
+          if (restored === noObservationsRestoration)
+            assert.equal(
+              Object.hasOwn(records[0], "restoration_validation_failure"),
+              primaryFailure === undefined,
+            );
         }
       }
   }
+});
+
+void test("history restoration validation retains mandatory observations and narrow malformed-reply refusals", () => {
+  const good = { restored: true, snapshots: 1, reports: 1 },
+    native = { ok: true, value: [] };
+  assertHistoryRestoration(good, native, { scenarioFailed: false });
+  assertHistoryRestoration({ restored: true, snapshots: 0, reports: 0 }, native, {
+    scenarioFailed: true,
+  });
+  assertHistoryRestoration({ restored: true, installed: false, snapshots: 0, reports: 0 }, native, {
+    scenarioFailed: false,
+  });
+  for (const restored of [
+    { ...good, restored: false },
+    { ...good, installed: "false" },
+    { ...good, snapshots: -1 },
+    { ...good, reports: 0 },
+    { ...good, snapshots: 0, reports: 0 },
+    { ...good, error: false },
+  ])
+    assert.throws(() => assertHistoryRestoration(restored, native, { scenarioFailed: false }));
+  for (const reply of [
+    { ok: false, value: [] },
+    { ok: true, value: { length: 0 } },
+    { ok: true, value: [{}] },
+  ])
+    assert.throws(() => assertHistoryRestoration(good, reply, { scenarioFailed: false }));
+  assert.throws(() =>
+    assertHistoryRestoration(good, native, { scenarioFailed: false, windowError: false }),
+  );
 });

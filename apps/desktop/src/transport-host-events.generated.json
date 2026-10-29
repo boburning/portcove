@@ -162,6 +162,15 @@
           "id"
         ],
         "type": "object"
+      },
+      "ProgressUnit": {
+        "enum": [
+          "bytes",
+          "items",
+          "ports",
+          "indeterminate"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -220,6 +229,13 @@
           "phase": {
             "type": "string"
           },
+          "phase_id": {
+            "description": "Stable producer identity, independent of translated display wording.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "total": {
             "format": "uint64",
             "minimum": 0,
@@ -231,6 +247,17 @@
           "type": {
             "const": "progress",
             "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProgressUnit"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent on older producers; clients must not infer it from phase text."
           }
         },
         "required": [

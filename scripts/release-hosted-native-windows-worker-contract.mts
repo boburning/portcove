@@ -156,6 +156,8 @@ export function inspectHostedWindowsWorkerRequest(raw: unknown) {
   const binding = file(raw.binding);
   assert.equal(path.win32.dirname(binding.path).toLowerCase(), raw.capture_root.toLowerCase());
   return Object.freeze({
+    schema_version: 1 as const,
+    abi: hostedWindowsWorkerAbi,
     stage: raw.stage,
     package: candidate,
     predecessor,

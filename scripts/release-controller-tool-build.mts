@@ -7,6 +7,7 @@ import { createRequire, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
 import { acquireWindowsWebviewDriver } from "./release-windows-webview-driver.mts";
+import { captureSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
 import { acquireNativePnpm, nativePnpmVersion } from "./release-pnpm-runtime.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
@@ -273,6 +274,24 @@ export async function buildControllerTools(
         throw new Error("bootstrap checkout differs from independently fixed source");
     };
     guard();
+    const runtimeContext = {
+      source: expected.commit,
+      workflow: process.env.GITHUB_WORKFLOW_REF,
+      run_id: process.env.GITHUB_RUN_ID,
+      attempt: process.env.GITHUB_RUN_ATTEMPT,
+    };
+    const runtime =
+      platform === "windows-x86_64"
+        ? await captureSupportedHostedWindowsRuntimeInput(sourceRoot, runtimeContext, () => {
+            guard();
+            if (
+              process.env.GITHUB_WORKFLOW_REF !== runtimeContext.workflow ||
+              process.env.GITHUB_RUN_ID !== runtimeContext.run_id ||
+              process.env.GITHUB_RUN_ATTEMPT !== runtimeContext.attempt
+            )
+              throw new Error("Original runtime bootstrap context changed");
+          })
+        : null;
     const tools = path.join(directory, "tools");
     mark("source-assets");
     for (const name of profile.assets)
@@ -303,7 +322,15 @@ export async function buildControllerTools(
       });
     if (platform === "windows-x86_64") {
       mark("fixed-microsoft-webview-driver");
-      await acquireWindowsWebviewDriver(sourceRoot, tools, env);
+      const driver = await acquireWindowsWebviewDriver(sourceRoot, tools, env);
+      if (!runtime || driver.version !== runtime.facts.observed)
+        throw new Error("Supported runtime and acquired Microsoft driver version differ");
+      await runtime.recheck();
+      await writeFile(
+        path.join(tools, "windows-runtime-prerequisite.json"),
+        JSON.stringify(runtime.report),
+        { flag: "wx", mode: 0o600 },
+      );
       guard();
     }
     mark("fixed-node-bundles");
@@ -359,7 +386,14 @@ export async function buildControllerTools(
       ],
       {
         cwd: sourceRoot,
-        environment: { ...env, CARGO_NET_RETRY: "0", CARGO_PROFILE_DEV_DEBUG: "0" },
+        environment: {
+          ...env,
+          // This isolated registry install has repeatedly failed with HTTP/2 framing errors.
+          // Keep TLS, locked identities and the zero-retry budget; use Cargo's HTTP/1.1 route.
+          CARGO_HTTP_MULTIPLEXING: "false",
+          CARGO_NET_RETRY: "0",
+          CARGO_PROFILE_DEV_DEBUG: "0",
+        },
       },
     );
     if (driverStatus !== 0)
@@ -442,6 +476,7 @@ export async function buildControllerTools(
       mode: 0o600,
     });
     mark("complete");
+    await runtime?.recheck();
     return {
       directory,
       tools,

@@ -3,7 +3,7 @@ import {
   fixtureObject as object,
 } from "./desktop-scenario-state.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
-import type { WebDriver } from "selenium-webdriver";
+import type { WebDriver, Locator } from "selenium-webdriver";
 import type { FixtureCommand, OwnedFixtureContext } from "./desktop-scenario-state.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type {
@@ -47,6 +47,18 @@ export function sourceProfileLabel(value: unknown, profile: string): string {
   );
   return identity.label;
 }
+export async function waitForDisabledSourceReview(browser: WebDriver, candidate: () => Locator) {
+  await browser.wait(
+    async () =>
+      !(await browser
+        .findElement(candidate())
+        .findElement(By.css("[data-candidate-review]"))
+        .isEnabled()),
+    5_000,
+    "Selected setup: stale review disabled after unavailable-root refresh",
+  );
+}
+
 function gameFileRoot(value: unknown): GameFileRoot {
   return required(transportValue("game_file_roots", [value])[0]);
 }
@@ -321,12 +333,9 @@ async function progressiveScanNavigation({
       assert.equal(await browser.findElement(button("Scan saved folders")).isEnabled(), false);
       assert.equal(await browser.findElement(button("Cancel scan")).isEnabled(), true);
       await click(button(`View ${port.name} details`));
-      await browser.wait(
-        until.elementLocated(By.css('[aria-label="Back to previous workspace"]')),
-        5_000,
-      );
+      await browser.wait(until.elementLocated(By.css("[data-detail-back]")), 5_000);
       assert.equal((await browser.findElements(By.id("game-file-libraries-heading"))).length, 0);
-      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await click(By.css("[data-detail-back]"));
       await browser.wait(until.elementLocated(button(`View ${port.name} details`)), 5_000);
       assert.equal(await browser.findElement(button("Scan saved folders")).isEnabled(), false);
       assert.equal(await browser.findElement(button("Cancel scan")).isEnabled(), true);
@@ -1755,7 +1764,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
         5_000,
       );
       report.observations.neutral_setup_cancel_restored_opener_focus = true;
-      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await click(By.css("[data-detail-back]"));
       const returned = await enabled(checkboxLocator);
       assert.ok(returned);
       assert.equal(await returned.isSelected(), true);
@@ -2345,14 +2354,11 @@ export async function selectedSetupScenario({
       );
       for (const port of [fixture.port, fixture.refreshPort]) {
         await click(button(`Open ${port.name} details`));
-        await browser.wait(
-          until.elementLocated(By.css('[aria-label="Back to previous workspace"]')),
-          5_000,
-        );
+        await browser.wait(until.elementLocated(By.css("[data-detail-back]")), 5_000);
         assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
         if (port === fixture.refreshPort)
           report.observations.missing_bios_detail = await selectedSetupDetail(browser, port, false);
-        await click(By.css('[aria-label="Back to previous workspace"]'));
+        await click(By.css("[data-detail-back]"));
         await browser.wait(until.elementLocated(continuation), 5_000);
       }
       await reviewCandidate(owned.profiles[1]);
@@ -2412,7 +2418,7 @@ export async function selectedSetupScenario({
         true,
       );
       report.checkpoint = "registered-bios-return-control";
-      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await click(By.css("[data-detail-back]"));
       report.checkpoint = "registered-bios-return-continuation";
       await browser.wait(
         until.elementLocated(continuation),
@@ -2436,15 +2442,7 @@ export async function selectedSetupScenario({
       rootMoved = true;
       await click(button("Refresh folders"));
       report.checkpoint = "unavailable-root-disabled-review";
-      await browser.wait(
-        async () =>
-          !(await browser
-            .findElement(row(owned.profiles[0]))
-            .findElement(By.css("[data-candidate-review]"))
-            .isEnabled()),
-        5_000,
-        "Selected setup: stale review disabled after unavailable-root refresh",
-      );
+      await waitForDisabledSourceReview(browser, () => row(owned.profiles[0]));
       report.checkpoint = "unavailable-root-observations";
       const snapshot = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(snapshot.freshness, "inputs_changed");

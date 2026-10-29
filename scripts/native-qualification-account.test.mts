@@ -1,11 +1,118 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync, copyFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
+import { windowsOwnerEnvironment } from "./release-windows-owner-mechanism.mts";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import path from "node:path";
 import { homedir } from "node:os";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { windowsSourceSystemExecutables } from "./release-native-runtime-custody.mts";
+
+function actualDiagnosticOwnerEnvironment(directory: string): NodeJS.ProcessEnv {
+  const controller = readFileSync(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    "utf8",
+  );
+  const start = controller.indexOf("function environment(root: string)");
+  const end = controller.indexOf("\nasync function retain(", start);
+  assert.ok(start > 0 && end > start);
+  const jobEnvironment = {
+    ...process.env,
+    SystemRoot: process.env.SystemRoot ?? "C:\\Windows",
+    GITHUB_ACTIONS: "true",
+    RUNNER_ENVIRONMENT: "github-hosted",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_JOB: "installed-prerequisite",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: "a".repeat(40),
+    GITHUB_RUN_ID: "123",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-native-s2-20261028",
+    PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
+    PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
+    PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
+  };
+  // Execute the actual controller projection; richer workflow inputs must not mask A's narrower environment.
+  const result = runInNewContext(
+    stripTypeScriptTypes(controller.slice(start, end) + "\nenvironment(directory)"),
+    {
+      windowsOwnerEnvironment: (root: string) => windowsOwnerEnvironment(root, jobEnvironment),
+      process: { env: jobEnvironment },
+      directory,
+    },
+  ) as NodeJS.ProcessEnv;
+  for (const key of [
+    "PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC",
+    "PORTCOVE_HOSTED_PLATFORM",
+    "PORTCOVE_HOSTED_OBSERVATION_ONLY",
+  ])
+    assert.equal(Object.hasOwn(result, key), false);
+  return result;
+}
+
+void test("actual bridge entry separates held production from fixed diagnostic scope before input reads", () => {
+  const source = readFileSync(
+    new URL("./native-qualification-account-bridge.ps1", import.meta.url),
+    "utf8",
+  );
+  const boundary = source.indexOf("# This is fixed owner-side launch plumbing");
+  assert.ok(boundary > 0);
+  const prefix = source.slice(0, boundary);
+  assert.equal(prefix.split("$hostedCandidateExecutionAuthorized = $false").length, 2);
+  assert.equal(prefix.split("$hostedDiagnosticCandidateExecutionAuthorized = $false").length, 2);
+  const script = String.raw`
+$ErrorActionPreference='Stop'
+$original=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:PORTCOVE_TEST_BRIDGE_PREFIX))
+$activated=$original.Replace('$hostedDiagnosticCandidateExecutionAuthorized = $false','$hostedDiagnosticCandidateExecutionAuthorized = $true')
+# Inert entry-only fixture. No owner identity, ACL, credential, account, group or candidate operation is evaluated.
+$activated=$activated.Replace('[Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT','$false')
+$activated+=";Write-Output 'entry-only-diagnostic-accepted'"
+function Invoke-Entry([string]$code,$memory,[string]$expected) {
+ $accepted=$false
+ try {$value=& ([scriptblock]::Create($code)) -Configuration 'nonexistent-input-must-not-be-read.json' -ExpectedConfigurationSha256 ('a'*64) -InvocationId ('b'*64) -HostedMemoryContext $memory
+  if($expected -cne 'accept'){throw 'Unexpected entry acceptance'}
+  if($value -cne 'entry-only-diagnostic-accepted'){throw 'Inert entry marker absent'};$accepted=$true
+ }catch{if($expected -ceq 'accept' -or -not $_.Exception.Message.Contains($expected)){throw}}
+ if($expected -ceq 'accept' -and -not $accepted){throw 'Expected inert entry did not return'}
+}
+$fixed=@{};($env:PORTCOVE_TEST_ACTUAL_A_ENVIRONMENT|ConvertFrom-Json).PSObject.Properties|ForEach-Object{$fixed[$_.Name]=[string]$_.Value}
+foreach($key in $fixed.Keys){[Environment]::SetEnvironmentVariable($key,$fixed[$key])}
+Invoke-Entry $original @{} 'awaits separate candidate execution authority'
+Invoke-Entry $original @{diagnostic=$true} 'awaits separate diagnostic execution authority'
+Invoke-Entry $activated @{} 'awaits separate candidate execution authority'
+Invoke-Entry $activated @{diagnostic=$false} 'Fixed diagnostic memory scope required'
+Invoke-Entry $activated @{diagnostic='true'} 'Fixed diagnostic memory scope required'
+Invoke-Entry $activated @{diagnostic=$true} 'accept'
+foreach($key in @($fixed.Keys|Where-Object{$_ -like 'GITHUB_*' -or $_ -ceq 'RUNNER_ENVIRONMENT'})){
+ [Environment]::SetEnvironmentVariable($key,'wrong-context')
+ Invoke-Entry $activated @{diagnostic=$true} 'Fixed hosted diagnostic bridge context required'
+ [Environment]::SetEnvironmentVariable($key,$fixed[$key])
+}
+foreach($ref in @('boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/main','boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-other','boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/tags/feature/534-connected-native-s2-20261028')){
+ $env:GITHUB_WORKFLOW_REF=$ref;Invoke-Entry $activated @{diagnostic=$true} 'Fixed hosted diagnostic bridge context required'
+}
+Write-Output 'held-production-fixed-diagnostic-entry-controls-pass'
+`;
+  const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    encoding: "utf8",
+    timeout: 30000,
+    maxBuffer: 128 * 1024,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      PORTCOVE_TEST_BRIDGE_PREFIX: Buffer.from(prefix).toString("base64"),
+      PORTCOVE_TEST_ACTUAL_A_ENVIRONMENT: JSON.stringify(
+        actualDiagnosticOwnerEnvironment("C:\\inert-owner"),
+      ),
+    },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /held-production-fixed-diagnostic-entry-controls-pass/u);
+});
 
 void test(
   "hosted candidate launcher and memory bridge refuse before effects under separate source holds",
@@ -436,7 +543,7 @@ try {
   },
 );
 
-function runMemoryBridgeFixture(context: test.TestContext, mutate: boolean) {
+function runMemoryBridgeFixture(context: test.TestContext, mutate: boolean, diagnostic = false) {
   const outer = disposableDirectory(context, path.join(homedir(), ".pc-memory-bridge-"));
   const script = String.raw`
 $ErrorActionPreference='Stop'
@@ -455,10 +562,11 @@ if($mutation){
  [Portcove.MemoryBridgeClock]::Now=[Diagnostics.Stopwatch]::GetTimestamp()
  $source=$source.Replace('[Diagnostics.Stopwatch]::GetTimestamp()','[Portcove.MemoryBridgeClock]::Now')
 }
-$held='$hostedCandidateExecutionAuthorized = $false'
+$diagnostic=$env:PORTCOVE_TEST_NATIVE_DIAGNOSTIC -ceq 'true'
+$held=if($diagnostic){'$hostedDiagnosticCandidateExecutionAuthorized = $false'}else{'$hostedCandidateExecutionAuthorized = $false'}
 if($source.Split($held).Count -ne 2){throw 'Expected one shipping memory hold'}
 # Only this disposable bridge copy exercises the owner-memory loop. C# launch stays false.
-[IO.File]::WriteAllText($bridge,$source.Replace($held,'$hostedCandidateExecutionAuthorized = $true'))
+[IO.File]::WriteAllText($bridge,$source.Replace($held,$held.Replace('$false','$true')))
 $helper=Join-Path $scripts 'native-qualification-account.cs.txt';[IO.File]::Copy($env:PORTCOVE_TEST_NATIVE_HELPER,$helper)
 $capture=Join-Path $root 'capture';[Portcove.HostedNative.Setup]::Directory($capture,$owner,$null,$false)
 $nonce='b'*64;$sid='S-1-5-21-100-200-300-9999'
@@ -476,6 +584,7 @@ $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($config)
 $secret=ConvertTo-SecureString 'inert-not-an-account-password' -AsPlainText -Force;$secret.MakeReadOnly()
 $initialTicks=[long][Diagnostics.Stopwatch]::GetTimestamp();if($mutation){$initialTicks=[Portcove.MemoryBridgeClock]::Now}
 $memory=@{configuration=$config;credential=$secret;deadline_ticks=($initialTicks+10L*[Diagnostics.Stopwatch]::Frequency);frequency=[long][Diagnostics.Stopwatch]::Frequency;group=$group;desktop_name=('PortcoveHosted_'+('a'*32));helper_sha256=$configuration.helper_sha256;owner_pid=$PID;owner_created_filetime=[Diagnostics.Process]::GetCurrentProcess().StartTime.ToFileTimeUtc().ToString()}
+if($diagnostic){$memory.diagnostic=$true}
 $worker=[PowerShell]::Create();$client=$null;$pending=$null
 try {
  $null=$worker.AddCommand($bridge).AddParameter('Configuration',$configPath).AddParameter('ExpectedConfigurationSha256',$configSha).AddParameter('InvocationId',$nonce).AddParameter('HostedMemoryContext',$memory)
@@ -538,6 +647,8 @@ try {
         ...process.env,
         PORTCOVE_TEST_NATIVE_ROOT: outer,
         PORTCOVE_TEST_NATIVE_MUTATE: mutate ? "true" : "",
+        PORTCOVE_TEST_NATIVE_DIAGNOSTIC: diagnostic ? "true" : "",
+        ...(diagnostic ? actualDiagnosticOwnerEnvironment(outer) : {}),
         PORTCOVE_TEST_NATIVE_HELPER: fileURLToPath(
           new URL("./native-qualification-account.cs.txt", import.meta.url),
         ),
@@ -568,6 +679,17 @@ void test(
   "owned-copy hosted memory bridge cannot renew its original clock through context mutation",
   { skip: process.platform !== "win32" },
   (context) => runMemoryBridgeFixture(context, true),
+);
+
+void test(
+  "owned-copy diagnostic memory bridge settles its original empty group while production remains held",
+  { skip: process.platform !== "win32" },
+  (context) => runMemoryBridgeFixture(context, false, true),
+);
+void test(
+  "owned-copy diagnostic memory bridge cannot renew its original owner deadline",
+  { skip: process.platform !== "win32" },
+  (context) => runMemoryBridgeFixture(context, true, true),
 );
 
 void test(
@@ -634,7 +756,7 @@ ConvertTo-Json -InputObject $results -Depth 4 -Compress
           ),
           PORTCOVE_TEST_NATIVE_ROOT: root,
           PORTCOVE_TEST_NATIVE_OWNER: fileURLToPath(
-            new URL("./release-hosted-native-windows-owner.ps1", import.meta.url),
+            new URL("./release-hosted-native-windows-owner-mechanism.ps1", import.meta.url),
           ),
           PORTCOVE_TEST_NATIVE_NODE: process.execPath,
         },
@@ -656,5 +778,77 @@ ConvertTo-Json -InputObject $results -Depth 4 -Compress
       ["before-ready", "after-ack", "early-membership-refusal", "early-zero", "deadline"],
     );
     assert.ok(observed.every((item) => item.elapsed_ms < 8000));
+  },
+);
+
+void test(
+  "diagnostic controller resolves the PATH-first Node and refuses a wrong first version before effects",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const root = disposableDirectory(t, path.join(homedir(), ".pc-diagnostic-node-"));
+    const first = path.join(root, "first node"),
+      second = path.join(root, "second node");
+    mkdirSync(first);
+    mkdirSync(second);
+    const good = path.join(first, "node.exe"),
+      bad = path.join(second, "node.exe");
+    copyFileSync(process.execPath, good);
+    // Reuse the existing Windows Framework compiler fixture route; PS7 cannot emit ConsoleApplication.
+    const compiler = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe";
+    const badSource = path.join(root, "NodeVersionFixture.cs");
+    writeFileSync(
+      badSource,
+      'public static class NodeVersionFixture { public static int Main(string[] args) { System.Console.WriteLine("v0.0.0"); return 0; } }',
+    );
+    const compile = spawnSync(compiler, ["/nologo", "/target:exe", `/out:${bad}`, badSource], {
+      encoding: "utf8",
+      timeout: 30000,
+      windowsHide: true,
+    });
+    assert.equal(compile.status, 0, compile.stderr);
+    assert.equal(existsSync(bad), true);
+    const source = readFileSync(
+      new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+      "utf8",
+    );
+    const start = source.indexOf("$nodeCommand="),
+      end = source.indexOf("$setupBytes=Read-LaunchBytes");
+    assert.ok(
+      start > 0 && end > start && end < source.indexOf("[Portcove.HostedNative.Setup]::Directory"),
+    );
+    const resolver = source.slice(start, end);
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+Set-StrictMode -Version Latest
+$code=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:PORTCOVE_TEST_NODE_RESOLVER))
+$env:PATH=$env:PORTCOVE_TEST_FIRST_NODE+';'+$env:PORTCOVE_TEST_SECOND_NODE+';'+$env:PATH
+$commands=@(Get-Command node -CommandType Application)
+if($commands.Count -lt 2 -or $commands[0].Source -cne (Join-Path $env:PORTCOVE_TEST_FIRST_NODE 'node.exe') -or $commands[1].Source -cne (Join-Path $env:PORTCOVE_TEST_SECOND_NODE 'node.exe')){throw 'Actual multiple Node applications were not established'}
+$observed=& ([scriptblock]::Create($code+';Write-Output $node'))
+if($observed -cne $commands[0].Source){throw 'PATH-first Node was not selected'}
+$env:PATH=$env:PORTCOVE_TEST_SECOND_NODE+';'+$env:PORTCOVE_TEST_FIRST_NODE+';'+$env:PATH
+$refused=$false
+try{& ([scriptblock]::Create($code))}catch{if(-not $_.Exception.Message.Contains('Fixed existing Node24.22.1 runtime required')){throw};$refused=$true}
+if(-not $refused){throw 'Wrong first Node version fell back or was accepted'}
+Write-Output 'actual-multiple-node-path-and-wrong-first-version-controls-pass'
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      encoding: "utf8",
+      timeout: 30000,
+      windowsHide: true,
+      maxBuffer: 128 * 1024,
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_FIRST_NODE: first,
+        PORTCOVE_TEST_SECOND_NODE: second,
+        PORTCOVE_TEST_NODE_RESOLVER: Buffer.from(resolver).toString("base64"),
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /actual-multiple-node-path-and-wrong-first-version-controls-pass/u);
+    assert.equal(
+      existsSync(path.join(root, "portcove-hosted-windows-connected-diagnostic")),
+      false,
+    );
   },
 );

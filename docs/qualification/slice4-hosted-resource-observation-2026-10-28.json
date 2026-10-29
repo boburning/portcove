@@ -1,0 +1,211 @@
+{
+  "source": "0013a9d2454c55a85e0f00b469fa2ed4d8ae7bb9",
+  "tree": "dca11c485fe0a148a0d47f688fc3b9b2b07084b6",
+  "run_id": 40686760408,
+  "attempt": 1,
+  "job_id": 122810994530,
+  "provider_whole_job_seconds": 4494,
+  "native_rehearsal_seconds": 4004,
+  "runtime_and_driver_preparation_seconds": 116,
+  "feature_compilation_seconds": 284,
+  "resource": {
+    "raw_sha256": "642429b567710dfb81100b7457fd1b6ee88efa31f999afdbea94e8959e2ad693",
+    "raw_bytes": 478138,
+    "samples": 896,
+    "first_observed_at": "2026-10-28T12:18:57.0649453Z",
+    "last_observed_at": "2026-10-28T13:33:32.0907855Z",
+    "first_elapsed_milliseconds": 16,
+    "last_elapsed_milliseconds": 4475047,
+    "sample_span_milliseconds": 4475031,
+    "maximum_sample_gap_milliseconds": 5129,
+    "terminal_elapsed_milliseconds": 4477499,
+    "coverage": "sampled-through-finalizer",
+    "counter_errors": 0,
+    "parse_errors": 0,
+    "missed_intervals": 0,
+    "forced_stop": false,
+    "total_physical_memory_bytes": 17174360064,
+    "maximum_observed_machine_used_bytes": 6560124928,
+    "volumes": [
+      {
+        "root": "D:\\",
+        "samples": 896,
+        "total_bytes": 161059172352,
+        "first_free_bytes": 157845360640,
+        "minimum_free_bytes": 146124566528,
+        "last_free_bytes": 146176643072,
+        "largest_observed_free_space_drop_from_first_bytes": 11720794112,
+        "maximum_observed_used_bytes": 14934605824
+      },
+      {
+        "root": "C:\\",
+        "samples": 896,
+        "total_bytes": 274284392448,
+        "first_free_bytes": 87259836416,
+        "minimum_free_bytes": 84750331904,
+        "last_free_bytes": 86014062592,
+        "largest_observed_free_space_drop_from_first_bytes": 2509504512,
+        "maximum_observed_used_bytes": 189534060544
+      }
+    ],
+    "limits": "Sampled machine counters only; no process/job attribution, no continuous peak; provider setup, between samples and post-last-sample work unobserved."
+  },
+  "native": {
+    "package": {
+      "installer_sha256": "7e5953d4b0148e72769a05d44a2dc25ede9454b961b946b0852bebdcc6fc7568",
+      "predecessor_installer_sha256": "e06734ac955fe10b3a49781f777ad156edc257cdc7ded41439a8ad2a33ed29a8"
+    },
+    "candidate_bytes": 13732330,
+    "candidate_executable_sha256": "c861a0c96959bac539a40824a36ad20e0c7901d4f29c1c31b5a2fd0fb2ab75aa",
+    "predecessor_executable_sha256": "027f7214cb44f6a4aaddef8b0997a29ba78f08892de8153666e10b01212d95f5",
+    "runtime": {
+      "source": "0013a9d2454c55a85e0f00b469fa2ed4d8ae7bb9",
+      "run_id": "40686760408",
+      "attempt": "1",
+      "workflow": "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-native-usage-repair-0013a9d2",
+      "scope": "hosted runtime prerequisite only; not native acceptance",
+      "minimum": "155.0.4283.62",
+      "before": ["131.0.2903.86"],
+      "after": ["156.0.4314.50"],
+      "stage": "ready-installed",
+      "installed": true,
+      "automatic_retry": false,
+      "runtime_preparation_observation": {
+        "scope": "reviewed diagnostic after workflow gate through terminal readback/disposal; cold setup and final receipt write excluded",
+        "elapsed_milliseconds": 53028.0,
+        "phases": [
+          {
+            "phase": "entry",
+            "elapsed_milliseconds": 3.0
+          },
+          {
+            "phase": "initial-runtime-readback",
+            "elapsed_milliseconds": 136.0
+          },
+          {
+            "phase": "download-starting",
+            "elapsed_milliseconds": 146.0
+          },
+          {
+            "phase": "download-disposed",
+            "elapsed_milliseconds": 829.0
+          },
+          {
+            "phase": "signature-hash-verified",
+            "elapsed_milliseconds": 992.0
+          },
+          {
+            "phase": "installer-starting",
+            "elapsed_milliseconds": 1007.0
+          },
+          {
+            "phase": "installer-process-disposed",
+            "elapsed_milliseconds": 52958.0
+          },
+          {
+            "phase": "post-install-runtime-readback",
+            "elapsed_milliseconds": 53024.0
+          },
+          {
+            "phase": "terminal-receipt-ready",
+            "elapsed_milliseconds": 53028.0
+          }
+        ]
+      },
+      "installer_sha256": "13f6d9cdc8c3e7186e4b180db7f48e199ee97d631480e8391fb3106f338fb21a",
+      "signer_thumbprint": "4028CAD637509D4744B17EC5B42AED8D7A31E6AF",
+      "exit_code": 0,
+      "observed_at": "2026-10-28T12:21:03.2666872Z"
+    },
+    "drivers": {
+      "tauri_driver": {
+        "reported": "Error: unused arguments left: [\"--version\"]\r\nUSAGE: tauri-driver [FLAGS] [OPTIONS]\r\n\r\nFLAGS:\r\n  -h, --help              Prints help information\r\n\r\nOPTIONS:\r\n  --port NUMBER           Sets the tauri-driver intermediary port\r\n  --native-port NUMBER    Sets the port of the underlying WebDriver\r\n  --native-host HOST      Sets the host of the underlying WebDriver (Linux only)\r\n  --native-driver PATH    Sets the path to the native WebDriver binary",
+        "exit_code": 1,
+        "sha256": "0a31766ad09238e0fe32f962d02330e4bd9f983b50beb89093562a6b090c8457"
+      },
+      "native_driver": {
+        "reported": "Microsoft Edge WebDriver 156.0.4314.50 (af2ba23ae0ecf7084d900446fc59d5119dd5fd5e)",
+        "exit_code": 0,
+        "sha256": "dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3"
+      }
+    },
+    "actual_engine_child_paths": [
+      "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe"
+    ],
+    "engine_scope": "Observed direct application child paths/generations; engine byte/publisher authentication not established by those paths.",
+    "renderer_actions": [
+      "installed-gui-opened",
+      "preview-manual-settings-saved",
+      "signed-candidate-presented",
+      "exact-installed-candidate-status-read-back",
+      "renderer-downloaded-and-verified",
+      "candidate-restarted-and-reconciled"
+    ],
+    "cleanup": {
+      "managed_files_removed": true,
+      "registration_removed": true,
+      "persistent_fixture_data_preserved": true
+    },
+    "current_installed_boundary": null,
+    "isolated_account_boundary": null,
+    "package_rollback": null,
+    "truncated_refusal": {
+      "exit_code": 1,
+      "staging_empty": true,
+      "predecessor_preserved": true,
+      "sentinel_preserved": true
+    },
+    "changed_byte_refusal": {
+      "expected_bytes": 13732330,
+      "actual_bytes": 13732330,
+      "expected_sha256": "7e5953d4b0148e72769a05d44a2dc25ede9454b961b946b0852bebdcc6fc7568",
+      "actual_sha256": "e19eb7589d0f79627d9d692800cef9c2e9e6863d1290f59c99f1e60775226c42",
+      "exit_code": 1,
+      "staging_empty": true,
+      "predecessor_preserved": true,
+      "sentinel_preserved": true,
+      "original_candidate_preserved": true
+    },
+    "recovery_repaired": true,
+    "screenshot": "before-restart.png inspected: update downloaded/verified1.0.0, Preview/Manual; interface-size confirmation warning visible, not investigated."
+  },
+  "scope": "Actual ordinary same-host disposable-key updater prerequisite and measured sampled whole-job machine resources; not protected/private-account/native production, signed catalog, #315 managed acquisition or #246 unchanged-client definition delivery acceptance.",
+  "production_acceptance": "not-established",
+  "automatic_retry": false,
+  "schema_version": 1,
+  "artifacts": [
+    {
+      "kind": "resource",
+      "id": 12820052270,
+      "name": "hosted-native-resource-observation-windows-x86_64-0013a9d2454c55a85e0f00b469fa2ed4d8ae7bb9-40686760408-1",
+      "bytes": 482567,
+      "sha256": "03f5dc01d129406c5eb9786e84e800c1f312896f3f960921d73a0b44ce4e058b",
+      "expires_at": "2026-11-04T13:33:35Z"
+    },
+    {
+      "kind": "native",
+      "id": 12818954985,
+      "name": "hosted-native-prerequisite-windows-x86_64-0013a9d2454c55a85e0f00b469fa2ed4d8ae7bb9-1",
+      "bytes": 95753,
+      "sha256": "98fe33d701b9f6e164a4b206f1239553c758dc3db419cb7ad205d25c95855042",
+      "expires_at": "2026-11-04T13:33:36Z"
+    }
+  ],
+  "observer_source_binding": {
+    "source": "0013a9d2454c55a85e0f00b469fa2ed4d8ae7bb9",
+    "workflow_sha256": "acc1ef4332bcd0e91ca6878abafff76ae7a39e2aa3a89afbf30e32bc98100f93",
+    "expected_forms": [
+      {
+        "form": "canonical-LF-no-terminal-newline",
+        "sha256": "6EE9AD88CCF3AE5EC90E401B4ECC10998A0EFDD75CFBAB25FCE6DAB41DA01DB6"
+      },
+      {
+        "form": "runner-CRLF-no-terminal-newline",
+        "sha256": "9C8B28C423DDB47B41BF2EA9E44DF1E45F1D59C76C7CD2EB45D2E45068333D48"
+      }
+    ],
+    "actual_script_sha256": "9C8B28C423DDB47B41BF2EA9E44DF1E45F1D59C76C7CD2EB45D2E45068333D48",
+    "scope": "exact fixed Windows source LF/CRLF projections only; no arbitrary normalization"
+  },
+  "local_raw_retention": "work/qualification-534/windows-native-usage-0013a9d2-40686760408-1"
+}

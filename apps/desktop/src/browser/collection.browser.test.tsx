@@ -199,7 +199,7 @@ it("retains a session-only layout through the real details unmount and return", 
   expect(localStorage.getItem(key)).toBeNull();
   await page.getByRole("button", { name: /^View details for Super Mario 64 sm64-port$/ }).click();
   expect(document.querySelector(".collection-rows")).toBeNull();
-  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Compact rows", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
@@ -229,11 +229,14 @@ for (const theme of ["dark", "light"]) {
     expect(document.querySelector('[aria-label="Search results"]')?.textContent).toBe(
       "12 library entries",
     );
-    expect(entries[0]!.textContent).toContain("Super Mario 64");
-    expect(entries[1]!.textContent).toContain("Super Mario 64");
-    expect(entries[0]!.textContent).toContain("sm64-port");
-    expect(entries[1]!.textContent).toContain("Mario modern port · Modern renderer");
-    expect(entries[2]!.querySelector(".collection-title")?.textContent).toContain(
+    const entryFor = (index: number) =>
+      entries.find((entry) => entry.querySelector(`[data-detail-game-id="collection-${index}"]`))!;
+    expect(entries[0]!.textContent).toContain("Complete Edition");
+    expect(entryFor(0).textContent).toContain("Super Mario 64");
+    expect(entryFor(1).textContent).toContain("Super Mario 64");
+    expect(entryFor(0).textContent).toContain("sm64-port");
+    expect(entryFor(1).textContent).toContain("Mario modern port · Modern renderer");
+    expect(entryFor(2).querySelector(".collection-title")?.textContent).toContain(
       "Complete Edition",
     );
     expect(document.querySelector("button button, button a, a button")).toBeNull();
@@ -261,7 +264,7 @@ for (const theme of ["dark", "light"]) {
         ".collection-actions button[data-detail-origin$=':review']",
       )) {
         const visibleAction = action.textContent.trim();
-        expect(visibleAction).toBe("Review game");
+        expect(visibleAction).toBe("Review setup");
         expect(action.getAttribute("aria-label")).toContain(visibleAction);
       }
     }
@@ -279,13 +282,13 @@ for (const theme of ["dark", "light"]) {
     }
     for (const image of document.querySelectorAll(".collection-art img"))
       expect(getComputedStyle(image).objectFit).toBe("contain");
-    expect(entries[3]!.textContent).toContain("Review prepared update");
-    expect(entries[3]!.querySelector(".collection-actions")?.textContent).toContain("Play");
-    expect(entries[4]!.textContent).toContain("Game files missing");
-    expect(entries[4]!.querySelector(".collection-actions")?.textContent).toContain("Review game");
-    expect(entries[0]!.querySelector(".library-entry-chips")?.textContent).toContain("Stable");
-    expect(entries[0]!.querySelector(".library-entry-chips")?.textContent).not.toContain("Preview");
-    expect(entries[0]!.querySelector(".collection-state")?.textContent).toContain(
+    expect(entryFor(3).textContent).toContain("Update saved for later");
+    expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
+    expect(entryFor(4).textContent).toContain("Game files missing");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");
+    expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).toContain("Stable");
+    expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).not.toContain("Preview");
+    expect(entryFor(0).querySelector(".collection-state")?.textContent).toContain(
       "Selected update channel: Preview",
     );
     const firstRow = entries.filter(
@@ -302,14 +305,14 @@ for (const theme of ["dark", "light"]) {
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
     expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
-    expect(entries[3]!.querySelector(".collection-actions")?.textContent).toContain("Play");
-    expect(entries[4]!.querySelector(".collection-actions")?.textContent).toContain("Review game");
+    expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");
     await page
       .getByRole("textbox", { name: "Search your library", exact: true })
       .fill("Super Mario 64");
     await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
     await page.getByRole("button", { name: /^View details for Super Mario 64 sm64-port$/ }).click();
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await expect
       .element(page.getByRole("textbox", { name: "Search your library", exact: true }))
       .toHaveValue("Super Mario 64");
@@ -404,7 +407,7 @@ it("keeps the lean visible Discover label in its natural name when artwork fails
 });
 
 it.each(["dark", "light"])(
-  "aligns six %s Discover frames, identity areas, metadata and exact-port actions",
+  "aligns six %s Discover frames and keeps natural identity flow and exact-port actions",
   async (theme) => {
     await page.viewport(1600, 1000);
     await mount(theme);
@@ -424,17 +427,20 @@ it.each(["dark", "light"])(
       expect(Math.abs(artwork.width - frame.width)).toBeLessThanOrEqual(1);
       expect(Math.abs(artwork.height - frame.height)).toBeLessThanOrEqual(1);
       expect(artwork.height / artwork.width).toBeCloseTo(1.5);
-      for (const selector of [
-        ".collection-title",
-        ".collection-project",
-        ".discover-game-metadata",
-        ".discover-game-observation",
-        '[data-detail-origin$=":details"]',
-      ]) {
-        const expected = first.querySelector(selector)!.getBoundingClientRect();
-        const actual = card.querySelector(selector)!.getBoundingClientRect();
-        expect(Math.abs(actual.top - expected.top)).toBeLessThanOrEqual(1);
-      }
+      const title = card.querySelector(".collection-title")!.getBoundingClientRect();
+      expect(
+        Math.abs(title.top - first.querySelector(".collection-title")!.getBoundingClientRect().top),
+      ).toBeLessThanOrEqual(1);
+      const project = card.querySelector(".collection-project")!.getBoundingClientRect();
+      expect(project.top).toBeGreaterThanOrEqual(title.bottom);
+      expect(project.top - title.bottom).toBeLessThanOrEqual(8);
+      const metadata = card.querySelector(".discover-game-metadata")!.getBoundingClientRect();
+      expect(metadata.top).toBeGreaterThanOrEqual(project.bottom);
+      const observation = card.querySelector(".discover-game-observation")!.getBoundingClientRect();
+      expect(observation.top).toBeGreaterThanOrEqual(metadata.bottom);
+      expect(
+        card.querySelector('[data-detail-origin$=":details"]')!.getBoundingClientRect().top,
+      ).toBeGreaterThanOrEqual(observation.bottom);
     }
     await expect
       .poll(() => row.filter((card) => card.querySelector(".collection-art img")).length)

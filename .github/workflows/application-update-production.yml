@@ -396,6 +396,11 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$env:RUNNER_TEMP/controller-windows-pnpm"
           if ($LASTEXITCODE -ne 0) { throw 'Public build dependencies refused' }
+      - name: Prepare supported Windows runtime through admitted source and actual signed producer identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ""
+        run: node scripts/release-controller-tool-bootstrap.mts prepare-windows-runtime
       - id: build
         name: Bundle fixed Node CLIs and build maintained Rust tool once
         env:
@@ -431,6 +436,9 @@ jobs:
         with:
           name: trusted-controller-tools-windows-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            work/hosted-continuity-evidence/windows-runtime.json
+            work/hosted-continuity-evidence/windows-runtime-bootstrap-source.json
+            work/hosted-continuity-evidence/windows-runtime-incomplete.json
             ~/.pct-*/ct-*/failure.json
             ~/.pct-*/ct-*/tools/manifest.json
             ${{ runner.temp }}/controller-tools-windows-predicate.json

@@ -68,7 +68,7 @@ jobs:
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned Windows prebuilt quality tools
         if: runner.os == 'Windows'
-        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
         with:
           tool: ${{ steps.windows-quality-pins.outputs.required_prebuilt }}
       - name: Install pinned Windows native driver for installed NSIS renderer qualification
@@ -153,6 +153,8 @@ jobs:
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-rc.2-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-${{ matrix.label }}/**
+            work/updater-rehearsal/qualified-*-bundles/nsis/*.exe
+            work/updater-rehearsal/qualified-*-bundles/nsis/*.exe.sig
             work/updater-rehearsal/qualified-*-bundles/appimage/**
             work/updater-rehearsal/qualified-*-bundles/macos/Portcove.app/**
             work/updater-rehearsal/windows-installed-update-qualification/TEST-ONLY

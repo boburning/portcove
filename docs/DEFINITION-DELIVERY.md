@@ -1026,6 +1026,20 @@ Builds/tests have no production secrets; the signer never executes candidate
 scripts, local actions, binaries or instructions. Upstream observation in #398
 has no signing, acceptance or trust-grant authority.
 
+Catalog maintenance uses the existing isolated protection observer to read the
+coordinator, protection-observer, four catalog-role and Pages environments.
+It collects complete deployment-policy pages twice within its original finite
+request/time budget and refuses changed or incomplete observations. The
+authenticated consumer requires exactly the original admitted controller tag
+in all seven environments, with administrator bypass disabled and no manual
+reviewer, wait timer, branch wildcard or additional deployment route. Missing
+privileged fields remain unknown and hold execution. Application-only admission,
+classification, signing and native environments are not catalog prerequisites.
+This check preserves the separate pause-writer policy and establishes no key
+custody, semantic acceptance or signing permission. Changed observer source must
+receive its own reviewed immutable ref/configuration; an earlier frozen tag is
+never moved to make it appear qualified.
+
 The controller serializes revisions, makes retries idempotent, publishes immutable
 targets before signed snapshot/timestamp metadata, and independently reads back
 the full published chain. A new definition, next artifact and safe correction

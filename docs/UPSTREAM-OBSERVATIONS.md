@@ -628,3 +628,47 @@ availability from verified artifact bytes, protected catalog admission and
 player update eligibility. The latter three remain unassessed. GitHub's existing
 formats 1/2 and report format 1 remain compatible; no workflow per port, service,
 account, signing authority or production activation is introduced.
+
+## Descriptive consumers and accepted listing corrections
+
+The same scheduled coordinator also reads the reviewed listing directory. GitHub
+listing consumers share repository identity, conditional page collection, quotas,
+continuation and last-complete facts with operational consumers. A listing never
+needs an adapter or managed definition. Explicit consumer kind, declaration hash,
+projection implementation/schema-inventory hash and repository identity bind its
+scope. An accepted observation does not invalidate its unchanged declaration.
+Other descriptive providers remain outside this GitHub route; no absence claim
+is inferred for them.
+
+Descriptive consumers request complete asset collections for at most four newest
+published release headers. This is a bounded release window, not complete
+repository history. Drafts are excluded. Release assets retain exact provider
+identities, names, URLs, sizes and optional digest claims. Authored literal
+filename hints can annotate platform candidates; these are neither compatibility
+nor verified bytes. Checksums, documentation and unknown assets cannot establish
+package availability. Asset output is bounded; truncation remains incomplete.
+
+`descriptive_listing_candidates` in the existing handoff contains unsigned
+corrections for the existing acceptance and signed listing-delivery path. Current
+authored fields always win over historical policies. Refresh failures retain only
+applicable last-good observation facts and their original clocks, with a separate
+attempt status. A first failure has no successful observation or invented digest.
+Collection never accepts, signs or publishes these candidates. Actual protected
+provisioning and unchanged-client production acceptance remain #534/#246 work.
+
+The same report carries `descriptive_listing_preimages`, keyed by stable ID and
+binding the prior accepted observation hash. Feed a retained source report to
+`prepare-port.mts --listing-observations REPORT --validator-cli TRUSTED_CLI
+--output-dir CHECKPOINT` to obtain complete authored-record proposals through the
+existing preparation machinery. It checks the current declaration and observation
+preimage, preserves integration/artwork/restriction fields and makes no provider
+requests. This removes manual record reconstruction while preserving ordinary
+acceptance and signing. Preimages prevent stale proposal application; they do not
+authenticate provider data or grant publication authority.
+
+Reason-bearing pin maintenance comes from authored `release_maintenance`; exact
+versions and publication dates derive from the accepted Direct contract. Newer
+observed headers trigger a bounded reconsideration report with its reason and
+resume condition. They establish neither package compatibility nor an accepted
+managed replacement. Marathon's archive-root/shared-profile contract and Super
+Metroid's build-specific quickstates retain their pins.

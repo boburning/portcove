@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  copyFile,
+  writeFile,
+  readFile,
+  rm,
+  realpath,
+  readdir,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
@@ -199,7 +208,9 @@ ConvertTo-Json -InputObject $rows -Depth 10 -Compress
     ["-NoProfile", "-NonInteractive", "-File", wrapper, source, floor, root],
     {
       encoding: "utf8",
-      timeout: 45000,
+      // The complete inert source/refusal matrix exceeded45s under concurrent owning families.
+      // This is only its outer harness; download, installer and cleanup bounds stay unchanged.
+      timeout: 90000,
       maxBuffer: 131072,
       env: {
         ...process.env,
@@ -641,17 +652,36 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
   );
   assert.equal(start.name, "Start bounded runner resource observation before checkout");
   assert.ok(Buffer.byteLength(start.run) < 21000);
+  assert.ok(Buffer.byteLength(start.run.replaceAll("\n", "\r\n")) < 21000);
+  const observer = /\$taskObserverSource = @'\n([\s\S]*?)\n'@/u.exec(start.run)?.[1];
+  assert.ok(observer);
+  assert.ok(
+    Buffer.byteLength(observer) > 0 &&
+      Buffer.byteLength(observer) <= 32768 &&
+      Buffer.byteLength(observer.replaceAll("\n", "\r\n")) <= 32768,
+  );
   assert.ok(isRecord(steps[1]) && String(steps[1].uses).startsWith("actions/checkout@"));
   assert.equal(stop.if, "always()");
-  const root = await mkdtemp(path.join(os.tmpdir(), "pc-hosted-resource-")),
+  const allocated = await mkdtemp(path.join(os.tmpdir(), "pc-hosted-resource-"));
+  // PowerShell binds PSCommandPath to its resolved provider path. Bind this
+  // owned fixture's environment to the same physical root before startup.
+  const root = await realpath(allocated),
     temporary = path.join(root, "runner temp"),
     workspace = path.join(root, "workspace");
+  context.diagnostic(
+    JSON.stringify({ allocated_fixture_root: allocated, physical_fixture_root: root }),
+  );
   await mkdir(temporary);
   await mkdir(workspace);
   const startPath = path.join(root, "start.ps1"),
-    stopPath = path.join(root, "stop.ps1");
+    stopPath = path.join(root, "stop.ps1"),
+    checkPath = path.join(root, "check.ps1");
   await writeFile(startPath, start.run);
   await writeFile(stopPath, stop.run);
+  await writeFile(
+    checkPath,
+    "$ErrorActionPreference='Stop'\n& (Join-Path $env:RUNNER_TEMP 'portcove-hosted-job-observer.ps1') -Operation Check\nif($LASTEXITCODE -ne 0){throw 'Original observer check refused'}\n",
+  );
   const environment = {
     ...process.env,
     GITHUB_ACTIONS: "true",
@@ -665,6 +695,7 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
     GITHUB_WORKFLOW_REF:
       "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-hosted-job-usage",
     PORTCOVE_HOSTED_PLATFORM: process.platform === "win32" ? "windows-x86_64" : "linux-x86_64",
+    PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
     RUNNER_TEMP: temporary,
     GITHUB_WORKSPACE: workspace,
     PORTCOVE_INERT_PRIVATE_VALUE: "never-collect-this-inert-value",
@@ -706,6 +737,7 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
     evidence,
     startPath,
     stopPath,
+    checkPath,
     environment,
     invoke,
     read,
@@ -724,6 +756,11 @@ void test("hosted resource observation samples before checkout and stops only it
   assert.equal(intent.authority, "none");
   const samplesBefore = await readFile(path.join(fixture.evidence, "samples.jsonl"), "utf8");
   assert.ok(samplesBefore.endsWith("\n") && samplesBefore.length > 0);
+  const checked = fixture.invoke(fixture.checkPath);
+  assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+  const heartbeat: unknown = JSON.parse(checked.stdout);
+  assert.ok(isRecord(heartbeat));
+  assert.equal(heartbeat.pid, ready.pid);
   const stopped = fixture.invoke(fixture.stopPath);
   assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
   const observation = await fixture.read("observation.json");
@@ -789,6 +826,7 @@ void test("interrupted hosted resource observation retains sampled data without 
   );
   const killed = fixture.invoke(terminate);
   assert.equal(killed.status, 0, killed.stderr || killed.stdout);
+  assert.notEqual(fixture.invoke(fixture.checkPath).status, 0);
   const stopped = fixture.invoke(fixture.stopPath);
   assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
   const report = await fixture.read("observation.json");
@@ -856,4 +894,251 @@ void test("hosted resource observation refuses complete coverage for a truncated
     observation.terminal && isRecord(observation.terminal) ? observation.terminal.bytes : null,
     samples.length,
   );
+});
+
+void test("instrumentation-only workflow shares the observer with a three-minute bound and skips every native effect", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context);
+  fixture.environment.PORTCOVE_HOSTED_OBSERVATION_ONLY = "true";
+  fixture.environment.GITHUB_SHA = execFileSync("git", ["rev-parse", "HEAD"], {
+    encoding: "utf8",
+  }).trim();
+  const started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const intent = await fixture.read("intent.json");
+  assert.ok(isRecord(intent) && isRecord(intent.context));
+  assert.equal(intent.maximum_milliseconds, 180000);
+  assert.equal(intent.maximum_samples, 36);
+  assert.equal(intent.maximum_bytes, 8388608);
+  assert.equal(intent.context.mode, "true");
+  const check = fixture.invoke(fixture.checkPath);
+  assert.equal(check.status, 0, check.stderr || check.stdout);
+  const probe = fixture.steps.find(
+    (step) =>
+      isRecord(step) &&
+      step.name === "Qualify the original observer across independent runner steps",
+  );
+  assert.ok(isRecord(probe) && typeof probe.run === "string");
+  const probePath = path.join(fixture.root, "actual-probe.ps1");
+  await writeFile(probePath, probe.run);
+  const before = Date.now(),
+    observed = fixture.invoke(probePath);
+  assert.equal(observed.status, 0, observed.stderr || observed.stdout);
+  assert.ok(
+    Date.now() - before >= 12000,
+    "Canonical probe must complete all original cross-step waits",
+  );
+  const stopped = fixture.invoke(fixture.stopPath);
+  assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
+  const raw: unknown = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS();
+  assert.ok(
+    isRecord(raw) &&
+      isRecord(raw.on) &&
+      isRecord(raw.on.workflow_dispatch) &&
+      isRecord(raw.on.workflow_dispatch.inputs) &&
+      isRecord(raw.on.workflow_dispatch.inputs.resource_observer_only) &&
+      isRecord(raw.jobs) &&
+      isRecord(raw.jobs["installed-prerequisite"]),
+  );
+  const input = raw.on.workflow_dispatch.inputs.resource_observer_only;
+  assert.equal(input.default, false);
+  assert.equal(input.type, "boolean");
+  const job = raw.jobs["installed-prerequisite"];
+  assert.equal(job["timeout-minutes"], "${{ inputs.resource_observer_only && 3 || 90 }}");
+  for (const step of fixture.steps) {
+    assert.ok(isRecord(step));
+    const name = String(step.name ?? step.uses ?? step.run);
+    if (
+      name === "Start bounded runner resource observation before checkout" ||
+      name === "Stop the original resource observer and retain sampled coverage" ||
+      name === "Retain bounded public resource observations separately" ||
+      name.startsWith("actions/checkout@")
+    )
+      continue;
+    if (name === "Qualify the original observer across independent runner steps") {
+      assert.equal(step.if, "inputs.resource_observer_only");
+      assert.ok(String(step.run).includes("-Operation Check"));
+      continue;
+    }
+    assert.ok(String(step.if).includes("!inputs.resource_observer_only"), name);
+  }
+  const start = await readFile(fixture.startPath, "utf8");
+  assert.ok(start.includes("IntPtr.Zero,IntPtr.Zero,false,0x08000000,IntPtr.Zero"));
+  assert.ok(
+    !start.includes("BREAKAWAY") &&
+      !start.includes("RUNNER_TRACKING_ID=") &&
+      !start.includes("New-LocalUser"),
+  );
+});
+
+void test("original observer heartbeat refuses stale samples while preserving the same bounded process", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context);
+  const start = await readFile(fixture.startPath, "utf8");
+  const clock = "observed_at=[DateTime]::UtcNow.ToString('o')";
+  assert.equal(start.split(clock).length, 2, "one sampler timestamp boundary");
+  // The real sampler retains exclusive write access until it stops. Supply stale
+  // observations at its clock boundary rather than rewriting its open stream.
+  await writeFile(
+    fixture.startPath,
+    start.replace(clock, "observed_at='2000-01-01T00:00:00.0000000Z'"),
+  );
+  const started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const ready = await fixture.read("observer-ready.json");
+  assert.ok(isRecord(ready));
+  const samples = await readFile(path.join(fixture.evidence, "samples.jsonl"), "utf8");
+  assert.match(samples, /"observed_at":"2000-01-01T00:00:00.0000000Z"/u);
+  const stale = fixture.invoke(fixture.checkPath);
+  assert.notEqual(stale.status, 0);
+  assert.match(stale.stderr, /heartbeat stale/u);
+  const same = await fixture.read("observer-ready.json");
+  assert.deepEqual(same, ready, "a refused heartbeat preserves the original observer identity");
+  const inspect = path.join(fixture.root, "same-observer.ps1");
+  await writeFile(
+    inspect,
+    fixture.identityScript(ready.pid, ready.birth_ticks, "Write-Output 'same original observer'"),
+  );
+  const original = fixture.invoke(inspect);
+  assert.equal(original.status, 0, original.stderr || original.stdout);
+  assert.equal(original.stdout.trim(), "same original observer");
+});
+
+void test("connected diagnostic workflow stays source-held and writes exactly the four fixed public upload paths", async (t) => {
+  const workflow = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS() as {
+    on: { workflow_dispatch: { inputs: Record<string, { default?: unknown }> } };
+    jobs: Record<string, { steps: Record<string, unknown>[] }>;
+  };
+  assert.equal(workflow.on.workflow_dispatch.inputs.connected_private_diagnostic?.default, false);
+  const steps = workflow.jobs["installed-prerequisite"]!.steps;
+  const publicDiagnostics = steps.find(
+    (step) => step.name === "Retain only selected public diagnostics",
+  );
+  assert.ok(publicDiagnostics && isRecord(publicDiagnostics.with));
+  const publicPaths = String(publicDiagnostics.with.path).trim().split("\n");
+  assert.deepEqual(
+    publicPaths.filter((name) => name.includes("derivation")),
+    ["work/updater-rehearsal/windows-fixture-derivation.json"],
+  );
+  assert.ok(!publicPaths.some((name) => /(?:^|\/)(?:private|owner)(?:\/|$)/u.test(name)));
+  const producer = await readFile(
+    new URL("./rehearse-updater-artifacts.ps1", import.meta.url),
+    "utf8",
+  );
+  const publication = producer.slice(producer.lastIndexOf("if($captureFixtureDerivation){"));
+  assert.match(publication, /Private rehearsal input remains before derivation publication/u);
+  assert.match(
+    publication,
+    /if\(\$bytes.Length -gt 65536\)\{throw 'Fixture derivation report exceeds bound'\}/u,
+  );
+  assert.match(publication, /'windows-fixture-derivation.json'\),\[IO.FileMode\]::CreateNew/u);
+  const record = publication.split("\n").find((line) => line.includes("$derivation=[ordered]"));
+  assert.ok(record);
+  assert.doesNotMatch(
+    record,
+    /\$(?:privateKey|password|credential)\b|\$env:(?!GITHUB_(?:RUN_ID|RUN_ATTEMPT|WORKFLOW_REF)\b)/iu,
+  );
+  const preflight = steps.findIndex((step) => step.id === "diagnostic_preflight"),
+    native = steps.findIndex((step) => step.name === "Provision pinned Windows native driver");
+  assert.ok(preflight > 0 && preflight < native);
+  for (const name of ["diagnostic_pre_upload", "diagnostic_post_upload"]) {
+    const step = steps.find((row) => row.id === name);
+    assert.ok(step && isRecord(step.with));
+    assert.equal(step.uses, "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
+    assert.equal(step.with["retention-days"], 7);
+    assert.equal(step.with.overwrite, false);
+    assert.equal(step.with["compression-level"], 0);
+  }
+  const settlement = steps.find(
+    (row) => row.name === "Retain only bounded diagnostic source and cleanup records",
+  );
+  assert.ok(settlement && isRecord(settlement.with));
+  assert.match(String(settlement.if), /always\(\)/u);
+  assert.equal(
+    settlement.with.path,
+    "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json\n",
+  );
+  assert.ok(
+    !String(settlement.with.path).includes("owner/") &&
+      !String(settlement.with.path).includes("stdout"),
+  );
+  const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-actions-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const id of ["diagnostic_pre", "diagnostic_post"]) {
+    const step = steps.find((row) => row.id === id);
+    assert.ok(typeof step?.run === "string");
+    const output = path.join(root, id + ".output"),
+      program = path.join(root, id + ".ps1"),
+      request = {
+        request_sha256: "a".repeat(64),
+        name: "fixed-diagnostic-name",
+        files: ["subject.json", "report.json", "capture.json", "bundle.json"],
+      };
+    await writeFile(
+      program,
+      `$ErrorActionPreference='Stop'\nfunction node { '${JSON.stringify(request)}'; $global:LASTEXITCODE=0 }\n` +
+        step.run,
+    );
+    const observed = spawnSync(
+      "pwsh",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
+      { encoding: "utf8", timeout: 15000, env: { ...process.env, GITHUB_OUTPUT: output } },
+    );
+    assert.equal(observed.status, 0, observed.stderr);
+    assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/u), [
+      "request_sha256=" + request.request_sha256,
+      "name=" + request.name,
+      "paths<<PORTCOVE_DIAGNOSTIC_PATHS",
+      ...request.files,
+      "PORTCOVE_DIAGNOSTIC_PATHS",
+    ]);
+  }
+  const launch = fileURLToPath(
+    new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+  );
+  for (const operation of ["Preflight", "Start"]) {
+    const result = spawnSync(
+      "pwsh",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", launch, "-Operation", operation],
+      {
+        encoding: "utf8",
+        timeout: 15000,
+        env: { ...process.env, RUNNER_TEMP: path.join(root, "must-not-create") },
+      },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Connected Windows S2 diagnostic remains held/u);
+  }
+});
+
+void test("source-held diagnostic controller refuses every transport operation before storage and native work", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-controller-held-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const entry = fileURLToPath(
+    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+  );
+  for (const operation of [
+    ["run"],
+    ["request", "payload-signing"],
+    ["ack", "release-publication", "a".repeat(64), "1", "b".repeat(64)],
+    ["abort"],
+    ["settle"],
+  ]) {
+    const result = spawnSync(process.execPath, [entry, ...operation], {
+      encoding: "utf8",
+      timeout: 15000,
+      env: { ...process.env, RUNNER_TEMP: root, PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true" },
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.deepEqual(await readdir(root), []);
+  }
 });

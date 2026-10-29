@@ -6,7 +6,11 @@ import type { CatalogEntry } from "../browsing/catalog-entry";
 import { observedUpdateCandidate } from "../browsing/update-query-context";
 import { updateNoticeHidden } from "../organization/organization";
 import { gameUpdateAcquisitionLabel } from "../port-updates/acquisition-presentation";
-import { cardInstallationLabel, type browsePortPresentation } from "./browse-presentation";
+import {
+  cardInstallationLabel,
+  browseStatusSummary,
+  type browsePortPresentation,
+} from "./browse-presentation";
 
 /** Exact-port cached facts and descriptions, shared by singleton discovery and comparison. */
 export function BrowsePortObservations({
@@ -32,31 +36,39 @@ export function BrowsePortObservations({
   );
   const updateAvailable =
     !hiddenNotice && observedUpdateCandidate(port.id, status)?.availableAtLastCheck === true;
+  const summary = browseStatusSummary(state, status, updateAvailable);
   return (
     <div className="discover-observations grid gap-1 text-xs">
       <span className="text-pc-muted-foreground">{cardInstallationLabel(port, status)}</span>
-      <span
-        className={`readiness ${state.tone} inline-flex items-start gap-1.5 font-medium text-pc-muted-foreground [&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground`}
-      >
-        <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
-        {state.label}
-      </span>
-      {status?.staged && <span className="text-pc-interactive-foreground">Update prepared</span>}
-      {status?.acquisition && (
-        <span className="text-pc-interactive-foreground">
-          {gameUpdateAcquisitionLabel(status.acquisition.phase)}
+      {summary.showReadiness && (
+        <span
+          className={`readiness ${state.tone} inline-flex items-start gap-1.5 font-medium text-pc-muted-foreground [&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground`}
+        >
+          <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
+          {state.label}
         </span>
       )}
-      {updateAvailable && (
-        <span className="text-pc-interactive-foreground">Update available at last check</span>
-      )}
+      {observation.concurrentBlockers.map((reason) => (
+        <p key={reason} className="text-pc-warning-foreground">
+          {reason}
+        </p>
+      ))}
+      {summary.update && <span className="text-pc-interactive-foreground">{summary.update}</span>}
       {port.upstream_status === "retired" && (
         <span className="text-pc-warning-foreground">Retired upstream</span>
       )}
-      {status?.channel && status.active && status.channel !== status.active.channel && (
-        <span className="text-pc-muted-foreground">
-          Selected update channel: {releaseChannelPresentation(status.channel).label}
-        </span>
+      {(status?.acquisition ||
+        (status?.staged && updateAvailable) ||
+        (status?.channel && status.active && status.channel !== status.active.channel)) && (
+        <details>
+          <summary data-focusable>Update details</summary>
+          {status?.staged && <p>Update saved for later</p>}
+          {status?.acquisition && <p>{gameUpdateAcquisitionLabel(status.acquisition.phase)}</p>}
+          {updateAvailable && <p>Update available at last check</p>}
+          {status?.active && status.channel !== status.active.channel && (
+            <p>Selected update channel: {releaseChannelPresentation(status.channel).label}</p>
+          )}
+        </details>
       )}
       {(input || setup) && (
         <div id={descriptionId} className="sr-only">
