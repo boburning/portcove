@@ -584,6 +584,12 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Provision pinned package manager for repository contracts
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - name: Install frozen root dependencies for repository contracts
+        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
         if: needs.classify.outputs.native_tools == 'true'
       - name: Test affected native compiler and shell integrations
@@ -879,6 +885,12 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Provision pinned package manager for repository contracts
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - name: Install frozen root dependencies for repository contracts
+        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
       - name: Test native compiler and shell integrations without frontend dependencies
         run: |
@@ -896,12 +908,6 @@ jobs:
         run: |
           # node-suite: windows-helpers-3
           node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts
-      - name: Provision pinned package manager for repository contracts
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: package.json
-      - name: Install frozen root dependencies for repository contracts
-        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - name: Test Windows CI setup contract
         run: |
           # node-suite: windows-storage-3

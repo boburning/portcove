@@ -231,5 +231,64 @@
       ],
       "fresh_hosted_qualification": "pending fourteen Windows controls and five exact-head contexts"
     }
+  },
+  "hosted_fixture_dependency_failure": {
+    "source": "ffee9ac02a9ed846c01263081f85e02bdad91fdd",
+    "ci_run": 40806788936,
+    "attempt": 1,
+    "windows_job": 123227751844,
+    "job_seconds": 285,
+    "actual_account_controls": {
+      "passed": 13,
+      "failed": 1,
+      "failed_variant": "ready",
+      "duration_ms": 2832.873
+    },
+    "startup": {
+      "pid": 9188,
+      "created_filetime": "134377150958734740",
+      "elapsed_ms": 402,
+      "original_alive": false,
+      "original_exit_code": 1,
+      "ready_sha256": null,
+      "ack_attempted": false,
+      "controller_failure_record": "missing",
+      "cleanup_termination_requested": false
+    },
+    "complete_log": {
+      "bytes": 380212,
+      "sha256": "e3400a377b3ca02a0a394a7aff9f018a072bb3dcf23e063e99d335811d3e99a6"
+    },
+    "controlled_native_import": {
+      "source_files": 180,
+      "source_bytes": 3233480,
+      "no_dependencies": {
+        "exit": 2,
+        "code": "ERR_MODULE_NOT_FOUND",
+        "missing_exact_yaml": true
+      },
+      "frozen_dependencies": {
+        "exit": 0,
+        "status": "imported"
+      },
+      "entry_main_invoked": false,
+      "stderr_bytes": 0,
+      "retained_records": {
+        "source-manifest.json": {
+          "bytes": 31175,
+          "sha256": "f4db42d13cff2527ce93c8960d1e5e0bb50188707ff14856f2ff71ef060a7e60"
+        },
+        "no-dependencies.json": {
+          "bytes": 548,
+          "sha256": "88d41e2d6b6bf2b2fa436281db1e4d456a4af8914ada2098903cd40f98063dc0"
+        },
+        "frozen-dependencies.json": {
+          "bytes": 336,
+          "sha256": "39edcb7419d1a32f0141c2c20f1e2179e8ab5e49d4c9d5eb7ad96925e7b0a15e"
+        }
+      }
+    },
+    "scope": "Hosted missing dependency prerequisite established by source ordering and controlled native comparison; hosted raw child error unobserved; not historical855 cause or connected acceptance",
+    "repair": "Reuse existing pinned pnpm action and frozen root ignore-scripts install before account cases in both CI plans; retain actual pinned Node and existing10/120-minute limits; no source activation"
   }
 }

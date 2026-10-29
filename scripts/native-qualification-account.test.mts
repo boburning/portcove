@@ -858,7 +858,11 @@ Write-Output 'actual-multiple-node-path-and-wrong-first-version-controls-pass'
 void test(
   "diagnostic original controller reaches ready before ACK and retains startup refusal without private effects",
   { skip: process.platform !== "win32", timeout: 300000 },
-  (t) => {
+  async (t) => {
+    await assert.doesNotReject(
+      import(new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url).href),
+      "Original C fixture requires the real locked repository import closure before launch",
+    );
     const root = disposableDirectory(t, path.join(homedir(), ".pc-diagnostic-startup-"));
     const emptyHooks = path.join(root, "empty hooks"),
       emptyGitConfig = path.join(root, "empty-git-config");
