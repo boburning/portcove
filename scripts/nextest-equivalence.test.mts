@@ -454,6 +454,18 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       periods: 12,
     },
   ];
+  const windowsObservedRecoveryBudgets = [
+    {
+      filter:
+        "package(portcove-core) & test(/^service::native_portable::tests::ready_archive_profile_times_survive_update_backup_and_runtime_rollback$/)",
+      periods: 36,
+    },
+    {
+      filter:
+        "package(portcove-core) & test(/^service::tests::backups::recovers_restore_prepared$/)",
+      periods: 24,
+    },
+  ];
   const windowsTrackedCancellationFilter =
     "package(portcove-core) & test(/^game_file_query::tests::tracked_refresh_settles_cancellation_only_after_worker_exit$/)";
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
@@ -464,6 +476,10 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     outputOverrides.map(outputIdentity).sort(),
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
+      ...windowsObservedRecoveryBudgets.map(({ filter }) => ({
+        platform: "x86_64-pc-windows-msvc",
+        filter,
+      })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
@@ -489,6 +505,21 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       .map(outputIdentity)
       .sort(),
   );
+  const windowsOverrides = overrides.filter((entry) => entry.platform === "x86_64-pc-windows-msvc");
+  for (const { filter, periods } of windowsObservedRecoveryBudgets) {
+    const observed = overrideFor(filter, "x86_64-pc-windows-msvc");
+    assert.deepEqual(observed, {
+      platform: "x86_64-pc-windows-msvc",
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
+    assert.ok(
+      windowsOverrides.indexOf(observed) < windowsObservedRecoveryBudgets.length,
+      "Exact observed Windows cases precede older overlapping Windows budgets",
+    );
+    assert.equal(overrides.filter((entry) => entry.filter === filter).length, 1);
+  }
   assert.deepEqual(overrideFor(windowsTrackedCancellationFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsTrackedCancellationFilter,

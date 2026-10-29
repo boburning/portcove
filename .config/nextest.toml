@@ -41,6 +41,25 @@ filter = 'package(portcove-cli) & binary(machine_contract) & (test(/^artwork_con
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Required source fab49f3f, run 40904363207/attempt 1 Windows partition 3 retained
+# 90.378s portable-profile and 60.174s restore-prepared whole-test cutoffs.
+# Restore reached recovery, rollback and staged activation before its cutoff;
+# the portable multi-install lifecycle now emits bounded phase timings.
+# Give only these two Windows fixtures finite 180/120-second diagnostic room.
+# Preserve assertions, product/child deadlines, cleanup, worker counts and zero
+# retries. Completion under these budgets is not a causal or speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready_archive_profile_times_survive_update_backup_and_runtime_rollback$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_prepared$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
 # The coordinated Windows cancellation fixture retains its held-worker and
 # terminal-after-join assertions. Its four synchronization waits allow 60s;
 # exact 90s outer room permits failure reporting and cleanup without changing
