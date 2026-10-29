@@ -1,0 +1,171 @@
+{
+  "format_version": 1,
+  "kind": "Final Doom existing-contract fresh managed fitting",
+  "owners": [2656, 2926, 2510, 1422],
+  "status": "candidate; per-ID native and exact-head qualification pending",
+  "scope": {
+    "id": "final-doom-crispy-doom-family",
+    "canonical_issue": 2656,
+    "frozen_cohort": "affected-312",
+    "historical_1422_member": false,
+    "new_identities": 0,
+    "new_definitions": 0,
+    "new_historical_members": 0,
+    "supported_promotions": 0,
+    "definition_count": 247
+  },
+  "upstream": {
+    "repository": "fabiangreffrath/crispy-doom",
+    "tag": "crispy-doom-7.2",
+    "source_commit": "fdeabe4c23a833534b70aa84a22f1685aae7125d",
+    "source_capture_reference": "crispy-managed-fitting-2026-10-29.json",
+    "source_capture_scope": "Reuse exact pinned Git-blob/IO fitting and official Doom-package checkpoint; no source/binary reproducibility assertion.",
+    "packages": [
+      {
+        "id": 633334505,
+        "name": "crispy-doom-7.2.0-win64.zip",
+        "size": 9924686,
+        "digest": "sha256:c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+        "url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-doom-7.2.0-win64.zip",
+        "entries": 34,
+        "expanded_bytes": 21626270
+      }
+    ]
+  },
+  "source_conditions": [
+    {
+      "source": "src/d_iwad.c:33-40",
+      "fact": "tnt.wad/pack_tnt and plutonia.wad/pack_plut are separate original Final Doom campaign identities; doom2.wad is different."
+    },
+    {
+      "source": "src/setup/mode.c:60-70;src/setup/multiplayer.c:200-204",
+      "fact": "Doom-family setup exposes detected IWADs and forwards the selected actual IWAD with -iwad; Core does not lock/attest campaign choice."
+    },
+    {
+      "source": "src/m_config.c:3313-3365",
+      "fact": "Explicit -savedir saves overrides per-IWAD default subdirectories; in-place campaign switching can share slots."
+    }
+  ],
+  "shared_contract": {
+    "adapter": "native-portable",
+    "sdk": "Native5 existing contract, no primitive or production engine changes",
+    "coordinates": "Executable-parent private data; deliberate originals, fixed/default witnesses, pattern witnesses, temp; canonical identity remains one Final Doom entry.",
+    "entry": "crispy-doom-setup.exe; configure controls/F2 Warp, choose the actual chosen Final Doom IWAD. Setup exit is not inner-game success.",
+    "source_variant_isolation": "Exactly one chosen TNT or Plutonia campaign per entry/library; separate library or independently owned runtime/data for the other. No in-place campaign switch, populated adoption, coordinate remapping or save-ABI compatibility. Chooser can expose other detected IWADs; conditional guide is not Core attestation.",
+    "maintenance": "Use the existing compatible-release GitHub provider and independently expected digest. Keep creating runtime/data identities and existing interruption/recovery, inventory and activation guards. This is not a promise of arbitrary future save compatibility.",
+    "external_data": "Upstream may read/write its SDL music-pack profile and custom paths outside the installation on Play. Those remain externally owned and excluded from Core backup/rollback. Custom outputs inside the installation outside declared paths are unclaimed and may hold maintenance. No populated profile is adopted.",
+    "temporary_data_transition": "Existing Native4 and user-selected contracts are not reinterpreted. TEMP/TMP and SDL_RENDER_DRIVER remain forbidden authored environment. After preserved removal a remaining canonical temp namespace, including an empty directory, holds fresh installation/reuse/activation/recovery without an active Native5 creating contract. No populated-data adoption or persistence-scope shrink is inferred."
+  },
+  "definition": {
+    "path": "crates/portcove-core/catalog/ports/final-doom-crispy-doom-family.json",
+    "sha256": "ca18c9e0461924af95595de7b63bb366d30efc022889b032a89041d93ad0e473",
+    "launch_arguments": ["-game", "doom", "-savedir", "saves", "-noautoload"],
+    "launch_environment": {
+      "DOOMWADDIR": "originals"
+    },
+    "windows_temp_directory": "temp",
+    "persistent_paths": [
+      "default.cfg",
+      "crispy-doom.cfg",
+      "heretic.cfg",
+      "crispy-heretic.cfg",
+      "hexen.cfg",
+      "crispy-hexen.cfg",
+      "strife.cfg",
+      "crispy-strife.cfg",
+      "saves",
+      "levelstat.txt",
+      "hexndata",
+      "demos",
+      "chocolat.rsp",
+      "tmp.cfg",
+      "extratmp.cfg",
+      "doom",
+      "doom.mid",
+      "timidity.cfg",
+      "temp.dsg",
+      "recovery.dsg",
+      "strfsav0.ssg",
+      "strfsav1.ssg",
+      "strfsav2.ssg",
+      "strfsav3.ssg",
+      "strfsav4.ssg",
+      "strfsav5.ssg",
+      "strfsav6.ssg",
+      "originals",
+      "temp"
+    ],
+    "persistent_file_patterns": [
+      {
+        "prefix": "DOOM",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "DOOM",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "HTIC",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "HTIC",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "HEXEN",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "HEXEN",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "STRIFE",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "STRIFE",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "demo",
+        "suffix": ".lmp"
+      },
+      {
+        "prefix": "doomsav",
+        "suffix": ".dsg"
+      },
+      {
+        "prefix": "hticsav",
+        "suffix": ".hsg"
+      }
+    ]
+  },
+  "retained_selected_fixture": {
+    "path": "crates/portcove-core/src/testdata/crispy-final-doom-retained-selected-2026-10-29.json",
+    "sha256": "1ee63bbe4e2403b055faea3fc50302aad661d1f28b290d38cb2a9d32594566f2",
+    "definitions": 1,
+    "preimage_head": "49fb5023e11c74222cb42d44a88cb3a02449e075",
+    "scope": "Exact old creating operational definition; preserve existing five-title snapshot and its historical receipt byte-for-byte. Existing generic acceptance lookup, no per-title production branch."
+  },
+  "acceptance": {
+    "provider": "Added Final Doom to existing actual production-provider baseline/synthetic-successor/CPU/family/ambiguity/missing-integrity controls; fixtures are not future package acceptance.",
+    "existing_adversarial": "Existing full generic retained/fresh/maintenance and Native5 interruption/persistence refusal coverage; no weakened assertions.",
+    "native": "Same Doom-family package/controller has prior actual observations for other identities; per-ID Final Doom installation/controller/data observation remains pending. Prior observations do not become Final Doom game execution."
+  },
+  "pending": [
+    "Per-ID actual Core/controller/data qualification",
+    "Independent final committed/evidence/current-target review",
+    "All five required exact-head contexts and selected Windows producers",
+    "Guarded merge/remote readback; individual issue and Project reconciliation"
+  ],
+  "not_claimed": [
+    "default original-game startup or gameplay",
+    "original-file authentication",
+    "cross-campaign/cross-version save compatibility",
+    "populated profile adoption or persistence shrink",
+    "physical, installed Desktop or protected acceptance",
+    "Supported"
+  ]
+}
