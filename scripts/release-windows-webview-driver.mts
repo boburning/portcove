@@ -211,7 +211,7 @@ export async function prepareBootstrapWindowsWebviewDriver(
       path.basename(destination) === "extract",
   );
   const parent = path.dirname(destination);
-  const before = await lstat(parent);
+  const before = await lstat(parent, { bigint: true });
   assert.ok(before.isDirectory() && !before.isSymbolicLink());
   const resolvedParent = await realpath(parent);
   assert.equal(resolvedParent, parent);
@@ -224,7 +224,7 @@ export async function prepareBootstrapWindowsWebviewDriver(
   );
   const { url, raw } = await downloadWindowsWebviewDriverArchive(version, architecture);
   const prepared = inspectWindowsWebviewDriverArchive(raw);
-  const after = await lstat(parent);
+  const after = await lstat(parent, { bigint: true });
   assert.equal(after.dev, before.dev);
   assert.equal(after.ino, before.ino);
   assert.equal(await realpath(parent), resolvedParent);
