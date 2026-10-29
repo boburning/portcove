@@ -180,7 +180,7 @@ export function proposalDecoderFixture(
   writeFileSync(
     helper,
     `
-    export { readArtworkJson, readArtworkInput } from './real-artwork.mts';
+    export { readArtworkJson, readArtworkInput, reconcileCatalogArtworkWithdrawals } from './real-artwork.mts';
     import { createCoreImageValidator as actualValidator } from './real-artwork.mts';
     import { appendFileSync, readFileSync } from 'node:fs';
     import { createHash } from 'node:crypto';
@@ -202,7 +202,7 @@ export function proposalDecoderFixture(
         try { records.push(validateImage(Buffer.from('inert image '+i))); }
         catch { records.push({failure:true}); }
       }
-      return {catalog:input,records,metrics:{}};
+      return {catalog:input,records,metrics:{},gone_image_ids:[]};
     }
   `,
   );
