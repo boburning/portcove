@@ -1,0 +1,878 @@
+{
+  "format_version": 1,
+  "kind": "two-title-BStone-shared-managed-fitting",
+  "owners": [2510, 2926, 2555, 2556],
+  "status": "Candidate under implementation; not delivered or playable/support evidence.",
+  "scope": {
+    "replaced_definitions": 2,
+    "new_identities": 0,
+    "historical_new_members": 0,
+    "supported_promotions": 0,
+    "existing_definitions": 247,
+    "other_definitions_unchanged": 245
+  },
+  "upstream": {
+    "repository": "bibendovsky/bstone",
+    "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+    "engine_subtree": "dd3d6155c1938c342351d8e2a62d551ac2e8d816",
+    "selected_git_blob_verified_files": 579,
+    "source_binding_limit": "Selected exact source/commit and publisher archive identities, not binary/source build equivalence."
+  },
+  "package": {
+    "prior_source": "docs/qualification/native-pc-engine-routes-2026-10-27.json families.bstone.read_only_windows_packages",
+    "prior": {
+      "asset_id": 431305599,
+      "name": "bstone-1.3.4+e65a6b40-win64.zip",
+      "url": "https://github.com/bibendovsky/bstone/releases/download/v1.3.4/bstone-1.3.4%2Be65a6b40-win64.zip",
+      "size": 2081399,
+      "publisher_digest": "sha256:4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+      "observed_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+      "entries": 4,
+      "expanded_bytes": 5053705,
+      "executables": [
+        {
+          "path": "bstone-1.3.4+e65a6b40-win64/bstone.exe",
+          "pe_machine": 34404
+        }
+      ],
+      "files": [
+        "bstone-1.3.4+e65a6b40-win64/bstone.exe",
+        "bstone-1.3.4+e65a6b40-win64/bstone_changelog.txt",
+        "bstone-1.3.4+e65a6b40-win64/bstone_license.txt",
+        "bstone-1.3.4+e65a6b40-win64/bstone_readme.txt"
+      ]
+    },
+    "fresh_primary": {
+      "release": "v1.3.4",
+      "asset_id": 431305599,
+      "size": 2081399,
+      "digest": "sha256:4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+      "url": "https://github.com/bibendovsky/bstone/releases/download/v1.3.4/bstone-1.3.4%2Be65a6b40-win64.zip"
+    },
+    "result": "Exact unchanged asset/digest checkpoint consumed; no new extraction/execution claim. Queued repeat inspection reached observation deadline with no payload."
+  },
+  "route": {
+    "adapter": "native-portable",
+    "minimum_capability": "Existing Native4 relative-file-max-path; no new template/profile/readiness authority.",
+    "executable": "bstone.exe",
+    "working_coordinate": "Actual executable parent within official versioned wrapper",
+    "private_profile": "--profile_dir .; app logger initialization does not require creating a separate folder. No global-profile fallback when explicit nonempty dot is supplied.",
+    "original_search": "--data_dir originals is preferred, not exclusive; working/profile/GOG/Steam searches remain. Original recognition belongs to upstream; no Core-authenticated original readiness/completion marker.",
+    "edition_isolation": "Managed AOG default is retailBS6 only. SharewareBS1 remains supported by broader upstream/nonowning guide and exact retained registrations; PS usesVSI. Another edition/runtime owner needs a separate library or upstream-owned copy. No in-place source switch or save conversion.",
+    "retained_fixture": "../../crates/portcove-core/src/testdata/bstone-retained-selected-2026-10-29.json",
+    "maintenance": "Proposed managed-compatible-release at admitted artifact/contract scope; no actual future package or save ABI is accepted by a synthetic provider check.",
+    "original_coordinate": "originals beside bstone.exe within the versioned wrapper; this is the selected executable-parent working directory, not the outer artifact root. Core maps declared relative data through that coordinate."
+  },
+  "writer_inventory": {
+    "captured_files": 579,
+    "engine_subtree_entries": 598,
+    "git_blob_verification": "All captured selected code/header files individually verified; no binary/source equivalence asserted.",
+    "ordinary_writers": [
+      {
+        "source": "src/bstone/src/3d_main.cpp:7830-7836",
+        "coordinate": "get_profile_dir()+bstone_config.txt",
+        "owned": "bstone_config.txt and bstone_config.txt.temp (ordinary atomic-write witness)"
+      },
+      {
+        "source": "src/bstone/src/3d_main.cpp:9974-9975;bstone_logger.cpp:427-434",
+        "coordinate": "get_profile_dir()+bstone_log.txt",
+        "owned": "bstone_log.txt",
+        "lifetime": "Logger destructor cancellation/flush then join atbstone_logger.cpp:342-357"
+      },
+      {
+        "source": "src/bstone/src/3d_main.cpp:7052-7080,7164-7171",
+        "coordinate": "get_profile_dir()+bstone_<aog_full|aog_sw|ps>_high_scores and same-name.temp (ordinary atomic-write witness)",
+        "managed_editions": ["aog_full", "ps"],
+        "limit": "Shareware remains an explicit upstream/non-owning route; no namespace conversion."
+      },
+      {
+        "source": "src/bstone/src/3d_menu.cpp:640-670,3077-3104,3243-3248,3283-3300;3d_main.cpp:9192-9202",
+        "coordinate": "get_profile_dir()+bstone_<edition>_saved_game_<0..9>; atomic temporary name appends.temp",
+        "representation": "Twenty exact extensionless save/temp paths per managed edition, not broad prefix ownership."
+      },
+      {
+        "source": "src/bstone/src/id_vl.cpp:440-504;id_ca.cpp:1337-1340",
+        "coordinate": "get_screenshot_dir() default get_profile_dir(); bstone_aog_sshot_<timestamp>.png orbstone_ps_sshot_<timestamp>.png",
+        "limit": "is_aog includes full/shareware; earlier broader possible-prefix note is conservative, managed retail usesaog."
+      }
+    ],
+    "non_default_writers": "Text/image/audio/level extraction destinations are selected only by explicit extract_* CLI options; authored default launch includes none. Custom paths remain unowned; extra unclaimed inside-tree outputs may hold maintenance.",
+    "memory_only": "g_playtemp uses MemoryStream, not a disk temporary profile.",
+    "legacy_constant": "bstone_config binary filename is declared but has no read/write use in captured current source; current config source usesbstone_config.txt. Older external profiles are not adopted or converted."
+  },
+  "original_tables": {
+    "source_commit": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+    "source_file": "src/bstone/src/id_ca.cpp",
+    "file_sha256": "c7f8dd7f3af50c3a41783c6fc045f0f7f018ce450be9051bb2bcd87ae82b1a1a",
+    "interpretation": "Upstream SHA1 original recognition, not publisher SHA256 or Core attestation. No original files downloaded or executed.",
+    "tables": [
+      {
+        "table": "get_aog_sw_v1_0_resources",
+        "line": 1493,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_bs1",
+            "filename": "AUDIOHED.BS1",
+            "upstream_sha1": "0c3de403b524107809fa9308b730d60e8e41ba93"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_bs1",
+            "filename": "AUDIOT.BS1",
+            "upstream_sha1": "3d4e8b62aa4683671027513ad9720f76f176ba5b"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_bs1",
+            "filename": "IANIM.BS1",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_bs1",
+            "filename": "MAPHEAD.BS1",
+            "upstream_sha1": "55b9eb9ed555b0f249c2cefd54ecc3f511bfcd55"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_bs1",
+            "filename": "MAPTEMP.BS1",
+            "upstream_sha1": "293464e7143ff7e6faf5f5b20799e76a394d65bf"
+          },
+          {
+            "resource": "sanim",
+            "filename_symbol": "sanim_bs1",
+            "filename": "SANIM.BS1",
+            "upstream_sha1": "22bf818465da0f32eef9611de936cba9966b14aa"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_bs1",
+            "filename": "VGADICT.BS1",
+            "upstream_sha1": "b54d48d35d095e27a3c9130cfa59ed9c4f05abe7"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_bs1",
+            "filename": "VGAGRAPH.BS1",
+            "upstream_sha1": "d1fa19131281d30787125f946881652be876f57a"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_bs1",
+            "filename": "VGAHEAD.BS1",
+            "upstream_sha1": "cc44c362e9e2c9f7b9fb2e4ba31331dde42a1e96"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_bs1",
+            "filename": "VSWAP.BS1",
+            "upstream_sha1": "37412ca9139562fc31330d72470822de4d9ceb4a"
+          }
+        ]
+      },
+      {
+        "table": "get_aog_sw_v2_0_resources",
+        "line": 1514,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_bs1",
+            "filename": "AUDIOHED.BS1",
+            "upstream_sha1": "0c3de403b524107809fa9308b730d60e8e41ba93"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_bs1",
+            "filename": "AUDIOT.BS1",
+            "upstream_sha1": "3d4e8b62aa4683671027513ad9720f76f176ba5b"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_bs1",
+            "filename": "IANIM.BS1",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_bs1",
+            "filename": "MAPHEAD.BS1",
+            "upstream_sha1": "04a8e4e7c360f6033dc70f7b09edbc4a6447e462"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_bs1",
+            "filename": "MAPTEMP.BS1",
+            "upstream_sha1": "bbb3cd6ab3e742eada427862504eba06437036d0"
+          },
+          {
+            "resource": "sanim",
+            "filename_symbol": "sanim_bs1",
+            "filename": "SANIM.BS1",
+            "upstream_sha1": "22bf818465da0f32eef9611de936cba9966b14aa"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_bs1",
+            "filename": "VGADICT.BS1",
+            "upstream_sha1": "058fe0b59c7aa020bf4e7509103892d4c7459aa6"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_bs1",
+            "filename": "VGAGRAPH.BS1",
+            "upstream_sha1": "e14b6172b6ab7568d3736f087f07a0df5eac5dad"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_bs1",
+            "filename": "VGAHEAD.BS1",
+            "upstream_sha1": "6c0e273df7fd3940c038fc20a5bdfb81cd50e7ef"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_bs1",
+            "filename": "VSWAP.BS1",
+            "upstream_sha1": "dbde907ba1110bef445d6daae283c4520d6951b4"
+          }
+        ]
+      },
+      {
+        "table": "get_aog_sw_v2_1_resources",
+        "line": 1535,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_bs1",
+            "filename": "AUDIOHED.BS1",
+            "upstream_sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_bs1",
+            "filename": "AUDIOT.BS1",
+            "upstream_sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_bs1",
+            "filename": "IANIM.BS1",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_bs1",
+            "filename": "MAPHEAD.BS1",
+            "upstream_sha1": "04a8e4e7c360f6033dc70f7b09edbc4a6447e462"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_bs1",
+            "filename": "MAPTEMP.BS1",
+            "upstream_sha1": "bbb3cd6ab3e742eada427862504eba06437036d0"
+          },
+          {
+            "resource": "sanim",
+            "filename_symbol": "sanim_bs1",
+            "filename": "SANIM.BS1",
+            "upstream_sha1": "22bf818465da0f32eef9611de936cba9966b14aa"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_bs1",
+            "filename": "VGADICT.BS1",
+            "upstream_sha1": "ed1ab61ad2529e046f966d9c1627508f76693ef8"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_bs1",
+            "filename": "VGAGRAPH.BS1",
+            "upstream_sha1": "b59cbe3793b4612b06254ece48bf8e961ab6f528"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_bs1",
+            "filename": "VGAHEAD.BS1",
+            "upstream_sha1": "0635a4a2b823eef2904ed1d590d98362fb16621d"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_bs1",
+            "filename": "VSWAP.BS1",
+            "upstream_sha1": "dbde907ba1110bef445d6daae283c4520d6951b4"
+          }
+        ]
+      },
+      {
+        "table": "get_aog_sw_v3_0_resources",
+        "line": 1556,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_bs1",
+            "filename": "AUDIOHED.BS1",
+            "upstream_sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_bs1",
+            "filename": "AUDIOT.BS1",
+            "upstream_sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_bs1",
+            "filename": "IANIM.BS1",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_bs1",
+            "filename": "MAPHEAD.BS1",
+            "upstream_sha1": "04a8e4e7c360f6033dc70f7b09edbc4a6447e462"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_bs1",
+            "filename": "MAPTEMP.BS1",
+            "upstream_sha1": "bbb3cd6ab3e742eada427862504eba06437036d0"
+          },
+          {
+            "resource": "sanim",
+            "filename_symbol": "sanim_bs1",
+            "filename": "SANIM.BS1",
+            "upstream_sha1": "22bf818465da0f32eef9611de936cba9966b14aa"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_bs1",
+            "filename": "VGADICT.BS1",
+            "upstream_sha1": "537676ddcafeee415c22bb9d00097b25bc7e13c5"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_bs1",
+            "filename": "VGAGRAPH.BS1",
+            "upstream_sha1": "9f9f4c40c9637af472ce5e1a360e51364c3a418a"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_bs1",
+            "filename": "VGAHEAD.BS1",
+            "upstream_sha1": "e7fb8f241b8fa94739c3bd09ea05c1afc7bbfc95"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_bs1",
+            "filename": "VSWAP.BS1",
+            "upstream_sha1": "dbde907ba1110bef445d6daae283c4520d6951b4"
+          }
+        ]
+      },
+      {
+        "table": "get_aog_full_v1_0_resources",
+        "line": 1577,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_bs6",
+            "filename": "AUDIOHED.BS6",
+            "upstream_sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_bs6",
+            "filename": "AUDIOT.BS6",
+            "upstream_sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25"
+          },
+          {
+            "resource": "eanim",
+            "filename_symbol": "eanim_bs6",
+            "filename": "EANIM.BS6",
+            "upstream_sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b"
+          },
+          {
+            "resource": "ganim",
+            "filename_symbol": "ganim_bs6",
+            "filename": "GANIM.BS6",
+            "upstream_sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_bs6",
+            "filename": "IANIM.BS6",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_bs6",
+            "filename": "MAPHEAD.BS6",
+            "upstream_sha1": "6f19a144d8985e90f096fc1c67ade58e9051235c"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_bs6",
+            "filename": "MAPTEMP.BS6",
+            "upstream_sha1": "4d00c5f5c843f99a266bd938648192a6eff17b5a"
+          },
+          {
+            "resource": "sanim",
+            "filename_symbol": "sanim_bs6",
+            "filename": "SANIM.BS6",
+            "upstream_sha1": "22bf818465da0f32eef9611de936cba9966b14aa"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_bs6",
+            "filename": "VGADICT.BS6",
+            "upstream_sha1": "d4f81ace1701a7338d43ce07723c2adaafdc837c"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_bs6",
+            "filename": "VGAGRAPH.BS6",
+            "upstream_sha1": "02dc27d4810e3ffa26540b310eac6091f5e16de0"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_bs6",
+            "filename": "VGAHEAD.BS6",
+            "upstream_sha1": "639ec9e7a81ad83fc5b5c557cf4fc5fa28b9676b"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_bs6",
+            "filename": "VSWAP.BS6",
+            "upstream_sha1": "0a700732ccbc72f95318a6226a7e1ad78ac713bb"
+          }
+        ]
+      },
+      {
+        "table": "get_aog_full_v2_0_resources",
+        "line": 1600,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_bs6",
+            "filename": "AUDIOHED.BS6",
+            "upstream_sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_bs6",
+            "filename": "AUDIOT.BS6",
+            "upstream_sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25"
+          },
+          {
+            "resource": "eanim",
+            "filename_symbol": "eanim_bs6",
+            "filename": "EANIM.BS6",
+            "upstream_sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b"
+          },
+          {
+            "resource": "ganim",
+            "filename_symbol": "ganim_bs6",
+            "filename": "GANIM.BS6",
+            "upstream_sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_bs6",
+            "filename": "IANIM.BS6",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_bs6",
+            "filename": "MAPHEAD.BS6",
+            "upstream_sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_bs6",
+            "filename": "MAPTEMP.BS6",
+            "upstream_sha1": "8b48e7eb859382a4c84948c5a62899194288e853"
+          },
+          {
+            "resource": "sanim",
+            "filename_symbol": "sanim_bs6",
+            "filename": "SANIM.BS6",
+            "upstream_sha1": "22bf818465da0f32eef9611de936cba9966b14aa"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_bs6",
+            "filename": "VGADICT.BS6",
+            "upstream_sha1": "e83b690836c9edf9ef60f6189b8384fb2319b735"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_bs6",
+            "filename": "VGAGRAPH.BS6",
+            "upstream_sha1": "67a679e3b107db8685ba5ff1643a38f9291b00bf"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_bs6",
+            "filename": "VGAHEAD.BS6",
+            "upstream_sha1": "48b18caa86151610957b64b207cf2a2977ef7d57"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_bs6",
+            "filename": "VSWAP.BS6",
+            "upstream_sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb"
+          }
+        ]
+      },
+      {
+        "table": "get_aog_full_v2_1_resources",
+        "line": 1623,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_bs6",
+            "filename": "AUDIOHED.BS6",
+            "upstream_sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_bs6",
+            "filename": "AUDIOT.BS6",
+            "upstream_sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25"
+          },
+          {
+            "resource": "eanim",
+            "filename_symbol": "eanim_bs6",
+            "filename": "EANIM.BS6",
+            "upstream_sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b"
+          },
+          {
+            "resource": "ganim",
+            "filename_symbol": "ganim_bs6",
+            "filename": "GANIM.BS6",
+            "upstream_sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_bs6",
+            "filename": "IANIM.BS6",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_bs6",
+            "filename": "MAPHEAD.BS6",
+            "upstream_sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_bs6",
+            "filename": "MAPTEMP.BS6",
+            "upstream_sha1": "8b48e7eb859382a4c84948c5a62899194288e853"
+          },
+          {
+            "resource": "sanim",
+            "filename_symbol": "sanim_bs6",
+            "filename": "SANIM.BS6",
+            "upstream_sha1": "22bf818465da0f32eef9611de936cba9966b14aa"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_bs6",
+            "filename": "VGADICT.BS6",
+            "upstream_sha1": "e4ae3ef9a3ac158a832092b7b5487227337c6f13"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_bs6",
+            "filename": "VGAGRAPH.BS6",
+            "upstream_sha1": "6868e6cc4f8cb9160a218c5bce680a11f64c675a"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_bs6",
+            "filename": "VGAHEAD.BS6",
+            "upstream_sha1": "1a3864cd12de4b8fd6be023b73d2d79e91b9018d"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_bs6",
+            "filename": "VSWAP.BS6",
+            "upstream_sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb"
+          }
+        ]
+      },
+      {
+        "table": "get_aog_full_v3_0_resources",
+        "line": 1646,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_bs6",
+            "filename": "AUDIOHED.BS6",
+            "upstream_sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_bs6",
+            "filename": "AUDIOT.BS6",
+            "upstream_sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25"
+          },
+          {
+            "resource": "eanim",
+            "filename_symbol": "eanim_bs6",
+            "filename": "EANIM.BS6",
+            "upstream_sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b"
+          },
+          {
+            "resource": "ganim",
+            "filename_symbol": "ganim_bs6",
+            "filename": "GANIM.BS6",
+            "upstream_sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_bs6",
+            "filename": "IANIM.BS6",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_bs6",
+            "filename": "MAPHEAD.BS6",
+            "upstream_sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_bs6",
+            "filename": "MAPTEMP.BS6",
+            "upstream_sha1": "8b48e7eb859382a4c84948c5a62899194288e853"
+          },
+          {
+            "resource": "sanim",
+            "filename_symbol": "sanim_bs6",
+            "filename": "SANIM.BS6",
+            "upstream_sha1": "22bf818465da0f32eef9611de936cba9966b14aa"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_bs6",
+            "filename": "VGADICT.BS6",
+            "upstream_sha1": "60da35e506d57753f83cca5f232a76dd1cf074ba"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_bs6",
+            "filename": "VGAGRAPH.BS6",
+            "upstream_sha1": "001037fafdff124befb5437c563d0b9c613b3c00"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_bs6",
+            "filename": "VGAHEAD.BS6",
+            "upstream_sha1": "ff165ca5924d738853587a7e4ab1cd239e10e359"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_bs6",
+            "filename": "VSWAP.BS6",
+            "upstream_sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb"
+          }
+        ]
+      },
+      {
+        "table": "get_ps_resources",
+        "line": 1669,
+        "resources": [
+          {
+            "resource": "audiohed",
+            "filename_symbol": "audiohed_vsi",
+            "filename": "AUDIOHED.VSI",
+            "upstream_sha1": "2ed9a587926b2b455f8176788f595d03f6359171"
+          },
+          {
+            "resource": "audiot",
+            "filename_symbol": "audiot_vsi",
+            "filename": "AUDIOT.VSI",
+            "upstream_sha1": "ecac8a800c5d021c8b68d170066c8859df9bd79a"
+          },
+          {
+            "resource": "eanim",
+            "filename_symbol": "eanim_vsi",
+            "filename": "EANIM.VSI",
+            "upstream_sha1": "b668330e56ceb069c1b972cefddd8a3d618a14af"
+          },
+          {
+            "resource": "ianim",
+            "filename_symbol": "ianim_vsi",
+            "filename": "IANIM.VSI",
+            "upstream_sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd"
+          },
+          {
+            "resource": "maphead",
+            "filename_symbol": "maphead_vsi",
+            "filename": "MAPHEAD.VSI",
+            "upstream_sha1": "c3fb0a9b81e0240d12c952fe5b57b78c1108aa48"
+          },
+          {
+            "resource": "maptemp",
+            "filename_symbol": "maptemp_vsi",
+            "filename": "MAPTEMP.VSI",
+            "upstream_sha1": "acd03031d526eeaee64072518adf6814f96e2a37"
+          },
+          {
+            "resource": "vgadict",
+            "filename_symbol": "vgadict_vsi",
+            "filename": "VGADICT.VSI",
+            "upstream_sha1": "061692d166f68d7e0b81568725439078cc728f33"
+          },
+          {
+            "resource": "vgagraph",
+            "filename_symbol": "vgagraph_vsi",
+            "filename": "VGAGRAPH.VSI",
+            "upstream_sha1": "e619a3e6245f79888da5436df138d63204d2caba"
+          },
+          {
+            "resource": "vgahead",
+            "filename_symbol": "vgahead_vsi",
+            "filename": "VGAHEAD.VSI",
+            "upstream_sha1": "ad5fed9de5d1d82145df3ff2286e4bc62cb80e2a"
+          },
+          {
+            "resource": "vswap",
+            "filename_symbol": "vswap_vsi",
+            "filename": "VSWAP.VSI",
+            "upstream_sha1": "4113ce83c42e69dc5cb20de79f41971a100f876e"
+          }
+        ]
+      }
+    ],
+    "filename_source": "src/bstone/src/id_ca.h:238-273"
+  },
+  "diagnostic_plan": {
+    "source": "src/bstone/src/jm_free.cpp:1431-1449",
+    "fact": "--version outputs version/information dialog then Quit before InitDestPath/find_contents; private logger is initialized earlier under explicit --profile_dir .",
+    "actual_evidence_plan": "Use existing Core exec extra arguments -- --version for diagnostic-only actual native process/log/profile and preservation observation; no original autosearch/game execution.",
+    "limits": "Does not qualify default game startup, original file readiness, actual game settings/saves or save-format compatibility."
+  },
+  "early_independent_review": {
+    "reviewer": "/root/review_inventory",
+    "result": "Existing Native managed retail default can coexist with exact retained registrations and fresh listing-backed non-owning registration; same ID cannot host managed/external concurrently in one library.",
+    "pending_evidence": "Complete official-package coordinate/digest/tree proof; operation-scoped native/fixture qualification; independent final review and all-five guarded delivery."
+  },
+  "ports": [
+    {
+      "id": "blake-stone-aliens-of-gold-bstone",
+      "canonical_issue": 2555,
+      "frozen_cohort": "affected-312",
+      "historical_1422_member": false,
+      "managed_edition": "aog_full",
+      "arguments": ["--aog", "--data_dir", "originals", "--profile_dir", "."],
+      "persistent_paths": [
+        "originals",
+        "bstone_config.txt",
+        "bstone_config.txt.temp",
+        "bstone_log.txt",
+        "bstone_aog_full_high_scores",
+        "bstone_aog_full_high_scores.temp",
+        "bstone_aog_full_saved_game_0",
+        "bstone_aog_full_saved_game_0.temp",
+        "bstone_aog_full_saved_game_1",
+        "bstone_aog_full_saved_game_1.temp",
+        "bstone_aog_full_saved_game_2",
+        "bstone_aog_full_saved_game_2.temp",
+        "bstone_aog_full_saved_game_3",
+        "bstone_aog_full_saved_game_3.temp",
+        "bstone_aog_full_saved_game_4",
+        "bstone_aog_full_saved_game_4.temp",
+        "bstone_aog_full_saved_game_5",
+        "bstone_aog_full_saved_game_5.temp",
+        "bstone_aog_full_saved_game_6",
+        "bstone_aog_full_saved_game_6.temp",
+        "bstone_aog_full_saved_game_7",
+        "bstone_aog_full_saved_game_7.temp",
+        "bstone_aog_full_saved_game_8",
+        "bstone_aog_full_saved_game_8.temp",
+        "bstone_aog_full_saved_game_9",
+        "bstone_aog_full_saved_game_9.temp"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "bstone_aog_sshot_",
+          "suffix": ".png"
+        }
+      ],
+      "authored_record_sha256": "1c0d888e7ce7d89fe58b98fb3467bc4bb25ffdac833d598c19cf5c2afe6d8738",
+      "original_prerequisite": "Supply the complete matching lawful retail Aliens of Gold BS6 set (not shareware BS1 or Planet Strike VSI). Keep original files and their edition unchanged; do not rename another game’s files. Portcove does not authenticate originals or claim completed original preparation. Deliberately copy your matching set into an originals subfolder beside bstone.exe inside the versioned package wrapper, the actual executable-parent working directory; keep your original copies. An upstream-recognized installation is another source choice. --data_dir originals is preferred, not exclusive: upstream still searches working/profile and recognized GOG/Steam installations. This managed offer uses --aog for retail Aliens of Gold only; shareware remains on the explicit upstream/non-owning route. Play starts bstone.exe; upstream validates its selected original set. Missing or wrong originals may stop startup; a successful Core invocation or version diagnostic is not game success. --profile_dir . keeps default configuration, log, high scores, exact save/atomic-temporary slots and timestamped screenshots in the executable-parent coordinate. Core preserves those declared names and originals deliberately copied under originals. Different original versions or another source edition need a separate Portcove library or independently owned upstream copy; no in-place source switching, external profile adoption or cross-version save ABI is established. Preserve the creating runtime and data before changing versions. Custom outside-tree outputs remain externally owned and outside Core backups; unclaimed inside-tree outputs can hold maintenance. Existing external registrations keep their creating contracts. Fresh non-owning registration is still available through the broader upstream guide. One canonical entry in a library cannot hold managed and external runtimes concurrently. Keep the output path short to leave room for runtime-generated filenames. Generic fixtures and a diagnostic version dialog establish neither actual originals nor settings/screenshots/game-save compatibility or gameplay.",
+      "acceptance": "Candidate only; independent complete review, provider/retained/native diagnostic/data checks and guarded delivery remain pending."
+    },
+    {
+      "id": "blake-stone-planet-strike-bstone",
+      "canonical_issue": 2556,
+      "frozen_cohort": "affected-312",
+      "historical_1422_member": false,
+      "managed_edition": "ps",
+      "arguments": ["--ps", "--data_dir", "originals", "--profile_dir", "."],
+      "persistent_paths": [
+        "originals",
+        "bstone_config.txt",
+        "bstone_config.txt.temp",
+        "bstone_log.txt",
+        "bstone_ps_high_scores",
+        "bstone_ps_high_scores.temp",
+        "bstone_ps_saved_game_0",
+        "bstone_ps_saved_game_0.temp",
+        "bstone_ps_saved_game_1",
+        "bstone_ps_saved_game_1.temp",
+        "bstone_ps_saved_game_2",
+        "bstone_ps_saved_game_2.temp",
+        "bstone_ps_saved_game_3",
+        "bstone_ps_saved_game_3.temp",
+        "bstone_ps_saved_game_4",
+        "bstone_ps_saved_game_4.temp",
+        "bstone_ps_saved_game_5",
+        "bstone_ps_saved_game_5.temp",
+        "bstone_ps_saved_game_6",
+        "bstone_ps_saved_game_6.temp",
+        "bstone_ps_saved_game_7",
+        "bstone_ps_saved_game_7.temp",
+        "bstone_ps_saved_game_8",
+        "bstone_ps_saved_game_8.temp",
+        "bstone_ps_saved_game_9",
+        "bstone_ps_saved_game_9.temp"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "bstone_ps_sshot_",
+          "suffix": ".png"
+        }
+      ],
+      "authored_record_sha256": "768e692b7f091c56361314a5fdde7ecd266617275b88ef9d0566c73261f78b94",
+      "original_prerequisite": "Supply the complete matching lawful Planet Strike VSI set (not Aliens of Gold BS1/BS6). Keep original files and their edition unchanged; do not rename another game’s files. Portcove does not authenticate originals or claim completed original preparation. Deliberately copy your matching set into an originals subfolder beside bstone.exe inside the versioned package wrapper, the actual executable-parent working directory; keep your original copies. An upstream-recognized installation is another source choice. --data_dir originals is preferred, not exclusive: upstream still searches working/profile and recognized GOG/Steam installations. This managed offer uses --ps for Planet Strike only. Play starts bstone.exe; upstream validates its selected original set. Missing or wrong originals may stop startup; a successful Core invocation or version diagnostic is not game success. --profile_dir . keeps default configuration, log, high scores, exact save/atomic-temporary slots and timestamped screenshots in the executable-parent coordinate. Core preserves those declared names and originals deliberately copied under originals. Different original versions or another source edition need a separate Portcove library or independently owned upstream copy; no in-place source switching, external profile adoption or cross-version save ABI is established. Preserve the creating runtime and data before changing versions. Custom outside-tree outputs remain externally owned and outside Core backups; unclaimed inside-tree outputs can hold maintenance. Existing external registrations keep their creating contracts. Fresh non-owning registration is still available through the broader upstream guide. One canonical entry in a library cannot hold managed and external runtimes concurrently. Keep the output path short to leave room for runtime-generated filenames. Generic fixtures and a diagnostic version dialog establish neither actual originals nor settings/screenshots/game-save compatibility or gameplay.",
+      "acceptance": "Candidate only; independent complete review, provider/retained/native diagnostic/data checks and guarded delivery remain pending."
+    }
+  ],
+  "qualification_pending": [
+    "Reconcile complete official release selection and exact publisher package/executable/working coordinates",
+    "Implement two managed retail defaults with explicit edition/original search/private-profile ownership and preserved upstream/non-owning guides",
+    "Exercise unchanged provider selection/refusals and generic owned lifecycle at offered scope",
+    "Obtain actual Core diagnostic-only version/private-log and maintenance evidence without original autosearch/game execution",
+    "Independent complete review, exact-head CI, guarded merge/readback and canonical reconciliation"
+  ],
+  "not_claimed": [
+    "Original-game execution or authentic original SHA admission",
+    "Default game startup/edition dispatch/settings/screenshots/real saves from a version diagnostic",
+    "Save-format or cross-version/cross-edition compatibility",
+    "Existing populated global profile or runtime adoption",
+    "Supported stage, whole parent completion, protected or installed Desktop acceptance",
+    "New frozen identity or additive old nonowning route credit"
+  ],
+  "provider_coverage": {
+    "fixture": "../../crates/portcove-core/src/testdata/bstone-release-selection-2026-10-29.json",
+    "test": "release::tests::unchanged_definition::bstone_definitions_keep_win64_identity_and_refuse_unqualified_metadata",
+    "scope": "Existing production provider across two unchanged definitions, observed exact8assets/selectedWin64, controlled N+1, wrongCPU/ambiguity/missing-integrity refusals. No future artifact/original/save qualification.",
+    "execution": "Pending required source-bound CI; no local test pass claimed."
+  }
+}
