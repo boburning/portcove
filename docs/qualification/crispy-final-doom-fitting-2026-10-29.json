@@ -2,7 +2,7 @@
   "format_version": 1,
   "kind": "Final Doom existing-contract fresh managed fitting",
   "owners": [2656, 2926, 2510, 1422],
-  "status": "candidate; per-ID native and exact-head qualification pending",
+  "status": "Implemented candidate with actual per-ID Core/controller/data observations; final exact-head delivery and canonical reconciliation pending.",
   "scope": {
     "id": "final-doom-crispy-doom-family",
     "canonical_issue": 2656,
@@ -152,10 +152,9 @@
   "acceptance": {
     "provider": "Added Final Doom to existing actual production-provider baseline/synthetic-successor/CPU/family/ambiguity/missing-integrity controls; fixtures are not future package acceptance.",
     "existing_adversarial": "Existing full generic retained/fresh/maintenance and Native5 interruption/persistence refusal coverage; no weakened assertions.",
-    "native": "Same Doom-family package/controller has prior actual observations for other identities; per-ID Final Doom installation/controller/data observation remains pending. Prior observations do not become Final Doom game execution."
+    "native": "Per-ID actual Core install/verify, two normally closed setup sessions with actual configs, backup/mutate/restore/verify and preserving removal completed. Five files retained: two actual configs and three task synthetic byte witnesses; no game/original/dispatch/save ABI claim."
   },
   "pending": [
-    "Per-ID actual Core/controller/data qualification",
     "Independent final committed/evidence/current-target review",
     "All five required exact-head contexts and selected Windows producers",
     "Guarded merge/remote readback; individual issue and Project reconciliation"
@@ -167,5 +166,6 @@
     "populated profile adoption or persistence shrink",
     "physical, installed Desktop or protected acceptance",
     "Supported"
-  ]
+  ],
+  "native_evidence": "crispy-final-doom-core-operations-2026-10-29.json"
 }
