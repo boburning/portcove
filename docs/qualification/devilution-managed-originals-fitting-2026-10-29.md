@@ -5,8 +5,9 @@ to existing canonical [Diablo #2563](https://github.com/boburning/portcove/issue
 and [Hellfire #2564](https://github.com/boburning/portcove/issues/2564).
 The [exact fitting packet](devilution-managed-originals-fitting-2026-10-29.json)
 binds the official package, original byte facts and ownership decisions.
-Consumer review, CI, actual Windows qualification and final delivery remain
-pending. This document supplies no title completion or Supported promotion.
+The consumer implementation and Windows observations below qualify the bounded
+original-preparation route. Final PR delivery is recorded on the canonical issues.
+This evidence does not promote either listing to Supported.
 
 The managed Windows offer uses official DevilutionX 1.5.5, asset 310816827,
 10,482,049 bytes, publisher SHA-256
@@ -99,4 +100,56 @@ durable reload and unchanged external bytes receive regression coverage.
 Existing persisted identities are not rewritten. That failed attempt retained
 all command evidence and confirmed terminal PowerShell, four retained process
 exits and a complete 435-process CIM inventory with no owned descendants before
-releasing both leases. Fresh CI and real-input qualification remain required.
+releasing both leases. That source failure was repaired and the subsequent observations below retain
+the failed attempt rather than replacing it.
+
+## Actual Windows consumer qualification
+
+Core source `273a1375fba117175647396b69f4f1e3d0ace1c7`, hosted CI
+[40949971931/1](https://github.com/boburning/portcove/actions/runs/40949971931),
+produced checkout `953dd47601e6b10e226723e6af2eef10123ee489`. All five required
+contexts and all eight Windows partitions passed. The selected Windows CLI has
+SHA-256 `7565b01be4af7355774367f3e6074589acadf8e63a5f811ef63cc7dc50c0d1c0`.
+These are CLI/Core observations on Windows 10.0.26300 x64; installed Desktop,
+minimum supported Windows and protected publication were not evaluated.
+
+| Operation                                                                         | Diablo  | Hellfire | Boundary                                                             |
+| --------------------------------------------------------------------------------- | ------- | -------- | -------------------------------------------------------------------- |
+| Original ZIP admission and managed preparation                                    | Passed  | Passed   | Exact owner-provided one/five-member sets; external ZIP unchanged    |
+| Official 1.5.5 package selection, status, paths and immutable verification        | Passed  | Passed   | Exact publisher package above                                        |
+| Play: ordinary graphical startup, verified private original reads and normal exit | Passed  | Passed   | Menus/startup, no gameplay or in-game save/load claim                |
+| Private profile configuration and administrative byte preservation                | Passed  | Passed   | Actual engine INI plus an explicitly inert byte witness              |
+| Backup, authorized restore and subsequent immutable verification                  | Passed  | Passed   | Exact profile bytes restored; no save-format compatibility inference |
+| Export and selected offline import into a separate Unicode library                | Passed  | Passed   | Expected-plan consent; imported originals/profile/package verified   |
+| Preview-bound removal preserving original input and canonical profile             | Passed  | Passed   | Runtime and active pointer removed; canonical profile bytes retained |
+| Actual newer runtime update/rollback and cross-version save ABI                   | Unknown | Unknown  | Provider successor fixtures do not qualify a real future release     |
+| Meaningful gameplay and in-game save/load                                         | Unknown | Unknown  | Optional later evidence, not this narrower route's acceptance gate   |
+
+Diablo graphical startup observations were made with ancestor source `0428a193`
+after the singleton repair. The only subsequent product change at `273a1375`
+validates backup staging before publication; it does not change original
+preparation or launch. Hellfire startup used `273a1375` directly. Hellfire's first
+startup logged all five private original reads and both Core/player exited zero.
+Its second graphical startup exceeded the operator review-control deadline; that
+original harness remains **failed**. A separately reviewed, exact-process normal
+close subsequently observed Core/player exit zero. Second-startup private MPQ
+logs were not retained and remain **Unknown**. A successful recovery does not
+rewrite the failed harness.
+
+A separate earlier backup attempt published an unrestorable Unicode-filename
+witness snapshot. The repair reuses the existing restore path policy before
+publication; its adversarial regression refuses that snapshot without publishing
+it. The later actual run independently observed refusal and then verified an
+ASCII-named inert witness backup/restore. Unicode library roots remain supported.
+The historical invalid snapshot remains retained. The selected offline input
+copy excluded only that invalid historical snapshot, with exact preimages and a
+separate preserved copy; this is not evidence that the original malformed
+snapshot can be imported or restored.
+
+The final administrative run `b9d72ef4-e658-4660-bde9-d1ae7959f7dd` completed
+20 public Core commands with zero exits, completed both operation cases and
+retained positive child exit intervals plus a complete 434-process CIM snapshot
+with no owned processes remaining. Its normal resource release completed at
+22:27:14Z. Neither original archive nor any foreign library or preferences were
+modified. The private reports and original failed/recovery receipts remain in
+owner custody; no original game bytes are distributed by this evidence.
