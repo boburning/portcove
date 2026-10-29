@@ -787,6 +787,7 @@ mod tests {
         let retained_fixture = [
             include_str!("../testdata/reflectionhle-retained-selected-2026-10-28.json"),
             include_str!("../testdata/crispy-retained-selected-2026-10-29.json"),
+            include_str!("../testdata/crispy-final-doom-retained-selected-2026-10-29.json"),
         ]
         .into_iter()
         .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());

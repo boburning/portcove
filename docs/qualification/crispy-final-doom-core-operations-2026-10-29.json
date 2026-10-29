@@ -1,0 +1,230 @@
+{
+  "format_version": 1,
+  "observed_on": "2026-10-29",
+  "kind": "actual-windows-Core-Final-Doom-Crispy-controller-data",
+  "source_head": "5c5147b03fd3c8565b6e863245b03ba456e97305",
+  "build_checkout": "5a4db383e51642fb5124928d48f8994725ec8edd",
+  "build_target": "a0a268ca21a109887d7a17496f542ee419806e67",
+  "producer": {
+    "source": "5c5147b03fd3c8565b6e863245b03ba456e97305",
+    "target": "a0a268ca21a109887d7a17496f542ee419806e67",
+    "checkout": "5a4db383e51642fb5124928d48f8994725ec8edd",
+    "parents": [
+      "a0a268ca21a109887d7a17496f542ee419806e67",
+      "5c5147b03fd3c8565b6e863245b03ba456e97305"
+    ],
+    "run": 40873207273,
+    "attempt": 1,
+    "build_job": 123446258616,
+    "build_job_conclusion": "success",
+    "producer_log_sha256": "8cedee533ddfa495647db7c00f73311aab94ee3d15d43222c24f60f65a1f869b",
+    "artifact_id": 12897336502,
+    "artifact_size": 167683161,
+    "artifact_sha256": "c1f3528ca28bcd407bf9b356d353bc77c514bbd7fd86d13634477ab84948016f",
+    "scope": "API confirmed successful exact build job, decoded normalized log identity and current API commit parents; no native execution or overall CI completion inferred"
+  },
+  "artifact": {
+    "source": "5c5147b03fd3c8565b6e863245b03ba456e97305",
+    "run": 40873207273,
+    "attempt": 1,
+    "checkout": "5a4db383e51642fb5124928d48f8994725ec8edd",
+    "artifact_id": 12897336502,
+    "artifact_sha256": "c1f3528ca28bcd407bf9b356d353bc77c514bbd7fd86d13634477ab84948016f",
+    "archive_sha256": "3b198f885c2e88ef97b86bc57f0e701f9c46c88d17ca49d97e5d188f259310a4",
+    "entries": 332,
+    "expanded": 634868189,
+    "binaries": [
+      {
+        "path": "target/debug/portcove.exe",
+        "basename": "portcove.exe",
+        "bytes": 54379008,
+        "sha256": "dbaa823a19cb7a0fe01e9d8737d06c8b137366b2cc2ded45dfeb4a0e6e3e2b7b"
+      },
+      {
+        "path": "target/nextest/libdirs/host/std-3854312d46c17a37.dll",
+        "basename": "std-3854312d46c17a37.dll",
+        "bytes": 864256,
+        "sha256": "b2bf29c515a24c7a2cbd3435edc8882226f75cc926289c684d833f072b421495"
+      }
+    ],
+    "root": "/mnt/c/Users/bobur/pc-fdm1-9fccf1105f70/cli"
+  },
+  "artifact_receipt_sha256": "0948b0f8ff8d72c0873eba9b57b4964c7f59ac822a4133d027dd7a35a9d686d2",
+  "case_inputs_sha256": "24f3e4bbfb3ab44532741b1253ce1ca54a48340c2ec5a610dc67a0341eaeae7e",
+  "protocol_sha256": "4ca49d476086bf93a45bbfdce82ad7026dbbc99ccb59589374c419cce47303ab",
+  "driver_sha256": "3290bea7e04d46f7c4dc75c88a99bf735466111f804c6471b9bcad0260478069",
+  "full_raw_report_sha256": "6a32fbe923ffb88cbbecc51b287dbcf83f7b32befc899074445d8000b2df5d53",
+  "full_raw_report_bytes": 31431,
+  "run_id": "649c851a-a9af-4f02-9729-2ac4a162735b",
+  "scope": "One fresh Final Doom Core official-package install; controller menus/normal close only; real config plus synthetic save/input preservation; no originals/game/gameplay/inner-player-exit qualification",
+  "environment_scope": "Child-only private application runtime lock/preferences; explicit direct3d11 renderer request; existing task-created MSIX profile preimage only",
+  "observations": [
+    {
+      "id": "final-doom-crispy-doom-family",
+      "round": 1,
+      "cli_pid": 1148,
+      "controller_pid": 18956,
+      "controller_started": "2026-10-29T12:38:16.0750388Z",
+      "executable": "C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\r\\g1-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe",
+      "command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\r\\g1-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe\" -game doom -savedir saves -noautoload",
+      "main": [
+        {
+          "path": "C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\final-doom-crispy-doom-family-1-main.png",
+          "sha256": "9c336fcd749ec557f0e2cb3b300b789330de1b83bec6697578ba53b1377013dc",
+          "pid": 18956,
+          "title": "Crispy Doom Setup ver 7.2.0"
+        }
+      ],
+      "confirmation": {
+        "path": "C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\final-doom-crispy-doom-family-1-confirm.png",
+        "sha256": "c38a8a9848cb78ba2a1fb25269e2f79f1d26c8aec6c2948eac0c1f39eaf024a2",
+        "pid": 18956,
+        "title": "Crispy Doom Setup ver 7.2.0"
+      },
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "scope": "Controller only; no game-start action"
+    },
+    {
+      "id": "final-doom-crispy-doom-family",
+      "round": 2,
+      "cli_pid": 29740,
+      "controller_pid": 18132,
+      "controller_started": "2026-10-29T12:39:06.7508150Z",
+      "executable": "C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\r\\g1-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe",
+      "command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\r\\g1-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe\" -game doom -savedir saves -noautoload",
+      "main": [
+        {
+          "path": "C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\final-doom-crispy-doom-family-2-main.png",
+          "sha256": "9c336fcd749ec557f0e2cb3b300b789330de1b83bec6697578ba53b1377013dc",
+          "pid": 18132,
+          "title": "Crispy Doom Setup ver 7.2.0"
+        }
+      ],
+      "confirmation": {
+        "path": "C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\final-doom-crispy-doom-family-2-confirm.png",
+        "sha256": "c38a8a9848cb78ba2a1fb25269e2f79f1d26c8aec6c2948eac0c1f39eaf024a2",
+        "pid": 18132,
+        "title": "Crispy Doom Setup ver 7.2.0"
+      },
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "scope": "Controller only; no game-start action",
+      "synthetic_probe_scope": "Task-injected bytes during final owned controller session, not application-produced original/save evidence"
+    }
+  ],
+  "metadata": [
+    {
+      "id": "final-doom-crispy-doom-family",
+      "compiled_definition_and_listing_match": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "final-doom-crispy-doom-family",
+      "canonical_issue": 2656,
+      "working_root": "C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\r\\g1-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+      "canonical_user_root": "C:\\Users\\bobur\\pc-fdm1-9fccf1105f70\\library\\user\\final-doom-crispy-doom-family",
+      "package_sha256": "c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+      "retained_files": [
+        {
+          "path": "crispy-doom.cfg",
+          "bytes": 7771,
+          "sha256": "0d9f9bcd49856b36fd411168e99621dcc38b59c26977ff356f6a17c8566982cd"
+        },
+        {
+          "path": "default.cfg",
+          "bytes": 2107,
+          "sha256": "d616046960847bf0cffcbbe8e71bc2016c6310354181c3d28bee01972bde82b7"
+        },
+        {
+          "path": "originals\\MiXeD-CaSe.source-witness",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "saves\\synthetic-save.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "temp\\synthetic-temp.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        }
+      ],
+      "completed": true,
+      "scope": "Setup-controller lifecycle and synthetic byte preservation only"
+    }
+  ],
+  "process_drain": {
+    "complete": true,
+    "observed_utc": "2026-10-29T12:39:54.8665440Z",
+    "scope": "complete CIM snapshot; executable paths inside exact owned root plus descendant closure from retained process handles",
+    "remaining": [],
+    "observed_processes": 385,
+    "retained_root_ids": [
+      8680, 24916, 21760, 1876, 20192, 6988, 7176, 27576, 1148, 18956, 29740, 18132, 1672, 28240,
+      5548, 18896, 22472, 12236, 28068
+    ]
+  },
+  "external_profile_before": {
+    "path": "C:\\Users\\bobur\\AppData\\Roaming\\crispy-doom",
+    "physical_target": "C:\\Users\\bobur\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Roaming\\crispy-doom",
+    "files": [
+      {
+        "path": "music-packs\\README.txt",
+        "bytes": 280,
+        "sha256": "00513a4086a4124c703149fb41eafb890a1297db7fa7f83e0f8266a8782b8534"
+      }
+    ]
+  },
+  "external_profile_after": {
+    "path": "C:\\Users\\bobur\\AppData\\Roaming\\crispy-doom",
+    "physical_target": "C:\\Users\\bobur\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Roaming\\crispy-doom",
+    "files": [
+      {
+        "path": "music-packs\\README.txt",
+        "bytes": 280,
+        "sha256": "00513a4086a4124c703149fb41eafb890a1297db7fa7f83e0f8266a8782b8534"
+      }
+    ]
+  },
+  "completion": {
+    "completed": true,
+    "core_commands": 15,
+    "all_core_commands_exit_zero": true,
+    "actual_controller_and_cli_normal_exit_pairs": 2,
+    "forced_exits": 0,
+    "actual_configs": 2,
+    "task_written_synthetic_probes": 3,
+    "retained_files": 5,
+    "activity_current_and_recovery_ids": [],
+    "driver_exit": 0,
+    "both_native_leases_released": true
+  },
+  "operator": {
+    "kind": "agent",
+    "method": "Model viewed all four actual exact-owned images before SHA/PID/run/phase-bound continuation; exact owned normal-close and save-Yes messages, not physical/human acceptance"
+  },
+  "images": [
+    {
+      "path": "docs/qualification/crispy-final-doom-core-2026-10-29/main.png",
+      "sha256": "9c336fcd749ec557f0e2cb3b300b789330de1b83bec6697578ba53b1377013dc",
+      "deduplication": "Both actual rounds have this same observed image hash; all four captures were viewed separately."
+    },
+    {
+      "path": "docs/qualification/crispy-final-doom-core-2026-10-29/confirm.png",
+      "sha256": "c38a8a9848cb78ba2a1fb25269e2f79f1d26c8aec6c2948eac0c1f39eaf024a2",
+      "deduplication": "Both actual rounds have this same observed image hash; all four captures were viewed separately."
+    }
+  ],
+  "limits": [
+    "No original files supplied, game-start action, actual chooser campaign dispatch, inner-player exit, gameplay or save ABI qualification.",
+    "Two configurations are actually setup-produced. Three83-byte witnesses were task-written during final live controller round and never consumed by a subsequent controller/game. Their preservation proves bytes only.",
+    "No earlier Crispy identity observation is relabelled as Final Doom. Producer source remains5c5147b03fd3c8565b6e863245b03ba456e97305 after later documentation edits.",
+    "No physical/human, installed Desktop, protected, Supported or whole parent completion claim."
+  ]
+}
