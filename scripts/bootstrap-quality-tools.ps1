@@ -415,17 +415,19 @@ function Install-CachedPowerShellAnalyzer([string]$Version, [string]$Repository)
     else { Write-Information "Using cached PSScriptAnalyzer $Version at $target." -InformationAction Continue }
 }
 
+function Install-BoundedEdgeDriverFiles([string]$Version, [string]$Architecture, [string]$Destination) {
+    & node (Join-Path $PSScriptRoot "release-windows-webview-driver.mts") --prepare-bootstrap $Version $Architecture $Destination | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "Bounded Microsoft driver acquisition refused" }
+}
+
 function Install-DesktopTools {
     if (-not $runningOnWindows) { throw "-Desktop self-provisioning currently supports Windows only" }
     $tauriDriverVersion = [string]$bootstrapManifest.desktop.tauri_driver
     $tauriDriver = Install-CachedTauriDriver $tauriDriverVersion
     $runtimeVersion = Get-WebViewRuntimeVersion
     $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
-    $archiveName = switch ($architecture) {
-        "x64" { "edgedriver_win64.zip" }
-        "arm64" { "edgedriver_arm64.zip" }
-        default { throw "Unsupported Windows architecture for EdgeDriver: $architecture" }
-    }
+    if ($architecture -cnotin @("x64", "arm64")) { throw "Unsupported Windows architecture for EdgeDriver: $architecture" }
+    if ($bootstrapManifest.desktop.edge_driver_base -cne 'https://msedgedriver.microsoft.com') { throw "Fixed official Microsoft driver source required" }
     $driverRoot = Join-Path $sharedRoot "desktop\msedgedriver\$runtimeVersion\$architecture"
     $nativeDriver = Join-Path $driverRoot "msedgedriver.exe"
     $driverReady = $false
@@ -439,10 +441,9 @@ function Install-DesktopTools {
         $stagingRoot = Assert-UnderRoot (Join-Path $sharedRoot ".staging\edge-$([guid]::NewGuid())") $sharedRoot "EdgeDriver staging"
         New-Item -ItemType Directory -Force -Path $stagingRoot | Out-Null
         try {
-            $archive = Join-Path $stagingRoot $archiveName
-            Invoke-WebRequest -UseBasicParsing -Uri "$($bootstrapManifest.desktop.edge_driver_base)/$runtimeVersion/$archiveName" -OutFile $archive
-            Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $stagingRoot "extract")
-            $candidate = Join-Path $stagingRoot "extract\msedgedriver.exe"
+            $extract = Join-Path $stagingRoot "extract"
+            Install-BoundedEdgeDriverFiles $runtimeVersion $architecture $extract
+            $candidate = Join-Path $extract "bin\msedgedriver.exe"
             if (-not (Test-VerifiedEdgeDriver $candidate $runtimeVersion)) {
                 throw "EdgeDriver does not exactly match WebView2 runtime $runtimeVersion"
             }

@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { crc32, inflateRawSync } from "node:zlib";
 import { execFileSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, lstat, realpath } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -159,27 +160,16 @@ function observe(script: string, environment: NodeJS.ProcessEnv) {
   return JSON.parse(bytes.replace(/^\uFEFF/u, "")) as unknown;
 }
 
-/** Fresh source-builder outputs only. The maintained signature policy runs
- * before any version probe. Admission and actual runtime matching are separate. */
-export async function acquireWindowsWebviewDriver(
-  sourceRoot: string,
-  toolsRoot: string,
-  environment: NodeJS.ProcessEnv,
+/** Shared bounded public Microsoft archive acquisition; not executable trust. */
+export async function downloadWindowsWebviewDriverArchive(
+  version: string,
+  architecture: "x64" | "arm64",
 ) {
-  assert.ok(process.platform === "win32" && process.arch === "x64");
-  const policy = path.join(sourceRoot, "scripts/windows-webview-driver-policy.psm1"),
-    policyBytes = await readControllerToolFile(policy, 16384),
-    env = { ...environment, PATHEXT: ".EXE", PORTCOVE_EDGE_POLICY: policy };
-  const observed = observe("@{version=(Get-WebViewRuntimeVersion)}|ConvertTo-Json -Compress", env);
-  assert.ok(
-    isRecord(observed) &&
-      Object.keys(observed).join(",") === "version" &&
-      typeof observed.version === "string" &&
-      /^[0-9]{1,10}(?:\.[0-9]{1,10}){3}$/u.test(observed.version),
-  );
-  const version = observed.version,
-    url = `https://msedgedriver.microsoft.com/${version}/edgedriver_win64.zip`,
-    controller = new AbortController(),
+  assert.match(version, /^[0-9]{1,10}(?:\.[0-9]{1,10}){3}$/u);
+  assert.ok(architecture === "x64" || architecture === "arm64");
+  const archive = architecture === "x64" ? "edgedriver_win64.zip" : "edgedriver_arm64.zip";
+  const url = `https://msedgedriver.microsoft.com/${version}/${archive}`;
+  const controller = new AbortController(),
     timer = setTimeout(() => controller.abort(), 30000);
   let raw: Buffer;
   try {
@@ -205,6 +195,89 @@ export async function acquireWindowsWebviewDriver(
     controller.abort();
     clearTimeout(timer);
   }
+  return { url, raw };
+}
+
+/** Ordinary bootstrap output only. Signature/version policy remains its caller's. */
+export async function prepareBootstrapWindowsWebviewDriver(
+  version: string,
+  architecture: "x64" | "arm64",
+  destination: string,
+) {
+  assert.ok(
+    path.isAbsolute(destination) &&
+      destination === path.resolve(destination) &&
+      destination.length <= 4096 &&
+      path.basename(destination) === "extract",
+  );
+  const parent = path.dirname(destination);
+  const before = await lstat(parent);
+  assert.ok(before.isDirectory() && !before.isSymbolicLink());
+  const resolvedParent = await realpath(parent);
+  assert.equal(resolvedParent, parent);
+  // Only an absent fresh output root is permitted; no retained partial reuse.
+  await lstat(destination).then(
+    () => assert.fail("Bootstrap driver output already exists"),
+    (error) => {
+      assert.ok(error instanceof Error && "code" in error && error.code === "ENOENT");
+    },
+  );
+  const { url, raw } = await downloadWindowsWebviewDriverArchive(version, architecture);
+  const prepared = inspectWindowsWebviewDriverArchive(raw);
+  const after = await lstat(parent);
+  assert.equal(after.dev, before.dev);
+  assert.equal(after.ino, before.ino);
+  assert.equal(await realpath(parent), resolvedParent);
+  await mkdir(destination, { mode: 0o700 });
+  await mkdir(path.join(destination, "bin"), { mode: 0o700 });
+  for (const [name, bytes] of prepared.files) {
+    await writeFile(path.join(destination, name), bytes, { flag: "wx", mode: 0o600 });
+    assert.ok(
+      (await readControllerToolFile(path.join(destination, name), 64 * 1024 ** 2)).equals(bytes),
+    );
+  }
+  const result = {
+    schema_version: 1,
+    architecture,
+    version,
+    url,
+    archive_bytes: prepared.archive_bytes,
+    archive_sha256: prepared.archive_sha256,
+    files: [...prepared.files].map(([name, bytes]) => ({
+      path: name,
+      bytes: bytes.length,
+      sha256: hash(bytes),
+    })),
+    authority: "none",
+  };
+  await writeFile(
+    path.join(destination, "bootstrap-driver-acquisition.json"),
+    JSON.stringify(result),
+    { flag: "wx", mode: 0o600 },
+  );
+  return result;
+}
+
+/** Fresh source-builder outputs only. The maintained signature policy runs
+ * before any version probe. Admission and actual runtime matching are separate. */
+export async function acquireWindowsWebviewDriver(
+  sourceRoot: string,
+  toolsRoot: string,
+  environment: NodeJS.ProcessEnv,
+) {
+  assert.ok(process.platform === "win32" && process.arch === "x64");
+  const policy = path.join(sourceRoot, "scripts/windows-webview-driver-policy.psm1"),
+    policyBytes = await readControllerToolFile(policy, 16384),
+    env = { ...environment, PATHEXT: ".EXE", PORTCOVE_EDGE_POLICY: policy };
+  const observed = observe("@{version=(Get-WebViewRuntimeVersion)}|ConvertTo-Json -Compress", env);
+  assert.ok(
+    isRecord(observed) &&
+      Object.keys(observed).join(",") === "version" &&
+      typeof observed.version === "string" &&
+      /^[0-9]{1,10}(?:\.[0-9]{1,10}){3}$/u.test(observed.version),
+  );
+  const version = observed.version;
+  const { url, raw } = await downloadWindowsWebviewDriverArchive(version, "x64");
   const archiveRecord = {
     schema_version: 1,
     version,
@@ -275,4 +348,19 @@ if($version -cne $env:PORTCOVE_EDGE_VERSION -or (Get-WebViewRuntimeVersion) -cne
     mode: 0o600,
   });
   return proof;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  assert.equal(process.argv.length, 6);
+  assert.equal(process.argv[2], "--prepare-bootstrap");
+  assert.ok(process.argv[4] === "x64" || process.argv[4] === "arm64");
+  console.log(
+    JSON.stringify(
+      await prepareBootstrapWindowsWebviewDriver(
+        process.argv[3]!,
+        process.argv[4],
+        process.argv[5]!,
+      ),
+    ),
+  );
 }

@@ -1089,7 +1089,16 @@ mirror list. A pass establishes completion, not a measured mirror performance
 improvement.
 The hosted native prerequisite selects `native-drivers` to avoid provisioning unrelated
 development tools. It preserves driver pin/hash receipts, Microsoft Authenticode-before-execution,
-actual runtime matching, cache promotion and the selected doctor's readback. Its
+actual runtime matching, cache promotion and the selected doctor's readback. EdgeDriver
+acquisition for x64 and arm64 uses the same bounded Microsoft downloader and ZIP
+inspector as the source builder: a 30-second, 32MiB HTTPS response with no redirect
+or content encoding, then complete fixed binary/license inventory, 96MiB expanded
+limit, CRC and path/link checks before create-only extraction. The ordinary
+bootstrap still verifies Microsoft Authenticode before executing the driver's
+version probe and owns cache promotion; archive integrity grants no execution or
+production authority. Tauri driver cache/receipt reuse and its existing optional
+cargo-binstall or Cargo install route retain their original outer supervision;
+these EdgeDriver bounds do not describe that separate acquisition. Its
 checkout state records the expected Aqua location without claiming that Aqua is installed.
 
 Native setup remains platform-scoped: the PowerShell route provisions existing
