@@ -637,6 +637,16 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_published_revocation_preserves_evidence$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# CI40913506707/a1 Windows1 completed launch observation at24.592s before
+# the30.035s watchdog during interrupted-launch recovery. The same case
+# passed28.764s in CI40909956650/a1. Preserve the complete lifecycle and
+# assertions with exact60s Windows harness room, not a product deadline change.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The Linux preparation fixture began interrupted-launch recovery at 28.93s
 # before the 30s cutoff. Preserve the full recovery and final assertions with
 # finite headroom for this exact case; product and child deadlines are unchanged.
@@ -923,9 +933,12 @@ success-output = "immediate"
 # CI40793603321/a1 job123186674413 also reached observation16 at29.730s
 # in verified_resume_abort before its30.055s cutoff. Include that exact case
 # in the same finite60s allowance; this records progress, not a causal repair.
+# CI40903721571/a1 Windows6 cut activated_resume_abort at30.110s after
+# command3 completed29.354s and observation13 completed29.859s. Keep its
+# complete ownership sequence and exact intermediate assertions in this60s group.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/))'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
