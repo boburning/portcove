@@ -32,6 +32,64 @@ import {
 } from "./desktop-review-controls.mts";
 import { artworkObservations } from "./desktop-artwork-observations.mts";
 
+export async function readArtworkFallback(
+  browser: Pick<ScenarioContext["browser"], "executeScript">,
+  selector: string,
+  paletteIndex: number,
+  quiet: boolean,
+) {
+  return executeBrowserScript(
+    browser,
+    (selector, paletteIndex, quiet) => {
+      const frame = document.querySelector<HTMLElement>(selector);
+      if (!frame) throw new Error("Artwork frame unavailable");
+      const roles = ["neutral", "yellow", "blue", "indigo", "green", "red"];
+      const role = roles[paletteIndex];
+      if (!role) throw new Error("Unknown generated artwork palette");
+      const token = quiet ? "--color-bg-subtle" : `--color-art-${role}`;
+      const computed = getComputedStyle(frame);
+      const probe = document.createElement("span");
+      probe.style.display = "none";
+      probe.style.backgroundColor = `var(${token})`;
+      document.body.append(probe);
+      let expectedBackground: string;
+      try {
+        expectedBackground = getComputedStyle(probe).backgroundColor;
+      } finally {
+        probe.remove();
+      }
+      return {
+        source: frame.dataset.artworkSource,
+        initials: frame.querySelector(":scope > span")?.textContent?.trim(),
+        images: frame.querySelectorAll("img").length,
+        decorativeIcon: Boolean(frame.querySelector(':scope > span > svg[aria-hidden="true"]')),
+        palette: computed.getPropertyValue("--art-color").trim(),
+        expectedPalette: getComputedStyle(document.documentElement).getPropertyValue(token).trim(),
+        background: computed.backgroundColor,
+        expectedBackground,
+      };
+    },
+    selector,
+    paletteIndex,
+    quiet,
+  );
+}
+
+export function readArtworkGeometry(browser: Pick<ScenarioContext["browser"], "executeScript">) {
+  return executeBrowserScript(browser, () => {
+    const frame = document.querySelector(".detail-cover");
+    if (!frame) throw new Error("Artwork frame unavailable");
+    const image = frame.querySelector("img");
+    if (!image) throw new Error("Artwork image unavailable");
+    const bounds = frame.getBoundingClientRect();
+    return {
+      ratio: bounds.width / bounds.height,
+      fit: getComputedStyle(image).objectFit,
+      titleOutsideImage: !frame.contains(document.querySelector("#port-detail-title")),
+    };
+  });
+}
+
 export async function artworkScenario({
   browser,
   invoke,
@@ -82,46 +140,6 @@ export async function artworkScenario({
         });
         return transportValue("artwork_state", success(result));
       };
-      const fallbackVisual = async (selector: string, paletteIndex: number, quiet: boolean) =>
-        executeBrowserScript(
-          browser,
-          (selector, paletteIndex, quiet) => {
-            const frame = document.querySelector<HTMLElement>(selector);
-            if (!frame) throw new Error("Artwork frame unavailable");
-            const roles = ["neutral", "yellow", "blue", "indigo", "green", "red"];
-            const role = roles[paletteIndex];
-            if (!role) throw new Error("Unknown generated artwork palette");
-            const token = quiet ? "--color-bg-subtle" : `--color-art-${role}`;
-            const computed = getComputedStyle(frame);
-            const probe = document.createElement("span");
-            probe.style.display = "none";
-            probe.style.backgroundColor = `var(${token})`;
-            document.body.append(probe);
-            let expectedBackground: string;
-            try {
-              expectedBackground = getComputedStyle(probe).backgroundColor;
-            } finally {
-              probe.remove();
-            }
-            return {
-              source: frame.dataset.artworkSource,
-              initials: frame.querySelector(":scope > span")?.textContent?.trim(),
-              images: frame.querySelectorAll("img").length,
-              decorativeIcon: Boolean(
-                frame.querySelector(':scope > span > svg[aria-hidden="true"]'),
-              ),
-              palette: computed.getPropertyValue("--art-color").trim(),
-              expectedPalette: getComputedStyle(document.documentElement)
-                .getPropertyValue(token)
-                .trim(),
-              background: computed.backgroundColor,
-              expectedBackground,
-            };
-          },
-          selector,
-          paletteIndex,
-          quiet,
-        );
       const expectFallbackVisual = async (
         selector: string,
         fallback: GeneratedArtworkFallback,
@@ -139,7 +157,12 @@ export async function artworkScenario({
         );
         try {
           await browser.wait(async () => {
-            const actual = await fallbackVisual(selector, fallback.palette_index, quiet);
+            const actual = await readArtworkFallback(
+              browser,
+              selector,
+              fallback.palette_index,
+              quiet,
+            );
             return (
               actual.source === expected.source &&
               actual.initials === expected.initials &&
@@ -152,11 +175,11 @@ export async function artworkScenario({
           }, 10_000);
         } catch (error) {
           throw new Error(
-            `Fallback presentation did not settle: ${JSON.stringify(await fallbackVisual(selector, fallback.palette_index, quiet))}`,
+            `Fallback presentation did not settle: ${JSON.stringify(await readArtworkFallback(browser, selector, fallback.palette_index, quiet))}`,
             { cause: error },
           );
         }
-        const actual = await fallbackVisual(selector, fallback.palette_index, quiet);
+        const actual = await readArtworkFallback(browser, selector, fallback.palette_index, quiet);
         assert.deepEqual({ source: actual.source, initials: actual.initials }, expected);
         assert.ok(actual.palette.length > 0);
         assert.equal(actual.images, 0);
@@ -310,18 +333,7 @@ export async function artworkScenario({
       );
       assert.equal(oldChoice.ok, false);
       assert.equal(object(oldChoice.error).code, "conflict");
-      const geometry = await executeBrowserScript(browser, () => {
-        const frame = document.querySelector(".detail-cover");
-        if (!frame) throw new Error("Artwork frame unavailable");
-        const image = frame.querySelector("img");
-        if (!image) throw new Error("Artwork image unavailable");
-        const bounds = frame.getBoundingClientRect();
-        return {
-          ratio: bounds.width / bounds.height,
-          fit: getComputedStyle(image).objectFit,
-          titleOutsideImage: !frame.contains(document.querySelector("#port-detail-title")),
-        };
-      });
+      const geometry = await readArtworkGeometry(browser);
       assert.ok(Math.abs(geometry.ratio - 2 / 3) < 0.02);
       assert.equal(geometry.fit, "contain");
       assert.equal(geometry.titleOutsideImage, true);

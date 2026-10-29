@@ -201,41 +201,40 @@ impl PortcoveService {
                     || (update_input.is_some()
                         && prior.is_none_or(|old| old.update_input_id != update_input));
                 pinned = pinned_release(port, channel, platform);
-                if let Some(release) = pinned.as_ref() {
-                    if prior.is_none_or(|old| old.last_attempt_at <= observed_at)
-                        && prior.is_none_or(|old| {
-                            old.definition_id != definition
-                                || old.release.as_ref() != Some(release)
-                                || old.failed
-                        })
-                    {
-                        let changed = prior
-                            .and_then(|old| old.release.as_ref())
-                            .map(ComparisonRelease::identity)
-                            .transpose()?
-                            != Some(release.identity()?);
-                        patches.push(ReleaseObservationPatch {
-                            key: key.clone(),
-                            expected: prior.cloned(),
-                            observed: ReleaseObservation {
-                                port_id: port.id.clone(),
-                                platform,
-                                channel,
-                                definition_id: definition.clone(),
-                                attempted_definition_id: Some(definition.clone()),
-                                update_input_id: update_input.clone(),
-                                release: Some(release.clone()),
-                                last_success_at: None,
-                                last_attempt_at: observed_at,
-                                changed_at: if changed {
-                                    Some(observed_at)
-                                } else {
-                                    prior.and_then(|old| old.changed_at)
-                                },
-                                failed: false,
+                if let Some(release) = pinned.as_ref()
+                    && prior.is_none_or(|old| old.last_attempt_at <= observed_at)
+                    && prior.is_none_or(|old| {
+                        old.definition_id != definition
+                            || old.release.as_ref() != Some(release)
+                            || old.failed
+                    })
+                {
+                    let changed = prior
+                        .and_then(|old| old.release.as_ref())
+                        .map(ComparisonRelease::identity)
+                        .transpose()?
+                        != Some(release.identity()?);
+                    patches.push(ReleaseObservationPatch {
+                        key: key.clone(),
+                        expected: prior.cloned(),
+                        observed: ReleaseObservation {
+                            port_id: port.id.clone(),
+                            platform,
+                            channel,
+                            definition_id: definition.clone(),
+                            attempted_definition_id: Some(definition.clone()),
+                            update_input_id: update_input.clone(),
+                            release: Some(release.clone()),
+                            last_success_at: None,
+                            last_attempt_at: observed_at,
+                            changed_at: if changed {
+                                Some(observed_at)
+                            } else {
+                                prior.and_then(|old| old.changed_at)
                             },
-                        });
-                    }
+                            failed: false,
+                        },
+                    });
                 }
                 if pinned.is_none()
                     && port.platforms.contains(&platform)
@@ -747,5 +746,4 @@ fn memoized(input: &crate::PortRecommendationInput) -> Result<crate::PortRecomme
 }
 
 #[cfg(test)]
-#[path = "service_tests.rs"]
 mod tests;

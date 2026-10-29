@@ -15,6 +15,82 @@ import { ExternalLink } from "./ExternalLink";
 import { SelfServiceSetup } from "./SelfServiceSetup";
 import { Button } from "./ui/button";
 
+function renderListingRequirements(entry: CatalogEntry, listing: CatalogEntry["listing"]) {
+  return (
+    <dl className="detail-facts">
+      <div>
+        <dt>Original game files</dt>
+        <dd>
+          {entry.presentation?.manual_setup
+            ? "Follow the upstream setup instructions"
+            : "Requirements not specified"}
+        </dd>
+      </div>
+      <div>
+        <dt>Runs on</dt>
+        <dd>
+          {entry.platforms.length
+            ? entry.platforms.map(platformLabel).join(" · ")
+            : "Platforms not yet confirmed"}
+        </dd>
+      </div>
+      <div>
+        <dt>Installation</dt>
+        <dd>Upstream setup / external registration</dd>
+      </div>
+      <div>
+        <dt>Release channel</dt>
+        <dd>Managed by the upstream project</dd>
+      </div>
+      <div>
+        <dt>Recorded availability</dt>
+        <dd>{listing ? listingAvailabilityLabel(listing) : "No listing observation"}</dd>
+        {listing?.availability_override_reason && <dd>{listing.availability_override_reason}</dd>}
+        {listing?.upstream_observation && (
+          <dd>
+            Checked {new Date(listing.upstream_observation.attempted_at).toLocaleString()}; facts
+            observed{" "}
+            {listing.upstream_observation.observed_at
+              ? new Date(listing.upstream_observation.observed_at).toLocaleString()
+              : "unavailable"}
+            . Release asset names and provider hashes are observations, not compatibility or byte
+            verification.
+          </dd>
+        )}
+      </div>
+      {listing?.upstream_observation && listing.upstream_observation.releases.length > 0 && (
+        <div>
+          <dt>Observed release assets</dt>
+          <dd>
+            <details>
+              <summary>Release window and package candidates</summary>
+              {listing.upstream_observation.releases.map((release) => (
+                <div key={release.id}>
+                  <ExternalLink href={release.release_url}>{release.version}</ExternalLink>
+                  <ul>
+                    {release.assets.map((asset) => (
+                      <li key={asset.id}>
+                        {asset.name} —{" "}
+                        {asset.platform_hints.length
+                          ? `${asset.platform_hints.map(platformLabel).join(" · ")} filename hints`
+                          : "Platform not identified"}
+                      </li>
+                    ))}
+                  </ul>
+                  {!release.assets_complete && (
+                    <p>This release’s assets were not completely observed.</p>
+                  )}
+                </div>
+              ))}
+            </details>
+          </dd>
+        </div>
+      )}
+      <ListingMaintenanceFacts listing={listing} />
+    </dl>
+  );
+}
+
 export function ListingDetailPanel({
   entry,
   libraryRoot,
@@ -69,84 +145,7 @@ export function ListingDetailPanel({
           port={entry}
           projectUrl={listing?.project_url}
           openSupport={openSupport}
-          overviewRequirements={
-            <dl className="detail-facts">
-              <div>
-                <dt>Original game files</dt>
-                <dd>
-                  {entry.presentation?.manual_setup
-                    ? "Follow the upstream setup instructions"
-                    : "Requirements not specified"}
-                </dd>
-              </div>
-              <div>
-                <dt>Runs on</dt>
-                <dd>
-                  {entry.platforms.length
-                    ? entry.platforms.map(platformLabel).join(" · ")
-                    : "Platforms not yet confirmed"}
-                </dd>
-              </div>
-              <div>
-                <dt>Installation</dt>
-                <dd>Upstream setup / external registration</dd>
-              </div>
-              <div>
-                <dt>Release channel</dt>
-                <dd>Managed by the upstream project</dd>
-              </div>
-              <div>
-                <dt>Recorded availability</dt>
-                <dd>{listing ? listingAvailabilityLabel(listing) : "No listing observation"}</dd>
-                {listing?.availability_override_reason && (
-                  <dd>{listing.availability_override_reason}</dd>
-                )}
-                {listing?.upstream_observation && (
-                  <dd>
-                    Checked {new Date(listing.upstream_observation.attempted_at).toLocaleString()};
-                    facts observed{" "}
-                    {listing.upstream_observation.observed_at
-                      ? new Date(listing.upstream_observation.observed_at).toLocaleString()
-                      : "unavailable"}
-                    . Release asset names and provider hashes are observations, not compatibility or
-                    byte verification.
-                  </dd>
-                )}
-              </div>
-              {listing?.upstream_observation &&
-                listing.upstream_observation.releases.length > 0 && (
-                  <div>
-                    <dt>Observed release assets</dt>
-                    <dd>
-                      <details>
-                        <summary>Release window and package candidates</summary>
-                        {listing.upstream_observation.releases.map((release) => (
-                          <div key={release.id}>
-                            <ExternalLink href={release.release_url}>
-                              {release.version}
-                            </ExternalLink>
-                            <ul>
-                              {release.assets.map((asset) => (
-                                <li key={asset.id}>
-                                  {asset.name} —{" "}
-                                  {asset.platform_hints.length
-                                    ? `${asset.platform_hints.map(platformLabel).join(" · ")} filename hints`
-                                    : "Platform not identified"}
-                                </li>
-                              ))}
-                            </ul>
-                            {!release.assets_complete && (
-                              <p>This release’s assets were not completely observed.</p>
-                            )}
-                          </div>
-                        ))}
-                      </details>
-                    </dd>
-                  </div>
-                )}
-              <ListingMaintenanceFacts listing={listing} />
-            </dl>
-          }
+          overviewRequirements={renderListingRequirements(entry, listing)}
           overviewActions={(reveal) => (
             <div className="detail-journey-links">
               <Button

@@ -1,0 +1,639 @@
+{
+  "format_version": 1,
+  "kind": "actual-windows-core-crispy-controller-and-owned-data",
+  "observed_on": "2026-10-29",
+  "source_head": "16f96924ea0b229a94e6c87b767b6110a7e51f8a",
+  "build_checkout": "fadae34af2b5088cc330ef2623a3de84a318ac74",
+  "build_target": "87a91a2744c9c306575836376197a83c8d5627c8",
+  "ci": {
+    "run": 40843915950,
+    "attempt": 1,
+    "original_deadline": "2026-10-29T09:41:06Z",
+    "required_contexts": "all five passed",
+    "windows_partitions": 8
+  },
+  "artifact": {
+    "source": "16f96924ea0b229a94e6c87b767b6110a7e51f8a",
+    "run": 40843915950,
+    "attempt": 1,
+    "checkout": "fadae34af2b5088cc330ef2623a3de84a318ac74",
+    "artifact_id": 12884451439,
+    "artifact_sha256": "70c7f1ab22f019c957abe93fb7aaad506ecefae2f7086fad056fad26c04e5bcf",
+    "archive_sha256": "693a1c9db57babe8955b6818ff6ddee9f4c47b9522947603b5a01a9911b61bb1",
+    "entries": 332,
+    "expanded": 634806237,
+    "binaries": [
+      {
+        "path": "target/debug/portcove.exe",
+        "basename": "portcove.exe",
+        "bytes": 54374912,
+        "sha256": "7bcbf73f16616f33710ea8a5d16b269383b8659f760939cd86a4dbabb3d7e915"
+      },
+      {
+        "path": "target/nextest/libdirs/host/std-3854312d46c17a37.dll",
+        "basename": "std-3854312d46c17a37.dll",
+        "bytes": 864256,
+        "sha256": "b2bf29c515a24c7a2cbd3435edc8882226f75cc926289c684d833f072b421495"
+      }
+    ],
+    "root": "/mnt/c/Users/bobur/pc-csp5-0c4c7151cdd7/cli"
+  },
+  "case_inputs_sha256": "951f6883e8e4cebd1b04b082715384adffe11f1312efda124c43b430a7e805a3",
+  "full_raw_report_sha256": "80f48de5a6986fb2a81ab158aedd121ea12bd92f2c02005f328e28295e5f5861",
+  "full_raw_report_bytes": 135844,
+  "prior_failed_report": {
+    "path": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\crispy-core-result-6948f781-3d7e-4c79-9010-9179bf892623.json",
+    "sha256": "715d651949f2737064ed79e59c094a7d954347cef0547fb6d0501033df0fe130",
+    "run_id": "6948f781-3d7e-4c79-9010-9179bf892623",
+    "scope": "Two actual observed Doom controller sessions; original failed marker guard retained, not passed"
+  },
+  "operator": {
+    "kind": "agent",
+    "method": "Actual Windows Core/CLI and exact-owned setup windows; model image inspection, bounded synthetic normal-close/Enter messages; no physical/human-comprehension acceptance."
+  },
+  "environment_scope": "Child-only private application runtime lock/preferences; explicit direct3d11 renderer request; existing task-created MSIX profile preimage only",
+  "observations": [
+    {
+      "id": "doom-the-ultimate-doom-crispy-doom-family",
+      "round": 1,
+      "cli_pid": 22072,
+      "controller_pid": 4392,
+      "controller_started": "2026-10-29T09:15:05.5517515Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g1\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g1\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe\" -game doom -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "doom-main.png",
+          "sha256": "9c336fcd749ec557f0e2cb3b300b789330de1b83bec6697578ba53b1377013dc",
+          "gate_run_id": "6948f781-3d7e-4c79-9010-9179bf892623",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "doom-confirm.png",
+          "sha256": "c38a8a9848cb78ba2a1fb25269e2f79f1d26c8aec6c2948eac0c1f39eaf024a2",
+          "gate_run_id": "6948f781-3d7e-4c79-9010-9179bf892623",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "doom-the-ultimate-doom-crispy-doom-family",
+      "round": 2,
+      "cli_pid": 32552,
+      "controller_pid": 5076,
+      "controller_started": "2026-10-29T09:19:07.3321883Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g1\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g1\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe\" -game doom -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "doom-main.png",
+          "sha256": "9c336fcd749ec557f0e2cb3b300b789330de1b83bec6697578ba53b1377013dc",
+          "gate_run_id": "6948f781-3d7e-4c79-9010-9179bf892623",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "doom-confirm.png",
+          "sha256": "c38a8a9848cb78ba2a1fb25269e2f79f1d26c8aec6c2948eac0c1f39eaf024a2",
+          "gate_run_id": "6948f781-3d7e-4c79-9010-9179bf892623",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "doom-ii-crispy-doom-family",
+      "round": 1,
+      "cli_pid": 6588,
+      "controller_pid": 31876,
+      "controller_started": "2026-10-29T09:29:04.4615306Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g2-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g2-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe\" -game doom -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "doom-main.png",
+          "sha256": "9c336fcd749ec557f0e2cb3b300b789330de1b83bec6697578ba53b1377013dc",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "doom-confirm.png",
+          "sha256": "c38a8a9848cb78ba2a1fb25269e2f79f1d26c8aec6c2948eac0c1f39eaf024a2",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "doom-ii-crispy-doom-family",
+      "round": 2,
+      "cli_pid": 9728,
+      "controller_pid": 32100,
+      "controller_started": "2026-10-29T09:30:44.9489605Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g2-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g2-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab\\crispy-doom-setup.exe\" -game doom -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "doom-main.png",
+          "sha256": "9c336fcd749ec557f0e2cb3b300b789330de1b83bec6697578ba53b1377013dc",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "doom-confirm.png",
+          "sha256": "c38a8a9848cb78ba2a1fb25269e2f79f1d26c8aec6c2948eac0c1f39eaf024a2",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "heretic-crispy-doom-family",
+      "round": 1,
+      "cli_pid": 21560,
+      "controller_pid": 4568,
+      "controller_started": "2026-10-29T09:32:18.8612996Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g3\\a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b\\crispy-heretic-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g3\\a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b\\crispy-heretic-setup.exe\" -game heretic -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "heretic-main.png",
+          "sha256": "56cfff41628ce0d437ce7155095ddecfa1b5761b66a619d5008f515b8f9f538d",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "heretic-confirm.png",
+          "sha256": "2beb415f1097ca065606541893072cf0a5e834767764dc87bcaf03a17df397a4",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "heretic-crispy-doom-family",
+      "round": 2,
+      "cli_pid": 10872,
+      "controller_pid": 29604,
+      "controller_started": "2026-10-29T09:33:04.7950912Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g3\\a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b\\crispy-heretic-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g3\\a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b\\crispy-heretic-setup.exe\" -game heretic -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "heretic-main.png",
+          "sha256": "56cfff41628ce0d437ce7155095ddecfa1b5761b66a619d5008f515b8f9f538d",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "heretic-confirm.png",
+          "sha256": "2beb415f1097ca065606541893072cf0a5e834767764dc87bcaf03a17df397a4",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "hexen-crispy-doom-family",
+      "round": 1,
+      "cli_pid": 27556,
+      "controller_pid": 25660,
+      "controller_started": "2026-10-29T09:34:41.5263422Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g4\\0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43\\crispy-hexen-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g4\\0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43\\crispy-hexen-setup.exe\" -game hexen -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "hexen-main.png",
+          "sha256": "799060cb349f12226e5961c754f468a9034230f4978a7fa3c3be5c15fc04acb4",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "hexen-confirm.png",
+          "sha256": "bac5cbc7aefed04cc761598b35e1060e3b4e156e8bf8e6e464c705d92562c84d",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "hexen-crispy-doom-family",
+      "round": 2,
+      "cli_pid": 19468,
+      "controller_pid": 14612,
+      "controller_started": "2026-10-29T09:35:33.6642231Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g4\\0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43\\crispy-hexen-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g4\\0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43\\crispy-hexen-setup.exe\" -game hexen -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "hexen-main.png",
+          "sha256": "799060cb349f12226e5961c754f468a9034230f4978a7fa3c3be5c15fc04acb4",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "hexen-confirm.png",
+          "sha256": "bac5cbc7aefed04cc761598b35e1060e3b4e156e8bf8e6e464c705d92562c84d",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "strife-crispy-doom-family",
+      "round": 1,
+      "cli_pid": 9592,
+      "controller_pid": 32424,
+      "controller_started": "2026-10-29T09:36:58.2564563Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g5\\54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921\\crispy-strife-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g5\\54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921\\crispy-strife-setup.exe\" -game strife -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "strife-main.png",
+          "sha256": "6993dea9fb1af5de2fbe902bd41e0d2a6e8702fbf37a1c129b055f5f305051f1",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "strife-confirm.png",
+          "sha256": "f0b8f9bcd50afd1ed3d0ce6f1df6e7e70cea3425c7074c9c1c632343b0996a58",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    },
+    {
+      "id": "strife-crispy-doom-family",
+      "round": 2,
+      "cli_pid": 12496,
+      "controller_pid": 23704,
+      "controller_started": "2026-10-29T09:37:59.0096666Z",
+      "executable": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g5\\54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921\\crispy-strife-setup.exe",
+      "literal_command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g5\\54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921\\crispy-strife-setup.exe\" -game strife -savedir saves -noautoload",
+      "controller_exit": 0,
+      "cli_exit": 0,
+      "forced": false,
+      "views": {
+        "main": {
+          "image": "strife-main.png",
+          "sha256": "6993dea9fb1af5de2fbe902bd41e0d2a6e8702fbf37a1c129b055f5f305051f1",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Expected family setup menu"
+        },
+        "confirm": {
+          "image": "strife-confirm.png",
+          "sha256": "f0b8f9bcd50afd1ed3d0ce6f1df6e7e70cea3425c7074c9c1c632343b0996a58",
+          "gate_run_id": "5fedf814-823f-42eb-b150-1c397f246e34",
+          "scope": "Exiting setup / Save settings? with Yes selected"
+        }
+      },
+      "scope": "Controller only; no game-start action. Synthetic messages are not physical-device input."
+    }
+  ],
+  "images": [
+    {
+      "path": "crispy-core-2026-10-29/doom-main.png",
+      "sha256": "9c336fcd749ec557f0e2cb3b300b789330de1b83bec6697578ba53b1377013dc",
+      "method": "Read-only exact-owned window PrintWindow PW_RENDERFULLCONTENT=2; model inspected actual image before explicit gate."
+    },
+    {
+      "path": "crispy-core-2026-10-29/doom-confirm.png",
+      "sha256": "c38a8a9848cb78ba2a1fb25269e2f79f1d26c8aec6c2948eac0c1f39eaf024a2",
+      "method": "Read-only exact-owned window PrintWindow PW_RENDERFULLCONTENT=2; model inspected actual image before explicit gate."
+    },
+    {
+      "path": "crispy-core-2026-10-29/heretic-main.png",
+      "sha256": "56cfff41628ce0d437ce7155095ddecfa1b5761b66a619d5008f515b8f9f538d",
+      "method": "Read-only exact-owned window PrintWindow PW_RENDERFULLCONTENT=2; model inspected actual image before explicit gate."
+    },
+    {
+      "path": "crispy-core-2026-10-29/heretic-confirm.png",
+      "sha256": "2beb415f1097ca065606541893072cf0a5e834767764dc87bcaf03a17df397a4",
+      "method": "Read-only exact-owned window PrintWindow PW_RENDERFULLCONTENT=2; model inspected actual image before explicit gate."
+    },
+    {
+      "path": "crispy-core-2026-10-29/hexen-main.png",
+      "sha256": "799060cb349f12226e5961c754f468a9034230f4978a7fa3c3be5c15fc04acb4",
+      "method": "Read-only exact-owned window PrintWindow PW_RENDERFULLCONTENT=2; model inspected actual image before explicit gate."
+    },
+    {
+      "path": "crispy-core-2026-10-29/hexen-confirm.png",
+      "sha256": "bac5cbc7aefed04cc761598b35e1060e3b4e156e8bf8e6e464c705d92562c84d",
+      "method": "Read-only exact-owned window PrintWindow PW_RENDERFULLCONTENT=2; model inspected actual image before explicit gate."
+    },
+    {
+      "path": "crispy-core-2026-10-29/strife-main.png",
+      "sha256": "6993dea9fb1af5de2fbe902bd41e0d2a6e8702fbf37a1c129b055f5f305051f1",
+      "method": "Read-only exact-owned window PrintWindow PW_RENDERFULLCONTENT=2; model inspected actual image before explicit gate."
+    },
+    {
+      "path": "crispy-core-2026-10-29/strife-confirm.png",
+      "sha256": "f0b8f9bcd50afd1ed3d0ce6f1df6e7e70cea3425c7074c9c1c632343b0996a58",
+      "method": "Read-only exact-owned window PrintWindow PW_RENDERFULLCONTENT=2; model inspected actual image before explicit gate."
+    }
+  ],
+  "operations": [
+    {
+      "id": "doom-the-ultimate-doom-crispy-doom-family",
+      "canonical_issue": 2654,
+      "working_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g1\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+      "canonical_user_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\library\\user\\doom-the-ultimate-doom-crispy-doom-family",
+      "package_sha256": "c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+      "retained_files": [
+        {
+          "path": "crispy-doom.cfg",
+          "bytes": 7770,
+          "sha256": "0b2581bab04a9051d5a2a15bf5cce3030f70ff7d3f6f51c11bbcf25462e451a7"
+        },
+        {
+          "path": "default.cfg",
+          "bytes": 2107,
+          "sha256": "d616046960847bf0cffcbbe8e71bc2016c6310354181c3d28bee01972bde82b7"
+        },
+        {
+          "path": "originals\\MiXeD-CaSe.source-witness",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "saves\\synthetic-save.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "temp\\synthetic-temp.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        }
+      ],
+      "completed": true,
+      "scope": "Setup-controller lifecycle and synthetic byte preservation only"
+    },
+    {
+      "id": "doom-ii-crispy-doom-family",
+      "canonical_issue": 2655,
+      "working_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g2-ü\\c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+      "canonical_user_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\library\\user\\doom-ii-crispy-doom-family",
+      "package_sha256": "c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+      "retained_files": [
+        {
+          "path": "crispy-doom.cfg",
+          "bytes": 7770,
+          "sha256": "d250c2513a6964d3fad981b7100b4ac24c444b649e371d1cda211cf14bac9201"
+        },
+        {
+          "path": "default.cfg",
+          "bytes": 2107,
+          "sha256": "d616046960847bf0cffcbbe8e71bc2016c6310354181c3d28bee01972bde82b7"
+        },
+        {
+          "path": "originals\\MiXeD-CaSe.source-witness",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "saves\\synthetic-save.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "temp\\synthetic-temp.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        }
+      ],
+      "completed": true,
+      "scope": "Setup-controller lifecycle and synthetic byte preservation only"
+    },
+    {
+      "id": "heretic-crispy-doom-family",
+      "canonical_issue": 2657,
+      "working_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g3\\a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b",
+      "canonical_user_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\library\\user\\heretic-crispy-doom-family",
+      "package_sha256": "a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b",
+      "retained_files": [
+        {
+          "path": "crispy-heretic.cfg",
+          "bytes": 7777,
+          "sha256": "8dee4b653a8adbc17e504c76eac2d11f73b11596d66a8155f1a265e922b6ddc0"
+        },
+        {
+          "path": "heretic.cfg",
+          "bytes": 2247,
+          "sha256": "fc90314811833211108d8ffeb5972f1473bc1d6844a439a6f270930762d51a74"
+        },
+        {
+          "path": "originals\\MiXeD-CaSe.source-witness",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "saves\\synthetic-save.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "temp\\synthetic-temp.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        }
+      ],
+      "completed": true,
+      "scope": "Setup-controller lifecycle and synthetic byte preservation only"
+    },
+    {
+      "id": "hexen-crispy-doom-family",
+      "canonical_issue": 2662,
+      "working_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g4\\0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43",
+      "canonical_user_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\library\\user\\hexen-crispy-doom-family",
+      "package_sha256": "0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43",
+      "retained_files": [
+        {
+          "path": "crispy-hexen.cfg",
+          "bytes": 8019,
+          "sha256": "fa151a9cca303313c225760af9d0609e35ad1580d51241e66c18337abba8f62f"
+        },
+        {
+          "path": "hexen.cfg",
+          "bytes": 2320,
+          "sha256": "9adb1fde238b1184ad5d3428036e6415c49d8b40fd18d530265e3ed366eaf3aa"
+        },
+        {
+          "path": "originals\\MiXeD-CaSe.source-witness",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "saves\\synthetic-save.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "temp\\synthetic-temp.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        }
+      ],
+      "completed": true,
+      "scope": "Setup-controller lifecycle and synthetic byte preservation only"
+    },
+    {
+      "id": "strife-crispy-doom-family",
+      "canonical_issue": 2663,
+      "working_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\r\\g5\\54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921",
+      "canonical_user_root": "C:\\Users\\bobur\\pc-csp5-0c4c7151cdd7\\library\\user\\strife-crispy-doom-family",
+      "package_sha256": "54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921",
+      "retained_files": [
+        {
+          "path": "crispy-strife.cfg",
+          "bytes": 7273,
+          "sha256": "0b4fe04d6c4268099bf311ef0f5ee3e086f69062a8f96a85e4348399f40dba88"
+        },
+        {
+          "path": "strife.cfg",
+          "bytes": 2661,
+          "sha256": "48f4d9cb7c2b692a37bb8cb893de4c6d61bd7f697ca261274b0752c6caa57364"
+        },
+        {
+          "path": "originals\\MiXeD-CaSe.source-witness",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "saves\\synthetic-save.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        },
+        {
+          "path": "temp\\synthetic-temp.bin",
+          "bytes": 83,
+          "sha256": "27615cffca1c4fb84c6a58dd31c3849fc21e3824db54331baafc462f1dc009e2"
+        }
+      ],
+      "completed": true,
+      "scope": "Setup-controller lifecycle and synthetic byte preservation only"
+    }
+  ],
+  "final_activity": {
+    "active_or_recovery_required": 0,
+    "coverage": "Core active_and_actionable_complete asserted"
+  },
+  "final_process_drain": {
+    "complete": true,
+    "observed_utc": "2026-10-29T09:38:57.1622676Z",
+    "scope": "complete CIM snapshot; executable paths inside exact owned root plus descendant closure from retained process handles",
+    "remaining": [],
+    "observed_processes": 406,
+    "retained_root_ids": [
+      14096, 10368, 31856, 28528, 23184, 24604, 20380, 21508, 32568, 1672, 18256, 4392, 28624,
+      22536, 29220, 20188, 22716, 29104, 12200, 6588, 31876, 9728, 32100, 30624, 17216, 24720,
+      30468, 9704, 28988, 18252, 25016, 12344, 24684, 14148, 16896, 21560, 4568, 10872, 29604,
+      27036, 20464, 29204, 28088, 24484, 32452, 30916, 20912, 23316, 15384, 8420, 17076, 27556,
+      25660, 19468, 14612, 28716, 7128, 29936, 6336, 24784, 20456, 23476, 13416, 14680, 11048,
+      12240, 26184, 9592, 32424, 12496, 23704, 32744, 22972, 16800, 8816, 32212, 19196, 28348
+    ]
+  },
+  "lease": {
+    "released": true,
+    "completed": true,
+    "finished_utc": "2026-10-29T09:38:57.334Z"
+  },
+  "external_profile": {
+    "before": {
+      "path": "C:\\Users\\bobur\\AppData\\Roaming\\crispy-doom",
+      "physical_target": "C:\\Users\\bobur\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Roaming\\crispy-doom",
+      "files": [
+        {
+          "path": "music-packs\\README.txt",
+          "bytes": 280,
+          "sha256": "00513a4086a4124c703149fb41eafb890a1297db7fa7f83e0f8266a8782b8534"
+        }
+      ]
+    },
+    "after": {
+      "path": "C:\\Users\\bobur\\AppData\\Roaming\\crispy-doom",
+      "physical_target": "C:\\Users\\bobur\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Roaming\\crispy-doom",
+      "files": [
+        {
+          "path": "music-packs\\README.txt",
+          "bytes": 280,
+          "sha256": "00513a4086a4124c703149fb41eafb890a1297db7fa7f83e0f8266a8782b8534"
+        }
+      ]
+    },
+    "result": "Exact task-created MSIX-visible profile coordinate, creation, tree and 280-byte README identity unchanged; not global profile adoption."
+  },
+  "classification": {
+    "actual_application_files": "Two setup configuration files per title",
+    "synthetic_files": "Three task-injected 83-byte preservation witnesses per title, written during its final live owned controller session; no subsequent game/controller launch. Not originals or game-save-format evidence.",
+    "core_metadata": "Exact ordinary .portcove-launched root marker b1, validated against Core writer; excluded from application data only after validation.",
+    "immutable_packages": "168 per-entry file references over four publisher-digest archives /134 distinct archive members; all checked unchanged before/after operations.",
+    "temporary_environment": "Native5 metadata and directory provisioning observed; shared source-bound Windows real-child regression proves derived TEMP/TMP behavior. No claim that Crispy original/game-dependent temporary paths were exercised.",
+    "future_maintenance": "Production-provider observed7.2 plus explicitly synthetic N+1/refusal controls; shared Native5 Windows update/rollback/data/recovery controls. No actual future Crispy artifact or save ABI accepted."
+  },
+  "failures_preserved": [
+    {
+      "stage": "original candidate49b",
+      "result": "CI40808194373/a1 correctly refused authored reserved environment; fixed through merged Native5, no guard weakening."
+    },
+    {
+      "stage": "first actual entry",
+      "result": "Host PowerShell File policy refused before protocol/Core; custody retained; exact-root drain and exact observer/lease recovery completed. Normal encoded command route changes no policy/privilege/signing."
+    },
+    {
+      "stage": "second entry",
+      "result": "WindowsPS5.1 wrapped JSON array; strict Count5 guard refused before Core. Read-only diagnostic identified direct-assignment fix; normal positive-drain release."
+    },
+    {
+      "stage": "first two Doom controllers",
+      "result": "PrintWindow flag0 black captures retained as unreadable; additional exact-owned full-content flag2 views support actual menu/dialog observations. No renderer failure or selected-backend claim."
+    },
+    {
+      "stage": "third run",
+      "result": "Strict unexpected-write guard rejected Core-owned .portcove-launched after normal Doom sessions, before backup. Failed report retained; exact b1 metadata validated and excluded narrowly. Continuation binds exact prior receipt and skips controller replay."
+    }
+  ],
+  "not_claimed": [
+    "Authentic original files or original SHA admission",
+    "Game startup, gameplay, original save compatibility or inner-player exit",
+    "Default/actual renderer backend or universal hardware support",
+    "Installed Desktop, protected, physical-device or human-comprehension acceptance",
+    "Populated profile/data adoption or existing registration conversion",
+    "Final Doom or any retained Direct/legacy compatibility transition",
+    "Supported stage or parent/frozen-cohort completion"
+  ]
+}

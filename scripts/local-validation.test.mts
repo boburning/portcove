@@ -698,6 +698,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
 void test("fixture module closure edits retain all independent policy and construction consumers", () => {
   const helper = "scripts/fixtures/module-closure.mts";
   const consumers = [
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/daily-discovery.test.mts",
     "scripts/desktop-boundary-wiring.test.mts",
     "scripts/desktop-staged-layout.test.mts",
@@ -3977,6 +3978,8 @@ void test("native transport producers retain their actual Node consumers across 
         "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
         "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
         "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
+        "apps/desktop/scripts/desktop-artwork.native.test.mts",
+        "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
         "scripts/capture-target.test.mts",
       ],
     ],

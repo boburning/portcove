@@ -266,20 +266,7 @@ export function GroupedDiscover({
                       </div>
                       <div>
                         <h4>Ownership</h4>
-                        <p>
-                          {status?.active
-                            ? "Portcove manages the installed runtime and its reviewed updates. "
-                            : ""}
-                          {status?.external_runtime
-                            ? "You or the upstream launcher manage the registered external runtime. "
-                            : ""}
-                          {!status
-                            ? "Installation and update ownership status is unavailable. Follow the project instructions. "
-                            : !status.active && !status.external_runtime
-                              ? "No current installation is observed. Follow this project’s setup instructions for preparation and update ownership. "
-                              : ""}
-                          Switching projects does not establish save or mod compatibility.
-                        </p>
+                        {renderComparisonOwnership(status)}
                       </div>
                       <div>
                         <h4>Current observations</h4>
@@ -325,6 +312,23 @@ export function GroupedDiscover({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function renderComparisonOwnership(status: PortStatus | undefined) {
+  return (
+    <p>
+      {status?.active ? "Portcove manages the installed runtime and its reviewed updates. " : ""}
+      {status?.external_runtime
+        ? "You or the upstream launcher manage the registered external runtime. "
+        : ""}
+      {!status
+        ? "Installation and update ownership status is unavailable. Follow the project instructions. "
+        : !status.active && !status.external_runtime
+          ? "No current installation is observed. Follow this project’s setup instructions for preparation and update ownership. "
+          : ""}
+      Switching projects does not establish save or mod compatibility.
+    </p>
   );
 }
 

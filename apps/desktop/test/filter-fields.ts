@@ -22,7 +22,7 @@ export async function openFilterField(label: string) {
   await trigger.click();
 }
 
-export function filterFieldForChoice(name: string) {
+function filterFieldForChoice(name: string) {
   if (/^(Windows|Linux|Apple silicon|Intel Mac|For this device) \(/.test(name)) return "Target OS";
   if (/^(Stable|Preview|Rolling) \(/.test(name)) return "Release channels";
   if (/^(In my library|Not in my library) \(/.test(name)) return "Library membership";

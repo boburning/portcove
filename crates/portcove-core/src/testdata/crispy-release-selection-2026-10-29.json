@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "scope": "Complete selected release asset metadata; publisher API digests independently matched the four previously inspected actual archives. Provider tests replay metadata and label successor/refusal mutations synthetic. No binary/source equivalence, original-game or gameplay claim.",
+  "repository": "fabiangreffrath/crispy-doom",
+  "endpoint": "https://api.github.com/repos/fabiangreffrath/crispy-doom/releases/tags/crispy-doom-7.2",
+  "release": {
+    "id": 410442425,
+    "tag_name": "crispy-doom-7.2",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-10-12T09:41:41Z",
+    "assets": [
+      {
+        "id": 633334505,
+        "name": "crispy-doom-7.2.0-win64.zip",
+        "size": 9924686,
+        "digest": "sha256:c04feca63c00fd4c381c53cce8444a2bb520020be38368ce80da60484c94f2ab",
+        "browser_download_url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-doom-7.2.0-win64.zip"
+      },
+      {
+        "id": 633334439,
+        "name": "crispy-heretic-7.2.0-win64.zip",
+        "size": 9802800,
+        "digest": "sha256:a01a9fd2b361efba64e59606fb177f618ebe7dc01a7362d4757f241e3b55e77b",
+        "browser_download_url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-heretic-7.2.0-win64.zip"
+      },
+      {
+        "id": 633334387,
+        "name": "crispy-hexen-7.2.0-win64.zip",
+        "size": 9934349,
+        "digest": "sha256:0ff2a111e2d1a35e8eee5c0617b527c8e6dde305303149f8155c7715e939ca43",
+        "browser_download_url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-hexen-7.2.0-win64.zip"
+      },
+      {
+        "id": 633334350,
+        "name": "crispy-strife-7.2.0-win64.zip",
+        "size": 9823071,
+        "digest": "sha256:54ed631320a91126631d8be85c3afe378bc93020e9be9b3caffeeea67345d921",
+        "browser_download_url": "https://github.com/fabiangreffrath/crispy-doom/releases/download/crispy-doom-7.2/crispy-strife-7.2.0-win64.zip"
+      }
+    ]
+  },
+  "observed_on": "2026-10-29"
+}

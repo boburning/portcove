@@ -341,6 +341,8 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
       "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
+      "apps/desktop/scripts/desktop-artwork.native.test.mts",
+      "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
       "scripts/capture-target.test.mts",
     ],
   ],
@@ -1828,6 +1830,7 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
   "scripts/renovate-engine-probe.test.mts",
   "scripts/desktop-staged-layout.test.mts",

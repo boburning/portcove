@@ -1,7 +1,6 @@
 //! Descriptive directory and actual Library membership without operational definitions.
 use super::*;
 
-#[path = "../game_recommendations/service.rs"]
 mod recommendations;
 
 impl PortcoveService {

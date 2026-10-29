@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { isBuiltin } from "node:module";
 import { tmpdir } from "node:os";
@@ -1433,4 +1433,1137 @@ function $otherUsedAliases(browser,value) {$otherAssert.ok(value);$otherBrowserS
       verify(source.replace('from "./browser-script.mts"', 'from "./wrong-browser-script.mts"')),
     /Missing production dependency/u,
   );
+});
+
+void test("macOS installed cleanup consumes its live owner and explicit process capabilities", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-macos-installed-update-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function* active(
+    value: unknown,
+    callbacks = new Set<string>(),
+    executeCallback = false,
+  ): Generator<Record<string, unknown>> {
+    if (Array.isArray(value)) {
+      for (const child of value) yield* active(child, callbacks);
+      return;
+    }
+    if (!isRecord(value)) return;
+    if (typeof value.type === "string") yield value;
+    if (
+      ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+        String(value.type),
+      )
+    ) {
+      if (executeCallback) yield* active(value.body, callbacks);
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (value.type === "IfStatement" && literal(value.test) === false && key === "consequent")
+        continue;
+      if (
+        value.type === "CallExpression" &&
+        key === "arguments" &&
+        callbacks.has(identifier(value.callee) ?? "")
+      ) {
+        for (const [index, argument] of args(value).entries())
+          yield* active(argument, callbacks, index === 0);
+      } else yield* active(child, callbacks);
+    }
+  }
+  const route = (code: string) => {
+    const ast = parseAst(code);
+    const syntax = [...nodes(ast)];
+    const imported = (module: string, name: string) => {
+      const matches = syntax
+        .filter((node) => node.type === "ImportDeclaration" && literal(node.source) === module)
+        .flatMap((node) => {
+          assert.ok(Array.isArray(node.specifiers));
+          const values: unknown[] = node.specifiers;
+          return values.filter(isRecord);
+        })
+        .filter((node) => identifier(node.imported) === name);
+      assert.ok(matches.length > 0, "Import actual Mac capability " + name);
+      return {
+        matches,
+        aliases: new Set(
+          matches.map((node) => {
+            const alias = identifier(node.local);
+            assert.ok(alias);
+            return alias;
+          }),
+        ),
+      };
+    };
+    const factory = imported(
+      "./desktop-installed-update-harness.mts",
+      "createMacInstalledProcessCleanup",
+    );
+    const waits = imported("./desktop-installed-update-harness.mts", "waitFor");
+    const spawns = imported("node:child_process", "spawn");
+    const live = [...active(ast, waits.aliases)];
+    const calls = live.filter(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        isRecord(node.id) &&
+        node.id.type === "ObjectPattern" &&
+        isRecord(node.init) &&
+        node.init.type === "CallExpression" &&
+        factory.aliases.has(identifier(node.init.callee) ?? ""),
+    );
+    assert.equal(calls.length, 1, "Live Mac cleanup owner");
+    const owner = calls[0];
+    assert.ok(
+      owner && isRecord(owner.id) && Array.isArray(owner.id.properties) && isRecord(owner.init),
+    );
+    const invocation = owner.init;
+    const values = args(invocation),
+      configuration = values[1];
+    assert.ok(isRecord(configuration) && Array.isArray(configuration.properties));
+    const properties: unknown[] = configuration.properties,
+      bindings: unknown[] = owner.id.properties;
+    const dependency = (name: string) => {
+      const property = properties.find(
+        (value) => isRecord(value) && (identifier(value.key) ?? literal(value.key)) === name,
+      );
+      assert.ok(isRecord(property), "Mac capability " + name);
+      return property.value;
+    };
+    const spawn = live.find(
+      (node) => node.type === "CallExpression" && spawns.aliases.has(identifier(node.callee) ?? ""),
+    );
+    assert.ok(spawn);
+    const application = identifier(args(spawn)[0]);
+    assert.ok(application);
+    assert.equal(identifier(values[0]), application, "Cleanup owns the launched application");
+    assert.ok(
+      waits.aliases.has(identifier(dependency("waitFor")) ?? ""),
+      "Actual cleanup wait provider",
+    );
+    const functions = syntax.filter((node) => node.type === "FunctionDeclaration");
+    const functionFor = (value: unknown) => {
+      const name = identifier(value);
+      const declaration = syntax.find(
+        (node) =>
+          ["FunctionDeclaration", "VariableDeclarator"].includes(String(node.type)) &&
+          identifier(node.id) === name,
+      );
+      const fn =
+        isRecord(value) &&
+        ["ArrowFunctionExpression", "FunctionExpression"].includes(String(value.type))
+          ? value
+          : declaration?.type === "VariableDeclarator"
+            ? declaration.init
+            : declaration;
+      assert.ok(
+        isRecord(fn) &&
+          ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+            String(fn.type),
+          ) &&
+          !fn.async,
+        "Synchronous Mac capability",
+      );
+      return fn;
+    };
+    const identify = functionFor(dependency("processIdentity")),
+      matching = functionFor(dependency("matchingChildIdentity")),
+      children = functionFor(dependency("childPids"));
+    const identityBinding = identifier(dependency("processIdentity"));
+    assert.ok(identityBinding);
+    assert.ok(
+      [...active(matching.body)].some(
+        (node) =>
+          node.type === "ReturnStatement" &&
+          isRecord(node.argument) &&
+          node.argument.type === "CallExpression" &&
+          identifier(node.argument.callee) === identityBinding,
+      ),
+      "Child identity reuses the live identity provider",
+    );
+    // Follow the consumed command/result chain, rather than any decoy call in
+    // the provider body. Private bindings and declaration forms are incidental.
+    const commands = imported("node:child_process", "execFileSync");
+    const chain = (value: unknown) => {
+      const result: Record<string, unknown>[] = [];
+      while (isRecord(value)) {
+        result.push(value);
+        if (value.type === "CallExpression") value = value.callee;
+        else if (value.type === "MemberExpression") value = value.object;
+        else break;
+      }
+      return result;
+    };
+    const childNodes = [...active(children.body)];
+    const output = childNodes.find(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        chain(node.init).some(
+          (part) =>
+            part.type === "CallExpression" &&
+            commands.aliases.has(identifier(part.callee) ?? "") &&
+            literal(args(part)[0]) === "/usr/bin/pgrep",
+        ),
+    );
+    assert.ok(output, "Child enumeration uses actual pgrep provider");
+    const command = chain(output.init).find(
+      (part) =>
+        part.type === "CallExpression" && commands.aliases.has(identifier(part.callee) ?? ""),
+    );
+    const childArguments = args(command)[1];
+    assert.ok(isRecord(childArguments) && Array.isArray(childArguments.elements));
+    const childElements: unknown[] = childArguments.elements;
+    assert.equal(literal(childElements[0]), "-P");
+    const parentPid = childElements[1];
+    assert.ok(isRecord(parentPid) && parentPid.type === "CallExpression");
+    assert.equal(identifier(parentPid.callee), "String");
+    assert.ok(Array.isArray(children.params));
+    assert.equal(identifier(args(parentPid)[0]), identifier(children.params[0]));
+    assert.ok(
+      childNodes.some(
+        (node) =>
+          node.type === "ReturnStatement" &&
+          identifier(chain(node.argument).at(-1)) === identifier(output.id),
+      ),
+      "Child enumeration consumes the actual pgrep result",
+    );
+    const signal = functionFor(dependency("signal"));
+    assert.ok(Array.isArray(signal.params));
+    const forwarded = [...active(signal.body)].find(
+      (node) =>
+        node.type === "CallExpression" &&
+        isRecord(node.callee) &&
+        node.callee.type === "MemberExpression" &&
+        identifier(node.callee.object) === "process" &&
+        identifier(node.callee.property) === "kill",
+    );
+    assert.ok(forwarded, "Actual native signal adapter");
+    assert.equal(
+      identifier(args(forwarded)[0]),
+      identifier(signal.params[0]),
+      "Forward exact signal PID",
+    );
+    assert.equal(
+      identifier(args(forwarded)[1]),
+      identifier(signal.params[1]),
+      "Forward exact signal kind",
+    );
+    const methods = new Map<
+      string,
+      { property: Record<string, unknown>; alias: string; calls: Record<string, unknown>[] }
+    >();
+    for (const name of [
+      "positivePid",
+      "processMarker",
+      "ownedMarker",
+      "stopOwned",
+      "freezeCaptureAndStop",
+    ]) {
+      const property = bindings.find(
+        (value) => isRecord(value) && (identifier(value.key) ?? literal(value.key)) === name,
+      );
+      assert.ok(isRecord(property));
+      const alias = identifier(property.value);
+      assert.ok(alias);
+      const calls = live.filter(
+        (node) => node.type === "CallExpression" && identifier(node.callee) === alias,
+      );
+      assert.ok(calls.length > 0, "Consume live Mac method " + name);
+      methods.set(name, { property, alias, calls });
+    }
+    return {
+      factory,
+      owner,
+      invocation,
+      configuration,
+      dependency,
+      methods,
+      forwarded,
+      functions,
+      syntax,
+      signal,
+      providers: [
+        { name: identityBinding, fn: identify },
+        { name: identifier(dependency("matchingChildIdentity")), fn: matching },
+        { name: identifier(dependency("childPids")), fn: children },
+      ],
+    };
+  };
+  const actual = route(source);
+  const waitProperty = [...nodes(actual.configuration)].find(
+    (node) => node.type === "Property" && (identifier(node.key) ?? literal(node.key)) === "waitFor",
+  );
+  assert.ok(waitProperty);
+  route(source.replaceAll("\n", "\r\n"));
+  const factoryAlias = "$ownedMacCleanup";
+  route(
+    edit(source, [
+      ...actual.factory.matches.map((node) => ({
+        ...range(node),
+        text: "createMacInstalledProcessCleanup as " + factoryAlias,
+      })),
+      ...actual.syntax
+        .filter(
+          (node) =>
+            node.type === "CallExpression" &&
+            actual.factory.aliases.has(identifier(node.callee) ?? ""),
+        )
+        .map((node) => ({ ...range(node.callee), text: factoryAlias })),
+    ]),
+  );
+  const changes: { start: number; end: number; text: string }[] = [];
+  for (const [name, method] of actual.methods) {
+    const alias = "$mac" + name;
+    changes.push({ ...range(method.property), text: JSON.stringify(name) + ":" + alias });
+    for (const call of actual.syntax.filter(
+      (node) => node.type === "CallExpression" && identifier(node.callee) === method.alias,
+    ))
+      changes.push({ ...range(call.callee), text: alias });
+  }
+  route(edit(source, changes));
+  const providerForms: { start: number; end: number; text: string }[] = [];
+  let providerPrelude = "";
+  for (const { name, fn } of actual.providers) {
+    if (fn.type !== "FunctionDeclaration") continue;
+    assert.ok(name && Array.isArray(fn.params));
+    const parameters = fn.params
+      .map((value) => {
+        const span = range(value);
+        return source.slice(span.start, span.end);
+      })
+      .join(",");
+    const body = range(fn.body);
+    providerPrelude +=
+      "const " + name + " = (" + parameters + ") => " + source.slice(body.start, body.end) + ";\n";
+    providerForms.push({ ...range(fn), text: "" });
+  }
+  const ownerStatement = actual.syntax.find(
+    (node) =>
+      node.type === "VariableDeclaration" &&
+      Array.isArray(node.declarations) &&
+      node.declarations.includes(actual.owner),
+  );
+  assert.ok(ownerStatement);
+  const insertion = range(ownerStatement).start;
+  if (providerForms.length)
+    route(
+      edit(source, [...providerForms, { start: insertion, end: insertion, text: providerPrelude }]),
+    );
+  const moved = actual.functions.at(-1);
+  assert.ok(moved);
+  const movedRange = range(moved);
+  route(
+    source.slice(movedRange.start, movedRange.end) +
+      "\n" +
+      edit(source, [{ ...movedRange, text: "/* declaration moved */" }]),
+  );
+  route(
+    'import {createMacInstalledProcessCleanup as $otherMacCleanup} from "./desktop-installed-update-harness.mts";\n' +
+      source +
+      "\nfunction $unusedOtherMacAlias(){return $otherMacCleanup();}\n",
+  );
+  for (const [name, method] of actual.methods) {
+    const broken = edit(
+      source,
+      method.calls.map((call) => ({ ...range(call.callee), text: "unreviewedMacCleanup" })),
+    );
+    const decoy =
+      "\nasync function $unusedMacMethod(){" +
+      source.slice(range(method.calls[0]).start, range(method.calls[0]).end) +
+      ";}\n";
+    assert.throws(() => route(broken + decoy), /Consume live Mac method/u, name);
+  }
+  assert.throws(
+    () =>
+      route(
+        edit(source, [{ ...range(args(actual.invocation)[0]), text: '"foreign-application"' }]),
+      ),
+    /Cleanup owns the launched application/u,
+  );
+  assert.throws(
+    () => route(edit(source, [{ ...range(args(actual.forwarded)[0]), text: '"wrong-pid"' }])),
+    /Forward exact signal PID/u,
+  );
+  assert.throws(
+    () => route(edit(source, [{ ...range(args(actual.forwarded)[1]), text: '"SIGCONT"' }])),
+    /Forward exact signal kind/u,
+  );
+  const childProperty = [...nodes(actual.configuration)].find(
+    (node) =>
+      node.type === "Property" && (identifier(node.key) ?? literal(node.key)) === "childPids",
+  );
+  assert.ok(childProperty);
+  assert.throws(
+    () => route(edit(source, [{ ...range(childProperty), text: "childPids: () => []" }])),
+    { code: "ERR_ASSERTION", message: /Child enumeration uses actual pgrep provider/u },
+  );
+  assert.throws(
+    () =>
+      route(
+        edit(source, [
+          {
+            ...range(actual.signal.body),
+            text:
+              "{ if (false) { " +
+              source.slice(range(actual.forwarded).start, range(actual.forwarded).end) +
+              "; } }",
+          },
+        ]),
+      ),
+    { code: "ERR_ASSERTION", message: /Actual native signal adapter/u },
+  );
+  assert.throws(
+    () => route(edit(source, [{ ...range(waitProperty), text: "waitFor:async()=>true" }])),
+    /Actual cleanup wait provider/u,
+  );
+  assert.throws(
+    () =>
+      route(
+        edit(source, [
+          {
+            ...range(actual.factory.matches[0]),
+            text: "hashFile as " + identifier(actual.factory.matches[0]?.local),
+          },
+        ]),
+      ),
+    /Import actual Mac capability/u,
+  );
+});
+
+void test("imported macOS cleanup retains birth custody and mandatory frozen-owner cleanup", async (t) => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const entry = "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts";
+  const ownerPath = "apps/desktop/scripts/desktop-installed-update-harness.mts";
+  const transportPath = "apps/desktop/scripts/transport-values.mts";
+  const closure = readFixtureModuleClosure(root, [entry, ownerPath, transportPath]);
+  const directory = disposableDirectory(t, path.join(tmpdir(), "portcove-mac-cleanup-module-"));
+  writeFileSync(path.join(directory, "package.json"), '{"type":"module"}\n');
+  for (const module of closure.modules) {
+    const destination = path.join(directory, module.path);
+    mkdirSync(path.dirname(destination), { recursive: true });
+    writeFileSync(destination, module.bytes);
+  }
+  const source = stripTypeScriptTypes(await readFile(path.join(root, ownerPath), "utf8"), {
+    mode: "strip",
+  });
+  const program: unknown = parseAst(source);
+  assert.ok(isRecord(program) && Array.isArray(program.body));
+  const declarations = new Map<string, Record<string, unknown>>(),
+    exports = new Map<string, string>();
+  for (const item of program.body) {
+    assert.ok(isRecord(item));
+    const declaration: unknown = item.type === "ExportNamedDeclaration" ? item.declaration : item;
+    if (isRecord(declaration)) {
+      const name = identifier(declaration.id);
+      if (name) {
+        declarations.set(name, declaration);
+        if (item.type === "ExportNamedDeclaration") exports.set(name, name);
+      }
+      if (declaration.type === "VariableDeclaration" && Array.isArray(declaration.declarations))
+        for (const value of declaration.declarations) {
+          assert.ok(isRecord(value));
+          const name = identifier(value.id);
+          if (name && isRecord(value.init)) {
+            declarations.set(name, value.init);
+            if (item.type === "ExportNamedDeclaration") exports.set(name, name);
+          }
+        }
+    }
+    if (item.type === "ExportNamedDeclaration" && Array.isArray(item.specifiers))
+      for (const value of item.specifiers) {
+        assert.ok(isRecord(value));
+        const name = identifier(value.exported),
+          local = identifier(value.local);
+        if (name && local) exports.set(name, local);
+      }
+  }
+  const factory = declarations.get(exports.get("createMacInstalledProcessCleanup") ?? "");
+  assert.ok(factory && isRecord(factory.body));
+  const returned = [...nodes(factory.body)].find(
+    (node) =>
+      node.type === "ReturnStatement" &&
+      isRecord(node.argument) &&
+      node.argument.type === "ObjectExpression" &&
+      Array.isArray(node.argument.properties) &&
+      node.argument.properties.some(
+        (value: unknown) =>
+          isRecord(value) &&
+          (identifier(value.key) ?? literal(value.key)) === "freezeCaptureAndStop",
+      ),
+  );
+  assert.ok(returned && isRecord(returned.argument) && Array.isArray(returned.argument.properties));
+  const properties: unknown[] = returned.argument.properties;
+  const method = (name: string) => {
+    const property = properties.find(
+      (value) => isRecord(value) && (identifier(value.key) ?? literal(value.key)) === name,
+    );
+    assert.ok(isRecord(property));
+    const local = identifier(property.value);
+    const fn =
+      isRecord(property.value) &&
+      ["FunctionExpression", "ArrowFunctionExpression"].includes(String(property.value.type))
+        ? property.value
+        : [...nodes(factory.body)].find(
+            (node) =>
+              (node.type === "FunctionDeclaration" && identifier(node.id) === local) ||
+              (node.type === "VariableDeclarator" && identifier(node.id) === local),
+          );
+    assert.ok(fn);
+    const implementation = fn.type === "VariableDeclarator" ? fn.init : fn;
+    assert.ok(isRecord(implementation));
+    const binding = local ? fn.id : undefined;
+    const declaration =
+      fn.type === "VariableDeclarator"
+        ? [...nodes(factory.body)].find(
+            (node) =>
+              node.type === "VariableDeclaration" &&
+              Array.isArray(node.declarations) &&
+              node.declarations.includes(fn),
+          )
+        : fn.type === "FunctionDeclaration"
+          ? fn
+          : undefined;
+    return { property, fn: implementation, binding, declaration };
+  };
+  const stop = method("stopOwned"),
+    freeze = method("freezeCaptureAndStop");
+  const kill = (node: Record<string, unknown>) =>
+    [...nodes(node)].some(
+      (value) => value.type === "CallExpression" && literal(args(value)[1]) === "SIGKILL",
+    );
+  const guard = [...nodes(stop.fn.body)].find(
+    (node) => node.type === "IfStatement" && isRecord(node.consequent) && kill(node.consequent),
+  );
+  assert.ok(guard && isRecord(guard.consequent));
+  const capture = [...nodes(freeze.fn.body)].find(
+    (node) => node.type === "TryStatement" && isRecord(node.finalizer) && kill(node.finalizer),
+  );
+  assert.ok(capture && isRecord(capture.finalizer));
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const execute = (code: string) => {
+    writeFileSync(path.join(directory, ownerPath), code);
+    const result = spawnSync(
+      process.execPath,
+      ["--test", "--test-reporter=tap", path.join(directory, entry)],
+      {
+        cwd: directory,
+        env: environment,
+        encoding: "utf8",
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    assert.ifError(result.error);
+    return result;
+  };
+  const accepted = (code: string) => {
+    const result = execute(code);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /macOS frozen child capture retains exact first failure/u);
+    assert.match(result.stdout, /# pass 4\b/u);
+    assert.match(result.stdout, /# fail 0\b/u);
+  };
+  accepted(source);
+  const transportFile = path.join(directory, transportPath);
+  renameSync(transportFile, transportFile + ".retained-input");
+  try {
+    const missingInput = execute(source);
+    assert.equal(missingInput.signal, null);
+    assert.equal(missingInput.status, 1, "Missing required fixture input must refuse execution");
+    assert.match(missingInput.stdout, /ERR_MODULE_NOT_FOUND/u);
+    assert.ok(missingInput.stdout.includes("transport-values.mts"));
+  } finally {
+    renameSync(transportFile + ".retained-input", transportFile);
+  }
+  accepted(source.replaceAll("\n", "\r\n"));
+  const renamed: { start: number; end: number; text: string }[] = [];
+  for (const [name, implementation] of [
+    ["stopOwned", stop],
+    ["freezeCaptureAndStop", freeze],
+  ] as const) {
+    if (!isRecord(implementation.binding)) continue;
+    const alias = "$owned" + name;
+    renamed.push(
+      { ...range(implementation.binding), text: alias },
+      { ...range(implementation.property), text: JSON.stringify(name) + ":" + alias },
+    );
+  }
+  accepted(edit(source, renamed));
+  if (stop.declaration && freeze.declaration) {
+    const first = range(stop.declaration),
+      second = range(freeze.declaration);
+    if (first.end <= second.start || second.end <= first.start)
+      accepted(
+        edit(source, [
+          { ...first, text: source.slice(second.start, second.end) },
+          { ...second, text: source.slice(first.start, first.end) },
+        ]),
+      );
+  }
+  const forms: { start: number; end: number; text: string }[] = [];
+  for (const implementation of [stop, freeze]) {
+    if (implementation.declaration?.type !== "FunctionDeclaration") continue;
+    assert.ok(Array.isArray(implementation.fn.params));
+    const parameters = implementation.fn.params
+      .map((value) => {
+        const span = range(value);
+        return source.slice(span.start, span.end);
+      })
+      .join(",");
+    const body = range(implementation.fn.body),
+      name = identifier(implementation.binding);
+    assert.ok(name);
+    forms.push({
+      ...range(implementation.declaration),
+      text:
+        "const " +
+        name +
+        " = " +
+        (implementation.fn.async ? "async " : "") +
+        "(" +
+        parameters +
+        ") => " +
+        source.slice(body.start, body.end) +
+        ";",
+    });
+  }
+  if (forms.length) accepted(edit(source, forms));
+  const rejected = (code: string, caseName: RegExp, assertion: string) => {
+    const result = execute(code);
+    assert.equal(result.signal, null, "A process signal cannot stand in for a guard failure");
+    assert.equal(result.status, 1, "Removed custody guard must fail its actual unit case");
+    assert.match(result.stdout, caseName);
+    assert.match(result.stdout, /\bcode:\s*['"]?ERR_ASSERTION\b/u);
+    assert.ok(
+      result.stdout.includes("MAC_CONTRACT_ASSERTION " + assertion),
+      "Require the inner behavioral assertion, not a fixture infrastructure failure",
+    );
+    assert.doesNotMatch(result.stdout + result.stderr, /SyntaxError|ERR_MODULE_NOT_FOUND/u);
+  };
+  rejected(
+    edit(source, [
+      {
+        ...range(guard),
+        text: source.slice(range(guard.consequent).start, range(guard.consequent).end),
+      },
+    ]),
+    /not ok \d+ - macOS owned cleanup refuses foreign markers and never signals a changed start identity/u,
+    "Mac changed-start custody rejects forced kill",
+  );
+  rejected(
+    edit(source, [{ ...range(capture.finalizer), text: "{}" }]),
+    /not ok \d+ - macOS frozen child capture retains exact first failure after mandatory process cleanup/u,
+    "Mac capture must force stop in finally",
+  );
+});
+
+void test("artwork scenarios serialize their live production browser observations", async (context) => {
+  const production = "apps/desktop/scripts/desktop-artwork-test.mts";
+  const native = "apps/desktop/scripts/desktop-artwork.native.test.mts";
+  const source = stripTypeScriptTypes(
+    await readFile(new URL("../" + production, import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const syntax = [...nodes(parseAst(code))];
+    const callable = (node: Record<string, unknown>) =>
+      ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+        String(node.type),
+      );
+    function exported(name: string) {
+      for (const entry of syntax.filter((node) => node.type === "ExportNamedDeclaration")) {
+        let local: string | undefined;
+        if (isRecord(entry.declaration)) {
+          if (entry.declaration.type === "FunctionDeclaration")
+            local = identifier(entry.declaration.id);
+          else if (Array.isArray(entry.declaration.declarations)) {
+            local = entry.declaration.declarations
+              .filter(isRecord)
+              .map((node) => identifier(node.id))
+              .find((value) => value === name);
+          }
+          if (local !== name) local = undefined;
+        }
+        if (Array.isArray(entry.specifiers)) {
+          const alias = entry.specifiers
+            .filter(isRecord)
+            .find((node) => (identifier(node.exported) ?? literal(node.exported)) === name);
+          if (alias) local = identifier(alias.local);
+        }
+        if (!local) continue;
+        const binding = syntax.find(
+          (node) =>
+            identifier(node.id) === local &&
+            (node.type === "FunctionDeclaration" ||
+              (node.type === "VariableDeclarator" && isRecord(node.init) && callable(node.init))),
+        );
+        assert.ok(binding, "Resolve actual artwork export " + name);
+        const node = binding.type === "VariableDeclarator" ? binding.init : binding;
+        assert.ok(isRecord(node));
+        return { name, local, node, entry };
+      }
+      assert.fail("Retain exported artwork owner " + name);
+    }
+    const owner = exported("artworkScenario");
+    assert.ok(Array.isArray(owner.node.params) && isRecord(owner.node.params[0]));
+    const propertyValues: unknown = owner.node.params[0].properties;
+    assert.ok(Array.isArray(propertyValues));
+    const properties: Record<string, unknown>[] = propertyValues.filter(isRecord);
+    function contextBinding(name: string): string {
+      const property = properties.find((node) => identifier(node.key) === name);
+      const binding = property && identifier(property.value);
+      assert.ok(binding, "Retain artwork scenario context " + name);
+      return binding;
+    }
+    const browser = contextBinding("browser"),
+      scenario = contextBinding("scenario");
+    // Collect every alias, including aliases imported from the wrong owner.
+    // The consumed dependency, rather than the first import, determines wiring.
+    const importedAdapters = syntax.flatMap((declaration) => {
+      if (declaration.type !== "ImportDeclaration" || !Array.isArray(declaration.specifiers))
+        return [];
+      return declaration.specifiers.filter(isRecord).flatMap((specifier) => {
+        const local = identifier(specifier.local);
+        return local &&
+          (identifier(specifier.imported) ?? literal(specifier.imported)) === "executeBrowserScript"
+          ? [{ declaration, specifier, local }]
+          : [];
+      });
+    });
+    const blocks = syntax.filter(
+      (node) => node.type === "BlockStatement" || node.type === "Program",
+    );
+    const bindings = syntax.flatMap((node) => {
+      const fn =
+        node.type === "FunctionDeclaration"
+          ? node
+          : node.type === "VariableDeclarator" && isRecord(node.init) && callable(node.init)
+            ? node.init
+            : undefined;
+      const name = identifier(node.id);
+      if (!fn || !name) return [];
+      const scope = blocks
+        .filter(
+          (block) => range(block).start <= range(node).start && range(block).end >= range(node).end,
+        )
+        .sort((a, b) => range(a).end - range(a).start - (range(b).end - range(b).start))[0];
+      assert.ok(scope);
+      return [{ name, fn, scope }];
+    });
+    function constant(value: unknown): { value: unknown } | undefined {
+      if (!isRecord(value)) return undefined;
+      if (
+        value.type === "Literal" &&
+        (value.value === null || ["boolean", "string", "number"].includes(typeof value.value))
+      )
+        return { value: value.value };
+      if (value.type === "UnaryExpression" && value.operator === "!") {
+        const argument = constant(value.argument);
+        if (argument) return { value: !argument.value };
+      }
+      return undefined;
+    }
+    function active(seed: unknown) {
+      const live: Record<string, unknown>[] = [],
+        seen = new Set<unknown>();
+      const resolved = new Map<Record<string, unknown>, Record<string, unknown>>();
+      function visit(value: unknown, enter = false) {
+        if (Array.isArray(value)) {
+          for (const item of value) visit(item);
+          return;
+        }
+        if (!isRecord(value) || (callable(value) && !enter) || seen.has(value)) return;
+        seen.add(value);
+        live.push(value);
+        if (value.type === "IfStatement" || value.type === "ConditionalExpression") {
+          const test = constant(value.test);
+          if (test) {
+            visit(value.test);
+            visit(test.value ? value.consequent : value.alternate);
+            return;
+          }
+        }
+        if (value.type === "LogicalExpression") {
+          visit(value.left);
+          const left = constant(value.left);
+          if (
+            left &&
+            ((value.operator === "&&" && !left.value) ||
+              (value.operator === "||" && left.value) ||
+              (value.operator === "??" && left.value !== null && left.value !== undefined))
+          )
+            return;
+          visit(value.right);
+          return;
+        }
+        if (value.type === "CallExpression") {
+          const name = identifier(value.callee);
+          const called = bindings
+            .filter(
+              (binding) =>
+                binding.name === name &&
+                range(binding.scope).start <= range(value).start &&
+                range(binding.scope).end >= range(value).end,
+            )
+            .sort(
+              (a, b) =>
+                range(a.scope).end -
+                range(a.scope).start -
+                (range(b.scope).end - range(b.scope).start),
+            )[0];
+          if (called) {
+            resolved.set(value, called.fn);
+            visit(called.fn, true);
+          }
+          if (
+            name === scenario &&
+            literal(args(value)[0]) === "native-local-artwork-picker-and-recovery"
+          )
+            visit(args(value)[1], true);
+          if (
+            isRecord(value.callee) &&
+            value.callee.type === "MemberExpression" &&
+            identifier(value.callee.object) === browser &&
+            identifier(value.callee.property) === "wait"
+          )
+            visit(args(value)[0], true);
+        }
+        for (const child of Object.values(value)) visit(child);
+      }
+      visit(seed);
+      return { live, resolved };
+    }
+    const { live, resolved } = active(owner.node.body);
+    const scenarios = live.filter(
+      (node) =>
+        node.type === "CallExpression" &&
+        identifier(node.callee) === scenario &&
+        literal(args(node)[0]) === "native-local-artwork-picker-and-recovery",
+    );
+    assert.equal(scenarios.length, 1, "Retain the executed artwork scenario");
+    assert.ok(
+      live.some((node) => awaited(node) === scenarios[0]),
+      "Await the actual artwork scenario",
+    );
+    const readers = ["readArtworkFallback", "readArtworkGeometry"].map(exported).map((reader) => {
+      const calls = live.filter(
+        (node) => node.type === "CallExpression" && resolved.get(node) === reader.node,
+      );
+      assert.ok(calls.length > 0, "Delegate actual artwork observation " + reader.name);
+      for (const call of calls) {
+        assert.equal(identifier(args(call)[0]), browser, "Use the scenario's actual browser");
+        assert.ok(
+          live.some((node) => awaited(node) === call),
+          "Await actual artwork observation " + reader.name,
+        );
+      }
+      const implementation = active(reader.node.body);
+      const adapters = importedAdapters.filter((binding) =>
+        implementation.live.some(
+          (node) =>
+            node.type === "CallExpression" &&
+            identifier(node.callee) === binding.local &&
+            !implementation.resolved.has(node),
+        ),
+      );
+      assert.ok(
+        adapters.length > 0,
+        "Use production browser serialization adapter for " + reader.name,
+      );
+      assert.ok(
+        adapters.every((binding) => literal(binding.declaration.source) === "./browser-script.mts"),
+        "Use production browser serialization adapter for " + reader.name,
+      );
+      return { ...reader, calls, adapters };
+    });
+    const adapters = readers
+      .flatMap((reader) => reader.adapters)
+      .filter(
+        (binding, index, all) =>
+          all.findIndex((candidate) => candidate.specifier === binding.specifier) === index,
+      );
+    return { syntax, owner, readers, live, adapters };
+  }
+  const actual = route(source);
+  const helperNames = new Map([
+    ["fallbackVisual", "$fallbackObservation"],
+    ["expectFallbackVisual", "$settledFallback"],
+  ]);
+  route(
+    edit(
+      source,
+      actual.syntax
+        .filter((node) => node.type === "Identifier" && helperNames.has(String(node.name)))
+        .map((node) => ({ ...range(node), text: helperNames.get(String(node.name)) ?? "" })),
+    ),
+  );
+  const entries = actual.readers.map((reader) => reader.entry);
+  route(
+    (
+      edit(
+        source,
+        entries.map((entry) => ({ ...range(entry), text: "" })),
+      ) +
+      "\n" +
+      entries.map((entry) => source.slice(range(entry).start, range(entry).end)).join("\n")
+    ).replaceAll("\n", "\r\n"),
+  );
+  const arrowEdits: { start: number; end: number; text: string }[] = [];
+  for (const [index, reader] of actual.readers.entries()) {
+    assert.ok(Array.isArray(reader.node.params));
+    const local = "$artworkReader" + index;
+    arrowEdits.push({
+      ...range(reader.entry),
+      text:
+        "const " +
+        local +
+        (reader.node.async ? "=async(" : "=(") +
+        reader.node.params
+          .map((param) => source.slice(range(param).start, range(param).end))
+          .join(",") +
+        ")=>" +
+        source.slice(range(reader.node.body).start, range(reader.node.body).end) +
+        ";export {" +
+        local +
+        " as " +
+        reader.name +
+        "};",
+    });
+    arrowEdits.push(...reader.calls.map((call) => ({ ...range(call.callee), text: local })));
+  }
+  route(edit(source, arrowEdits));
+  const primary = actual.adapters[0];
+  assert.ok(primary);
+  const importSpan = range(primary.declaration);
+  route(
+    edit(source, [
+      { ...range(primary.specifier), text: "executeBrowserScript as $serializedArtwork" },
+      ...actual.syntax
+        .filter(
+          (node) =>
+            node.type === "Identifier" &&
+            node.name === primary.local &&
+            (range(node).start < importSpan.start || range(node).end > importSpan.end),
+        )
+        .map((node) => ({ ...range(node), text: "$serializedArtwork" })),
+    ]),
+  );
+  function rejectWrongImports(code: string) {
+    const observed = route(code);
+    const declarations = observed.adapters
+      .map((binding) => binding.declaration)
+      .filter((node, index, all) => all.indexOf(node) === index);
+    for (const declaration of declarations)
+      assert.throws(
+        () =>
+          route(
+            edit(code, [{ ...range(declaration.source), text: '"./desktop-scenario-state.mts"' }]),
+          ),
+        /Use production browser serialization adapter/u,
+      );
+  }
+  rejectWrongImports(source);
+  const sibling = actual.live.find(
+    (node) =>
+      node.type === "CallExpression" &&
+      identifier(node.callee) === primary.local &&
+      typeof literal(args(node)[1]) === "string",
+  );
+  assert.ok(sibling, "Retain an independently consumed browser adapter alias control");
+  const extraImports = edit(source, [
+    { ...range(sibling.callee), text: "$otherArtworkAdapter" },
+    {
+      start: 0,
+      end: 0,
+      text: 'import "./browser-script.mts";import {executeBrowserScript as $otherArtworkAdapter} from "./browser-script.mts";\n',
+    },
+  ]);
+  route(extraImports);
+  rejectWrongImports(extraImports);
+  for (const reader of actual.readers) {
+    const bypassed = edit(source, [
+      ...reader.calls.map((call) => ({
+        ...range(call.callee),
+        text: "$replacedArtworkObservation",
+      })),
+      {
+        start: range(actual.owner.node.body).end - 1,
+        end: range(actual.owner.node.body).end - 1,
+        text: "\nfunction $unusedArtworkObservation(){return " + reader.local + "(browser); }\n",
+      },
+    ]);
+    assert.throws(
+      () => route(bypassed),
+      (error) =>
+        error instanceof assert.AssertionError &&
+        error.message.includes("Delegate actual artwork observation " + reader.name),
+    );
+    assert.throws(
+      () =>
+        route(
+          edit(
+            source,
+            reader.calls.map((call) => ({ ...range(args(call)[0]), text: "{}" })),
+          ),
+        ),
+      /Use the scenario's actual browser/u,
+    );
+  }
+  for (const reader of actual.readers) {
+    const disabled = edit(
+      source,
+      reader.calls.map((call) => {
+        const wait = actual.live.find((node) => awaited(node) === call);
+        assert.ok(wait);
+        return {
+          ...range(wait),
+          text: "(false && " + source.slice(range(wait).start, range(wait).end) + ")",
+        };
+      }),
+    );
+    assert.throws(
+      () => route(disabled),
+      (error) =>
+        error instanceof assert.AssertionError &&
+        error.message.includes("Delegate actual artwork observation " + reader.name),
+    );
+  }
+  const fallback = actual.readers[0];
+  assert.ok(fallback);
+
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const directory = disposableDirectory(context, path.join(tmpdir(), "portcove-artwork-owner-"));
+  const transport = "apps/desktop/scripts/transport-values.mts";
+  const closure = readFixtureModuleClosure(root, [native, production, transport]);
+  for (const module of closure.modules) {
+    const target = path.join(directory, module.path);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, module.bytes);
+  }
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  function run() {
+    const result = spawnSync(process.execPath, ["--test", "--test-reporter=tap", native], {
+      cwd: directory,
+      env: environment,
+      encoding: "utf8",
+      timeout: 10000,
+      maxBuffer: 1024 * 1024,
+    });
+    assert.ifError(result.error);
+    return { status: result.status, output: result.stdout + result.stderr };
+  }
+  const baseline = run();
+  assert.equal(baseline.status, 0, baseline.output);
+  assert.match(baseline.output, /^# tests 2$/mu);
+  assert.match(baseline.output, /^# pass 2$/mu);
+  assert.match(baseline.output, /^# skipped 0$/mu);
+  const fieldOrder = actual.readers.map((reader) => {
+    const returned = [...nodes(reader.node.body)].find(
+      (node) =>
+        node.type === "ReturnStatement" &&
+        isRecord(node.argument) &&
+        node.argument.type === "ObjectExpression",
+    );
+    assert.ok(
+      returned && isRecord(returned.argument) && Array.isArray(returned.argument.properties),
+    );
+    const properties: unknown[] = returned.argument.properties;
+    return {
+      ...range(returned.argument),
+      text:
+        "{" +
+        properties
+          .slice()
+          .reverse()
+          .map((property) => source.slice(range(property).start, range(property).end))
+          .join(",") +
+        "}",
+    };
+  });
+  writeFileSync(path.join(directory, production), edit(source, fieldOrder));
+  const reordered = run();
+  assert.equal(reordered.status, 0, reordered.output);
+  assert.match(reordered.output, /^# pass 2$/mu);
+  writeFileSync(path.join(directory, production), source);
+  const cleanup = [...nodes(fallback.node.body)].find(
+    (node) => node.type === "TryStatement" && isRecord(node.finalizer),
+  );
+  assert.ok(cleanup && isRecord(cleanup.block) && isRecord(cleanup.finalizer));
+  const geometry = actual.readers[1];
+  assert.ok(geometry);
+  const image = [...nodes(geometry.node.body)].find(
+    (node) =>
+      node.type === "CallExpression" &&
+      isRecord(node.callee) &&
+      identifier(node.callee.property) === "querySelector" &&
+      literal(args(node)[0]) === "img",
+  );
+  assert.ok(image);
+  for (const mutation of [
+    {
+      marker: "color probe cleanup must run when style observation fails",
+      source: edit(source, [
+        {
+          ...range(cleanup),
+          text:
+            source.slice(range(cleanup.block).start, range(cleanup.block).end) +
+            source.slice(range(cleanup.finalizer).start, range(cleanup.finalizer).end),
+        },
+      ]),
+    },
+    {
+      marker: "Measured artwork geometry",
+      source: edit(source, [{ ...range(args(image)[0]), text: '":scope > span"' }]),
+    },
+  ]) {
+    writeFileSync(path.join(directory, production), mutation.source);
+    const rejected = run();
+    assert.notEqual(rejected.status, 0, rejected.output);
+    assert.match(
+      rejected.output,
+      /^not ok \d+ - serialized local artwork fallback preserves generated identity and geometry$/mu,
+    );
+    assert.ok(
+      rejected.output.includes("ARTWORK_CONTRACT_ASSERTION " + mutation.marker),
+      rejected.output,
+    );
+  }
+  writeFileSync(path.join(directory, production), source);
+  const adapterPath = path.join(directory, "apps/desktop/scripts/browser-script.mts");
+  const adapterBytes = await readFile(adapterPath);
+  writeFileSync(adapterPath, "export async function executeBrowserScript(){return {}};\n");
+  try {
+    const changed = run();
+    assert.notEqual(changed.status, 0, changed.output);
+    assert.match(
+      changed.output,
+      /^not ok \d+ - serialized local artwork fallback preserves generated identity and geometry$/mu,
+    );
+    assert.ok(
+      changed.output.includes("ARTWORK_CONTRACT_ASSERTION Generated artwork fallback observation"),
+      changed.output,
+    );
+  } finally {
+    writeFileSync(adapterPath, adapterBytes);
+  }
+  const input = path.join(directory, transport),
+    retained = input + ".retained-input";
+  renameSync(input, retained);
+  try {
+    const missing = run();
+    assert.notEqual(missing.status, 0, missing.output);
+    assert.ok(
+      missing.output.includes("ERR_MODULE_NOT_FOUND") &&
+        missing.output.includes("transport-values"),
+      missing.output,
+    );
+    assert.doesNotMatch(missing.output, /ARTWORK_CONTRACT_ASSERTION/u);
+  } finally {
+    renameSync(retained, input);
+  }
 });

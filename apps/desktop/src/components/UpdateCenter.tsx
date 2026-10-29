@@ -300,6 +300,217 @@ export function UpdateCenter(props: Parameters<typeof useUpdateCenter>[0]) {
   return <UpdateCenterView {...useUpdateCenter(props)} />;
 }
 
+type InstalledUpdateRowContext = {
+  model: ReturnType<typeof useUpdateCenter>;
+  port: PortDefinition;
+  status: PortStatus;
+  action: ReturnType<typeof presentPortAction>;
+  outcome: UpdateCheckOutcome | undefined;
+  state: ReturnType<typeof updateState>;
+  failure: ReturnType<typeof failurePresentation>;
+  canReviewUpdate: boolean;
+  canLaunch: boolean;
+};
+
+function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
+  return (
+    <div
+      className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
+      data-focus-group
+    >
+      <CurrentStateSummary
+        title={
+          model.installed.length === 0
+            ? "No managed installations to check"
+            : model.failedInstalled > 0
+              ? "Some update checks failed"
+              : model.checked.length === 0
+                ? "Updates not checked"
+                : `${model.available}${model.complete ? "" : "+"} updates available${model.earlierBatch ? " at last check" : ""}`
+        }
+      >
+        <p className="text-sm text-pc-muted-foreground">
+          {model.checked.length} of {model.installed.length} installed ports have a check result.
+          Unchecked or failed ports may still have updates.
+        </p>
+      </CurrentStateSummary>
+      <UpdateCheckControl
+        busy={model.busy}
+        status={model.batchRead?.status}
+        hasInstalled={model.installed.length > 0}
+        checkAll={model.checkAll}
+      />
+    </div>
+  );
+}
+
+function renderInstalledUpdateRow(model: ReturnType<typeof useUpdateCenter>, port: PortDefinition) {
+  const status = model.statuses.get(port.id)!;
+  const action = presentPortAction(model.operationOwner, port.id, status, "launch", model.busy);
+  const outcome = model.byPort.get(port.id);
+  const savedCheck = model.savedByPort.get(port.id)?.check;
+  const state = updateState(status, outcome, savedCheck, model.earlierBatch);
+  const failure = failurePresentation(outcome?.error);
+  const canReviewUpdate = Boolean(
+    (status.staged || status.acquisition || model.effectiveCheck(port.id)?.update_available) &&
+    model.perform,
+  );
+  const canLaunch = Boolean(
+    model.onLaunch &&
+    status.readiness?.launchable &&
+    !status.readiness.pending_setup &&
+    status.readiness.blockers.length === 0 &&
+    !action.readiness.blocked,
+  );
+  const row = { model, port, status, action, outcome, state, failure, canReviewUpdate, canLaunch };
+  return (
+    <div
+      key={port.id}
+      className="update-entry @container/update-entry grid min-w-0 gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-3"
+    >
+      {renderInstalledUpdateHeader(row)}
+      {renderInstalledUpdateActions(row)}
+      {renderInstalledUpdateDetails(row)}
+      {renderInstalledUpdateFailure(row)}
+    </div>
+  );
+}
+
+function renderInstalledUpdateHeader({ model, port, status, state }: InstalledUpdateRowContext) {
+  return (
+    <button
+      data-focusable
+      data-detail-origin={`updates:installed:${port.id}`}
+      className={cn(updateRowClass, "border-0 bg-transparent p-0 shadow-none")}
+      onClick={() => model.onSelect(port.id, `updates:installed:${port.id}`)}
+    >
+      <ArtworkImage port={port} quietFallback className="update-artwork" />
+      <div className="update-title min-w-0">
+        <strong className="block text-sm">{gameTitle(port)}</strong>
+        <small className="block text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</small>
+        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+          {releaseChannelPresentation(status.channel).label} · {policyLabel(status.update_policy)}
+        </small>
+      </div>
+      <div className="update-versions min-w-0 text-sm [overflow-wrap:anywhere] text-pc-muted-foreground">
+        <span className="sr-only">Installed version: </span>
+        {status.active?.version || "Unavailable"}
+        {status.active?.version &&
+          model.effectiveCheck(port.id)?.update_available &&
+          model.effectiveCheck(port.id)?.release?.version && (
+            <>
+              <span aria-hidden> → </span>
+              <span className="sr-only">; offered version: </span>
+              {model.effectiveCheck(port.id)?.release?.version}
+            </>
+          )}
+      </div>
+      <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>{state.label}</span>
+    </button>
+  );
+}
+
+function renderInstalledUpdateActions({
+  model,
+  port,
+  status,
+  action,
+  canReviewUpdate,
+  canLaunch,
+}: InstalledUpdateRowContext) {
+  return (
+    (canReviewUpdate || canLaunch) && (
+      <div
+        className="flex flex-wrap items-center gap-2"
+        role="group"
+        aria-label={`Actions for ${gameIdentityLabel(port)}`}
+      >
+        {canReviewUpdate && (
+          <GameUpdateControl
+            key={JSON.stringify([
+              model.generation,
+              port.id,
+              status.active?.id,
+              status.active?.version,
+              status.active?.artifact.sha256,
+              status.staged?.id,
+              status.channel,
+            ])}
+            portId={port.id}
+            generation={model.generation}
+            policy={status.update_policy}
+            busy={Boolean(action.busy)}
+            perform={model.perform}
+            compact
+            gameName={gameIdentityLabel(port)}
+            currentVersion={status.active?.version}
+            status={status}
+            reviewScope={{
+              active: model.reviewingUpdate === port.id,
+              claim: () => {
+                model.updateReviewOwner.current = port.id;
+                model.setReviewingUpdate(port.id);
+              },
+              current: () => model.updateReviewOwner.current === port.id,
+            }}
+          />
+        )}
+        {canLaunch && (
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={Boolean(action.busy)}
+            focusableWhenDisabled={Boolean(action.busy)}
+            aria-busy={Boolean(action.busy)}
+            title={action.assessment.reason}
+            onClick={() => model.onLaunch?.(port.id)}
+          >
+            {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
+          </Button>
+        )}
+      </div>
+    )
+  );
+}
+
+function renderInstalledUpdateDetails({ model, port, status, outcome }: InstalledUpdateRowContext) {
+  return (
+    <details className="col-span-full text-xs text-pc-muted-foreground">
+      <summary className="cursor-pointer py-1">Update details</summary>
+      <p>
+        Latest eligible{model.earlierBatch ? " at last check" : ""}:{" "}
+        {releaseLabel(model.effectiveCheck(port.id), outcome)}
+      </p>
+      <p>
+        {releaseChannelPresentation(status.channel).label} · {policyLabel(status.update_policy)}
+      </p>
+      {status.staged && <p>Prepared version: {status.staged.version}</p>}
+    </details>
+  );
+}
+
+function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdateRowContext) {
+  return (
+    outcome?.error && (
+      <section
+        aria-label={`Update check failure for ${port.name}`}
+        data-update-check-failure={port.id}
+        className="col-span-full min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
+      >
+        <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
+        {failure && (
+          <FailureDetails
+            key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
+            presentation={failure}
+            code={outcome.error.code}
+            showMutationSummary={false}
+          />
+        )}
+      </section>
+    )
+  );
+}
+
 function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
   return (
     <Tabs.Root
@@ -331,33 +542,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
       </Tabs.List>
       <Tabs.Panel value="updates" keepMounted aria-label="Game updates">
         <h2 className="mb-5 text-lg">Game updates</h2>
-        <div
-          className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
-          data-focus-group
-        >
-          <CurrentStateSummary
-            title={
-              model.installed.length === 0
-                ? "No managed installations to check"
-                : model.failedInstalled > 0
-                  ? "Some update checks failed"
-                  : model.checked.length === 0
-                    ? "Updates not checked"
-                    : `${model.available}${model.complete ? "" : "+"} updates available${model.earlierBatch ? " at last check" : ""}`
-            }
-          >
-            <p className="text-sm text-pc-muted-foreground">
-              {model.checked.length} of {model.installed.length} installed ports have a check
-              result. Unchecked or failed ports may still have updates.
-            </p>
-          </CurrentStateSummary>
-          <UpdateCheckControl
-            busy={model.busy}
-            status={model.batchRead?.status}
-            hasInstalled={model.installed.length > 0}
-            checkAll={model.checkAll}
-          />
-        </div>
+        {renderUpdateCheckToolbar(model)}
         <UpdateBatchNotice read={model.batchRead} />
         <details className="mb-4">
           <summary className="cursor-pointer py-2 text-sm">Update statistics</summary>
@@ -405,156 +590,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
           />
         ) : (
           <div className="update-list grid max-w-5xl gap-3" data-focus-group>
-            {model.installed.map((port) => {
-              const status = model.statuses.get(port.id)!;
-              const action = presentPortAction(
-                model.operationOwner,
-                port.id,
-                status,
-                "launch",
-                model.busy,
-              );
-              const outcome = model.byPort.get(port.id);
-              const savedCheck = model.savedByPort.get(port.id)?.check;
-              const state = updateState(status, outcome, savedCheck, model.earlierBatch);
-              const failure = failurePresentation(outcome?.error);
-              const canReviewUpdate = Boolean(
-                (status.staged ||
-                  status.acquisition ||
-                  model.effectiveCheck(port.id)?.update_available) &&
-                model.perform,
-              );
-              const canLaunch = Boolean(
-                model.onLaunch &&
-                status.readiness?.launchable &&
-                !status.readiness.pending_setup &&
-                status.readiness.blockers.length === 0 &&
-                !action.readiness.blocked,
-              );
-              const renderActions = () =>
-                (canReviewUpdate || canLaunch) && (
-                  <div
-                    className="flex flex-wrap items-center gap-2"
-                    role="group"
-                    aria-label={`Actions for ${gameIdentityLabel(port)}`}
-                  >
-                    {canReviewUpdate && (
-                      <GameUpdateControl
-                        key={JSON.stringify([
-                          model.generation,
-                          port.id,
-                          status.active?.id,
-                          status.active?.version,
-                          status.active?.artifact.sha256,
-                          status.staged?.id,
-                          status.channel,
-                        ])}
-                        portId={port.id}
-                        generation={model.generation}
-                        policy={status.update_policy}
-                        busy={Boolean(action.busy)}
-                        perform={model.perform}
-                        compact
-                        gameName={gameIdentityLabel(port)}
-                        currentVersion={status.active?.version}
-                        status={status}
-                        reviewScope={{
-                          active: model.reviewingUpdate === port.id,
-                          claim: () => {
-                            model.updateReviewOwner.current = port.id;
-                            model.setReviewingUpdate(port.id);
-                          },
-                          current: () => model.updateReviewOwner.current === port.id,
-                        }}
-                      />
-                    )}
-                    {canLaunch && (
-                      <Button
-                        data-focusable
-                        variant="outline"
-                        disabled={Boolean(action.busy)}
-                        focusableWhenDisabled={Boolean(action.busy)}
-                        aria-busy={Boolean(action.busy)}
-                        title={action.assessment.reason}
-                        onClick={() => model.onLaunch?.(port.id)}
-                      >
-                        {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
-                      </Button>
-                    )}
-                  </div>
-                );
-              return (
-                <div
-                  key={port.id}
-                  className="update-entry @container/update-entry grid min-w-0 gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-3"
-                >
-                  <button
-                    data-focusable
-                    data-detail-origin={`updates:installed:${port.id}`}
-                    className={cn(updateRowClass, "border-0 bg-transparent p-0 shadow-none")}
-                    onClick={() => model.onSelect(port.id, `updates:installed:${port.id}`)}
-                  >
-                    <ArtworkImage port={port} quietFallback className="update-artwork" />
-                    <div className="update-title min-w-0">
-                      <strong className="block text-sm">{gameTitle(port)}</strong>
-                      <small className="block text-xs text-pc-muted-foreground">
-                        {gameProjectLabel(port)}
-                      </small>
-                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                        {releaseChannelPresentation(status.channel).label} ·{" "}
-                        {policyLabel(status.update_policy)}
-                      </small>
-                    </div>
-                    <div className="update-versions min-w-0 text-sm [overflow-wrap:anywhere] text-pc-muted-foreground">
-                      <span className="sr-only">Installed version: </span>
-                      {status.active?.version || "Unavailable"}
-                      {status.active?.version &&
-                        model.effectiveCheck(port.id)?.update_available &&
-                        model.effectiveCheck(port.id)?.release?.version && (
-                          <>
-                            <span aria-hidden> → </span>
-                            <span className="sr-only">; offered version: </span>
-                            {model.effectiveCheck(port.id)?.release?.version}
-                          </>
-                        )}
-                    </div>
-                    <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
-                      {state.label}
-                    </span>
-                  </button>
-                  {renderActions()}
-                  <details className="col-span-full text-xs text-pc-muted-foreground">
-                    <summary className="cursor-pointer py-1">Update details</summary>
-                    <p>
-                      Latest eligible{model.earlierBatch ? " at last check" : ""}:{" "}
-                      {releaseLabel(model.effectiveCheck(port.id), outcome)}
-                    </p>
-                    <p>
-                      {releaseChannelPresentation(status.channel).label} ·{" "}
-                      {policyLabel(status.update_policy)}
-                    </p>
-                    {status.staged && <p>Prepared version: {status.staged.version}</p>}
-                  </details>
-                  {outcome?.error && (
-                    <section
-                      aria-label={`Update check failure for ${port.name}`}
-                      data-update-check-failure={port.id}
-                      className="col-span-full min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
-                    >
-                      <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
-                      {failure && (
-                        <FailureDetails
-                          key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
-                          presentation={failure}
-                          code={outcome.error.code}
-                          showMutationSummary={false}
-                        />
-                      )}
-                    </section>
-                  )}
-                </div>
-              );
-            })}
+            {model.installed.map((port) => renderInstalledUpdateRow(model, port))}
           </div>
         )}
         {model.retainedArchives.length > 0 && (
