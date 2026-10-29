@@ -616,7 +616,7 @@
         "authority": "alexbeavs-ps1-ports/dino-crisis-recomp",
         "authority_ref": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/7fd9deaa0ef7f8b689b1092821c19ac6a0de87db/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/main/game.toml"
       },
@@ -626,7 +626,7 @@
         "authority": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
         "authority_ref": "38514024f3a7cea54ff05ae3afdad0929920cb5a",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/38514024f3a7cea54ff05ae3afdad0929920cb5a/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/main/game.toml"
       },
@@ -636,7 +636,7 @@
         "authority": "alexbeavs-ps1-ports/alien-resurrection-recomp",
         "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/main/game.toml"
       },
@@ -646,7 +646,7 @@
         "authority": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
         "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
         "reviewed_at": "2026-10-13",
-        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title\u2019s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/54ddfe971dfd79134f2593b00dbd9b78ae51536b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/main/game.toml"
       },
@@ -952,6 +952,26 @@
         "claim": "The pinned DAT has SCUS-94426 and SCUS-94426CE serial aliases with identical 605698800-byte raw CTR USA BIN: SHA1 1bb785082def3fe25f6b46be06d4eaf33c5bc772, CRC9a742438. Byte identity is separate from native player/source applicability; no original media acquisition.",
         "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat%2Fredump%2FSony%20-%20PlayStation.dat",
         "live_url": "https://github.com/libretro/libretro-database/blob/master/metadat/redump/Sony%20-%20PlayStation.dat"
+      },
+      {
+        "id": "devilution-owner-original-bytes-2026-10-29",
+        "role": "byte_identity",
+        "authority": "Portcove owner-provided original-game archive",
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "claim": "Exact byte facts from the owner-provided archive: five complete retail/Hellfire MPQs, observed SHA1/SHA256 and sizes. Region/revision remain Unknown; these are not publisher-issued hashes or distribution-rights authentication. SPAWN.MPQ is excluded. Actual title qualification is recorded separately.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json"
+      },
+      {
+        "id": "devilutionx-1-5-5-original-and-path-contract",
+        "role": "upstream_support",
+        "authority": "diasurgical/DevilutionX",
+        "authority_ref": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+        "reviewed_at": "2026-10-29",
+        "claim": "Version1.5.5 requires DIABDAT.MPQ for Diablo; Hellfire additionally requires hellfire.mpq,hfmonk.mpq,hfmusic.mpq,hfvoice.mpq. --diablo/--hellfire select mode, and data/save/config path overrides are separate. This upstream source inspection is not gameplay, Portcove lifecycle or save compatibility evidence.",
+        "immutable_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
+        "live_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
       },
       {
         "id": "bstone-e65a6b40-original-file-identities",
@@ -2918,12 +2938,12 @@
       },
       {
         "id": "pokemon-gen-1",
-        "label": "Pok\u00e9mon Red (US) source",
+        "label": "Pokémon Red (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pok\u00e9mon Red (US) source",
+            "title": "Pokémon Red (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -2958,12 +2978,12 @@
       },
       {
         "id": "pokemon-gold",
-        "label": "Pok\u00e9mon Gold (US) source",
+        "label": "Pokémon Gold (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pok\u00e9mon Gold (US) source",
+            "title": "Pokémon Gold (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -2998,12 +3018,12 @@
       },
       {
         "id": "pokemon-silver",
-        "label": "Pok\u00e9mon Silver (US) source",
+        "label": "Pokémon Silver (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pok\u00e9mon Silver (US) source",
+            "title": "Pokémon Silver (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -3038,12 +3058,12 @@
       },
       {
         "id": "pokemon-crystal",
-        "label": "Pok\u00e9mon Crystal (US) source",
+        "label": "Pokémon Crystal (US) source",
         "kind": "file",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Pok\u00e9mon Crystal (US) source",
+            "title": "Pokémon Crystal (US) source",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -4009,12 +4029,12 @@
       },
       {
         "id": "masters-of-teras-kasi-psx",
-        "label": "Star Wars: Masters of Ter\u00e4s K\u00e4si (USA) disc",
+        "label": "Star Wars: Masters of Teräs Käsi (USA) disc",
         "kind": "optical-disc",
         "variants": [
           {
             "id": "legacy-accepted",
-            "title": "Star Wars: Masters of Ter\u00e4s K\u00e4si (USA) disc",
+            "title": "Star Wars: Masters of Teräs Käsi (USA) disc",
             "region": null,
             "revision": null,
             "product_codes": [],
@@ -7151,6 +7171,162 @@
             "evidence_ids": [
               "ctr-native-raw-disc-layout-2026-10-24",
               "ctr-native-usa-raw-bin-identity-2026-10-24"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "diablo-devilutionx-retail-originals",
+        "label": "Diablo reviewed retail MPQ set",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "owner-provided-2026-10-29",
+            "title": "Owner-provided complete original set; edition not attributed",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-mpq-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "diabdat",
+                    "label": "diabdat.mpq",
+                    "filenames": [
+                      "diabdat.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5cfd971abb25602731fef0c9b43eb7d7447f296e",
+                        "sha256": "63fb47d9c76484024c7640d90ab6b7ec5e13f567a7e1a917b6c03a6631d3f2b0",
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "devilution-owner-original-bytes-2026-10-29"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "devilution-owner-original-bytes-2026-10-29",
+              "devilutionx-1-5-5-original-and-path-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "diablo-hellfire-devilutionx-originals",
+        "label": "Diablo and Hellfire reviewed MPQ set",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "owner-provided-2026-10-29",
+            "title": "Owner-provided complete original set; edition not attributed",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-mpq-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "diabdat",
+                    "label": "diabdat.mpq",
+                    "filenames": [
+                      "diabdat.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5cfd971abb25602731fef0c9b43eb7d7447f296e",
+                        "sha256": "63fb47d9c76484024c7640d90ab6b7ec5e13f567a7e1a917b6c03a6631d3f2b0",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hellfire",
+                    "label": "hellfire.mpq",
+                    "filenames": [
+                      "hellfire.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4852a68a70f7f55a28084281a96e95c2027c5137",
+                        "sha256": "bbbd3e4b09db3c16d72e3f8503058dd09a8aaecccf486c3b6a0fca270cef9ba8",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfmonk",
+                    "label": "hfmonk.mpq",
+                    "filenames": [
+                      "hfmonk.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "47f44845803b05fa243c4733995b08cbaa0dbe37",
+                        "sha256": "5358fa2aa6c7bfdd3bfdd07b0457807d3220a60cfe8b1967a0938b433a9b33c5",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfmusic",
+                    "label": "hfmusic.mpq",
+                    "filenames": [
+                      "hfmusic.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5d64d26798738c503b0aa1651c1534ff5488291c",
+                        "sha256": "2d719ef13502bf3c68eb4771411391bd37bb420d753eb6239becb063c6918de1",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfvoice",
+                    "label": "hfvoice.mpq",
+                    "filenames": [
+                      "hfvoice.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "04e7fe3a5509013cbf22d0937817e2775226993e",
+                        "sha256": "243fec5f04710ba316b9f61065a257e47c1404b13f63c52541ed4eb714267b72",
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "devilution-owner-original-bytes-2026-10-29"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "devilution-owner-original-bytes-2026-10-29",
+              "devilutionx-1-5-5-original-and-path-contract"
             ]
           }
         ],
@@ -11509,6 +11685,62 @@
         "live_review_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "diablo-devilutionx-game-source",
+        "port_id": "diablo-devilutionx",
+        "role": "game",
+        "profile_id": "diablo-devilutionx-retail-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "owner-provided-2026-10-29"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "devilution-owner-original-bytes-2026-10-29",
+          "devilutionx-1-5-5-original-and-path-contract"
+        ],
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_review_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "diablo-hellfire-devilutionx-game-source",
+        "port_id": "diablo-hellfire-devilutionx",
+        "role": "game",
+        "profile_id": "diablo-hellfire-devilutionx-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "owner-provided-2026-10-29"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "devilution-owner-original-bytes-2026-10-29",
+          "devilutionx-1-5-5-original-and-path-contract"
+        ],
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_review_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },

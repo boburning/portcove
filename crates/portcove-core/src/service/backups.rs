@@ -578,6 +578,9 @@ impl PortcoveService {
                     "{port_id} has no persistent data to back up"
                 )));
             }
+            // Publish only data that the existing restore review can interpret.
+            crate::runtime_data_policy::DataReview::default()
+                .canonical(&staging_path.join("data"))?;
 
             let BackupStats {
                 file_count,
