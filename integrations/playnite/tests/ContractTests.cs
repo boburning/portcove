@@ -277,7 +277,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -285,7 +285,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -302,11 +302,35 @@ internal static class ContractTests
         var stream73 = new ProtocolStream("status");
         stream73.Line(Json.Print(result73));
         Check(Json.Array(stream73.Finish(0)).Length == 0, "schema 73 result crosses the actual protocol reader");
-        foreach (var privateSchema in new[] { 58, 59, 64, 83 })
+        var result83 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result83["schema_version"] = 83;
+        var stream83 = new ProtocolStream("status");
+        stream83.Line(Json.Print(result83));
+        Check(Json.Array(stream83.Finish(0)).Length == 0, "schema 83 result crosses the actual protocol reader");
+        var independent83 = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        independent83["schema_version"] = 83;
+        independent83["operation_event_schema_version"] = 3;
+        independent83["commands"] = Json.Array(Json.Field(independent83, "commands")).Cast<string>()
+            .Concat(new[] { "remove.preview", "remove", "installation.review" }).ToArray();
+        Check(ProtocolStream.Negotiate(independent83, ConsumerCapability.Lifecycle) == 3,
+            "API83 lifecycle uses the independently advertised event3 authority");
+        independent83.Remove("operation_event_schema_version");
+        Reject(() => ProtocolStream.Negotiate(independent83, ConsumerCapability.Lifecycle),
+            "API83 cannot infer an omitted lifecycle event authority");
+        independent83["operation_event_schema_version"] = 83;
+        Reject(() => ProtocolStream.Negotiate(independent83, ConsumerCapability.Lifecycle),
+            "API83 is not an operation-event version");
+        ProtocolStream.Negotiate(independent83, ConsumerCapability.Library);
+        Check(true, "API83 library reader does not require an unused event channel or comparison command");
+        foreach (var privateSchema in new[] { 58, 59, 64, 84 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
             Reject(() => ProtocolStream.Negotiate(unsupported), "private or future schema " + privateSchema + " rejected");
+            var unsupportedResult = Json.Object(Json.Parse(Result("status", new object[0])));
+            unsupportedResult["schema_version"] = privateSchema;
+            Reject(() => new ProtocolStream("status").Line(Json.Print(unsupportedResult)),
+                "actual result reader refuses private or future schema " + privateSchema);
         }
         var contradictoryLegacyEvent = Json.Object(Json.Parse(Json.Print(Capabilities())));
         contradictoryLegacyEvent["operation_event_schema_version"] = 3;
@@ -495,7 +519,7 @@ internal static class ContractTests
         bad["schema_version"] = 80;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "explicit user-selected execution keeps launch decisions in Core");
-        bad["schema_version"] = 83;
+        bad["schema_version"] = 84;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond the supported execution contract rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -590,10 +614,12 @@ internal static class ContractTests
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
             var capabilities = await real.Read("capabilities", "capabilities");
-            Check(real.ApiSchemaVersion == 82 && Json.Array(Json.Field(capabilities, "engine_templates"))
+            Check(real.ApiSchemaVersion == 83 && Json.Array(Json.Field(capabilities, "engine_templates"))
                 .Any(template => Json.Text(template, "template") == "staged-source-portable"
                     && Json.Number(template, "contract_version") == 18),
-                "compiled API81 producer advertises the prepared directory contract through the actual client");
+                "compiled API83 producer advertises the prepared directory contract through the actual client");
+            Check(ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library, ConsumerCapability.Lifecycle) == 3,
+                "compiled API83 capability readback independently negotiates operation-event schema3");
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
@@ -848,12 +874,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 83 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 84 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -893,7 +919,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 83 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 84 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -952,6 +978,14 @@ internal static class ContractTests
         finally { Directory.Delete(root, true); }
     }
 
+    private static object[] AdvisoryRecommendationFixtures() => new object[] {
+        null,
+        new { format_version = 1, observations = new object[0], capabilities = new object[0] },
+        "malformed optional metadata",
+        new { format_version = 999, recommended = true, launchable = true,
+            ownership = "managed", eligibility = "allowed", port_id = "different-identity" }
+    };
+
     private static void CheckPersonalLibrary()
     {
         var catalog = Json.Array(Json.Parse("[" +
@@ -972,6 +1006,21 @@ internal static class ContractTests
             "original game title leads project and relevant variant in actual library metadata");
         Check(titled[0].GameId == available[0].GameId && titled[1].GameId == available[1].GameId,
             "display metadata never merges implementations or changes library identity");
+        var beforeAdvisory = titled.Select(game => Json.Print(new {
+            game.PortId, game.GameId, game.LibraryId, game.Name, game.Summary, game.IsInstalled,
+            game.Metadata().InstallDirectory, game.Metadata().Version
+        })).ToArray();
+        var beforeStatuses = Json.Print(statuses);
+        foreach (var advisory in AdvisoryRecommendationFixtures()) {
+            Json.Object(Json.Field(catalog[0], "presentation"))["recommendation"] = advisory;
+            var actual = PersonalLibrary.Read(catalog, statuses, "library-a");
+            Check(actual.Select(game => Json.Print(new {
+                game.PortId, game.GameId, game.LibraryId, game.Name, game.Summary, game.IsInstalled,
+                game.Metadata().InstallDirectory, game.Metadata().Version
+            })).SequenceEqual(beforeAdvisory) && Json.Print(statuses) == beforeStatuses,
+                "optional absent, valid, malformed or future recommendation preserves display, identity and installation ownership");
+        }
+        Json.Object(Json.Field(catalog[0], "presentation")).Remove("recommendation");
         Json.Object(Json.Field(catalog[0], "presentation"))["original_game_title"] = "Pokémon Red";
         var pokemon = PersonalLibrary.Read(catalog, statuses, "library-a")[0];
         Check(pokemon.MatchesSearch("pokemon red") && pokemon.MatchesSearch("Pokémon") && pokemon.MatchesSearch("Same Game") && pokemon.MatchesSearch("shape-a"),
@@ -1113,6 +1162,18 @@ internal static class ContractTests
         var unknownTrust = Json.Object(Json.Field(Json.Field(Json.Field(selectedCatalog, "release"), "user_prepared"), "windows-x86-64"));
         unknownTrust["trust"] = "unknown-execution";
         Reject(() => GuidedSetup.Choose(missing, selectedCatalog, "", "", true), "unknown execution trust is never treated as accepted-package semantics");
+        foreach (var advisory in AdvisoryRecommendationFixtures()) {
+            var withAdvisory = Json.Object(Json.Parse(Json.Print(catalog)));
+            withAdvisory["presentation"] = new { recommendation = advisory };
+            Check(GuidedSetup.Choose(launchHeld, withAdvisory, "", "").Kind == GuidedStepKind.ReviewProblem,
+                "optional recommendation cannot override a held Core launch or contradictory readiness");
+            Check(GuidedSetup.Choose(launchHeldWithMissingSource, withAdvisory, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
+                "optional recommendation cannot override definition eligibility or missing-source holds");
+            var unknownTrustCatalog = Json.Object(Json.Parse(Json.Print(selectedCatalog)));
+            unknownTrustCatalog["presentation"] = new { recommendation = advisory };
+            Reject(() => GuidedSetup.Choose(missing, unknownTrustCatalog, "", "", true),
+                "optional recommendation cannot grant unknown execution trust");
+        }
         Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.ReviewProblem,
             "missing reviewed external capability offers upgrade guidance rather than registration");
         var externalNeedsSource = Json.Object(Json.Parse(Json.Print(external))); externalNeedsSource["source_profile"] = "original";

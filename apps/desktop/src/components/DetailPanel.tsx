@@ -746,6 +746,35 @@ const disclosureSummaryStyle =
 const disclosureMetaStyle = "ml-auto text-xs font-medium text-pc-muted-foreground";
 const disclosureBodyStyle = "pt-0.5 pb-[22px]";
 
+function requirementsGroupContext({
+  port,
+  installed,
+  status,
+  sources,
+  managedPreparation,
+  pendingSetup,
+}: Omit<Parameters<typeof RequirementsGroup>[0], "busy">) {
+  const setup =
+    status?.active || status?.external_runtime
+      ? (status.readiness?.setup_contract ?? null)
+      : undefined;
+  const current = requirementsPresentation(
+    port,
+    installed,
+    sources,
+    managedPreparation,
+    pendingSetup,
+  );
+  const authoredSetup =
+    setup == null ? current.authoredSetup : Boolean(setup.manual_setup || setup.manual_preparation);
+  return {
+    setup,
+    needsAttention: current.needsAttention,
+    authoredSetup,
+    hidden: current.hidden && !setup?.source_requirements.length && !authoredSetup,
+  };
+}
+
 function RequirementsGroup({
   port,
   installed,
@@ -763,20 +792,14 @@ function RequirementsGroup({
   pendingSetup: boolean;
   busy?: string | undefined;
 }) {
-  const setup =
-    status?.active || status?.external_runtime
-      ? (status.readiness?.setup_contract ?? null)
-      : undefined;
-  const {
-    needsAttention,
-    authoredSetup: authoredCurrentSetup,
-    hidden: currentHidden,
-  } = requirementsPresentation(port, installed, sources, managedPreparation, pendingSetup);
-  const authoredSetup =
-    setup == null
-      ? authoredCurrentSetup
-      : Boolean(setup?.manual_setup || setup?.manual_preparation);
-  const hidden = currentHidden && !setup?.source_requirements.length && !authoredSetup;
+  const { setup, needsAttention, authoredSetup, hidden } = requirementsGroupContext({
+    port,
+    installed,
+    status,
+    sources,
+    managedPreparation,
+    pendingSetup,
+  });
   const [initiallyOpen] = useState(needsAttention);
   const disclosure = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -1224,16 +1247,15 @@ function RequirementsSummary({
   );
 }
 
-function SavesAndSettingsSummary({
-  port,
-  status,
-}: {
-  port: PortDefinition;
-  status?: PortStatus | undefined;
-}) {
+function savedDataContext(status: PortStatus | undefined) {
   const retained = Boolean(status?.active || status?.staged);
   const setup = status?.readiness?.setup_contract;
   const retainedSetup = retained && setup?.retained ? setup : undefined;
+  return { retained, setup, retainedSetup };
+}
+
+function savesAndSettingsPresentation(port: PortDefinition, status: PortStatus | undefined) {
+  const { retained, setup, retainedSetup } = savedDataContext(status);
   const behavior = retained
     ? retainedSetup?.saves_and_settings
     : (setup?.saves_and_settings ?? port.presentation?.saves_and_settings);
@@ -1244,6 +1266,20 @@ function SavesAndSettingsSummary({
       : (port.persistent_file_patterns ?? [])
     ).map((pattern) => `${pattern.prefix}*${pattern.suffix}`),
   ];
+  return { retained, retainedSetup, behavior, declared };
+}
+
+function SavesAndSettingsSummary({
+  port,
+  status,
+}: {
+  port: PortDefinition;
+  status?: PortStatus | undefined;
+}) {
+  const { retained, retainedSetup, behavior, declared } = savesAndSettingsPresentation(
+    port,
+    status,
+  );
   return (
     <div className="grid min-w-0 gap-3 text-sm wrap-anywhere">
       <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
@@ -1852,6 +1888,26 @@ function PrimaryActions({
   );
 }
 
+function installedPlayPresentation(launchReady: boolean, trial: boolean, pendingSetup: boolean) {
+  return {
+    title: launchReady
+      ? trial
+        ? "Try launching; compatibility is unconfirmed"
+        : pendingSetup
+          ? "Launch this port to finish its first-time setup"
+          : "Launch this port"
+      : "Review the current launch requirements",
+    glyph: !launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2,
+    label: !launchReady
+      ? "Play unavailable"
+      : pendingSetup
+        ? "Launch to finish setup"
+        : trial
+          ? "Try launch"
+          : "Play",
+  };
+}
+
 function InstalledPlayActions({
   compact = false,
   hero = false,
@@ -1875,6 +1931,7 @@ function InstalledPlayActions({
 }) {
   if (preparationRequired)
     return <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />;
+  const presentation = installedPlayPresentation(launchReady, trial, pendingSetup);
   return (
     <div
       className={cn(
@@ -1890,15 +1947,7 @@ function InstalledPlayActions({
         className={cn(compact ? undefined : "wide flex-1", hero && "detail-hero-action")}
         variant="primary"
         size="lg"
-        title={
-          launchReady
-            ? trial
-              ? "Try launching; compatibility is unconfirmed"
-              : pendingSetup
-                ? "Launch this port to finish its first-time setup"
-                : "Launch this port"
-            : "Review the current launch requirements"
-        }
+        title={presentation.title}
         disabled={!launchReady || Boolean(busy)}
         focusableWhenDisabled={launchReady && Boolean(busy)}
         aria-busy={launchReady && Boolean(busy)}
@@ -1906,14 +1955,8 @@ function InstalledPlayActions({
           void actions.launch();
         }}
       >
-        <Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />
-        {!launchReady
-          ? "Play unavailable"
-          : pendingSetup
-            ? "Launch to finish setup"
-            : trial
-              ? "Try launch"
-              : "Play"}
+        <Icon glyph={presentation.glyph} />
+        {presentation.label}
       </Button>
       <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
     </div>
@@ -3189,6 +3232,52 @@ function TechnicalCommandContinuity(
   );
 }
 
+function originalGameFilesLabel({
+  port,
+  source,
+  manual,
+  unavailable,
+}: {
+  port: PortDefinition;
+  source: readonly { label: string }[] | undefined;
+  manual: unknown;
+  unavailable: boolean;
+}) {
+  if (unavailable) return "Recorded requirements unavailable";
+  if (source?.length) return source.map((requirement) => requirement.label).join(" · ");
+  if (port.source_profile) return "Requirements not specified";
+  return manual ? "Follow the upstream first-launch setup" : "No original game files declared";
+}
+
+function requirementInstallationLabel({
+  external,
+  retained,
+  setup,
+  port,
+}: {
+  external: boolean;
+  retained: boolean;
+  setup: NonNullable<PortStatus["readiness"]>["setup_contract"] | undefined;
+  port: PortDefinition;
+}) {
+  if (external) return "Externally maintained installation";
+  if (!retained) return installationMethodLabel(port);
+  return setup?.installation_method
+    ? installationMethodLabels[setup.installation_method]
+    : "Recorded setup method unavailable";
+}
+
+function detailRequirementContext(model: Parameters<typeof DetailBody>[0]) {
+  const retained = Boolean(model.status?.active || model.status?.external_runtime);
+  const setup = model.status?.readiness?.setup_contract;
+  const context = retained ? setup : model.port.presentation;
+  const requirements = context?.source_requirements;
+  const source = requirements?.filter((requirement) => requirement.role !== "bios");
+  const bios = requirements?.find((requirement) => requirement.role === "bios");
+  const manual = context?.manual_setup || context?.manual_preparation;
+  return { retained, setup, source, bios, manual };
+}
+
 function DetailRequirementsFacts({
   model,
   external,
@@ -3196,30 +3285,18 @@ function DetailRequirementsFacts({
   model: Parameters<typeof DetailBody>[0];
   external: boolean;
 }) {
-  const retained = Boolean(model.status?.active || model.status?.external_runtime);
-  const setup = model.status?.readiness?.setup_contract;
-  const requirements = retained
-    ? setup?.source_requirements
-    : model.port.presentation?.source_requirements;
-  const source = requirements?.filter((requirement) => requirement.role !== "bios");
-  const bios = requirements?.find((requirement) => requirement.role === "bios");
-  const manual = retained
-    ? setup?.manual_setup || setup?.manual_preparation
-    : model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation;
+  const { retained, setup, source, bios, manual } = detailRequirementContext(model);
   return (
     <dl className="detail-facts">
       <div>
         <dt>Original game files</dt>
         <dd>
-          {retained && !setup
-            ? "Recorded requirements unavailable"
-            : source?.length
-              ? source.map((requirement) => requirement.label).join(" · ")
-              : model.port.source_profile
-                ? "Requirements not specified"
-                : manual
-                  ? "Follow the upstream first-launch setup"
-                  : "No original game files declared"}
+          {originalGameFilesLabel({
+            port: model.port,
+            source,
+            manual,
+            unavailable: retained && !setup,
+          })}
         </dd>
       </div>
       {(model.port.bios_source_profile || bios) && (
@@ -3237,15 +3314,7 @@ function DetailRequirementsFacts({
       </div>
       <div>
         <dt>Installation</dt>
-        <dd>
-          {external
-            ? "Externally maintained installation"
-            : retained
-              ? setup?.installation_method
-                ? installationMethodLabels[setup.installation_method]
-                : "Recorded setup method unavailable"
-              : installationMethodLabel(model.port)}
-        </dd>
+        <dd>{requirementInstallationLabel({ external, retained, setup, port: model.port })}</dd>
       </div>
       <div>
         <dt>Selected release channel</dt>

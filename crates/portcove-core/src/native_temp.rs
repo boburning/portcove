@@ -228,7 +228,7 @@ pub(crate) fn recheck(port: &PortDefinition, spec: &LaunchSpec) -> Result<()> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::{Adapter, LaunchKind, LaunchSpecRequest, Library};
+    use crate::{Adapter, LaunchSpecRequest, Library};
 
     pub(crate) fn port() -> PortDefinition {
         serde_json::from_value(serde_json::json!({
@@ -242,6 +242,7 @@ pub(crate) mod tests {
         })).unwrap()
     }
 
+    #[cfg(unix)]
     fn spec(root: &Path) -> LaunchSpec {
         let mut environment = BTreeMap::new();
         super::environment(&port(), Platform::WindowsX86_64, &mut environment).unwrap();
@@ -252,7 +253,7 @@ pub(crate) mod tests {
             environment,
             arguments: Vec::new(),
             fixed_arguments_only: false,
-            launch_kind: LaunchKind::Native,
+            launch_kind: crate::LaunchKind::Native,
         }
     }
 

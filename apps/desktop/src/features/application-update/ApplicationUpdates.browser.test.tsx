@@ -725,6 +725,20 @@ describe("ApplicationUpdateSettings", () => {
     expect(download).not.toHaveBeenCalled();
   });
 
+  it("keeps Save disabled when the ordinary Stable Manual choice is already saved", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+      ...savedChoice,
+      choice: { channel: "stable", mode: "manual", paused: false },
+    });
+    const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
+    await root.rerender(<OperatingSettingsFixture />);
+    expect(button("Save application update settings").disabled).toBe(true);
+    await click("Stable");
+    await click("Manual");
+    expect(button("Save application update settings").disabled).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("retains the backend reachability failure through shared task settlement and retries normally", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
     const failure = failureReport();

@@ -12,6 +12,7 @@
   "labels": ["dependencies"],
   "automerge": false,
   "minimumReleaseAge": "1 day",
+  "minimumReleaseAgeBuffer": "30 minutes",
   "minimumReleaseAgeBehaviour": "timestamp-required",
   "internalChecksFilter": "strict",
   "prConcurrentLimit": 6,
@@ -22,7 +23,8 @@
   "rebaseWhen": "conflicted",
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on monday"]
+    "schedule": ["before 6am on monday"],
+    "minimumReleaseAge": null
   },
   "packageRules": [
     {
@@ -172,6 +174,21 @@
       "prBodyNotes": [
         "Update the paired POWERSHELL_SHA256 from the official release asset digest and requalify Ubuntu 22.04 execution. A version-only proposal must fail preparation and is not merge-ready."
       ]
+    },
+    {
+      "description": "Temporary exact Rust digest branch timestamp correction; native strict lookup and 1 day 30 minute eligibility remain authoritative",
+      "matchManagers": ["dockerfile"],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["rust"],
+      "matchFileNames": ["tools/containers/build/Dockerfile"],
+      "matchUpdateTypes": ["digest"],
+      "matchCurrentValue": "1.99.1-slim-bookworm",
+      "matchNewValue": "1.99.1-slim-bookworm",
+      "matchCurrentAge": ">= 1 day 30 minutes",
+      "matchJsonata": [
+        "newDigest = 'sha256:24707e70a4f1e23d9a7b25202ec43126d28a52294b96aad5c670df1fd1f1d400' and $not($exists(lockedVersion)) and minimumReleaseAge = '1 day' and minimumReleaseAgeBuffer = '30 minutes' and internalChecksFilter = 'strict' and minimumReleaseAgeBehaviour = 'timestamp-required'"
+      ],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
     },
     {
       "description": "Retain npm update metadata after inherited confidence presentation rules",

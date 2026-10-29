@@ -39,10 +39,28 @@ it("lets a distinct Escape close the fixture dialog while its nested select is s
     await opener.click();
     const trigger = page.getByRole("combobox", { name: "Release channel", exact: true });
     await trigger.click();
-    popup = document.querySelector<HTMLElement>('[data-slot="select-content"]')!;
+    await expect.element(trigger).toHaveAttribute("aria-expanded", "true");
+    const listId = trigger.element().getAttribute("aria-controls")!;
+    // Base UI can mount a closed measurement popup whose computed opacity is already 1.
+    await expect
+      .poll(() =>
+        document
+          .getElementById(listId)
+          ?.closest('[data-slot="select-content"]')
+          ?.hasAttribute("data-open"),
+      )
+      .toBe(true);
+    popup = document.getElementById(listId)!.closest<HTMLElement>('[data-slot="select-content"]')!;
     await expect.poll(() => getComputedStyle(popup!).opacity).toBe("1");
     document.head.appendChild(style);
     expect(getComputedStyle(popup).transitionProperty).toBe("opacity");
+    // Commit the injected transition's open state before asking it to animate closed.
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    expect(popup.hasAttribute("data-open")).toBe(true);
+    expect(popup.hasAttribute("data-starting-style")).toBe(false);
+    expect(getComputedStyle(popup).opacity).toBe("1");
     await userEvent.keyboard("{Escape}");
     await expect.poll(() => paused.length).toBeGreaterThan(0);
     const fixture = document.querySelector<HTMLElement>(".design-compatibility-fixture")!;

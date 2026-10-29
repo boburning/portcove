@@ -64,6 +64,23 @@
       "observed_attempt": 1,
       "observed_job": 122786900408,
       "observed_blocking_findings": 4
+    },
+    {
+      "file": "crates/portcove-core/src/runtime_path_policy_tests.rs",
+      "kind": "Exact short Windows path for the Native5 temporary-directory envelope fixture; no filesystem mutation",
+      "values": ["C:\\Games"],
+      "denied_values": ["C:\\Gamesunreviewed"],
+      "source": "4a9d1f5da9329c1be854648cf260ab8f8b075a1b",
+      "observed_run": 40866403279,
+      "observed_attempt": 1,
+      "observed_job": 123422282643,
+      "observed_blocking_findings": 1
+    },
+    {
+      "file": "crates/portcove-core/src/runtime_path_policy.rs",
+      "kind": "The reviewed Native5 test literal remains denied in its production path-policy owner",
+      "values": [],
+      "denied_values": ["C:\\Games"]
     }
   ],
   "global_inheritance_control": {

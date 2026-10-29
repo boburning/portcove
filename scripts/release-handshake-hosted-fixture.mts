@@ -1,9 +1,10 @@
 /** Credential-free process-lifetime fixture, never release/control authority. */
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, open, writeFile } from "node:fs/promises";
+import { mkdir, open } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
+import { retainReleaseRoutingMarker } from "./release-routing-marker.mts";
 
 const hash = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const root = process.env.RUNNER_TEMP;
@@ -32,10 +33,9 @@ async function read(name: string) {
   }
 }
 async function write(name: string, value: unknown) {
-  await writeFile(path.join(directory, name), `${JSON.stringify(value)}\n`, {
-    flag: "wx",
-    mode: 0o600,
-  });
+  // Readers must never observe the creation-before-write interval. This public
+  // fixture retains the existing no-clobber routing publication authority.
+  await retainReleaseRoutingMarker(path.join(directory, name), value);
 }
 const scope = "credential-free-hosted-process-fixture";
 if (mode === "start") {

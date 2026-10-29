@@ -12,7 +12,7 @@ import type { GameFileFilterContext } from "./game-file-query-context";
 import type { CatalogEntry } from "./catalog-entry";
 
 // These identifiers describe declared port facts, not installation eligibility.
-export const catalogQueryOptions = {
+const catalogQueryOptions = {
   platforms: [...platforms, "this-device"],
   channels,
   originalSystems: [] as readonly string[],

@@ -1,0 +1,120 @@
+{
+  "format_version": 1,
+  "kind": "DevilutionX-shared-preparation-dependency-reconciliation",
+  "owners": [2510, 2926, 2563, 2564],
+  "status": "Original preparation remains pending; no managed definition or new route delivered",
+  "scope": {
+    "existing_identities": 2,
+    "new_identities": 0,
+    "new_definitions": 0,
+    "definitions_changed": 0,
+    "historical_members_added": 0,
+    "supported_promotions": 0
+  },
+  "canonical_requirements": {
+    "2563": "https://github.com/boburning/portcove/issues/2563#issuecomment-6458985531",
+    "2564": "https://github.com/boburning/portcove/issues/2564#issuecomment-6458985846",
+    "retained_boundary": "Private profile creation AND a representable original-set/completion contract. Current issue bodies retain that stronger managed fitting; manual instructions or an error dialog do not establish completion."
+  },
+  "source": {
+    "repository": "diasurgical/DevilutionX",
+    "tag": "1.5.5",
+    "commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+    "tree": "15acc6b2d8b0407f1ec282301af2310fa67f5040",
+    "tree_truncated": false,
+    "individually_git_blob_verified_files": 458,
+    "selected_bytes": 4157157,
+    "selected_capture_receipt_sha256": "d9b87b4b45258ee1ce7b2b2465086972d08fdc978119d8e7a3321fd1f273c418",
+    "scope": "Selected application code/header and documentation capture, not all external dependencies or binary/source build equivalence. This packet is a consequential boundary review, not complete runtime qualification.",
+    "tree_request_ref": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+    "capture_tree_field_limit": "The unchanged capture receipt tree_sha records the commit request ref, not the resolved Git tree; actual tree is separately verified through the Git commit API."
+  },
+  "official_package": {
+    "asset_id": 310816827,
+    "name": "devilutionx-windows-x86_64.zip",
+    "size": 10482049,
+    "expected_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b",
+    "checkpoint": "native-pc-engine-routes-2026-10-27.json families.DevilutionX.read_only_windows_packages[0]",
+    "fresh_primary_result": "Latest1.5.5 API still names the identical asset/size/publisher digest. Prior observed11-entry wrapper/AMD64 inspection consumed; no new download/extraction/execution claimed."
+  },
+  "profile_creation": {
+    "previous_gap": "Upstream ReadOnlyTest opens the writable profile before SaveOptions creates the directory. Declaring persistence alone does not create it.",
+    "delivered_shared_primitive": "PR3960 Native5 windows_temp_directory safe persisted basename and relative TEMP/TMP; no per-title initialization recipe.",
+    "potential_binding": {
+      "adapter": "native-portable",
+      "contract_version": 5,
+      "executable": "devilutionx.exe",
+      "working_root": "selected executable parent inside devilutionx wrapper",
+      "arguments_common": [
+        "--data-dir",
+        "originals",
+        "--save-dir",
+        "profile",
+        "--config-dir",
+        "profile"
+      ],
+      "diablo_argument": "--diablo",
+      "hellfire_argument": "--hellfire",
+      "persistent_paths": ["originals", "profile"],
+      "windows_temp_directory": "profile",
+      "scope": "Core existing safe persisted temporary namespace creates profile and derives TEMP/TMP; no new initialization recipe or authority"
+    },
+    "review_result": "Existing Native5 can supply the fresh private directory. Relative ASCII profile avoids SDL/global preference fallback and the Windows ZeroTier alternate global Unicode-symlink branch even under Unicode CWD. This is an early fitting decision, not an admitted title contract.",
+    "limits": "Fresh canonical namespace reuse, including empty or preserved after removal, remains held without an active creating contract. No populated profile adoption, source copy, original readiness or save compatibility is granted."
+  },
+  "source_decisions": [
+    {
+      "source": "Source/diablo.cpp:2432-2467,988-1029",
+      "fact": "Path overrides parsed before core archive/options/application initialization. --version quits earlier and cannot prove app config/save behavior."
+    },
+    {
+      "source": "Source/restrict.cpp:15-24 and Source/diablo.cpp:1142-1155",
+      "fact": "ReadOnlyTest opens then removes profile/Diablo1ReadOnlyTest.foo before later SaveOptions mkdir; Core prepared profile solves this fresh-directory need."
+    },
+    {
+      "source": "Source/utils/paths.cpp:79-110,150-167",
+      "fact": "Literal relative profile overrides avoid SDL_GetPrefPath fallback; path strings gain separator, not absolute canonicalization."
+    },
+    {
+      "source": "Source/dvlnet/zerotier_native.cpp:61-104,146-156",
+      "fact": "ASCII literal profile avoids Windows alternate global Unicode-symlink branch even under Unicode working path. Default ZeroTier storage stays profile/zerotier; full remaining external-library audit required."
+    },
+    {
+      "source": "Source/init.cpp:119-173,283-363",
+      "fact": "Preferred original path is nonexclusive; GOG,profile,config,CWD searches remain. Diablo may fall back to spawn.mpq. Hellfire needs baseDiablo +hellfire/hfmonk/hfmusic/hfvoice MPQs, optionalhfbard/hfbarb changeclasses."
+    },
+    {
+      "source": "Source/options.cpp:75-96,228-241; Source/pfile.cpp:54-80; Source/capture.cpp:135-149; Source/engine/demomode.cpp:381,687",
+      "fact": "Whole private profile covers ini, save/stash archives and their variants, screenshot collision names, demo output and temporary witnesses; do not flatten into a guessed suffix list."
+    }
+  ],
+  "remaining_requirement": {
+    "state": "Pending shared preparation implementation or supported upstream input/completion; not resolved by Native5",
+    "missing": "A real representable original-set preparation/completion flow under the existing Core authority, or an upstream-owned first-Play input flow/atomic completion record. These Windows builds provide neither inspected upstream interface.",
+    "not_a_solution": [
+      "Manual copying relabelled as verified completion",
+      "A user-written readiness JSON/placeholder marker",
+      "Borrowing FileSet support from another adapter without an explicit reviewed contract",
+      "A per-title downstream engine or initializer",
+      "Replacing canonical managed-fit completion with a narrower binary-only component"
+    ],
+    "next_action": "Under #2926, design and qualify the generic original-preparation contract against actual source/input identities before extending NativePortable. Reuse existing source/preparation/ownership authorities; create no second planner. Alternatively consume a supported upstream input/completion interface when it exists. Then qualify this exact package, every reachable writer/process and each offered operation before admitting either title.",
+    "resume_trigger": "A separately reviewed generic contract that actually represents the required original set, consented preparation and durable completion, or an observed supported upstream interface; then per-ID qualification. No new owner-only approval is inferred."
+  },
+  "existing_routes": {
+    "2563": "Existing upstream-owned setup and user-selected executable/working-directory/--diablo registration remain; original DiabloDIABDAT.MPQ or limited sharewareSPAWN.MPQ are distinct choices.",
+    "2564": "Existing upstream-owned setup and user-selected --hellfire registration remain; fullDiabloDIABDAT.MPQ plus hellfire/hfmonk/hfmusic/hfvoice required; optional hfbard/hfbarb have separate effects.",
+    "ownership": "External runtime/profile remain player/upstream owned. Registration removal preserves them. No managed Update/Backup/Rollback/migration/deletion is offered for external bytes."
+  },
+  "review": {
+    "kind": "Independent non-writing consequential source/scope review",
+    "result": "Native5 directory mechanism fits the inspected paths; canonical original-preparation requirement remains unresolved. No inference from Crispy/BStone precedent."
+  },
+  "not_claimed": [
+    "Original files supplied, copied, authenticated or prepared",
+    "Native/default game/settings/saves/multiplayer/physical/installed Desktop observations",
+    "Full writer or external SDK closure",
+    "Managed title admission, new operational offer, full canonical closure or parent completion",
+    "Changes to #2494/#254, six Direct holds, protected signing/publication authority"
+  ]
+}

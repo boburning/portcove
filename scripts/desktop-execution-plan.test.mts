@@ -20,7 +20,10 @@ import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-e
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
-import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
+import {
+  OwnedNativeSession,
+  retainNativeCustody as retainOwnedNativeCustody,
+} from "../apps/desktop/scripts/desktop-owned-native-session.mts";
 import baseline from "./desktop-execution-baseline.mts";
 import type { DesktopSelection } from "./desktop-scenarios.mts";
 type KnownGap = DesktopSelection["known_gaps"][number];
@@ -213,48 +216,36 @@ void test("Windows admission refusal preserves former exit proof until a replace
 });
 
 void test("Windows retained custody keeps its hold even when failure evidence cannot be published", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const first = source.indexOf("async function retainNativeCustody(");
-  const last = source.indexOf("async function stopDriver()", first);
-  assert.ok(first >= 0 && last > first);
-  const calls: string[] = [];
-  const holding = new Error("injected retained hold");
-  class HoldPromise {
-    constructor() {
-      return Promise.reject(holding);
-    }
+  for (const publicationFails of [false, true]) {
+    const calls: string[] = [];
+    const holding = new Error("injected retained hold");
+    const publicationFailure = new Error("disk failure");
+    await assert.rejects(
+      () =>
+        retainOwnedNativeCustody({
+          publish: async () => {
+            calls.push("publish");
+            if (publicationFails) throw publicationFailure;
+          },
+          reportPublicationFailure: (error) => {
+            assert.equal(error, publicationFailure);
+            calls.push("report");
+          },
+          reportRetained: () => {
+            calls.push("report");
+          },
+          hold: async () => {
+            calls.push("hold");
+            throw holding;
+          },
+        }),
+      (error: unknown) => error === holding,
+    );
+    assert.deepEqual(
+      calls,
+      publicationFails ? ["publish", "report", "report", "hold"] : ["publish", "report", "hold"],
+    );
   }
-  const retain = callable(
-    runInNewContext(`${source.slice(first, last)}; retainNativeCustody`, {
-      process: { exitCode: 0 },
-      path,
-      output: "/owned",
-      cleanupName: "fixture",
-      ownedSession: {},
-      errorMessage: String,
-      writeFile: async () => {
-        calls.push("publish");
-        throw new Error("disk failure");
-      },
-      console: {
-        error: () => {
-          calls.push("report");
-        },
-      },
-      setInterval: () => {
-        calls.push("hold");
-      },
-      Promise: HoldPromise,
-    }),
-  );
-  await assert.rejects(
-    async () => retain(new Error("Wait failed")),
-    (error: unknown) => error === holding,
-  );
-  assert.deepEqual(calls, ["publish", "report", "report", "hold"]);
 });
 
 void test("native interface enlargement retains its exact assertion source without changing ordinary profiles", () => {

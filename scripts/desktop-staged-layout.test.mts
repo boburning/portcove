@@ -3,13 +3,14 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
-import { toolCachePaths } from "./tool-cache.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
+import { fixtureModulePolicySource } from "./fixtures/desktop-module-fixture.mts";
 import { readStagedLayout } from "../apps/desktop/scripts/desktop-staged-layout.mts";
 import {
   stagedDocument,
@@ -164,27 +165,37 @@ void test(
     const entry = "apps/desktop/scripts/desktop-staged-layout.native.test.mts";
     const closure = readFixtureModuleClosure(root, [entry]);
     assert.ok(closure.external.every(isBuiltin), JSON.stringify(closure.external));
-    // Storage guards may place tmpdir inside the checkout's dependency ancestry.
-    // Reuse the existing dependency-free native-contract location instead.
-    const isolation = path.join(toolCachePaths().sharedRoot, "node-contracts");
-    mkdirSync(isolation, { recursive: true });
-    const isolated = disposableDirectory(t, path.join(isolation, "staged-layout-minimal-"));
+    const isolated = disposableDirectory(t, path.join(tmpdir(), "portcove-staged-layout-minimal-"));
     writeFileSync(path.join(isolated, "package.json"), '{"type":"module"}\n');
     for (const module of closure.modules) {
       const destination = path.join(isolated, module.path);
       mkdirSync(path.dirname(destination), { recursive: true });
       writeFileSync(destination, module.bytes);
     }
+    // Storage-owned scratch can sit below the checkout's installed packages.
+    // Enforce the no-package contract at resolution, regardless of that ancestry.
+    const policy = path.join(isolated, "no-package-imports.mjs");
+    writeFileSync(policy, fixtureModulePolicySource(isolated));
     const environment = { ...process.env };
     delete environment.NODE_TEST_CONTEXT;
     const execute = () =>
-      spawnSync(process.execPath, ["--test", "--test-reporter=tap", path.join(isolated, entry)], {
-        cwd: isolated,
-        env: environment,
-        encoding: "utf8",
-        timeout: 20_000,
-        maxBuffer: 2 * 1024 * 1024,
-      });
+      spawnSync(
+        process.execPath,
+        [
+          "--import",
+          pathToFileURL(policy).href,
+          "--test",
+          "--test-reporter=tap",
+          path.join(isolated, entry),
+        ],
+        {
+          cwd: isolated,
+          env: environment,
+          encoding: "utf8",
+          timeout: 20_000,
+          maxBuffer: 2 * 1024 * 1024,
+        },
+      );
     const result = execute();
     assert.ifError(result.error);
     assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -196,11 +207,23 @@ void test(
       isolated,
       "apps/desktop/scripts/desktop-staged-layout-fixture.mts",
     );
-    writeFileSync(observedFixture, '\nimport "vite-plus";\n', { flag: "a" });
-    const broken = execute();
-    assert.ifError(broken.error);
-    assert.notEqual(broken.status, 0);
-    assert.match(broken.stdout + broken.stderr, /ERR_MODULE_NOT_FOUND/u);
-    assert.match(broken.stdout + broken.stderr, /vite-plus/u);
+    const originalFixture = readFileSync(observedFixture);
+    for (const specifier of ["vite-plus", "portcove-unknown-fixture-package"]) {
+      writeFileSync(observedFixture, originalFixture);
+      writeFileSync(observedFixture, `\nimport ${JSON.stringify(specifier)};\n`, { flag: "a" });
+      const broken = execute();
+      assert.ifError(broken.error);
+      assert.notEqual(broken.status, 0, broken.stdout + broken.stderr);
+      assert.match(broken.stdout + broken.stderr, /Unexpected package import:/u);
+      assert.ok((broken.stdout + broken.stderr).includes(specifier));
+    }
+    const outside = new URL("./runtime-values.mts", import.meta.url).href;
+    writeFileSync(observedFixture, originalFixture);
+    writeFileSync(observedFixture, `\nimport ${JSON.stringify(outside)};\n`, { flag: "a" });
+    const escaped = execute();
+    assert.ifError(escaped.error);
+    assert.notEqual(escaped.status, 0, escaped.stdout + escaped.stderr);
+    assert.match(escaped.stdout + escaped.stderr, /Fixture import escapes owned closure:/u);
+    assert.ok((escaped.stdout + escaped.stderr).includes(outside));
   },
 );

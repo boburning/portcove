@@ -284,7 +284,7 @@ void test("fixed-account cases execute on Windows in both fast and qualification
         workflowStep(job, "Test inert fixed-account setup and capability contracts on Windows").run,
       ),
       [
-        "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts",
+        "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts scripts/ci-windows-helpers.test.mts",
       ],
     );
   }

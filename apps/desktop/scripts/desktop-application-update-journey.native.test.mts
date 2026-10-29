@@ -477,6 +477,7 @@ void test("installed Stable waiting requires fresh UI result without advancing a
         };
       },
       findElement: (locator: { value: string }) => ({
+        isEnabled: async () => true,
         click: async () => {
           calls.push(locator.value);
         },
@@ -490,7 +491,13 @@ void test("installed Stable waiting requires fresh UI result without advancing a
           return [{}];
         return [];
       },
-      executeAsyncScript: async () => JSON.stringify({ ok: true, value: responses.shift() }),
+      executeAsyncScript: async (query: unknown) =>
+        JSON.stringify({
+          ok: true,
+          value: String(query).includes("get_application_update_preferences")
+            ? { revision: 1, choice: { channel: "stable", mode: "manual" } }
+            : responses.shift(),
+        }),
     } as unknown as WebDriver;
     const actions: string[] = [];
     if (change) {
@@ -719,7 +726,15 @@ void test("feed ownership refuses adjacent uint64 inode identities even when Num
 void test("installed outage uses ordinary check, truthful failure, unchanged choices and exact restored-feed retry", async (t) => {
   const { prepareInstalledFeedOutage } = await import("./desktop-installed-feed-outage.mts");
   const { access, readFile } = await import("node:fs/promises");
-  for (const change of [null, "staged", "preferences", "current", "wrong-alert"] as const) {
+  for (const change of [
+    null,
+    "already-saved",
+    "disabled-wrong-preferences",
+    "staged",
+    "preferences",
+    "current",
+    "wrong-alert",
+  ] as const) {
     const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-journey-"));
     t.after(() => rm(root, { recursive: true, force: true }));
     const metadata = path.join(root, "metadata");
@@ -759,7 +774,14 @@ void test("installed outage uses ordinary check, truthful failure, unchanged cho
         };
       },
       findElement: (locator: { value: string }) => ({
+        isEnabled: async () =>
+          !["already-saved", "disabled-wrong-preferences"].includes(change ?? ""),
         click: async () => {
+          if (
+            locator.value.includes("Save application update settings") &&
+            ["already-saved", "disabled-wrong-preferences"].includes(change ?? "")
+          )
+            throw new Error("ElementNotInteractableError: unchanged Save is disabled");
           if (locator.value.includes('normalize-space(.)="Check for updates"')) {
             unavailable = await access(timestamp).then(
               () => false,
@@ -779,9 +801,11 @@ void test("installed outage uses ordinary check, truthful failure, unchanged cho
         return JSON.stringify({
           ok: true,
           value: preferences
-            ? unavailable && change === "preferences"
-              ? { ...choices, revision: 4 }
-              : choices
+            ? change === "disabled-wrong-preferences"
+              ? { ...choices, choice: { channel: "preview", mode: "manual" } }
+              : unavailable && change === "preferences"
+                ? { ...choices, revision: 4 }
+                : choices
             : {
                 ...status,
                 schedule: { consecutive_failures: unavailable ? 1 : 0 },
@@ -790,7 +814,7 @@ void test("installed outage uses ordinary check, truthful failure, unchanged cho
         });
       },
     } as unknown as WebDriver;
-    if (change)
+    if (change && change !== "already-saved")
       await assert.rejects(
         driveInstalledFeedOutage(browser, actions, control.configuration, control.sha256),
       );
@@ -802,6 +826,8 @@ void test("installed outage uses ordinary check, truthful failure, unchanged cho
         control.sha256,
       );
       assert.deepEqual(checks, [true, false, true]);
+      if (change === "already-saved")
+        assert.ok(actions.includes("stable-manual-settings-already-saved"));
       assert.equal(result.failed.message, message);
       assert.equal(result.failed.status.staged, null);
       assert.equal(
