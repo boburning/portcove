@@ -1,3 +1,4 @@
+import { openAdvancedFilters } from "../../test/filter-fields";
 import { afterEach, beforeEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import {
@@ -85,7 +86,10 @@ it.each(["dark", "light"])(
     expect(readiness.getBoundingClientRect().height).toBeLessThanOrEqual(
       parseFloat(getComputedStyle(readiness).lineHeight) + 1,
     );
-    const play = row.querySelector<HTMLButtonElement>('button[data-variant="primary"]')!;
+    const play = [...row.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Play",
+    )!;
+    expect(play.dataset.variant).toBe("outline");
     expect(play.textContent).toBe("Play");
     play.focus();
     await expect.element(play).toHaveFocus();
@@ -94,6 +98,7 @@ it.each(["dark", "light"])(
       path: `../../../../outputs/ui-refinement/rows-text-200-wide-${theme}.png`,
     });
   },
+  45_000,
 );
 
 it("keeps enlarged review facts and cancellation reachable", async () => {
@@ -106,7 +111,7 @@ it("keeps enlarged review facts and cancellation reachable", async () => {
       exact: true,
     })
     .click();
-  await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
+  await page.getByRole("button", { name: "Review setup", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect.element(dialog.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
   expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
@@ -116,13 +121,14 @@ it("keeps enlarged review facts and cancellation reachable", async () => {
   await page.getByRole("button", { name: "Cancel review", exact: true }).click();
   await expect.element(dialog).not.toBeInTheDocument();
   await expect
-    .element(page.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(page.getByRole("button", { name: "Review setup", exact: true }))
     .toHaveFocus();
 });
 
 it("keeps one named readiness choice across narrow, desktop and enlarged widths", async () => {
   await page.viewport(320, 900);
   mount("library");
+  await openAdvancedFilters();
   const readiness = page.getByRole("combobox", { name: /^Readiness/ });
   await expect.element(readiness).toBeVisible();
   await readiness.click();
@@ -174,6 +180,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
       }),
     )
     .not.toBeInTheDocument();
+  await openAdvancedFilters();
   await page.getByRole("combobox", { name: /^Readiness / }).click();
   await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
   await expect
@@ -194,14 +201,14 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
     }),
   );
   await expect
-    .element(page.getByRole("button", { name: "Back to previous workspace", exact: true }))
+    .element(page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }))
     .toBeVisible();
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent).toContain(
     "Harbor Adventure",
   );
   expect(document.querySelector('[data-artwork-source="generated_fallback"]')).not.toBeNull();
   await userEvent.click(
-    page.getByRole("button", { name: "Back to previous workspace", exact: true }),
+    page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }),
   );
   await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("Harbor");
   await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();
@@ -233,10 +240,10 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .not.toBeInTheDocument();
   const next = page.getByRole("region", { name: "Game actions", exact: true });
   await expect
-    .element(next.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(next.getByRole("button", { name: "Review setup", exact: true }))
     .toBeEnabled();
   expect(next.element().textContent).toContain("Harbor Adventure");
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await expect.element(page.getByText("Selected game files", { exact: true })).toBeVisible();
   await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
@@ -255,19 +262,19 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .toBeVisible();
   await userEvent.keyboard("{Alt>}{Shift>}C{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}F{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await expect
     .element(page.getByText("The demo setup did not finish.", { exact: false }).first())
     .toBeVisible();
-  await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}{Enter}{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await expect
-    .element(page.getByRole("button", { name: "Review game preparation", exact: true }))
+    .element(page.getByRole("button", { name: "Review setup", exact: true }))
     .not.toBeInTheDocument();
   await expect
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)

@@ -1,3 +1,8 @@
+import {
+  filterChoice,
+  closeFilterPanel,
+  openAdvancedFilters as openAdvancedPanel,
+} from "../../test/filter-fields";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
@@ -236,37 +241,30 @@ afterEach(() => {
 const roleButton = (name: string) => page.getByRole("button", { name, exact: true });
 async function openAdvancedFilters(name: string) {
   await userEvent.click(roleButton(name));
-  if (!document.querySelector<HTMLDetailsElement>(".catalog-filter-panel details")?.open)
-    await userEvent.click(page.getByText("Advanced filters", { exact: true }));
+  await openAdvancedPanel();
 }
-async function closeFilters() {
-  await userEvent.keyboard("{Escape}");
-  await expect
-    .element(page.getByRole("region", { name: "Filter options", exact: true }))
-    .not.toBeInTheDocument();
-  await expect
-    .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
-    .toHaveFocus();
-}
+const closeFilters = closeFilterPanel;
 // Cold browser setup and repeated dialog handoffs share this finite outer budget.
 it("keeps host, setup method and membership on one context through details and return without IPC", async () => {
   await page.viewport(1100, 900);
   flushSync(() => root.render(<Fixture />));
   await openAdvancedFilters("Filters (0)");
-  await userEvent.click(roleButton("For this device (2)"));
-  await userEvent.click(roleButton("In my library (2)"));
-  await expect.element(roleButton("Linux (0)")).toBeEnabled();
-  await expect.element(roleButton("Portable upstream package (0)")).toBeEnabled();
-  await userEvent.click(roleButton("Portable upstream package (0)"));
+  await userEvent.click(await filterChoice("For this device (2)"));
+  await userEvent.click(await filterChoice("In my library (2)"));
+  await expect
+    .element(await filterChoice("Linux (0)"))
+    .not.toHaveAttribute("aria-disabled", "true");
+  await expect
+    .element(await filterChoice("Portable upstream package (0)"))
+    .not.toHaveAttribute("aria-disabled", "true");
+  await userEvent.click(await filterChoice("Portable upstream package (0)"));
   await closeFilters();
   await expect
-    .element(page.getByText("No ports match these filters", { exact: true }))
+    .element(page.getByRole("heading", { name: "No matching games", exact: true }))
     .toBeInTheDocument();
   await openAdvancedFilters("Filters (3)");
-  await expect
-    .element(roleButton("Portable upstream package (0)"))
-    .toHaveAttribute("aria-pressed", "true");
-  await userEvent.click(roleButton("Original disc referenced at launch (1)"));
+  await expect.element(await filterChoice("Portable upstream package (0)")).toBeChecked();
+  await userEvent.click(await filterChoice("Original disc referenced at launch (1)"));
   await closeFilters();
   expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(1);
   await openDiscoverPort("windows");
@@ -290,11 +288,13 @@ it.each(["dark", "light"])(
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture />));
     await openAdvancedFilters("Filters (0)");
-    await userEvent.click(roleButton("Windows (2)"));
-    await userEvent.click(roleButton("Preview (1)"));
-    await expect.element(roleButton("Linux (2)")).toBeEnabled();
-    await userEvent.click(roleButton("Linux (2)"));
-    await userEvent.click(roleButton("Linux (2)"));
+    await userEvent.click(await filterChoice("Windows (2)"));
+    await userEvent.click(await filterChoice("Preview (1)"));
+    await expect
+      .element(await filterChoice("Linux (2)"))
+      .not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(await filterChoice("Linux (2)"));
+    await userEvent.click(await filterChoice("Linux (2)"));
     await closeFilters();
     await expect.element(roleButton("Filters (2)")).toHaveFocus();
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
@@ -312,9 +312,13 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
     await userEvent.fill(page.getByRole("textbox", { name: "Search catalog" }), "no match");
     await openAdvancedFilters("Filters (2)");
-    await expect.element(roleButton("Windows (0)")).toBeEnabled();
-    await userEvent.click(roleButton("Windows (0)"));
-    await expect.element(roleButton("Preview (0)")).toBeEnabled();
+    await expect
+      .element(await filterChoice("Windows (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(await filterChoice("Windows (0)"));
+    await expect
+      .element(await filterChoice("Preview (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
     await closeFilters();
     await expect.element(roleButton("Filters (1)")).toHaveFocus();
     const chip = document.querySelector<HTMLButtonElement>(
@@ -332,7 +336,7 @@ it("retains unsupported persisted intent until explicit reset", async () => {
   await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
   const key = libraryBrowsingPreferenceKey("/filters-library-a");
   await openAdvancedFilters("Filters (0)");
-  await userEvent.click(roleButton("Stable (2)"));
+  await userEvent.click(await filterChoice("Stable (2)"));
   await closeFilters();
   const stored = JSON.parse(localStorage.getItem(key)!) as {
     inputs: { sections: { catalog: { filter: unknown } } };
@@ -343,12 +347,16 @@ it("retains unsupported persisted intent until explicit reset", async () => {
   root = createRoot(host);
   flushSync(() => root.render(<Fixture />));
   await openAdvancedFilters("Filters (0)");
-  await expect.element(roleButton("Windows (unavailable)")).toBeDisabled();
+  await expect
+    .element(await filterChoice("Windows (unavailable)"))
+    .toHaveAttribute("aria-disabled", "true");
   expect(JSON.parse(localStorage.getItem(key)!) as unknown).toMatchObject({
     inputs: { sections: { catalog: { filter: { version: 999 } } } },
   });
   await userEvent.click(roleButton("Clear filters"));
-  await expect.element(roleButton("Windows (2)")).toBeEnabled();
+  await expect
+    .element(await filterChoice("Windows (2)"))
+    .not.toHaveAttribute("aria-disabled", "true");
   await closeFilters();
   await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
 });
@@ -360,10 +368,14 @@ it.each(["dark", "light"])(
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture />));
     await openAdvancedFilters("Filters (0)");
-    await userEvent.click(roleButton("In my library (2)"));
-    await expect.element(roleButton("Preview (0)")).toBeEnabled();
-    await userEvent.click(roleButton("Stable (2)"));
-    await expect.element(roleButton("Linux (0)")).toBeEnabled();
+    await userEvent.click(await filterChoice("In my library (2)"));
+    await expect
+      .element(await filterChoice("Preview (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(await filterChoice("Stable (2)"));
+    await expect
+      .element(await filterChoice("Linux (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
     await closeFilters();
     expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(2);
     await openDiscoverPort("both");
@@ -376,8 +388,10 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Switch library"));
     await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
     await openAdvancedFilters("Filters (0)");
-    await expect.element(roleButton("In my library (0)")).toBeEnabled();
-    await userEvent.click(roleButton("Not in my library (3)"));
+    await expect
+      .element(await filterChoice("In my library (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(await filterChoice("Not in my library (3)"));
     await closeFilters();
     expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(3);
     await userEvent.click(roleButton("Switch library"));
@@ -406,12 +420,16 @@ it.each(["dark", "light"])(
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture />));
     await openAdvancedFilters("Filters (0)");
-    await expect.element(roleButton("Missing game files (0)")).toBeEnabled();
-    await userEvent.click(roleButton("Missing BIOS (1)"));
-    await userEvent.click(roleButton("Finish setup (1)"));
-    await expect.element(roleButton("Preview (0)")).toBeEnabled();
-    await userEvent.click(roleButton("Stable (2)"));
-    await expect.element(roleButton("Finish setup (1)")).toHaveAttribute("aria-pressed", "true");
+    await expect
+      .element(await filterChoice("Missing game files (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(await filterChoice("Missing BIOS (1)"));
+    await userEvent.click(await filterChoice("Finish setup (1)"));
+    await expect
+      .element(await filterChoice("Preview (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(await filterChoice("Stable (2)"));
+    await expect.element(await filterChoice("Finish setup (1)")).toBeChecked();
     await closeFilters();
     await openDiscoverPort("both");
     await userEvent.click(roleButton("Back to catalog"));
@@ -423,13 +441,17 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Switch library"));
     await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
     await openAdvancedFilters("Filters (0)");
-    await expect.element(roleButton("Missing BIOS (0)")).toBeEnabled();
+    await expect
+      .element(await filterChoice("Missing BIOS (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
     await closeFilters();
     await userEvent.click(roleButton("Switch library"));
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
     await openAdvancedFilters("Filters (3)");
-    await expect.element(roleButton("Missing BIOS (unavailable)")).toBeDisabled();
+    await expect
+      .element(await filterChoice("Missing BIOS (unavailable)"))
+      .toHaveAttribute("aria-disabled", "true");
     await closeFilters();
     document
       .querySelector<HTMLButtonElement>('button[aria-label="Remove Missing BIOS filter"]')!
@@ -454,8 +476,10 @@ it.each(["dark", "light"])(
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture />));
     await openAdvancedFilters("Filters (0)");
-    await userEvent.click(roleButton("Matching update staged (1)"));
-    await expect.element(roleButton("Available at last check (0)")).toBeEnabled();
+    await userEvent.click(await filterChoice("Matching update staged (1)"));
+    await expect
+      .element(await filterChoice("Available at last check (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
     await closeFilters();
     await openDiscoverPort("windows");
     await userEvent.click(roleButton("Back to catalog"));
@@ -466,18 +490,18 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Filters (1)")).toBeInTheDocument();
     await userEvent.click(roleButton("Switch library"));
     await openAdvancedFilters("Filters (0)");
-    await expect.element(roleButton("Matching update staged (0)")).toBeEnabled();
+    await expect
+      .element(await filterChoice("Matching update staged (0)"))
+      .not.toHaveAttribute("aria-disabled", "true");
     await closeFilters();
     await userEvent.click(roleButton("Switch library"));
     await userEvent.click(roleButton("Toggle candidate download"));
     await expect
-      .element(page.getByText("No ports match these filters", { exact: true }))
+      .element(page.getByRole("heading", { name: "No matching games", exact: true }))
       .toBeInTheDocument();
     await openAdvancedFilters("Filters (1)");
-    await expect
-      .element(roleButton("Matching update staged (0)"))
-      .toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(roleButton("Available at last check (1)"));
+    await expect.element(await filterChoice("Matching update staged (0)")).toBeChecked();
+    await userEvent.click(await filterChoice("Available at last check (1)"));
     await closeFilters();
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();

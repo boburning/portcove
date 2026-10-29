@@ -1,4 +1,13 @@
 @layer components {
+  .detail-hero-primary {
+    inline-size: 12rem;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+  }
+  .detail-hero-action {
+    inline-size: 100%;
+  }
+
   .detail-panel {
     max-width: 97.5rem;
     margin-inline: auto;
@@ -266,11 +275,14 @@
     }
   }
   @container detail (min-width: 64em) {
-    .media-gallery-grid:has(> :nth-child(3):last-child) {
+    .media-gallery-grid:has(> :nth-child(3)) {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
   @container detail (max-width: 48em) {
+    .media-gallery-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
     .detail-hero {
       grid-template-columns: 96px minmax(0, 1fr);
       gap: 22px;

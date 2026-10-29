@@ -1,8 +1,10 @@
 import { gameUpdateAcquisitionLabel } from "../port-updates/acquisition-presentation";
-import type { PortStatus } from "../../types";
+import type { PortStatus, PortDefinition } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { listingAvailabilityLabel } from "../browsing/catalog-entry";
 import {
+  SOURCE_BLOCKERS,
+  BIOS_BLOCKERS,
   hasUnconfirmedLaunchInput,
   portReadiness,
   type PortReadiness,
@@ -137,4 +139,85 @@ export function browseStatusSummary(
         ? "Update available at last check"
         : undefined;
   return { showReadiness: state.tone !== "ready" || !update, update };
+}
+
+/** File-state copy only. Paths and review-eligibility booleans cannot prove connected inputs. */
+export function gameFilesPresentation(
+  port: Pick<PortDefinition, "source_profile" | "bios_source_profile" | "presentation">,
+  status: PortStatus | undefined,
+) {
+  const readiness = status?.readiness;
+  const sourceBlocked = readiness?.blockers.some((blocker) => SOURCE_BLOCKERS.includes(blocker));
+  const biosBlocked = readiness?.blockers.some((blocker) => BIOS_BLOCKERS.includes(blocker));
+  const sourceRequired = Boolean(
+    sourceBlocked ||
+    port.source_profile ||
+    readiness?.required_source_extension ||
+    readiness?.source_assessment ||
+    readiness?.source,
+  );
+  const biosRequired = Boolean(
+    biosBlocked || port.bios_source_profile || readiness?.bios_assessment || readiness?.bios,
+  );
+  const assessments = [
+    ...(sourceRequired ? [readiness?.source_assessment] : []),
+    ...(biosRequired ? [readiness?.bios_assessment] : []),
+  ];
+  if (
+    readiness?.blockers.some(
+      (blocker) => blocker === "missing_source" || blocker === "missing_bios",
+    )
+  )
+    return {
+      title: "Setup needed",
+      description:
+        "Select the game files or BIOS identified by the current requirements, then review setup.",
+    };
+  if (readiness?.pending_setup)
+    return {
+      title: "Setup needed",
+      description:
+        "The current installation still needs its recorded setup step. Review the inputs and changes before continuing.",
+    };
+  if (
+    sourceBlocked ||
+    biosBlocked ||
+    [readiness?.source, readiness?.bios].some((value) => value != null && value !== "current")
+  )
+    return {
+      title: "Files need checking",
+      description:
+        "The current input check is missing, changed or unavailable. Review the recorded checks before continuing.",
+    };
+  if (
+    assessments.length &&
+    assessments.every(
+      (value) =>
+        value?.health === "current" &&
+        value.admission.state === "admitted" &&
+        value.contract.state === "supported",
+    )
+  )
+    return {
+      title: "Files connected",
+      description:
+        "Recorded input checks are current for this installation’s supported file contract.",
+    };
+  if (!sourceRequired && !biosRequired && port.presentation?.source_requirements?.length === 0)
+    return {
+      title: "No files to add in Portcove",
+      description:
+        "This route has no file inputs to add here. The game or upstream setup may still require original files; follow its project instructions.",
+    };
+  if (sourceRequired || biosRequired)
+    return {
+      title: "Files need checking",
+      description:
+        "Selected paths and saved locations are inputs for review. Current file compatibility has not been established by this summary.",
+    };
+  return {
+    title: "Requirements not available",
+    description:
+      "No current file assessment is available here. Check the project instructions and recorded input details.",
+  };
 }

@@ -163,7 +163,7 @@ void test("Windows dependency preflight rejects lockfile routes as well as manif
   const root = fixture(context);
   writeFileSync(
     path.join(root, "package.json"),
-    JSON.stringify({ packageManager: "pnpm@12.14.0", dependencies: { inert: "1.0.0" } }),
+    JSON.stringify({ packageManager: "pnpm@12.16.1", dependencies: { inert: "1.0.0" } }),
     { mode: 0o600 },
   );
   writeFileSync(path.join(root, "apps/desktop/package.json"), "{}", { mode: 0o600 });

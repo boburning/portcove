@@ -22,6 +22,7 @@ export function ListingDetailPanel({
   perform,
   onChanged,
   close,
+  backLabel,
   opening,
   openSupport,
   organization,
@@ -33,6 +34,7 @@ export function ListingDetailPanel({
   perform: Perform;
   onChanged: () => void;
   close: () => void;
+  backLabel?: string | undefined;
   opening?: DetailOpening | undefined;
   openSupport?: (() => void) | undefined;
   organization?: DetailOrganization | undefined;
@@ -62,6 +64,7 @@ export function ListingDetailPanel({
       onChanged={onChanged}
       render={({ play, setup }) => (
         <DetailLayout
+          backLabel={backLabel}
           port={entry}
           projectUrl={listing?.project_url}
           openSupport={openSupport}

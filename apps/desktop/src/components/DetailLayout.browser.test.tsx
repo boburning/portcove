@@ -154,7 +154,7 @@ it("retains manual selection across refreshes and reevaluates a new opening", as
 
 it.each([
   ["updates", "versions", "Versions & updates"],
-  ["saves", "saves", "Saves"],
+  ["saves", "saves", "Saves & backups"],
 ] as const)(
   "reveals incoming %s before focusing its heading",
   async (destination, initial, heading) => {
@@ -167,7 +167,9 @@ it.each([
 it("reveals an internal backup destination before focusing it", async () => {
   await render(<Fixture />);
   await page.getByRole("button", { name: "Inspect backups" }).click();
-  await expect.element(page.getByRole("heading", { name: "Saves", exact: true })).toHaveFocus();
+  await expect
+    .element(page.getByRole("heading", { name: "Saves & backups", exact: true }))
+    .toHaveFocus();
   await expect.element(page.getByRole("button", { name: "Restore selected backup" })).toBeVisible();
 });
 

@@ -256,7 +256,7 @@ it("returns focus to the backup heading when the final backup is deleted", async
   );
 });
 
-it("returns focus to Saves and storage when the uninstalled detail consumer removes all backup history", async () => {
+it("returns focus to visible Saved data when the uninstalled detail consumer removes all backup history", async () => {
   let finish!: (result: boolean) => void;
   const deleteBackup = vi.fn((_backup: BackupRecord) => {
     updateBackups([]);
@@ -308,10 +308,14 @@ it("returns focus to Saves and storage when the uninstalled detail consumer remo
   expect(opener.isConnected).toBe(false);
   expect(container.querySelector(".backup-history")).toBeNull();
   await vi.waitFor(() =>
-    expect(document.activeElement).toBe(container.querySelector("#detail-saves-and-storage")),
+    expect(document.activeElement).toBe(
+      [...container.querySelectorAll("h3")].find((heading) => heading.textContent === "Saved data"),
+    ),
   );
   await act(async () => finish(true));
-  expect(document.activeElement).toBe(container.querySelector("#detail-saves-and-storage"));
+  expect(document.activeElement).toBe(
+    [...container.querySelectorAll("h3")].find((heading) => heading.textContent === "Saved data"),
+  );
 });
 
 it("returns focus to the original delete action on cancellation without applying", async () => {
@@ -931,7 +935,7 @@ it("routes the actual native backup selector to visible owned controls without o
   expect(apply).not.toHaveBeenCalled();
 });
 
-it("exposes a failed initial read through Saves and storage even without a known backup row", async () => {
+it("exposes a failed initial read through Saves & backups even without a known backup row", async () => {
   vi.spyOn(desktopApi, "backups").mockRejectedValueOnce(failureReport());
   await root.rerender(<DetailReadHistory />);
   expect(container.querySelector(".backup-history")?.textContent).toContain(

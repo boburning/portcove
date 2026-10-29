@@ -187,3 +187,26 @@ it("composes readiness and declared intent in either update order without changi
   expect(state.libraryReadiness).toBe("setup");
   expect(state.filter).toEqual({ ...filter, channels: ["stable"] });
 });
+
+it("defaults only an unset Library sort to Title A–Z and retains explicit legacy selections", async () => {
+  expect(state.librarySort).toBe("name");
+  expect(state.catalogSort).toBe("catalog");
+  await act(async () =>
+    state.setLibrarySort((previous) => (previous === "name" ? "recent" : "catalog")),
+  );
+  expect(state.librarySort).toBe("recent");
+  for (const sort of ["catalog", "name-desc", "recent"] as const) {
+    initialInputs = {
+      ...state.browsingInputs,
+      sections: {
+        ...state.browsingInputs.sections,
+        library: { ...state.browsingInputs.sections.library, sort },
+      },
+    };
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => root.render(createElement(Fixture)));
+    expect(state.librarySort).toBe(sort);
+    expect(state.catalogSort).toBe("catalog");
+  }
+});

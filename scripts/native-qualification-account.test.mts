@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, copyFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { windowsOwnerEnvironment } from "./release-windows-owner-mechanism.mts";
@@ -778,5 +778,77 @@ ConvertTo-Json -InputObject $results -Depth 4 -Compress
       ["before-ready", "after-ack", "early-membership-refusal", "early-zero", "deadline"],
     );
     assert.ok(observed.every((item) => item.elapsed_ms < 8000));
+  },
+);
+
+void test(
+  "diagnostic controller resolves the PATH-first Node and refuses a wrong first version before effects",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const root = disposableDirectory(t, path.join(homedir(), ".pc-diagnostic-node-"));
+    const first = path.join(root, "first node"),
+      second = path.join(root, "second node");
+    mkdirSync(first);
+    mkdirSync(second);
+    const good = path.join(first, "node.exe"),
+      bad = path.join(second, "node.exe");
+    copyFileSync(process.execPath, good);
+    // Reuse the existing Windows Framework compiler fixture route; PS7 cannot emit ConsoleApplication.
+    const compiler = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe";
+    const badSource = path.join(root, "NodeVersionFixture.cs");
+    writeFileSync(
+      badSource,
+      'public static class NodeVersionFixture { public static int Main(string[] args) { System.Console.WriteLine("v0.0.0"); return 0; } }',
+    );
+    const compile = spawnSync(compiler, ["/nologo", "/target:exe", `/out:${bad}`, badSource], {
+      encoding: "utf8",
+      timeout: 30000,
+      windowsHide: true,
+    });
+    assert.equal(compile.status, 0, compile.stderr);
+    assert.equal(existsSync(bad), true);
+    const source = readFileSync(
+      new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+      "utf8",
+    );
+    const start = source.indexOf("$nodeCommand="),
+      end = source.indexOf("$setupBytes=Read-LaunchBytes");
+    assert.ok(
+      start > 0 && end > start && end < source.indexOf("[Portcove.HostedNative.Setup]::Directory"),
+    );
+    const resolver = source.slice(start, end);
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+Set-StrictMode -Version Latest
+$code=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:PORTCOVE_TEST_NODE_RESOLVER))
+$env:PATH=$env:PORTCOVE_TEST_FIRST_NODE+';'+$env:PORTCOVE_TEST_SECOND_NODE+';'+$env:PATH
+$commands=@(Get-Command node -CommandType Application)
+if($commands.Count -lt 2 -or $commands[0].Source -cne (Join-Path $env:PORTCOVE_TEST_FIRST_NODE 'node.exe') -or $commands[1].Source -cne (Join-Path $env:PORTCOVE_TEST_SECOND_NODE 'node.exe')){throw 'Actual multiple Node applications were not established'}
+$observed=& ([scriptblock]::Create($code+';Write-Output $node'))
+if($observed -cne $commands[0].Source){throw 'PATH-first Node was not selected'}
+$env:PATH=$env:PORTCOVE_TEST_SECOND_NODE+';'+$env:PORTCOVE_TEST_FIRST_NODE+';'+$env:PATH
+$refused=$false
+try{& ([scriptblock]::Create($code))}catch{if(-not $_.Exception.Message.Contains('Fixed existing Node24.22.1 runtime required')){throw};$refused=$true}
+if(-not $refused){throw 'Wrong first Node version fell back or was accepted'}
+Write-Output 'actual-multiple-node-path-and-wrong-first-version-controls-pass'
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      encoding: "utf8",
+      timeout: 30000,
+      windowsHide: true,
+      maxBuffer: 128 * 1024,
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_FIRST_NODE: first,
+        PORTCOVE_TEST_SECOND_NODE: second,
+        PORTCOVE_TEST_NODE_RESOLVER: Buffer.from(resolver).toString("base64"),
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /actual-multiple-node-path-and-wrong-first-version-controls-pass/u);
+    assert.equal(
+      existsSync(path.join(root, "portcove-hosted-windows-connected-diagnostic")),
+      false,
+    );
   },
 );

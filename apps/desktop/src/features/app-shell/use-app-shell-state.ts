@@ -55,9 +55,15 @@ export function useAppShellState(
   initialView: View = "library",
   initial?: BrowsingInputs,
   initialSettingsCategory: SettingsCategory = "appearance",
+  initialLibrarySort?: CatalogSort,
 ) {
   const [view, setViewState] = useState<View>(initialView);
-  const [browserState, setBrowserState] = useState(() => restoredBrowserState(initial));
+  const [browserState, setBrowserState] = useState(() => {
+    const restored = restoredBrowserState(initial);
+    return initialLibrarySort !== undefined && restored.library.sort === undefined
+      ? { ...restored, library: { ...restored.library, sort: initialLibrarySort } }
+      : restored;
+  });
   const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "catalog");
   const [selectedId, setSelectedId] = useState<string>();
   const [reviewedActivityId, setReviewedActivityId] = useState<string>();
@@ -118,12 +124,12 @@ export function useAppShellState(
         ...current,
         library: {
           ...current.library,
-          sort: typeof sort === "function" ? sort(current.library.sort ?? "catalog") : sort,
+          sort: typeof sort === "function" ? sort(current.library.sort ?? "name") : sort,
         },
       })),
     [],
   );
-  const librarySort = browserState.library.sort ?? "catalog";
+  const librarySort = browserState.library.sort ?? "name";
   const libraryReadiness = browserState.library.readiness ?? "all";
   const { filter, query } = browserState[view];
   return {

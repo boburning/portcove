@@ -627,6 +627,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/required-node-test-reporter.test.mts",
     "scripts/test-duration-reporter.test.mts",
     "scripts/ui-test-selection.test.mts",
+    "scripts/windows-historical-bootstrap.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = ["scripts", "apps/desktop/scripts"].flatMap((directory) =>
@@ -750,6 +751,7 @@ void test("historical desktop oracle edits retain the decoder and unchanged plan
     for (const contract of [
       "scripts/desktop-execution-baseline.test.mts",
       "scripts/desktop-execution-plan.test.mts",
+      "scripts/native-qualification-inventory.test.mts",
     ])
       assert.ok(selection.nodeTests.has(contract), `${file}: ${contract}`);
   }

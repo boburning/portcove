@@ -7,6 +7,17 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI40753693620/a1 cut eight of nine full ReflectionHLE progressions at30s
+# (one reached reviewed restore/removal29.98s). The generated-cache matrix
+# uses main's separately delivered exact-case calibration and phase output.
+# Exact Windows60s safeguards preserve every lifecycle/data assertion, phase
+# observations, worker slots and zero retries; no product deadline changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40724635626/a1 Windows partitions1/4 reached the30s outer safeguard in
 # the complete catalog maintenance matrix and indexed retention lifecycle.
 # Keep all246+ definitions, statuses, durable operations and assertions;

@@ -269,6 +269,16 @@ export function readNativeSessionObservation(
   }
 }
 
+export interface NativeQualificationInventoryOptions {
+  requireQualified?: boolean;
+  savedLibraryRecoverySession: boolean | undefined;
+  checks: readonly { scenario: string; outcome: string }[];
+  application: string;
+  nativeDriverPath: string;
+  acquisitionJourney: boolean | undefined;
+  acquisitionLaunchSessions: () => readonly LaunchSessionRecord[];
+}
+
 // Ephemeral harness ownership, never durable operation or product authority.
 export class OwnedNativeSession {
   private launchAttempted = false;
@@ -313,6 +323,82 @@ export class OwnedNativeSession {
       "The exact connected native application identity is required",
     );
     return application;
+  }
+
+  validateQualificationInventory(
+    captured: NativeProcessSnapshot,
+    {
+      requireQualified = false,
+      savedLibraryRecoverySession,
+      checks,
+      application,
+      nativeDriverPath,
+      acquisitionJourney,
+      acquisitionLaunchSessions,
+    }: NativeQualificationInventoryOptions,
+  ) {
+    if (
+      requireQualified ||
+      savedLibraryRecoverySession ||
+      checks.some(
+        (check) =>
+          [
+            "native-real-prepared-runtime",
+            "native-reviewed-backup-restore-and-delete",
+            "native-reviewed-source-reference-removal",
+            "native-reviewed-steam-batch-add",
+            "native-host-publication-recovery",
+            "native-game-update-review",
+            "native-update-acquisition-lifecycle",
+            "native-selected-setup-completion",
+            "native-preliminary-source-review",
+            "native-retained-contract-repair-state",
+            "native-backup-delete-focus",
+            "native-host-interrupted-preparation",
+            "native-closed-preparation-recovery",
+            "native-minimized-preparation-continuity",
+            "native-normal-package-webview-boundary",
+            "native-startup-library-recovery",
+            "native-library-switch-recovery",
+            "native-late-listener-disposal",
+            "native-rejected-listener-registration",
+          ].includes(check.scenario) && check.outcome === "passed",
+      )
+    ) {
+      if (acquisitionJourney) {
+        const connectedApplication = this.requireApplication(captured);
+        assertNativeApplicationInventory(
+          captured,
+          connectedApplication,
+          this.game,
+          acquisitionLaunchSessions(),
+          this.games,
+        );
+      } else {
+        assert.equal(
+          captured.processes.filter(
+            (entry) =>
+              path.resolve(entry.path).toLowerCase() === path.resolve(application).toLowerCase(),
+          ).length,
+          1,
+          "Successful native qualification requires one captured application",
+        );
+      }
+      assert.ok(
+        captured.processes.some(
+          (entry) => path.basename(entry.path).toLowerCase() === "msedgewebview2.exe",
+        ),
+        "Successful native qualification requires actual WebView identities",
+      );
+      assert.equal(
+        captured.processes.filter(
+          (entry) =>
+            path.resolve(entry.path).toLowerCase() === path.resolve(nativeDriverPath).toLowerCase(),
+        ).length,
+        1,
+        "Successful native qualification requires the exact selected native driver identity",
+      );
+    }
   }
 
   requireQuiescence() {

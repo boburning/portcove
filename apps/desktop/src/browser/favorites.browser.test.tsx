@@ -1,3 +1,4 @@
+import { openFilterField } from "../../test/filter-fields";
 import { evaluateCatalogQuery, type CatalogQuery } from "../features/browsing/catalog-query";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useState } from "react";
@@ -95,7 +96,9 @@ it.each(["dark", "light"])(
       .element(page.getByRole("button", { name: "Favorite Two independent port", exact: true }))
       .not.toBeInTheDocument();
     await userEvent.click(page.getByRole("button", { name: "Filters (0)", exact: true }));
-    await userEvent.click(page.getByRole("button", { name: "Stable (1)", exact: true }));
+    await openFilterField("Release channels");
+    await userEvent.click(page.getByRole("checkbox", { name: "Stable (1)", exact: true }));
+    await userEvent.keyboard("{Escape}");
     await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
     await expect
       .element(page.getByRole("button", { name: "Remove Stable filter", exact: true }))
@@ -129,11 +132,9 @@ it.each(["dark", "light"])(
       .poll(() => document.activeElement?.hasAttribute("data-favorites-filter"))
       .toBe(true);
     await expect
-      .element(page.getByRole("button", { name: "Clear search and filters", exact: true }).first())
+      .element(page.getByRole("button", { name: "Reset view", exact: true }).first())
       .toBeVisible();
-    await userEvent.click(
-      page.getByRole("button", { name: "Clear search and filters", exact: true }).first(),
-    );
+    await userEvent.click(page.getByRole("button", { name: "Reset view", exact: true }).first());
     await expect
       .element(
         page.getByRole("button", { name: "More actions for Two independent port", exact: true }),

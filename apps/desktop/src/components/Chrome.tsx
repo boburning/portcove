@@ -672,7 +672,7 @@ function ErrorNotice({
             size="sm"
             onClick={reviewPreparation}
           >
-            Review game preparation
+            Review setup
           </Button>
         )}
         <Button
@@ -1419,7 +1419,7 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
   return (
     <SettingsRow className="appearance-card" data-focus-group>
       <h2>Color theme</h2>
-      <p>Use a light theme, a dark theme, or your system setting.</p>
+      <p>{status}.</p>
       <RadioGroup
         value={preference}
         onValueChange={(value) => {
@@ -1432,7 +1432,6 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
           <ThemeOption key={option} option={option} />
         ))}
       </RadioGroup>
-      <p className="theme-status text-xs text-pc-muted-foreground">{status}.</p>
     </SettingsRow>
   );
 }
@@ -2389,7 +2388,7 @@ function StorageCard({
       </h2>
       <p className="m-0 text-sm text-pc-muted-foreground">Current library</p>
       <code className="block rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-        {libraryRoot || "Loading…"}
+        {libraryRoot || "Library location unavailable"}
       </code>
       {measurable ? (
         <div className="mb-[15px] grid gap-2">

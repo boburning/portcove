@@ -1,0 +1,557 @@
+{
+  "schema_version": 2,
+  "source_catalog": {
+    "evidence": [],
+    "identities": [],
+    "contracts": [],
+    "validators": [],
+    "qualification": []
+  },
+  "ports": [
+    {
+      "id": "bio-menace-reflectionhle",
+      "name": "Bio Menace (ReflectionHLE)",
+      "summary": "Use Bio Menace with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the complete matching original DOS episode folders with BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE and their corresponding BM1/BM2/BM3 data. The upstream tables distinguish shareware, registered and freeware revisions. Keep companion files; a BioMenace Remastered installation is not established as an interchangeable input. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "Bio Menace",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Use the complete matching original DOS episode folders with BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE and their corresponding BM1/BM2/BM3 data. The upstream tables distinguish shareware, registered and freeware revisions. Keep companion files; a BioMenace Remastered installation is not established as an interchangeable input. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        },
+        "artwork": {
+          "game_id": 8491,
+          "cover_id": 233543,
+          "image_id": "co507b",
+          "image_sha256": "bf8c15da4d0048d0d40c6386a6a59e784a46fc7e230b7a2815e10ba2ac8f85e5",
+          "game_slug": "bio-menace",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "catacomb-3-d-the-descent-reflectionhle",
+      "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
+      "summary": "Use Catacomb 3-D: The Descent with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Keep your own complete matching DOS Descent data, including CAT3D.EXE, AUDIO.C3D, EGAGRAPH.C3D and GAMEMAPS.C3D. The upstream tables distinguish v1.00 and v1.22 by sizes and CRCs. Abyss shareware does not provide Descent. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "Catacomb 3-D: The Descent",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Keep your own complete matching DOS Descent data, including CAT3D.EXE, AUDIO.C3D, EGAGRAPH.C3D and GAMEMAPS.C3D. The upstream tables distinguish v1.00 and v1.22 by sizes and CRCs. Abyss shareware does not provide Descent. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        }
+      }
+    },
+    {
+      "id": "keen-dreams-reflectionhle",
+      "name": "Keen Dreams (ReflectionHLE)",
+      "summary": "Use Keen Dreams with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Keep the complete matching DOS edition, including KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and its EGA or CGA graphics. The exact executable and data revision must match one launcher entry; the modern Keen Dreams remaster and Keen 4/5/6 data are separate products. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "Keen Dreams",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Keep the complete matching DOS edition, including KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and its EGA or CGA graphics. The exact executable and data revision must match one launcher entry; the modern Keen Dreams remaster and Keen 4/5/6 data are separate products. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        },
+        "artwork": {
+          "game_id": 2442,
+          "cover_id": 100802,
+          "image_id": "co25s2",
+          "image_sha256": "ecfb79ee13779a3c011101c87be8506da1c7f64eaa72e46f7eae109066a353fe",
+          "game_slug": "commander-keen-in-keen-dreams",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "spear-of-destiny-reflectionhle",
+      "name": "Spear of Destiny (ReflectionHLE)",
+      "summary": "Use Spear of Destiny with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your complete matching DOS Spear folder, including SPEAR.EXE and its SOD/SD data. The upstream version tables distinguish the original game and mission packs. Preserve each owned mission and its matching files; Wolfenstein WL6 files are not Spear data. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "Spear of Destiny",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Use your complete matching DOS Spear folder, including SPEAR.EXE and its SOD/SD data. The upstream version tables distinguish the original game and mission packs. Preserve each owned mission and its matching files; Wolfenstein WL6 files are not Spear data. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        }
+      }
+    },
+    {
+      "id": "super-3-d-noah-s-ark-dos-reflectionhle",
+      "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
+      "summary": "Use Super 3-D Noah's Ark (DOS) with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your complete original DOS folder with NOAH3D.EXE or NOAH3DOS.EXE and matching N3D data, including AUDIOHED, AUDIOT, GAMEMAPS, MAPHEAD, VGADICT, VGAGRAPH, VGAHEAD and VSWAP. The upstream table requires exact sizes and CRCs; the SNES original is a different representation. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "Super 3-D Noah's Ark (DOS)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Use your complete original DOS folder with NOAH3D.EXE or NOAH3DOS.EXE and matching N3D data, including AUDIOHED, AUDIOT, GAMEMAPS, MAPHEAD, VGADICT, VGAGRAPH, VGAHEAD and VSWAP. The upstream table requires exact sizes and CRCs; the SNES original is a different representation. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        },
+        "artwork": {
+          "game_id": 11168,
+          "cover_id": 100093,
+          "image_id": "co258d",
+          "image_sha256": "2ea2090639250f50379577d2f83a3bd8bac89ae87de2234e40333b2a534223e2",
+          "game_slug": "super-noahs-ark-3d",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "the-catacomb-abyss-reflectionhle",
+      "name": "The Catacomb Abyss (ReflectionHLE)",
+      "summary": "Use The Catacomb Abyss with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use a complete supported DOS Abyss edition, including CATABYSS.EXE and its ABS files. The upstream tables distinguish the shareware and registered revisions and require companion help/shape files. An arbitrary Abyss EXE or another Catacomb game is not a substitute. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "The Catacomb Abyss",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Use a complete supported DOS Abyss edition, including CATABYSS.EXE and its ABS files. The upstream tables distinguish the shareware and registered revisions and require companion help/shape files. An arbitrary Abyss EXE or another Catacomb game is not a substitute. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        },
+        "artwork": {
+          "game_id": 11044,
+          "cover_id": 456647,
+          "image_id": "co9scn",
+          "image_sha256": "1176edf8b01dded9cc7ab6b652ecefe993294088856d16bb8b6b2cf8affcbbe6",
+          "game_slug": "catacomb-abyss-3d",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "the-catacomb-apocalypse-reflectionhle",
+      "name": "The Catacomb Apocalypse (ReflectionHLE)",
+      "summary": "Use The Catacomb Apocalypse with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your complete matching DOS Apocalypse folder, including APOCGAME.EXE, AUDIO.APC, EGAGRAPH.APC, GAMEMAPS.APC and the required SHP companion files. Abyss shareware does not supply Apocalypse. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "The Catacomb Apocalypse",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Use your complete matching DOS Apocalypse folder, including APOCGAME.EXE, AUDIO.APC, EGAGRAPH.APC, GAMEMAPS.APC and the required SHP companion files. Abyss shareware does not supply Apocalypse. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        }
+      }
+    },
+    {
+      "id": "the-catacomb-armageddon-reflectionhle",
+      "name": "The Catacomb Armageddon (ReflectionHLE)",
+      "summary": "Use The Catacomb Armageddon with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your complete matching DOS Armageddon folder, including ARMGAME.EXE, AUDIO.ARM, EGAGRAPH.ARM, GAMEMAPS.ARM and the required SHP companion files. Abyss shareware does not supply Armageddon. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "The Catacomb Armageddon",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Use your complete matching DOS Armageddon folder, including ARMGAME.EXE, AUDIO.ARM, EGAGRAPH.ARM, GAMEMAPS.ARM and the required SHP companion files. Abyss shareware does not supply Armageddon. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        }
+      }
+    },
+    {
+      "id": "wolfenstein-3d-reflectionhle",
+      "name": "Wolfenstein 3D (ReflectionHLE)",
+      "summary": "Use Wolfenstein 3D with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ReflectionHLE/ReflectionHLE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your complete original DOS Wolfenstein 3D folder with WOLF3D.EXE and the matching WL1 or WL6 data. Shareware, registered and publisher revisions are separate launcher entries with exact size/CRC checks. Spear of Destiny and remastered/console data are not this game. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals. Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game. Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "original_game_title": "Wolfenstein 3D",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the matching original DOS edition",
+              "instruction": "Use your complete original DOS Wolfenstein 3D folder with WOLF3D.EXE and the matching WL1 or WL6 data. Shareware, registered and publisher revisions are separate launcher entries with exact size/CRC checks. Spear of Destiny and remastered/console data are not this game. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            },
+            {
+              "title": "Register the upstream Windows player",
+              "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            },
+            {
+              "title": "Preserve the shared profile and each game version",
+              "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
+            },
+            {
+              "title": "Keep upstream update ownership",
+              "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        }
+      }
+    }
+  ]
+}
