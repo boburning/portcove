@@ -668,3 +668,16 @@ it("keeps a singleton port review readable below its close control at narrow wid
     .element(page.getByRole("button", { name: "Why this port?", exact: true }).first())
     .toHaveFocus();
 });
+
+it.each([
+  [1440, 900, 5],
+  [1024, 800, 4],
+  [740, 900, 3],
+])("preserves the prototype cover density at %ipx by %ipx", async (width, height, columns) => {
+  await page.viewport(width!, height!);
+  await mount();
+  const grid = document.querySelector<HTMLElement>(".collection-covers")!;
+  expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns!);
+  const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+});

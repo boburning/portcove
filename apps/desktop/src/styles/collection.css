@@ -40,9 +40,21 @@
   }
   .collection-covers {
     --collection-art-limit: 260px;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.75rem), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.25rem), 1fr));
     align-items: stretch;
     gap: 1.875rem var(--space-5);
+  }
+  @media (max-height: 50rem) and (min-width: 47.5rem) {
+    .collection-covers {
+      --collection-art-limit: 11.25rem;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+    }
+  }
+  @media (max-width: 47.5rem) {
+    .collection-covers {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+      column-gap: 1rem;
+    }
   }
   .collection-cover {
     width: min(100%, var(--collection-art-limit));
@@ -87,7 +99,7 @@
   }
   .collection-project {
     display: -webkit-box;
-    min-block-size: 2.8em;
+    min-block-size: 3em;
     margin-block-start: 0.3125rem;
     font-size: 0.75rem;
     overflow: hidden;
