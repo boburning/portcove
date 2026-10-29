@@ -267,6 +267,9 @@ it("uses distinct self-excluding counts and functional OR/AND selections", async
 });
 it("keeps zero selections removable and returns focused chip to the trigger", async () => {
   await render({ version: 1, platforms: ["macos-aarch64"] });
+  await click("Filters (1)");
+  expect((await control("Apple silicon (0)")).getAttribute("aria-checked")).toBe("true");
+  await click("Done");
   const chip = await control("Remove Apple silicon filter");
   chip.focus();
   await act(async () => {
@@ -275,9 +278,8 @@ it("keeps zero selections removable and returns focused chip to the trigger", as
   });
   expect(document.activeElement).toBe(await control("Filters (0)"));
   await click("Filters (0)");
-  await click("Apple silicon (0)");
-  expect((await control("Apple silicon (0)")).getAttribute("aria-checked")).toBe("true");
-  await click("Apple silicon (0)");
+  await openField("Target OS");
+  expect(document.body.textContent).not.toContain("Apple silicon");
   expect((current as CatalogQuery).platforms).toEqual([]);
 });
 it.each([
