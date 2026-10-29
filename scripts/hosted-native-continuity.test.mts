@@ -1064,7 +1064,7 @@ void test("connected diagnostic workflow stays source-held and writes exactly th
   assert.match(String(settlement.if), /always\(\)/u);
   assert.equal(
     settlement.with.path,
-    "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json\n",
+    "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-startup-public.json\n",
   );
   assert.ok(
     !String(settlement.with.path).includes("owner/") &&

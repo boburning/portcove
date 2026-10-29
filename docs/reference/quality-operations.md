@@ -1139,17 +1139,23 @@ and explicit readback remain authoritative after every event.
 
 The `intel-rust-tests-<attempt>` archive transfers compiled tests from the Apple
 Silicon producer to both Intel test partitions. It is not a release artifact.
-`Cleanup consumed Intel transfers` runs trusted default-branch code after CI or
-qualification completion and hourly. Its only write authority is a job-scoped
-Actions token. It deletes a transfer only after a complete job inventory proves
-that its exact producer and both Intel consumers succeeded in the same completed
-run attempt. Active runs, failed Intel attempts, ambiguous inventories, all other
+`Cleanup consumed Intel transfers` runs trusted default-branch code after CI,
+qualification or release completion and hourly. Completion events inspect the
+triggering run's artifacts only; hourly cleanup and manual dispatch without a run
+ID sweep exact names `intel-rust-tests-1` through `intel-rust-tests-4`. That is
+bounded recovery, not an exhaustive repository artifact inventory. A later
+attempt missed by the sweep can be retried with `--run-id <id>` or the manual
+workflow input; completion events handle arbitrary attempt numbers. Its only
+write authority is a job-scoped Actions token. It deletes a transfer only after
+a complete job inventory proves that its exact producer and both Intel consumers
+succeeded in the same completed run attempt. Active runs, failed Intel attempts, ambiguous inventories, all other
 artifacts, and release assets are preserved. The one-day upload retention remains
 as the fallback. After successful transfer cleanup, rerun Intel tests together
 with their producer rather than rerunning only an already-successful consumer.
 
-Use `node scripts/cleanup-intel-artifacts.mts` for a read-only inventory and add
-`--apply` only for the authorized scoped cleanup. A restarted attempt or changed
+Use `node scripts/cleanup-intel-artifacts.mts` for the read-only bounded sweep,
+or `node scripts/cleanup-intel-artifacts.mts --run-id <id>` for one exact run;
+add `--apply` only for authorized cleanup. A restarted attempt or changed
 artifact identity stops deletion. Failed or ambiguous deletion responses require
 readback; the tool never retries an uncertain mutation.
 

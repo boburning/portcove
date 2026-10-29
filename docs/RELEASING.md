@@ -146,6 +146,27 @@ package for the selected fixture transition: `legacy-adjacent` uses 0.1.0 to
 1.0.0-rc.2 to 1.0.0. Each profile builds only its two endpoints and follows the
 same installed-app selection, staging, replacement and restart path. The default
 remains `legacy-skipped`; choosing a profile is not evidence it passed.
+
+For #225's historical manual-bootstrap observation, select only `linux-x86_64`,
+a legacy transition and `historical_linux_bootstrap: true`. The optional prelude
+uses the pinned published Alpha 2 AppImage and its matching CLI, saves a real
+library choice in an empty private library, then creates its preservation marker
+once. The same installed path, library and preferences continue through ordinary
+Alpha 2 startup/close, manual replacement by the updater-enabled predecessor and
+the existing authenticated Settings journey. Before closing Alpha 2, require its
+settled empty-library view and normal Settings readback of the exact saved library
+choice; inspect the retained screenshots separately. The qualified predecessor
+then performs a fresh Stable no-candidate check with unchanged AppImage bytes
+before explicitly selecting Preview through the shared Settings journey.
+Historical input signatures/feed
+remain explicitly absent. The maintained process-tree supervisor gives this
+consumer a 300-second execution budget after admission/setup, including with an
+inherited lease. Retain failed runs and cleanup settlement; a selected mode is
+not native acceptance. This chain does not create a desktop entry or real game
+save, and the separate lifecycle fixture cannot supply those continuous-data
+claims. Production authority and real release-to-release acceptance remain with
+their owning gates.
+
 It checks native package versions and
 executable permissions. The Linux job defaults to the approved Ubuntu 24.04
 support environment; `linux_runner` retains Ubuntu 22.04 for scoped diagnostic

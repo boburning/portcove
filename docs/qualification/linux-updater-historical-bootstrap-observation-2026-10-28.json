@@ -1,0 +1,2536 @@
+{
+  "schema_version": 1,
+  "kind": "dated-rootless-linux-historical-bootstrap-and-stable-waiting-observation",
+  "owners": [225, 52],
+  "authority": "none; installed disposable qualification only",
+  "run": {
+    "id": 40810286569,
+    "attempt": 1,
+    "job": 123238718155,
+    "conclusion": "success",
+    "profile": "legacy-skipped",
+    "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+    "source_tree": "c1408052af2fae8028cf7b3bedec76e4939f9b65",
+    "qualified_ci_run": 40808632393
+  },
+  "archive": {
+    "id": 12870677366,
+    "bytes": 624975276,
+    "sha256": "cf18ff88a054473f41924f2f755ed0bbdda3b1f82bff091d2349d83faffd34ae",
+    "files": 509,
+    "expanded_bytes": 834359426,
+    "retained_at": "E:/Codex-Evidence/beta-updater-20261028/linux-historical-e622-12870677366.zip",
+    "file_manifest_sha256": "ee7659ac33e8ce0433907834ce5bd8a3bda81dac569a8eb6330fe37b7e618126"
+  },
+  "observation_identity": {
+    "schema_version": 1,
+    "harness": "scripts/test-linux-appimage-update.ps1",
+    "harness_sha256": "88c0375eb56b45ca31e31a30f0c449712d511aa38aa708a1d65abb785c74a5ab",
+    "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+    "source_tree": "c1408052af2fae8028cf7b3bedec76e4939f9b65",
+    "started_at": "2026-10-29T03:23:16.1626165Z",
+    "host_os": "Ubuntu 24.04.5 LTS",
+    "host_architecture": "X64",
+    "powershell": "7.6.9",
+    "authority": "none; local native observation requires independently authenticated handoff"
+  },
+  "package_inputs": [
+    {
+      "retained_name": "predecessor.AppImage",
+      "path": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage",
+      "bytes": 98474488,
+      "sha256": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d",
+      "crc32": "eac5a37e",
+      "directory": false
+    },
+    {
+      "retained_name": "predecessor.sig",
+      "path": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage.sig",
+      "bytes": 440,
+      "sha256": "9af2659a85153980c690219cbd7aa15693c73f486f11cb7d05fa65e0b2f1607c",
+      "crc32": "77fb13d4",
+      "directory": false
+    },
+    {
+      "retained_name": "candidate.AppImage",
+      "path": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage",
+      "bytes": 98294264,
+      "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+      "crc32": "93e7a005",
+      "directory": false
+    },
+    {
+      "retained_name": "candidate.sig",
+      "path": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage.sig",
+      "bytes": 440,
+      "sha256": "4466463f920158a2919c223e0d85a4234c92adbf282c5385e6685f72bcbc8c5b",
+      "crc32": "12006186",
+      "directory": false
+    },
+    {
+      "retained_name": "public.key",
+      "path": "updater-rehearsal/disposable.key.pub",
+      "bytes": 152,
+      "sha256": "397b055f635e03390489f96367e6aeeb348210e2412c35554606d7eb4bda6d4b",
+      "crc32": "8c038d30",
+      "directory": false
+    }
+  ],
+  "fresh_payload_verification": {
+    "new_native_execution": false,
+    "verifier_sha256": "2ff8802945ca25fd4286c7b456a7f7769ab32ceafe318253a44d73eec97256c9",
+    "results": [
+      {
+        "name": "predecessor",
+        "verification": {
+          "schema_version": 1,
+          "bytes": 98474488,
+          "sha256": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d",
+          "public_key_sha256": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c",
+          "signature_verified": true
+        }
+      },
+      {
+        "name": "candidate",
+        "verification": {
+          "schema_version": 1,
+          "bytes": 98294264,
+          "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+          "public_key_sha256": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c",
+          "signature_verified": true
+        }
+      }
+    ],
+    "component_only": true
+  },
+  "root": {
+    "path": "updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+    "bytes": 3072,
+    "sha256": "9f102ab9cac288b2b6ca18ce1d06ca9b5771066a272a1b17bc2a876496e594f3",
+    "envelope": {
+      "signed": {
+        "_type": "root",
+        "spec_version": "1.0.0",
+        "consistent_snapshot": true,
+        "version": 1,
+        "expires": "2027-08-25T03:20:17.828923810Z",
+        "keys": {
+          "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96": {
+            "keytype": "ed25519",
+            "keyval": {
+              "public": "534ab8cf91b604de7856782e8f072d9f430820f1b8f007d2b6d7d1cc63734abe"
+            },
+            "scheme": "ed25519"
+          },
+          "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff": {
+            "keytype": "ed25519",
+            "keyval": {
+              "public": "737565f8210e3fa421e125b037ac2cd13c72f0470b238aa4f0b27b0cd95d86f1"
+            },
+            "scheme": "ed25519"
+          },
+          "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9": {
+            "keytype": "ed25519",
+            "keyval": {
+              "public": "97a7dbd1190630655cb51f44c5d57789f910574e28f5a2265f62413d29bb5ab1"
+            },
+            "scheme": "ed25519"
+          },
+          "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999": {
+            "keytype": "ed25519",
+            "keyval": {
+              "public": "9cde802c7226db83151dd653d2257fc4655757d0cd1f247ad205fe043c9eb991"
+            },
+            "scheme": "ed25519"
+          },
+          "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470": {
+            "keytype": "ed25519",
+            "keyval": {
+              "public": "fed75237162753b42b314536181f8db5361de7405b788c732b7ab90d1566acbd"
+            },
+            "scheme": "ed25519"
+          },
+          "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d": {
+            "keytype": "ed25519",
+            "keyval": {
+              "public": "f45808f7bb699d9d34458050e75285112ec14f259f33215c1a1b5a984c7192e3"
+            },
+            "scheme": "ed25519"
+          }
+        },
+        "roles": {
+          "timestamp": {
+            "keyids": ["0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d"],
+            "threshold": 1
+          },
+          "root": {
+            "keyids": [
+              "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+              "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+              "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999"
+            ],
+            "threshold": 2
+          },
+          "snapshot": {
+            "keyids": ["82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9"],
+            "threshold": 1
+          },
+          "targets": {
+            "keyids": ["a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470"],
+            "threshold": 1
+          }
+        }
+      },
+      "signatures": [
+        {
+          "keyid": "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+          "sig": "a119a21330bad00029516e85da71e59a322b89835fe817580c5a097a5065b7ccd1e4738602cd6bd8fe83f4f00e7c3a07872ede4ca565c7e3ac7b87373c6a6108"
+        },
+        {
+          "keyid": "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+          "sig": "f3b6c8629e0907c60f45b445d65d73c0a5ea80f9103e7e88144f45b87b4d5e8a422feef992cfad270ebadac133b3937913df04dfeaea7af05d74cba6b16abc08"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "scope": "exact retained envelopes; maintained native client performed authenticated selection/staging; no publisher authority created",
+    "roles": [
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/metadata/1.preview.json",
+        "bytes": 700,
+        "sha256": "262d4f5e418a1abf6b8fd315433f74a9ca343c1bc59f22286ac14ef3d491cf79",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b",
+            "sig": "bb44493534d92831b07c576d01530ecf71ba9122973eb61ce1112a3f2509debdabab6195658c33b47a0a4283795cd19c6b5403a0c454791298b19d2ff9034f00"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "targets": {
+            "channels/preview/linux-x86_64/appimage/0.3.0.json": {
+              "length": 394,
+              "hashes": {
+                "sha256": "1b0155b83e9fb662ead0e6b6e10c0ace14a5809c767198757fa20c6843255b2d"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/metadata/1.releases.json",
+        "bytes": 693,
+        "sha256": "dc1804fa9be5f257753eabf885a344fe6f7c0f387c318eda3cf82e0ce57e08f1",
+        "version": 1,
+        "expires": "2026-12-28T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b",
+            "sig": "14994ff5355c03acdb0f134aa85728c947ea643c59152a5bc444a17357d92017b987c299498ec274cb17d0a8f1763872bf2565ab3b0b259fbc97ccec8d91da05"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-28T03:20:17.830606489Z",
+          "targets": {
+            "releases/0.3.0/linux-x86_64/appimage.json": {
+              "length": 1485,
+              "hashes": {
+                "sha256": "53db490c10d046e441d4cb6b9acffc27445e991ef92f05bd778ed60d01480f25"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/metadata/1.root.json",
+        "bytes": 3072,
+        "sha256": "9f102ab9cac288b2b6ca18ce1d06ca9b5771066a272a1b17bc2a876496e594f3",
+        "version": 1,
+        "expires": "2027-08-25T03:20:17.828923810Z",
+        "type": "root",
+        "signatures": [
+          {
+            "keyid": "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+            "sig": "a119a21330bad00029516e85da71e59a322b89835fe817580c5a097a5065b7ccd1e4738602cd6bd8fe83f4f00e7c3a07872ede4ca565c7e3ac7b87373c6a6108"
+          },
+          {
+            "keyid": "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+            "sig": "f3b6c8629e0907c60f45b445d65d73c0a5ea80f9103e7e88144f45b87b4d5e8a422feef992cfad270ebadac133b3937913df04dfeaea7af05d74cba6b16abc08"
+          }
+        ],
+        "signed": {
+          "_type": "root",
+          "spec_version": "1.0.0",
+          "consistent_snapshot": true,
+          "version": 1,
+          "expires": "2027-08-25T03:20:17.828923810Z",
+          "keys": {
+            "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "534ab8cf91b604de7856782e8f072d9f430820f1b8f007d2b6d7d1cc63734abe"
+              },
+              "scheme": "ed25519"
+            },
+            "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "737565f8210e3fa421e125b037ac2cd13c72f0470b238aa4f0b27b0cd95d86f1"
+              },
+              "scheme": "ed25519"
+            },
+            "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "97a7dbd1190630655cb51f44c5d57789f910574e28f5a2265f62413d29bb5ab1"
+              },
+              "scheme": "ed25519"
+            },
+            "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "9cde802c7226db83151dd653d2257fc4655757d0cd1f247ad205fe043c9eb991"
+              },
+              "scheme": "ed25519"
+            },
+            "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "fed75237162753b42b314536181f8db5361de7405b788c732b7ab90d1566acbd"
+              },
+              "scheme": "ed25519"
+            },
+            "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "f45808f7bb699d9d34458050e75285112ec14f259f33215c1a1b5a984c7192e3"
+              },
+              "scheme": "ed25519"
+            }
+          },
+          "roles": {
+            "timestamp": {
+              "keyids": ["0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d"],
+              "threshold": 1
+            },
+            "root": {
+              "keyids": [
+                "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+                "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+                "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999"
+              ],
+              "threshold": 2
+            },
+            "snapshot": {
+              "keyids": ["82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9"],
+              "threshold": 1
+            },
+            "targets": {
+              "keyids": ["a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470"],
+              "threshold": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/metadata/1.snapshot.json",
+        "bytes": 1205,
+        "sha256": "6088d1831c82de8bbd196e55a373eeb01a0bae946e60b20efc4bc08774d45226",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "snapshot",
+        "signatures": [
+          {
+            "keyid": "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9",
+            "sig": "506bdcaaa4d2caeec5647d84afe5fb1b29999b56416fe4e519399415da81e33ee81cf0f02b3c0588711221a9b11ac828a7e3a4f5269b0b09ef4ecdac5a646105"
+          }
+        ],
+        "signed": {
+          "_type": "snapshot",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "meta": {
+            "releases.json": {
+              "length": 693,
+              "hashes": {
+                "sha256": "dc1804fa9be5f257753eabf885a344fe6f7c0f387c318eda3cf82e0ce57e08f1"
+              },
+              "version": 1
+            },
+            "preview.json": {
+              "length": 700,
+              "hashes": {
+                "sha256": "262d4f5e418a1abf6b8fd315433f74a9ca343c1bc59f22286ac14ef3d491cf79"
+              },
+              "version": 1
+            },
+            "stable.json": {
+              "length": 486,
+              "hashes": {
+                "sha256": "9f0bd4902022a14ee8d452d75423c38bfe9451da526844dce8f6e683d74227b5"
+              },
+              "version": 1
+            },
+            "targets.json": {
+              "length": 2428,
+              "hashes": {
+                "sha256": "94ff7581ebc72643a65ff940f15dc22a04d8e3334f09c40f7ca608e44e726c47"
+              },
+              "version": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/metadata/1.stable.json",
+        "bytes": 486,
+        "sha256": "9f0bd4902022a14ee8d452d75423c38bfe9451da526844dce8f6e683d74227b5",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71",
+            "sig": "736424e1fa451fa11bd2760b8d4888944535ec09e4daac1bee6af14d0922fba1f85ab610f60d11e62604c47097bfc2319d36c259e74391bfdae523b1a06e2d0c"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "targets": {},
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/metadata/1.targets.json",
+        "bytes": 2428,
+        "sha256": "94ff7581ebc72643a65ff940f15dc22a04d8e3334f09c40f7ca608e44e726c47",
+        "version": 1,
+        "expires": "2026-12-28T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470",
+            "sig": "52fe1bd5536614cb7681318fed2e8680f3e551eb35ec6a29b5d020651ed04ae8c0b024fa74f550d5fa38c72f1bb3413f13b44a2a55cfdc43afcb332857cbdb07"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-28T03:20:17.830606489Z",
+          "targets": {
+            "keys/payload.json": {
+              "length": 315,
+              "hashes": {
+                "sha256": "7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {
+              "5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "812803adb69cc6d825c5cf6467a689f88c43e9b16706e69f29978c60297600df"
+                },
+                "scheme": "ed25519"
+              },
+              "a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "552af0320014aec3e80647405d089d2d5c0b570b8b7c5141fc6c91a93d6ffc0e"
+                },
+                "scheme": "ed25519"
+              },
+              "771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "f0af74a40b15a39bbf53a901f2a07be7d682ffb50ec3fbb4d33694c183feb3fc"
+                },
+                "scheme": "ed25519"
+              }
+            },
+            "roles": [
+              {
+                "name": "releases",
+                "keyids": ["5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b"],
+                "threshold": 1,
+                "paths": ["releases/0.3.0/linux-x86_64/appimage.json"],
+                "terminating": true
+              },
+              {
+                "name": "preview",
+                "keyids": ["771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b"],
+                "threshold": 1,
+                "paths": ["channels/preview/linux-x86_64/appimage/0.3.0.json"],
+                "terminating": true
+              },
+              {
+                "name": "stable",
+                "keyids": ["a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71"],
+                "threshold": 1,
+                "paths": ["channels/stable/*/*/*.json"],
+                "terminating": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/metadata/timestamp.json",
+        "bytes": 622,
+        "sha256": "510016bdd76d829b3446dd0d1a903d88a914aae58790588f309080570e6720e2",
+        "version": 1,
+        "expires": "2026-10-31T03:20:17.830606489Z",
+        "type": "timestamp",
+        "signatures": [
+          {
+            "keyid": "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d",
+            "sig": "0af2dff2f8cdc4270ea4f4726f812784c26f4a522e58e521b69f1e9a4d43a0c4c8339bd8ad63ef8d80fb67e96fbb3a6951c5dc1f3924d0ea0085d2e53d5a9d00"
+          }
+        ],
+        "signed": {
+          "_type": "timestamp",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-10-31T03:20:17.830606489Z",
+          "meta": {
+            "snapshot.json": {
+              "length": 1205,
+              "hashes": {
+                "sha256": "6088d1831c82de8bbd196e55a373eeb01a0bae946e60b20efc4bc08774d45226"
+              },
+              "version": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.preview.json",
+        "bytes": 700,
+        "sha256": "bd98b16a05fb5cac731f69140cb672d9e67ed3895811efd3ff08710c6452020a",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b",
+            "sig": "96b208abf11681f86501d504743886c8c24560fa10fc5e8e5f7b475d3ece2b17e057343ffa1a45c13ee69b66d0bd3bd6c470953153bef6b0e9a5fad0ffe2bb09"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "targets": {
+            "channels/preview/linux-x86_64/appimage/0.3.0.json": {
+              "length": 395,
+              "hashes": {
+                "sha256": "8c5c3f9bc23279e44e2932990a56b16e4737a51269a31bf67092bcfb09066d8e"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.releases.json",
+        "bytes": 693,
+        "sha256": "68da36dd23725702739cb3f09aa614b34f0e321902d7770c13fae04694395003",
+        "version": 1,
+        "expires": "2026-12-28T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b",
+            "sig": "bb4162a9822dbe8f979d37709018741608bb14478c3112f44b7f3506733bccd9f7a6eb22fb62290a92af589c4b2b779392a6482e9ad4c49afb03c8e9e3215909"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-28T03:20:17.830606489Z",
+          "targets": {
+            "releases/0.3.0/linux-x86_64/appimage.json": {
+              "length": 1953,
+              "hashes": {
+                "sha256": "40dbafdc6dc2e0e2c5a1a784265fd918ce2bf5769c4368d615d9d05492ea8aad"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.root.json",
+        "bytes": 3072,
+        "sha256": "9f102ab9cac288b2b6ca18ce1d06ca9b5771066a272a1b17bc2a876496e594f3",
+        "version": 1,
+        "expires": "2027-08-25T03:20:17.828923810Z",
+        "type": "root",
+        "signatures": [
+          {
+            "keyid": "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+            "sig": "a119a21330bad00029516e85da71e59a322b89835fe817580c5a097a5065b7ccd1e4738602cd6bd8fe83f4f00e7c3a07872ede4ca565c7e3ac7b87373c6a6108"
+          },
+          {
+            "keyid": "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+            "sig": "f3b6c8629e0907c60f45b445d65d73c0a5ea80f9103e7e88144f45b87b4d5e8a422feef992cfad270ebadac133b3937913df04dfeaea7af05d74cba6b16abc08"
+          }
+        ],
+        "signed": {
+          "_type": "root",
+          "spec_version": "1.0.0",
+          "consistent_snapshot": true,
+          "version": 1,
+          "expires": "2027-08-25T03:20:17.828923810Z",
+          "keys": {
+            "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "534ab8cf91b604de7856782e8f072d9f430820f1b8f007d2b6d7d1cc63734abe"
+              },
+              "scheme": "ed25519"
+            },
+            "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "737565f8210e3fa421e125b037ac2cd13c72f0470b238aa4f0b27b0cd95d86f1"
+              },
+              "scheme": "ed25519"
+            },
+            "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "97a7dbd1190630655cb51f44c5d57789f910574e28f5a2265f62413d29bb5ab1"
+              },
+              "scheme": "ed25519"
+            },
+            "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "9cde802c7226db83151dd653d2257fc4655757d0cd1f247ad205fe043c9eb991"
+              },
+              "scheme": "ed25519"
+            },
+            "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "fed75237162753b42b314536181f8db5361de7405b788c732b7ab90d1566acbd"
+              },
+              "scheme": "ed25519"
+            },
+            "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "f45808f7bb699d9d34458050e75285112ec14f259f33215c1a1b5a984c7192e3"
+              },
+              "scheme": "ed25519"
+            }
+          },
+          "roles": {
+            "timestamp": {
+              "keyids": ["0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d"],
+              "threshold": 1
+            },
+            "root": {
+              "keyids": [
+                "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+                "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+                "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999"
+              ],
+              "threshold": 2
+            },
+            "snapshot": {
+              "keyids": ["82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9"],
+              "threshold": 1
+            },
+            "targets": {
+              "keyids": ["a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470"],
+              "threshold": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.snapshot.json",
+        "bytes": 1205,
+        "sha256": "7111bda27ed2524c7d61ff51c66d98151e3b6653060ff236ec834092ba2a5f09",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "snapshot",
+        "signatures": [
+          {
+            "keyid": "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9",
+            "sig": "b6095bdca0d7e937e846d7ce5de64541fbae6d4cca731e72f8a150c51f509bfe96c1e3dfba31159c13336d4a0ededac04c0a5ebbeed80d1a3ab9b2c068d8df0d"
+          }
+        ],
+        "signed": {
+          "_type": "snapshot",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "meta": {
+            "releases.json": {
+              "length": 693,
+              "hashes": {
+                "sha256": "68da36dd23725702739cb3f09aa614b34f0e321902d7770c13fae04694395003"
+              },
+              "version": 1
+            },
+            "targets.json": {
+              "length": 2428,
+              "hashes": {
+                "sha256": "39fa7efa065c175710c1bd75034d8726df7439d7a6fea4a6505aca4a8a297385"
+              },
+              "version": 1
+            },
+            "preview.json": {
+              "length": 700,
+              "hashes": {
+                "sha256": "bd98b16a05fb5cac731f69140cb672d9e67ed3895811efd3ff08710c6452020a"
+              },
+              "version": 1
+            },
+            "stable.json": {
+              "length": 486,
+              "hashes": {
+                "sha256": "9f0bd4902022a14ee8d452d75423c38bfe9451da526844dce8f6e683d74227b5"
+              },
+              "version": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.stable.json",
+        "bytes": 486,
+        "sha256": "9f0bd4902022a14ee8d452d75423c38bfe9451da526844dce8f6e683d74227b5",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71",
+            "sig": "736424e1fa451fa11bd2760b8d4888944535ec09e4daac1bee6af14d0922fba1f85ab610f60d11e62604c47097bfc2319d36c259e74391bfdae523b1a06e2d0c"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "targets": {},
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.targets.json",
+        "bytes": 2428,
+        "sha256": "39fa7efa065c175710c1bd75034d8726df7439d7a6fea4a6505aca4a8a297385",
+        "version": 1,
+        "expires": "2026-12-28T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470",
+            "sig": "52fe1bd5536614cb7681318fed2e8680f3e551eb35ec6a29b5d020651ed04ae8c0b024fa74f550d5fa38c72f1bb3413f13b44a2a55cfdc43afcb332857cbdb07"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-28T03:20:17.830606489Z",
+          "targets": {
+            "keys/payload.json": {
+              "length": 315,
+              "hashes": {
+                "sha256": "7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {
+              "a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "552af0320014aec3e80647405d089d2d5c0b570b8b7c5141fc6c91a93d6ffc0e"
+                },
+                "scheme": "ed25519"
+              },
+              "5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "812803adb69cc6d825c5cf6467a689f88c43e9b16706e69f29978c60297600df"
+                },
+                "scheme": "ed25519"
+              },
+              "771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "f0af74a40b15a39bbf53a901f2a07be7d682ffb50ec3fbb4d33694c183feb3fc"
+                },
+                "scheme": "ed25519"
+              }
+            },
+            "roles": [
+              {
+                "name": "releases",
+                "keyids": ["5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b"],
+                "threshold": 1,
+                "paths": ["releases/0.3.0/linux-x86_64/appimage.json"],
+                "terminating": true
+              },
+              {
+                "name": "preview",
+                "keyids": ["771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b"],
+                "threshold": 1,
+                "paths": ["channels/preview/linux-x86_64/appimage/0.3.0.json"],
+                "terminating": true
+              },
+              {
+                "name": "stable",
+                "keyids": ["a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71"],
+                "threshold": 1,
+                "paths": ["channels/stable/*/*/*.json"],
+                "terminating": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/timestamp.json",
+        "bytes": 622,
+        "sha256": "2f93b71fc72a386e746444528120eaec2edd24efecba64efc203b0bfca77888e",
+        "version": 1,
+        "expires": "2026-10-31T03:20:17.830606489Z",
+        "type": "timestamp",
+        "signatures": [
+          {
+            "keyid": "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d",
+            "sig": "297230bef7194cfb067f5c5d3a22deecf24faf0dc17c80993803fa20012a0ec4515541d80c0f437ee5debda3701ecbfa1b67b5e1ddc755d75ff25f1501817100"
+          }
+        ],
+        "signed": {
+          "_type": "timestamp",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-10-31T03:20:17.830606489Z",
+          "meta": {
+            "snapshot.json": {
+              "length": 1205,
+              "hashes": {
+                "sha256": "7111bda27ed2524c7d61ff51c66d98151e3b6653060ff236ec834092ba2a5f09"
+              },
+              "version": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/metadata/1.preview.json",
+        "bytes": 700,
+        "sha256": "bd98b16a05fb5cac731f69140cb672d9e67ed3895811efd3ff08710c6452020a",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b",
+            "sig": "96b208abf11681f86501d504743886c8c24560fa10fc5e8e5f7b475d3ece2b17e057343ffa1a45c13ee69b66d0bd3bd6c470953153bef6b0e9a5fad0ffe2bb09"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "targets": {
+            "channels/preview/linux-x86_64/appimage/0.3.0.json": {
+              "length": 395,
+              "hashes": {
+                "sha256": "8c5c3f9bc23279e44e2932990a56b16e4737a51269a31bf67092bcfb09066d8e"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/metadata/1.releases.json",
+        "bytes": 693,
+        "sha256": "68da36dd23725702739cb3f09aa614b34f0e321902d7770c13fae04694395003",
+        "version": 1,
+        "expires": "2026-12-28T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b",
+            "sig": "bb4162a9822dbe8f979d37709018741608bb14478c3112f44b7f3506733bccd9f7a6eb22fb62290a92af589c4b2b779392a6482e9ad4c49afb03c8e9e3215909"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-28T03:20:17.830606489Z",
+          "targets": {
+            "releases/0.3.0/linux-x86_64/appimage.json": {
+              "length": 1953,
+              "hashes": {
+                "sha256": "40dbafdc6dc2e0e2c5a1a784265fd918ce2bf5769c4368d615d9d05492ea8aad"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/metadata/1.root.json",
+        "bytes": 3072,
+        "sha256": "9f102ab9cac288b2b6ca18ce1d06ca9b5771066a272a1b17bc2a876496e594f3",
+        "version": 1,
+        "expires": "2027-08-25T03:20:17.828923810Z",
+        "type": "root",
+        "signatures": [
+          {
+            "keyid": "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+            "sig": "a119a21330bad00029516e85da71e59a322b89835fe817580c5a097a5065b7ccd1e4738602cd6bd8fe83f4f00e7c3a07872ede4ca565c7e3ac7b87373c6a6108"
+          },
+          {
+            "keyid": "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+            "sig": "f3b6c8629e0907c60f45b445d65d73c0a5ea80f9103e7e88144f45b87b4d5e8a422feef992cfad270ebadac133b3937913df04dfeaea7af05d74cba6b16abc08"
+          }
+        ],
+        "signed": {
+          "_type": "root",
+          "spec_version": "1.0.0",
+          "consistent_snapshot": true,
+          "version": 1,
+          "expires": "2027-08-25T03:20:17.828923810Z",
+          "keys": {
+            "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "534ab8cf91b604de7856782e8f072d9f430820f1b8f007d2b6d7d1cc63734abe"
+              },
+              "scheme": "ed25519"
+            },
+            "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "737565f8210e3fa421e125b037ac2cd13c72f0470b238aa4f0b27b0cd95d86f1"
+              },
+              "scheme": "ed25519"
+            },
+            "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "97a7dbd1190630655cb51f44c5d57789f910574e28f5a2265f62413d29bb5ab1"
+              },
+              "scheme": "ed25519"
+            },
+            "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "9cde802c7226db83151dd653d2257fc4655757d0cd1f247ad205fe043c9eb991"
+              },
+              "scheme": "ed25519"
+            },
+            "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "fed75237162753b42b314536181f8db5361de7405b788c732b7ab90d1566acbd"
+              },
+              "scheme": "ed25519"
+            },
+            "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "f45808f7bb699d9d34458050e75285112ec14f259f33215c1a1b5a984c7192e3"
+              },
+              "scheme": "ed25519"
+            }
+          },
+          "roles": {
+            "timestamp": {
+              "keyids": ["0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d"],
+              "threshold": 1
+            },
+            "root": {
+              "keyids": [
+                "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+                "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+                "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999"
+              ],
+              "threshold": 2
+            },
+            "snapshot": {
+              "keyids": ["82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9"],
+              "threshold": 1
+            },
+            "targets": {
+              "keyids": ["a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470"],
+              "threshold": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/metadata/1.stable.json",
+        "bytes": 486,
+        "sha256": "9f0bd4902022a14ee8d452d75423c38bfe9451da526844dce8f6e683d74227b5",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71",
+            "sig": "736424e1fa451fa11bd2760b8d4888944535ec09e4daac1bee6af14d0922fba1f85ab610f60d11e62604c47097bfc2319d36c259e74391bfdae523b1a06e2d0c"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "targets": {},
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/metadata/2.snapshot.json",
+        "bytes": 1205,
+        "sha256": "8df9bc2d4a8baef904dc237b328328920652d602633de812a83a48ce34d2fb95",
+        "version": 2,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "snapshot",
+        "signatures": [
+          {
+            "keyid": "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9",
+            "sig": "11e21fbdd81c3a2fc4bafe7b538197eb84552f6e1addd23d85522a41c238879bb1b62654e5f057a35cdfe6f81efb7b99837f0bb3d39403caf230b944458c170e"
+          }
+        ],
+        "signed": {
+          "_type": "snapshot",
+          "spec_version": "1.0.0",
+          "version": 2,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "meta": {
+            "targets.json": {
+              "length": 2428,
+              "hashes": {
+                "sha256": "27f2b189e64bfb94f949e945817290eeaf5b01592bcbf3d9eb4d31e5f7cb6cee"
+              },
+              "version": 2
+            },
+            "preview.json": {
+              "length": 700,
+              "hashes": {
+                "sha256": "bd98b16a05fb5cac731f69140cb672d9e67ed3895811efd3ff08710c6452020a"
+              },
+              "version": 1
+            },
+            "stable.json": {
+              "length": 486,
+              "hashes": {
+                "sha256": "9f0bd4902022a14ee8d452d75423c38bfe9451da526844dce8f6e683d74227b5"
+              },
+              "version": 1
+            },
+            "releases.json": {
+              "length": 693,
+              "hashes": {
+                "sha256": "68da36dd23725702739cb3f09aa614b34f0e321902d7770c13fae04694395003"
+              },
+              "version": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/metadata/2.targets.json",
+        "bytes": 2428,
+        "sha256": "27f2b189e64bfb94f949e945817290eeaf5b01592bcbf3d9eb4d31e5f7cb6cee",
+        "version": 2,
+        "expires": "2026-12-28T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470",
+            "sig": "5988c91668a188cf3784587cc6b544dc893310969ff7ef116d2987ce54cded61665af93a466f05eaed8afb9e050802805f1b058eb44f9d81e865aba0393e710f"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 2,
+          "expires": "2026-12-28T03:20:17.830606489Z",
+          "targets": {
+            "keys/payload.json": {
+              "length": 315,
+              "hashes": {
+                "sha256": "7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {
+              "a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "552af0320014aec3e80647405d089d2d5c0b570b8b7c5141fc6c91a93d6ffc0e"
+                },
+                "scheme": "ed25519"
+              },
+              "5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "812803adb69cc6d825c5cf6467a689f88c43e9b16706e69f29978c60297600df"
+                },
+                "scheme": "ed25519"
+              },
+              "771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "f0af74a40b15a39bbf53a901f2a07be7d682ffb50ec3fbb4d33694c183feb3fc"
+                },
+                "scheme": "ed25519"
+              }
+            },
+            "roles": [
+              {
+                "name": "releases",
+                "keyids": ["5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b"],
+                "threshold": 1,
+                "paths": ["releases/0.3.0/linux-x86_64/appimage.json"],
+                "terminating": true
+              },
+              {
+                "name": "preview",
+                "keyids": ["771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b"],
+                "threshold": 1,
+                "paths": ["channels/preview/linux-x86_64/appimage/0.3.0.json"],
+                "terminating": true
+              },
+              {
+                "name": "stable",
+                "keyids": ["a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71"],
+                "threshold": 1,
+                "paths": ["channels/stable/*/*/*.json"],
+                "terminating": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/metadata/timestamp.json",
+        "bytes": 622,
+        "sha256": "a764da16d71937479f9e5b76399936d416e87b70ac0f5b859b17d8f97aefb0f9",
+        "version": 2,
+        "expires": "2026-10-31T03:20:17.830606489Z",
+        "type": "timestamp",
+        "signatures": [
+          {
+            "keyid": "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d",
+            "sig": "95c9a16019ba988a7898da283bc19ac28284bf7ad7c2f04f2eae448cd1c996aa8ae90ab7d7822089e79bafc15663f082302045b506b8c50d13bc346f19d5050e"
+          }
+        ],
+        "signed": {
+          "_type": "timestamp",
+          "spec_version": "1.0.0",
+          "version": 2,
+          "expires": "2026-10-31T03:20:17.830606489Z",
+          "meta": {
+            "snapshot.json": {
+              "length": 1205,
+              "hashes": {
+                "sha256": "8df9bc2d4a8baef904dc237b328328920652d602633de812a83a48ce34d2fb95"
+              },
+              "version": 2
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/metadata/1.preview.json",
+        "bytes": 700,
+        "sha256": "a1a577eab1e4cc0484c648185f5560eb243b1b9daa8e146fde2504d708359caf",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b",
+            "sig": "c53f16089343fb30b31a0989cc0b07a3cc4351c33e3b842de103cb4c93faf927a84ee76e182a10535cf976fb2ebd70dc9e1ebac528cd21c5d31686bc79916905"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "targets": {
+            "channels/preview/linux-x86_64/appimage/0.3.0.json": {
+              "length": 394,
+              "hashes": {
+                "sha256": "e05e7b377f7beec71b28a6f07f2de802f2e8533e1f3611b9b36d175df9242aa5"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/metadata/1.releases.json",
+        "bytes": 693,
+        "sha256": "b841503323e111394afb4e849f6fd9fc9e68aabcb3ef28cdd70d4bfb8255f282",
+        "version": 1,
+        "expires": "2026-12-28T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b",
+            "sig": "02407a49ca74484d9695b87e9c1acba36141fedfa7e3aa429aeca2f02d3ba3941479de47091b48c0a5ecf97fe88d70b2e58e116050322c85b723e2ecf91e1203"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-28T03:20:17.830606489Z",
+          "targets": {
+            "releases/0.3.0/linux-x86_64/appimage.json": {
+              "length": 1932,
+              "hashes": {
+                "sha256": "20e170a9753a20539a629b61bb23b8f74e9ed8ff6a0642fb398286c7b375a415"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/metadata/1.root.json",
+        "bytes": 3072,
+        "sha256": "9f102ab9cac288b2b6ca18ce1d06ca9b5771066a272a1b17bc2a876496e594f3",
+        "version": 1,
+        "expires": "2027-08-25T03:20:17.828923810Z",
+        "type": "root",
+        "signatures": [
+          {
+            "keyid": "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+            "sig": "a119a21330bad00029516e85da71e59a322b89835fe817580c5a097a5065b7ccd1e4738602cd6bd8fe83f4f00e7c3a07872ede4ca565c7e3ac7b87373c6a6108"
+          },
+          {
+            "keyid": "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+            "sig": "f3b6c8629e0907c60f45b445d65d73c0a5ea80f9103e7e88144f45b87b4d5e8a422feef992cfad270ebadac133b3937913df04dfeaea7af05d74cba6b16abc08"
+          }
+        ],
+        "signed": {
+          "_type": "root",
+          "spec_version": "1.0.0",
+          "consistent_snapshot": true,
+          "version": 1,
+          "expires": "2027-08-25T03:20:17.828923810Z",
+          "keys": {
+            "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "534ab8cf91b604de7856782e8f072d9f430820f1b8f007d2b6d7d1cc63734abe"
+              },
+              "scheme": "ed25519"
+            },
+            "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "737565f8210e3fa421e125b037ac2cd13c72f0470b238aa4f0b27b0cd95d86f1"
+              },
+              "scheme": "ed25519"
+            },
+            "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "97a7dbd1190630655cb51f44c5d57789f910574e28f5a2265f62413d29bb5ab1"
+              },
+              "scheme": "ed25519"
+            },
+            "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "9cde802c7226db83151dd653d2257fc4655757d0cd1f247ad205fe043c9eb991"
+              },
+              "scheme": "ed25519"
+            },
+            "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "fed75237162753b42b314536181f8db5361de7405b788c732b7ab90d1566acbd"
+              },
+              "scheme": "ed25519"
+            },
+            "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d": {
+              "keytype": "ed25519",
+              "keyval": {
+                "public": "f45808f7bb699d9d34458050e75285112ec14f259f33215c1a1b5a984c7192e3"
+              },
+              "scheme": "ed25519"
+            }
+          },
+          "roles": {
+            "timestamp": {
+              "keyids": ["0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d"],
+              "threshold": 1
+            },
+            "root": {
+              "keyids": [
+                "de5ce76399f2f21a1b0699089a56d9cc219818e8591609a41a6135ce946bfc96",
+                "9a93c69c976edaaacec02bcb1d7703e898a269014e25c1ebbb4eeaf01a620bff",
+                "a28abce0cc450f2262492ff738bfa6a09589453cd467ef4d9c9b47d96d3ac999"
+              ],
+              "threshold": 2
+            },
+            "snapshot": {
+              "keyids": ["82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9"],
+              "threshold": 1
+            },
+            "targets": {
+              "keyids": ["a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470"],
+              "threshold": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/metadata/1.snapshot.json",
+        "bytes": 1205,
+        "sha256": "510b86bc9056295d28f0e438133d5b28362cdbba2dd3be112c0fd18dca8f217c",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "snapshot",
+        "signatures": [
+          {
+            "keyid": "82e2919ff56fc6a9f25512247593b1b3a0b1fbaa86e22382085d83ff3d184bb9",
+            "sig": "b3f96c44d22f1c07bc1f0850f5ec0782183a4f129b19c1bfa7c2e699df3c45a82b2f16005cd16b45b13fadf76c5a626e1898987da76276fb32f8808ffd502f0f"
+          }
+        ],
+        "signed": {
+          "_type": "snapshot",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "meta": {
+            "targets.json": {
+              "length": 2428,
+              "hashes": {
+                "sha256": "bfe1c6330ff148173e7a449f32c60be96ae6b362426de367458a83394fa7a9d8"
+              },
+              "version": 1
+            },
+            "preview.json": {
+              "length": 700,
+              "hashes": {
+                "sha256": "a1a577eab1e4cc0484c648185f5560eb243b1b9daa8e146fde2504d708359caf"
+              },
+              "version": 1
+            },
+            "stable.json": {
+              "length": 486,
+              "hashes": {
+                "sha256": "9f0bd4902022a14ee8d452d75423c38bfe9451da526844dce8f6e683d74227b5"
+              },
+              "version": 1
+            },
+            "releases.json": {
+              "length": 693,
+              "hashes": {
+                "sha256": "b841503323e111394afb4e849f6fd9fc9e68aabcb3ef28cdd70d4bfb8255f282"
+              },
+              "version": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/metadata/1.stable.json",
+        "bytes": 486,
+        "sha256": "9f0bd4902022a14ee8d452d75423c38bfe9451da526844dce8f6e683d74227b5",
+        "version": 1,
+        "expires": "2026-11-05T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71",
+            "sig": "736424e1fa451fa11bd2760b8d4888944535ec09e4daac1bee6af14d0922fba1f85ab610f60d11e62604c47097bfc2319d36c259e74391bfdae523b1a06e2d0c"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-11-05T03:20:17.830606489Z",
+          "targets": {},
+          "delegations": {
+            "keys": {},
+            "roles": []
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/metadata/1.targets.json",
+        "bytes": 2428,
+        "sha256": "bfe1c6330ff148173e7a449f32c60be96ae6b362426de367458a83394fa7a9d8",
+        "version": 1,
+        "expires": "2026-12-28T03:20:17.830606489Z",
+        "type": "targets",
+        "signatures": [
+          {
+            "keyid": "a998ebf4e6897f29c017acedac1f624d1a5662bae8293bebc332c30ad866f470",
+            "sig": "52fe1bd5536614cb7681318fed2e8680f3e551eb35ec6a29b5d020651ed04ae8c0b024fa74f550d5fa38c72f1bb3413f13b44a2a55cfdc43afcb332857cbdb07"
+          }
+        ],
+        "signed": {
+          "_type": "targets",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-12-28T03:20:17.830606489Z",
+          "targets": {
+            "keys/payload.json": {
+              "length": 315,
+              "hashes": {
+                "sha256": "7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20"
+              }
+            }
+          },
+          "delegations": {
+            "keys": {
+              "5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "812803adb69cc6d825c5cf6467a689f88c43e9b16706e69f29978c60297600df"
+                },
+                "scheme": "ed25519"
+              },
+              "771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "f0af74a40b15a39bbf53a901f2a07be7d682ffb50ec3fbb4d33694c183feb3fc"
+                },
+                "scheme": "ed25519"
+              },
+              "a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71": {
+                "keytype": "ed25519",
+                "keyval": {
+                  "public": "552af0320014aec3e80647405d089d2d5c0b570b8b7c5141fc6c91a93d6ffc0e"
+                },
+                "scheme": "ed25519"
+              }
+            },
+            "roles": [
+              {
+                "name": "releases",
+                "keyids": ["5bf2d13205f280479d0c44efb86b5e5cb40119278c6c1e8d06f7e8ab7112382b"],
+                "threshold": 1,
+                "paths": ["releases/0.3.0/linux-x86_64/appimage.json"],
+                "terminating": true
+              },
+              {
+                "name": "preview",
+                "keyids": ["771842fc612f1309457fe759454248c5af1280e36bad6f8ac7fb0fa35a3a990b"],
+                "threshold": 1,
+                "paths": ["channels/preview/linux-x86_64/appimage/0.3.0.json"],
+                "terminating": true
+              },
+              {
+                "name": "stable",
+                "keyids": ["a8baf5eccdb2c6d0d2aeb460e6691aa169e81514bf3df4b1bdb6341ca6a7ca71"],
+                "threshold": 1,
+                "paths": ["channels/stable/*/*/*.json"],
+                "terminating": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/metadata/timestamp.json",
+        "bytes": 622,
+        "sha256": "7062fefe73332e71894b18f268fcc20d1cb842bc113c587c4b4cb68f4d64f240",
+        "version": 1,
+        "expires": "2026-10-31T03:20:17.830606489Z",
+        "type": "timestamp",
+        "signatures": [
+          {
+            "keyid": "0163af597ffccea6762045e7b9b1908452baac5135da16208a8c06d6fa923c5d",
+            "sig": "3306e936aded760337d2533c91215f79d8550f84a786e35314e469de348b2472e5a2b947146c7dda555448ed5cf39f441c20dbeb48f750bdc6dfe46e67bb390b"
+          }
+        ],
+        "signed": {
+          "_type": "timestamp",
+          "spec_version": "1.0.0",
+          "version": 1,
+          "expires": "2026-10-31T03:20:17.830606489Z",
+          "meta": {
+            "snapshot.json": {
+              "length": 1205,
+              "hashes": {
+                "sha256": "510b86bc9056295d28f0e438133d5b28362cdbba2dd3be112c0fd18dca8f217c"
+              },
+              "version": 1
+            }
+          }
+        }
+      }
+    ],
+    "records": [
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/targets/1b0155b83e9fb662ead0e6b6e10c0ace14a5809c767198757fa20c6843255b2d.channels/preview/linux-x86_64/appimage/0.3.0.json",
+        "bytes": 394,
+        "sha256": "1b0155b83e9fb662ead0e6b6e10c0ace14a5809c767198757fa20c6843255b2d",
+        "record": {
+          "schema_version": 1,
+          "channel": "preview",
+          "target": "linux-x86_64",
+          "package": "appimage",
+          "version": "0.3.0",
+          "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+          "release_sha256": "53db490c10d046e441d4cb6b9acffc27445e991ef92f05bd778ed60d01480f25",
+          "eligible": true,
+          "production_eligible": false,
+          "withdrawn": false,
+          "reason": null,
+          "required_bridge": null
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/targets/53db490c10d046e441d4cb6b9acffc27445e991ef92f05bd778ed60d01480f25.releases/0.3.0/linux-x86_64/appimage.json",
+        "bytes": 1485,
+        "sha256": "53db490c10d046e441d4cb6b9acffc27445e991ef92f05bd778ed60d01480f25",
+        "record": {
+          "schema_version": 1,
+          "version": "0.3.0",
+          "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+          "source_tree": "c1408052af2fae8028cf7b3bedec76e4939f9b65",
+          "qualified_run": {
+            "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+            "workflow_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+            "run_id": 40810286569,
+            "attempt": 1,
+            "inventory_sha256": "343b1cce33afd7e31e33405c1481f20fa21c9fc426c540d786e4df54c1f8884e"
+          },
+          "target": "linux-x86_64",
+          "os": "linux",
+          "architecture": "x86_64",
+          "execution_context": "user-owned-appimage",
+          "package": {
+            "kind": "appimage",
+            "owner": "portcove",
+            "product_id": "io.github.portcove.portcove"
+          },
+          "artifact": {
+            "url": "https://github.com/boburning/portcove/releases/download/v0.3.0/Portcove_0.3.0_amd64.AppImage",
+            "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+            "bytes": 98294264,
+            "payload_key_id": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c"
+          },
+          "compatibility": {
+            "minimum_os_version": "7.0.0",
+            "required_capabilities": ["library-lock-v1"],
+            "cli_protocol": {
+              "min": 82,
+              "max": 82
+            },
+            "catalog_formats": [2],
+            "library": {
+              "read": {
+                "min": 1,
+                "max": 43
+              },
+              "write_schema": 43,
+              "lock_protocol": "library-lock-v1"
+            }
+          },
+          "evidence_ids": ["updater-artifact-rehearsal-40810286569-linux-x86_64"]
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/missing-payload-signature/targets/7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20.keys/payload.json",
+        "bytes": 315,
+        "sha256": "7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20",
+        "record": {
+          "keys": [
+            {
+              "id": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c",
+              "tauri_public_key": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2MTVCNzYwQkYwNEI4NDkKUldSSnVBUy9ZTGNWdGtmYmVoK2RxQTlncnc1azJSTkc2NkJIT1o2UGVRRVVhd0p0cDlydEgzVWkK"
+            }
+          ],
+          "schema_version": 1
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/40dbafdc6dc2e0e2c5a1a784265fd918ce2bf5769c4368d615d9d05492ea8aad.releases/0.3.0/linux-x86_64/appimage.json",
+        "bytes": 1953,
+        "sha256": "40dbafdc6dc2e0e2c5a1a784265fd918ce2bf5769c4368d615d9d05492ea8aad",
+        "record": {
+          "schema_version": 1,
+          "version": "0.3.0",
+          "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+          "source_tree": "c1408052af2fae8028cf7b3bedec76e4939f9b65",
+          "qualified_run": {
+            "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+            "workflow_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+            "run_id": 40810286569,
+            "attempt": 1,
+            "inventory_sha256": "343b1cce33afd7e31e33405c1481f20fa21c9fc426c540d786e4df54c1f8884e"
+          },
+          "target": "linux-x86_64",
+          "os": "linux",
+          "architecture": "x86_64",
+          "execution_context": "user-owned-appimage",
+          "package": {
+            "kind": "appimage",
+            "owner": "portcove",
+            "product_id": "io.github.portcove.portcove"
+          },
+          "artifact": {
+            "url": "https://github.com/boburning/portcove/releases/download/v0.3.0/Portcove_0.3.0_amd64.AppImage",
+            "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+            "bytes": 98294264,
+            "tauri_signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSSnVBUy9ZTGNWdGdGMW5raklUaW8zTDdWUmVZVWdxdnRBZm40a2lCeGRoeVFHZU9aa1RrVVlJV1NrM3Nta0xBT0o1TC9JVE5yMUs5L2o0TFNzdWhzWGpPbDNXT2NWbndzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjQ0MDEyCWZpbGU6UG9ydGNvdmVfMC4zLjBfYW1kNjQuQXBwSW1hZ2UJdmVyc2lvbjowLjMuMApSdkl5MHNJWS9FUWNtRkZYWGdoSnNUVmRlTWFYL3BxRGdvQzZuZmYwOWFmVEdnYUVGRWMrMlpvSjBidWFDeVBxNXdZcnQzTVpjY0hqM2N4SXBiWDBDQT09Cg==",
+            "payload_key_id": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c"
+          },
+          "compatibility": {
+            "minimum_os_version": "7.0.0",
+            "required_capabilities": ["library-lock-v1"],
+            "cli_protocol": {
+              "min": 82,
+              "max": 82
+            },
+            "catalog_formats": [2],
+            "library": {
+              "read": {
+                "min": 1,
+                "max": 43
+              },
+              "write_schema": 43,
+              "lock_protocol": "library-lock-v1"
+            }
+          },
+          "evidence_ids": ["updater-artifact-rehearsal-40810286569-linux-x86_64"]
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20.keys/payload.json",
+        "bytes": 315,
+        "sha256": "7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20",
+        "record": {
+          "keys": [
+            {
+              "id": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c",
+              "tauri_public_key": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2MTVCNzYwQkYwNEI4NDkKUldSSnVBUy9ZTGNWdGtmYmVoK2RxQTlncnc1azJSTkc2NkJIT1o2UGVRRVVhd0p0cDlydEgzVWkK"
+            }
+          ],
+          "schema_version": 1
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/8c5c3f9bc23279e44e2932990a56b16e4737a51269a31bf67092bcfb09066d8e.channels/preview/linux-x86_64/appimage/0.3.0.json",
+        "bytes": 395,
+        "sha256": "8c5c3f9bc23279e44e2932990a56b16e4737a51269a31bf67092bcfb09066d8e",
+        "record": {
+          "schema_version": 1,
+          "channel": "preview",
+          "target": "linux-x86_64",
+          "package": "appimage",
+          "version": "0.3.0",
+          "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+          "release_sha256": "40dbafdc6dc2e0e2c5a1a784265fd918ce2bf5769c4368d615d9d05492ea8aad",
+          "eligible": true,
+          "production_eligible": false,
+          "withdrawn": false,
+          "reason": null,
+          "required_bridge": null
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/targets/40dbafdc6dc2e0e2c5a1a784265fd918ce2bf5769c4368d615d9d05492ea8aad.releases/0.3.0/linux-x86_64/appimage.json",
+        "bytes": 1953,
+        "sha256": "40dbafdc6dc2e0e2c5a1a784265fd918ce2bf5769c4368d615d9d05492ea8aad",
+        "record": {
+          "schema_version": 1,
+          "version": "0.3.0",
+          "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+          "source_tree": "c1408052af2fae8028cf7b3bedec76e4939f9b65",
+          "qualified_run": {
+            "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+            "workflow_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+            "run_id": 40810286569,
+            "attempt": 1,
+            "inventory_sha256": "343b1cce33afd7e31e33405c1481f20fa21c9fc426c540d786e4df54c1f8884e"
+          },
+          "target": "linux-x86_64",
+          "os": "linux",
+          "architecture": "x86_64",
+          "execution_context": "user-owned-appimage",
+          "package": {
+            "kind": "appimage",
+            "owner": "portcove",
+            "product_id": "io.github.portcove.portcove"
+          },
+          "artifact": {
+            "url": "https://github.com/boburning/portcove/releases/download/v0.3.0/Portcove_0.3.0_amd64.AppImage",
+            "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+            "bytes": 98294264,
+            "tauri_signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSSnVBUy9ZTGNWdGdGMW5raklUaW8zTDdWUmVZVWdxdnRBZm40a2lCeGRoeVFHZU9aa1RrVVlJV1NrM3Nta0xBT0o1TC9JVE5yMUs5L2o0TFNzdWhzWGpPbDNXT2NWbndzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjQ0MDEyCWZpbGU6UG9ydGNvdmVfMC4zLjBfYW1kNjQuQXBwSW1hZ2UJdmVyc2lvbjowLjMuMApSdkl5MHNJWS9FUWNtRkZYWGdoSnNUVmRlTWFYL3BxRGdvQzZuZmYwOWFmVEdnYUVGRWMrMlpvSjBidWFDeVBxNXdZcnQzTVpjY0hqM2N4SXBiWDBDQT09Cg==",
+            "payload_key_id": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c"
+          },
+          "compatibility": {
+            "minimum_os_version": "7.0.0",
+            "required_capabilities": ["library-lock-v1"],
+            "cli_protocol": {
+              "min": 82,
+              "max": 82
+            },
+            "catalog_formats": [2],
+            "library": {
+              "read": {
+                "min": 1,
+                "max": 43
+              },
+              "write_schema": 43,
+              "lock_protocol": "library-lock-v1"
+            }
+          },
+          "evidence_ids": ["updater-artifact-rehearsal-40810286569-linux-x86_64"]
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/targets/7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20.keys/payload.json",
+        "bytes": 315,
+        "sha256": "7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20",
+        "record": {
+          "keys": [
+            {
+              "id": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c",
+              "tauri_public_key": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2MTVCNzYwQkYwNEI4NDkKUldSSnVBUy9ZTGNWdGtmYmVoK2RxQTlncnc1azJSTkc2NkJIT1o2UGVRRVVhd0p0cDlydEgzVWkK"
+            }
+          ],
+          "schema_version": 1
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/recovery/targets/8c5c3f9bc23279e44e2932990a56b16e4737a51269a31bf67092bcfb09066d8e.channels/preview/linux-x86_64/appimage/0.3.0.json",
+        "bytes": 395,
+        "sha256": "8c5c3f9bc23279e44e2932990a56b16e4737a51269a31bf67092bcfb09066d8e",
+        "record": {
+          "schema_version": 1,
+          "channel": "preview",
+          "target": "linux-x86_64",
+          "package": "appimage",
+          "version": "0.3.0",
+          "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+          "release_sha256": "40dbafdc6dc2e0e2c5a1a784265fd918ce2bf5769c4368d615d9d05492ea8aad",
+          "eligible": true,
+          "production_eligible": false,
+          "withdrawn": false,
+          "reason": null,
+          "required_bridge": null
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/targets/20e170a9753a20539a629b61bb23b8f74e9ed8ff6a0642fb398286c7b375a415.releases/0.3.0/linux-x86_64/appimage.json",
+        "bytes": 1932,
+        "sha256": "20e170a9753a20539a629b61bb23b8f74e9ed8ff6a0642fb398286c7b375a415",
+        "record": {
+          "schema_version": 1,
+          "version": "0.3.0",
+          "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+          "source_tree": "c1408052af2fae8028cf7b3bedec76e4939f9b65",
+          "qualified_run": {
+            "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+            "workflow_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+            "run_id": 40810286569,
+            "attempt": 1,
+            "inventory_sha256": "343b1cce33afd7e31e33405c1481f20fa21c9fc426c540d786e4df54c1f8884e"
+          },
+          "target": "linux-x86_64",
+          "os": "linux",
+          "architecture": "x86_64",
+          "execution_context": "user-owned-appimage",
+          "package": {
+            "kind": "appimage",
+            "owner": "portcove",
+            "product_id": "io.github.portcove.portcove"
+          },
+          "artifact": {
+            "url": "https://github.com/boburning/portcove/releases/download/v0.3.0/Portcove_0.3.0_amd64.AppImage",
+            "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+            "bytes": 98294264,
+            "tauri_signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYmg1aWNQV1Nrb3duWmxsb3B6dE5aeXhuSWJZMXJxVTRVb0RvSUJZTUhTNmFKbGZicHQ0bTRSbjRIOW8rL2VDQ1hOVHZDVVN4MjBMTzVFZGlzRlNoK3E2Rk5nOU9MWFEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjQ0MDU3CWZpbGU6UG9ydGNvdmVfMC4zLjBfYW1kNjQuQXBwSW1hZ2UKNkJkUWExTlk5ZjNUL0ltWnBVNTd1eFVMdHA1WEVtaHgrOGxzclYyZ0l0MS9wbEt6Q0lleGJJZ2svRG1iTS9xUGE4QmR1czJJb2tvam9NYkxTWFNXQmc9PQo=",
+            "payload_key_id": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c"
+          },
+          "compatibility": {
+            "minimum_os_version": "7.0.0",
+            "required_capabilities": ["library-lock-v1"],
+            "cli_protocol": {
+              "min": 82,
+              "max": 82
+            },
+            "catalog_formats": [2],
+            "library": {
+              "read": {
+                "min": 1,
+                "max": 43
+              },
+              "write_schema": 43,
+              "lock_protocol": "library-lock-v1"
+            }
+          },
+          "evidence_ids": ["updater-artifact-rehearsal-40810286569-linux-x86_64"]
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/targets/7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20.keys/payload.json",
+        "bytes": 315,
+        "sha256": "7562cb0c3295693d7c0fd0b21272456c68de1e8f427d3a79d1dfac5850195b20",
+        "record": {
+          "keys": [
+            {
+              "id": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c",
+              "tauri_public_key": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2MTVCNzYwQkYwNEI4NDkKUldSSnVBUy9ZTGNWdGtmYmVoK2RxQTlncnc1azJSTkc2NkJIT1o2UGVRRVVhd0p0cDlydEgzVWkK"
+            }
+          ],
+          "schema_version": 1
+        }
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/wrong-payload-signature/targets/e05e7b377f7beec71b28a6f07f2de802f2e8533e1f3611b9b36d175df9242aa5.channels/preview/linux-x86_64/appimage/0.3.0.json",
+        "bytes": 394,
+        "sha256": "e05e7b377f7beec71b28a6f07f2de802f2e8533e1f3611b9b36d175df9242aa5",
+        "record": {
+          "schema_version": 1,
+          "channel": "preview",
+          "target": "linux-x86_64",
+          "package": "appimage",
+          "version": "0.3.0",
+          "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+          "release_sha256": "20e170a9753a20539a629b61bb23b8f74e9ed8ff6a0642fb398286c7b375a415",
+          "eligible": true,
+          "production_eligible": false,
+          "withdrawn": false,
+          "reason": null,
+          "required_bridge": null
+        }
+      }
+    ]
+  },
+  "native_lifecycle": {
+    "schema_version": 15,
+    "observation_identity": {
+      "schema_version": 1,
+      "harness": "scripts/test-linux-appimage-update.ps1",
+      "harness_sha256": "88c0375eb56b45ca31e31a30f0c449712d511aa38aa708a1d65abb785c74a5ab",
+      "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+      "source_tree": "c1408052af2fae8028cf7b3bedec76e4939f9b65",
+      "started_at": "2026-10-29T03:23:16.1626165Z",
+      "host_os": "Ubuntu 24.04.5 LTS",
+      "host_architecture": "X64",
+      "powershell": "7.6.9",
+      "authority": "none; local native observation requires independently authenticated handoff"
+    },
+    "phase": "complete",
+    "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+    "platform": "linux-x86_64",
+    "predecessor": {
+      "version": "0.1.0",
+      "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage",
+      "sha256": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d"
+    },
+    "candidate": {
+      "version": "0.3.0",
+      "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage",
+      "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1"
+    },
+    "stable_path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/Applications/Portcove/Portcove.AppImage",
+    "apply_revision": 5,
+    "rootless_lifecycle": {
+      "package_format": "appimage",
+      "install_scope": "current-user-direct-file",
+      "stable_path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/Applications/Portcove/Portcove.AppImage",
+      "current_user_owned": true,
+      "caller_uid": "1001",
+      "caller_gid": "1001",
+      "stable_owner_uid": "1001",
+      "desktop_entry": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/rootless-home/.local/share/applications/com.boburning.portcove.desktop",
+      "desktop_entry_sha256": "51E11D1E40E9114E1E401F537240FC43512BFFC7F5FBD436287BDBCA77B4CAA6",
+      "preserved_user_paths": {
+        "library": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/user/application-update-qualification/preserve.txt",
+        "game_files": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/games/rootless-qualification/game.bin",
+        "saves": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/saves/rootless-qualification/save.bin",
+        "backups": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/backups/rootless-qualification/backup.bin",
+        "logs": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/state/library/logs/rootless-qualification.log"
+      },
+      "preserved_user_sha256": {
+        "library": "A1994D0DBE5E029A034FF9A5E3EB3A24EBB60BF144EC745F730E4A640272D152",
+        "game_files": "875249D4265BAF9903585886BB427C11274284088600B4660915F9BC6D754E88",
+        "saves": "D9E5417C677B9C859702A0391C6777A8992AD362BD30462DF9405B1A4E76D5DA",
+        "backups": "EB8DBE0B616B4B61A5EEF6A65F17BFE9774CF0F0067D6A594A5BF55C82B50114",
+        "logs": "6805D309F663B095F3EFC0CF046D3B1E371B7C7521CDF2C7E5A215B9C011D475"
+      },
+      "update_desktop_entry_preserved": true,
+      "update_user_paths_preserved": true,
+      "uninstall_stable_removed": true,
+      "uninstall_desktop_entry_removed": true,
+      "uninstall_user_paths_preserved": true
+    },
+    "private_signing_inputs_absent": {
+      "payload_private_key": true,
+      "tuf_private_root": true,
+      "signing_private_key_environment": true,
+      "signing_password_environment": true
+    },
+    "packaged_selection": {
+      "exit_code": 0,
+      "state": "update-available",
+      "version": "0.3.0",
+      "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+      "stable_preserved": true,
+      "staging_absent": true,
+      "owner_write_rejection": true,
+      "owner_write_rejection_exit_code": 1,
+      "owner_write_rejection_error": "installed application update selection failed: the installed application context is unavailable: this AppImage is not readable, executable and writable by its owner",
+      "mode_before_rejection": "755",
+      "mode_without_owner_write": "555",
+      "mode_after_restore": "755",
+      "sha256_after_rejection": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d"
+    },
+    "payload_signature_failures": {
+      "wrong_disposable_public_key_sha256": "024a2d4e99bacdae424c205819fc269647f450bdfadc8086c6113b0099c9b0e2",
+      "missing": {
+        "exit_code": 1,
+        "rejected": true,
+        "staging_authority_absent": true,
+        "stable_preserved": true,
+        "data_preserved": true,
+        "recovery_apply_revision": 2,
+        "recovery_candidate_sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+        "recovery_role_versions": {
+          "timestamp": 2,
+          "snapshot": 2,
+          "targets": 2
+        },
+        "recovered": true,
+        "fixture_cleaned": true
+      },
+      "wrong_key": {
+        "exit_code": 1,
+        "rejected": true,
+        "staging_authority_absent": true,
+        "stable_preserved": true,
+        "data_preserved": true,
+        "recovery_apply_revision": 2,
+        "recovery_candidate_sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+        "recovery_role_versions": {
+          "timestamp": 2,
+          "snapshot": 2,
+          "targets": 2
+        },
+        "recovered": true,
+        "fixture_cleaned": true
+      }
+    },
+    "truncated_payload_expected_bytes": 98294264,
+    "truncated_payload_bytes": 98294263,
+    "truncated_payload_exit_code": 1,
+    "truncated_payload_rejected": true,
+    "truncated_payload_stable_preserved": true,
+    "truncated_payload_staging_empty": true,
+    "truncated_payload_data_preserved": true,
+    "interruption_exit_code": 86,
+    "interruption_partial_bytes": 65536,
+    "interruption_recovery": "gui-independent-command",
+    "interruption_recovery_display": "unset",
+    "interruption_recovery_exit_code": 0,
+    "interruption_recovered": true,
+    "interruption_stable_preserved": true,
+    "incompatible_schema_supported_version": 4,
+    "incompatible_schema_version": 99,
+    "incompatible_schema_exit_code": 1,
+    "incompatible_schema_predecessor_restart_observed": true,
+    "incompatible_schema_state_preserved": true,
+    "incompatible_schema_recovery_action": "restore exact supported journal fixture",
+    "read_only_state_enforced": true,
+    "read_only_state_exit_code": 1,
+    "read_only_state_predecessor_restart_observed": true,
+    "read_only_state_preserved": true,
+    "read_only_state_write_restored": true,
+    "read_only_state_recovery_action": "restore exact Unix modes",
+    "full_disk_state_enforced": true,
+    "full_disk_state_available_bytes": 0,
+    "full_disk_state_exit_code": 1,
+    "full_disk_state_predecessor_restart_observed": true,
+    "full_disk_state_preserved": true,
+    "full_disk_state_write_restored": true,
+    "full_disk_state_recovery_action": "remove bounded filler and unmount disposable tmpfs",
+    "full_appimage_filesystem_enforced": true,
+    "full_appimage_filesystem_available_bytes": 0,
+    "full_appimage_filesystem_exit_code": 1,
+    "full_appimage_filesystem_predecessor_restart_observed": true,
+    "full_appimage_filesystem_stable_preserved": true,
+    "full_appimage_filesystem_staging_preserved": true,
+    "full_appimage_filesystem_failed_revision": 7,
+    "full_appimage_filesystem_retry_revision": 8,
+    "full_appimage_filesystem_retryable_journal": true,
+    "full_appimage_filesystem_write_restored": true,
+    "full_appimage_filesystem_recovery_action": "remove bounded filler and unmount disposable tmpfs",
+    "runtime_contention_hold_seconds": 2,
+    "runtime_contention_helper_blocked": true,
+    "runtime_contention_stable_preserved": true,
+    "runtime_contention_journal_preserved": true,
+    "post_exchange_exit_code": 87,
+    "post_exchange_candidate_installed": true,
+    "post_exchange_backup_preserved": true,
+    "candidate_restart_exit_code": 0,
+    "post_exchange_reconciled": true,
+    "stable_sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+    "executable_mode": "755",
+    "persistent_data_preserved": true,
+    "candidate_restart_observed": true,
+    "production_signing": false,
+    "failure": null,
+    "installed_staging": {
+      "version": "0.3.0",
+      "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+      "bytes": 98294264,
+      "staged_payload_sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+      "stable_preserved": true
+    }
+  },
+  "native_renderer": {
+    "schema_version": 1,
+    "phase": "complete",
+    "source_commit": "e622954bb0d3e5288737a3b6c40f577331ebf94b",
+    "app": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/Applications/Portcove/Portcove.AppImage",
+    "initial_sha256": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d",
+    "candidate_sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+    "candidate_version": "0.3.0",
+    "actions": [
+      "stable-manual-settings-saved",
+      "stable-waiting-without-staging-or-current-claim",
+      "installed-gui-opened",
+      "preview-manual-settings-saved",
+      "signed-candidate-presented",
+      "exact-installed-candidate-status-read-back",
+      "renderer-downloaded-and-verified",
+      "candidate-restarted-and-reconciled"
+    ],
+    "failure": null,
+    "historical_bootstrap": {
+      "phase": "complete",
+      "inputs": {
+        "schema_version": 1,
+        "platform": "linux-x86_64",
+        "version": "0.1.0-alpha.2",
+        "source_commit": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+        "release_tag": "v0.1.0-alpha.2",
+        "release_url": "https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2",
+        "files": {
+          "appimage": {
+            "name": "Portcove_0.1.0-alpha.2_amd64.AppImage",
+            "release_asset_id": 550866257,
+            "bytes": 89795064,
+            "sha256": "42588ac5f637f7b48ad08c8154fee53d40c51486ad789c36e71593f30627709d",
+            "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/historical-linux-bootstrap/Portcove_0.1.0-alpha.2_amd64.AppImage"
+          },
+          "cli_archive": {
+            "name": "portcove-linux-x86_64.tar.gz",
+            "release_asset_id": 550866327,
+            "bytes": 8907510,
+            "sha256": "c4c5faa9adfc3c3427e24cf69fa0a5d44b7167ee2444a7638d68b8d4d732bd74",
+            "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/historical-linux-bootstrap/portcove-linux-x86_64.tar.gz"
+          },
+          "cli": {
+            "name": "portcove",
+            "bytes": 24067440,
+            "sha256": "1652c89fb12e562b4dc4cb89e33e3fd0bb51f4cebe45caf26d6f6cce06842334",
+            "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/historical-linux-bootstrap/portcove"
+          }
+        },
+        "payload_signature": null,
+        "metadata_signatures": null,
+        "feed_identity": null
+      },
+      "saved_library_choice": [
+        {
+          "schema_version": 34,
+          "ok": true,
+          "command": "library.set",
+          "data": {
+            "root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+            "source": "saved"
+          },
+          "error": null
+        },
+        {
+          "schema_version": 34,
+          "ok": true,
+          "command": "library.show",
+          "data": {
+            "root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+            "source": "saved"
+          },
+          "error": null
+        }
+      ],
+      "data_scope": "normally saved library preference and one synthetic marker; no installed game/save/credential continuity",
+      "desktop_entry_preservation": "not_evaluated; this continuous renderer installation has no desktop entry; lifecycle entry evidence is separate",
+      "snapshots": [
+        {
+          "phase": "before-updaterless-startup",
+          "preferences": {
+            "bytes": 190,
+            "sha256": "7fae6702790700cc0ba13062dd8cc4db804ff10cec25f27c275b65e2c37a80cf",
+            "data": {
+              "format_version": 1,
+              "library_root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+              "host_tool_paths": {}
+            }
+          },
+          "marker": {
+            "sha256": "9656224e43d17e8332ba01c31586862391b4870520e0087a800e941629a0aeb5",
+            "bytes": 48
+          },
+          "stable": {
+            "sha256": "42588ac5f637f7b48ad08c8154fee53d40c51486ad789c36e71593f30627709d",
+            "bytes": 89795064
+          },
+          "owner_uid": 1001,
+          "mode": "755",
+          "private_bus_id_sha256": "3846ede44393517d9f680cd97d3b83b0ee04d463de61f1bd22112d73dfb12656",
+          "secret_service_registered": false
+        },
+        {
+          "phase": "after-updaterless-normal-close",
+          "preferences": {
+            "bytes": 190,
+            "sha256": "7fae6702790700cc0ba13062dd8cc4db804ff10cec25f27c275b65e2c37a80cf",
+            "data": {
+              "format_version": 1,
+              "library_root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+              "host_tool_paths": {}
+            }
+          },
+          "marker": {
+            "sha256": "9656224e43d17e8332ba01c31586862391b4870520e0087a800e941629a0aeb5",
+            "bytes": 48
+          },
+          "stable": {
+            "sha256": "42588ac5f637f7b48ad08c8154fee53d40c51486ad789c36e71593f30627709d",
+            "bytes": 89795064
+          },
+          "owner_uid": 1001,
+          "mode": "755",
+          "private_bus_id_sha256": "3846ede44393517d9f680cd97d3b83b0ee04d463de61f1bd22112d73dfb12656",
+          "secret_service_registered": false
+        },
+        {
+          "phase": "after-manual-same-path-updater-enabled-replacement",
+          "preferences": {
+            "bytes": 190,
+            "sha256": "7fae6702790700cc0ba13062dd8cc4db804ff10cec25f27c275b65e2c37a80cf",
+            "data": {
+              "format_version": 1,
+              "library_root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+              "host_tool_paths": {}
+            }
+          },
+          "marker": {
+            "sha256": "9656224e43d17e8332ba01c31586862391b4870520e0087a800e941629a0aeb5",
+            "bytes": 48
+          },
+          "stable": {
+            "sha256": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d",
+            "bytes": 98474488
+          },
+          "owner_uid": 1001,
+          "mode": "755",
+          "private_bus_id_sha256": "3846ede44393517d9f680cd97d3b83b0ee04d463de61f1bd22112d73dfb12656",
+          "secret_service_registered": false
+        },
+        {
+          "phase": "after-updater-enabled-startup",
+          "preferences": {
+            "bytes": 190,
+            "sha256": "7fae6702790700cc0ba13062dd8cc4db804ff10cec25f27c275b65e2c37a80cf",
+            "data": {
+              "format_version": 1,
+              "library_root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+              "host_tool_paths": {}
+            }
+          },
+          "marker": {
+            "sha256": "9656224e43d17e8332ba01c31586862391b4870520e0087a800e941629a0aeb5",
+            "bytes": 48
+          },
+          "stable": {
+            "sha256": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d",
+            "bytes": 98474488
+          },
+          "owner_uid": 1001,
+          "mode": "755",
+          "private_bus_id_sha256": "3846ede44393517d9f680cd97d3b83b0ee04d463de61f1bd22112d73dfb12656",
+          "secret_service_registered": false
+        },
+        {
+          "phase": "after-fresh-stable-waiting",
+          "preferences": {
+            "bytes": 190,
+            "sha256": "7fae6702790700cc0ba13062dd8cc4db804ff10cec25f27c275b65e2c37a80cf",
+            "data": {
+              "format_version": 1,
+              "library_root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+              "host_tool_paths": {}
+            }
+          },
+          "marker": {
+            "sha256": "9656224e43d17e8332ba01c31586862391b4870520e0087a800e941629a0aeb5",
+            "bytes": 48
+          },
+          "stable": {
+            "sha256": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d",
+            "bytes": 98474488
+          },
+          "owner_uid": 1001,
+          "mode": "755",
+          "private_bus_id_sha256": "3846ede44393517d9f680cd97d3b83b0ee04d463de61f1bd22112d73dfb12656",
+          "secret_service_registered": false
+        },
+        {
+          "phase": "after-authenticated-candidate-return",
+          "preferences": {
+            "bytes": 190,
+            "sha256": "7fae6702790700cc0ba13062dd8cc4db804ff10cec25f27c275b65e2c37a80cf",
+            "data": {
+              "format_version": 1,
+              "library_root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+              "host_tool_paths": {}
+            }
+          },
+          "marker": {
+            "sha256": "9656224e43d17e8332ba01c31586862391b4870520e0087a800e941629a0aeb5",
+            "bytes": 48
+          },
+          "stable": {
+            "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+            "bytes": 98294264
+          },
+          "owner_uid": 1001,
+          "mode": "755",
+          "private_bus_id_sha256": "3846ede44393517d9f680cd97d3b83b0ee04d463de61f1bd22112d73dfb12656",
+          "secret_service_registered": false
+        }
+      ],
+      "caller": {
+        "uid": 1001,
+        "gid": 1001,
+        "groups": [4, 100, 118, 999, 1001],
+        "architecture": "x64",
+        "credential_status": [
+          "Uid:\t1001\t1001\t1001\t1001",
+          "Gid:\t1001\t1001\t1001\t1001",
+          "CapEff:\t0000000000000000",
+          "NoNewPrivs:\t0"
+        ]
+      },
+      "cli_observed_version": "portcove 0.1.0-alpha.2",
+      "initial_marker_sha256": "9656224e43d17e8332ba01c31586862391b4870520e0087a800e941629a0aeb5",
+      "initial_preferences_sha256": "7fae6702790700cc0ba13062dd8cc4db804ff10cec25f27c275b65e2c37a80cf",
+      "private_bus_id_sha256": "3846ede44393517d9f680cd97d3b83b0ee04d463de61f1bd22112d73dfb12656",
+      "driver": {
+        "pid": 18591,
+        "start_ticks": "109189",
+        "command": "/home/runner/.cargo/bin/tauri-driver --port 45770 --native-port 45771 --native-driver /usr/bin/WebKitWebDriver "
+      },
+      "application": {
+        "pid": 18594,
+        "start_ticks": "109193",
+        "command": "portcove-desktop "
+      },
+      "window_title": "Portcove",
+      "window_body_excerpt": "\nPortcove\nNative ports, kept current\n\nLibrary\n0\nCtrl 1\n\nPort catalog\nCtrl 2\n\nUpdates\nCtrl 3\n\nSettings\nCtrl 4\nAdopt an install\nD-pad / stick / arrows: move\nA / Enter: select\nB / Esc: menu\nLB / RB: switch section\nLIBRARY\n\nYour native library\nLaunch installed ports, finish source setup, and see what needs attention.\nSearch ports\n/\n\nCommands\nCtrl K\n0\nLAUNCH READY\n0\nNEED SETUP\n0\nSTAGED UPDATES\n0 installed\nSources stay local. Managed versions remain rollback-safe.\nAll\nReady\nNeeds Setup\n0 ports\n\nEMPTY LIBRARY\n\nNo installed ports yet\nBrowse the catalog to install a supported port, or adopt an existing native installation without changing the original folder.\nBrowse port catalog",
+      "application_credential_status": [
+        "Uid:\t1001\t1001\t1001\t1001",
+        "Gid:\t1001\t1001\t1001\t1001",
+        "CapEff:\t0000000000000000",
+        "NoNewPrivs:\t0"
+      ],
+      "saved_library_selection": {
+        "root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library",
+        "source": "saved",
+        "card_text": "WHOLE PORTCOVE LIBRARYStartup selection/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/librarySaved host preference. Switching opens another existing empty folder or Portcove library. It does not move files or change any game’s Export / install folder.Review library switchReview platform default"
+      },
+      "normal_close_before_driver_teardown": true,
+      "driver_log": "libEGL warning: DRI3 error: Could not get DRI3 device\nlibEGL warning: Ensure your X server supports DRI3 to get accelerated rendering\n/lib/x86_64-linux-gnu/libcurl-gnutls.so.4: undefined symbol: nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation\nFailed to load module: /usr/lib/x86_64-linux-gnu/gio/modules/libgiolibproxy.so\n/usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so: undefined symbol: g_assertion_message_cmpint\nFailed to load module: /usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so\n/lib/x86_64-linux-gnu/libcurl-gnutls.so.4: undefined symbol: nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation\nFailed to load module: /usr/lib/x86_64-linux-gnu/gio/modules/libgiolibproxy.so\n/usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so: undefined symbol: g_assertion_message_cmpint\nFailed to load module: /usr/lib/x86_64-linux-gnu/gio/modules/libdconfsettings.so\n",
+      "driver_teardown": {
+        "exit_code": 0,
+        "signal": null
+      }
+    },
+    "driver": {
+      "pid": 18736,
+      "start_ticks": "109700",
+      "command": "/home/runner/.cargo/bin/tauri-driver --port 45770 --native-port 45771 --native-driver /usr/bin/WebKitWebDriver "
+    },
+    "stable_waiting": {
+      "before": {
+        "schedule": {
+          "last_success_unix_seconds": null,
+          "consecutive_failures": 0,
+          "next_automatic_check_unix_seconds": null
+        },
+        "staged": null,
+        "apply": null,
+        "install_eligibility": "eligible",
+        "recovery_required": []
+      },
+      "after": {
+        "schedule": {
+          "last_success_unix_seconds": null,
+          "consecutive_failures": 0,
+          "next_automatic_check_unix_seconds": null
+        },
+        "staged": null,
+        "apply": null,
+        "install_eligibility": "eligible",
+        "recovery_required": []
+      },
+      "checked_at": "2026-10-29T03:25:02.139Z",
+      "message": "No eligible release is published for the selected channel.",
+      "authority": "none",
+      "scope": "ordinary Stable waiting UI only",
+      "installed_appimage_sha256_before": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d",
+      "installed_appimage_sha256_after": "c4a4fb142eb504cb60f903bf6e2f5c88e5b05520a5b3d9f24e4100bbf56a710d"
+    },
+    "ordinary_staging": {
+      "before": {
+        "schedule": {
+          "last_success_unix_seconds": null,
+          "consecutive_failures": 0,
+          "next_automatic_check_unix_seconds": null
+        },
+        "staged": null,
+        "apply": null,
+        "install_eligibility": "eligible",
+        "recovery_required": []
+      },
+      "staged": {
+        "schedule": {
+          "last_success_unix_seconds": 1793244304,
+          "consecutive_failures": 0,
+          "next_automatic_check_unix_seconds": 1793330704
+        },
+        "staged": {
+          "version": "0.3.0",
+          "channel": "preview",
+          "bytes": 98294264
+        },
+        "apply": null,
+        "install_eligibility": "eligible",
+        "recovery_required": []
+      },
+      "authority": "none",
+      "scope": "ordinary UI staging only"
+    },
+    "staged": {
+      "sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+      "bytes": 98294264
+    },
+    "processes_before_restart": [
+      {
+        "pid": 18736,
+        "start_ticks": "109700",
+        "command": "/home/runner/.cargo/bin/tauri-driver --port 45770 --native-port 45771 --native-driver /usr/bin/WebKitWebDriver "
+      },
+      {
+        "pid": 18737,
+        "start_ticks": "109700",
+        "command": "/usr/bin/WebKitWebDriver --port=45771 --host=127.0.0.1 "
+      },
+      {
+        "pid": 18739,
+        "start_ticks": "109702",
+        "command": "portcove-desktop "
+      },
+      {
+        "pid": 18776,
+        "start_ticks": "109743",
+        "command": "././/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess 1 26 "
+      },
+      {
+        "pid": 18804,
+        "start_ticks": "109752",
+        "command": "././/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitWebProcess 4 33 "
+      }
+    ],
+    "loaded_engine_before_restart": {
+      "process": {
+        "pid": 18739,
+        "parent": 18737,
+        "start_ticks": "109702"
+      },
+      "libraries": [
+        {
+          "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoOHBHDM/usr/lib/libglib-2.0.so.0",
+          "sha256": "e4ab4eb965ac898100dc10fbd93bf941cef2fcd9aef3d04c3a38356aa2ec0bc7"
+        },
+        {
+          "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoOHBHDM/usr/lib/libjavascriptcoregtk-4.1.so.0",
+          "sha256": "bf164f8fd444ce244de11b12410c0183a160f7045946e5723cb0880d70e39750"
+        },
+        {
+          "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoOHBHDM/usr/lib/libwebkit2gtk-4.1.so.0",
+          "sha256": "87595deb8fdf11d3dc7451e7f710e8e81cb849625a296e34231565d29863cb37"
+        }
+      ]
+    },
+    "restart_action_attempted": true,
+    "restart_click": "returned",
+    "helper_process_marker": {
+      "executable": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoOHBHDM/usr/bin/portcove-desktop",
+      "process_id": 18882,
+      "schema_version": 1
+    },
+    "helper_identity": {
+      "pid": 18882,
+      "start_ticks": "110277",
+      "command": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoOHBHDM/usr/bin/portcove-desktop --portcove-apply-update 2 "
+    },
+    "initial_application_after_helper_spawn": null,
+    "relaunch_process_marker": {
+      "executable": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/Applications/Portcove/Portcove.AppImage",
+      "process_id": 18891,
+      "schema_version": 1
+    },
+    "relaunch_identity": {
+      "pid": 18891,
+      "start_ticks": "110353",
+      "command": "portcove-desktop "
+    },
+    "restart": {
+      "marker": {
+        "process_id": 18891,
+        "schema_version": 1,
+        "stage": "Tauri setup"
+      },
+      "stable_sha256": "b26ea02d3c441a93294b65f4d832e5f456a0553761a12d5d95124d1e4897f6d1",
+      "candidate_exit_observed": true
+    },
+    "helper_cleanup": "helper-exited",
+    "processes_after_driver_stop": [],
+    "relaunch_cleanup": "candidate-exited"
+  },
+  "host_baseline": "PRETTY_NAME=\"Ubuntu 24.04.5 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.5 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo\nLinux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\nldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39\n2.52.6\nlibfuse2 \nlibfuse2t64 2.9.9-8.1build1\n",
+  "inspected_screenshots": [
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/before-restart.png",
+      "bytes": 131241,
+      "sha256": "ad49352dc7ea469f2d1cbf1666a2456c0b3399d2188311c2494b31df17f512e8"
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/historical-preferences.png",
+      "bytes": 133441,
+      "sha256": "5d227b43715c2c58b329f486b4261d2ac5772605bb6833232fd7f5c15736b947"
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/historical-window.png",
+      "bytes": 74761,
+      "sha256": "848d65b73be1418ac6a3db550704965131766b728758b5b86b81d17bef37b859"
+    }
+  ],
+  "earlier_limited_observation": {
+    "run": 40797633778,
+    "attempt": 1,
+    "source": "2e6ba16a826fc26f4f8a74e5192d1130a229a7ad",
+    "artifact": 12865504081,
+    "archive_sha256": "a7135cabec5767bd6be85f7e6152ab38c8bf582cc8f3805d0ca0c74804949f41",
+    "scope": "successful process/update chain and saved-preference/marker bytes only; historical capture still loading and no Stable-waiting branch; retained without retrospective promotion"
+  },
+  "limits": [
+    "Historical Alpha2 has no payload signature, metadata signatures or feed identity; official published bytes/source and matching CLI are pinned, not retroactively signed.",
+    "Updater-enabled endpoints are qualification builds. Separate default-feature startup/IPC is not a default-feature production updater journey.",
+    "The ordinary Alpha2 window was closed and its held identity disappeared while the driver remained live; driver OS exit0 is recorded. Application/helper/candidate disappearance does not independently record their OS exit codes.",
+    "Normally saved whole-library choice and one 48-byte marker are preserved; real games/saves, other general preferences and credential continuity remain unproven here.",
+    "Continuous renderer chain has no desktop entry; separate lifecycle installation/entry/fault controls cannot supply that continuity.",
+    "Process-exit interruption controls are not OS reboot; remaining narrowly owned environment/transport/busy rows are not silently completed.",
+    "No Steam Deck/macOS/full 1.0 qualification; actual production Root/key/feed/publication and private-connected authority remain #534.",
+    "GLib #706/#49 disposition remains scoped/non-remediating and expires 2026-11-15T04:59:00Z or before the relevant second ordinary Linux beta publication, earlier; reconfirm exact candidate/policy/count at release, no renewal."
+  ],
+  "payload_public_key": {
+    "encoded_file_bytes": 152,
+    "encoded_file_sha256": "397b055f635e03390489f96367e6aeeb348210e2412c35554606d7eb4bda6d4b",
+    "decoded_minisign_text_sha256": "eb831ca2316ce9afec9fdcfe12c41c2a492a23120d6b736b036ad0d1552a451c",
+    "verifier_public_key_sha256_semantics": "SHA256 of decoded Minisign public-key text, not encoded file bytes",
+    "tauri_public_key": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2MTVCNzYwQkYwNEI4NDkKUldSSnVBUy9ZTGNWdGtmYmVoK2RxQTlncnc1azJSTkc2NkJIT1o2UGVRRVVhd0p0cDlydEgzVWkK"
+  },
+  "compiled_fixture_feed": {
+    "metadata_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/",
+    "targets_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/targets/",
+    "scope": "qualified predecessor compiled positive disposable fixture; the three other repositories are negative-payload/recovery inputs",
+    "provenance": "source-derived exact URLs from e622954bb0d3e5288737a3b6c40f577331ebf94b scripts/rehearse-updater-artifacts.ps1 lines607-611 and native receipt fixed fixture root; URLs not directly emitted in raw native report; public artifact URLs in target records do not establish a public feed or network download"
+  }
+}

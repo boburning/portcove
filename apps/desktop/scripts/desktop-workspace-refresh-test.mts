@@ -92,6 +92,270 @@ import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { By, until } from "selenium-webdriver";
 import { revealDetailSection, captureAccessibilityReport } from "./desktop-review-controls.mts";
 
+export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => {
+  const runtime = window as RefreshWindow;
+  const native = runtime.__TAURI_INTERNALS__;
+  if (!native) throw new Error("Native bridge unavailable");
+  const original = window.fetch;
+  const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
+  runtime.__portcoveRefreshProbe = {
+    original,
+    calls: [],
+    remaining: 1,
+    injected: 0,
+  };
+  window.fetch = function (input, ...args) {
+    const probe = runtime.__portcoveRefreshProbe;
+    if (!probe) throw new Error("Refresh probe unavailable");
+    // Preserve the fetch probe's existing coercion of cross-realm request-like inputs.
+    const url =
+      typeof input === "string"
+        ? input
+        : ((typeof input === "object" && input !== null && "url" in input
+            ? input.url
+            : undefined) ??
+          // oxlint-disable-next-line typescript/no-base-to-string
+          String(input));
+    const parsed = new URL(url, location.href);
+    if (parsed.hostname === "ipc.localhost")
+      probe.calls.push(decodeURIComponent(parsed.pathname.slice(1)));
+    if (url === target && probe.remaining-- > 0) {
+      probe.injected++;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            code: "state",
+            message: "synthetic-native-refresh-failure",
+            details: {},
+            presentation: {
+              presentation_key: "state_unavailable",
+              summary: "Library information is temporarily unavailable.",
+              tone: "error",
+              mutation_state: "unknown",
+              phase: null,
+              recovery_actions: ["review_current_state", "view_technical_details"],
+              technical_message: "Synthetic refresh rejection for presentation verification.",
+              technical_context: {},
+            },
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Tauri-Response": "error",
+            },
+          },
+        ),
+      );
+    }
+    return original.call(window, input, ...args);
+  };
+  void native
+    .invoke("plugin:event|emit", {
+      event: "portcove://library-changed",
+      payload: "refresh-probe",
+    })
+    .then(
+      () => done({ ok: true }),
+      (error: unknown) => done({ error }),
+    );
+};
+
+export const restoreWorkspaceRefreshProbe = (): NonNullable<RefreshObservations["probe"]> => {
+  const runtime = window as RefreshWindow;
+  const probe = runtime.__portcoveRefreshProbe;
+  if (!probe) return { installed: false };
+  window.fetch = probe.original;
+  const result = {
+    injected: probe.injected,
+    commands: probe.calls,
+    restored: window.fetch === probe.original,
+  };
+  delete runtime.__portcoveRefreshProbe;
+  return result;
+};
+
+export const installExternalReconciliationProbe = () => {
+  const runtime = window as RefreshWindow;
+  const originalFetch = window.fetch;
+  runtime.__portcoveExternalReconciliationProbe = { originalFetch, commands: [] };
+  window.fetch = function (input, ...args) {
+    // Preserve the fetch probe's existing coercion of cross-realm request-like inputs.
+    const url =
+      typeof input === "string"
+        ? input
+        : ((typeof input === "object" && input !== null && "url" in input
+            ? input.url
+            : undefined) ??
+          // oxlint-disable-next-line typescript/no-base-to-string
+          String(input));
+    const parsed = new URL(url, location.href);
+    if (parsed.hostname === "ipc.localhost") {
+      const probe = runtime.__portcoveExternalReconciliationProbe;
+      if (!probe) throw new Error("Reconciliation probe unavailable");
+      probe.commands.push(decodeURIComponent(parsed.pathname.slice(1)));
+    }
+    return originalFetch.call(window, input, ...args);
+  };
+};
+
+export const replayTerminalActivity = (
+  activity: Pick<ActivityRecord, "id" | "operation" | "target_kind" | "target_id">,
+  done: (value: unknown) => void,
+) => {
+  const native = (window as RefreshWindow).__TAURI_INTERNALS__;
+  if (!native) throw new Error("Native bridge unavailable");
+  native
+    .invoke("plugin:event|emit", {
+      event: "portcove://operation",
+      payload: {
+        schema_version: 3,
+        operation_id: activity.id,
+        parent_operation_id: null,
+        sequence: 100,
+        timestamp_ms: Date.now(),
+        operation: activity.operation,
+        target: { kind: activity.target_kind, id: activity.target_id },
+        type: "progress",
+        phase: "copy",
+        completed: 1,
+        total: 10,
+      },
+    })
+    .then(
+      () => done({ ok: true }),
+      (error: unknown) => done({ error }),
+    );
+};
+
+export const installReconciliationSupportGate = () => {
+  const runtime = window as RefreshWindow;
+  const probe = runtime.__portcoveExternalReconciliationProbe;
+  const native = runtime.__TAURI_INTERNALS__;
+  if (!probe || !native) throw new Error("Reconciliation native probe unavailable");
+  const previous = window.fetch;
+  probe.supportRequests = 0;
+  probe.supportGate = new Promise<void>((resolve) => {
+    probe.releaseSupport = resolve;
+  });
+  window.fetch = async function (input, ...args) {
+    const url =
+      typeof input === "string"
+        ? input
+        : ((typeof input === "object" && input !== null && "url" in input
+            ? input.url
+            : undefined) ??
+          // Preserve existing request-like URL coercion for cross-realm inputs.
+          // oxlint-disable-next-line typescript/no-base-to-string
+          String(input));
+    if (url === native.convertFileSrc("create_support_bundle", "ipc")) {
+      if (typeof probe.supportRequests !== "number")
+        throw new Error("Support probe counter unavailable");
+      probe.supportRequests++;
+      await probe.supportGate;
+    }
+    return previous.call(window, input, ...args);
+  };
+};
+
+export const releaseReconciliationSupportGate = () => {
+  const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
+  if (!probe) throw new Error("Reconciliation probe unavailable");
+  probe.releaseSupport?.();
+};
+
+export const installSourceFormatProbe = (portId: string) => {
+  const previous = window.fetch;
+  const runtime = window as RefreshWindow;
+  const probe = runtime.__portcoveExternalReconciliationProbe;
+  const native = runtime.__TAURI_INTERNALS__;
+  if (!probe || !native) throw new Error("Reconciliation probe unavailable");
+  probe.formatFetch = previous;
+  probe.formatInjections = 0;
+  const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
+  window.fetch = async function (input, ...args) {
+    const response = await previous.call(window, input, ...args);
+    const inputValue: unknown = input;
+    const url =
+      typeof inputValue === "string"
+        ? inputValue
+        : ((inputValue !== null &&
+          (typeof inputValue === "object" || typeof inputValue === "function") &&
+          "url" in inputValue
+            ? inputValue.url
+            : undefined) ??
+          // Preserve fetch's existing coercion of cross-realm request-like values.
+          // oxlint-disable-next-line typescript/no-base-to-string
+          String(input));
+    if (url !== target || !response.ok) return response;
+    const record = (value: unknown): value is Record<string, unknown> =>
+      value !== null && typeof value === "object" && !Array.isArray(value);
+    const snapshot: unknown = await response.clone().json();
+    if (!record(snapshot) || !Array.isArray(snapshot.statuses))
+      throw new Error("Workspace snapshot statuses unavailable");
+    const statuses: unknown[] = snapshot.statuses;
+    if (!statuses.every(record)) throw new Error("Workspace status must be an object");
+    if (!statuses.some((status) => status.port_id === portId)) return response;
+    if (typeof probe.formatInjections !== "number")
+      throw new Error("Source format probe counter unavailable");
+    probe.formatInjections++;
+    return new Response(
+      JSON.stringify({
+        ...snapshot,
+        statuses: statuses.map((status) => {
+          if (status.port_id !== portId) return status;
+          if (!record(status.readiness) || !Array.isArray(status.port_actions))
+            throw new Error("Workspace readiness/actions unavailable");
+          const assessments: unknown[] = status.port_actions;
+          if (!assessments.every(record))
+            throw new Error("Workspace action assessment must be an object");
+          return {
+            ...status,
+            readiness: {
+              ...status.readiness,
+              launchable: false,
+              source: "current",
+              blockers: ["incompatible_source"],
+              required_source_extension: "z64",
+            },
+            port_actions: assessments.map((assessment) =>
+              assessment.action === "launch"
+                ? {
+                    action: "launch",
+                    availability: "waiting",
+                    reason: "incompatible_source",
+                  }
+                : assessment,
+            ),
+          };
+        }),
+      }),
+      {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      },
+    );
+  };
+  window.dispatchEvent(new Event("focus"));
+};
+
+export const restoreSourceFormatProbe = () => {
+  const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
+  if (!probe?.formatFetch) return false;
+  window.fetch = probe.formatFetch;
+  window.dispatchEvent(new Event("focus"));
+  return window.fetch === probe.formatFetch;
+};
+
+export const restoreExternalReconciliationProbe = () => {
+  const runtime = window as RefreshWindow;
+  const current = runtime.__portcoveExternalReconciliationProbe;
+  if (!current) return { restored: false, commands: [] };
+  window.fetch = current.originalFetch;
+  delete runtime.__portcoveExternalReconciliationProbe;
+  return { restored: window.fetch === current.originalFetch, commands: current.commands };
+};
+
 export async function workspaceRefreshScenario({
   browser,
   invoke,
@@ -113,74 +377,7 @@ export async function workspaceRefreshScenario({
     };
     try {
       await browser
-        .executeAsyncScript<unknown>((done: (value: unknown) => void) => {
-          const runtime = window as RefreshWindow;
-          const native = runtime.__TAURI_INTERNALS__;
-          if (!native) throw new Error("Native bridge unavailable");
-          const original = window.fetch;
-          const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
-          runtime.__portcoveRefreshProbe = {
-            original,
-            calls: [],
-            remaining: 1,
-            injected: 0,
-          };
-          window.fetch = function (input, ...args) {
-            const probe = runtime.__portcoveRefreshProbe;
-            if (!probe) throw new Error("Refresh probe unavailable");
-            // Preserve the fetch probe's existing coercion of cross-realm request-like inputs.
-            const url =
-              typeof input === "string"
-                ? input
-                : ((typeof input === "object" && input !== null && "url" in input
-                    ? input.url
-                    : undefined) ??
-                  // oxlint-disable-next-line typescript/no-base-to-string
-                  String(input));
-            const parsed = new URL(url, location.href);
-            if (parsed.hostname === "ipc.localhost")
-              probe.calls.push(decodeURIComponent(parsed.pathname.slice(1)));
-            if (url === target && probe.remaining-- > 0) {
-              probe.injected++;
-              return Promise.resolve(
-                new Response(
-                  JSON.stringify({
-                    code: "state",
-                    message: "synthetic-native-refresh-failure",
-                    details: {},
-                    presentation: {
-                      presentation_key: "state_unavailable",
-                      summary: "Library information is temporarily unavailable.",
-                      tone: "error",
-                      mutation_state: "unknown",
-                      phase: null,
-                      recovery_actions: ["review_current_state", "view_technical_details"],
-                      technical_message:
-                        "Synthetic refresh rejection for presentation verification.",
-                      technical_context: {},
-                    },
-                  }),
-                  {
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Tauri-Response": "error",
-                    },
-                  },
-                ),
-              );
-            }
-            return original.call(window, input, ...args);
-          };
-          void native
-            .invoke("plugin:event|emit", {
-              event: "portcove://library-changed",
-              payload: "refresh-probe",
-            })
-            .then(
-              () => done({ ok: true }),
-              (error: unknown) => done({ error }),
-            );
-        })
+        .executeAsyncScript<unknown>(installWorkspaceRefreshProbe)
         .then((result) => assert.equal(object(result).ok, true, JSON.stringify(result)));
       const retry = await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Retry refresh"]')),
@@ -258,19 +455,7 @@ export async function workspaceRefreshScenario({
       throw error;
     } finally {
       try {
-        observations.probe = await executeBrowserScript(browser, () => {
-          const runtime = window as RefreshWindow;
-          const probe = runtime.__portcoveRefreshProbe;
-          if (!probe) return { installed: false };
-          window.fetch = probe.original;
-          const result = {
-            injected: probe.injected,
-            commands: probe.calls,
-            restored: window.fetch === probe.original,
-          };
-          delete runtime.__portcoveRefreshProbe;
-          return result;
-        });
+        observations.probe = await executeBrowserScript(browser, restoreWorkspaceRefreshProbe);
         assert.ok("restored" in observations.probe);
         assert.equal(observations.probe.restored, true);
       } finally {
@@ -312,29 +497,7 @@ export async function workspaceRefreshScenario({
       intervals_ms: { visible_idle_database: 10_000, visible_filesystem_fallback: 60_000 },
       commands: [],
     };
-    await executeBrowserScript(browser, () => {
-      const runtime = window as RefreshWindow;
-      const originalFetch = window.fetch;
-      runtime.__portcoveExternalReconciliationProbe = { originalFetch, commands: [] };
-      window.fetch = function (input, ...args) {
-        // Preserve the fetch probe's existing coercion of cross-realm request-like inputs.
-        const url =
-          typeof input === "string"
-            ? input
-            : ((typeof input === "object" && input !== null && "url" in input
-                ? input.url
-                : undefined) ??
-              // oxlint-disable-next-line typescript/no-base-to-string
-              String(input));
-        const parsed = new URL(url, location.href);
-        if (parsed.hostname === "ipc.localhost") {
-          const probe = runtime.__portcoveExternalReconciliationProbe;
-          if (!probe) throw new Error("Reconciliation probe unavailable");
-          probe.commands.push(decodeURIComponent(parsed.pathname.slice(1)));
-        }
-        return originalFetch.call(window, input, ...args);
-      };
-    });
+    await executeBrowserScript(browser, installExternalReconciliationProbe);
     try {
       const started = Date.now();
       const install = object(command(["adopt", original, "--port", port.id, "--yes"]));
@@ -423,37 +586,7 @@ export async function workspaceRefreshScenario({
       // The preceding commits converge without injected notifications. Separately
       // replay one delayed progress event for the actual terminal Core activity.
       await browser
-        .executeAsyncScript<unknown>(
-          (
-            activity: Pick<ActivityRecord, "id" | "operation" | "target_kind" | "target_id">,
-            done: (value: unknown) => void,
-          ) => {
-            const native = (window as RefreshWindow).__TAURI_INTERNALS__;
-            if (!native) throw new Error("Native bridge unavailable");
-            native
-              .invoke("plugin:event|emit", {
-                event: "portcove://operation",
-                payload: {
-                  schema_version: 3,
-                  operation_id: activity.id,
-                  parent_operation_id: null,
-                  sequence: 100,
-                  timestamp_ms: Date.now(),
-                  operation: activity.operation,
-                  target: { kind: activity.target_kind, id: activity.target_id },
-                  type: "progress",
-                  phase: "copy",
-                  completed: 1,
-                  total: 10,
-                },
-              })
-              .then(
-                () => done({ ok: true }),
-                (error: unknown) => done({ error }),
-              );
-          },
-          adoptedActivity,
-        )
+        .executeAsyncScript<unknown>(replayTerminalActivity, adoptedActivity)
         .then((result) => assert.equal(object(result).ok, true, JSON.stringify(result)));
       observations.synthetic_desktop_events = 1;
       await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
@@ -466,35 +599,7 @@ export async function workspaceRefreshScenario({
         until.elementIsVisible(await browser.findElement(By.id("settings-advanced"))),
         10_000,
       );
-      await executeBrowserScript(browser, () => {
-        const runtime = window as RefreshWindow;
-        const probe = runtime.__portcoveExternalReconciliationProbe;
-        const native = runtime.__TAURI_INTERNALS__;
-        if (!probe || !native) throw new Error("Reconciliation native probe unavailable");
-        const previous = window.fetch;
-        probe.supportRequests = 0;
-        probe.supportGate = new Promise<void>((resolve) => {
-          probe.releaseSupport = resolve;
-        });
-        window.fetch = async function (input, ...args) {
-          const url =
-            typeof input === "string"
-              ? input
-              : ((typeof input === "object" && input !== null && "url" in input
-                  ? input.url
-                  : undefined) ??
-                // Preserve existing request-like URL coercion for cross-realm inputs.
-                // oxlint-disable-next-line typescript/no-base-to-string
-                String(input));
-          if (url === native.convertFileSrc("create_support_bundle", "ipc")) {
-            if (typeof probe.supportRequests !== "number")
-              throw new Error("Support probe counter unavailable");
-            probe.supportRequests++;
-            await probe.supportGate;
-          }
-          return previous.call(window, input, ...args);
-        };
-      });
+      await executeBrowserScript(browser, installReconciliationSupportGate);
       try {
         await browser
           .findElement(By.xpath('//button[normalize-space(.)="Create support bundle"]'))
@@ -531,11 +636,7 @@ export async function workspaceRefreshScenario({
         });
         artifacts.push(screenshot);
       } finally {
-        await executeBrowserScript(browser, () => {
-          const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
-          if (!probe) throw new Error("Reconciliation probe unavailable");
-          probe.releaseSupport?.();
-        });
+        await executeBrowserScript(browser, releaseReconciliationSupportGate);
       }
       await browser.wait(
         async () => (await browser.findElements(By.css(".operation-bar"))).length === 0,
@@ -565,85 +666,7 @@ export async function workspaceRefreshScenario({
         before: command(["status", port.id]),
       };
       try {
-        await executeBrowserScript(
-          browser,
-          (portId) => {
-            const previous = window.fetch;
-            const runtime = window as RefreshWindow;
-            const probe = runtime.__portcoveExternalReconciliationProbe;
-            const native = runtime.__TAURI_INTERNALS__;
-            if (!probe || !native) throw new Error("Reconciliation probe unavailable");
-            probe.formatFetch = previous;
-            probe.formatInjections = 0;
-            const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
-            window.fetch = async function (input, ...args) {
-              const response = await previous.call(window, input, ...args);
-              const inputValue: unknown = input;
-              const url =
-                typeof inputValue === "string"
-                  ? inputValue
-                  : ((inputValue !== null &&
-                    (typeof inputValue === "object" || typeof inputValue === "function") &&
-                    "url" in inputValue
-                      ? inputValue.url
-                      : undefined) ??
-                    // Preserve fetch's existing coercion of cross-realm request-like values.
-                    // oxlint-disable-next-line typescript/no-base-to-string
-                    String(input));
-              if (url !== target || !response.ok) return response;
-              const record = (value: unknown): value is Record<string, unknown> =>
-                value !== null && typeof value === "object" && !Array.isArray(value);
-              const snapshot: unknown = await response.clone().json();
-              if (!record(snapshot) || !Array.isArray(snapshot.statuses))
-                throw new Error("Workspace snapshot statuses unavailable");
-              const statuses: unknown[] = snapshot.statuses;
-              if (!statuses.every(record)) throw new Error("Workspace status must be an object");
-              if (!statuses.some((status) => status.port_id === portId)) return response;
-              if (typeof probe.formatInjections !== "number")
-                throw new Error("Source format probe counter unavailable");
-              probe.formatInjections++;
-              return new Response(
-                JSON.stringify({
-                  ...snapshot,
-                  statuses: statuses.map((status) => {
-                    if (status.port_id !== portId) return status;
-                    if (!record(status.readiness) || !Array.isArray(status.port_actions))
-                      throw new Error("Workspace readiness/actions unavailable");
-                    const assessments: unknown[] = status.port_actions;
-                    if (!assessments.every(record))
-                      throw new Error("Workspace action assessment must be an object");
-                    return {
-                      ...status,
-                      readiness: {
-                        ...status.readiness,
-                        launchable: false,
-                        source: "current",
-                        blockers: ["incompatible_source"],
-                        required_source_extension: "z64",
-                      },
-                      port_actions: assessments.map((assessment) =>
-                        assessment.action === "launch"
-                          ? {
-                              action: "launch",
-                              availability: "waiting",
-                              reason: "incompatible_source",
-                            }
-                          : assessment,
-                      ),
-                    };
-                  }),
-                }),
-                {
-                  status: response.status,
-                  statusText: response.statusText,
-                  headers: response.headers,
-                },
-              );
-            };
-            window.dispatchEvent(new Event("focus"));
-          },
-          port.id,
-        );
+        await executeBrowserScript(browser, installSourceFormatProbe, port.id);
         const expected =
           "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.";
         await browser.wait(
@@ -689,13 +712,7 @@ export async function workspaceRefreshScenario({
         sourceFormat.after = command(["status", port.id]);
         assert.deepEqual(sourceFormat.after, sourceFormat.before);
       } finally {
-        sourceFormat.restored = await executeBrowserScript(browser, () => {
-          const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
-          if (!probe?.formatFetch) return false;
-          window.fetch = probe.formatFetch;
-          window.dispatchEvent(new Event("focus"));
-          return window.fetch === probe.formatFetch;
-        });
+        sourceFormat.restored = await executeBrowserScript(browser, restoreSourceFormatProbe);
         observations.source_format = sourceFormat;
       }
       assert.equal(sourceFormat.restored, true);
@@ -707,14 +724,7 @@ export async function workspaceRefreshScenario({
         10_000,
       );
     } finally {
-      const probe = await executeBrowserScript(browser, () => {
-        const runtime = window as RefreshWindow;
-        const current = runtime.__portcoveExternalReconciliationProbe;
-        if (!current) return { restored: false, commands: [] };
-        window.fetch = current.originalFetch;
-        delete runtime.__portcoveExternalReconciliationProbe;
-        return { restored: window.fetch === current.originalFetch, commands: current.commands };
-      });
+      const probe = await executeBrowserScript(browser, restoreExternalReconciliationProbe);
       assert.equal(probe.restored, true);
       observations.commands = probe.commands;
       const report = path.join(output, "external-cli-reconciliation-observations.json");
