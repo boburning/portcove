@@ -116,16 +116,16 @@ outer timeout does not prove native installer-tree cleanup.
 
 The effective four-minute job cannot satisfy that preflight and already cannot
 contain the measured210-second build plus103-second dependency phase. The
-[concrete resource amendment proposal](slice4-resource-amendment-proposal-2026-10-28.json)
+[current prepared resource amendment](slice4-resource-amendment-proposal-2026-10-29.json)
 enumerates every application job, adds the missing Windows native job, and
-proposes application163 aggregate job minutes with a163-minute hard ceiling.
+proposes application165 aggregate job minutes with a165-minute hard ceiling.
 It retains $0, standard runners, finite limits, no paid fallback, no shared or
 enlarged cache and existing storage/retention ceilings. The100-minute policy
 remains effective until explicit owner ratification of the exact final source,
 workflow/configuration/resource digests after independent review. This is a
 repository-policy decision, not a billing-limit change.
 
-The proposed application allocations are12 minutes Linux bootstrap,20 Windows
+The proposed application allocations are12 minutes Linux bootstrap,22 Windows
 bootstrap,25 Linux native and35 Windows native. Linux bootstrap's proposed12 is
 an application-only branch; catalog retains its independent4-minute branch and
 40-minute alternative graph. That retained catalog allocation is not execution-fit
@@ -142,8 +142,8 @@ Linux native25 reserves10 native work,10 signing-readiness allowance,
 3 setup/reacquisition and2 settlement. Its existing original clock also caps
 the entire native flow at570 seconds, so a full600-second signing wait cannot
 fit there either. The25-minute outer ceiling does not extend that clock;
-readiness is subordinate to its remaining time and protected fit remains Unknown. Windows bootstrap20 includes4 setup and
-dependencies,7.5 runtime,4 build,3.5 upload/identity binding and1 settlement.
+readiness is subordinate to its remaining time and protected fit remains Unknown. Windows bootstrap22 includes4 setup and
+dependencies,7.5 runtime,6 build,3.5 upload/identity binding and1 settlement.
 These are proposed ceilings derived from known component costs and explicit
 unmeasured allocations, not claims that a protected cold graph has run.
 
@@ -175,3 +175,58 @@ This source-specific component proves the new prerequisite/builder path; account
 execution was not requested, native/production acceptance remains unestablished,
 and later source heads must retain their own qualification. The75-minute
 ordinary measurement remains the separate original0013 source observation.
+
+## October 29 measured proposal revision
+
+The current prepared proposal is165 application job minutes, catalog40, with
+Windows bootstrap22 and its builder allocation6 minutes. The
+[October 28 proposal](slice4-resource-amendment-proposal-2026-10-28.json) remains
+byte-for-byte historical evidence of the earlier163/20/4 proposal; neither
+revision is ratified. Effective application89/catalog40 and the100-minute
+repository ceiling remain unchanged. Adding the proposed35-minute Windows native
+job alone already requires124 minutes. These are aggregate declared job ceilings,
+not billing or provider headroom measurements.
+
+Automatic component run `40819727118/1` provides a later scoped observation.
+Windows job `123269114113` used branch source
+`1a11fa878c946092d7d76643bafd008608b25db6`, tree
+`730b4a4cb78b53ed9dcc9c3d65e3b913186c1df3`, and succeeded in531 seconds;
+its399-second qualifier includes the204,095ms builder, source/dependency controls
+and other fixture checks. The builder's203,778ms complete-phase marker precedes
+its final recheck/return;204,095ms is the full reported builder scope.
+Linux job `123269113829` succeeded in258 seconds, including183 seconds for its
+qualifier and a separate53-second contract suite. Its144,450ms builder used
+actual synthetic merge `301b3552f0523bd5e649a3df740f833d9c354ab9`, tree
+`5627932449e5e70931dfa79733f9c59a8a4298ac`, with exact parents
+`bd4074c6e7bf4a12a2cdca720da5743a68acf0f2` and the Windows branch head.
+Do not relabel that Linux checkout as branch-head-only. Aggregate provider job
+time was789 seconds; this does not set the protected aggregate policy.
+
+The older250,842ms Windows builder remains the maximum of these recorded exact
+builder observations and already exceeds the earlier4-minute suballocation.
+The proposed6-minute allowance leaves109,158ms above that observation. This is
+explicit planning contingency, not a worst-case bound, statistical guarantee or
+protected execution-fit proof. Other phase allowances are preserved:4 setup,
+7.5 runtime,3.5 full-bundle upload/identity binding and1 settlement. The extra2
+minutes change the prepared aggregate163 to165 without consuming those reserves.
+
+The exact1,863-byte runtime receipt changed131.0.2903.86 to156.0.4314.50 against
+minimum155.0.4283.62. Its56,359ms is the helper scope; the installer interval is
+55,289ms, while the whole provider runtime step is57 seconds. Source preparation
+22,415ms and frozen native dependency preparation148,552ms are distinct
+credential-free consumer controls, not extra builder time or private-parent
+acceptance. The source observed the matching Microsoft driver version, signature
+and executable hash. External executable bytes were not retained or independently
+recomputed by this collection; no loaded candidate engine is established.
+
+All three retained public JSON archives and40 members passed independent size,
+SHA-256 and CRC checks, with source/build/runtime joins. Their exact artifact
+identities and the generated proposed workflow/resource digests are in the
+current proposal. These small JSON uploads do not measure the protected full
+binary-bundle upload, immutable reacquisition or authenticated producer binding.
+Fresh private Cargo home/target paths also do not prove every host/toolchain or
+registry cache state. Cold protected setup, binary custody, private native35 fit,
+signing readiness and recovery remain Unknown. The separate90-minute
+nonproduction qualification does not enlarge either original570-second owner,
+ratify165 or authorize production. No actual workflow, effective resource policy,
+execution gate, signing/publication authority or paid fallback changes here.

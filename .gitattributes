@@ -16,3 +16,8 @@ patches/*.patch whitespace=-blank-at-eol
 docs/archive/2026-09-03-prelaunch-feature-implementation-plan.md whitespace=-blank-at-eof
 docs/archive/2026-09-04-supported-source-provenance-implementation-plan.md whitespace=-blank-at-eof
 docs/archive/2026-09-04-ux-copy-content-interaction-audit.md whitespace=-trailing-space,-blank-at-eof
+
+# Game-authored qualification inputs are hash-pinned verbatim on both platforms.
+# Their final blank line belongs to the original game, not repository formatting.
+scripts/fixtures/application-update-game-data/*.cfg -text whitespace=-blank-at-eof
+scripts/fixtures/application-update-game-data/tyrian.sav binary

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "fixture": "opentyrian-game-authored-player-data",
+  "version": "v2.1.20260913",
+  "port_id": "opentyrian-opentyrian",
+  "origin": {
+    "scope": "rootless Ubuntu26 private Xvfb fixture generation only; not a supported-minimum updater observation",
+    "core_source_commit": "ea4ad3881f348d37b326cddee49a17b4dc4d451c",
+    "core_cli_sha256": "0772d6cd1a63c2aea4a1b5adc4e011dcad4a02ef89be028c1c7e7c13e1d23d9b",
+    "core_cli_artifact": 12846806492,
+    "uid": 1000,
+    "gid": 1000,
+    "normal_game_cli_exit": 0,
+    "input_name": "PCBET1028A followed by BackSpace",
+    "decoded_slot": {
+      "number": 1,
+      "name": "PCBET1028",
+      "raw_name": "PCBET1028     ",
+      "level": 1,
+      "level_name": "NEW GAME",
+      "episode": 1,
+      "cash": 10000,
+      "difficulty": 2,
+      "checksums": [71, 185, 129, 191]
+    },
+    "configuration_action": "normal item/shop Options: decrease Music by one step",
+    "audio_backend": "dummy; no audio-output acceptance"
+  },
+  "upstream": {
+    "repository": "opentyrian/opentyrian",
+    "tag": "v2.1.20260913",
+    "linux-x86_64": {
+      "asset": "opentyrian-v2.1.20260913-linux-x86_64.tar.gz",
+      "bytes": 6004739,
+      "sha256": "77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3"
+    },
+    "windows-x86_64": {
+      "asset": "opentyrian-v2.1.20260913-windows_x86_64.zip",
+      "bytes": 6092537,
+      "sha256": "7eddbe42439392ee8b2ffbe38c1c20a768da0c4afcc795ca31928c9dd6068f60"
+    }
+  },
+  "files": [
+    {
+      "name": "tyrian.sav",
+      "bytes": 2502,
+      "sha256": "bcc134793513e0c2abc7c2dc7a9781bc99a2e623185b3293903ad1aab9d71c3e"
+    },
+    {
+      "name": "tyrian.cfg",
+      "bytes": 28,
+      "sha256": "3fb31a744ea76ac3862ec07b9d75276263c4e0f3867c1c8074ad96a802c63107"
+    },
+    {
+      "name": "opentyrian.cfg",
+      "bytes": 313,
+      "sha256": "3e6f6b90a9e5e7fb4c64df0d7653f534440b8dc21f671ff73550ee409a05bff6"
+    }
+  ],
+  "limits": [
+    "Copy these three files only into a fresh private external user store after normal matching-Core game installation.",
+    "Do not copy library SQLite or claim Alpha2 contains this port.",
+    "Preservation means exact game-authored save/configuration bytes and installed runtime/record identities. In-game loading/gameplay remains not_evaluated.",
+    "External OpenTyrian user data is outside Portcove managed backup coverage.",
+    "No personal or human gameplay history, credentials, production signing or publication authority."
+  ]
+}

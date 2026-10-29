@@ -13,6 +13,11 @@ pub struct LibraryOrganization {
     pub hidden_port_ids: BTreeSet<String>,
     #[serde(default)]
     pub saved_game_ids: BTreeSet<String>,
+    /// Explicit opt-in, separate from Saved or Favorites and never automatic installation.
+    #[serde(default)]
+    pub followed_port_ids: BTreeSet<String>,
+    #[serde(default)]
+    pub followed_release_acknowledgments: BTreeMap<String, BTreeSet<String>>,
     #[serde(default)]
     pub update_notices: BTreeMap<String, UpdateNoticeChoice>,
     #[serde(default)]
@@ -63,6 +68,16 @@ pub struct SetupConfirmation {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum OrganizationChange {
+    SetFollowedProject {
+        port_id: String,
+        followed: bool,
+        /// Optionally acknowledge the exact release already visible when following.
+        observed_identity: Option<String>,
+    },
+    AcknowledgeFollowedRelease {
+        port_id: String,
+        identity: String,
+    },
     SetHidden {
         port_id: String,
         hidden: bool,
@@ -124,6 +139,40 @@ impl HostPreferenceStore {
             ));
         }
         match change {
+            OrganizationChange::SetFollowedProject {
+                port_id,
+                followed,
+                observed_identity,
+            } => {
+                validate_id(&port_id)?;
+                if let Some(identity) = &observed_identity {
+                    validate_release_identity(identity)?;
+                }
+                set_member(&mut record.followed_port_ids, port_id.clone(), followed);
+                if followed {
+                    if let Some(identity) = observed_identity {
+                        record
+                            .followed_release_acknowledgments
+                            .entry(port_id)
+                            .or_default()
+                            .insert(identity);
+                    }
+                } else {
+                    record.followed_release_acknowledgments.remove(&port_id);
+                }
+            }
+            OrganizationChange::AcknowledgeFollowedRelease { port_id, identity } => {
+                validate_id(&port_id)?;
+                validate_release_identity(&identity)?;
+                if !record.followed_port_ids.contains(&port_id) {
+                    return Err(PortcoveError::conflict("project is no longer followed"));
+                }
+                record
+                    .followed_release_acknowledgments
+                    .entry(port_id)
+                    .or_default()
+                    .insert(identity);
+            }
             OrganizationChange::SetHidden { port_id, hidden } => {
                 validate_id(&port_id)?;
                 set_member(&mut record.hidden_port_ids, port_id, hidden);
@@ -233,6 +282,15 @@ fn organization_record(value: Option<&serde_json::Value>) -> Result<LibraryOrgan
             validate_id(port)?;
         }
     }
+    for id in &record.followed_port_ids {
+        validate_id(id)?;
+    }
+    for (port, identities) in &record.followed_release_acknowledgments {
+        validate_id(port)?;
+        for identity in identities {
+            validate_release_identity(identity)?;
+        }
+    }
     for id in &record.hidden_port_ids {
         validate_id(id)?;
     }
@@ -247,6 +305,15 @@ fn organization_record(value: Option<&serde_json::Value>) -> Result<LibraryOrgan
         validate_confirmation(confirmation)?;
     }
     Ok(record)
+}
+
+fn validate_release_identity(identity: &str) -> Result<()> {
+    if !crate::game_recommendations::digest_valid(identity) {
+        return Err(PortcoveError::usage(
+            "a followed update requires its exact identity",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_saved_id(id: &str) -> Result<()> {

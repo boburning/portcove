@@ -1,3 +1,8 @@
+import { useGameComparison } from "../recommendations/use-game-comparison";
+import {
+  GameComparisonControls,
+  GameComparisonEvidence,
+} from "../recommendations/GameComparisonEvidence";
 import { presentPortAction, useOperationPresentation } from "../operations/operation-presentation";
 import type { CollectionLayout } from "./use-collection-layout";
 import type { useFavorites } from "../favorites/use-favorites";
@@ -84,7 +89,23 @@ export function GroupedDiscover({
 }) {
   const groups = groupCatalog(all, matching);
   const descriptionPrefix = useId();
-  const [comparison, setComparison] = useState<GameGroup>();
+  const [comparisonSelection, setComparison] = useState<GameGroup>();
+  const comparison =
+    comparisonSelection &&
+    groupCatalog(all, all).find((group) =>
+      group.ports.some((port) => port.id === comparisonSelection.ports[0]?.id),
+    );
+  const owner = useOperationPresentation();
+  const comparisonObservationKey = JSON.stringify([
+    comparison?.ports,
+    comparison?.ports.map((port) => statuses.get(port.id)),
+    organization?.snapshot?.revision,
+  ]);
+  const evidence = useGameComparison({
+    portId: comparison?.ports[0]?.id,
+    generation: owner?.generation,
+    observationKey: comparisonObservationKey,
+  });
   const origin = useRef<HTMLButtonElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const leaving = useRef(false);
@@ -159,6 +180,7 @@ export function GroupedDiscover({
                 These are catalog declarations and current library observations. Gameplay
                 comparisons have not been established for every project.
               </p>
+              <GameComparisonControls comparison={evidence} />
               <div className="port-comparison-grid">
                 {comparison.ports.map((port) => {
                   const status = statuses.get(port.id);
@@ -179,14 +201,17 @@ export function GroupedDiscover({
                       <header>
                         <h3>{gameProjectLabel(port) || port.name}</h3>
                         <p>{port.summary}</p>
-                        {!comparison.matchingPorts.some(
-                          (candidate) => candidate.id === port.id,
-                        ) && (
+                        {!matching.some((candidate) => candidate.id === port.id) && (
                           <p className="text-sm text-pc-muted-foreground">
                             Outside the current filters.
                           </p>
                         )}
                       </header>
+                      <GameComparisonEvidence
+                        comparison={evidence}
+                        portId={port.id}
+                        organization={organization}
+                      />
                       <div>
                         <h4>Setup route</h4>
                         <p>{installationMethodLabel(port)}</p>
@@ -515,6 +540,16 @@ function DiscoverGameActions({
             : "Compare ports"}
         <ArrowRight aria-hidden="true" />
       </Button>
+      {group.ports.length === 1 && (
+        <Button
+          data-focusable
+          variant="ghost"
+          size="sm"
+          onClick={(event) => compare(group, event.currentTarget)}
+        >
+          Why this port?
+        </Button>
+      )}
       {group.ports.length > 1 && group.matchingPorts.length === 1 && (
         <Button
           data-focusable

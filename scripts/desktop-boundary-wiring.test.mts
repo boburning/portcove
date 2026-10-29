@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { isBuiltin } from "node:module";
 import { tmpdir } from "node:os";
@@ -1837,7 +1837,8 @@ void test("imported macOS cleanup retains birth custody and mandatory frozen-own
   const root = fileURLToPath(new URL("../", import.meta.url));
   const entry = "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts";
   const ownerPath = "apps/desktop/scripts/desktop-installed-update-harness.mts";
-  const closure = readFixtureModuleClosure(root, [entry]);
+  const transportPath = "apps/desktop/scripts/transport-values.mts";
+  const closure = readFixtureModuleClosure(root, [entry, ownerPath, transportPath]);
   const directory = disposableDirectory(t, path.join(tmpdir(), "portcove-mac-cleanup-module-"));
   writeFileSync(path.join(directory, "package.json"), '{"type":"module"}\n');
   for (const module of closure.modules) {
@@ -1967,6 +1968,17 @@ void test("imported macOS cleanup retains birth custody and mandatory frozen-own
     assert.match(result.stdout, /# fail 0\b/u);
   };
   accepted(source);
+  const transportFile = path.join(directory, transportPath);
+  renameSync(transportFile, transportFile + ".retained-input");
+  try {
+    const missingInput = execute(source);
+    assert.equal(missingInput.signal, null);
+    assert.equal(missingInput.status, 1, "Missing required fixture input must refuse execution");
+    assert.match(missingInput.stdout, /ERR_MODULE_NOT_FOUND/u);
+    assert.ok(missingInput.stdout.includes("transport-values.mts"));
+  } finally {
+    renameSync(transportFile + ".retained-input", transportFile);
+  }
   accepted(source.replaceAll("\n", "\r\n"));
   const renamed: { start: number; end: number; text: string }[] = [];
   for (const [name, implementation] of [
@@ -2020,12 +2032,16 @@ void test("imported macOS cleanup retains birth custody and mandatory frozen-own
     });
   }
   if (forms.length) accepted(edit(source, forms));
-  const rejected = (code: string, caseName: RegExp) => {
+  const rejected = (code: string, caseName: RegExp, assertion: string) => {
     const result = execute(code);
     assert.equal(result.signal, null, "A process signal cannot stand in for a guard failure");
     assert.equal(result.status, 1, "Removed custody guard must fail its actual unit case");
     assert.match(result.stdout, caseName);
     assert.match(result.stdout, /\bcode:\s*['"]?ERR_ASSERTION\b/u);
+    assert.ok(
+      result.stdout.includes("MAC_CONTRACT_ASSERTION " + assertion),
+      "Require the inner behavioral assertion, not a fixture infrastructure failure",
+    );
     assert.doesNotMatch(result.stdout + result.stderr, /SyntaxError|ERR_MODULE_NOT_FOUND/u);
   };
   rejected(
@@ -2036,9 +2052,11 @@ void test("imported macOS cleanup retains birth custody and mandatory frozen-own
       },
     ]),
     /not ok \d+ - macOS owned cleanup refuses foreign markers and never signals a changed start identity/u,
+    "Mac changed-start custody rejects forced kill",
   );
   rejected(
     edit(source, [{ ...range(capture.finalizer), text: "{}" }]),
     /not ok \d+ - macOS frozen child capture retains exact first failure after mandatory process cleanup/u,
+    "Mac capture must force stop in finally",
   );
 });

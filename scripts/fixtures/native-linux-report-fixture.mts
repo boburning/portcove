@@ -9,20 +9,69 @@ import {
   inspectNativeCompatibilitySources,
 } from "../release-native-source-contract.mts";
 import { prepareNativeStageRequest } from "../release-native-stage-capture.mts";
-export async function nativePreSignReportFixture() {
+
+type NativeSource = ReturnType<typeof inspectNativeCompatibilitySources>;
+
+// Retained inert declaration input from f1f2d9a63f84814d7e0c78b6ad757a89285854ee.
+// Golden report expectations remain independent and unchanged as current source evolves.
+// This snapshot grants no runtime, signing or publication authority.
+export const historicalApi82Library43SourceFixture: NativeSource = {
+  cli_protocol: {
+    min: 82,
+    max: 82,
+  },
+  catalog_formats: [2],
+  library: {
+    read: {
+      min: 1,
+      max: 43,
+    },
+    write_schema: 43,
+    lock_protocol: "library-lock-v1",
+  },
+  available_capabilities: ["library-lock-v1"],
+  files: [
+    {
+      path: "crates/portcove-core/src/lib.rs",
+      sha256: "4c79639e75267c6f2e9bb01e3f6fd72be6e0a48d565b691a0eede84a4919a552",
+      bytes: 13065,
+    },
+    {
+      path: "crates/portcove-core/src/database.rs",
+      sha256: "d23281d9691e4fbe0f973ed5458ebd5dfd9bca48a3cea9fe51ad5920f2118270",
+      bytes: 125854,
+    },
+    {
+      path: "crates/portcove-core/catalog/catalog.json",
+      sha256: "11befa61d06967031b71deaf1a31a285c18ce01d310373b0cc5864dd01a1ff6d",
+      bytes: 1510902,
+    },
+    {
+      path: "apps/desktop/src-tauri/src/application_update_windows.rs",
+      sha256: "2bacc7db57d813303974db989725c75aa2dac949140d9dde406fb470ba177a45",
+      bytes: 57726,
+    },
+  ],
+  authority: "none",
+  scope: "maintained source declarations only; runtime and acceptance independently required",
+};
+
+export async function nativePreSignReportFixture(retainedSource?: NativeSource) {
   const native = nativeQualificationFixture(),
     config = nativeAuthorityConfigurationFixture();
   config.native["windows-x86_64"]!.producer.harness.path = "scripts/release-native-worker.mts";
-  const source = inspectNativeCompatibilitySources(
-    Object.fromEntries(
-      await Promise.all(
-        nativeCompatibilitySourcePaths.map(
-          async (file) =>
-            [file, await readFile(new URL(`../../${file}`, import.meta.url))] as const,
+  const source =
+    retainedSource ??
+    inspectNativeCompatibilitySources(
+      Object.fromEntries(
+        await Promise.all(
+          nativeCompatibilitySourcePaths.map(
+            async (file) =>
+              [file, await readFile(new URL(`../../${file}`, import.meta.url))] as const,
+          ),
         ),
       ),
-    ),
-  );
+    );
   const compatibility = {
     minimum_os_version: "10.0.26200",
     required_capabilities: [],
@@ -145,8 +194,8 @@ export async function nativePreSignReportFixture() {
   return { prepared, evidence, source, config };
 }
 
-export async function nativeLinuxReportFixture() {
-  const base = await nativePreSignReportFixture(),
+export async function nativeLinuxReportFixture(retainedSource?: NativeSource) {
+  const base = await nativePreSignReportFixture(retainedSource),
     report = nativeQualificationFixture(),
     linux = base.config.native["linux-x86_64"]!,
     invocation = report.producer.invocation_id,
@@ -372,8 +421,11 @@ export async function nativeLinuxReportFixture() {
   return { base, config, prepared, input, start };
 }
 
-export async function nativeLinuxPostSignReportFixture(initial: boolean) {
-  const f = await nativeLinuxReportFixture();
+export async function nativeLinuxPostSignReportFixture(
+  initial: boolean,
+  retainedSource?: NativeSource,
+) {
+  const f = await nativeLinuxReportFixture(retainedSource);
   const predecessor = {
     ...f.prepared.request.candidate,
     source_commit: "1".repeat(40),

@@ -366,3 +366,24 @@ void test("descriptive media projects to format 3 and explicit empty strict medi
   assert.deepEqual(removed.catalog.ports[0]?.presentation?.media, []);
   assert.deepEqual(authoringRecordFromPort(removed.catalog.ports[0]).listing.media, []);
 });
+
+void test("optional recommendation observations round-trip as inert presentation without changing the operational route", () => {
+  const source = readCatalogSource(catalogRoot);
+  const original = source.catalog.ports.find((port) => port.id === "fragglet-sdl-sopwith")!;
+  for (const optional of [
+    { format_version: 1, observations: [], capabilities: [] },
+    { format_version: 999, future_observations: ["preserve without interpretation"] },
+    { malformed: "optional interpretation must fail without hiding the ordinary project" },
+  ]) {
+    const port = structuredClone(original);
+    port.presentation = { ...fixtureRecord(port.presentation), recommendation: optional };
+    const record = authoringRecordFromPort(port);
+    const assembled = assembleCatalogRecords(
+      fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json"))),
+      [record],
+    );
+    assert.deepEqual(assembled.catalog.ports[0], port);
+    assert.deepEqual(assembled.catalog.ports[0].release, original.release);
+    assert.deepEqual(assembled.catalog.ports[0].adapter, original.adapter);
+  }
+});

@@ -79,7 +79,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | BackupCommand::GhostshipLegacyRecover { .. } => Recovering,
         },
         Commands::Catalog { command } => match command {
-            CatalogCommand::List
+            CatalogCommand::Compare { .. }
+            | CatalogCommand::List
             | CatalogCommand::Export
             | CatalogCommand::Listings
             | CatalogCommand::InspectListings { .. }

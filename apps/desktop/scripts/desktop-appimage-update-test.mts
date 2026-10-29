@@ -48,6 +48,7 @@ const { values } = parseArgs({
       "bootstrap-predecessor",
       "bootstrap-predecessor-sha",
       "bootstrap-library",
+      "bootstrap-game-cli-manifest",
     ].map((name) => [name, { type: "string" }] as const),
   ),
 });
@@ -100,6 +101,18 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
   driver?: ProcIdentity;
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
   ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
+  game_data_events?: Array<{ phase: string; details: unknown }>;
+  game_data_predecessor_cli?: unknown;
+  installed_game_data?: Awaited<
+    ReturnType<
+      typeof import("../../../scripts/installed-game-data-fixture.mts").seedInstalledGameData
+    >
+  >;
+  installed_game_data_after_update?: Awaited<
+    ReturnType<
+      typeof import("../../../scripts/installed-game-data-fixture.mts").observeInstalledGameData
+    >
+  >;
   stable_waiting?: Awaited<ReturnType<typeof driveInstalledStableWaiting>> & {
     installed_appimage_sha256_before: string;
     installed_appimage_sha256_after: string;
@@ -573,8 +586,57 @@ async function historicalPrelude() {
   historical.phase = "complete";
   await save();
 }
+let verifyInstalledGameData: (() => Promise<void>) | undefined;
 try {
+  if (values["bootstrap-game-cli-manifest"])
+    assert.ok(
+      values["historical-bootstrap-manifest"],
+      "Game data requires the historical installed chain",
+    );
   if (values["historical-bootstrap-manifest"]) await historicalPrelude();
+  if (values["bootstrap-game-cli-manifest"]) {
+    const {
+      readInstalledGameCliReceipt,
+      seedInstalledGameData,
+      observeInstalledGameData,
+      assertInstalledGameDataPreserved,
+    } = await import("../../../scripts/installed-game-data-fixture.mts");
+    const selected = await readInstalledGameCliReceipt(
+      projectRoot,
+      absoluteOption("bootstrap-game-cli-manifest"),
+      report.source_commit,
+    );
+    report.game_data_predecessor_cli = selected.receipt;
+    const gameDataEvents: Array<{ phase: string; details: unknown }> = [];
+    report.game_data_events = gameDataEvents;
+    assert.ok(applicationEnvironment.XDG_CONFIG_HOME);
+    const options = {
+      ownedRoot: selected.ownedRoot,
+      library: absoluteOption("bootstrap-library"),
+      playerRoot: path.join(applicationEnvironment.XDG_CONFIG_HOME, "opentyrian"),
+      cli: selected.cli.path,
+      cliSha256: selected.cli.sha256,
+      cliVersion: selected.cli.version,
+      cliSourceCommit: report.source_commit,
+      platform: "linux-x86_64" as const,
+      environment: applicationEnvironment,
+      record: async (event: { phase: string; details: unknown }) => {
+        gameDataEvents.push(event);
+        await save();
+      },
+    };
+    await historicalSnapshot("before-real-game-data-seed");
+    const prepared = await seedInstalledGameData(options);
+    report.installed_game_data = prepared;
+    await historicalSnapshot("after-real-game-data-seed");
+    verifyInstalledGameData = async () => {
+      const after = await observeInstalledGameData(options, prepared.baseline.installed);
+      report.installed_game_data_after_update = after;
+      await save();
+      assertInstalledGameDataPreserved(prepared.baseline, after);
+      report.actions.push("game-authored-save-config-and-installed-runtime-preserved");
+    };
+  }
   report.initial_sha256 = (await hashFile(app)).sha256;
   driverSession = startInstalledUpdateDriver(driverPath, nativeDriver, {
     detached: true,
@@ -666,6 +728,7 @@ try {
   report.restart.candidate_exit_observed = true;
   report.actions.push("candidate-restarted-and-reconciled");
   if (report.historical_bootstrap) await historicalSnapshot("after-authenticated-candidate-return");
+  await verifyInstalledGameData?.();
   report.phase = "complete";
 } catch (error) {
   await recordInstalledUpdateFailure(report, error, helperMarker);

@@ -688,6 +688,14 @@
       ]
     },
     {
+      "file": "scripts/desktop-staged-layout.test.mts",
+      "memberships": [
+        ["windows-storage-4", 302],
+        ["frontend-full-4", 302],
+        ["development-tools", 2102]
+      ]
+    },
+    {
       "file": "scripts/desktop-input-observation.test.mts",
       "memberships": [
         ["catalog-full-2", 4100],
@@ -3760,6 +3768,13 @@
       "memberships": [
         ["catalog-full-2", 2650],
         ["release-check", 750]
+      ]
+    },
+    {
+      "file": "scripts/installed-game-data-fixture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2651],
+        ["release-check", 751]
       ]
     },
     {

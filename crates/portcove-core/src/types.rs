@@ -185,6 +185,10 @@ pub enum SavesAndSettingsBehavior {
 /// documents may omit this object; current embedded definitions provide it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PortPresentation {
+    /// Optional inert quality observations. Unknown or malformed recommendation
+    /// schemas are retained for compatible readers but never invalidate operations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommendation: Option<serde_json::Value>,
     /// Descriptive display metadata only. This never replaces the port, source,
     /// release or library identity. Explicit original_game metadata owns display grouping.
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -19,6 +19,7 @@ const INVALID_DOCUMENT_DETAIL: &str = "invalid_host_preference_document";
 const FAVORITES_KEY: &str = "favorites_by_library";
 
 mod organization;
+pub(crate) mod recommendations;
 pub use organization::{
     CollectionPreference, InstallationContext, LibraryOrganization, OrganizationChange,
     SetupConfirmation, UpdateNoticeChoice, UpdateNoticeRelease,

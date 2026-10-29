@@ -50,6 +50,7 @@ import {
 } from "./release-native-pre-sign-report.mts";
 
 import {
+  historicalApi82Library43SourceFixture,
   nativePreSignReportFixture as fixture,
   nativeLinuxReportFixture as linuxFixture,
   nativeLinuxPostSignReportFixture as linuxPostFixture,
@@ -258,12 +259,12 @@ void test("hosted Linux reconstruction uses the observed distro floor and keeps 
 
 void test("inert Linux report2 reconstructs initial or real distinct predecessor package lifecycle without public-updater credit", async () => {
   for (const initial of [true, false]) {
-    const f = await linuxPostFixture(initial);
+    const f = await linuxPostFixture(initial, historicalApi82Library43SourceFixture);
     assert.deepEqual(f.base.source.cli_protocol, { min: 82, max: 82 });
     assert.equal(f.base.source.library.write_schema, 43);
     const result = reconstructNativeLinuxPostSignReport(f.prepared, f.input, f.base.source);
     // The original API80/library40 fixture at073ac7b9 reproduces its historical
-    // hashes exactly. These bind the same reconstruction with current API82/
+    // hashes exactly. These bind the same reconstruction with retained API82/
     // library43 inputs, including their transitive request/stream digests.
     // Historical API82/library42 initial: b2bc15a2f9eed746a69fb1063f444dec15737f5dce7afa9b64a1d2254db98909;
     // predecessor: e176bea4fe6dacf2b8d30cc5a1b23090aaaf2dcea03467fa83d8fb735c7e470e.
@@ -325,14 +326,16 @@ void test("inert Linux report2 reconstructs initial or real distinct predecessor
 });
 
 void test("inert Linux reconstruction binds actual-shaped source/host/process/namespace proofs without importing capture authority", async () => {
-  const { base, prepared, input, start } = await linuxFixture();
+  const { base, prepared, input, start } = await linuxFixture(
+    historicalApi82Library43SourceFixture,
+  );
   assert.deepEqual(base.source.cli_protocol, { min: 82, max: 82 });
   assert.equal(base.source.library.write_schema, 43);
   const result = reconstructNativeLinuxPreSignReport(prepared, input, base.source);
   assert.equal(
     createHash("sha256").update(JSON.stringify(result)).digest("hex"),
     // Same inert reconstruction as the historical API80/library40 fixture,
-    // now bound to the current API82/library43 request and stream identities.
+    // pinned to the retained API82/library43 request and stream identities.
     // Historical API82/library42: 4d262b29be451f935f446e7ddce75ecde1efb5a43ee8b906be70e15b70cd6eea.
     "68f3bef742c34a7e55ddbb729efed6d298bd79feaa6a7535088ef558fb0bb7ba",
   );
