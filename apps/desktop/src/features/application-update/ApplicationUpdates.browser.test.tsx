@@ -3,6 +3,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
+import { failureReport } from "../../test-fixtures";
 import type {
   ApplicationUpdateCheckResult,
   ApplicationUpdateManualCheckResult,
@@ -722,6 +723,44 @@ describe("ApplicationUpdateSettings", () => {
       "Save Preview as your update channel before downloading this result.",
     );
     expect(download).not.toHaveBeenCalled();
+  });
+
+  it("retains the backend reachability failure through shared task settlement and retries normally", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    const failure = failureReport();
+    failure.code = "network";
+    failure.message =
+      "The application update service could not be reached. Check the connection and try again.";
+    failure.presentation = {
+      ...failure.presentation,
+      presentation_key: "connection_failed",
+      summary: "The online request could not be completed.",
+      technical_message: failure.message,
+    };
+    const check = vi
+      .spyOn(desktopApi, "checkApplicationUpdate")
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(
+        manualCheck({ kind: "no-candidate", candidate: null, reasons: [], staged: false }),
+      );
+    const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
+    await root.rerender(<OperatingSettingsFixture />);
+    await click("Check for updates");
+    expect(
+      host.querySelector('[aria-labelledby="application-check-title"] [role="alert"]')?.textContent,
+    ).toBe(failure.presentation.summary);
+    const failed = [...sharedOperations.invocations.values()].at(-1)!;
+    expect(failed.phase).toBe("settled");
+    expect(failed.outcome).toBe("failed");
+    expect(failed.failure).toBe(failure);
+    expect(host.textContent).not.toContain("The request did not complete");
+    await click("Check for updates");
+    expect(check).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toContain(
+      "No eligible release is published for the selected channel.",
+    );
+    expect([...sharedOperations.invocations.values()].at(-1)?.outcome).toBe("succeeded");
+    expect(save).not.toHaveBeenCalled();
   });
 
   it("offers cancellation while a check is active", async () => {

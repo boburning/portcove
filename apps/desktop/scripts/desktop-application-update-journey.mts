@@ -195,8 +195,7 @@ export async function driveInstalledFeedOutage(
   const failed = await withInstalledFeedOutage(configuration, configurationSha256, async () => {
     const checkedAt = new Date().toISOString();
     await browser.findElement(By.xpath('//button[normalize-space(.)="Check for updates"]')).click();
-    const message =
-      "The application update service could not be reached. Check the connection and try again.";
+    const message = "The online request could not be completed.";
     const alert = await browser.wait(
       until.elementLocated(
         By.xpath(

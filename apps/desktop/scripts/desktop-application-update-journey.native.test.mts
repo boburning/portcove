@@ -731,8 +731,7 @@ void test("installed outage uses ordinary check, truthful failure, unchanged cho
       actions: string[] = [];
     const choices = { revision: 3, choice: { channel: "stable", mode: "manual" } };
     const status = { ...fixture().before, schedule: { consecutive_failures: 0 } };
-    const message =
-      "The application update service could not be reached. Check the connection and try again.";
+    const message = "The online request could not be completed.";
     const browser = {
       manage: () => ({ setTimeouts: async () => {} }),
       wait: async (condition: { value?: string } | (() => Promise<unknown>)) => {
