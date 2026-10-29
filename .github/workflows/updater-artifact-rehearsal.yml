@@ -222,6 +222,11 @@ jobs:
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/helper-process.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/helper-failure.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/preservation.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/feed-outage-*.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/feed-outage-*.txt
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/feed-outage-control/configuration.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/feed-outage-control/timestamp-preimage.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/feed-outage-control/fault-window-closed.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/update-state/*.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/update-state/trust/*.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library/update-preservation-marker.txt

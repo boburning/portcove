@@ -1567,6 +1567,8 @@ try {
                 $feedOutageText = (& node $feedOutageHelper --phase prepare --metadata $InstalledUpdateMetadataPath --control $feedOutageControl | Out-String)
                 $feedOutageExit = $LASTEXITCODE
                 [IO.File]::WriteAllText((Join-Path $rendererRoot 'feed-outage-preparation-stdout.txt'), $feedOutageText)
+                $evidence.installed_feed_outage = [ordered]@{ preparation_stdout=$feedOutageText; preparation_exit_code=$feedOutageExit; scope='owned local file-feed outage only; no OS-offline, HTTP or production claim' }
+                Write-InstallerEvidence 'installed_feed_outage_preparation_returned'
                 if ($feedOutageExit -ne 0) { throw 'Installed feed-outage preparation failed before driver dispatch' }
                 $feedOutage = $feedOutageText | ConvertFrom-Json -NoEnumerate
                 $feedOutageConfiguration = Join-Path $feedOutageControl 'configuration.json'
@@ -1575,7 +1577,8 @@ try {
                     $feedOutage.sha256 -cne (Get-FileHash -LiteralPath $feedOutageConfiguration -Algorithm SHA256).Hash.ToLowerInvariant()) {
                     throw 'Installed feed-outage preparation did not return its exact positive control identity'
                 }
-                $evidence.installed_feed_outage = [ordered]@{ preparation=$feedOutage; configuration=(Get-Content -LiteralPath $feedOutageConfiguration -Raw | ConvertFrom-Json); scope='owned local file-feed outage only; no OS-offline, HTTP or production claim' }
+                $evidence.installed_feed_outage.preparation = $feedOutage
+                $evidence.installed_feed_outage.configuration = Get-Content -LiteralPath $feedOutageConfiguration -Raw | ConvertFrom-Json
                 Write-InstallerEvidence 'installed_feed_outage_prepared'
                 $rendererArguments += @('--feed-outage-configuration', $feedOutage.configuration, '--feed-outage-sha', $feedOutage.sha256)
             }
@@ -1596,6 +1599,9 @@ try {
                         $feedRestoreText = (& node $feedOutageHelper --phase restore --configuration $feedOutage.configuration --sha256 $feedOutage.sha256 | Out-String)
                         $feedRestoreExit = $LASTEXITCODE
                         [IO.File]::WriteAllText((Join-Path $rendererRoot 'feed-outage-restoration-stdout.txt'), $feedRestoreText)
+                        $evidence.installed_feed_outage.restoration_stdout = $feedRestoreText
+                        $evidence.installed_feed_outage.restoration_exit_code = $feedRestoreExit
+                        Write-InstallerEvidence 'installed_feed_outage_restoration_returned'
                         if ($feedRestoreExit -ne 0) { throw "Installed feed-outage restoration failed; renderer exit $rendererExit; exact preimage/control retained" }
                         $feedRestore = $feedRestoreText | ConvertFrom-Json -NoEnumerate
                         if ($feedRestore -isnot [System.Management.Automation.PSCustomObject] -or $feedRestore.phase -cne 'restored' -or $feedRestore.new_faults_sealed -isnot [bool] -or -not $feedRestore.new_faults_sealed -or

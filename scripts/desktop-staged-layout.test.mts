@@ -4,11 +4,11 @@ import { runInNewContext } from "node:vm";
 import { isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
+import { toolCachePaths } from "./tool-cache.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { readStagedLayout } from "../apps/desktop/scripts/desktop-staged-layout.mts";
 import {
@@ -164,7 +164,11 @@ void test(
     const entry = "apps/desktop/scripts/desktop-staged-layout.native.test.mts";
     const closure = readFixtureModuleClosure(root, [entry]);
     assert.ok(closure.external.every(isBuiltin), JSON.stringify(closure.external));
-    const isolated = disposableDirectory(t, path.join(tmpdir(), "portcove-staged-layout-minimal-"));
+    // Storage guards may place tmpdir inside the checkout's dependency ancestry.
+    // Reuse the existing dependency-free native-contract location instead.
+    const isolation = path.join(toolCachePaths().sharedRoot, "node-contracts");
+    mkdirSync(isolation, { recursive: true });
+    const isolated = disposableDirectory(t, path.join(isolation, "staged-layout-minimal-"));
     writeFileSync(path.join(isolated, "package.json"), '{"type":"module"}\n');
     for (const module of closure.modules) {
       const destination = path.join(isolated, module.path);
