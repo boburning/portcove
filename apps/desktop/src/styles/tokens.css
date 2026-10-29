@@ -109,6 +109,8 @@
 
     --color-logo-stage-light: var(--n64-gray-100);
     --color-logo-stage-dark: var(--n64-gray-900);
+    --color-card-favorite: var(--n64-red-300);
+    --color-card-saved: var(--n64-blue-200);
     --color-theme-preview-cover-blue: var(--n64-blue-300);
     --color-theme-preview-cover-green: var(--n64-green-300);
     --color-theme-preview-cover-red: var(--n64-red-300);

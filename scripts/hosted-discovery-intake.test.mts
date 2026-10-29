@@ -569,6 +569,112 @@ void test("generated body retains maintained research and exact identity markers
   assert.match(body, /portcove-discovery-intake:hosted-100-example-native-game/u);
   assert.match(body, /GitHub repository ID: 987654321/u);
 });
+void test("ten long candidates retain a single compact logical receipt", async () => {
+  const f = fixture(
+    Array.from({ length: 10 }, (_, i) => ({
+      ...candidate,
+      title: `Long game ${i}`,
+      game: `Long game ${i}`,
+      upstream: `${candidate.upstream}-${i}`,
+      repository_id: candidate.repository_id + i,
+      port_key: `${candidate.port_key}-${i}`,
+      evidence: "Dated primary upstream evidence; gameplay remains Unknown. ".repeat(65),
+    })),
+  );
+  await f.prepare();
+  const prior = [...f.comments.values()].find((c) => c.user.login === "github-actions[bot]")!;
+  assert(Buffer.byteLength(prior.body) < 20000);
+  assert.match(prior.body, /proposal-bound-v1/u);
+  assert.doesNotMatch(prior.body, /Dated primary upstream evidence/u);
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.equal(result.delivery.length, 10);
+  assert.equal(f.creations, 10);
+  assert.equal(
+    [...f.comments.values()].filter((c) => c.user.login === "github-actions[bot]").length,
+    1,
+  );
+});
+void test("compact plan tampering refuses and legacy complete receipts stay byte-identical", async () => {
+  const f = fixture();
+  await f.prepare();
+  const prior = [...f.comments.values()].find((c) => c.user.login === "github-actions[bot]")!;
+  const wire = JSON.parse(prior.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    plan_encoding?: string;
+    plan: Record<string, unknown>[];
+    status: string;
+  };
+  const original = prior.body;
+  for (const field of ["body_sha256", "candidate_index", "port_key"]) {
+    const altered = structuredClone(wire);
+    altered.plan[0]![field] = "changed";
+    prior.body = original.replace(
+      /```json\n[\s\S]+\n```$/u,
+      `\`\`\`json\n${JSON.stringify(altered)}\n\`\`\``,
+    );
+    await assert.rejects(f.bridge.process(f.request, f.all()), /exact proposal/u);
+    assert.equal(f.creations, 0);
+  }
+  delete wire.plan_encoding;
+  wire.plan = [{ ...f.bridge.primary(candidate, f.request.id) }];
+  wire.status = "complete";
+  prior.body = original.replace(
+    /```json\n[\s\S]+\n```$/u,
+    `\`\`\`json\n${JSON.stringify(wire)}\n\`\`\``,
+  );
+  const legacy = prior.body;
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(prior.body, legacy);
+  assert.equal(f.creations, 0);
+});
+void test("safe preflight drift recovers in a fresh pass without duplicate POSTs", async () => {
+  const f = fixture();
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let drift = true;
+  f.bridge.inventory = (...args) => {
+    if (drift) {
+      drift = false;
+      throw new GitHubApiError("inventory_changed", "membership moved");
+    }
+    return inventory(...args);
+  };
+  let error: unknown;
+  try {
+    await f.bridge.process(f.request, f.all());
+  } catch (e) {
+    error = e;
+  }
+  assert.equal(f.bridge.continuation(error), "inventory_changed");
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 1);
+});
+void test("an unconfirmed issue or receipt mutation permanently excludes automatic continuation", async () => {
+  for (const target of ["issue", "receipt"]) {
+    const f = fixture();
+    if (target === "issue") {
+      f.client.createPortIssue = () => {
+        throw new GitHubApiError("budget_exhausted", "POST result unknown");
+      };
+    } else {
+      const request = f.client.api.request.bind(f.client.api);
+      f.client.api.request = (...args) => {
+        const result = request(...args);
+        if (args[0] === "POST")
+          throw new GitHubApiError("budget_exhausted", "receipt POST result unknown");
+        return result;
+      };
+    }
+    let error: unknown;
+    try {
+      await f.bridge.process(f.request, f.all());
+    } catch (e) {
+      error = e;
+    }
+    assert(error);
+    assert.equal(f.bridge.continuation(error), null);
+  }
+});
 void test("a legacy pending plan resumes without a reviewer or a duplicate proposal", async () => {
   const f = fixture();
   await f.prepare();
@@ -752,7 +858,7 @@ void test("authored shared repositories preserve independently catalogable games
   const { original_game_title: _game, ...unknown } = record.listing;
   assert.throws(() => assertHostedCatalogIdentity(candidate, [{ ...record, listing: unknown }]));
 });
-void test("oversized complete receipts refuse before any canonical write", async () => {
+void test("multibyte evidence fits without duplicating proposal text in the receipt", async () => {
   const f = fixture();
   const p = {
     ...proposal,
@@ -766,8 +872,8 @@ void test("oversized complete receipts refuse before any canonical write", async
   };
   f.request.body = encode(p);
   f.comments.set(100, f.request);
-  await assert.rejects(f.bridge.process(f.request, f.all()), /envelope|retain complete/u);
-  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 3);
 });
 void test("denied hosted Project write access prevents issue creation", async () => {
   const f = fixture();

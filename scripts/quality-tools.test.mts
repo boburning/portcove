@@ -632,15 +632,11 @@ function Install-CachedTauriDriver { return $PSHOME + '\pwsh.exe' }
 function Get-WebViewRuntimeVersion { return '1.2.3.4' }
 function Write-CommandShim { }
 function Write-Information { }
-function Invoke-WebRequest {
-    param([switch]$UseBasicParsing, $Uri, $OutFile)
-    if ($Uri -notlike 'https://msedgedriver.microsoft.com/1.2.3.4/edgedriver_*.zip') { throw 'Origin changed' }
-    Set-Content -LiteralPath $OutFile -Value 'inert archive fixture'
-}
-function Expand-Archive {
-    param($LiteralPath, $DestinationPath)
-    New-Item -ItemType Directory -Force $DestinationPath | Out-Null
-    Set-Content -LiteralPath (Join-Path $DestinationPath 'msedgedriver.exe') -Value 'inert downloaded fixture'
+function Install-BoundedEdgeDriverFiles {
+    param($Version, $Architecture, $Destination)
+    if ($Version -cne '1.2.3.4' -or $Architecture -cnotin @('x64','arm64')) { throw 'Bounded acquisition arguments differ' }
+    New-Item -ItemType Directory -Force (Join-Path $Destination 'bin') | Out-Null
+    Set-Content -LiteralPath (Join-Path $Destination 'bin/msedgedriver.exe') -Value 'inert downloaded fixture'
 }
 function Get-AuthenticodeSignature {
     param($LiteralPath)

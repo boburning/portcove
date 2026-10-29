@@ -1,196 +1,80 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
-import { stripTypeScriptTypes } from "node:module";
-import { runInNewContext } from "node:vm";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 
-const source = stripTypeScriptTypes(
-  await readFile(new URL("./desktop-readiness-test.mts", import.meta.url), "utf8"),
-  { mode: "strip" },
-);
-const target = "https://ipc.example/get_workspace_snapshot";
-function record(value: unknown): Record<string, unknown> {
-  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
-  return value as Record<string, unknown>;
-}
-function segment(from: string, until: string, offset = 0): string {
-  const start = source.indexOf(from, offset),
-    end = source.indexOf(until, start);
-  assert.ok(start >= 0 && end > start);
-  return source.slice(start, end);
-}
-const actionFunctions = segment(
-  "async function injectActionHold(",
-  "async function observeHeldLaunch(",
-);
-const omission = segment(
-  ".executeAsyncScript",
-  ".then((value)",
-  source.indexOf("export async function readinessScenario("),
-);
-
+const entry = new URL("./desktop-readiness-test.mts", import.meta.url);
 for (const kind of ["action", "readiness"] as const) {
-  void test(`serialized ${kind} probe preserves fetch inputs, duplicate-row metadata and restoration`, async () => {
-    const inputValues: unknown[] = [
-      target,
-      new URL(target),
-      new Request(target),
-      runInNewContext("({toString() { return target; }})", { target }),
-      { url: target },
-      { url: undefined, toString: () => target },
-      { url: null, toString: () => target },
-    ];
-    const other = {
-      port_id: "other",
-      readiness: { launchable: true },
-      port_actions: [{ action: "launch", availability: "allowed", extra: "other" }],
-    };
-    const first = {
-      port_id: "owned",
-      readiness: { launchable: true },
-      port_actions: [
-        { action: "launch", availability: "allowed", extra: "first" },
-        { action: "install", availability: "waiting", extra: "unrelated" },
-      ],
-    };
-    const second = {
-      port_id: "owned",
-      readiness: { launchable: true },
-      port_actions: [
-        { action: "launch", availability: "allowed", extra: "second" },
-        { action: "backup", availability: "allowed", extra: "second-only" },
-      ],
-    };
-    let payload: unknown = { metadata: { retained: true }, statuses: [first, other, second] };
-    const calls: { input: unknown; args: unknown[]; response: Response }[] = [];
-    const original = async (input: unknown, ...args: unknown[]) => {
-      const response = new Response(JSON.stringify(payload), { headers: { "x-retained": "yes" } });
-      calls.push({ input, args, response });
-      return response;
-    };
-    const window: {
-      fetch: typeof original;
-      __TAURI_INTERNALS__: { convertFileSrc: () => string; invoke: () => Promise<void> };
-      __portcoveActionHoldProbe?: unknown;
-      __portcoveReadinessProbe?: unknown;
-    } = {
-      fetch: original,
-      __TAURI_INTERNALS__: { convertFileSrc: () => target, invoke: async () => {} },
-    };
-    const browser = {
-      executeAsyncScript: async (callback: unknown, ...args: unknown[]): Promise<unknown> => {
-        assert.ok(typeof callback === "function");
-        return new Promise<unknown>((done, reject) => {
-          try {
-            runInNewContext(
-              `(${callback.toString()})(...args, done)`,
-              { window, args, done, Response, URL, Request, Error },
-              { timeout: 1000 },
-            );
-          } catch (error) {
-            reject(error);
-          }
-        });
-      },
-    };
-    const context = { browser, assert, object: record, port: { id: "owned" } };
-    const installed: unknown = runInNewContext(
-      kind === "action"
-        ? `${actionFunctions} injectActionHold(browser, "owned", "launch")`
-        : `(async () => { await browser${omission}; })()`,
-      context,
+  void test(`serialized ${kind} probe preserves fetch inputs, duplicate-row metadata and restoration`, () => {
+    const program = `
+      const subject=await import(entry);
+      const {runReadinessFetchProbeOracle}=await import(new URL('../../../scripts/fixtures/native-fetch-probe-fixture.mts',entry));
+      await runReadinessFetchProbeOracle(subject,${JSON.stringify(kind)});
+    await runReadinessFetchProbeOracle(subject,${JSON.stringify(kind)},true);
+    `;
+    const exportName = kind === "action" ? "injectActionHold" : "injectReadinessOmission";
+    runDesktopModuleFixture(entry, program);
+    runDesktopModuleFixture(entry, program, { exportName, variant: "aliased" });
+    assert.throws(
+      () => runDesktopModuleFixture(entry, program, { exportName, variant: "wrong-export" }),
+      (error: unknown) =>
+        error instanceof assert.AssertionError &&
+        error.message.includes("NATIVE_FETCH_PROBE_INSTALLATION"),
+      "NATIVE_FETCH_PROBE_REMOVED_DEPENDENCY",
     );
-    await installed;
-    const options = { method: "POST", headers: { "x-exact": "retained" } };
-    for (const input of inputValues) {
-      const fetched: unknown = runInNewContext("window.fetch(input, options)", {
-        window,
-        input,
-        options,
-      });
-      const response = await fetched;
-      assert.ok(response instanceof Response);
-      assert.equal(response.headers.get("x-retained"), "yes");
-      const value = record(await response.json());
-      assert.equal(JSON.stringify(value.metadata), JSON.stringify({ retained: true }));
-      assert.ok(Array.isArray(value.statuses));
-      const statuses: unknown[] = value.statuses;
-      assert.equal(JSON.stringify(statuses[1]), JSON.stringify(other));
-      for (const [index, expected] of [
-        [0, "first"],
-        [2, "second"],
-      ] as const) {
-        const row = record(statuses[index]);
-        if (kind === "readiness") {
-          assert.equal(row.readiness, null);
-          assert.equal(
-            JSON.stringify(row.port_actions),
-            JSON.stringify(index === 0 ? first.port_actions : second.port_actions),
-          );
-        } else {
-          assert.ok(Array.isArray(row.port_actions));
-          const actions: unknown[] = row.port_actions;
-          assert.equal(record(actions[0]).availability, "held");
-          assert.equal(record(actions[0]).extra, expected);
-          assert.equal(
-            JSON.stringify(actions[1]),
-            JSON.stringify((index === 0 ? first : second).port_actions[1]),
-          );
-        }
-      }
-      const call = calls.at(-1);
-      assert.ok(call);
-      assert.equal(call.input, input);
-      assert.equal(call.args[0], options);
-    }
-    for (const input of [null, undefined, false, 0, {}, "https://foreign.example/"]) {
-      const fetched: unknown = runInNewContext("window.fetch(input, options)", {
-        window,
-        input,
-        options,
-      });
-      const response = await fetched;
-      assert.equal(
-        response,
-        calls.at(-1)?.response,
-        "untargeted responses must be forwarded unchanged",
-      );
-    }
-    for (const malformed of [null, [], { statuses: null }, { statuses: [null, {}] }]) {
-      payload = malformed;
-      const response = await window.fetch(target, options);
-      assert.equal(
-        response,
-        calls.at(-1)?.response,
-        "malformed unmatched snapshots must remain unchanged",
-      );
-    }
-    if (kind === "action") {
-      const restored: unknown = runInNewContext(
-        `${actionFunctions} restoreActionHold(browser, "allowed")`,
-        context,
-      );
-      await restored;
-      assert.equal(window.__portcoveActionHoldProbe, undefined);
-    } else {
-      const restore = segment(
-        "observations.probe = await executeBrowserScript(browser, () => {",
-        '        assert.ok("restored"',
-        source.indexOf("export async function readinessScenario("),
-      );
-      const observations: { probe?: unknown } = {};
-      const restored: unknown = runInNewContext(`(async () => { ${restore} })()`, {
-        ...context,
-        observations,
-        executeBrowserScript: (_browser: unknown, callback: unknown): unknown => {
-          assert.ok(typeof callback === "function");
-          return runInNewContext(`(${callback.toString()})()`, { window });
-        },
-      });
-      await restored;
-      assert.equal(record(observations.probe).restored, true);
-      assert.equal(window.__portcoveReadinessProbe, undefined);
-    }
-    assert.equal(window.fetch, original);
   });
 }
+
+void test("actual readiness scenario installs its imported omission before observation and restores after failure", () => {
+  const program = `
+    const {runReadinessCallerProbe}=await import(new URL('../../../scripts/fixtures/native-fetch-probe-fixture.mts',entry));
+    await runReadinessCallerProbe(entry,inertTransportReply);
+  `;
+  const replies = [
+    { command: "port", value: { id: "opengoal-jak1", summary: "Owned readiness" } },
+    { command: "status", value: { readiness: { launchable: true } } },
+  ];
+  runDesktopModuleFixture(entry, program, undefined, replies);
+  runDesktopModuleFixture(
+    entry,
+    program,
+    { exportName: "readinessScenario", variant: "aliased" },
+    replies,
+  );
+  assert.throws(
+    () =>
+      runDesktopModuleFixture(
+        entry,
+        program,
+        { exportName: "readinessScenario", variant: "wrong-export" },
+        replies,
+      ),
+    (error: unknown) =>
+      error instanceof assert.AssertionError &&
+      error.message.includes("NATIVE_READINESS_CALLER_NOT_INVOKED"),
+    "NATIVE_READINESS_REPLACED_ACTUAL_CALLER",
+  );
+});
+
+void test("whole native module fixture retains exact transport pairs and refuses process and network work", () => {
+  const program = `
+    const {transportValue,transportValues}=await import(new URL('./transport-values.mts',entry));
+    const pairs=Array.isArray(inertTransportReply)?inertTransportReply:[inertTransportReply];
+    for(const pair of pairs)assert.equal(transportValue(pair.command,pair.value),pair.value);
+    const denied=error=>error instanceof Error&&error.message==='Native process execution is forbidden in this fixture';
+    assert.throws(()=>transportValue('undeclared',pairs[0].value),denied);
+    assert.throws(()=>transportValue(pairs[0].command,{...pairs[0].value}),denied);
+    if(pairs.length>1)assert.throws(()=>transportValue(pairs[0].command,pairs[1].value),denied);
+    assert.throws(()=>transportValues(pairs[0].command,[pairs[0].value]),denied);
+    const {spawnSync}=await import('node:child_process');
+    assert.throws(()=>spawnSync(process.execPath,['--version']),denied);
+    assert.throws(()=>process.kill(process.pid,0),denied);
+    const networkProbe='data:text/javascript,'+encodeURIComponent("await fetch('data:text/plain,inert')");
+    await assert.rejects(()=>import(networkProbe),error=>error instanceof Error&&error.message==='Uncontrolled fixture network work is forbidden');
+  `;
+  const port = { command: "port", value: { id: "owned" } };
+  runDesktopModuleFixture(entry, program, undefined, port);
+  runDesktopModuleFixture(entry, program, undefined, [
+    port,
+    { command: "status", value: { id: "other" } },
+  ]);
+});

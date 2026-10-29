@@ -92,10 +92,14 @@ fn native_pin_does_not_grant_source_preparation_or_mutable_runtime_authority() {
         let mut document = document();
         port(&mut document)[field] = value;
         let error = Catalog::from_json(&document.to_string()).unwrap_err();
-        assert!(
-            error.message.contains("native portable packages require"),
-            "{field}: {error}"
-        );
+        // A pin alone still grants no source preparation. Native6 separately
+        // requires a complete exact FileSet and its immutable output contract.
+        let expected = if field == "source_profile" {
+            "native originals require"
+        } else {
+            "native portable packages require"
+        };
+        assert!(error.message.contains(expected), "{field}: {error}");
     }
 }
 

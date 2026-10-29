@@ -48,6 +48,8 @@ export interface RustResourceOptions extends ResourceCapacityOptions, HeavyRustL
 export interface RustRunDependencies {
   /** Payload budget starts at the registered launch gate, excluding admission/setup. */
   executionTimeoutMilliseconds?: number;
+  /** Optional original monotonic deadline; only shortens the payload budget. */
+  executionDeadline?: number;
   onExecutionTimeout?: (milliseconds: number) => void;
   output?: { stdout: number; stderr: number };
   environment?: NodeJS.ProcessEnv;
@@ -460,6 +462,16 @@ export async function runRustTests(
     (!Number.isSafeInteger(executionBudget) || executionBudget < 1 || executionBudget > 86_400_000)
   )
     throw new Error("Execution timeout must be an integer from 1 to 86400000 milliseconds");
+  const originalDeadline = dependencies.executionDeadline;
+  const remainingExecutionBudget = () => {
+    if (originalDeadline === undefined) return executionBudget;
+    if (executionBudget === undefined || !Number.isFinite(originalDeadline))
+      throw new Error("Original execution deadline requires a finite payload budget");
+    const remaining = Math.floor(originalDeadline - performance.now());
+    if (remaining < 1) throw new Error("Original execution deadline exhausted; no gate opened");
+    return Math.min(executionBudget, remaining);
+  };
+  remainingExecutionBudget();
   const environment = dependencies.environment ?? process.env;
   const metrics = dependencies.metrics ?? createCiMetrics({ environment });
   const runSync = dependencies.spawnSync ?? spawnSync;
@@ -492,33 +504,42 @@ export async function runRustTests(
   let cancellation: Cancellation | null = null;
   let executionTimer: ReturnType<typeof setTimeout> | undefined;
   let compiler: CompilerIdentity | null = null;
+  let supportSetupUnknown = false;
   const prepareSupportProduct = (
     definition: Pick<RustSupportOptions, "product" | "source" | "output" | "rustcArgs">,
   ) => {
-    compiler ??= metrics.measure("compiler-identity", () =>
-      readCompilerIdentity({ runSync, environment, platform }),
-    );
-    const activeCompiler = compiler;
-    const result = metrics.measure(`support-setup:${definition.product}`, () =>
-      prepareSupport({
-        root,
-        environment,
-        platform,
-        architecture: dependencies.architecture ?? process.arch,
-        runSync,
-        compiler: activeCompiler,
-        ...definition,
-      }),
-    );
-    metrics.record(`support-cache:${definition.product}`, {
-      cache_outcome: result.outcome,
-      fingerprint: result.fingerprint,
-      elapsed_ms: result.elapsed_ms,
-    });
-    console.error(
-      `[rust-support] ${definition.product} ${result.outcome} ` +
-        `${result.fingerprint.slice(0, 12)} in ${result.elapsed_ms}ms`,
-    );
+    try {
+      remainingExecutionBudget();
+      compiler ??= metrics.measure("compiler-identity", () =>
+        readCompilerIdentity({ runSync, environment, platform }),
+      );
+      remainingExecutionBudget();
+      const activeCompiler = compiler;
+      const result = metrics.measure(`support-setup:${definition.product}`, () =>
+        prepareSupport({
+          root,
+          environment,
+          platform,
+          architecture: dependencies.architecture ?? process.arch,
+          runSync,
+          compiler: activeCompiler,
+          ...definition,
+        }),
+      );
+      remainingExecutionBudget();
+      metrics.record(`support-cache:${definition.product}`, {
+        cache_outcome: result.outcome,
+        fingerprint: result.fingerprint,
+        elapsed_ms: result.elapsed_ms,
+      });
+      console.error(
+        `[rust-support] ${definition.product} ${result.outcome} ` +
+          `${result.fingerprint.slice(0, 12)} in ${result.elapsed_ms}ms`,
+      );
+    } catch (error) {
+      if (errorCode(error) === "PORTCOVE_SUPPORT_SETUP_UNKNOWN") supportSetupUnknown = true;
+      throw error;
+    }
   };
   try {
     cancellation = observeCancellation(dependencies.signalTarget ?? process);
@@ -531,6 +552,7 @@ export async function runRustTests(
         ),
       );
     }
+    remainingExecutionBudget();
     if (
       lock?.inherited &&
       platform !== "win32" &&
@@ -697,14 +719,15 @@ export async function runRustTests(
       return cancellationExitCode(cancellation.requested());
     }
     try {
+      const effectiveExecutionBudget = remainingExecutionBudget();
       const deadline =
-        executionBudget === undefined
+        effectiveExecutionBudget === undefined
           ? []
           : [
               new Promise<{ timedOut: number }>((resolve) => {
                 executionTimer = setTimeout(
-                  () => resolve({ timedOut: executionBudget }),
-                  executionBudget,
+                  () => resolve({ timedOut: effectiveExecutionBudget }),
+                  effectiveExecutionBudget,
                 );
               }),
             ];
@@ -759,6 +782,25 @@ export async function runRustTests(
       throw error;
     }
   } catch (error) {
+    if (supportSetupUnknown) {
+      releaseLock = false;
+      retained = true;
+      try {
+        writeFileSync(
+          path.join(directory, "setup-custody-unknown.json"),
+          JSON.stringify({
+            schema_version: 1,
+            code: "PORTCOVE_SUPPORT_SETUP_UNKNOWN",
+            payload_gate_opened: false,
+            scope:
+              "pre-gate compiler descendant settlement Unknown; retain original reservation and artifacts",
+          }),
+          { flag: "wx" },
+        );
+      } catch {
+        /* Original setup refusal and conservative custody survive retention failure. */
+      }
+    }
     if (!lock && cancellation?.requested()) return cancellationExitCode(cancellation.requested());
     throw error;
   } finally {

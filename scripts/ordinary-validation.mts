@@ -155,6 +155,7 @@ const containmentInputs = new Set([
   "scripts/fallow-source.mts",
   ...containmentContractTests,
   ...containmentContractTests.map((file) => file.replace(/\.test\.([cm]?[jt]s)$/u, ".$1")),
+  "scripts/fixtures/linux-containment-fixture.mts",
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
 ]);
@@ -190,10 +191,12 @@ const catalogGeneratorFeatureTests = [
 ];
 export const catalogGeneratorContractTests = [
   "scripts/generate-catalog.test.mts",
+  "scripts/catalog-proposal-costs.test.mts",
   ...catalogGeneratorFeatureTests,
 ];
 const catalogAuthoringContractTests = [
   "scripts/generate-catalog.test.mts",
+  "scripts/catalog-proposal-costs.test.mts",
   "scripts/catalog-source-authoring.test.mts",
   "scripts/catalog-proposal-comparison.test.mts",
   "scripts/catalog-artwork-dispatch.test.mts",
@@ -346,6 +349,13 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/fixtures/native-fetch-probe-fixture.mts",
+    [
+      "apps/desktop/scripts/desktop-readiness.native.test.mts",
+      "apps/desktop/scripts/desktop-install.native.test.mts",
+    ],
+  ],
+  [
     "scripts/fixtures/desktop-module-fixture.mts",
     [
       "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
@@ -362,6 +372,11 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-artwork.native.test.mts",
       "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
       "scripts/capture-target.test.mts",
+      "apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts",
+      "apps/desktop/scripts/desktop-install.native.test.mts",
+      "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      "apps/desktop/scripts/desktop-readiness.native.test.mts",
+      "scripts/desktop-staged-layout.test.mts",
     ],
   ],
   [
@@ -1081,6 +1096,14 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/fixtures/signing-context-artifact-fixture.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
+  ],
+  [
+    "scripts/fixtures/signing-context-receiver-fixture.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
+  ],
+  [
     "scripts/release-signing-context-artifact.mts",
     [
       "scripts/release-signing-context-artifact.test.mts",
@@ -1163,6 +1186,26 @@ for (const [file, tests] of [
     [...selectionContractTests, "scripts/validation-evidence.test.mts", "scripts/audit.test.mts"],
   ],
   [".fallow-tooling.json", ["scripts/fallow-scope.test.mts", "scripts/run-fallow.test.mts"]],
+  [
+    "scripts/fixtures/rust-action-fixture.mts",
+    ["scripts/rust-validation-setup.test.mts", "scripts/updater-artifact-inventory.test.mts"],
+  ],
+  [
+    "scripts/fixtures/updater-workflow-fixture.mts",
+    ["scripts/updater-artifact-inventory.test.mts"],
+  ],
+  [
+    "scripts/fixtures/linux-prerequisites-fixture.mts",
+    [
+      "scripts/container-build.test.mts",
+      "scripts/rust-validation-setup.test.mts",
+      "scripts/updater-artifact-inventory.test.mts",
+    ],
+  ],
+  [
+    "scripts/install-linux-desktop-prerequisites.sh",
+    ["scripts/container-build.test.mts", "scripts/rust-validation-setup.test.mts"],
+  ],
   ...[
     "scripts/container-host.mts",
     "scripts/container-build.mts",
@@ -1485,6 +1528,17 @@ for (const [file, tests] of [
     "scripts/pr-delivery-snapshot.mts",
     ["scripts/pr-delivery.test.mts", "scripts/pr-delivery-snapshot.test.mts"],
   ],
+  ...[
+    "scripts/release-hosted-native-windows-diagnostic-source.mts",
+    "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+    "scripts/release-hosted-native-windows-diagnostic.mts",
+  ].map((file): [string, readonly string[]] => [
+    file,
+    [
+      "scripts/release-hosted-native-windows-session.test.mts",
+      "scripts/hosted-native-continuity.test.mts",
+    ],
+  ]),
   [
     "scripts/rehearse-updater-artifacts.ps1",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
@@ -1852,6 +1906,7 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/release-windows-webview-driver.test.mts",
   "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
   "scripts/renovate-engine-probe.test.mts",

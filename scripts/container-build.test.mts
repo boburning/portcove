@@ -3,7 +3,16 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import {
+  prerequisiteBash,
+  prerequisiteEnvironment,
+  prerequisiteImportGuards,
+  prerequisiteInvocation,
+  prerequisiteOperations,
+} from "./fixtures/linux-prerequisites-fixture.mts";
 import {
   assertFreshBuildOutputs,
   assertPackageExecutable,
@@ -74,25 +83,29 @@ void test("APT install deadlines preserve failure and stop before mirror retry",
     process.platform === "win32"
       ? path.resolve(git.stdout.trim(), "../../../bin/bash.exe")
       : "bash";
-  const source = readFileSync("scripts/install-linux-desktop-prerequisites.sh", "utf8");
-  const control = source.slice(
-    source.indexOf("install_from_current_mirror() {"),
-    source.indexOf("# GitHub's Azure-backed Ubuntu mirror"),
-  );
+  const module = fileURLToPath(
+    new URL("./install-linux-desktop-prerequisites.sh", import.meta.url),
+  ).replaceAll("\\", "/");
   for (const status of [0, 124, 137]) {
     const script = `set -euo pipefail
+${prerequisiteImportGuards}
+. "$1"
 packages=(fixture)
+privilege=()
+ubuntu_sources=/fixture/missing-source
+apt_mirror_file=/fixture/missing-mirrors
+prefer_archive_mirror=false
 install_deadline=3600s
+fallback_install_deadline=3600s
+use_archive_mirror() { echo unexpected-mirror-retry; return 99; }
 run_apt() { echo "apt-call:$2"; if [[ $2 == install ]]; then return ${status}; fi; }
-${control}
-echo unexpected-mirror-retry
-exit 99`;
+execute_desktop_prerequisites`;
     if (status === 0) {
-      const result = await command(bash, ["-c", script]);
+      const result = await command(bash, ["-c", script, "fixture", module]);
       assert.equal(result.stdout.match(/apt-call:/gu)?.length, 2);
       assert(!result.stdout.includes("unexpected-mirror-retry"));
     } else {
-      await assert.rejects(command(bash, ["-c", script]), (error) => {
+      await assert.rejects(command(bash, ["-c", script, "fixture", module]), (error) => {
         assertCommandFailure(error);
         assert.equal(error.result.status, status);
         assert.match(error.result.stderr, /refusing a mirror retry/u);
@@ -100,12 +113,14 @@ exit 99`;
       });
     }
   }
-  const fullControl = source.slice(source.indexOf("use_archive_mirror() {"));
   for (const status of [0, 100, 124, 137]) {
     const script = `set -euo pipefail
+${prerequisiteImportGuards}
+. "$1"
 packages=(fixture)
 privilege=()
 ubuntu_sources=/fixture/missing-source
+apt_mirror_file=/fixture/missing-mirrors
 prefer_archive_mirror=false
 install_deadline=3600s
 fallback_install_deadline=3600s
@@ -119,12 +134,12 @@ run_apt() {
     return ${status}
   fi
 }
-${fullControl}`;
+execute_desktop_prerequisites`;
     if (status === 0) {
-      const result = await command(bash, ["-c", script]);
+      const result = await command(bash, ["-c", script, "fixture", module]);
       assert.equal(result.stdout.match(/apt-call:/gu)?.length, 4);
     } else {
-      await assert.rejects(command(bash, ["-c", script]), (error) => {
+      await assert.rejects(command(bash, ["-c", script, "fixture", module]), (error) => {
         assertCommandFailure(error);
         assert.equal(error.result.status, status);
         assert.match(error.result.stderr, /either bounded mirror attempt/u);
@@ -139,13 +154,9 @@ void test("APT archive preference rewrites only the selected Azure Ubuntu routes
     process.platform === "win32"
       ? path.resolve(git.stdout.trim(), "../../../bin/bash.exe")
       : "bash";
-  const source = readFileSync("scripts/install-linux-desktop-prerequisites.sh", "utf8");
-  const start = source.indexOf("use_archive_mirror() {");
-  const selection = source.indexOf("if [[ $prefer_archive_mirror == true ]]");
-  assert(start > 0 && selection > start);
-  const rewrite = source
-    .slice(start, selection)
-    .replace("/etc/apt/apt-mirrors.txt", '"$fixture_mirror_file"');
+  const module = fileURLToPath(
+    new URL("./install-linux-desktop-prerequisites.sh", import.meta.url),
+  ).replaceAll("\\", "/");
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-apt-mirror-"));
   try {
     const selected = path.join(root, "ubuntu.sources");
@@ -166,12 +177,13 @@ void test("APT archive preference rewrites only the selected Azure Ubuntu routes
     const result = await command(bash, [
       "-c",
       `set -euo pipefail
+${prerequisiteImportGuards}
+. "$1"
 privilege=()
-ubuntu_sources=$1
-fixture_mirror_file=$2
-${rewrite}
-use_archive_mirror`,
+sed() { command sed "$@"; }
+use_archive_mirror "$2" "$3"`,
       "fixture",
+      module,
       selected.replaceAll("\\", "/"),
       mirrors.replaceAll("\\", "/"),
     ]);
@@ -184,14 +196,23 @@ use_archive_mirror`,
       readFileSync(mirrors, "utf8"),
       `https://archive.ubuntu.com/ubuntu\n${unchanged}\n`,
     );
-    const selector = source.slice(selection, source.indexOf("install_from_current_mirror() {"));
     for (const enabled of [false, true]) {
       const selectedRoute = await command(bash, [
         "-c",
         `set -euo pipefail
+${prerequisiteImportGuards}
+. "$1"
+packages=(fixture)
+ubuntu_sources=/fixture/missing-source
+apt_mirror_file=/fixture/missing-mirrors
+install_deadline=3m
+fallback_install_deadline=5m
 prefer_archive_mirror=${enabled}
 use_archive_mirror() { echo route-selected; }
-${selector}`,
+run_apt() { return 0; }
+execute_desktop_prerequisites`,
+        "fixture",
+        module,
       ]);
       assert.equal(selectedRoute.stdout.includes("route-selected"), enabled);
     }
@@ -199,6 +220,233 @@ ${selector}`,
     rmSync(root, { recursive: true, force: true });
   }
 });
+void test("prerequisite import performs no command I/O and preserves strict and ordinary shell options", () => {
+  const source = fileURLToPath(
+    new URL("./install-linux-desktop-prerequisites.sh", import.meta.url),
+  ).replaceAll("\\", "/");
+  for (const options of ["set +e +u; set +o pipefail", "set -euo pipefail"]) {
+    const result = spawnSync(
+      prerequisiteBash(),
+      [
+        "--noprofile",
+        "--norc",
+        "-c",
+        `
+${options}
+before=$-
+dpkg-query() { echo unexpected-query; return 99; }
+sudo() { echo unexpected-sudo; return 99; }
+apt-get() { echo unexpected-install; return 99; }
+sed() { echo unexpected-rewrite; return 99; }
+${prerequisiteImportGuards}
+. "$1"
+status=$?
+[[ $status == 0 && $- == "$before" ]]
+`,
+        "source-only",
+        source,
+      ],
+      { env: prerequisiteEnvironment(), encoding: "utf8", timeout: 10000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+  }
+});
+
+void test("prerequisite privilege selection requires noninteractive authorization before mutation", () => {
+  for (const [identity, available, status, expected] of [
+    [0, false, 1, 0],
+    [1000, false, 0, 1],
+    [1000, true, 1, 1],
+    [1000, true, 0, 0],
+  ] as const) {
+    const result = prerequisiteOperations(`
+command() { if [[ $1 == -v && $2 == sudo ]]; then return ${available ? 0 : 1}; fi; builtin command "$@"; }
+sudo() { printf 'sudo:%s:%s\\n' "$1" "$2"; [[ $1 == -n && $2 == true ]] || return 99; return ${status}; }
+if desktop_prerequisite_privilege ${identity}; then result=0; else result=$?; fi
+printf 'result:%s\\n' "$result"
+if (( result == 0 )); then printf 'wrapper:%s\\n' "\${privilege[*]}"; fi
+`);
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.includes(`result:${expected}\n`), result.stdout);
+    assert.equal(result.stdout.includes("sudo:-n:true"), identity !== 0 && available);
+    if (expected === 0)
+      assert.ok(
+        result.stdout.includes(`wrapper:${identity === 0 ? "" : "sudo -n"}\n`),
+        result.stdout,
+      );
+  }
+});
+
+void test("real prerequisite main returns for already installed packages without APT or mirror mutation", () => {
+  const result = prerequisiteOperations(`
+dpkg-query() { printf 'ii '; }
+apt-get() { echo forbidden-package-mutation; return 99; }
+sed() { echo forbidden-source-mutation; return 99; }
+sudo() { echo forbidden-privilege-request; return 99; }
+main --include-rpm --include-appimage-runtime
+`);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /already installed/u);
+  assert.doesNotMatch(result.stdout, /forbidden-/u);
+});
+
+void test("workflow prerequisite arguments tolerate quoting, flag order and continuation formatting", () => {
+  const expected = [
+    "--include-rpm",
+    "--prefer-archive-mirror",
+    "--install-timeout-seconds=600",
+  ].toSorted();
+  for (const run of [
+    "./scripts/install-linux-desktop-prerequisites.sh --include-rpm --prefer-archive-mirror --install-timeout-seconds=600",
+    'bash "./scripts/install-linux-desktop-prerequisites.sh" "--install-timeout-seconds=600" --include-rpm --prefer-archive-mirror',
+    "'./scripts/install-linux-desktop-prerequisites.sh' --prefer-archive-mirror \\\n  --include-rpm --install-timeout-seconds=600",
+  ])
+    assert.deepEqual(prerequisiteInvocation(run).toSorted(), expected);
+  for (const run of [
+    "./scripts/install-linux-desktop-prerequisites.sh; touch unexpected",
+    "./scripts/install-linux-desktop-prerequisites.sh $(echo injection)",
+    "bash other-script.sh",
+  ])
+    assert.throws(() => prerequisiteInvocation(run));
+});
+
+void test("sourceable prerequisite planning preserves packages, budgets and caller shell options", () => {
+  const base = ["libwebkit2gtk-4.1-dev", "libappindicator3-dev", "librsvg2-dev", "patchelf"];
+  for (const [id, version, flags, extra] of [
+    ["ubuntu", "22.04", [], []],
+    [
+      "ubuntu",
+      "24.04",
+      ["--include-appimage-runtime"],
+      ["libfuse2t64", "xvfb", "dbus-x11", "at-spi2-core", "util-linux"],
+    ],
+    [
+      "ubuntu",
+      "22.04",
+      ["--include-appimage-runtime"],
+      ["libfuse2", "xvfb", "dbus-x11", "at-spi2-core", "util-linux"],
+    ],
+    [
+      "debian",
+      "24.04",
+      ["--include-appimage-runtime"],
+      ["libfuse2", "xvfb", "dbus-x11", "at-spi2-core", "util-linux"],
+    ],
+    [
+      "ubuntu",
+      "24.04",
+      ["--include-rpm", "--include-dialog-tests", "--include-webdriver"],
+      ["rpm", "xvfb", "xauth", "webkit2gtk-driver", "xvfb", "dbus-x11"],
+    ],
+  ] as const) {
+    const result = prerequisiteOperations(
+      String.raw`
+plan_desktop_prerequisites "$@"
+printf '%s\0' "$install_deadline" "$fallback_install_deadline" "$prefer_archive_mirror" "${"${packages[@]}"}"
+`,
+      [id, version, ...flags],
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.stdout.slice(0, -1).split("\0"), [
+      "3m",
+      "5m",
+      "false",
+      ...base,
+      ...extra,
+    ]);
+  }
+  for (const deadline of ["180", "0180", "600", "3600"]) {
+    const result = prerequisiteOperations(
+      String.raw`
+plan_desktop_prerequisites ubuntu 24.04 --prefer-archive-mirror "--install-timeout-seconds=$1"
+printf '%s\0' "$install_deadline" "$fallback_install_deadline" "$prefer_archive_mirror"
+plan_desktop_prerequisites ubuntu 22.04
+printf '%s\0' "$install_deadline" "$fallback_install_deadline" "$prefer_archive_mirror"
+`,
+      [deadline],
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.stdout.slice(0, -1).split("\0"), [
+      `${Number(deadline)}s`,
+      `${Number(deadline)}s`,
+      "true",
+      "3m",
+      "5m",
+      "false",
+    ]);
+  }
+});
+
+function assertAptOperation(sourcePath?: string) {
+  const result = prerequisiteOperations(
+    String.raw`
+privilege=(sudo -n)
+desktop_prerequisite_apt_options '/owned/source with spaces'
+sudo() { printf '%s\0' sudo "$@" ''; [[ $1 == -n ]]; shift; "$@"; }
+timeout() { printf '%s\0' timeout "$@" ''; [[ $1 == --kill-after=10s && $2 == 600s ]]; shift 2; "$@"; }
+env() { printf '%s\0' env "$@" ''; [[ $1 == DEBIAN_FRONTEND=noninteractive ]]; shift; "$@"; }
+apt-get() { printf '%s\0' apt-get "$@" ''; }
+run_apt 600s install --yes --no-install-recommends literal-package
+`,
+    [],
+    sourcePath,
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const records = result.stdout
+    .split("\0\0")
+    .filter(Boolean)
+    .map((line) => line.split("\0"));
+  const apt = [
+    "apt-get",
+    "-o",
+    "Dir::Etc::sourcelist=/owned/source with spaces",
+    "-o",
+    "Dir::Etc::sourceparts=-",
+    "-o",
+    "Acquire::http::Timeout=30",
+    "-o",
+    "Acquire::https::Timeout=30",
+    "-o",
+    "Acquire::Retries=3",
+    "-o",
+    "DPkg::Lock::Timeout=60",
+    "install",
+    "--yes",
+    "--no-install-recommends",
+    "literal-package",
+  ];
+  const environment = ["env", "DEBIAN_FRONTEND=noninteractive", ...apt];
+  const timeout = ["timeout", "--kill-after=10s", "600s", ...environment];
+  assert.deepEqual(records, [["sudo", "-n", ...timeout], timeout, environment, apt]);
+}
+void test("APT operation keeps privilege outside timeout and consumes every bounded isolated option", () =>
+  assertAptOperation());
+
+void test("APT update failure retains the existing fallback route rather than install-timeout semantics", () => {
+  for (const updateStatus of [100, 124, 137]) {
+    const result = prerequisiteOperations(
+      String.raw`
+packages=(fixture); privilege=(); ubuntu_sources=/fixture/missing; apt_mirror_file=/fixture/missing-mirrors
+prefer_archive_mirror=false; install_deadline=3m; fallback_install_deadline=5m
+updates=0
+use_archive_mirror() { echo fallback-selected; }
+run_apt() { printf 'call:%s:%s\n' "$1" "$2"; if [[ $2 == update ]]; then updates=$((updates+1)); if (( updates == 1 )); then return "$1_STATUS"; fi; fi; }
+execute_desktop_prerequisites
+`.replace('"$1_STATUS"', String(updateStatus)),
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(
+      result.stdout
+        .split("\n")
+        .filter((line) => line.startsWith("call:") || line === "fallback-selected"),
+      ["call:2m:update", "fallback-selected", "call:4m:update", "call:5m:install"],
+    );
+  }
+});
+
 void test("package member inspection requires the exact regular executable", () => {
   const deb = "-rwxr-xr-x root/root 123 2026-10-16 00:00 ./usr/bin/portcove-desktop";
   const rpm = "/usr/bin/portcove-desktop 123 1700000000 abcd 0100755 root root 0 0 0 X";

@@ -75,46 +75,84 @@
       "windows-x86-64": ["bstone.exe"]
     },
     "windows_runtime_path_policy": "relative-file-max-path",
-    "launch_arguments": ["--aog", "--data_dir", "originals", "--profile_dir", "."],
-    "persistent_paths": [
-      "originals",
-      "bstone_config.txt",
-      "bstone_config.txt.temp",
-      "bstone_log.txt",
-      "bstone_aog_full_high_scores",
-      "bstone_aog_full_high_scores.temp",
-      "bstone_aog_full_saved_game_0",
-      "bstone_aog_full_saved_game_0.temp",
-      "bstone_aog_full_saved_game_1",
-      "bstone_aog_full_saved_game_1.temp",
-      "bstone_aog_full_saved_game_2",
-      "bstone_aog_full_saved_game_2.temp",
-      "bstone_aog_full_saved_game_3",
-      "bstone_aog_full_saved_game_3.temp",
-      "bstone_aog_full_saved_game_4",
-      "bstone_aog_full_saved_game_4.temp",
-      "bstone_aog_full_saved_game_5",
-      "bstone_aog_full_saved_game_5.temp",
-      "bstone_aog_full_saved_game_6",
-      "bstone_aog_full_saved_game_6.temp",
-      "bstone_aog_full_saved_game_7",
-      "bstone_aog_full_saved_game_7.temp",
-      "bstone_aog_full_saved_game_8",
-      "bstone_aog_full_saved_game_8.temp",
-      "bstone_aog_full_saved_game_9",
-      "bstone_aog_full_saved_game_9.temp"
-    ],
-    "persistent_file_patterns": [
-      {
-        "prefix": "bstone_aog_sshot_",
-        "suffix": ".png"
-      }
-    ],
+    "launch_arguments": ["--aog", "--data_dir", "originals", "--profile_dir", "profile"],
+    "persistent_paths": ["profile"],
     "presentation": {
       "installation_method": "portable-package",
-      "source_requirements": [],
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "bstone-aliens-of-gold-originals",
+          "label": "Blake Stone aliens-of-gold complete original files",
+          "verification": "catalog-identity"
+        }
+      ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Supply the complete matching lawful retail Aliens of Gold BS6 set (not shareware BS1 or Planet Strike VSI). Keep original files and their edition unchanged; do not rename another game’s files. Portcove does not authenticate originals or claim completed original preparation. Deliberately copy your matching set into an originals subfolder beside bstone.exe inside the versioned package wrapper, the actual executable-parent working directory; keep your original copies. An upstream-recognized installation is another source choice. --data_dir originals is preferred, not exclusive: upstream still searches working/profile and recognized GOG/Steam installations. This managed offer uses --aog for retail Aliens of Gold only; shareware remains on the explicit upstream/non-owning route. Play starts bstone.exe; upstream validates its selected original set. Missing or wrong originals may stop startup; a successful Core invocation or version diagnostic is not game success. --profile_dir . keeps default configuration, log, high scores, exact save/atomic-temporary slots and timestamped screenshots in the executable-parent coordinate. Core preserves those declared names and originals deliberately copied under originals. Different original versions or another source edition need a separate Portcove library or independently owned upstream copy; no in-place source switching, external profile adoption or cross-version save ABI is established. Preserve the creating runtime and data before changing versions. Custom outside-tree outputs remain externally owned and outside Core backups; unclaimed inside-tree outputs can hold maintenance. Existing external registrations keep their creating contracts. Fresh non-owning registration is still available through the broader upstream guide. One canonical entry in a library cannot hold managed and external runtimes concurrently. Keep the output path short to leave room for runtime-generated filenames. Generic fixtures and a diagnostic version dialog establish neither actual originals nor settings/screenshots/game-save compatibility or gameplay."
-    }
+      "manual_preparation": "Select a folder or ZIP containing your complete matching retail BS6 set (versions 1.0, 2.0, 2.1 or 3.0). Portcove verifies the reviewed upstream SHA1 identities as one complete edition, prepares immutable copies in originals and places settings, high scores, saves, screenshots and temporary files in the separate profile folder. Originals are not included. The --aog argument selects this game. Upstream may search recognized outside locations as well; those files stay externally owned and outside Portcove backup. This fresh managed offer does not convert existing registrations or adopt an older Native4 runtime/profile. Older contracts retain their originals directory and root-level persistence; shrinking or remapping that populated data is held. Preserve the creating runtime and profile before changing versions. Backup and preserving removal cover the declared profile; no save conversion or future-version save compatibility is established. BS1 shareware is a separate upstream-owned setup choice; it is not retail BS6 admission. The upstream guide remains the non-owning alternative for other original editions or existing players."
+    },
+    "source_profile": "bstone-aliens-of-gold-originals",
+    "runtime_source_set": [
+      {
+        "source_filenames": ["AUDIOHED.BS6"],
+        "destination": "originals/audiohed.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["AUDIOT.BS6"],
+        "destination": "originals/audiot.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["EANIM.BS6"],
+        "destination": "originals/eanim.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["GANIM.BS6"],
+        "destination": "originals/ganim.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["IANIM.BS6"],
+        "destination": "originals/ianim.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["MAPHEAD.BS6"],
+        "destination": "originals/maphead.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["MAPTEMP.BS6"],
+        "destination": "originals/maptemp.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["SANIM.BS6"],
+        "destination": "originals/sanim.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGADICT.BS6"],
+        "destination": "originals/vgadict.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGAGRAPH.BS6"],
+        "destination": "originals/vgagraph.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGAHEAD.BS6"],
+        "destination": "originals/vgahead.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VSWAP.BS6"],
+        "destination": "originals/vswap.bs6",
+        "materialization": "copy"
+      }
+    ],
+    "windows_temp_directory": "profile"
   }
 }

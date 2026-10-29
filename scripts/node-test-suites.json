@@ -31,6 +31,14 @@
         "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
+    "windows-helpers-4": {
+      "arguments": [
+        "--test",
+        "--test-timeout=60000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ],
+      "localResourceProfile": "analysis"
+    },
     "windows-storage": {
       "arguments": [
         "--test",
@@ -1131,16 +1139,16 @@
       "memberships": [
         ["catalog-full-2", 2500],
         ["release-check", 600],
-        ["windows-storage-3", 1000110]
+        ["windows-helpers-4", 100]
       ],
       "platform_skips": [
         {
           "platform": "win32",
-          "owner": "windows-storage-3",
+          "owner": "windows-helpers-4",
           "category": "platform",
           "prerequisite": "Actual win32 process/filesystem semantics",
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-4",
           "cases": [
             "hosted runtime timings retain eligible and refused observations without installer effects"
           ]
@@ -3477,6 +3485,13 @@
       ]
     },
     {
+      "file": "scripts/hosted-discovery-intake-runner.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9691],
+        ["roadmap-check", 191]
+      ]
+    },
+    {
       "file": "scripts/hosted-discovery-intake.test.mts",
       "memberships": [
         ["catalog-full-2", 9690],
@@ -4054,7 +4069,9 @@
             "fixed Windows source-system custody observes only its two host-image files",
             "Windows custody retains real owner/ACL/identity and refuses same-byte replacement",
             "Windows custody refuses hard links, junction ancestry and noncanonical requests",
-            "Windows custody refuses foreign file writers and ancestor replacement in owned fixtures"
+            "Windows custody refuses foreign file writers and ancestor replacement in owned fixtures",
+            "Windows custody classifies the real hosted runtime and source before candidate work",
+            "fixed Windows custody reader preserves trusted principals and closed foreign-rights refusals"
           ]
         }
       ]
@@ -4331,7 +4348,11 @@
           "prerequisite": "PowerShell unavailable; required Windows job executes this contract",
           "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3; Mac complement macos-platform-contracts",
-          "cases": ["Windows analyzer acquisition retains the exact pin and both mandatory gates"],
+          "cases": [
+            "Windows analyzer acquisition retains the exact pin and both mandatory gates",
+            "Rust action records consumed toolchain context and stops at each failed probe",
+            "Rust pin reader consumes the repository TOML and refuses malformed inputs without partial outputs"
+          ],
           "skip_reason_prefix": "PowerShell unavailable; required Windows job executes this contract"
         },
         {
@@ -4401,7 +4422,8 @@
       "file": "scripts/release-windows-webview-driver.test.mts",
       "memberships": [
         ["catalog-full-2", 1000010],
-        ["release-check", 16209]
+        ["release-check", 16209],
+        ["windows-helpers-3", 800]
       ]
     },
     {

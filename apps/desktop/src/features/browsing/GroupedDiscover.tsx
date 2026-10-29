@@ -8,7 +8,7 @@ import type { CollectionLayout } from "./use-collection-layout";
 import type { useFavorites } from "../favorites/use-favorites";
 import { SaveGameButton, type Organization } from "../organization/OrganizationControls";
 import { useId, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, GitCompareArrows, Star } from "lucide-react";
+import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
 import { useArtwork, useArtworkVisibility } from "../../artwork";
 import { ExternalLink } from "../../components/ExternalLink";
@@ -119,18 +119,20 @@ export function GroupedDiscover({
     setComparison(undefined);
     onSelect(port.id, originKey);
   };
-  const favorite = (port: CatalogEntry) =>
+  const favorite = (port: CatalogEntry, card = false) =>
     favorites && (
       <Button
         data-focusable
         size="icon-sm"
+        className={card ? "collection-art-action collection-favorite" : undefined}
+        title={favorites.ids?.has(port.id) ? "Remove from favorites" : "Add to favorites"}
         variant={favorites.ids?.has(port.id) ? "selected" : "ghost"}
         aria-label={`Favorite ${gameIdentityLabel(port)}`}
         aria-pressed={favorites.ids?.has(port.id) ?? false}
         disabled={!favorites.ids || favorites.busy}
         onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
       >
-        <Star aria-hidden="true" />
+        {card ? <Heart aria-hidden="true" /> : <Star aria-hidden="true" />}
       </Button>
     );
   return (
@@ -313,7 +315,7 @@ function DiscoverGameCard({
   descriptionPrefix: string;
   nativeSourceDrag: NativeSourceDragState;
   organization?: Organization | undefined;
-  favorite: (port: CatalogEntry) => ReactNode;
+  favorite: (port: CatalogEntry, card?: boolean) => ReactNode;
   open: (port: CatalogEntry, originKey: string) => void;
   compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
 }) {
@@ -371,11 +373,13 @@ function DiscoverGameCard({
           identityArtwork
           className="collection-art"
         />
-        <h2 className="collection-title text-base leading-snug font-semibold">
-          {gameTitle(first)}
-        </h2>{" "}
+        <h2 className="collection-title text-sm leading-snug font-semibold">{gameTitle(first)}</h2>{" "}
         <p className="collection-project text-xs text-pc-muted-foreground">{projectLabel}</p>
       </Button>
+      <div className="collection-personal-actions">
+        {group.ports.length === 1 && favorite(first, true)}
+        <SaveGameButton card port={first} groupPorts={group.ports} organization={organization} />
+      </div>
       <div className="discover-game-metadata grid content-start gap-2">
         {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
         {exact && <IdentityChips port={first} />}
@@ -393,9 +397,7 @@ function DiscoverGameCard({
         onTask={onTask}
         group={group}
         statuses={statuses}
-        favorite={favorite}
         first={first}
-        organization={organization}
         detailOrigin={detailOrigin}
         describedBy={describedBy}
         open={open}
@@ -459,16 +461,14 @@ function DiscoverGameActions({
   group,
   onTask,
   statuses,
-  favorite,
   first,
-  organization,
   detailOrigin,
   describedBy,
   open,
   compare,
 }: Pick<
   Parameters<typeof DiscoverGameCard>[0],
-  "group" | "onTask" | "statuses" | "favorite" | "organization" | "open" | "compare"
+  "group" | "onTask" | "statuses" | "open" | "compare"
 > & {
   first: CatalogEntry;
   detailOrigin: string;
@@ -483,14 +483,11 @@ function DiscoverGameActions({
   const task = group.matchingPorts.length === 1 && action.pending && onTask;
   return (
     <div className="discover-game-actions grid content-start justify-items-start gap-2">
-      <div className="discover-game-personal-actions flex flex-wrap items-start gap-2">
-        {group.ports.length === 1 && favorite(first)}
-        <SaveGameButton port={first} groupPorts={group.ports} organization={organization} />
-      </div>
       <Button
         data-focusable
         variant="outline"
         size="sm"
+        className="discover-card-action"
         data-detail-origin={`${detailOrigin}:details`}
         aria-describedby={describedBy}
         onClick={(event) =>

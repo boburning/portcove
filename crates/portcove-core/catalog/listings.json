@@ -14309,7 +14309,7 @@
     {
       "id": "diablo-devilutionx",
       "name": "Diablo (DevilutionX)",
-      "summary": "Set up Diablo through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2563,
@@ -14324,6 +14324,10 @@
       },
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original set",
+            "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use DIABDAT.MPQ from your own original PC Diablo CD or installation. The documented SPAWN.MPQ shareware provides limited shareware content only. Keep the packaged devilutionx.mpq; optional fonts and voice packs have separate upstream requirements. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -14351,7 +14355,7 @@
     {
       "id": "diablo-hellfire-devilutionx",
       "name": "Diablo: Hellfire (DevilutionX)",
-      "summary": "Set up Diablo: Hellfire through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo: Hellfire through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo: Hellfire",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2564,
@@ -14374,6 +14378,10 @@
       },
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original set",
+            "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."

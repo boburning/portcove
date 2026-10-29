@@ -180,6 +180,34 @@ a range whose lower bound is Native4 cannot authorize the new behavior. Earlier
 definitions omit the field and retain Native1–4 semantics. Complete retained
 projection continues to refuse unknown or discarded fields in older readers.
 
+Native6 supports verified original-file preparation through the existing
+`source_profile` and `runtime_source_set` fields. This opt-in accepts complete
+schema-2 FileSet variants with cryptographic member identities, one enforced game
+source contract covering those variants, and Copy targets only. Original outputs
+are immutable and reserve their first path component apart from mutable
+profile/TEMP paths and filename patterns. Manual
+setup markers, conversion, installers and per-title initialization do not establish
+this completion. No production title is admitted by the generic capability.
+
+The existing SourceOnly planner, authorization, private staging, receipt, manifest
+and publisher own preparation. Fresh packages must leave every original output
+and sidecar vacant, including case aliases. Core resolves the package executable
+and derives its exact parent directory; a wrapper does not move the outer
+installation manifest or preparation receipts. Copied files are hashed against
+the admitted complete source set, and original inputs are checked again before
+publication and registration. The source and complete typed source contract are
+bound to the existing receipt. Launch never repairs or recopies sealed originals.
+
+Reviewed preparation can copy a verified installation into a new private payload.
+Unrecorded or altered immutable inputs refuse preparation. A prepared installation
+cannot silently rebind to another original edition, source registration or member
+mapping; maintenance and retained activation compare their creating contracts and
+sealed source receipts. Unapproved populated adoption and persistence changes stay
+held. Preserving removal retains declared profile data and leaves external
+originals unchanged. Native1–5 definitions and older SourceOnly interpretations
+retain their existing semantics. Fresh and retained indexed entries with native
+source profiles require a Native6 lower bound.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route

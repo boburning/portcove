@@ -18,6 +18,7 @@ import test from "node:test";
 import { runPythonSuite } from "./python-test-results.mts";
 import { createHash } from "node:crypto";
 import { parseDocument } from "yaml";
+import { runInNewContext } from "node:vm";
 
 void test("hosted Linux readiness preserves original-generation recovery and refusal outcomes", (context) => {
   runPythonSuite(new URL("./qualify-hosted-native-linux.test.py", import.meta.url), context, 30000);
@@ -651,8 +652,8 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
       typeof stop.run === "string",
   );
   assert.equal(start.name, "Start bounded runner resource observation before checkout");
-  assert.ok(Buffer.byteLength(start.run) < 21000);
-  assert.ok(Buffer.byteLength(start.run.replaceAll("\n", "\r\n")) < 21000);
+  assert.ok(Buffer.byteLength(start.run) < 21500);
+  assert.ok(Buffer.byteLength(start.run.replaceAll("\n", "\r\n")) < 21500);
   const observer = /\$taskObserverSource = @'\n([\s\S]*?)\n'@/u.exec(start.run)?.[1];
   assert.ok(observer);
   assert.ok(
@@ -696,6 +697,7 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
       "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-hosted-job-usage",
     PORTCOVE_HOSTED_PLATFORM: process.platform === "win32" ? "windows-x86_64" : "linux-x86_64",
     PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
+    PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "false",
     RUNNER_TEMP: temporary,
     GITHUB_WORKSPACE: workspace,
     PORTCOVE_INERT_PRIVATE_VALUE: "never-collect-this-inert-value",
@@ -948,7 +950,10 @@ void test("instrumentation-only workflow shares the observer with a three-minute
   assert.equal(input.default, false);
   assert.equal(input.type, "boolean");
   const job = raw.jobs["installed-prerequisite"];
-  assert.equal(job["timeout-minutes"], "${{ inputs.resource_observer_only && 3 || 90 }}");
+  assert.equal(
+    job["timeout-minutes"],
+    "${{ inputs.resource_observer_only && 3 || inputs.connected_private_diagnostic && inputs.platform == 'windows-x86_64' && 100 || 90 }}",
+  );
   for (const step of fixture.steps) {
     assert.ok(isRecord(step));
     const name = String(step.name ?? step.uses ?? step.run);
@@ -1007,138 +1012,390 @@ void test("original observer heartbeat refuses stale samples while preserving th
   assert.equal(original.stdout.trim(), "same original observer");
 });
 
-void test("connected diagnostic workflow stays source-held and writes exactly the four fixed public upload paths", async (t) => {
-  const workflow = parseDocument(
+void test(
+  "connected diagnostic workflow stays source-held and writes exactly the four fixed public upload paths",
+  { timeout: 180000 },
+  async (t) => {
+    const workflow = parseDocument(
+      await readFile(
+        new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+        "utf8",
+      ),
+    ).toJS() as {
+      on: { workflow_dispatch: { inputs: Record<string, { default?: unknown }> } };
+      jobs: Record<string, { steps: Record<string, unknown>[] }>;
+    };
+    assert.equal(workflow.on.workflow_dispatch.inputs.connected_private_diagnostic?.default, false);
+    const steps = workflow.jobs["installed-prerequisite"]!.steps;
+    const publicDiagnostics = steps.find(
+      (step) => step.name === "Retain only selected public diagnostics",
+    );
+    assert.ok(publicDiagnostics && isRecord(publicDiagnostics.with));
+    const publicPaths = String(publicDiagnostics.with.path).trim().split("\n");
+    assert.deepEqual(
+      publicPaths.filter((name) => name.includes("derivation")),
+      ["work/updater-rehearsal/windows-fixture-derivation.json"],
+    );
+    assert.ok(!publicPaths.some((name) => /(?:^|\/)(?:private|owner)(?:\/|$)/u.test(name)));
+    const producer = await readFile(
+      new URL("./rehearse-updater-artifacts.ps1", import.meta.url),
+      "utf8",
+    );
+    const publication = producer.slice(producer.lastIndexOf("if($captureFixtureDerivation){"));
+    assert.match(publication, /Private rehearsal input remains before derivation publication/u);
+    assert.match(
+      publication,
+      /if\(\$bytes.Length -gt 65536\)\{throw 'Fixture derivation report exceeds bound'\}/u,
+    );
+    assert.match(publication, /'windows-fixture-derivation.json'\),\[IO.FileMode\]::CreateNew/u);
+    const record = publication.split("\n").find((line) => line.includes("$derivation=[ordered]"));
+    assert.ok(record);
+    assert.doesNotMatch(
+      record,
+      /\$(?:privateKey|password|credential)\b|\$env:(?!GITHUB_(?:RUN_ID|RUN_ATTEMPT|WORKFLOW_REF)\b)/iu,
+    );
+    const preflight = steps.findIndex((step) => step.id === "diagnostic_preflight"),
+      native = steps.findIndex((step) => step.name === "Provision pinned Windows native driver");
+    assert.ok(preflight > 0 && preflight < native);
+    for (const name of ["diagnostic_pre_upload", "diagnostic_post_upload"]) {
+      const step = steps.find((row) => row.id === name);
+      assert.ok(step && isRecord(step.with));
+      assert.equal(step.uses, "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
+      assert.equal(step.with["retention-days"], 7);
+      assert.equal(step.with.overwrite, false);
+      assert.equal(step.with["compression-level"], 0);
+      assert.equal(
+        step.with["include-hidden-files"],
+        true,
+        "Only the fixed four public paths may cross the protected dot-prefixed ancestor",
+      );
+    }
+    assert.deepEqual(
+      steps
+        .filter((row) => isRecord(row.with) && row.with["include-hidden-files"] === true)
+        .map((row) => row.id)
+        .sort((a, b) => String(a).localeCompare(String(b))),
+      ["diagnostic_post_upload", "diagnostic_pre_upload"],
+    );
+    const preparation = steps.findIndex((row) => row.id === "diagnostic_preparation"),
+      controller = steps.findIndex((row) => row.id === "diagnostic_start");
+    assert.ok(preparation > native && preparation < controller);
+    assert.equal(steps[preparation]!["timeout-minutes"], 9);
+    const trustedEntry = steps.find((row) => row.id === "diagnostic_start")?.run;
+    assert.ok(typeof trustedEntry === "string");
+    assert.ok(
+      trustedEntry.indexOf("HashData($taskBytes)") <
+        trustedEntry.indexOf("& $taskEntry @taskArguments"),
+    );
+    assert.doesNotMatch(
+      trustedEntry,
+      /(?:& node|& \.\/scripts\/release-hosted-native-windows-diagnostic-launch)/u,
+    );
+    const relays = steps.filter(
+      (row) => isRecord(row.env) && typeof row.env.DIAGNOSTIC_OPERATION === "string",
+    );
+    assert.equal(relays.length, 8);
+    for (const row of relays) {
+      assert.equal(row.run, trustedEntry);
+      assert.ok(isRecord(row.env));
+      assert.equal(
+        row.env.DIAGNOSTIC_LAUNCHER_SHA,
+        "${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}",
+      );
+      assert.equal(
+        row.env.DIAGNOSTIC_SETUP_SHA,
+        "${{ steps.diagnostic_preparation.outputs.setup_sha256 }}",
+      );
+      assert.equal(
+        row.env.DIAGNOSTIC_NODE_SHA,
+        "${{ steps.diagnostic_preparation.outputs.node_sha256 }}",
+      );
+    }
+    const settlement = steps.find(
+      (row) => row.name === "Retain only bounded diagnostic source and cleanup records",
+    );
+    assert.ok(settlement && isRecord(settlement.with));
+    assert.match(String(settlement.if), /always\(\)/u);
+    assert.equal(
+      settlement.with.path,
+      "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-startup-public.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-preimport-public.json\nwork/hosted-continuity-evidence/windows-diagnostic-preparation-failure.json\n",
+    );
+    assert.ok(
+      !String(settlement.with.path).includes("owner/") &&
+        !String(settlement.with.path).includes("stdout"),
+    );
+    const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-actions-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    for (const id of ["diagnostic_pre", "diagnostic_post"]) {
+      const step = steps.find((row) => row.id === id);
+      assert.ok(typeof step?.run === "string");
+      const output = path.join(root, id + ".output"),
+        program = path.join(root, id + ".ps1"),
+        request = {
+          request_sha256: "a".repeat(64),
+          name: "fixed-diagnostic-name",
+          files: ["subject.json", "report.json", "capture.json", "bundle.json"],
+        },
+        sha = createHash("sha256")
+          .update(root + id)
+          .digest("hex")
+          .slice(0, 40),
+        run = String(Date.now()),
+        namespace = path.join(os.homedir(), `.pct-connected-${run}-${sha.slice(0, 12)}`),
+        capturedLauncher = path.join(
+          namespace,
+          "windows-source/source/scripts/release-hosted-native-windows-diagnostic-launch.ps1",
+        ),
+        publicWorkspace = path.join(root, id + "-public"),
+        poisonMarker = path.join(root, id + "-workspace-executed");
+      await mkdir(path.dirname(capturedLauncher), { recursive: true });
+      t.after(() => rm(namespace, { recursive: true, force: true }));
+      const captured = `param([string]$Operation,[string]$Stage)\n'${JSON.stringify(request)}'\n`;
+      await writeFile(capturedLauncher, captured, { flag: "wx" });
+      await mkdir(path.join(publicWorkspace, "scripts"), { recursive: true });
+      await writeFile(
+        path.join(publicWorkspace, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+        `[IO.File]::WriteAllText('${poisonMarker.replaceAll("'", "''")}','wrong source');throw 'Unsafe workspace code executed'`,
+      );
+      await writeFile(program, step.run);
+      const environment = {
+        ...process.env,
+        GITHUB_SHA: sha,
+        GITHUB_RUN_ID: run,
+        GITHUB_WORKSPACE: publicWorkspace,
+        GITHUB_OUTPUT: output,
+        DIAGNOSTIC_OPERATION: "Request",
+        DIAGNOSTIC_STAGE: id === "diagnostic_pre" ? "payload-signing" : "release-publication",
+        DIAGNOSTIC_LAUNCHER_SHA: createHash("sha256").update(captured).digest("hex"),
+      };
+      const observed = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
+        { cwd: publicWorkspace, encoding: "utf8", timeout: 15000, env: environment },
+      );
+      assert.equal(observed.status, 0, observed.stderr);
+      assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/u), [
+        "request_sha256=" + request.request_sha256,
+        "name=" + request.name,
+        "paths<<PORTCOVE_DIAGNOSTIC_PATHS",
+        ...request.files,
+        "PORTCOVE_DIAGNOSTIC_PATHS",
+      ]);
+      await assert.rejects(readFile(poisonMarker), { code: "ENOENT" });
+      const wrong = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
+        {
+          cwd: publicWorkspace,
+          encoding: "utf8",
+          timeout: 15000,
+          env: { ...environment, DIAGNOSTIC_LAUNCHER_SHA: "0".repeat(64) },
+        },
+      );
+      assert.notEqual(wrong.status, 0);
+      assert.match(wrong.stderr, /Captured workflow entry differs from sealed original bootstrap/u);
+      await assert.rejects(readFile(poisonMarker), { code: "ENOENT" });
+    }
+    const launch = fileURLToPath(
+      new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+    );
+    for (const operation of ["Preflight", "Start"]) {
+      const result = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", launch, "-Operation", operation],
+        {
+          encoding: "utf8",
+          timeout: 60000,
+          env: { ...process.env, RUNNER_TEMP: path.join(root, "must-not-create") },
+        },
+      );
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Connected Windows S2 diagnostic remains held/u);
+    }
+  },
+);
+
+void test(
+  "source-held diagnostic controller refuses every transport operation before storage and native work",
+  { timeout: 480000 },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-controller-held-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const entry = fileURLToPath(
+      new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
+    );
+    for (const operation of [
+      ["prepare"],
+      ["prepare-payload"],
+      ["run"],
+      ["request", "payload-signing"],
+      ["ack", "release-publication", "a".repeat(64), "1", "b".repeat(64)],
+      ["abort"],
+      ["settle"],
+    ]) {
+      const result = spawnSync(process.execPath, [entry, ...operation], {
+        encoding: "utf8",
+        timeout: 60000,
+        env: { ...process.env, RUNNER_TEMP: root, PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true" },
+      });
+      assert.equal(result.status, 2, result.stderr);
+      assert.equal(result.stdout, "");
+      assert.deepEqual(await readdir(root), []);
+    }
+  },
+);
+
+void test("fixed public diagnostic copying preserves valid siblings while refusing invalid records", async () => {
+  const launcher = await readFile(
+    new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+    "utf8",
+  );
+  const start = launcher.indexOf("function Copy-FixedPublicDiagnosticRecords {");
+  const end = launcher.indexOf("\n$closed=", start);
+  assert.ok(start > 0 && end > start);
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-public-siblings-"));
+  try {
+    const fixed = launcher.slice(start, end);
+    for (const scenario of [
+      "forged-ready",
+      "conflicting-startup",
+      "missing-ready",
+      "valid",
+    ] as const) {
+      const directory = path.join(root, scenario);
+      const temp = path.join(directory, "protected-temp"),
+        sink = path.join(directory, "public-temp");
+      const source = path.join(directory, "source"),
+        workspace = path.join(directory, "workspace");
+      const relative = "portcove-hosted-windows-connected-diagnostic";
+      const settlement =
+        "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json";
+      const record = {
+        source: "a".repeat(40),
+        tree: "b".repeat(40),
+        run_id: "123",
+        attempt: 1,
+        workflow: "fixed-owned-workflow",
+        authority: "none",
+      };
+      for (const filename of [
+        path.join(temp, relative, "controller-startup-public.json"),
+        path.join(source, settlement),
+      ]) {
+        await mkdir(path.dirname(filename), { recursive: true });
+        await writeFile(filename, JSON.stringify(record));
+      }
+      if (scenario !== "missing-ready")
+        await writeFile(
+          path.join(temp, relative, "controller-ready.json"),
+          JSON.stringify({
+            ...record,
+            source: scenario === "forged-ready" ? "c".repeat(40) : record.source,
+          }),
+        );
+      if (scenario === "conflicting-startup") {
+        await mkdir(path.join(sink, relative), { recursive: true });
+        await writeFile(
+          path.join(sink, relative, "controller-startup-public.json"),
+          "retained-original",
+        );
+      }
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          `
+$ErrorActionPreference='Stop'
+$expectedTemp=$env:OWNED_TEMP;$publicTemp=$env:OWNED_SINK;$source=$env:OWNED_SOURCE;$workspace=$env:OWNED_WORKSPACE
+$actualTree='${record.tree}';$utf8=[Text.UTF8Encoding]::new($false,$true)
+function Read-LaunchBytes($file,$maximum){$bytes=[IO.File]::ReadAllBytes($file);if($bytes.Length -eq 0 -or $bytes.Length -gt $maximum){throw 'Owned bounded read refused'};return ,$bytes}
+${fixed}
+$refused=$false
+try{Copy-FixedPublicDiagnosticRecords}catch{if($_.Exception.Message -cne 'One or more fixed public diagnostic records refused'){throw};$refused=$true}
+# Repeated publication must retain create-only records and repeat a refusal.
+$secondRefused=$false
+try{Copy-FixedPublicDiagnosticRecords}catch{$secondRefused=$true}
+[Console]::Out.Write((@{refused=$refused;second_refused=$secondRefused}|ConvertTo-Json -Compress))
+`,
+        ],
+        {
+          encoding: "utf8",
+          timeout: 15000,
+          maxBuffer: 16384,
+          env: {
+            ...process.env,
+            GITHUB_SHA: record.source,
+            GITHUB_RUN_ID: record.run_id,
+            GITHUB_WORKFLOW_REF: record.workflow,
+            OWNED_TEMP: temp,
+            OWNED_SINK: sink,
+            OWNED_SOURCE: source,
+            OWNED_WORKSPACE: workspace,
+          },
+        },
+      );
+      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.status, 0, result.stderr);
+      const refused = scenario === "forged-ready" || scenario === "conflicting-startup";
+      assert.deepEqual(JSON.parse(result.stdout), { refused, second_refused: refused });
+      assert.deepEqual(
+        await readFile(path.join(workspace, settlement)),
+        Buffer.from(JSON.stringify(record)),
+      );
+      const publicFiles = await readdir(path.join(sink, relative));
+      assert.equal(
+        publicFiles.includes("controller-ready.json"),
+        scenario !== "forged-ready" && scenario !== "missing-ready",
+      );
+      assert.deepEqual(
+        await readFile(path.join(sink, relative, "controller-startup-public.json")),
+        Buffer.from(
+          scenario === "conflicting-startup" ? "retained-original" : JSON.stringify(record),
+        ),
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+void test("only connected Windows qualification receives the finite100-minute provider envelope", async () => {
+  const raw: unknown = parseDocument(
     await readFile(
       new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
       "utf8",
     ),
-  ).toJS() as {
-    on: { workflow_dispatch: { inputs: Record<string, { default?: unknown }> } };
-    jobs: Record<string, { steps: Record<string, unknown>[] }>;
-  };
-  assert.equal(workflow.on.workflow_dispatch.inputs.connected_private_diagnostic?.default, false);
-  const steps = workflow.jobs["installed-prerequisite"]!.steps;
-  const publicDiagnostics = steps.find(
-    (step) => step.name === "Retain only selected public diagnostics",
-  );
-  assert.ok(publicDiagnostics && isRecord(publicDiagnostics.with));
-  const publicPaths = String(publicDiagnostics.with.path).trim().split("\n");
-  assert.deepEqual(
-    publicPaths.filter((name) => name.includes("derivation")),
-    ["work/updater-rehearsal/windows-fixture-derivation.json"],
-  );
-  assert.ok(!publicPaths.some((name) => /(?:^|\/)(?:private|owner)(?:\/|$)/u.test(name)));
-  const producer = await readFile(
-    new URL("./rehearse-updater-artifacts.ps1", import.meta.url),
-    "utf8",
-  );
-  const publication = producer.slice(producer.lastIndexOf("if($captureFixtureDerivation){"));
-  assert.match(publication, /Private rehearsal input remains before derivation publication/u);
-  assert.match(
-    publication,
-    /if\(\$bytes.Length -gt 65536\)\{throw 'Fixture derivation report exceeds bound'\}/u,
-  );
-  assert.match(publication, /'windows-fixture-derivation.json'\),\[IO.FileMode\]::CreateNew/u);
-  const record = publication.split("\n").find((line) => line.includes("$derivation=[ordered]"));
-  assert.ok(record);
-  assert.doesNotMatch(
-    record,
-    /\$(?:privateKey|password|credential)\b|\$env:(?!GITHUB_(?:RUN_ID|RUN_ATTEMPT|WORKFLOW_REF)\b)/iu,
-  );
-  const preflight = steps.findIndex((step) => step.id === "diagnostic_preflight"),
-    native = steps.findIndex((step) => step.name === "Provision pinned Windows native driver");
-  assert.ok(preflight > 0 && preflight < native);
-  for (const name of ["diagnostic_pre_upload", "diagnostic_post_upload"]) {
-    const step = steps.find((row) => row.id === name);
-    assert.ok(step && isRecord(step.with));
-    assert.equal(step.uses, "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
-    assert.equal(step.with["retention-days"], 7);
-    assert.equal(step.with.overwrite, false);
-    assert.equal(step.with["compression-level"], 0);
-  }
-  const settlement = steps.find(
-    (row) => row.name === "Retain only bounded diagnostic source and cleanup records",
-  );
-  assert.ok(settlement && isRecord(settlement.with));
-  assert.match(String(settlement.if), /always\(\)/u);
-  assert.equal(
-    settlement.with.path,
-    "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-ready.json\n${{ runner.temp }}/portcove-hosted-windows-connected-diagnostic/controller-startup-public.json\n",
-  );
-  assert.ok(
-    !String(settlement.with.path).includes("owner/") &&
-      !String(settlement.with.path).includes("stdout"),
-  );
-  const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-actions-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  for (const id of ["diagnostic_pre", "diagnostic_post"]) {
-    const step = steps.find((row) => row.id === id);
-    assert.ok(typeof step?.run === "string");
-    const output = path.join(root, id + ".output"),
-      program = path.join(root, id + ".ps1"),
-      request = {
-        request_sha256: "a".repeat(64),
-        name: "fixed-diagnostic-name",
-        files: ["subject.json", "report.json", "capture.json", "bundle.json"],
-      };
-    await writeFile(
-      program,
-      `$ErrorActionPreference='Stop'\nfunction node { '${JSON.stringify(request)}'; $global:LASTEXITCODE=0 }\n` +
-        step.run,
-    );
-    const observed = spawnSync(
-      "pwsh",
-      ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
-      { encoding: "utf8", timeout: 15000, env: { ...process.env, GITHUB_OUTPUT: output } },
-    );
-    assert.equal(observed.status, 0, observed.stderr);
-    assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/u), [
-      "request_sha256=" + request.request_sha256,
-      "name=" + request.name,
-      "paths<<PORTCOVE_DIAGNOSTIC_PATHS",
-      ...request.files,
-      "PORTCOVE_DIAGNOSTIC_PATHS",
-    ]);
-  }
-  const launch = fileURLToPath(
-    new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
-  );
-  for (const operation of ["Preflight", "Start"]) {
-    const result = spawnSync(
-      "pwsh",
-      ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", launch, "-Operation", operation],
-      {
-        encoding: "utf8",
-        timeout: 15000,
-        env: { ...process.env, RUNNER_TEMP: path.join(root, "must-not-create") },
-      },
-    );
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Connected Windows S2 diagnostic remains held/u);
-  }
+  ).toJS();
+  assert.ok(isRecord(raw) && isRecord(raw.jobs) && isRecord(raw.jobs["installed-prerequisite"]));
+  const expression = raw.jobs["installed-prerequisite"]["timeout-minutes"];
+  assert.equal(typeof expression, "string");
+  assert.ok(typeof expression === "string");
+  for (const observer of [true, false])
+    for (const connected of [true, false])
+      for (const platform of ["windows-x86_64", "linux-x86_64"]) {
+        const actual: unknown = runInNewContext(expression.slice(3, -2), {
+          inputs: {
+            resource_observer_only: observer,
+            connected_private_diagnostic: connected,
+            platform,
+          },
+        });
+        assert.equal(actual, observer ? 3 : connected && platform === "windows-x86_64" ? 100 : 90);
+      }
 });
 
-void test("source-held diagnostic controller refuses every transport operation before storage and native work", async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "pc-diagnostic-controller-held-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const entry = fileURLToPath(
-    new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
-  );
-  for (const operation of [
-    ["run"],
-    ["request", "payload-signing"],
-    ["ack", "release-publication", "a".repeat(64), "1", "b".repeat(64)],
-    ["abort"],
-    ["settle"],
-  ]) {
-    const result = spawnSync(process.execPath, [entry, ...operation], {
-      encoding: "utf8",
-      timeout: 15000,
-      env: { ...process.env, RUNNER_TEMP: root, PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true" },
-    });
-    assert.equal(result.status, 2, result.stderr);
-    assert.equal(result.stdout, "");
-    assert.deepEqual(await readdir(root), []);
-  }
+void test("connected Windows resource observer records100 minutes without enlarging other profiles or byte limits", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context);
+  fixture.environment.PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC = "true";
+  const started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const intent = await fixture.read("intent.json");
+  assert.ok(isRecord(intent));
+  assert.equal(intent.maximum_milliseconds, process.platform === "win32" ? 6000000 : 5400000);
+  assert.equal(intent.maximum_samples, process.platform === "win32" ? 1200 : 1080);
+  assert.equal(intent.maximum_bytes, 8388608);
+  const stopped = fixture.invoke(fixture.stopPath);
+  assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
 });

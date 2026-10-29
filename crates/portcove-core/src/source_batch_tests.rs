@@ -932,6 +932,9 @@ fn ambiguous_unchanged_complete_set_is_current_without_admission() {
 fn legacy_compressed_gamecube_is_refused_before_hashing() {
     let (_temporary, mut service, mut record) = fixture();
     let mut document = service.catalog().document().clone();
+    // This is a raw legacy source-inspection control, without port execution
+    // contracts. Native6 ports require the schema-2 authority removed below.
+    document.ports.clear();
     document.schema_version = 1;
     document.source_catalog = None;
     let profile = document
