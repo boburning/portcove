@@ -885,7 +885,8 @@ mod tests {
                 expected_output: "testtool".into(),
                 required_output_markers: vec!["verify".into(), "convert".into()],
                 // Outcome cases must allow a contended Windows process to start.
-                // Keep the short deadline for actual timeout/cancellation controls.
+                // Keep the short deadline for sleep/cancellation controls. The
+                // held tree fixture stays alive past its Windows startup room.
                 timeout_millis: if cfg!(windows)
                     && arguments.first().is_some_and(|argument| {
                         matches!(
@@ -896,6 +897,7 @@ mod tests {
                                 | "--malformed"
                                 | "--incompatible"
                                 | "--record"
+                                | "--tree-held"
                         )
                     }) {
                     5_000
@@ -1096,8 +1098,9 @@ mod tests {
         let helper = build_probe(temporary.path());
         let orphan_marker = temporary.path().join("orphan-marker");
         let identities = std::cell::RefCell::new(None);
+        let started = Instant::now();
         let result = probe_definition_with_cancellation(
-            &test_definition(&["--tree", orphan_marker.to_str().unwrap()]),
+            &test_definition(&["--tree-held", orphan_marker.to_str().unwrap()]),
             &helper,
             || {},
             || {
@@ -1125,6 +1128,9 @@ mod tests {
             },
         );
         assert_eq!(result.state, HostToolProbeState::TimedOut);
+        // A leaked child can now publish its sentinel, even if it exits before
+        // identity readback. Release only after normal timeout cleanup/drain.
+        fs::write(orphan_marker.with_extension("release"), b"observe cleanup").unwrap();
         let identities = identities
             .into_inner()
             .expect("fixture readiness was observed")
@@ -1141,6 +1147,10 @@ mod tests {
             );
         }
         assert!(!orphan_marker.exists());
+        assert!(
+            started.elapsed() < Duration::from_secs(8),
+            "cleanup observations must precede the fixture's eight-second self-expiry"
+        );
     }
 
     #[test]

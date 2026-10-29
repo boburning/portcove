@@ -2156,6 +2156,23 @@ void test("every tracked repository path has an explicit local selection owner",
   assert.deepEqual([...selection.unknown].sort(), []);
 });
 
+void test("RFD source and provenance changes retain Rust, full UI and publisher contracts", () => {
+  for (const file of [
+    "vendor/rfd/src/backend/gtk3/message_dialog.rs",
+    "vendor/rfd-provenance.json",
+    "vendor/rfd-portcove.patch",
+  ]) {
+    for (const status of ["M", "A", "D"]) {
+      const selection = classifyChanges([{ status, path: file }], { fileExists: allFilesExist });
+      assert.equal(selection.workspaceRust, true);
+      assert.equal(selection.uiFullTests, true);
+      assert.equal(selection.browser, true);
+      assert.ok(selection.nodeTests.has("scripts/dependency-automation.test.mts"));
+      assert.equal(selection.unknown.size, 0);
+    }
+  }
+});
+
 void test("the exact development scenario entry selects full UI coverage without admitting other HTML", () => {
   for (const status of ["M", "A", "D"]) {
     const { selection } = planFor([{ status, path: "apps/desktop/scenarios.html" }]);

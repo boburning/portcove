@@ -114,15 +114,29 @@ fn main() {
             fs::write(&args[1], args[2..].join("\n")).unwrap();
             println!("testtool verify convert");
         }
-        Some("--tree") => {
-            let child = Command::new(env::current_exe().unwrap())
-                .args(["--grandchild", &args[1]])
-                .spawn()
-                .unwrap();
+        Some("--tree" | "--tree-held") => {
+            let held = args[0] == "--tree-held";
             let marker = std::path::Path::new(&args[1]);
+            let release = marker.with_extension("release");
+            let mut command = Command::new(env::current_exe().unwrap());
+            if held {
+                command.args(["--grandchild-held", &args[1]]).arg(&release);
+            } else {
+                command.args(["--grandchild", &args[1]]);
+            }
+            let mut child = command.spawn().unwrap();
             fs::write(marker.with_extension("pids"), format!("{}\n{}", std::process::id(), child.id())).unwrap();
             fs::write(marker.with_extension("ready"), b"root and descendant started").unwrap();
-            thread::sleep(Duration::from_secs(2));
+            if held {
+                let deadline = std::time::Instant::now() + Duration::from_secs(8);
+                while !release.is_file() {
+                    if std::time::Instant::now() >= deadline { std::process::exit(8); }
+                    thread::sleep(Duration::from_millis(10));
+                }
+                assert!(child.wait().unwrap().success());
+            } else {
+                thread::sleep(Duration::from_secs(2));
+            }
         }
         Some("--closure-fanout") => {
             // Fixed first-party process workload; no shell, game or network.
