@@ -219,6 +219,10 @@
     padding-inline: var(--space-2);
     font-size: var(--text-xs);
   }
+  .collection-cover .library-card-action {
+    max-inline-size: 5rem;
+    white-space: normal;
+  }
   .collection-rows {
     inline-size: 100%;
   }

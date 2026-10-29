@@ -1,4 +1,4 @@
-/** Decoded logo presentation only; never changes source pixels or durable artwork choices. */
+/** Decoded foreground presentation only; never changes source pixels or durable artwork choices. */
 export interface HeroLogoSurface {
   plate: boolean;
   backing: string;
@@ -78,4 +78,17 @@ export function inspectHeroLogo(element: HTMLImageElement): HeroLogoSurface | un
           ? "light"
           : "mixed",
   };
+}
+
+/** Key art must remain an illustration at its actual contained size, rather than a sliver or tiny cache result. */
+export function isHeroKeyArtSuitable(element: HTMLImageElement): boolean {
+  const naturalShort = Math.min(element.naturalWidth, element.naturalHeight);
+  const naturalLong = Math.max(element.naturalWidth, element.naturalHeight);
+  const bounds = element.getBoundingClientRect();
+  return (
+    naturalShort >= 64 &&
+    naturalLong >= 96 &&
+    Math.min(bounds.width, bounds.height) >= 32 &&
+    Math.max(bounds.width, bounds.height) >= 64
+  );
 }

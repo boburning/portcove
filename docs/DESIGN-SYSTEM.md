@@ -598,8 +598,10 @@ remains visible. Atmospheric landscape art and screenshots resolve independently
 Keep full natural proportions, reserve space while loading, constrain logo dimensions
 and preserve headings/actions across failures. A cover fallback is a deliberate
 portrait element, never a manufactured landscape or cropped logo. Read decoded
-logo suitability rather than trusting a non-null URL or alpha hint; use a deliberate
-contrasting stage when necessary without recoloring brand pixels. Expose image
+foreground suitability rather than trusting a non-null URL or alpha hint. Key art
+needs useful natural and contained dimensions; reassess its footprint on resize
+and advance the same fallback chain when it becomes too small or narrow. Use a
+deliberate contrasting logo stage when necessary without recoloring brand pixels. Expose image
 provenance and rights through the shared credits disclosure.
 
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when

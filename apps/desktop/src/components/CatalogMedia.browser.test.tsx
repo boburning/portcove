@@ -325,7 +325,7 @@ it("keeps a selected local header ahead of an admitted remote header and the aut
   expect(document.querySelector(".media-credit")).toBeNull();
 });
 
-it("keeps game identity and focused actions through bounded key-art, logo and cover failures", async () => {
+function controlledHeroMedia(compactLogo = false) {
   const keyArt: CatalogMediaAsset = {
     ...image("controlled-key-art"),
     role: "key_art",
@@ -337,8 +337,8 @@ it("keeps game identity and focused actions through bounded key-art, logo and co
     ...image("controlled-logo"),
     role: "logo",
     sha256: "d".repeat(64),
-    width: 400,
-    height: 100,
+    width: compactLogo ? 160 : 400,
+    height: compactLogo ? 160 : 100,
   };
   for (const asset of [keyArt, logo]) {
     const imageId = asset.role === "logo" ? "fixturelogo" : "fixturekeyart";
@@ -360,64 +360,146 @@ it("keeps game identity and focused actions through bounded key-art, logo and co
     presentation: { ...portDefinition().presentation!, media: [keyArt, logo] },
   };
   const canvas = document.createElement("canvas");
-  canvas.width = 400;
-  canvas.height = 100;
+  canvas.width = logo.width;
+  canvas.height = logo.height;
   const drawing = canvas.getContext("2d");
   if (!drawing) throw new Error("Fixture canvas unavailable");
   drawing.fillStyle = "white";
-  drawing.font = "bold 64px sans-serif";
-  drawing.fillText("TEST LOGO", 5, 75);
+  drawing.font = compactLogo ? "bold 112px sans-serif" : "bold 64px sans-serif";
+  drawing.fillText(compactLogo ? "PC" : "TEST LOGO", 5, compactLogo ? 128 : 75);
   const logoBytes = canvas.toDataURL("image/png").split(",")[1]!;
+  return { keyArt, logo, port, logoBytes };
+}
+
+function controlledKeyArt(width: number, height: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const drawing = canvas.getContext("2d");
+  if (!drawing) throw new Error("Fixture canvas unavailable");
+  drawing.fillStyle = "#5845aa";
+  drawing.fillRect(0, 0, width, height);
+  return canvas.toDataURL("image/png").split(",")[1]!;
+}
+
+it.each(["unavailable", "tiny", "thin", "tall"] as const)(
+  "keeps game identity and focused actions through %s key art, logo and cover failures",
+  async (keyArtState) => {
+    const { keyArt, logo, port, logoBytes } = controlledHeroMedia();
+    if (keyArtState !== "unavailable") {
+      const dimensions = { tiny: [1, 1], thin: [960, 8], tall: [8, 720] } as const;
+      [keyArt.width, keyArt.height] = dimensions[keyArtState];
+    }
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+      automaticArtwork(id, slot),
+    );
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "b".repeat(64),
+      choice_revision: 0,
+      png_base64: png,
+    });
+    const media = vi
+      .spyOn(desktopApi, "catalogMediaThumbnail")
+      .mockImplementation(async (_id, mediaId, hash) => {
+        if (mediaId === keyArt.id) {
+          if (keyArtState === "unavailable")
+            throw new Error("Controlled unavailable cached key art");
+          const { width, height } = keyArt;
+          return {
+            asset_sha256: hash,
+            choice_revision: 0,
+            png_base64: controlledKeyArt(width, height),
+          };
+        }
+        return { asset_sha256: hash, choice_revision: 0, png_base64: logoBytes };
+      });
+    await page.viewport(1200, 900);
+    await render(
+      <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+        <GameHero port={port} variant="detail">
+          <h1>Sample</h1>
+          <button>Play controlled game</button>
+        </GameHero>
+      </ArtworkProvider>,
+    );
+    await expect
+      .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+      .toBe("logo");
+    const play = page.getByRole("button", { name: "Play controlled game", exact: true });
+    await play.click();
+    const action = document.activeElement;
+    const logoElement = document.querySelector<HTMLImageElement>(".game-hero-image");
+    if (!logoElement) throw new Error("Logo did not render");
+    await act(async () => {
+      logoElement.dispatchEvent(new Event("error"));
+    });
+    await expect
+      .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+      .toBe("cover");
+    expect(document.activeElement).toBe(action);
+    const cover = document.querySelector<HTMLImageElement>(".game-hero-image");
+    if (!cover) throw new Error("Cover fallback did not render");
+    await page.getByText("Image credits", { exact: true }).click();
+    await expect.element(page.getByText("Image credits", { exact: true })).toHaveFocus();
+    await act(async () => {
+      cover.dispatchEvent(new Event("error"));
+    });
+    await expect
+      .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+      .toBe("text");
+    await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
+    expect(document.activeElement).toBe(action);
+    expect(media.mock.calls.map((call) => call[1])).toEqual([keyArt.id, logo.id]);
+    expect(document.querySelector(".game-hero-background")).toBeNull();
+  },
+);
+
+it("keeps suitable key art, then advances to a legible logo when the Continue footprint shrinks", async () => {
+  const { keyArt, logo, port, logoBytes } = controlledHeroMedia(true);
+  keyArt.width = 960;
+  keyArt.height = 240;
   vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
     automaticArtwork(id, slot),
   );
-  vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
-    asset_sha256: "b".repeat(64),
-    choice_revision: 0,
-    png_base64: png,
-  });
   const media = vi
     .spyOn(desktopApi, "catalogMediaThumbnail")
-    .mockImplementation(async (_id, mediaId, hash) => {
-      if (mediaId === keyArt.id) throw new Error("Controlled unavailable cached key art");
-      return { asset_sha256: hash, choice_revision: 0, png_base64: logoBytes };
-    });
+    .mockImplementation(async (_id, mediaId, hash) => ({
+      asset_sha256: hash,
+      choice_revision: 0,
+      png_base64: mediaId === keyArt.id ? controlledKeyArt(960, 240) : logoBytes,
+    }));
   await page.viewport(1200, 900);
   await render(
-    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
-      <GameHero port={port} variant="detail">
-        <h1>Sample</h1>
-        <button>Play controlled game</button>
-      </GameHero>
-    </ArtworkProvider>,
+    <div
+      data-testid="continue-width"
+      style={{ width: "900px", containerType: "inline-size", containerName: "library-query" }}
+    >
+      <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+        <GameHero port={port} variant="continue">
+          <h2>Sample</h2>
+          <button>Continue controlled game</button>
+        </GameHero>
+      </ArtworkProvider>
+    </div>,
   );
+  await expect
+    .poll(() => {
+      const image = document.querySelector<HTMLImageElement>(".game-hero-image");
+      return image?.complete && image.naturalWidth === 960;
+    })
+    .toBe(true);
+  expect(document.querySelector(".game-hero")?.getAttribute("data-hero-identity")).toBe("key_art");
+  await page.getByRole("button", { name: "Continue controlled game", exact: true }).click();
+  const action = document.activeElement;
+  await act(async () => {
+    const container = document.querySelector<HTMLElement>('[data-testid="continue-width"]');
+    if (!container) throw new Error("Continue fixture missing");
+    container.style.width = "240px";
+  });
   await expect
     .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
     .toBe("logo");
-  const play = page.getByRole("button", { name: "Play controlled game", exact: true });
-  await play.click();
-  const action = document.activeElement;
-  const logoElement = document.querySelector<HTMLImageElement>(".game-hero-image");
-  if (!logoElement) throw new Error("Logo did not render");
-  await act(async () => {
-    logoElement.dispatchEvent(new Event("error"));
-  });
-  await expect
-    .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
-    .toBe("cover");
-  expect(document.activeElement).toBe(action);
-  const cover = document.querySelector<HTMLImageElement>(".game-hero-image");
-  if (!cover) throw new Error("Cover fallback did not render");
-  await page.getByText("Image credits", { exact: true }).click();
-  await expect.element(page.getByText("Image credits", { exact: true })).toHaveFocus();
-  await act(async () => {
-    cover.dispatchEvent(new Event("error"));
-  });
-  await expect
-    .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
-    .toBe("text");
   await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
   expect(document.activeElement).toBe(action);
   expect(media.mock.calls.map((call) => call[1])).toEqual([keyArt.id, logo.id]);
-  expect(document.querySelector(".game-hero-background")).toBeNull();
 });

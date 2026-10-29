@@ -8,7 +8,11 @@ import {
   type ReactNode,
 } from "react";
 import { useArtworkVisibility, useGameHeroArtwork } from "../artwork";
-import { inspectHeroLogo, type HeroLogoSurface } from "../game-logo-surface";
+import {
+  inspectHeroLogo,
+  isHeroKeyArtSuitable,
+  type HeroLogoSurface,
+} from "../hero-image-suitability";
 import { gameTitle } from "../port-identity";
 import type { HeroMediaPort } from "../hero-media";
 import { ArtworkSource } from "./Artwork";
@@ -50,6 +54,10 @@ export function GameHero({
         else rejectCover?.();
         return;
       }
+      if (kind === "key_art" && !isHeroKeyArtSuitable(element)) {
+        rejectForeground();
+        return;
+      }
       if (kind !== "logo") return;
       const next = inspectHeroLogo(element);
       if (!next) {
@@ -69,7 +77,8 @@ export function GameHero({
   );
   useEffect(() => {
     const image = imageElement.current;
-    if (kind !== "logo" || !image || typeof ResizeObserver === "undefined") return;
+    if ((kind !== "logo" && kind !== "key_art") || !image || typeof ResizeObserver === "undefined")
+      return;
     const observer = new ResizeObserver(() => {
       if (image.complete && image.naturalWidth) inspect(image);
     });
