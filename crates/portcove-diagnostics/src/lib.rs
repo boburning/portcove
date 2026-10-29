@@ -123,11 +123,16 @@ impl HostDiagnostics {
         surface: Surface,
         debug: bool,
     ) -> (Self, Option<writer::Guard>) {
-        let configured = configured.map(Path::to_owned);
-        let platform = platform.map(Path::to_owned);
-        Self::bootstrap(surface, debug, move |session, surface| {
-            Self::prepare_locations(configured.as_deref(), platform.as_deref(), session, surface)
-        })
+        // Location/capacity fixtures own prepared sessions, not the production
+        // best-effort startup deadline. The blocked-bootstrap test separately
+        // retains the real 250ms timeout and no-late-writer contract.
+        let host = Self::disabled(surface, debug);
+        let Some(prepared) =
+            Self::prepare_locations(configured, platform, host.session_id, surface)
+        else {
+            return (host, None);
+        };
+        host.start_prepared(prepared)
     }
 
     fn prepare_locations(
