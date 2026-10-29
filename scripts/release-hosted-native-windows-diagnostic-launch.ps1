@@ -98,19 +98,41 @@ function Read-StartupFailureProjection([object]$Original){
             $value.tree -cne $actualTree -or
             $value.phase -cnotin @('module-loaded','source-gate-verified','inputs-verifying','provider-clock-verifying','publishing-ready','awaiting-start-ack','start-ack-verified')){return @{status='identity-or-schema-unverified'}}
         $e=$value.error
-        if((@($e.PSObject.Properties.Name|Sort-Object) -join ',') -cne 'code,message_disposition,message_sha256,message_utf8_bytes,name,source_site' -or
+        if((@($e.PSObject.Properties.Name|Sort-Object) -join ',') -cne 'code,custody,message_disposition,message_sha256,message_utf8_bytes,name,source_site' -or
             $e.name -cnotin @('Error','AssertionError','TypeError','RangeError','SyntaxError','unclassified') -or
-            $e.code -cnotin @('ERR_ASSERTION','ERR_MODULE_NOT_FOUND','MODULE_NOT_FOUND','ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX','ERR_UNKNOWN_FILE_EXTENSION','ERR_INVALID_ARG_VALUE','ERR_INVALID_ARG_TYPE','ENOENT','EACCES','EPERM','EINVAL','ETIMEDOUT','unclassified') -or
+            $e.code -cnotin @('ERR_ASSERTION','ERR_WINDOWS_CUSTODY_REFUSED','ERR_MODULE_NOT_FOUND','MODULE_NOT_FOUND','ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX','ERR_UNKNOWN_FILE_EXTENSION','ERR_INVALID_ARG_VALUE','ERR_INVALID_ARG_TYPE','ENOENT','EACCES','EPERM','EINVAL','ETIMEDOUT','unclassified') -or
             $e.message_disposition -cnotin @('unavailable','digest-only','oversize-not-retained') -or
             ($e.message_disposition -ceq 'digest-only' -and ($e.message_utf8_bytes -isnot [long] -and $e.message_utf8_bytes -isnot [int] -or $e.message_utf8_bytes -lt 0 -or $e.message_utf8_bytes -gt 16384 -or $e.message_sha256 -cnotmatch '^[a-f0-9]{64}$')) -or
             ($e.message_disposition -cne 'digest-only' -and $null -ne $e.message_sha256) -or
             ($e.message_disposition -ceq 'unavailable' -and $null -ne $e.message_utf8_bytes) -or
             ($e.message_disposition -ceq 'oversize-not-retained' -and (($e.message_utf8_bytes -isnot [long] -and $e.message_utf8_bytes -isnot [int]) -or $e.message_utf8_bytes -le 16384 -or $e.message_utf8_bytes -gt 2147483647))){return @{status='classification-unverified'}}
+        $publicCustody=$null
+        if($null -ne $e.custody){
+            $c=$e.custody
+            if((@($c.PSObject.Properties.Name|Sort-Object) -join ',') -cne 'child_signal,child_status,reader,schema_version,spawn_code' -or
+                $c.schema_version -ne 1 -or
+                ($null -ne $c.child_status -and (($c.child_status -isnot [long] -and $c.child_status -isnot [int]) -or $c.child_status -lt 0 -or $c.child_status -gt 4294967295)) -or
+                ($null -ne $c.child_signal -and $c.child_signal -cnotin @('SIGTERM','SIGKILL')) -or
+                $c.spawn_code -cnotin @('unknown','ETIMEDOUT','ENOENT','EACCES','EPERM','ENOBUFS')){return @{status='custody-classification-unverified'}}
+            $publicReader=$null
+            if($null -ne $c.reader){
+                $r=$c.reader
+                if((@($r.PSObject.Properties.Name|Sort-Object) -join ',') -cne 'kind,ordinal,phase,principal_class,reason,rights,schema_version' -or
+                    $r.schema_version -ne 1 -or $r.reason -cnotin @('runtime','input','regular-path','owner','writer','os-read') -or
+                    $r.phase -cnotin @('entry','input','item','acl','owner','rules','complete') -or
+                    $r.kind -cnotin @('unknown','file','directory') -or
+                    $r.principal_class -cnotin @('unknown','everyone','authenticated-users','builtin-users','interactive','logon-session','creator-owner','other') -or
+                    ($null -ne $r.ordinal -and (($r.ordinal -isnot [long] -and $r.ordinal -isnot [int]) -or $r.ordinal -lt 0 -or $r.ordinal -ge 4096)) -or
+                    ($r.rights -isnot [long] -and $r.rights -isnot [int]) -or $r.rights -lt 0 -or $r.rights -gt 31){return @{status='custody-classification-unverified'}}
+                $publicReader=@{schema_version=1;reason=$r.reason;phase=$r.phase;ordinal=$r.ordinal;kind=$r.kind;principal_class=$r.principal_class;rights=$r.rights}
+            }
+            $publicCustody=@{schema_version=1;child_status=$c.child_status;child_signal=$c.child_signal;spawn_code=$c.spawn_code;reader=$publicReader}
+        }
         if($null -ne $e.source_site -and ((@($e.source_site.PSObject.Properties.Name|Sort-Object) -join ',') -cne 'column,line,script' -or
             $e.source_site.script -cnotin @('diagnostic-controller','diagnostic-inputs','hosted-runtime-input','webview-driver','owner-mechanism','native-custody','controller-tools') -or
             ($e.source_site.line -isnot [long] -and $e.source_site.line -isnot [int]) -or $e.source_site.line -lt 1 -or $e.source_site.line -gt 9999999 -or
             ($e.source_site.column -isnot [long] -and $e.source_site.column -isnot [int]) -or $e.source_site.column -lt 1 -or $e.source_site.column -gt 99999)){return @{status='source-site-unverified'}}
-        return @{status='retained';bytes=$raw.Length;sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($raw)).ToLowerInvariant();phase=$value.phase;error=@{source_site=$(if($null -ne $e.source_site){@{script=$e.source_site.script;line=$e.source_site.line;column=$e.source_site.column}}else{$null});name=$e.name;code=$e.code;message_disposition=$e.message_disposition;message_utf8_bytes=$e.message_utf8_bytes;message_sha256=$e.message_sha256}}
+        return @{status='retained';bytes=$raw.Length;sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($raw)).ToLowerInvariant();phase=$value.phase;error=@{custody=$publicCustody;source_site=$(if($null -ne $e.source_site){@{script=$e.source_site.script;line=$e.source_site.line;column=$e.source_site.column}}else{$null});name=$e.name;code=$e.code;message_disposition=$e.message_disposition;message_utf8_bytes=$e.message_utf8_bytes;message_sha256=$e.message_sha256}}
     }catch{return @{status='unreadable-invalid-or-oversize'}}
 }
 $launch=$null;$createProcessAttempted=$false;$ackPublicationAttempted=$false;$ackDurablyWritten=$false;$readyVerified=$false;$readyBytes=$null

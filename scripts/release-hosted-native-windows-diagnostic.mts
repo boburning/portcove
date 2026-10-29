@@ -30,6 +30,7 @@ import {
   recheckWindowsSourceSystemCustody,
   windowsSourceSystemExecutables,
   readWindowsNativeProcessFiletime,
+  projectWindowsCustodyFailure,
 } from "./release-native-runtime-custody.mts";
 import {
   inspectHostedWindowsWorkerRequest,
@@ -124,6 +125,7 @@ export function projectDiagnosticStartupFailure(error: unknown) {
   const names = ["Error", "AssertionError", "TypeError", "RangeError", "SyntaxError"];
   const codes = [
     "ERR_ASSERTION",
+    "ERR_WINDOWS_CUSTODY_REFUSED",
     "ERR_MODULE_NOT_FOUND",
     "MODULE_NOT_FOUND",
     "ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX",
@@ -171,6 +173,7 @@ export function projectDiagnosticStartupFailure(error: unknown) {
     }
   }
   return {
+    custody: projectWindowsCustodyFailure(error),
     source_site,
     name: typeof name === "string" && names.includes(name) ? name : "unclassified",
     code: code !== undefined && codes.includes(code) ? code : "unclassified",

@@ -11,6 +11,7 @@ import { runInNewContext } from "node:vm";
 import { EventEmitter } from "node:events";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import { projectWindowsCustodyFailure } from "./release-native-runtime-custody.mts";
 import {
   windowsOwnerFiletime,
   windowsOwnerEnvironment,
@@ -1489,6 +1490,7 @@ void test("diagnostic startup errors retain only closed classifications and boun
       Error,
       hash,
       error,
+      projectWindowsCustodyFailure,
       diagnosticStartupSourceSites: [
         {
           script: "diagnostic-inputs",
@@ -1519,6 +1521,47 @@ void test("diagnostic startup errors retain only closed classifications and boun
   assert.equal(classified.message_sha256, hash(Buffer.from(marker)));
   assert.equal(classified.message_disposition, "digest-only");
   assert.equal(JSON.stringify(classified).includes(marker), false);
+  const custodyDetail = {
+    schema_version: 1,
+    child_status: 1,
+    child_signal: null,
+    spawn_code: "unknown",
+    reader: {
+      schema_version: 1,
+      reason: "writer",
+      phase: "rules",
+      ordinal: 3,
+      kind: "directory",
+      principal_class: "authenticated-users",
+      rights: 2,
+    },
+  };
+  const custody = classify(
+    Object.assign(new Error(marker), {
+      code: "ERR_WINDOWS_CUSTODY_REFUSED",
+      windows_custody: custodyDetail,
+    }),
+  );
+  assert.ok(isRecord(custody));
+  assert.equal(custody.code, "ERR_WINDOWS_CUSTODY_REFUSED");
+  assert.equal(JSON.stringify(custody.custody), JSON.stringify(custodyDetail));
+  assert.equal(JSON.stringify(custody).includes(marker), false);
+  for (const unsafe of [
+    { ...custodyDetail, raw_path: marker },
+    { ...custodyDetail, reader: { ...custodyDetail.reader, ordinal: 4096 } },
+    { ...custodyDetail, reader: { ...custodyDetail.reader, principal_class: marker } },
+    { ...custodyDetail, reader: { ...custodyDetail.reader, rights: 32 } },
+  ]) {
+    const projected = classify(
+      Object.assign(new Error(marker), {
+        code: "ERR_WINDOWS_CUSTODY_REFUSED",
+        windows_custody: unsafe,
+      }),
+    );
+    assert.ok(isRecord(projected));
+    assert.equal(projected.custody, null);
+    assert.equal(JSON.stringify(projected).includes(marker), false);
+  }
   const unknown = classify(Object.assign(new Error(marker), { name: marker, code: marker }));
   assert.ok(isRecord(unknown));
   assert.equal(unknown.name, "unclassified");
