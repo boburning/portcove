@@ -17,6 +17,17 @@ filter = 'package(portcove-core) & test(/^service::tests::unavailable_artwork_do
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI40823674582/a1 Windows6/8 exhausted30.038/30.085s in these exact
+# storage/recovery fixtures. Copying/resume/abort reached observation16 at
+# 29.599s, completed it at30.049s and printed success just after the cap.
+# Preserve both complete assertions/cleanup, four hosted workers and zero
+# retries; use finite60s harness headroom and relocation phase diagnostics.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^output_relocation::tests::external_cleanup_preserves_unowned_sibling_after_authority_commit$/) | test(/^library_move::sequence_tests::copying_resume_abort$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Current full40788787086/a1 still exhausted these exact native harness
 # safeguards after the HTTP-fixture repair: Linux recovery/retained launch30s,
 # Intel publisher lifecycle45/60s, sequence/query/relocation30s and CLI30s.

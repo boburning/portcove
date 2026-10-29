@@ -1,6 +1,21 @@
 use super::*;
 
 #[test]
+fn native5_temp_coordinates_are_checked_even_when_immutable_executable_fits() {
+    let mut port = crate::native_temp::tests::port();
+    let temporary = "t".repeat(64);
+    port.windows_temp_directory = Some(temporary.clone());
+    port.persistent_paths = vec![temporary];
+    crate::native_temp::validate(&port).unwrap();
+    let root = std::path::PathBuf::from("x".repeat(200));
+    check_executable(&port, Platform::WindowsX86_64, &root.join("p.exe")).unwrap();
+    assert!(check_working_directory(&port, Platform::WindowsX86_64, &root).is_err());
+    check_working_directory(&port, Platform::WindowsX86_64, Path::new("C:\\Games")).unwrap();
+    port.windows_temp_directory = None;
+    check_working_directory(&port, Platform::WindowsX86_64, &root).unwrap();
+}
+
+#[test]
 fn narrow_paths_reject_lossy_names_controls_and_probe_overflow() {
     for path in [
         "C:\\Games\\DKC3",

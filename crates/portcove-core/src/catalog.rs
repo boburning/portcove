@@ -421,6 +421,7 @@ impl Catalog {
         }
         let mut port_ids = HashSet::new();
         for port in &self.document.ports {
+            crate::native_temp::validate(port)?;
             let native_archive_release = port.release.provider == ReleaseSource::Github
                 || (port.release.provider == ReleaseSource::DirectManifest
                     && port.release.direct.values().all(|release| {
@@ -4361,6 +4362,21 @@ mod tests {
             (
                 "launch_environment",
                 "GITHUB_TOKEN",
+                "unsafe built-in launch environment",
+            ),
+            (
+                "launch_environment",
+                "TEMP",
+                "unsafe built-in launch environment",
+            ),
+            (
+                "launch_environment",
+                "TMP",
+                "unsafe built-in launch environment",
+            ),
+            (
+                "launch_environment",
+                "SDL_RENDER_DRIVER",
                 "unsafe built-in launch environment",
             ),
         ] {

@@ -121,6 +121,9 @@ pub(crate) fn check_working_directory(
     directory: &Path,
 ) -> Result<()> {
     check(port, platform, directory)?;
+    if let Some(temporary) = &port.windows_temp_directory {
+        check(port, platform, &directory.join(temporary))?;
+    }
     if platform == Platform::WindowsX86_64
         && port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
     {

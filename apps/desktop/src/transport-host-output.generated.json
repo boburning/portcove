@@ -12805,6 +12805,13 @@
                 "type": "null"
               }
             ]
+          },
+          "windows_temp_directory": {
+            "description": "Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.\nThe upstream process must preserve the reviewed working directory.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

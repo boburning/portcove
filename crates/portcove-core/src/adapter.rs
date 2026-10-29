@@ -250,6 +250,7 @@ impl Adapter for StandardAdapter {
             ("PORTCOVE_USER_DATA".into(), user_data_path.clone()),
         ]);
         environment.extend(port.launch_environment.clone());
+        crate::native_temp::environment(port, platform, &mut environment)?;
         if let Some(variable) = &port.user_data_environment {
             environment.insert(variable.clone(), user_data_path.clone());
         }
@@ -408,6 +409,13 @@ impl Adapter for StandardAdapter {
         }
         let user_data = library.user_dir(&port.id);
         std::fs::create_dir_all(&user_data)?;
+        crate::native_temp::prepare(
+            port,
+            install_root,
+            &working_directory,
+            &executable,
+            checkpoint,
+        )?;
         crate::path::unicode(library.root(), "library root")?;
         let user_data_path = crate::path::unicode(&user_data, "user data")?;
         if let Some(source) = source {

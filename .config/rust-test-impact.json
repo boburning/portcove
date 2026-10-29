@@ -425,6 +425,17 @@
       "package": "portcove-core",
       "platforms": ["win32"],
       "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/native_temp.rs",
+      "test": "windows_temp_child",
+      "reason": "invoked only by the owned native temporary-data process fixture",
+      "package": "portcove-core",
+      "platforms": ["win32"],
+      "category": "supervised-parent",
+      "parents": [
+        "windows_real_child_overrides_inherited_temp_and_writes_inside_unicode_working_directory"
+      ]
     }
   ]
 }
