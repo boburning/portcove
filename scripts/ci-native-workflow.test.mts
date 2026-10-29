@@ -135,14 +135,14 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.doesNotMatch(requiredFixture(windows.split("    steps:")[0]), /\$\{\{ runner\./);
   assert.match(windows, /id: native-quality-pins/);
   assert.match(windows, /node scripts\/quality-tools.mts --github-output >> \$env:GITHUB_OUTPUT/);
-  assert.match(windows, /taiki-e\/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037/);
+  assert.match(windows, /taiki-e\/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32/);
   assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
   const quality = workflowJob("backup_focus", source);
   assert.ok(Array.isArray(quality.steps));
   const qualitySteps = quality.steps.filter(isRecord);
   const provisioning = qualitySteps.findIndex(
     (step) =>
-      step.uses === "taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037" &&
+      step.uses === "taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32" &&
       isRecord(step.with) &&
       step.with.tool === "${{ steps.native-quality-pins.outputs.required_prebuilt }}",
   );
