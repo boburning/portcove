@@ -314,6 +314,30 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     filter: intelCuratedRepinFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
   });
+  const intelObservedControlFilter =
+    "package(portcove-core) & (test(/^game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable$/) | test(/^library_move::sequence_tests::copying_resume_resume$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_permitted_artifact_commits_once$/) | test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::activated_abort_resume$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_resume$/) | test(/^service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback$/))";
+  const intelRelocationControlFilter =
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)";
+  assert.deepEqual(overrideFor(intelObservedControlFilter, "x86_64-apple-darwin"), {
+    platform: "x86_64-apple-darwin",
+    filter: intelObservedControlFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.deepEqual(overrideFor(intelRelocationControlFilter, "x86_64-apple-darwin"), {
+    platform: "x86_64-apple-darwin",
+    filter: intelRelocationControlFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 24, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const linuxWholeProjectionFilter =
+    "package(portcove-core) & test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/)";
+  assert.deepEqual(overrideFor(linuxWholeProjectionFilter, "x86_64-unknown-linux-gnu"), {
+    platform: "x86_64-unknown-linux-gnu",
+    filter: linuxWholeProjectionFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const windowsWholeMatrixFilter =
     "package(portcove-core) & (test(/^service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route$/) | test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/))";
   const curatedInstalledWithdrawalFilter =
@@ -493,6 +517,9 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
+      { platform: "x86_64-unknown-linux-gnu", filter: linuxWholeProjectionFilter },
+      { platform: "x86_64-apple-darwin", filter: intelObservedControlFilter },
+      { platform: "x86_64-apple-darwin", filter: intelRelocationControlFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
       { platform: "x86_64-apple-darwin", filter: intelRecoveryFilter },
       ...intelObservedLifecycle.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
@@ -545,6 +572,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
       "success-output": "immediate",
     });
+  assert.ok(
+    overrides.indexOf(overrideFor(intelRelocationControlFilter, "x86_64-apple-darwin")) <
+      overrides.indexOf(overrideFor(intelRecoveryFilter, "x86_64-apple-darwin")),
+    "The exact120s relocation identity must precede its60s family",
+  );
   assert.deepEqual(overrideFor(intelRecoveryFilter, "x86_64-apple-darwin"), {
     platform: "x86_64-apple-darwin",
     filter: intelRecoveryFilter,

@@ -323,6 +323,16 @@ success-output = "immediate"
 # refusal/reopen/retry assertions with exact60s headroom and phase output;
 # product deadlines, two workers, cleanup and zero retries stay unchanged.
 # Manual40344060360/a1 also cut the complete catalog maintenance matrix at30.031s.
+# Qualification40928794314/a1 Intel2 reached the eighth publication phase
+# after completing seven scenarios at51.636s before the60.031s watchdog.
+# The identical case passed43.157s in40895809838/a1. Keep every scenario,
+# assertion and cleanup with exact120s outer room ahead of its60s family.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
 [[profile.default.overrides]]
 # Qualification40618013765/a1 retained original_paths at30.020s after its
 # final Adopt/CleanupPending phase began at27.674s; relocation passed34.948s.
@@ -971,5 +981,29 @@ success-output = "immediate"
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Qualification40928794314/a1 Linux job123641624689 verified all247 exact
+# entries by29.937s and entered full graph validation before its30.011s
+# watchdog. The same test module passed27.845/27.544s in prior Linux runs.
+# Retain every byte/contract/graph assertion and existing phase output with
+# exact60s harness room, as already used on Intel/Windows. This changes no
+# product deadline, resource exclusion, worker count or retry policy.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Qualification40928794314/a1 retained eight additional exact Intel30s
+# cutoffs. All eight passed17.957-24.991s in40895809838/a1; retained move
+# and publisher phases show sequential progress. The query failure has no
+# phase output and its cause remains unknown; add test-only phase context.
+# Preserve assertions, product deadlines, two workers, exclusions and zero
+# retries under these exact60s harness allowances. No speedup is established.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & (test(/^game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable$/) | test(/^library_move::sequence_tests::copying_resume_resume$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_permitted_artifact_commits_once$/) | test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::activated_abort_resume$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_resume$/) | test(/^service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
