@@ -50,6 +50,33 @@ import { spawnCommand } from "../../../scripts/dev-storage.mts";
 
 const digest = (bytes: BinaryLike) => createHash("sha256").update(bytes).digest("hex");
 
+export function repeatReviewedCatalogIntent(
+  browser: WebDriver,
+  source: unknown,
+  expectedPlan: string,
+) {
+  return browser.executeAsyncScript<unknown>(
+    (source: unknown, expectedPlan: string, done: (value: string) => void) => {
+      const internals = (window as CorrectionWindow).__TAURI_INTERNALS__;
+      if (!internals) throw new Error("Native bridge unavailable");
+      const callback = internals.transformCallback(() => {});
+      void internals
+        .invoke("apply_catalog_update", {
+          source,
+          expectedPlan,
+          onEvent: `__CHANNEL__:${callback}`,
+        })
+        .then(
+          (value: unknown) => done(JSON.stringify({ ok: true, value })),
+          (error: unknown) => done(JSON.stringify({ ok: false, error })),
+        )
+        .finally(() => internals.unregisterCallback(callback));
+    },
+    source,
+    expectedPlan,
+  );
+}
+
 export async function renderCorrectedArtwork({
   browser,
   originalName,
@@ -354,26 +381,7 @@ export async function artworkCorrectionScenario({
     // the valid replacement is never supplied with fresh mutation authorization.
     const staleResult = jsonObject(
       text(
-        await browser.executeAsyncScript<unknown>(
-          (source: unknown, expectedPlan: string, done: (value: string) => void) => {
-            const internals = (window as CorrectionWindow).__TAURI_INTERNALS__;
-            if (!internals) throw new Error("Native bridge unavailable");
-            const callback = internals.transformCallback(() => {});
-            void internals
-              .invoke("apply_catalog_update", {
-                source,
-                expectedPlan,
-                onEvent: `__CHANNEL__:${callback}`,
-              })
-              .then(
-                (value: unknown) => done(JSON.stringify({ ok: true, value })),
-                (error: unknown) => done(JSON.stringify({ ok: false, error })),
-              )
-              .finally(() => internals.unregisterCallback(callback));
-          },
-          reviewedPlan.source,
-          reviewedPlan.plan_sha256,
-        ),
+        await repeatReviewedCatalogIntent(browser, reviewedPlan.source, reviewedPlan.plan_sha256),
       ),
     );
     assert.equal(staleResult.ok, false);

@@ -41,6 +41,16 @@ filter = 'package(portcove-cli) & binary(machine_contract) & (test(/^artwork_con
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI40879228847/a1 Windows2 reached observation16 at29.690s before
+# the 30.108s watchdog. The identical test file passed14.404s in
+# CI40876858821/a1 Windows8. Preserve every sequence assertion and resource
+# exclusion with exact60s outer harness room and existing phase diagnostics.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^library_move::sequence_tests::published_abort_resume$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The coordinated Windows cancellation fixture retains its held-worker and
 # terminal-after-join assertions. Its four synchronization waits allow 60s;
 # exact 90s outer room permits failure reporting and cleanup without changing
