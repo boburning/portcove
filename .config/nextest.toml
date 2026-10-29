@@ -298,12 +298,16 @@ filter = 'package(portcove-core) & test(/^service::tests::authenticated_admissio
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# Required CI40967672875/a1 Windows2, source5b044348, completed seven
+# quarantine phases and began Adopt/CleanupPending at59.056s before60.410s
+# cutoff. Extend only this exact Windows fixture to the existing90s rule.
+# Preserve assertions, product/child deadlines, worker counts and zero retries.
 # CI40797975365/a1 job123202480906 completed seven of eight relocation
 # recovery scenarios at51.885s before the60.279s cutoff. Give only this
 # identity finite90s room, before the broader60s family override below.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine)_intent$/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
