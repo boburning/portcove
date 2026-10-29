@@ -1,56 +1,65 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import { readMacInstalledProcessField } from "./desktop-installed-update-harness.mts";
-import { readFile } from "node:fs/promises";
-import { stripTypeScriptTypes } from "node:module";
-import { runInNewContext } from "node:vm";
-
-// Deliberately malformed foreign/subprocess failures must retain their exact identity.
+import test, { mock, beforeEach, afterEach } from "node:test";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
+import {
+  readMacInstalledProcessField,
+  createMacInstalledProcessCleanup,
+} from "./desktop-installed-update-harness.mts";
+const app = "/Applications/Portcove.app/Contents/MacOS/portcove";
+type Dependencies = Parameters<typeof createMacInstalledProcessCleanup>[1];
+function unexpected(): never {
+  throw new Error("Unexpected process boundary call");
+}
+// Production imports must still stay within the explicitly supplied capabilities.
+beforeEach(() => {
+  mock.method(process, "kill", unexpected);
+  for (const method of ["execFileSync", "spawn", "execFile"] as const)
+    mock.method(childProcess, method, unexpected);
+  syncBuiltinESMExports();
+});
+afterEach(() => {
+  mock.restoreAll();
+  syncBuiltinESMExports();
+});
+function cleanup(overrides: Partial<Dependencies>) {
+  return createMacInstalledProcessCleanup(app, {
+    processIdentity: unexpected,
+    matchingChildIdentity: unexpected,
+    childPids: unexpected,
+    signal: unexpected,
+    waitFor: unexpected,
+    ...overrides,
+  });
+}
+function identity(started = "exact-start") {
+  return { pid: 42, started, command: "owned helper", state: "T" };
+}
+// Deliberately malformed foreign/subprocess failures retain their exact identity.
 function raiseBoundaryFailure(failure: unknown): never {
   throw failure;
 }
-const source = stripTypeScriptTypes(
-  await readFile(new URL("./desktop-macos-installed-update-test.mts", import.meta.url), "utf8"),
-  { mode: "strip" },
-);
-function fragment(start: string, end: string): string {
-  const from = source.indexOf(start),
-    until = source.indexOf(end, from);
-  assert.ok(from >= 0 && until > from);
-  return source.slice(from, until);
-}
 
 void test("macOS frozen child capture retains exact first failure after mandatory process cleanup", async () => {
-  const freeze = fragment("async function freezeCaptureAndStop(", "async function stopHelper(");
   for (const primary of [undefined, null, false, 0, "", new Error("primary capture error")]) {
     for (const cleanupFails of [false, true]) {
       const signals: [number, string][] = [];
       let waits = 0;
-      const result: unknown = runInNewContext(
-        `${freeze} freezeCaptureAndStop(42, "helper", "candidate")`,
-        {
-          processIdentity: () => ({
-            pid: 42,
-            started: "exact-start",
-            command: "owned helper",
-            state: "T",
-          }),
-          process: {
-            kill: (pid: number, signal: string) => {
-              signals.push([pid, signal]);
-            },
-          },
-          waitFor: async () => {
-            waits += 1;
-            if (waits === 1) return Promise.reject(primary);
-            if (cleanupFails) throw new Error("secondary cleanup error");
-            return true;
-          },
+      const owner = cleanup({
+        processIdentity: () => identity(),
+        signal: (pid, signal) => {
+          signals.push([pid, signal]);
         },
-      );
+        waitFor: async () => {
+          waits += 1;
+          if (waits === 1) return Promise.reject(primary);
+          if (cleanupFails) throw new Error("secondary cleanup error");
+          return true;
+        },
+      });
       await assert.rejects(
         async () => {
-          await result;
+          await owner.freezeCaptureAndStop(42, "helper", "candidate");
         },
         (error: unknown) => Object.is(error, primary),
       );
@@ -63,33 +72,28 @@ void test("macOS frozen child capture retains exact first failure after mandator
   }
   for (const cleanupFailure of [undefined, null, false, 0, ""]) {
     let waits = 0;
-    const result: unknown = runInNewContext(
-      `${freeze} freezeCaptureAndStop(42, "helper", "candidate")`,
-      {
-        processIdentity: () => ({ pid: 42, started: "exact-start", state: "T" }),
-        process: { kill: () => {} },
-        childPids: () => [],
-        matchingChildIdentity: () => null,
-        waitFor: async () => {
-          waits += 1;
-          if (waits === 2) return Promise.reject(cleanupFailure);
-          return true;
-        },
+    const owner = cleanup({
+      processIdentity: () => identity(),
+      signal: () => {},
+      childPids: () => [],
+      matchingChildIdentity: () => null,
+      waitFor: async () => {
+        waits += 1;
+        if (waits === 2) return Promise.reject(cleanupFailure);
+        return true;
       },
-    );
+    });
     await assert.rejects(
       async () => {
-        await result;
+        await owner.freezeCaptureAndStop(42, "helper", "candidate");
       },
       (error: unknown) => Object.is(error, cleanupFailure),
     );
+    assert.equal(waits, 2);
   }
 });
 
 void test("macOS owned cleanup refuses foreign markers and never signals a changed start identity", async () => {
-  const readers = fragment("function object(", "const report");
-  const stop = fragment("async function stopOwned(", "async function freezeCaptureAndStop(");
-  const app = "/Applications/Portcove.app/Contents/MacOS/portcove";
   const marker = { schema_version: 1, process_id: 42, executable: app };
   for (const input of [
     null,
@@ -101,68 +105,96 @@ void test("macOS owned cleanup refuses foreign markers and never signals a chang
     { ...marker, schema_version: 2 },
   ]) {
     let actions = 0;
-    const result: unknown = runInNewContext(`${readers} ${stop} stopOwned(input, "candidate")`, {
-      assert,
-      app,
-      input,
+    const owner = cleanup({
       processIdentity: () => {
         actions += 1;
-        throw new Error("must not inspect foreign process");
+        throw Error("must not inspect foreign process");
       },
-      process: {
-        kill: () => {
-          actions += 1;
-        },
+      signal: () => {
+        actions += 1;
       },
     });
-    await result;
+    await owner.stopOwned(input, "candidate");
     assert.equal(actions, 0);
   }
   for (const process_id of [0, -1, 1.5, "42", null]) {
     let actions = 0;
-    const result: unknown = runInNewContext(`${readers} ${stop} stopOwned(input, "candidate")`, {
-      assert,
-      app,
-      input: { ...marker, process_id },
+    const owner = cleanup({
       processIdentity: () => {
         actions += 1;
+        return null;
       },
-      process: {
-        kill: () => {
-          actions += 1;
-        },
+      signal: () => {
+        actions += 1;
       },
     });
-    await assert.rejects(async () => {
-      await result;
-    });
+    await assert.rejects(
+      owner.stopOwned({ ...marker, process_id }, "candidate"),
+      /Invalid owned process marker PID/u,
+    );
     assert.equal(actions, 0);
+    assert.throws(() => owner.positivePid(process_id), /Invalid owned process marker PID/u);
   }
   const signals: [number, string][] = [];
   let observations = 0;
-  const changed: unknown = runInNewContext(`${readers} ${stop} stopOwned(input, "candidate")`, {
-    assert,
-    app,
-    input: marker,
-    processIdentity: () => ({
-      pid: 42,
-      started: observations++ === 0 ? "owned-start" : "replacement-start",
-    }),
-    process: {
-      kill: (pid: number, signal: string) => {
-        signals.push([pid, signal]);
-      },
+  const owner = cleanup({
+    processIdentity: () => identity(observations++ === 0 ? "owned-start" : "replacement-start"),
+    signal: (pid, signal) => {
+      signals.push([pid, signal]);
     },
-    waitFor: async (predicate: () => Promise<unknown>) => {
-      if (observations === 1) throw new Error("cleanup wait expired");
-      if (!(await predicate())) throw new Error("replacement process remains live");
+    waitFor: async (predicate) => {
+      if (observations === 1) throw Error("cleanup wait expired");
+      if (!(await predicate())) throw Error("replacement process remains live");
       return true;
     },
   });
-  await assert.rejects(async () => {
-    await changed;
-  }, /replacement process remains live/u);
+  await assert.rejects(owner.stopOwned(marker, "candidate"), /replacement process remains live/u);
   assert.deepEqual(signals, [[42, "SIGTERM"]]);
+});
+
+void test("macOS capture freezes before child observation and drains the exact owner", async () => {
+  const order: string[] = [];
+  let live = true;
+  const child = { ...identity("child-start"), pid: 43 };
+  const owner = cleanup({
+    processIdentity: (pid, role) => {
+      assert.equal(pid, 42);
+      assert.equal(role, "helper");
+      return live ? identity() : null;
+    },
+    signal: (pid, signal) => {
+      assert.equal(pid, 42);
+      order.push(signal);
+      if (signal === "SIGKILL") live = false;
+    },
+    childPids: (pid) => {
+      assert.equal(pid, 42);
+      order.push("children");
+      return [43, 44];
+    },
+    matchingChildIdentity: (pid, role) => {
+      assert.equal(role, "candidate");
+      order.push("match:" + pid);
+      return pid === 43 ? child : null;
+    },
+    waitFor: async (read, label, timeout) => {
+      assert.equal(timeout, 5000);
+      order.push(label);
+      assert.equal(await read(), true);
+      return true;
+    },
+  });
+  assert.deepEqual(await owner.freezeCaptureAndStop(42, "helper", "candidate"), [child]);
+  assert.deepEqual(order, [
+    "SIGSTOP",
+    "helper stopped for child capture",
+    "children",
+    "match:43",
+    "match:44",
+    "SIGKILL",
+    "helper forced exit",
+  ]);
+  assert.equal(live, false);
 });
 
 void test("macOS process inspection treats only subprocess status one as an absent process", () => {
