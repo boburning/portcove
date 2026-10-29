@@ -3236,6 +3236,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const broad = [
     "scripts/generate-catalog.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
     "scripts/catalog-artwork-dispatch.test.mts",
@@ -3246,6 +3247,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
   ];
   const authoring = [
     "scripts/generate-catalog.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
     "scripts/catalog-artwork-dispatch.test.mts",
