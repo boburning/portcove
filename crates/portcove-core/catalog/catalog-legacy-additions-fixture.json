@@ -45,7 +45,9 @@
     "super-bomberman-snes-usa",
     "gundam-wing-endless-duel-snes-japan",
     "donkey-kong-country-2-snes-usa",
-    "ctr-native-ntsc-u-raw-bin"
+    "ctr-native-ntsc-u-raw-bin",
+    "diablo-devilutionx-retail-originals",
+    "diablo-hellfire-devilutionx-originals"
   ],
   "port_ids": [
     "snap64-recomp",
