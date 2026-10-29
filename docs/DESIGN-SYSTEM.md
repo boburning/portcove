@@ -32,9 +32,11 @@ size and full sidebar. Available width and interface size change the count.
 Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
 it caps at 160px. Short windows retain the same density rules. Supporting text
 scales and wraps without growing artwork beyond its CSS bound; native interface
-zoom still enlarges the physical rendering. Titles reserve two ordinary lines
-and expand on focus; project labels wrap completely. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it.
+zoom still enlarges the physical rendering. Titles and project labels use their natural one- or two-line footprint
+and expand on focus. Full identity wraps below
+40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play
+controls use quiet ghost styling; hover and keyboard focus use the signature red.
+The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
 Library entries have separate identity, Play/review and More actions controls.
@@ -83,7 +85,7 @@ shrinking essential text, hiding consequences or replacing the domain projection
 ## Game details
 
 Managed games, registered external installations and catalog/self-service entries
-use one responsive detail composition, bounded at 97.5rem. The complete game title uses the existing large
+use one responsive detail composition, bounded at 87.5rem. The complete game title uses the existing large
 heading token. Project and variant, observed readiness, a natural-width primary
 action and adjacent overflow follow it. Green readiness and direct red Play retain
 their existing authoritative projections. The installation fact is independently
@@ -91,7 +93,7 @@ observed: managed version, registered external installation, downloaded setup or
 not installed. Readiness never establishes ownership.
 
 Details and the single Continue strip share one foreground identity system:
-verified key art, then a suitable game logo, then the appropriate existing Cover,
+a suitable admitted game logo, then the appropriate existing Cover,
 then the typeset title. Prefer the exact port within each role, then an accurately
 matched applicable original game/edition. A missing logo never skips the Cover.
 Keep project/variant identity visible beside original-game branding. Foreground,
@@ -101,7 +103,7 @@ assets and quiet failure. Never stretch a portrait cover into a landscape header
 
 Foreground art preserves its natural aspect ratio in a reserved, responsive
 frame. Cover fallback stays deliberately portrait, including narrow layouts;
-key art and logos use wider bounded frames where useful. Compact details stack
+logos use wider bounded frames where useful. Compact details stack
 the foreground above complete identity/actions. The directional background mask
 protects text, while a solid narrow text stage and sufficient heading leading
 keep the complete glyph bounds over a readable surface. Logo ink/contrast and
@@ -609,15 +611,14 @@ Catalog-mapped covers keep imagery clear of provider labels. The existing detail
 source disclosure shows IGDB attribution and the reviewed source link.
 
 Game details and Continue share a foreground identity composition: suitable verified
-IGDB key art, game logo, existing Cover choice, then a real text heading. Each role
+IGDB game logo, existing Cover choice, then a real text heading. Each role
 prefers the exact port and only then an applicable original/edition; project identity
 remains visible. Atmospheric landscape art and screenshots resolve independently.
 Keep full natural proportions, reserve space while loading, constrain logo dimensions
 and preserve headings/actions across failures. A cover fallback is a deliberate
 portrait element, never a manufactured landscape or cropped logo. Read decoded
-foreground suitability rather than trusting a non-null URL or alpha hint. Key art
-needs useful natural and contained dimensions; reassess its footprint on resize
-and advance the same fallback chain when it becomes too small or narrow. Use a
+foreground suitability rather than trusting a non-null URL or alpha hint. Reassess
+logo legibility on resize and advance the same fallback chain when necessary. Use a
 deliberate contrasting logo stage when necessary without recoloring brand pixels. Expose image
 provenance and rights through the shared credits disclosure.
 
@@ -1005,3 +1006,18 @@ optional settings disclosure and aligned project facts/actions. Exact artifact,
 freshness, file health and evidence provenance remain in each project's existing
 explanation. Advisory context remains distinct from setup/launch checks, and
 shared compatibility cautions are stated once rather than repeated on every card.
+
+## Prototype presentation alignment
+
+The October 29 pass retains the v58-based prototype’s graphite hierarchy: quiet
+canvas, slightly raised panels, restrained dividers, readable secondary text and
+a blue selected navigation edge. The shared control and typography tokens apply
+to Library, Discover, details, Activity, Settings and dialogs; light theme remains
+an independently readable palette, not an inverted screenshot.
+
+Game detail identity prefers an admitted exact-port logo, then an applicable
+original-game logo, then the existing cover and text fallback. Key art does not
+precede that identity chain. Header and screenshot selection remain independent.
+A logo sits above the game identity/actions; a cover retains its portrait column.
+Supporting detail and settings text scales with interface size. No artwork or
+prototype fixture creates readiness, launch history or operation eligibility.

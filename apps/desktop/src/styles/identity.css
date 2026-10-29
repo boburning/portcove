@@ -20,8 +20,8 @@
   .identity-chip[style] {
     --identity-ink: color-mix(in srgb, var(--identity-base) 45%, white);
 
-    border-color: color-mix(in srgb, var(--identity-base) 40%, var(--color-border));
-    background: color-mix(in srgb, var(--identity-base) 12%, var(--color-bg-elevated));
+    border-color: color-mix(in srgb, var(--identity-base) 25%, var(--color-border));
+    background: color-mix(in srgb, var(--identity-base) 9%, var(--color-bg-elevated));
   }
 
   :root[data-theme="light"] .identity-chip[style] {

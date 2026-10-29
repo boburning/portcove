@@ -1103,9 +1103,9 @@ function PortCardStatus({
         {!taskPrimary && canLaunch && (
           <Button
             data-focusable
-            variant="outline"
+            variant="ghost"
             size="xs"
-            className="library-card-action max-w-20"
+            className="library-card-action library-card-play max-w-20"
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
             aria-busy={Boolean(action.busy)}

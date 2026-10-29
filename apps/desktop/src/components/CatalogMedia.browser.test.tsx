@@ -383,7 +383,7 @@ function controlledKeyArt(width: number, height: number) {
 }
 
 it.each(["unavailable", "tiny", "thin", "tall"] as const)(
-  "keeps game identity and focused actions through %s key art, logo and cover failures",
+  "ignores %s key art and keeps identity and focus through logo and cover failures",
   async (keyArtState) => {
     const { keyArt, logo, port, logoBytes } = controlledHeroMedia();
     if (keyArtState !== "unavailable") {
@@ -449,12 +449,12 @@ it.each(["unavailable", "tiny", "thin", "tall"] as const)(
       .toBe("text");
     await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
     expect(document.activeElement).toBe(action);
-    expect(media.mock.calls.map((call) => call[1])).toEqual([keyArt.id, logo.id]);
+    expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
     expect(document.querySelector(".game-hero-background")).toBeNull();
   },
 );
 
-it("keeps suitable key art, then advances to a legible logo when the Continue footprint shrinks", async () => {
+it("keeps a legible logo ahead of key art when the Continue footprint shrinks", async () => {
   const { keyArt, logo, port, logoBytes } = controlledHeroMedia(true);
   keyArt.width = 960;
   keyArt.height = 240;
@@ -485,10 +485,10 @@ it("keeps suitable key art, then advances to a legible logo when the Continue fo
   await expect
     .poll(() => {
       const image = document.querySelector<HTMLImageElement>(".game-hero-image");
-      return image?.complete && image.naturalWidth === 960;
+      return image?.complete && image.naturalWidth === logo.width;
     })
     .toBe(true);
-  expect(document.querySelector(".game-hero")?.getAttribute("data-hero-identity")).toBe("key_art");
+  expect(document.querySelector(".game-hero")?.getAttribute("data-hero-identity")).toBe("logo");
   await page.getByRole("button", { name: "Continue controlled game", exact: true }).click();
   const action = document.activeElement;
   await act(async () => {
@@ -501,7 +501,7 @@ it("keeps suitable key art, then advances to a legible logo when the Continue fo
     .toBe("logo");
   await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
   expect(document.activeElement).toBe(action);
-  expect(media.mock.calls.map((call) => call[1])).toEqual([keyArt.id, logo.id]);
+  expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
 });
 
 it.each(

@@ -52,7 +52,7 @@ function port(media: CatalogMediaAsset[]) {
   };
 }
 describe("shared hero media roles", () => {
-  it("prefers key art before logos and exact ports before originals within each role", () => {
+  it("prefers exact-port logos then applicable original logos, leaving cover fallback to the hero", () => {
     const media = [
       asset("original-logo", "logo", true),
       asset("port-logo", "logo"),
@@ -60,8 +60,6 @@ describe("shared hero media roles", () => {
       asset("port-key", "key_art"),
     ];
     expect(heroMediaCandidates(port(media)).foreground.map((item) => item.id)).toEqual([
-      "port-key",
-      "original-key",
       "port-logo",
       "original-logo",
     ]);
@@ -102,7 +100,7 @@ describe("shared hero media roles", () => {
       screenshots: [],
     });
     const applicable = heroMediaCandidates(port(media), { originalEditionId: "edition" });
-    expect(applicable.foreground).toHaveLength(2);
+    expect(applicable.foreground).toHaveLength(1);
     expect(applicable.backgrounds).toHaveLength(1);
     expect(applicable.screenshots).toHaveLength(1);
     media.forEach((image) => {
