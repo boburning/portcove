@@ -16,6 +16,11 @@ files**, **Saved file location**, **Saves and settings**, **File details**,
 **Technical details** and **Test results** in their applicable contexts; they
 are not interchangeable labels for one generic source or status.
 
+**Continue playing** means launching the recently played installation. It does
+not promise automatic in-game save resumption. Name the current installation or
+port when that identity matters; the [design system](DESIGN-SYSTEM.md#public-beta-writing-and-terminology)
+owns its composition.
+
 Keep application, game-port, catalog and plugin updates distinct. A game update
 does not update Portcove, and a catalog update changes definitions rather than
 installing every game. Describe launch-only, external-registration and managed
