@@ -1145,6 +1145,15 @@ impl Installer {
             )?;
         }
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
+        if let Some(contract) = &request.qualification.retained_contract {
+            let catalog = contract.catalog(&request.port_id)?;
+            let port = catalog.port(&request.port_id)?;
+            if port.windows_temp_directory.is_some() {
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::native_temp::require_pristine_package(port, &payload_root, &selected)?;
+                crate::native_temp::require_canonical_data(port, &self.library)?;
+            }
+        }
         if let Some(runtime) = &request.qualification.runtime {
             let unpacked = lifecycle.operation_root.join("runtime");
             fs::create_dir_all(&unpacked)?;
@@ -2133,6 +2142,15 @@ impl Installer {
         qualification: &InstallQualification,
         root: &Path,
     ) -> Result<(String, PathBuf, Option<RuntimeIdentity>)> {
+        if let Some(contract) = &qualification.retained_contract {
+            let catalog = contract.catalog(port_id)?;
+            let port = catalog.port(port_id)?;
+            if port.windows_temp_directory.is_some() {
+                let selected = resolve_declared_executable(root, qualification)?;
+                crate::native_temp::require_pristine_package(port, root, &selected)?;
+                crate::native_temp::require_canonical_data(port, &self.library)?;
+            }
+        }
         let mut adopted = qualification.clone();
         adopted.runtime_origin = RuntimeOrigin::AdoptedTree;
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
@@ -3056,7 +3074,7 @@ pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Pat
     let relative = observed_working.strip_prefix(&install.path).map_err(|_| {
         PortcoveError::verification("runtime working directory escaped its installation")
     })?;
-    crate::runtime_path_policy::check(port, platform, &target.join(relative))
+    crate::runtime_path_policy::check_working_directory(port, platform, &target.join(relative))
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
@@ -3584,7 +3602,7 @@ fn refuse_staged_redirect(path: &Path, metadata: &fs::Metadata) -> Result<()> {
     Ok(())
 }
 
-fn require_staged_path(root: &Path, path: &Path) -> Result<()> {
+pub(crate) fn require_staged_path(root: &Path, path: &Path) -> Result<()> {
     for candidate in path
         .ancestors()
         .take_while(|candidate| candidate.starts_with(root))

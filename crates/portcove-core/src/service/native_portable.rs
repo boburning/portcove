@@ -84,6 +84,7 @@ impl PortcoveService {
             || retained.mod_package_policy != to.mod_package_policy
             || retained.persistent_file_patterns != to.persistent_file_patterns
             || retained.runtime_subdirectory != to.runtime_subdirectory
+            || retained.windows_temp_directory != to.windows_temp_directory
             || retained.launch_from_install_root != to.launch_from_install_root
             || retained.executable_hints.get(&platform) != to.executable_hints.get(&platform)
             || retained.launch_arguments != to.launch_arguments
@@ -279,6 +280,7 @@ impl PortcoveService {
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
+    use crate::Adapter;
     use std::{
         io::{Read, Write},
         net::TcpListener,
@@ -471,6 +473,313 @@ mod tests {
         let mut service = PortcoveService::with_provider(library, provider).unwrap();
         service.catalog = catalog();
         service
+    }
+
+    fn native_temp_catalog() -> Catalog {
+        let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
+        document["ports"][0]["windows_runtime_path_policy"] =
+            serde_json::json!("relative-file-max-path");
+        document["ports"][0]["windows_temp_directory"] = serde_json::json!("temp");
+        document["ports"][0]["persistent_paths"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!("temp"));
+        Catalog::from_json(&document.to_string()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn adoption_preserves_native_temp_interpretation_in_both_directions() {
+        const ID: &str = "portable-fixture";
+        for creating_has_temp in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = PortcoveService::with_provider(library.clone(), provider).unwrap();
+            let mut creating =
+                serde_json::to_value(native_temp_catalog().authoritative_document()).unwrap();
+            if !creating_has_temp {
+                creating["ports"][0]["windows_temp_directory"] = serde_json::Value::Null;
+            }
+            let creating = Catalog::from_json(&creating.to_string()).unwrap();
+            service.replace_catalog_for_test(creating.clone());
+            let first = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let external = temporary.path().join("external");
+            fs::create_dir(&external).unwrap();
+            fs::copy(first.path.join("game.exe"), external.join("game.exe")).unwrap();
+            let original = fs::read(external.join("game.exe")).unwrap();
+            let mut changed = serde_json::to_value(creating.authoritative_document()).unwrap();
+            changed["ports"][0]["windows_temp_directory"] = if creating_has_temp {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!("temp")
+            };
+            service.replace_catalog_for_test(Catalog::from_json(&changed.to_string()).unwrap());
+            let preview = service.preview_adoption(&external, Some(ID)).unwrap();
+            let consent = service
+                .authorize_adoption(&external, Some(ID), &preview.plan_sha256)
+                .unwrap();
+            assert!(service.adopt(&external, Some(ID), &consent.token).is_err());
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+            assert_eq!(fs::read(external.join("game.exe")).unwrap(), original);
+            service.replace_catalog_for_test(creating);
+            let preview = service.preview_adoption(&external, Some(ID)).unwrap();
+            let consent = service
+                .authorize_adoption(&external, Some(ID), &preview.plan_sha256)
+                .unwrap();
+            let adopted = service.adopt(&external, Some(ID), &consent.token).unwrap();
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, adopted.id);
+            assert_eq!(fs::read(external.join("game.exe")).unwrap(), original);
+        }
+    }
+
+    #[tokio::test]
+    async fn no_active_native5_activation_rechecks_canonical_data_after_staging() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        service.replace_catalog_for_test(native_temp_catalog());
+        let staged = service
+            .install(ID, None, None, None, false, |_| {})
+            .await
+            .unwrap();
+        assert!(service.status(ID).unwrap().active.is_none());
+        fs::create_dir_all(library.user_dir(ID).join("temp")).unwrap();
+        fs::write(
+            library.user_dir(ID).join("temp/witness.bin"),
+            b"unproven legacy bytes",
+        )
+        .unwrap();
+        assert!(service.activate_staged(ID).is_err());
+        assert!(service.status(ID).unwrap().active.is_none());
+        assert!(staged.path.is_dir());
+        assert!(!staged.path.join("temp").exists());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"unproven legacy bytes"
+        );
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        let id = Uuid::new_v4().to_string();
+        let mut journal = LifecycleOperation::new(&id, LifecycleOperationKind::Install, ID);
+        journal.install = Some(staged.clone());
+        journal.activate = true;
+        journal.phase = LifecyclePhase::PayloadPublished;
+        journal.paths.staging = Some(library.staging_dir().join(&id));
+        journal.paths.final_path = Some(staged.path.clone());
+        fs::create_dir_all(journal.paths.staging.as_ref().unwrap()).unwrap();
+        let store = OperationStore::new(library.clone());
+        store.put(&mut journal).unwrap();
+        assert!(
+            crate::recovery::recover_published_install(&service, &store, &mut journal).is_err()
+        );
+        assert!(store.get(&id).unwrap().is_some());
+        assert!(service.status(ID).unwrap().active.is_none());
+        drop(service);
+        let mut reopened = PortcoveService::new(library.clone()).unwrap();
+        reopened.replace_catalog_for_test(native_temp_catalog());
+        assert!(
+            crate::recovery::recover_published_install(&reopened, &store, &mut journal).is_err()
+        );
+        assert!(reopened.status(ID).unwrap().active.is_none());
+        assert!(staged.path.is_dir());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"unproven legacy bytes"
+        );
+    }
+
+    #[tokio::test]
+    async fn removed_native4_data_cannot_be_reinterpreted_as_a_new_native5_temp_namespace() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let new = native_temp_catalog();
+        let mut old = serde_json::to_value(new.authoritative_document()).unwrap();
+        old["ports"][0]["windows_temp_directory"] = serde_json::Value::Null;
+        service.replace_catalog_for_test(Catalog::from_json(&old.to_string()).unwrap());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        fs::create_dir(first.path.join("temp")).unwrap();
+        fs::write(
+            first.path.join("temp/witness.bin"),
+            b"old data is not Windows TEMP",
+        )
+        .unwrap();
+        let preview = service.preview_removal(ID).unwrap();
+        let consent = service
+            .authorize_removal(ID, &preview.preview_sha256)
+            .unwrap();
+        service.remove(ID, &consent.token).unwrap();
+        assert!(service.status(ID).unwrap().active.is_none());
+        service.replace_catalog_for_test(new);
+        *provider.0.lock().unwrap() = server.release("v2", 2);
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        assert!(service.status(ID).unwrap().active.is_none());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"old data is not Windows TEMP"
+        );
+    }
+
+    #[tokio::test]
+    async fn native5_temp_bytes_follow_owned_wrapper_update_backup_rollback_and_removal() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(
+            server.release_in_folder("v1", 1, "Game-v1/", "game.exe"),
+        )));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let catalog = native_temp_catalog();
+        service.replace_catalog_for_test(catalog.clone());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let port = catalog.port(ID).unwrap();
+        let readonly = crate::adapter::standard(AdapterKind::NativePortable)
+            .launch_spec(port, Platform::WindowsX86_64, &first.path, None)
+            .unwrap();
+        assert!(!first.path.join("Game-v1/temp").exists());
+        assert_eq!(readonly.environment["TEMP"], "temp");
+        let prepared = service.prepare_launch(ID, None).unwrap();
+        assert!(prepared.working_directory.join("temp").is_dir());
+        fs::write(
+            prepared.working_directory.join("temp/witness.bin"),
+            b"owned temporary bytes",
+        )
+        .unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        *provider.0.lock().unwrap() = server.release_in_folder("v2", 2, "Game-v2/", "game.exe");
+        service.update(ID, None, None, false, |_| {}).await.unwrap();
+        let second = service.activate_staged(ID).unwrap();
+        assert_eq!(
+            fs::read(second.path.join("Game-v2/temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        fs::write(
+            second.path.join("Game-v2/temp/witness.bin"),
+            b"newest temporary bytes",
+        )
+        .unwrap();
+        let previous = service.rollback(ID).unwrap();
+        assert_eq!(previous.id, first.id);
+        assert_eq!(
+            fs::read(previous.path.join("Game-v1/temp/witness.bin")).unwrap(),
+            b"newest temporary bytes"
+        );
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(ID, &backup.id, &consent.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(previous.path.join("Game-v1/temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        let mut changed = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        changed["ports"][0]["windows_temp_directory"] = serde_json::json!("different-temp");
+        *changed["ports"][0]["persistent_paths"]
+            .as_array_mut()
+            .unwrap()
+            .last_mut()
+            .unwrap() = serde_json::json!("different-temp");
+        service.replace_catalog_for_test(Catalog::from_json(&changed.to_string()).unwrap());
+        *provider.0.lock().unwrap() = server.release("v3", 3);
+        assert!(service.update(ID, None, None, true, |_| {}).await.is_err());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        assert_eq!(
+            fs::read(previous.path.join("Game-v1/temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        let preview = service.preview_removal(ID).unwrap();
+        let consent = service
+            .authorize_removal(ID, &preview.preview_sha256)
+            .unwrap();
+        service.remove(ID, &consent.token).unwrap();
+        assert!(!first.path.exists());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        // With no active creating contract, preserved bytes alone cannot grant
+        // the new installation authority to interpret this namespace as TEMP.
+        service.replace_catalog_for_test(catalog);
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        assert!(service.status(ID).unwrap().active.is_none());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+    }
+
+    #[tokio::test]
+    async fn native5_rejects_publisher_temp_members_before_runtime_publication() {
+        for member in ["temp/immutable.bin", "TEMP/immutable.bin", "temp"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let release = server.release_with_files(
+                "v1",
+                1,
+                "",
+                "game.exe",
+                &[(member, b"publisher file".as_slice())],
+            );
+            let provider = Arc::new(Provider(Mutex::new(release)));
+            let mut service = PortcoveService::with_provider(library, provider).unwrap();
+            service.replace_catalog_for_test(native_temp_catalog());
+            assert!(
+                service
+                    .install("portable-fixture", None, None, None, true, |_| {})
+                    .await
+                    .is_err(),
+                "{member}"
+            );
+            assert!(service.status("portable-fixture").unwrap().active.is_none());
+        }
     }
 
     #[tokio::test]

@@ -3145,6 +3145,7 @@ impl PortcoveService {
         if let Some(active) = &status.active {
             self.require_portable_transition(active, port)?;
         }
+        crate::native_temp::require_canonical_data(port, &self.library)?;
         let runtime = crate::runtime::required(port, Platform::current()?);
         let active_matches = status
             .active
@@ -3987,6 +3988,10 @@ impl PortcoveService {
                 InstallQualification::from_catalog(&self.catalog, &port_id, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
             self.require_definition_adoption(&self.catalog, port)?;
+            if let Some(active) = self.status(&port_id)?.active {
+                self.require_portable_transition(&active, port)?;
+            }
+            crate::native_temp::require_canonical_data(port, &self.library)?;
             let locked_preview = self.preview_adoption(source, selected_port_id)?;
             let target = adoption_authorization_target(source, selected_port_id)?;
             self.library.consume_authorization(
@@ -4886,6 +4891,7 @@ impl PortcoveService {
                     )?;
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
+                    crate::native_temp::recheck(retained_port, &spec)?;
                     self.require_installed_shared_preferences(install)?;
                     if retained_port.managed_shared_preferences.is_some()
                         && (spec.arguments != retained_port.launch_arguments
@@ -6088,6 +6094,7 @@ impl PortcoveService {
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
+        crate::native_temp::require_canonical_data(port, &self.library)?;
         self.require_psx_data_receipt_readable(port, &install_root)?;
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;

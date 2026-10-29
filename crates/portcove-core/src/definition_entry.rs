@@ -173,6 +173,15 @@ impl DefinitionContentIndex {
                 "versioned mod packages require staged-source capability version 24",
             ));
         }
+        if port.windows_temp_directory.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 5
+            })
+        {
+            return Err(PortcoveError::verification(
+                "entry-owned Windows temporary data requires native capability version 5",
+            ));
+        }
         if port.adapter == crate::AdapterKind::NativePortable
             && port.release.provider == crate::ReleaseSource::DirectManifest
             && !document.required_capabilities.iter().any(|requirement| {

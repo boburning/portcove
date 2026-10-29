@@ -674,6 +674,10 @@ pub struct PortDefinition {
     pub runtime_mutable_file_patterns: Vec<PersistentFilePattern>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub windows_runtime_path_policy: Option<WindowsRuntimePathPolicy>,
+    /// Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.
+    /// The upstream process must preserve the reviewed working directory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub windows_temp_directory: Option<String>,
     #[serde(default)]
     pub portable_marker: bool,
     /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
