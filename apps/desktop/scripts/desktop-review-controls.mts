@@ -12,7 +12,7 @@ import { By, Key, until } from "selenium-webdriver";
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,
-  label: "Overview" | "Game files" | "Saves" | "Versions & updates" | "Manage",
+  label: "Overview" | "Game files" | "Saves & backups" | "Versions & updates" | "Manage",
 ) {
   const tab = await browser.wait(
     until.elementLocated(

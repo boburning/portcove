@@ -1253,6 +1253,13 @@ export async function preparationScenarios({
     assert.equal(preparationHierarchy.firstAction, "Review game preparation");
     assert.equal(preparationHierarchy.disabledPlaceholder, false);
     assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
+    await revealDetailSection(browser, "Manage");
+    await clickVisible(
+      browser,
+      await browser.findElement(
+        By.xpath('//summary[normalize-space(.)="Advanced installation settings"]'),
+      ),
+    );
     await clickVisible(
       browser,
       await browser.findElement(
@@ -1312,6 +1319,7 @@ export async function preparationScenarios({
       install.id,
       "review must not move versions",
     );
+    await revealDetailSection(browser, "Game files");
     await browser.findElement(button("Review game preparation")).click();
     const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
@@ -2196,14 +2204,17 @@ export async function preparationScenarios({
             executeBrowserScript(
               browser,
               (expected) => {
-                const frame = document.querySelector<HTMLElement>(".detail-cover.artwork-image");
-                const image = frame?.querySelector("img");
+                const hero = document.querySelector<HTMLElement>(".game-hero-detail");
+                const image = hero?.querySelector<HTMLImageElement>(".game-hero-image");
                 if (image) return image.complete && image.naturalWidth > 0;
                 return (
-                  frame?.dataset.artworkSource === "generated_fallback" &&
-                  Boolean(frame.querySelector(':scope > span > svg[aria-hidden="true"]')) &&
-                  (expected.availability !== "available" ||
-                    frame.textContent?.includes("Image unavailable"))
+                  expected.resolved_source.kind === "generated_fallback" &&
+                  hero?.dataset.heroIdentity === "text" &&
+                  !hero.querySelector('[data-loading="true"]') &&
+                  Boolean(hero.querySelector("#port-detail-title")?.textContent?.trim()) &&
+                  Boolean(
+                    hero.querySelector('.detail-header-actions button[data-variant="primary"]'),
+                  )
                 );
               },
               artwork,
@@ -2264,7 +2275,7 @@ export async function preparationScenarios({
           assert.deepEqual(hierarchy.groups, [
             "Overview",
             "Game files",
-            "Saves",
+            "Saves & backups",
             "Versions & updates",
             "Manage",
           ]);

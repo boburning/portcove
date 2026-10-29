@@ -115,6 +115,7 @@ export function GameHero({
         {(image || foreground.display.loading || cover.loading) && (
           <div
             className="game-hero-foreground"
+            data-artwork-source={kind === "cover" ? cover.state?.resolved_source.kind : undefined}
             aria-hidden="true"
             data-loading={!image || undefined}
           >

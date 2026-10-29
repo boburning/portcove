@@ -30,12 +30,12 @@ function runContract(options?: {
   );
 }
 async function artworkContract(subject: Artwork) {
-  const image = {};
+  const image = { naturalWidth: 200, naturalHeight: 300 };
   const title = { textContent: "original" };
   let quiet = false;
   let showImage = false;
   const frame = {
-    classList: ["detail-cover", "[--art-color:var(--color-art-indigo)]", "retained-class"],
+    classList: ["collection-art", "[--art-color:var(--color-art-indigo)]", "retained-class"],
     dataset: { artworkSource: "generated_fallback" },
     querySelector: (selector: string) =>
       selector === "img"
@@ -75,7 +75,9 @@ async function artworkContract(subject: Artwork) {
     querySelector: (selector: string) =>
       selector === "#port-detail-title"
         ? title
-        : selector === ".detail-cover" && available
+        : (selector === ".collection-art" ||
+              selector === ".game-hero-detail .game-hero-foreground") &&
+            available
           ? frame
           : null,
   };
@@ -116,7 +118,7 @@ async function artworkContract(subject: Artwork) {
     assert.ok(typeof callback === "function", "Retain the actual artwork reader function");
     return Reflect.apply(callback, undefined, [browser, ...args]);
   };
-  const observation = await invokeBrowser(subject.readArtworkFallback, ".detail-cover", 3, false);
+  const observation = await invokeBrowser(subject.readArtworkFallback, ".collection-art", 3, false);
   assert.deepEqual(
     structuredClone(observation),
     {
@@ -134,7 +136,7 @@ async function artworkContract(subject: Artwork) {
   quiet = true;
   const quietObservation = await invokeBrowser(
     subject.readArtworkFallback,
-    ".detail-cover",
+    ".collection-art",
     3,
     true,
   );
@@ -151,7 +153,7 @@ async function artworkContract(subject: Artwork) {
   quiet = false;
   showImage = true;
   assert.equal(removed, true, "color probe must not remain in the rendered tree");
-  const loadedFrame = await invokeBrowser(subject.readArtworkFallback, ".detail-cover", 3, false);
+  const loadedFrame = await invokeBrowser(subject.readArtworkFallback, ".collection-art", 3, false);
   assert.ok(loadedFrame !== null && typeof loadedFrame === "object");
   assert.equal(
     Reflect.get(loadedFrame, "images"),
@@ -166,7 +168,7 @@ async function artworkContract(subject: Artwork) {
   );
   available = false;
   await assert.rejects(
-    Promise.resolve(invokeBrowser(subject.readArtworkFallback, ".detail-cover", 3, false)),
+    Promise.resolve(invokeBrowser(subject.readArtworkFallback, ".collection-art", 3, false)),
     /Artwork frame unavailable/,
   );
   await assert.rejects(
@@ -180,13 +182,13 @@ async function artworkContract(subject: Artwork) {
     /Artwork image unavailable/,
   );
   await assert.rejects(
-    Promise.resolve(invokeBrowser(subject.readArtworkFallback, ".detail-cover", 6, false)),
+    Promise.resolve(invokeBrowser(subject.readArtworkFallback, ".collection-art", 6, false)),
     /Unknown generated artwork palette/,
   );
   removed = false;
   probeFailure = new Error("controlled artwork probe style failure");
   await assert.rejects(
-    Promise.resolve(invokeBrowser(subject.readArtworkFallback, ".detail-cover", 3, false)),
+    Promise.resolve(invokeBrowser(subject.readArtworkFallback, ".collection-art", 3, false)),
     (error) => error === probeFailure,
   );
   assert.equal(removed, true, "color probe cleanup must run when style observation fails");
