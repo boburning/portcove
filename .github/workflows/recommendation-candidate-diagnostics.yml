@@ -9,25 +9,25 @@ on:
 permissions: {}
 
 jobs:
-  transfer:
-    name: Verify and transfer exact candidate Git objects
+  recover:
+    name: Recover exact candidate source for inspection
     if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/feature/game-port-recommendations' && github.event_name == 'push'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: c94c7b22af9197774f047e1242b0829e9d65e5fb
           persist-credentials: false
           fetch-depth: 2
-      - name: Validate content-addressed source and create Git objects only
-        env:
-          TRANSFER_TOKEN: ${{ github.token }}
+      - name: Recover hash-bound UTF-8 source without executing or publishing it
         shell: bash
         run: |
           python3 - <<'PY'
-          import base64, hashlib, json, lzma, os, pathlib, re, subprocess, urllib.request
+          import base64, hashlib, json, lzma, os, pathlib, re, subprocess
+          HEAD = 'c94c7b22af9197774f047e1242b0829e9d65e5fb'
           BASE = '7c32dff3e1d475166dda5db9b7100c534be2d358'
           BASE_TREE = '76b9a6b7ffc28277b125c975070d5459b823d579'
           EXPECTED_TREE = 'f998ed6da3ae1aa04aae378f45dbbc0c59e703f2'
@@ -38,15 +38,14 @@ jobs:
               if not condition:
                   raise RuntimeError(message)
           def git(*args):
-              return subprocess.check_output(['git', *args], timeout=20)
+              return subprocess.check_output(['git', *args], timeout=60)
           def blob_sha(data):
               return hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
           require(os.environ['GITHUB_REPOSITORY'] == 'boburning/portcove', 'Repository mismatch')
-          require(git('rev-parse', 'HEAD').decode().strip() == os.environ['GITHUB_SHA'], 'Checkout mismatch')
+          require(git('rev-parse', 'HEAD').decode().strip() == HEAD, 'Checkout mismatch')
           require(git('rev-parse', 'HEAD^').decode().strip() == BASE, 'Parent mismatch')
           require(git('rev-parse', BASE + '^{tree}').decode().strip() == BASE_TREE, 'Base tree mismatch')
-          changed = set(git('diff', '--name-only', BASE, 'HEAD').decode().splitlines())
-          require(changed == set(PARTS + [WORKFLOW]), 'Unexpected transfer inputs')
+          require(set(git('diff', '--name-only', BASE, HEAD).decode().splitlines()) == set(PARTS + [WORKFLOW]), 'Unexpected transfer inputs')
           chunks = []
           for path, digest in zip(PARTS, PART_HASHES):
               data = pathlib.Path(path).read_bytes()
@@ -56,14 +55,18 @@ jobs:
           require(len(encoded) == 57056, 'Encoded size mismatch')
           compressed = base64.b64decode(encoded, validate=True)
           require(len(compressed) == 42792 and hashlib.sha256(compressed).hexdigest() == '4bc7f03e72c5a28a10c31b08e874e9516aa6fcf337ee1c387aee2768edfb040f', 'Compressed identity mismatch')
-          decoder = lzma.LZMADecompressor(memlimit=64 * 1024 * 1024)
+          # The prior 64 MiB ceiling rejected this hash-bound stream before decoding.
+          # Keep finite memory and independent 1 MiB output bounds; execute no payload.
+          decoder = lzma.LZMADecompressor(memlimit=128 * 1024 * 1024)
           raw = decoder.decompress(compressed, max_length=1024 * 1024)
           require(decoder.eof and not decoder.unused_data, 'Incomplete or oversized payload')
           require(len(raw) == 264165 and hashlib.sha256(raw).hexdigest() == 'f5310292d14919ad220b768548fcc2ff41fc74a0956467528370a9b11e5f9e74', 'Payload identity mismatch')
           payload = json.loads(raw)
           require(payload['format'] == 1 and payload['base'] == BASE and payload['tree'] == EXPECTED_TREE, 'Payload binding mismatch')
           require(len(payload['files']) == 47, 'File count mismatch')
-          entries, names, contents = [], set(), []
+          root = pathlib.Path(os.environ['RUNNER_TEMP'], 'recommendation-recovery')
+          root.mkdir()
+          names, manifest = set(), []
           for item in payload['files']:
               path = item['path']
               require(isinstance(path, str) and '\\' not in path and not path.startswith('/') and all(part not in ('', '.', '..', '.git') for part in path.split('/')), 'Unsafe file path')
@@ -94,29 +97,20 @@ jobs:
                           pieces.append(old[start:end])
                   content = b''.join(pieces)
                   require(len(content) <= 4 * 1024 * 1024 and blob_sha(content) == new_sha, 'New file identity mismatch')
-                  contents.append((new_sha, content.decode('utf-8')))
-              entries.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': new_sha})
-          class NoRedirect(urllib.request.HTTPRedirectHandler):
-              def redirect_request(self, *args, **kwargs):
-                  raise RuntimeError('Unexpected API redirect')
-          opener = urllib.request.build_opener(NoRedirect)
-          def post(endpoint, body):
-              require(endpoint in ('git/blobs', 'git/trees'), 'Unsupported object operation')
-              request = urllib.request.Request('https://api.github.com/repos/boburning/portcove/' + endpoint, data=json.dumps(body).encode(), method='POST', headers={'Authorization': 'Bearer ' + os.environ['TRANSFER_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28'})
-              with opener.open(request, timeout=30) as response:
-                  return json.load(response)
-          for expected, content in contents:
-              result = post('git/blobs', {'content': content, 'encoding': 'utf-8'})
-              require(result['sha'] == expected, 'Published blob identity mismatch')
-          result = post('git/trees', {'base_tree': BASE_TREE, 'tree': entries})
-          require(result['sha'] == EXPECTED_TREE, 'Published tree identity mismatch')
-          receipt = {'format_version': 1, 'base': BASE, 'transfer_head': os.environ['GITHUB_SHA'], 'tree': result['sha'], 'files': len(entries), 'payload_sha256': hashlib.sha256(raw).hexdigest(), 'scope': 'Git objects only; no branch update, commit, approval, merge, or release publication'}
-          pathlib.Path(os.environ['RUNNER_TEMP'], 'recommendation-transfer-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+                  content.decode('utf-8')
+                  target = root / 'candidate' / path
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(content)
+              manifest.append({'path': path, 'old': old_sha, 'new': new_sha})
+          archive = root / 'base.tar.gz'
+          subprocess.run(['git', 'archive', '--format=tar.gz', '--output=' + str(archive), BASE], check=True, timeout=60)
+          receipt = {'format_version': 1, 'base': BASE, 'base_tree': BASE_TREE, 'transfer_head': HEAD, 'expected_candidate_tree': EXPECTED_TREE, 'files': manifest, 'payload_sha256': hashlib.sha256(raw).hexdigest(), 'base_archive_sha256': hashlib.sha256(archive.read_bytes()).hexdigest(), 'scope': 'Recovered source only; no execution, repository object/ref publication, approval, merge, signing or release'}
+          (root / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
           print(json.dumps(receipt))
           PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: recommendation-transfer-${{ github.sha }}
-          path: ${{ runner.temp }}/recommendation-transfer-receipt.json
+          name: recommendation-recovered-source-${{ github.sha }}
+          path: ${{ runner.temp }}/recommendation-recovery/
           retention-days: 1
           if-no-files-found: error
