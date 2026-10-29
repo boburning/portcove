@@ -1,0 +1,58 @@
+--- rfd-0.17.2/src/backend/gtk3/message_dialog.rs
+
++++ vendor/rfd/src/backend/gtk3/message_dialog.rs
+
+@@ -109,7 +109,11 @@
+
+         };
+ 
+         unsafe {
+-            gtk_sys::gtk_message_dialog_format_secondary_text(ptr as *mut _, description.as_ptr());
++            gtk_sys::gtk_message_dialog_format_secondary_text(
++                ptr as *mut _,
++                b"%s\0".as_ptr() as *const _,
++                description.as_ptr(),
++            );
+         }
+ 
+         Self {
+@@ -215,3 +219,38 @@
+
+         Box::pin(future)
+     }
+ }
++
++// Portcove regression for the upstream GTK format-string backport.
++#[cfg(test)]
++mod portcove_tests {
++    use super::*;
++    use std::ffi::{c_char, CStr};
++
++    #[test]
++    fn secondary_text_preserves_percent_sequences() {
++        unsafe {
++            assert_ne!(gtk_sys::gtk_init_check(ptr::null_mut(), ptr::null_mut()), 0);
++            // The first input safely and deterministically distinguishes the old
++            // printf interpretation; it fails before reaching other specifiers.
++            for description in ["literal 100%%", "100% progress", "%s %n %% café"] {
++                let dialog = GtkMessageDialog::new(
++                    MessageDialog::new()
++                        .set_title("Portcove fixture")
++                        .set_description(description),
++                );
++                let mut text: *mut c_char = ptr::null_mut();
++                gobject_sys::g_object_get(
++                    dialog.ptr as *mut gobject_sys::GObject,
++                    b"secondary-text\0".as_ptr() as *const _,
++                    &mut text as *mut *mut c_char,
++                    ptr::null::<c_char>(),
++                );
++                assert!(!text.is_null());
++                let observed = CStr::from_ptr(text).to_string_lossy().into_owned();
++                glib_sys::g_free(text as *mut _);
++                println!("PORTCOVE_RFD_TEXT_PROBE expected={description:?};actual={observed:?}");
++                assert_eq!(observed, description);
++            }
++        }
++    }
++}
