@@ -458,6 +458,7 @@ void test("workflow contract families preserve surviving consumers across direct
   const contracts = [
     "scripts/ci-workflow.test.mts",
     "scripts/ci-frontend-workflow.test.mts",
+    "scripts/ci-windows-helpers.test.mts",
     "scripts/ci-native-workflow.test.mts",
     "scripts/ci-release-workflow.test.mts",
     "scripts/ci-rust-workflow.test.mts",
@@ -699,6 +700,7 @@ void test("fixture module closure edits retain all independent policy and constr
   const helper = "scripts/fixtures/module-closure.mts";
   const consumers = [
     "scripts/catalog-proposal-costs.test.mts",
+    "scripts/ci-windows-helpers.test.mts",
     "scripts/daily-discovery.test.mts",
     "scripts/desktop-boundary-wiring.test.mts",
     "scripts/desktop-staged-layout.test.mts",
@@ -2117,6 +2119,7 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
     "scripts/ci-native-workflow.test.mts",
     "scripts/ci-release-workflow.test.mts",
     "scripts/ci-rust-workflow.test.mts",
+    "scripts/ci-windows-helpers.test.mts",
     "scripts/ci-workflow-fixture.test.mts",
     "scripts/ci-workflow.test.mts",
     "scripts/deep-audit-summary.test.mts",
