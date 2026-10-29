@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "recorded_at": "2026-10-29T20:18:41.758661+00:00",
+  "recorded_at": "2026-10-29T21:12:17.093433+00:00",
   "owners": [224, 225, 52],
-  "owner_state": "open; Windows busy journey and current Linux busy/restart/preservation journey pass at stated scope; current Windows copied guidance and isolated Linux reboot remain pending; production authority held by534",
+  "owner_state": "open; Windows busy and current Linux busy/restart/data sequence pass at stated scope; current copied Windows case failed at direct-root close harness and viewport capture; isolated Linux reboot unobserved; production authority held by534",
   "source_composition": {
     "controller_and_core_busy_helper": "846d659bf0071d7602c91f57a44310c921313574",
     "windows_shipping_packages": "f5f4917654819db99c2f9a9cc0f671623cf8c55f",
@@ -10272,8 +10272,8 @@
     ]
   },
   "remaining_boundaries": [
-    "Complete current Linux archive custody and independent payload-signature readback; earlier846 first divergent cause remains unresolved historical evidence",
-    "Current-package native readback of idle copied-install recovery guidance",
+    "Independent current Linux payload-signature readback; complete archive custody passes; earlier846 first divergent cause remains unresolved historical evidence",
+    "Fresh current-package painted copied-install guidance and ordinary close after evidenced direct-root harness repair; failed38case retained",
     "Actual Linux OS reboot unobserved; task-owned isolated guest route being prepared, no shared-host reboot",
     "Actual production candidate/package/default-feature source/Root/key/grant/feed/custody/signing/publication/readback remain held by #534"
   ],
@@ -10548,7 +10548,7 @@
         }
       ]
     },
-    "independent_payload_verification": "pending complete archive retention and independent verification; native staging/replacement receipt identifies authenticated exact payload",
+    "independent_payload_verification": "pending independent maintained verifier readback; full archive and payload input custody complete",
     "qualified_predecessor": {
       "bytes": 98859512,
       "sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da"
@@ -10557,6 +10557,1580 @@
       "bytes": 98675192,
       "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552"
     },
-    "original_failure_cause": "unresolved; current positive run does not establish a causal product repair"
+    "original_failure_cause": "unresolved; current positive run does not establish a causal product repair",
+    "archive_custody": {
+      "run": 40934887557,
+      "attempt": 1,
+      "source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+      "artifact": 12926701381,
+      "archive_bytes": 629666242,
+      "archive_sha256": "cfc5f19d45839d45bdecc1ff36944f48c59d91d51744af4d5f362503bb3e8478",
+      "limits": {
+        "packed_bytes": 1073741824,
+        "expanded_bytes": 2147483648,
+        "raw_entries": 4096,
+        "directory_bytes": 4194304,
+        "member_bytes": 536870912,
+        "name_bytes": 1024,
+        "extra_bytes_per_entry": 4096,
+        "comment_bytes_per_entry": 1024
+      },
+      "unsupported": [
+        "ZIP64",
+        "multipart",
+        "encryption",
+        "links and special files",
+        "compression other than store/deflate"
+      ],
+      "file_count": 525,
+      "expanded_bytes": 840401642,
+      "scope": "inert complete ZIP structure/member hash+CRC inspection; no extraction or execution",
+      "entire_archive_sha256_verified": true,
+      "all_member_crc_length_sha256_verified": true,
+      "manifest_sha256": "d3118a092bf8742913c751c8613c2b8a9a260c4aabb2312c3fd8aa8ff3588fed",
+      "selected_range_join": {
+        "phase": "complete",
+        "archive_sha256": "cfc5f19d45839d45bdecc1ff36944f48c59d91d51744af4d5f362503bb3e8478",
+        "matched_selected_members": [
+          "updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/renderer-update-evidence.json",
+          "updater-rehearsal/linux-appimage-qualification/application-update-evidence.json",
+          "updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-activity/activity-holder.json",
+          "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage.sig",
+          "updater-rehearsal/disposable.key.pub",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.preview.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.releases.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.root.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.snapshot.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.stable.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.targets.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/timestamp.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/repository-manifest.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883.releases/0.3.0/linux-x86_64/appimage.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e.channels/preview/linux-x86_64/appimage/0.3.0.json",
+          "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289.keys/payload.json",
+          "updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+          "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage.sig"
+        ],
+        "scope": "Fullarchive/member audit matches prior selectedranges; no AppImage execution or signature verification claim"
+      }
+    },
+    "observation_snapshot_scope": "The19:52 selected-range observation predates the complete archive audit. Later custody supersedes only its queued custody status; historical range claims remain unchanged.",
+    "preserved_game_data": {
+      "source": {
+        "schema_version": 1,
+        "scope": "checksum-valid game-authored save/configuration bytes and installed game identities",
+        "authority": "none; Core owns the normal installation; no library database copied",
+        "builder_source_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+        "source_scope": "caller-bound predecessor build receipt and CLI hash; not binary-derived source attestation",
+        "cli": {
+          "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/historical-linux-predecessor-cli",
+          "bytes": 48387008,
+          "sha256": "95bf860533854cb5c484f6b210de9ac190ee69348b04b41466b9566758a06eb6",
+          "version": "0.1.0"
+        },
+        "player_root": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/config/opentyrian",
+        "backup_scope": "external game user store; outside Portcove managed backups",
+        "gameplay": "not_evaluated",
+        "fixture": {
+          "schema_version": 1,
+          "fixture": "opentyrian-game-authored-player-data",
+          "version": "v2.1.20260913",
+          "port_id": "opentyrian-opentyrian",
+          "origin": {
+            "scope": "rootless Ubuntu26 private Xvfb fixture generation only; not a supported-minimum updater observation",
+            "core_source_commit": "ea4ad3881f348d37b326cddee49a17b4dc4d451c",
+            "core_cli_sha256": "0772d6cd1a63c2aea4a1b5adc4e011dcad4a02ef89be028c1c7e7c13e1d23d9b",
+            "core_cli_artifact": 12846806492,
+            "uid": 1000,
+            "gid": 1000,
+            "normal_game_cli_exit": 0,
+            "input_name": "PCBET1028A followed by BackSpace",
+            "decoded_slot": {
+              "number": 1,
+              "name": "PCBET1028",
+              "raw_name": "PCBET1028     ",
+              "level": 1,
+              "level_name": "NEW GAME",
+              "episode": 1,
+              "cash": 10000,
+              "difficulty": 2,
+              "checksums": [71, 185, 129, 191]
+            },
+            "configuration_action": "normal item/shop Options: decrease Music by one step",
+            "audio_backend": "dummy; no audio-output acceptance"
+          },
+          "upstream": {
+            "repository": "opentyrian/opentyrian",
+            "tag": "v2.1.20260913",
+            "linux-x86_64": {
+              "asset": "opentyrian-v2.1.20260913-linux-x86_64.tar.gz",
+              "bytes": 6004739,
+              "sha256": "77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3"
+            },
+            "windows-x86_64": {
+              "asset": "opentyrian-v2.1.20260913-windows-x86_64.zip",
+              "bytes": 6092537,
+              "sha256": "7eddbe42439392ee8b2ffbe38c1c20a768da0c4afcc795ca31928c9dd6068f60"
+            }
+          },
+          "files": [
+            {
+              "name": "tyrian.sav",
+              "bytes": 2502,
+              "sha256": "bcc134793513e0c2abc7c2dc7a9781bc99a2e623185b3293903ad1aab9d71c3e"
+            },
+            {
+              "name": "tyrian.cfg",
+              "bytes": 28,
+              "sha256": "3fb31a744ea76ac3862ec07b9d75276263c4e0f3867c1c8074ad96a802c63107"
+            },
+            {
+              "name": "opentyrian.cfg",
+              "bytes": 313,
+              "sha256": "3e6f6b90a9e5e7fb4c64df0d7653f534440b8dc21f671ff73550ee409a05bff6"
+            }
+          ],
+          "limits": [
+            "Copy these three files only into a fresh private external user store after normal matching-Core game installation.",
+            "Do not copy library SQLite or claim Alpha2 contains this port.",
+            "Preservation means exact game-authored save/configuration bytes and installed runtime/record identities. In-game loading/gameplay remains not_evaluated.",
+            "External OpenTyrian user data is outside Portcove managed backup coverage.",
+            "No personal or human gameplay history, credentials, production signing or publication authority."
+          ]
+        }
+      },
+      "baseline": {
+        "installed": {
+          "id": "536c1ac2-d0aa-4be5-adbe-a5dd6087f11d",
+          "port_id": "opentyrian-opentyrian",
+          "version": "v2.1.20260913",
+          "channel": "stable",
+          "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/library/versions/opentyrian-opentyrian/77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3",
+          "artifact": {
+            "asset_name": "opentyrian-v2.1.20260913-linux-x86_64.tar.gz",
+            "sha256": "77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3",
+            "size": 6004739
+          },
+          "manifest_sha256": "6f7ca877954bd25d91753ba196b0fb1882135b322d74f5616df09f45263ba413",
+          "selected_executable": "opentyrian/opentyrian"
+        },
+        "game_update_policy": "notify",
+        "runtime": {
+          "entries": [
+            {
+              "path": ".portcove-manifest.json",
+              "kind": "file",
+              "mode": 384,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 1425693,
+              "sha256": "6f7ca877954bd25d91753ba196b0fb1882135b322d74f5616df09f45263ba413"
+            },
+            {
+              "path": "opentyrian",
+              "kind": "directory",
+              "mode": 493,
+              "uid": 1001,
+              "gid": 1001
+            },
+            {
+              "path": "opentyrian/COPYING",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 17987,
+              "sha256": "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6"
+            },
+            {
+              "path": "opentyrian/data",
+              "kind": "directory",
+              "mode": 493,
+              "uid": 1001,
+              "gid": 1001
+            },
+            {
+              "path": "opentyrian/data/cubetxt1.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 36169,
+              "sha256": "2a0bc26ac4a8cdcbe7a145c9b1868a87ecb4335e9787f2f1e5713c965372df2b"
+            },
+            {
+              "path": "opentyrian/data/cubetxt2.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 8108,
+              "sha256": "6604a1dcc264e8b8e98f036a8bc35579e9b90b92eccbc4d7c1effee9785d1580"
+            },
+            {
+              "path": "opentyrian/data/cubetxt3.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 12294,
+              "sha256": "fcfc9762cd4cfad42feb12d975929de86851b216d4491252c701527e22b55539"
+            },
+            {
+              "path": "opentyrian/data/cubetxt4.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 62424,
+              "sha256": "f77ac5509d7d644515bccb8e3733d5ea047e22bd03465c75526fb199e91b1b46"
+            },
+            {
+              "path": "opentyrian/data/demo.1",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 2745,
+              "sha256": "9128c9276325191acd617d7ff9c520524fb55a286cb25a1c39c78bb6cadc5ecf"
+            },
+            {
+              "path": "opentyrian/data/demo.2",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 2193,
+              "sha256": "516be02853d416e8719f7a895343c055ea079f793fcc97e4d678975dce616f7d"
+            },
+            {
+              "path": "opentyrian/data/demo.3",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 1974,
+              "sha256": "b742a1acf9b64d9d55ee824cf94a335d62495ee4b0a1dafbe5adcadce5c40f29"
+            },
+            {
+              "path": "opentyrian/data/demo.4",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 699,
+              "sha256": "68acfd9f1078cbc5798472ce5168b111cca1b5a8384f0386c572ca878e402aa2"
+            },
+            {
+              "path": "opentyrian/data/demo.5",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 1122,
+              "sha256": "0c708cc80abdf8bd0a62bf1d41e3e96af29e79458be4426c259b84c0b6000f5d"
+            },
+            {
+              "path": "opentyrian/data/dpmi16bi.ovl",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 50544,
+              "sha256": "afea669e007ff79c8c02b2ae8b3fc908c51b6a86c49f9cef1a9cd3f5ce9635ba"
+            },
+            {
+              "path": "opentyrian/data/estsc.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 115338,
+              "sha256": "d4368490c9191442c1255b4feb447bc0265236126bed11c9442cef5338a146df"
+            },
+            {
+              "path": "opentyrian/data/exitmsg.bin",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 4000,
+              "sha256": "5e09eccbdc6eef0a20715db1eb59dc336401642ed4afa8f4d506e5a1934557a3"
+            },
+            {
+              "path": "opentyrian/data/file0001.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 236032,
+              "sha256": "0f51a58732e47a8a6f1f786788be9925cbf78fc9f086f9b5339030f85dacdf93"
+            },
+            {
+              "path": "opentyrian/data/file0002.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 84810,
+              "sha256": "4941c19d2b366cdef7414cacf9b6a4a72086ff1f4f7b90a465c7aae8d415543f"
+            },
+            {
+              "path": "opentyrian/data/file_id.diz",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 304,
+              "sha256": "b7a987e1c335c3130e08cae2e98f85fde4b759f7e48ac1d6ac9bdd97a3ef9062"
+            },
+            {
+              "path": "opentyrian/data/helpme.doc",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 13083,
+              "sha256": "bfa40668e083cb44ead8e0c6176b8ec382f9291c489efdcba8d474d3bf79035b"
+            },
+            {
+              "path": "opentyrian/data/helpme.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 15372,
+              "sha256": "b4da7bab01b03a49fbd20a567ebb3dfc332a1f12e33832d7e4ca98676fa381e3"
+            },
+            {
+              "path": "opentyrian/data/levels1.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 9359,
+              "sha256": "e82164c96abb994450d416a3ab0e5fe6479fd4db831cd0f203a60dfe4aa78dcb"
+            },
+            {
+              "path": "opentyrian/data/levels2.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 5534,
+              "sha256": "9aa94b70aae2b24b16c295ed86e392ac16873306012bdd89e0cf995d605178ea"
+            },
+            {
+              "path": "opentyrian/data/levels3.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 6052,
+              "sha256": "0d935cd7bb3c84451d9f57dbcd31a8d515205b18fb050070a416e9b7411dfbd3"
+            },
+            {
+              "path": "opentyrian/data/levels4.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 11103,
+              "sha256": "891b9ecbdd223df291077fd95626f37ac03b527ca6fd50f76198067a5edebdb4"
+            },
+            {
+              "path": "opentyrian/data/license.doc",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 7869,
+              "sha256": "a81955ec129cac3b2a52300e1352be142d12cdd919789d6dda41a211caa8e162"
+            },
+            {
+              "path": "opentyrian/data/loudness.awe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 34382,
+              "sha256": "fae838f0dad4894b41b4f1f094203152f5a1cf9a74b9fe24024b12f494d92c6b"
+            },
+            {
+              "path": "opentyrian/data/manual.doc",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 32318,
+              "sha256": "6d61e5b4ddb5af6a510c0b2bd408680134d8a9eaa272dbb5e367b20aa8e6a92e"
+            },
+            {
+              "path": "opentyrian/data/modems.txt",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 3082,
+              "sha256": "9544cb45be8b5d6907431e4496e56ccb0c2b9b7d2e621f89316761de81106e68"
+            },
+            {
+              "path": "opentyrian/data/music.mus",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 153482,
+              "sha256": "b06a509bd8576f63c61859e3a2c59482c4035d79f21725f9ec10479377044a74"
+            },
+            {
+              "path": "opentyrian/data/netarena.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 74678,
+              "sha256": "2af257308e67bbe0a6593fb8be0bfb3820901c1afb52e3ae3b181131d4f4c36d"
+            },
+            {
+              "path": "opentyrian/data/netarena.pcx",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 22826,
+              "sha256": "1b8dffbb1d17af08d9e4dd265c7146b6a5f1dfb49bee1462ebd80ad63cba2fac"
+            },
+            {
+              "path": "opentyrian/data/netfont1.pcx",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 8692,
+              "sha256": "13cecff9b2bb01c472ca42a6d4081bfb54ef182e086130fc1d82530ea2ed5cda"
+            },
+            {
+              "path": "opentyrian/data/netfont2.pcx",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 10327,
+              "sha256": "9d99299c4b224b6489d252c63cca08850f525c7ac4548cfb55241fc36902dc42"
+            },
+            {
+              "path": "opentyrian/data/netipx.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 27124,
+              "sha256": "e92b1f1a57c48527d3480b95dd8ac801a7d3df5a36a4c94b9510b0e8e47e0de1"
+            },
+            {
+              "path": "opentyrian/data/netmega.pcx",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 33221,
+              "sha256": "275291eaf4666aba50869adefbf21b3314bc72b951a38b962f26713ef159b8eb"
+            },
+            {
+              "path": "opentyrian/data/netmodem.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 41982,
+              "sha256": "24329b1c3278f192897e022c2a2046984f3a1b7cf39a715bc0c15d9b13a42f4d"
+            },
+            {
+              "path": "opentyrian/data/netset.pcx",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 53766,
+              "sha256": "bcb12dff1a6b845fdf26d3eb1f347c5d9d90248365f5113a67a371883f4c2a4a"
+            },
+            {
+              "path": "opentyrian/data/netterm.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 98336,
+              "sha256": "42926dcfdefd7f02a3a036b8e830b4a2836fd62d5fd08a52058efe19cd2784f5"
+            },
+            {
+              "path": "opentyrian/data/netterm.int",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 633,
+              "sha256": "58fec99ab9512c588e8f4375e1d17ea9c052f9be8cd74fd1ea411ca00519f300"
+            },
+            {
+              "path": "opentyrian/data/newsh#.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 17750,
+              "sha256": "45c9e26a7742ce3e9340638349ab6b1b4c834c1ed6dd5d69cc32dd4e481a706d"
+            },
+            {
+              "path": "opentyrian/data/newsh0.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 14096,
+              "sha256": "c443ec4e268205e6a843c1ba783e84cce9d710e3226ddd03b8bfc869bcafbf10"
+            },
+            {
+              "path": "opentyrian/data/newsh1.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 29941,
+              "sha256": "77827c137462ebaa53ad9c6d190224a6e0e1d00bf36cff2c7c66f82b00b7026a"
+            },
+            {
+              "path": "opentyrian/data/newsh2.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 35236,
+              "sha256": "8773ebcae4be992ecfbb476c0797b0bef4d43faa4c99449890bfaa28c8d9cbcc"
+            },
+            {
+              "path": "opentyrian/data/newsh3.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 37130,
+              "sha256": "f5ac183f489079505908f3cb431b516a54b24fdf312f2702725abf83732e9c6d"
+            },
+            {
+              "path": "opentyrian/data/newsh4.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 29449,
+              "sha256": "05fd4174fa1041dbccccf16fffc18b574b9c3c3ca3e2678ba0ba977c9b288fca"
+            },
+            {
+              "path": "opentyrian/data/newsh5.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 35813,
+              "sha256": "1e6854ccde0e6b0e0789afadd52f6d8b7d264a61f59185635c5ed119f29d4bad"
+            },
+            {
+              "path": "opentyrian/data/newsh6.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 17578,
+              "sha256": "79098b156a9a1cc1af16a3a03156d58cf45b9a830217d362c3c9935798afe62d"
+            },
+            {
+              "path": "opentyrian/data/newsh7.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 44079,
+              "sha256": "52c40a2438373f9fc9a7cd2d338ec149f4e81dda56d9c05061ee2264408f0b1a"
+            },
+            {
+              "path": "opentyrian/data/newsh8.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 35152,
+              "sha256": "1fb3f52d36bf3d05c4e5867f8fa34035fc8eace8fd27b55b41df1abba7ef41ee"
+            },
+            {
+              "path": "opentyrian/data/newsh9.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 38831,
+              "sha256": "371650303f8b93ae17b76d7c27df202bf6a3f6bb482ffabb7b6b1e16e2774d30"
+            },
+            {
+              "path": "opentyrian/data/newsh^.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 34888,
+              "sha256": "e9884ec4debe73f00c51cca5112dd2e2b0d2c57d1d5953d2902947df36471f23"
+            },
+            {
+              "path": "opentyrian/data/newsha.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 25622,
+              "sha256": "6fee07e22d028831ee0c54a21982a1e6c8ec8efba94e7576670ea0dfc617c6b9"
+            },
+            {
+              "path": "opentyrian/data/newshb.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 39025,
+              "sha256": "9bae3eccd4e8793d42553c9798581f0ef77d829fe30d16afa29cf45261ed3c08"
+            },
+            {
+              "path": "opentyrian/data/newshc.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 40714,
+              "sha256": "16db0d5faa13c935da700f3bd25ce539bdd37336fa164d23f5fa3405a315f31a"
+            },
+            {
+              "path": "opentyrian/data/newshd.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 42012,
+              "sha256": "08c7c81b4ed590609f97347b1a4ec60aba56925ecc7193a6718c34cb8d698adf"
+            },
+            {
+              "path": "opentyrian/data/newshe.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 28945,
+              "sha256": "4be2df495007fc211eeeedf3fe07a0d3eb4fdca4174e1adccb2918967c3f7c7b"
+            },
+            {
+              "path": "opentyrian/data/newshf.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 33543,
+              "sha256": "852c2fb552c9077a198be7902d8f58699ed070dabcd36c6e3acfe80dd3804cce"
+            },
+            {
+              "path": "opentyrian/data/newshg.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 36643,
+              "sha256": "3d4cb3d7e3b6547b637ecf02e8d284abc1e240809cc648d836dfa99afd45f416"
+            },
+            {
+              "path": "opentyrian/data/newshh.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 46639,
+              "sha256": "d5bc9e5a6f8a2098f95284a9e675cf6d5b15a29baf8ff8a0fa72943801f351db"
+            },
+            {
+              "path": "opentyrian/data/newshi.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 30860,
+              "sha256": "226da9b33b9b16f7a4212b9cc785fbd82c9517172b3a15a7f58798a38b0a12e4"
+            },
+            {
+              "path": "opentyrian/data/newshj.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 43999,
+              "sha256": "013fbc96bfba79bec9b07d37ec477e7d3ea9d22aab3f9efd392c6253ae5721dd"
+            },
+            {
+              "path": "opentyrian/data/newshk.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 22913,
+              "sha256": "cc61abb548a4015d71bac98bc0091217660c1146adcac8b15e3d2bc7e5598d73"
+            },
+            {
+              "path": "opentyrian/data/newshl.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 14846,
+              "sha256": "9c8ee60bc111a9eb4fb33c7b2528a2f6217c57dc77ec8ee1f2104e8c1f20a34d"
+            },
+            {
+              "path": "opentyrian/data/newshm.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 22378,
+              "sha256": "ba6998cb74ba122812bacb714c81b8c309af073b5464645eee2856233f37e7c2"
+            },
+            {
+              "path": "opentyrian/data/newshn.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 41201,
+              "sha256": "612c38b9d93220d9fb0228594d9597a0637f52fcdf789e9ffc15b0a362a70341"
+            },
+            {
+              "path": "opentyrian/data/newsho.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 24478,
+              "sha256": "47dbee09f4c94660c42503d721e82ec50627faa241f458f7bfe3835d88cd250a"
+            },
+            {
+              "path": "opentyrian/data/newshp.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 46204,
+              "sha256": "4bd9a72339e30440c172e385f258c8895b516ff84026a9a6b5a65ada4cf0ab90"
+            },
+            {
+              "path": "opentyrian/data/newshr.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 28249,
+              "sha256": "7869a88236e46deaf6e051d4d7d38830865bc0047f09879fc8afd68ab7f30d94"
+            },
+            {
+              "path": "opentyrian/data/newshs.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 46566,
+              "sha256": "f0bccf154a436ba46834a00b934e7cb8a77d8585b175a39c1270ad7888411c88"
+            },
+            {
+              "path": "opentyrian/data/newsht.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 14187,
+              "sha256": "133fe424165eacbe3f05a8be838c5b962791855e3afff184123209e8f1cc118f"
+            },
+            {
+              "path": "opentyrian/data/newshu.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 35657,
+              "sha256": "762c328b99a824942005e66a4567d3c1d45a680527584367a962eeb4bf4e8c45"
+            },
+            {
+              "path": "opentyrian/data/newshv.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 23343,
+              "sha256": "b23f634db62c1db5efe6766368b76ec1700f7b96ecfe054cac308f9742c60075"
+            },
+            {
+              "path": "opentyrian/data/newsh~.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 16219,
+              "sha256": "17519efb2aec555a83f0c1406e7d513641440e0b1c12e0832ad4c70ee54023f0"
+            },
+            {
+              "path": "opentyrian/data/order.doc",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 6334,
+              "sha256": "283347e26fc1b760e82994863005845631c4d438ecca99453c011a6fd4a2476e"
+            },
+            {
+              "path": "opentyrian/data/order.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 20557,
+              "sha256": "3648ae05c9963b847c3de3adaac556a012af82d7a5d1421e72ae134ca6288e99"
+            },
+            {
+              "path": "opentyrian/data/order.tfp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 272703,
+              "sha256": "26f5f3d8e403676f5f2080fe45285c5a5118780e90b37cfee891c0ee385ccc18"
+            },
+            {
+              "path": "opentyrian/data/palette.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 17664,
+              "sha256": "6f0be74cb1b0026e46029d98d9ade41b8283bad849208543330b717fe5c365fc"
+            },
+            {
+              "path": "opentyrian/data/rtm.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 120853,
+              "sha256": "10acd85af3767634450a793f2af1e057de888621cbfc578d35d3fa91abc09661"
+            },
+            {
+              "path": "opentyrian/data/setup.box",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 24,
+              "sha256": "f87854991cd8ba82d9b99c86f07932fe079089a4d49fd7aeb85b44b409107bf2"
+            },
+            {
+              "path": "opentyrian/data/setup.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 62720,
+              "sha256": "010fff01150ef7b7d8ff9df53426f4cbe51d925e9b50b6d8f27f712d3ac64868"
+            },
+            {
+              "path": "opentyrian/data/setup.ini",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 77,
+              "sha256": "06b9345543385b2b7249b45e50236dcb5f718ba688992038bbabafee92b6839d"
+            },
+            {
+              "path": "opentyrian/data/setup.int",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 7451,
+              "sha256": "a972a5253a3c3ce56b00f72e04f77f3bd2b38f946793370f144b3b5b6ff66262"
+            },
+            {
+              "path": "opentyrian/data/shapes).dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 118720,
+              "sha256": "36173a95248ed1f60c499122b4b17450af2bc9ddcb958215ed9c400429ae37eb"
+            },
+            {
+              "path": "opentyrian/data/shapesw.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 172480,
+              "sha256": "d06514348982ad364c4b77c4ed4f2f3dbccd8a390e180435a82484bdca5d9c7a"
+            },
+            {
+              "path": "opentyrian/data/shapesx.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 217504,
+              "sha256": "53530149c27573244fead5f8325f5a4c9f5108c95a666998140656436aaa8f2a"
+            },
+            {
+              "path": "opentyrian/data/shapesy.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 152992,
+              "sha256": "cff7f670d85ea73594092966b23b9ec697500ece148cbf65a8131e4e92412990"
+            },
+            {
+              "path": "opentyrian/data/shapesz.dat",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 243712,
+              "sha256": "26aa6ab954391714255f368368261d991025e97d852a7403289bab6ded47da4d"
+            },
+            {
+              "path": "opentyrian/data/shipedit.doc",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 17174,
+              "sha256": "31d1bb057ccb7a20c4a5175c3e2ff40c37d6d1d3391b162ed700ad502b74ad93"
+            },
+            {
+              "path": "opentyrian/data/shipedit.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 82944,
+              "sha256": "9be5f168ee0e0743c0e9a541b8620820b6d53b6d8458fdc8d3c50727ee9c3181"
+            },
+            {
+              "path": "opentyrian/data/shipedit.pcx",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 13450,
+              "sha256": "29caa6ad955f63819dd06ded886a991208a590ee68b88e2b8beb2f55e2e31bb5"
+            },
+            {
+              "path": "opentyrian/data/tshp2.pcx",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 62168,
+              "sha256": "1a7b841ce799fac196e136c8dd90e6a0e9184bfdd05fa036cbb5e97d651e6327"
+            },
+            {
+              "path": "opentyrian/data/tyrend.anm",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 3315848,
+              "sha256": "0477bb711d2373c3889da0a792505fff158a0fb9817932c3fb78976424a1c752"
+            },
+            {
+              "path": "opentyrian/data/tyrian.cdt",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 1125,
+              "sha256": "deb2c35297d89a1b2801ae21132d242121d9dee2a794a84b58dbd212f11f04fe"
+            },
+            {
+              "path": "opentyrian/data/tyrian.exe",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 4336,
+              "sha256": "a7e3075d5b18b917b12478515e60e36c380bae9117515baf12ede48389e46174"
+            },
+            {
+              "path": "opentyrian/data/tyrian.hdt",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 153657,
+              "sha256": "c816055863eb91d28ac10b4acc1e312f433deff553f08926e698c9a9ba68daa7"
+            },
+            {
+              "path": "opentyrian/data/tyrian.ico",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 766,
+              "sha256": "5aa58773ef65ac7503f102aa65e8e6f34ccf52d59ffbde84fe93e69b6bafdf12"
+            },
+            {
+              "path": "opentyrian/data/tyrian.pic",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 365969,
+              "sha256": "5bda2ba46511f835e402188f1608b4398ae36303edfaef14304ad08b55bb5684"
+            },
+            {
+              "path": "opentyrian/data/tyrian.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 443871,
+              "sha256": "b9602b6dd42c1bf4716bdccbe5ab40495fcd064fcc55fd0f8d4436d640c4b450"
+            },
+            {
+              "path": "opentyrian/data/tyrian.snd",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 264512,
+              "sha256": "0f5c37f97f0992026f1736f178bccc64746bc931daf23adbdc82553c140c80b8"
+            },
+            {
+              "path": "opentyrian/data/tyrian1.lvl",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 538262,
+              "sha256": "b41e532214fa8cea36e37fed6512b357c6ac9c8c3267899ceb4a258fcb1bf0b9"
+            },
+            {
+              "path": "opentyrian/data/tyrian2.lvl",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 381242,
+              "sha256": "3e18b124cd4ff5f766e5bf2e833eb79d3118010a253a30dc4c0ae6f483ae50e9"
+            },
+            {
+              "path": "opentyrian/data/tyrian3.lvl",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 393398,
+              "sha256": "0995c7e2279995485576e02b21ac8599b4924c35af5afffdede69c01994b9937"
+            },
+            {
+              "path": "opentyrian/data/tyrian4.lvl",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 800006,
+              "sha256": "181fde04387ba47e6b49a7f27010ac92fe00566a5f9fef075d74e4c4b2ebef75"
+            },
+            {
+              "path": "opentyrian/data/tyrianc.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 444862,
+              "sha256": "7c1666a748f7b8f7662eff342529c453253cce5c11cbd667de912a9f41bbc02b"
+            },
+            {
+              "path": "opentyrian/data/tyrset.pcx",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 53766,
+              "sha256": "bcb12dff1a6b845fdf26d3eb1f347c5d9d90248365f5113a67a371883f4c2a4a"
+            },
+            {
+              "path": "opentyrian/data/user1.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 27674,
+              "sha256": "d78f5d084f3a2a087c48810476743434b5eddd144038164deee284a51b9d1913"
+            },
+            {
+              "path": "opentyrian/data/user2.shp",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 27674,
+              "sha256": "7ac900995a588386ffc70d66ed67bd501e15bf3a8847ad33363bb67cbbc00d1d"
+            },
+            {
+              "path": "opentyrian/data/voices.snd",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 132767,
+              "sha256": "c709ca1e74be6bd4b7917d258d81824d33c38a1a9a0287ec693b6459f58fc27a"
+            },
+            {
+              "path": "opentyrian/data/voicesc.snd",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 188275,
+              "sha256": "949d2a2131d230c345397d8f1f6953115166271aeeccb28d8c6009c81a744dbe"
+            },
+            {
+              "path": "opentyrian/licenses",
+              "kind": "directory",
+              "mode": 493,
+              "uid": 1001,
+              "gid": 1001
+            },
+            {
+              "path": "opentyrian/licenses/SDL2.txt",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 884,
+              "sha256": "97f35b302b361680ec1e891e95d2d52097bb95abff361434916d99dc1305f127"
+            },
+            {
+              "path": "opentyrian/licenses/SDL2_net.txt",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 884,
+              "sha256": "fcb07e07ac6bc8b2fcf047b50431ef4ebe5b619d7ca7c82212018309a9067426"
+            },
+            {
+              "path": "opentyrian/licenses/Tyrian.txt",
+              "kind": "file",
+              "mode": 420,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 288,
+              "sha256": "c09cf61c7d3019ab5d18f791da00ed159dd2effa2dc61f81b0ca4aace578370a"
+            },
+            {
+              "path": "opentyrian/opentyrian",
+              "kind": "file",
+              "mode": 493,
+              "uid": 1001,
+              "gid": 1001,
+              "bytes": 3114088,
+              "sha256": "35fdcb7e333875526091bf8bc6292eb9c307940a9c04a401a535b49a6754d488"
+            }
+          ],
+          "files_bytes": 16043524
+        },
+        "player_files": [
+          {
+            "name": "opentyrian.cfg",
+            "bytes": 313,
+            "sha256": "3e6f6b90a9e5e7fb4c64df0d7653f534440b8dc21f671ff73550ee409a05bff6",
+            "mode": 384,
+            "uid": 1001,
+            "gid": 1001
+          },
+          {
+            "name": "tyrian.cfg",
+            "bytes": 28,
+            "sha256": "3fb31a744ea76ac3862ec07b9d75276263c4e0f3867c1c8074ad96a802c63107",
+            "mode": 384,
+            "uid": 1001,
+            "gid": 1001
+          },
+          {
+            "name": "tyrian.sav",
+            "bytes": 2502,
+            "sha256": "bcc134793513e0c2abc7c2dc7a9781bc99a2e623185b3293903ad1aab9d71c3e",
+            "mode": 384,
+            "uid": 1001,
+            "gid": 1001
+          }
+        ]
+      },
+      "after_update_deep_equals_baseline": true
+    },
+    "environment": {
+      "host": {
+        "schema_version": 1,
+        "harness": "scripts/test-linux-appimage-update.ps1",
+        "harness_sha256": "22906e806f37078ac0b3422737f676b4a1a9ccc48c3cc8fb41b222a6e579190c",
+        "source_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+        "source_tree": "73296562fd075fac064b2868800733182bb2de60",
+        "started_at": "2026-10-29T19:16:45.8521237Z",
+        "host_os": "Ubuntu 24.04.5 LTS",
+        "host_architecture": "X64",
+        "powershell": "7.6.9",
+        "authority": "none; local native observation requires independently authenticated handoff"
+      },
+      "ordinary_caller": {
+        "caller_uid": "1001",
+        "caller_gid": "1001",
+        "stable_owner_uid": "1001",
+        "current_user_owned": true
+      },
+      "loaded_engine_before_restart": {
+        "process": {
+          "pid": 49733,
+          "parent": 49731,
+          "start_ticks": "166131"
+        },
+        "libraries": [
+          {
+            "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoGPgfJK/usr/lib/libglib-2.0.so.0",
+            "sha256": "e4ab4eb965ac898100dc10fbd93bf941cef2fcd9aef3d04c3a38356aa2ec0bc7"
+          },
+          {
+            "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoGPgfJK/usr/lib/libjavascriptcoregtk-4.1.so.0",
+            "sha256": "bf164f8fd444ce244de11b12410c0183a160f7045946e5723cb0880d70e39750"
+          },
+          {
+            "path": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/tmp/.mount_PortcoGPgfJK/usr/lib/libwebkit2gtk-4.1.so.0",
+            "sha256": "87595deb8fdf11d3dc7451e7f710e8e81cb849625a296e34231565d29863cb37"
+          }
+        ]
+      },
+      "privileged_setup_scope": "Separate bounded tmpfs fixture mount setup only; application caller remains UID1001"
+    },
+    "compiled_fixture_feed": {
+      "metadata_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/",
+      "targets_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/targets/",
+      "bundled_root_file": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+      "derivation_source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+      "derivation": "scripts/rehearse-updater-artifacts.ps1 selects positiveRepository before qualified predecessor build; retained lifecycle/renderer paths bind actual fixture root.",
+      "scope": "Source-derived compiled predecessor positive file-feed identity; negative/recovery repositories and public artifact download URLs are separate. Candidate production/default feed is not established."
+    },
+    "public_trust_bytes": [
+      {
+        "path": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage.sig",
+        "bytes": 440,
+        "sha256": "510bd5b8cd74bc1a55e8801ccd438abfaea014afaa9a578c8bcf41a49037b920",
+        "base64": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZSYlZoWFQycHpTR1ZCU2pOVmMwWk1iRFZqVGxvMVQwMVVUbmhvV0c0MlozTmtMMEZPUjBveVkzUlNaemczT1hkR2Ewa3lUbUlyYUVreFEyMXhiamx2Um1aV1lVcEJSemhYVEhsMmNteGhUbVZrYTBFcksydzRWa3d3VFdaMGJVRTRQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94Tnprek16QXhNVEl3Q1dacGJHVTZVRzl5ZEdOdmRtVmZNQzR6TGpCZllXMWtOalF1UVhCd1NXMWhaMlVKZG1WeWMybHZiam93TGpNdU1BcE5hakJKV21aNFlqbFliVU0wZERJeFMyRTJWMmRvU0U1UVVsVTVaRVYxY0dadllXSnJOa1oxUTNVeFR6QkdNREZJZFdweFFYQnhhRkE1T0RsNGNVSlVPQzlLZVdacmN6UmxjRWhpT0ZvcmIyTnhRMFpCWnowOUNnPT0="
+      },
+      {
+        "path": "updater-rehearsal/disposable.key.pub",
+        "bytes": 152,
+        "sha256": "5dde708dbcac98f757704ae0c4fedbaa6e3bd3fe99a552e957c7e56be3264b4e",
+        "base64": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUcxcGJtbHphV2R1SUhCMVlteHBZeUJyWlhrNklESTNPREEzTjBJd1FUTTJNelZFTWpZS1VsZFJiVmhYVDJwelNHVkJTakJFUnpORmFFMUxPVGRIZFdKb2RtcEJVREJyZVZCbGJIUlJkSE5FU1RsWFJIYzRhREZUY0dac1Iza0s="
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.preview.json",
+        "bytes": 700,
+        "sha256": "66596a19e8a9758e6f913274d51137b4d08aa4435e6c9191f2f7b419f8d78078",
+        "base64": "ewogICJzaWduZWQiOiB7CiAgICAiX3R5cGUiOiAidGFyZ2V0cyIsCiAgICAic3BlY192ZXJzaW9uIjogIjEuMC4wIiwKICAgICJ2ZXJzaW9uIjogMSwKICAgICJleHBpcmVzIjogIjIwMjYtMTEtMDVUMTk6MTI6MDUuNjQ2NDIyNjE4WiIsCiAgICAidGFyZ2V0cyI6IHsKICAgICAgImNoYW5uZWxzL3ByZXZpZXcvbGludXgteDg2XzY0L2FwcGltYWdlLzAuMy4wLmpzb24iOiB7CiAgICAgICAgImxlbmd0aCI6IDM5NSwKICAgICAgICAiaGFzaGVzIjogewogICAgICAgICAgInNoYTI1NiI6ICI2Mjk3YTk4Mzc1ODY0YWI1ZTRlMTI1NmE0ZDI4NTc0NjFhNjMxN2QwMjVkZTA4NTY1MTM3N2VmMjM1ODgwZjhlIgogICAgICAgIH0KICAgICAgfQogICAgfSwKICAgICJkZWxlZ2F0aW9ucyI6IHsKICAgICAgImtleXMiOiB7fSwKICAgICAgInJvbGVzIjogW10KICAgIH0KICB9LAogICJzaWduYXR1cmVzIjogWwogICAgewogICAgICAia2V5aWQiOiAiYmJkNzcwYmEyMDZiNWJlZjg1MzgxODA2OTRhMjI3NWNiZmMwZWIyZGE4MzkwY2U3MjFhM2UxMjJkYjlhMjYyOCIsCiAgICAgICJzaWciOiAiMmZiYmFhY2NjODMxY2YwNjE1ZGI3ZDA4MmMwNTZkZWQyM2EzOGYxOTlhODFiZDczOTI1YWI2NDc1ZmU2MDgyZTAwMmVkZGU3NTRiOTc1NGMyYmZiNDYwMDkwZTYxMDRlYWY0NjliYmI3MjAwZTEwYzJiMzdlNmMzNzVjNDZjMDkiCiAgICB9CiAgXQp9Cg=="
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.releases.json",
+        "bytes": 693,
+        "sha256": "28c67d5021be300a864634f2f0f514472245b35eb7004684a12e30400234af18",
+        "base64": "ewogICJzaWduZWQiOiB7CiAgICAiX3R5cGUiOiAidGFyZ2V0cyIsCiAgICAic3BlY192ZXJzaW9uIjogIjEuMC4wIiwKICAgICJ2ZXJzaW9uIjogMSwKICAgICJleHBpcmVzIjogIjIwMjYtMTItMjhUMTk6MTI6MDUuNjQ2NDIyNjE4WiIsCiAgICAidGFyZ2V0cyI6IHsKICAgICAgInJlbGVhc2VzLzAuMy4wL2xpbnV4LXg4Nl82NC9hcHBpbWFnZS5qc29uIjogewogICAgICAgICJsZW5ndGgiOiAxOTUzLAogICAgICAgICJoYXNoZXMiOiB7CiAgICAgICAgICAic2hhMjU2IjogIjVmN2QxNDE2NGVmY2EyODU0ZmUyNzEwY2JiNzUyNTc0NjMyMGFiYTZmZWIyY2QyNzg5MDZlNTk1NDFlNjk4ODMiCiAgICAgICAgfQogICAgICB9CiAgICB9LAogICAgImRlbGVnYXRpb25zIjogewogICAgICAia2V5cyI6IHt9LAogICAgICAicm9sZXMiOiBbXQogICAgfQogIH0sCiAgInNpZ25hdHVyZXMiOiBbCiAgICB7CiAgICAgICJrZXlpZCI6ICI1Zjk0OGI0NGVjYjc4ZGExMTliZjhmZmFkNDg4MmJmYThiZGE4MWY3MmVmZDc4NDAyMWYwMWJjNDg4N2U1ZmE0IiwKICAgICAgInNpZyI6ICJmYjA5NDNkMWEzMGJhYjZjNmVhY2JlODljYWI5MDFlYTU1NGVmMjMxNjVkNjhkMmIyNTA4YTJiNGE1MWZkYWYwZWQyYjM1NTZlM2ZjYmRkOTgwYTFmMzczMmM4OGU2YmY4MTQ1MTI2M2E0ZDljYTVkNjcwNDZhNGUwMDJkNTEwYSIKICAgIH0KICBdCn0K"
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.root.json",
+        "bytes": 3072,
+        "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+        "base64": "ewogICJzaWduZWQiOiB7CiAgICAiX3R5cGUiOiAicm9vdCIsCiAgICAic3BlY192ZXJzaW9uIjogIjEuMC4wIiwKICAgICJjb25zaXN0ZW50X3NuYXBzaG90IjogdHJ1ZSwKICAgICJ2ZXJzaW9uIjogMSwKICAgICJleHBpcmVzIjogIjIwMjctMDgtMjVUMTk6MTI6MDUuNjQ0ODA2NzIyWiIsCiAgICAia2V5cyI6IHsKICAgICAgIjZiNjU0ZGVhY2UzNmExNzFjODI5ZGMxMjkzMjllMzg2YWRhZDA5Y2UyMTlhZjcyZTc1NWEwMTZkNTNmZGQ1YTAiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiNzUzMzU1NTNlMDkzMTZjMmE2NDA1Mjk3ZDllMzA3NzRkYjRkNGM4YjEzYzc3MjliNjRjNjk5ZjNhZTdlZTQ4YSIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgIjA0NDE4YzE1ZmY0MTljYjcxMjdmZWYzYjQ2OTM0NjFmNDljNmZlZDJmYWEzY2NjNDEyYmQ4Nzk0Nzg3Y2JiMjQiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiMDI0ZTRhMTcwYzRhMGUyYTU4YWQyOTljYzJlNjdmOTIyNGQ3YTA0Yzc1MzVkNDhhZWY1ZjQzZGU1ZTZmMjVmYSIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgIjYyYjliZWU5OWI0NmMyZDYyODc5NGJkZjE0MmFkODAyMTc2ZTQ4YjI5YjY5ZjM2Y2YyZDYyMDZiOWMzYzZjZWMiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiMDI3N2E1ZGU3NzBhOGIwMWU3NzBkMjgwNjU1YjQxODdlMDE3NzE1YTExZDRhYjgwZTk3YjdmOWFmZjVmZjY2MyIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgIjJiMGM3Y2UxZjY4YzE0Nzk2ZGQ4ZjVhY2VkZjNiMjI3MGVmZGYzN2QzNGI0NTJkOGE3MTAwZTE0ODE1ZjA3YmIiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiYjBlN2NkMzM2MDAzODQ2YTM0ZjBlZmFhNjJjMzI2NDMwN2I2MzM3ZjAzZmEwZjNjZWRiN2RlNjEyMjc0NmE3YSIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgImJlMmVkNzJhN2M4NWFlNTExOGVhN2JhYzM4MTQ5YzA0MGRjMmRlNmMxMWMxNTgwMmM3M2Q5OWNmODFkNmYxMTQiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiNWU4ZWE1YTY5YTA0ZjQxNzk3OTg1ZjFmNjIyZDgxOTRjNzQzYWYwOWI4NTA5ZDhjMDViMGM4ZTJkZTZjNTAxYiIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgIjllOGZmZDI4NTY3MTI5NmExZGU1Y2M2NDg1YzJlYjMxOTU0Yzg0OWNlNGM3YzBlNjE3MzI4ZmM2ZjMyZGU4Y2QiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiOTc1MTZjY2Y4ZDI4YTEwNGI3YjE5ZTExZWZmYjU3OGUzZGQ0MjE2MzlkZDkyOTExNzhhOGUyZWFkODJlOTExMSIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfQogICAgfSwKICAgICJyb2xlcyI6IHsKICAgICAgInRhcmdldHMiOiB7CiAgICAgICAgImtleWlkcyI6IFsKICAgICAgICAgICI2MmI5YmVlOTliNDZjMmQ2Mjg3OTRiZGYxNDJhZDgwMjE3NmU0OGIyOWI2OWYzNmNmMmQ2MjA2YjljM2M2Y2VjIgogICAgICAgIF0sCiAgICAgICAgInRocmVzaG9sZCI6IDEKICAgICAgfSwKICAgICAgInJvb3QiOiB7CiAgICAgICAgImtleWlkcyI6IFsKICAgICAgICAgICIyYjBjN2NlMWY2OGMxNDc5NmRkOGY1YWNlZGYzYjIyNzBlZmRmMzdkMzRiNDUyZDhhNzEwMGUxNDgxNWYwN2JiIiwKICAgICAgICAgICI5ZThmZmQyODU2NzEyOTZhMWRlNWNjNjQ4NWMyZWIzMTk1NGM4NDljZTRjN2MwZTYxNzMyOGZjNmYzMmRlOGNkIiwKICAgICAgICAgICI2YjY1NGRlYWNlMzZhMTcxYzgyOWRjMTI5MzI5ZTM4NmFkYWQwOWNlMjE5YWY3MmU3NTVhMDE2ZDUzZmRkNWEwIgogICAgICAgIF0sCiAgICAgICAgInRocmVzaG9sZCI6IDIKICAgICAgfSwKICAgICAgInNuYXBzaG90IjogewogICAgICAgICJrZXlpZHMiOiBbCiAgICAgICAgICAiYmUyZWQ3MmE3Yzg1YWU1MTE4ZWE3YmFjMzgxNDljMDQwZGMyZGU2YzExYzE1ODAyYzczZDk5Y2Y4MWQ2ZjExNCIKICAgICAgICBdLAogICAgICAgICJ0aHJlc2hvbGQiOiAxCiAgICAgIH0sCiAgICAgICJ0aW1lc3RhbXAiOiB7CiAgICAgICAgImtleWlkcyI6IFsKICAgICAgICAgICIwNDQxOGMxNWZmNDE5Y2I3MTI3ZmVmM2I0NjkzNDYxZjQ5YzZmZWQyZmFhM2NjYzQxMmJkODc5NDc4N2NiYjI0IgogICAgICAgIF0sCiAgICAgICAgInRocmVzaG9sZCI6IDEKICAgICAgfQogICAgfQogIH0sCiAgInNpZ25hdHVyZXMiOiBbCiAgICB7CiAgICAgICJrZXlpZCI6ICIyYjBjN2NlMWY2OGMxNDc5NmRkOGY1YWNlZGYzYjIyNzBlZmRmMzdkMzRiNDUyZDhhNzEwMGUxNDgxNWYwN2JiIiwKICAgICAgInNpZyI6ICI5NWRmNTUzZGU0Nzc0Y2YzN2UzNTUyYzY4NzkxZTNkMjZkYzE0MmJhZWU5MjZiZjg0Yzc0MGRiZThlOTVhN2RmMmMwOGU4NTI4MjU0MmFiN2YwMDk5N2M5NjMwOGM5NTgwOWRkYTc0NWZiYmY2NDA1ZjAzOTMzNThiZGM5NjEwZCIKICAgIH0sCiAgICB7CiAgICAgICJrZXlpZCI6ICI5ZThmZmQyODU2NzEyOTZhMWRlNWNjNjQ4NWMyZWIzMTk1NGM4NDljZTRjN2MwZTYxNzMyOGZjNmYzMmRlOGNkIiwKICAgICAgInNpZyI6ICIzY2IxYWQyYjViM2IwZjI3MDBiY2E1NTQwMmE1MzkwMTMwMmM2NzhkNDk2NTQzMDllNjJjZGFjMjkzYmEwZWZiMzJmNmQxNGIyZTA5N2NlZGFhN2UxYmZjNzNjNjI4YjIxYTdkZGVlYzlmOTIyNWQ2NjMzNDYzY2ExZjRhNGYwNiIKICAgIH0KICBdCn0K"
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.snapshot.json",
+        "bytes": 1205,
+        "sha256": "bf3c26d3c83e508ca35580b9b6a8d2226c5b27f1ae8f54890c6a85098cb6ec2b",
+        "base64": "ewogICJzaWduZWQiOiB7CiAgICAiX3R5cGUiOiAic25hcHNob3QiLAogICAgInNwZWNfdmVyc2lvbiI6ICIxLjAuMCIsCiAgICAidmVyc2lvbiI6IDEsCiAgICAiZXhwaXJlcyI6ICIyMDI2LTExLTA1VDE5OjEyOjA1LjY0NjQyMjYxOFoiLAogICAgIm1ldGEiOiB7CiAgICAgICJzdGFibGUuanNvbiI6IHsKICAgICAgICAibGVuZ3RoIjogNDg2LAogICAgICAgICJoYXNoZXMiOiB7CiAgICAgICAgICAic2hhMjU2IjogImU2NzIzZjRjZTQ1NWIwNDQ1ZTVjOTc5MzAyMDBmNTc2NmZmNWRkMmU2MjhjZjg4OTkzNjE2MWNjOTM0MTUwNGIiCiAgICAgICAgfSwKICAgICAgICAidmVyc2lvbiI6IDEKICAgICAgfSwKICAgICAgInRhcmdldHMuanNvbiI6IHsKICAgICAgICAibGVuZ3RoIjogMjQyOCwKICAgICAgICAiaGFzaGVzIjogewogICAgICAgICAgInNoYTI1NiI6ICIwOGEyZGExNzAwZDc0MjE3NDQ2MDc2YzE2MGU3NzQ0MDhkN2Y0ZmQ4Mjg3MGJlNjM4MzY5MjA0Njg1MTQxNzc2IgogICAgICAgIH0sCiAgICAgICAgInZlcnNpb24iOiAxCiAgICAgIH0sCiAgICAgICJwcmV2aWV3Lmpzb24iOiB7CiAgICAgICAgImxlbmd0aCI6IDcwMCwKICAgICAgICAiaGFzaGVzIjogewogICAgICAgICAgInNoYTI1NiI6ICI2NjU5NmExOWU4YTk3NThlNmY5MTMyNzRkNTExMzdiNGQwOGFhNDQzNWU2YzkxOTFmMmY3YjQxOWY4ZDc4MDc4IgogICAgICAgIH0sCiAgICAgICAgInZlcnNpb24iOiAxCiAgICAgIH0sCiAgICAgICJyZWxlYXNlcy5qc29uIjogewogICAgICAgICJsZW5ndGgiOiA2OTMsCiAgICAgICAgImhhc2hlcyI6IHsKICAgICAgICAgICJzaGEyNTYiOiAiMjhjNjdkNTAyMWJlMzAwYTg2NDYzNGYyZjBmNTE0NDcyMjQ1YjM1ZWI3MDA0Njg0YTEyZTMwNDAwMjM0YWYxOCIKICAgICAgICB9LAogICAgICAgICJ2ZXJzaW9uIjogMQogICAgICB9CiAgICB9CiAgfSwKICAic2lnbmF0dXJlcyI6IFsKICAgIHsKICAgICAgImtleWlkIjogImJlMmVkNzJhN2M4NWFlNTExOGVhN2JhYzM4MTQ5YzA0MGRjMmRlNmMxMWMxNTgwMmM3M2Q5OWNmODFkNmYxMTQiLAogICAgICAic2lnIjogImI5OTljOWY0NThjNzQ4ZmNjZTc5Y2ZkYjYxNzRhYTdjNTk5OWMzYWE2NzQyNDQ2MzBjY2U5NGVjZGZmZmM3ZWVmYjBiNWU2NDExYmZjMDMxNzZiMThlZTVlZDk0YWI4NTM5Y2VlN2UzYTdjNTdhODllYmI2YWQ0NTQ2OWMwODBiIgogICAgfQogIF0KfQo="
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.stable.json",
+        "bytes": 486,
+        "sha256": "e6723f4ce455b0445e5c97930200f5766ff5dd2e628cf889936161cc9341504b",
+        "base64": "ewogICJzaWduZWQiOiB7CiAgICAiX3R5cGUiOiAidGFyZ2V0cyIsCiAgICAic3BlY192ZXJzaW9uIjogIjEuMC4wIiwKICAgICJ2ZXJzaW9uIjogMSwKICAgICJleHBpcmVzIjogIjIwMjYtMTEtMDVUMTk6MTI6MDUuNjQ2NDIyNjE4WiIsCiAgICAidGFyZ2V0cyI6IHt9LAogICAgImRlbGVnYXRpb25zIjogewogICAgICAia2V5cyI6IHt9LAogICAgICAicm9sZXMiOiBbXQogICAgfQogIH0sCiAgInNpZ25hdHVyZXMiOiBbCiAgICB7CiAgICAgICJrZXlpZCI6ICJlZDM5Y2NhNDQwZGI3NWFmZjk4MmRjNWQ3ZGNlODYxM2UyOTRhZmIzMTE4MTY4YTEyMzk0MDgyZDAzZmMwNGFhIiwKICAgICAgInNpZyI6ICIxMmRiODRlNDVlYzZlOGZlMDcwNmMxNDY3MTUzY2NlZGM2ZmUwZTQyZWU3MDI3MWVkNGIzN2M4YjUwZTNiYjEwMTJmMmJmODZmNzgxMTA5MWI5M2I4ZDNiNGE1NzBjNGZkMTQ4NmE2MzdjNGM2MWVkNjdlZTU5YmRiYmE1MzQwYiIKICAgIH0KICBdCn0K"
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.targets.json",
+        "bytes": 2428,
+        "sha256": "08a2da1700d74217446076c160e774408d7f4fd82870be638369204685141776",
+        "base64": "ewogICJzaWduZWQiOiB7CiAgICAiX3R5cGUiOiAidGFyZ2V0cyIsCiAgICAic3BlY192ZXJzaW9uIjogIjEuMC4wIiwKICAgICJ2ZXJzaW9uIjogMSwKICAgICJleHBpcmVzIjogIjIwMjYtMTItMjhUMTk6MTI6MDUuNjQ2NDIyNjE4WiIsCiAgICAidGFyZ2V0cyI6IHsKICAgICAgImtleXMvcGF5bG9hZC5qc29uIjogewogICAgICAgICJsZW5ndGgiOiAzMTUsCiAgICAgICAgImhhc2hlcyI6IHsKICAgICAgICAgICJzaGEyNTYiOiAiZTBmZjhiMGMyOWE2ZmVlY2YxMzgxZGUyMGI1MTc5ZjM2MWRiNmU3YmYxYjY1NmJjODE0NzkyNDlkYzEwZTI4OSIKICAgICAgICB9CiAgICAgIH0KICAgIH0sCiAgICAiZGVsZWdhdGlvbnMiOiB7CiAgICAgICJrZXlzIjogewogICAgICAgICJlZDM5Y2NhNDQwZGI3NWFmZjk4MmRjNWQ3ZGNlODYxM2UyOTRhZmIzMTE4MTY4YTEyMzk0MDgyZDAzZmMwNGFhIjogewogICAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgICAia2V5dmFsIjogewogICAgICAgICAgICAicHVibGljIjogImEyZDY2MjZmYmIwZmNmNjNjYjI5ZGU2YmU3ZDZhOTc2NGVkMTUzNmEzOWRhYmRhMThjYjAyZTNjODJmMDI1NGIiCiAgICAgICAgICB9LAogICAgICAgICAgInNjaGVtZSI6ICJlZDI1NTE5IgogICAgICAgIH0sCiAgICAgICAgIjVmOTQ4YjQ0ZWNiNzhkYTExOWJmOGZmYWQ0ODgyYmZhOGJkYTgxZjcyZWZkNzg0MDIxZjAxYmM0ODg3ZTVmYTQiOiB7CiAgICAgICAgICAia2V5dHlwZSI6ICJlZDI1NTE5IiwKICAgICAgICAgICJrZXl2YWwiOiB7CiAgICAgICAgICAgICJwdWJsaWMiOiAiZWU5NTFhYjYwZTAzNDA5MDBmZWY4MWI4YjY4ZDJhNDBjM2VkMzMzMjQxZThmZjRhMTRkODIyMTRlOGU5MDkxNSIKICAgICAgICAgIH0sCiAgICAgICAgICAic2NoZW1lIjogImVkMjU1MTkiCiAgICAgICAgfSwKICAgICAgICAiYmJkNzcwYmEyMDZiNWJlZjg1MzgxODA2OTRhMjI3NWNiZmMwZWIyZGE4MzkwY2U3MjFhM2UxMjJkYjlhMjYyOCI6IHsKICAgICAgICAgICJrZXl0eXBlIjogImVkMjU1MTkiLAogICAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICAgInB1YmxpYyI6ICI3YjM5OTQ2ODE2NTQ1MWY0NTUyYmYzNzZhM2EwY2Q5ZGRlZTZjODYwZTAzNzVkMDQ5ZjgwMzYwZDEwNDkxYzkzIgogICAgICAgICAgfSwKICAgICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgICB9CiAgICAgIH0sCiAgICAgICJyb2xlcyI6IFsKICAgICAgICB7CiAgICAgICAgICAibmFtZSI6ICJyZWxlYXNlcyIsCiAgICAgICAgICAia2V5aWRzIjogWwogICAgICAgICAgICAiNWY5NDhiNDRlY2I3OGRhMTE5YmY4ZmZhZDQ4ODJiZmE4YmRhODFmNzJlZmQ3ODQwMjFmMDFiYzQ4ODdlNWZhNCIKICAgICAgICAgIF0sCiAgICAgICAgICAidGhyZXNob2xkIjogMSwKICAgICAgICAgICJwYXRocyI6IFsKICAgICAgICAgICAgInJlbGVhc2VzLzAuMy4wL2xpbnV4LXg4Nl82NC9hcHBpbWFnZS5qc29uIgogICAgICAgICAgXSwKICAgICAgICAgICJ0ZXJtaW5hdGluZyI6IHRydWUKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJuYW1lIjogInByZXZpZXciLAogICAgICAgICAgImtleWlkcyI6IFsKICAgICAgICAgICAgImJiZDc3MGJhMjA2YjViZWY4NTM4MTgwNjk0YTIyNzVjYmZjMGViMmRhODM5MGNlNzIxYTNlMTIyZGI5YTI2MjgiCiAgICAgICAgICBdLAogICAgICAgICAgInRocmVzaG9sZCI6IDEsCiAgICAgICAgICAicGF0aHMiOiBbCiAgICAgICAgICAgICJjaGFubmVscy9wcmV2aWV3L2xpbnV4LXg4Nl82NC9hcHBpbWFnZS8wLjMuMC5qc29uIgogICAgICAgICAgXSwKICAgICAgICAgICJ0ZXJtaW5hdGluZyI6IHRydWUKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJuYW1lIjogInN0YWJsZSIsCiAgICAgICAgICAia2V5aWRzIjogWwogICAgICAgICAgICAiZWQzOWNjYTQ0MGRiNzVhZmY5ODJkYzVkN2RjZTg2MTNlMjk0YWZiMzExODE2OGExMjM5NDA4MmQwM2ZjMDRhYSIKICAgICAgICAgIF0sCiAgICAgICAgICAidGhyZXNob2xkIjogMSwKICAgICAgICAgICJwYXRocyI6IFsKICAgICAgICAgICAgImNoYW5uZWxzL3N0YWJsZS8qLyovKi5qc29uIgogICAgICAgICAgXSwKICAgICAgICAgICJ0ZXJtaW5hdGluZyI6IHRydWUKICAgICAgICB9CiAgICAgIF0KICAgIH0KICB9LAogICJzaWduYXR1cmVzIjogWwogICAgewogICAgICAia2V5aWQiOiAiNjJiOWJlZTk5YjQ2YzJkNjI4Nzk0YmRmMTQyYWQ4MDIxNzZlNDhiMjliNjlmMzZjZjJkNjIwNmI5YzNjNmNlYyIsCiAgICAgICJzaWciOiAiYmMwZTVjNmViZGFkZGYwMmZmMjUyNmQ1YjAzOTAzZmM2ZWE2NDVkOTM1NzVkMWNmYjdiMzc5MTcyYWY3ZTgyOTNlZmRlZjBhN2JiNWMzNDBlM2I5NTY2ZWU1OTMzNmEwMmI4N2JmMThkMTVjZGUwNWY3NzMwNGZjNTE3YzY5MDkiCiAgICB9CiAgXQp9Cg=="
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/timestamp.json",
+        "bytes": 622,
+        "sha256": "55bc5ebf5088adb7bf7c3a102e53723d94505cc66be61247651d6ad645b83d33",
+        "base64": "ewogICJzaWduZWQiOiB7CiAgICAiX3R5cGUiOiAidGltZXN0YW1wIiwKICAgICJzcGVjX3ZlcnNpb24iOiAiMS4wLjAiLAogICAgInZlcnNpb24iOiAxLAogICAgImV4cGlyZXMiOiAiMjAyNi0xMC0zMVQxOToxMjowNS42NDY0MjI2MThaIiwKICAgICJtZXRhIjogewogICAgICAic25hcHNob3QuanNvbiI6IHsKICAgICAgICAibGVuZ3RoIjogMTIwNSwKICAgICAgICAiaGFzaGVzIjogewogICAgICAgICAgInNoYTI1NiI6ICJiZjNjMjZkM2M4M2U1MDhjYTM1NTgwYjliNmE4ZDIyMjZjNWIyN2YxYWU4ZjU0ODkwYzZhODUwOThjYjZlYzJiIgogICAgICAgIH0sCiAgICAgICAgInZlcnNpb24iOiAxCiAgICAgIH0KICAgIH0KICB9LAogICJzaWduYXR1cmVzIjogWwogICAgewogICAgICAia2V5aWQiOiAiMDQ0MThjMTVmZjQxOWNiNzEyN2ZlZjNiNDY5MzQ2MWY0OWM2ZmVkMmZhYTNjY2M0MTJiZDg3OTQ3ODdjYmIyNCIsCiAgICAgICJzaWciOiAiYTYyOTg4MTEyZWVjYzEwYWU5YmY4NWQ1NTY3ODRjMDhmMjFiZjY0OTJiM2NhNTFhY2IzMjhkNWI2ZmVhMGFjYTU0MjEzNzFlYmMxMDE2MWNiOGM3NDk1ZWM5MjgxOWIxOWRiN2RhZDA1MGMyYTMyY2NmMDA1NjQ1ZDg5MDUyMGEiCiAgICB9CiAgXQp9Cg=="
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/repository-manifest.json",
+        "bytes": 1888,
+        "sha256": "a90b66b4a92c60d321ac275ee2e9ed574c4c2868ddaf8cddcab5e457da5a2102",
+        "base64": "ewogICJmaWxlcyI6IFsKICAgIHsKICAgICAgImJ5dGVzIjogNzAwLAogICAgICAicGF0aCI6ICJtZXRhZGF0YS8xLnByZXZpZXcuanNvbiIsCiAgICAgICJzaGEyNTYiOiAiNjY1OTZhMTllOGE5NzU4ZTZmOTEzMjc0ZDUxMTM3YjRkMDhhYTQ0MzVlNmM5MTkxZjJmN2I0MTlmOGQ3ODA3OCIKICAgIH0sCiAgICB7CiAgICAgICJieXRlcyI6IDY5MywKICAgICAgInBhdGgiOiAibWV0YWRhdGEvMS5yZWxlYXNlcy5qc29uIiwKICAgICAgInNoYTI1NiI6ICIyOGM2N2Q1MDIxYmUzMDBhODY0NjM0ZjJmMGY1MTQ0NzIyNDViMzVlYjcwMDQ2ODRhMTJlMzA0MDAyMzRhZjE4IgogICAgfSwKICAgIHsKICAgICAgImJ5dGVzIjogMzA3MiwKICAgICAgInBhdGgiOiAibWV0YWRhdGEvMS5yb290Lmpzb24iLAogICAgICAic2hhMjU2IjogIjQ4ZDMyNDcyYmNjMzI4NTUzY2I1ZmI0MGIyNDUwOWU0ZTQ5NmMxYzQ2MWRmYTQ1ZTVkNjUzYjE4ZWQ1ZDAxNjIiCiAgICB9LAogICAgewogICAgICAiYnl0ZXMiOiAxMjA1LAogICAgICAicGF0aCI6ICJtZXRhZGF0YS8xLnNuYXBzaG90Lmpzb24iLAogICAgICAic2hhMjU2IjogImJmM2MyNmQzYzgzZTUwOGNhMzU1ODBiOWI2YThkMjIyNmM1YjI3ZjFhZThmNTQ4OTBjNmE4NTA5OGNiNmVjMmIiCiAgICB9LAogICAgewogICAgICAiYnl0ZXMiOiA0ODYsCiAgICAgICJwYXRoIjogIm1ldGFkYXRhLzEuc3RhYmxlLmpzb24iLAogICAgICAic2hhMjU2IjogImU2NzIzZjRjZTQ1NWIwNDQ1ZTVjOTc5MzAyMDBmNTc2NmZmNWRkMmU2MjhjZjg4OTkzNjE2MWNjOTM0MTUwNGIiCiAgICB9LAogICAgewogICAgICAiYnl0ZXMiOiAyNDI4LAogICAgICAicGF0aCI6ICJtZXRhZGF0YS8xLnRhcmdldHMuanNvbiIsCiAgICAgICJzaGEyNTYiOiAiMDhhMmRhMTcwMGQ3NDIxNzQ0NjA3NmMxNjBlNzc0NDA4ZDdmNGZkODI4NzBiZTYzODM2OTIwNDY4NTE0MTc3NiIKICAgIH0sCiAgICB7CiAgICAgICJieXRlcyI6IDYyMiwKICAgICAgInBhdGgiOiAibWV0YWRhdGEvdGltZXN0YW1wLmpzb24iLAogICAgICAic2hhMjU2IjogIjU1YmM1ZWJmNTA4OGFkYjdiZjdjM2ExMDJlNTM3MjNkOTQ1MDVjYzY2YmU2MTI0NzY1MWQ2YWQ2NDViODNkMzMiCiAgICB9LAogICAgewogICAgICAiYnl0ZXMiOiAxOTUzLAogICAgICAicGF0aCI6ICJ0YXJnZXRzLzVmN2QxNDE2NGVmY2EyODU0ZmUyNzEwY2JiNzUyNTc0NjMyMGFiYTZmZWIyY2QyNzg5MDZlNTk1NDFlNjk4ODMucmVsZWFzZXMvMC4zLjAvbGludXgteDg2XzY0L2FwcGltYWdlLmpzb24iLAogICAgICAic2hhMjU2IjogIjVmN2QxNDE2NGVmY2EyODU0ZmUyNzEwY2JiNzUyNTc0NjMyMGFiYTZmZWIyY2QyNzg5MDZlNTk1NDFlNjk4ODMiCiAgICB9LAogICAgewogICAgICAiYnl0ZXMiOiAzOTUsCiAgICAgICJwYXRoIjogInRhcmdldHMvNjI5N2E5ODM3NTg2NGFiNWU0ZTEyNTZhNGQyODU3NDYxYTYzMTdkMDI1ZGUwODU2NTEzNzdlZjIzNTg4MGY4ZS5jaGFubmVscy9wcmV2aWV3L2xpbnV4LXg4Nl82NC9hcHBpbWFnZS8wLjMuMC5qc29uIiwKICAgICAgInNoYTI1NiI6ICI2Mjk3YTk4Mzc1ODY0YWI1ZTRlMTI1NmE0ZDI4NTc0NjFhNjMxN2QwMjVkZTA4NTY1MTM3N2VmMjM1ODgwZjhlIgogICAgfSwKICAgIHsKICAgICAgImJ5dGVzIjogMzE1LAogICAgICAicGF0aCI6ICJ0YXJnZXRzL2UwZmY4YjBjMjlhNmZlZWNmMTM4MWRlMjBiNTE3OWYzNjFkYjZlN2JmMWI2NTZiYzgxNDc5MjQ5ZGMxMGUyODkua2V5cy9wYXlsb2FkLmpzb24iLAogICAgICAic2hhMjU2IjogImUwZmY4YjBjMjlhNmZlZWNmMTM4MWRlMjBiNTE3OWYzNjFkYjZlN2JmMWI2NTZiYzgxNDc5MjQ5ZGMxMGUyODkiCiAgICB9CiAgXSwKICAicmVjb3JkcyI6IDIsCiAgInNjaGVtYV92ZXJzaW9uIjogMQp9Cg=="
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883.releases/0.3.0/linux-x86_64/appimage.json",
+        "bytes": 1953,
+        "sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+        "base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgInZlcnNpb24iOiAiMC4zLjAiLAogICJzb3VyY2VfY29tbWl0IjogIjM4Y2M4NjlmMWYxZGIxNjUzNTFkNjVhOWI0OTBkOGQzNWM3MWRkNTYiLAogICJzb3VyY2VfdHJlZSI6ICI3MzI5NjU2MmZkMDc1ZmFjMDY0YjI4Njg4MDA3MzMxODJiYjJkZTYwIiwKICAicXVhbGlmaWVkX3J1biI6IHsKICAgICJ3b3JrZmxvdyI6ICIuZ2l0aHViL3dvcmtmbG93cy91cGRhdGVyLWFydGlmYWN0LXJlaGVhcnNhbC55bWwiLAogICAgIndvcmtmbG93X2NvbW1pdCI6ICIzOGNjODY5ZjFmMWRiMTY1MzUxZDY1YTliNDkwZDhkMzVjNzFkZDU2IiwKICAgICJydW5faWQiOiA0MDkzNDg4NzU1NywKICAgICJhdHRlbXB0IjogMSwKICAgICJpbnZlbnRvcnlfc2hhMjU2IjogIjQ0NjM3NmRmOGM5ZTJhMzAzMzk3ZTYyOGZkMWY4MDFmNTNhYmFjY2U1ZGI5YWRjNDc4NmRkZThhZTBjMzEyYzUiCiAgfSwKICAidGFyZ2V0IjogImxpbnV4LXg4Nl82NCIsCiAgIm9zIjogImxpbnV4IiwKICAiYXJjaGl0ZWN0dXJlIjogIng4Nl82NCIsCiAgImV4ZWN1dGlvbl9jb250ZXh0IjogInVzZXItb3duZWQtYXBwaW1hZ2UiLAogICJwYWNrYWdlIjogewogICAgImtpbmQiOiAiYXBwaW1hZ2UiLAogICAgIm93bmVyIjogInBvcnRjb3ZlIiwKICAgICJwcm9kdWN0X2lkIjogImlvLmdpdGh1Yi5wb3J0Y292ZS5wb3J0Y292ZSIKICB9LAogICJhcnRpZmFjdCI6IHsKICAgICJ1cmwiOiAiaHR0cHM6Ly9naXRodWIuY29tL2JvYnVybmluZy9wb3J0Y292ZS9yZWxlYXNlcy9kb3dubG9hZC92MC4zLjAvUG9ydGNvdmVfMC4zLjBfYW1kNjQuQXBwSW1hZ2UiLAogICAgInNoYTI1NiI6ICJkMmU4ZDk2MjZjYWM4YWQ5ZmViZGYzZGI2YzllYjIzMTc3NjAyMjMxMDUxNjM0NTY0Yzg4OGY4NTNlZDBmNTUyIiwKICAgICJieXRlcyI6IDk4Njc1MTkyLAogICAgInRhdXJpX3NpZ25hdHVyZSI6ICJkVzUwY25WemRHVmtJR052YlcxbGJuUTZJSE5wWjI1aGRIVnlaU0JtY205dElIUmhkWEpwSUhObFkzSmxkQ0JyWlhrS1VsVlJiVmhYVDJwelNHVkJTak5WYzBaTWJEVmpUbG8xVDAxVVRuaG9XRzQyWjNOa0wwRk9SMG95WTNSU1p6ZzNPWGRHYTBreVRtSXJhRWt4UTIxeGJqbHZSbVpXWVVwQlJ6aFhUSGwyY214aFRtVmthMEVySzJ3NFZrd3dUV1owYlVFNFBRcDBjblZ6ZEdWa0lHTnZiVzFsYm5RNklIUnBiV1Z6ZEdGdGNEb3hOemt6TXpBeE1USXdDV1pwYkdVNlVHOXlkR052ZG1WZk1DNHpMakJmWVcxa05qUXVRWEJ3U1cxaFoyVUpkbVZ5YzJsdmJqb3dMak11TUFwTmFqQkpXbVo0WWpsWWJVTTBkREl4UzJFMlYyZG9TRTVRVWxVNVpFVjFjR1p2WVdKck5rWjFRM1V4VHpCR01ERklkV3B4UVhCeGFGQTVPRGw0Y1VKVU9DOUtlV1pyY3pSbGNFaGlPRm9yYjJOeFEwWkJaejA5Q2c9PSIsCiAgICAicGF5bG9hZF9rZXlfaWQiOiAiODU1NWQ0YzUzYjlkMzJjYTFmYWRiZjRhNzFhMjhhMDJlZTJlYmQ5MDgyNDY1MTBlZjIxM2RiZmM3NmQwYTAzZCIKICB9LAogICJjb21wYXRpYmlsaXR5IjogewogICAgIm1pbmltdW1fb3NfdmVyc2lvbiI6ICI3LjAuMCIsCiAgICAicmVxdWlyZWRfY2FwYWJpbGl0aWVzIjogWwogICAgICAibGlicmFyeS1sb2NrLXYxIgogICAgXSwKICAgICJjbGlfcHJvdG9jb2wiOiB7CiAgICAgICJtaW4iOiA4NCwKICAgICAgIm1heCI6IDg0CiAgICB9LAogICAgImNhdGFsb2dfZm9ybWF0cyI6IFsKICAgICAgMgogICAgXSwKICAgICJsaWJyYXJ5IjogewogICAgICAicmVhZCI6IHsKICAgICAgICAibWluIjogMSwKICAgICAgICAibWF4IjogNDMKICAgICAgfSwKICAgICAgIndyaXRlX3NjaGVtYSI6IDQzLAogICAgICAibG9ja19wcm90b2NvbCI6ICJsaWJyYXJ5LWxvY2stdjEiCiAgICB9CiAgfSwKICAiZXZpZGVuY2VfaWRzIjogWwogICAgInVwZGF0ZXItYXJ0aWZhY3QtcmVoZWFyc2FsLTQwOTM0ODg3NTU3LWxpbnV4LXg4Nl82NCIKICBdCn0K"
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e.channels/preview/linux-x86_64/appimage/0.3.0.json",
+        "bytes": 395,
+        "sha256": "6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e",
+        "base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImNoYW5uZWwiOiAicHJldmlldyIsCiAgInRhcmdldCI6ICJsaW51eC14ODZfNjQiLAogICJwYWNrYWdlIjogImFwcGltYWdlIiwKICAidmVyc2lvbiI6ICIwLjMuMCIsCiAgInJlbGVhc2VfcGF0aCI6ICJyZWxlYXNlcy8wLjMuMC9saW51eC14ODZfNjQvYXBwaW1hZ2UuanNvbiIsCiAgInJlbGVhc2Vfc2hhMjU2IjogIjVmN2QxNDE2NGVmY2EyODU0ZmUyNzEwY2JiNzUyNTc0NjMyMGFiYTZmZWIyY2QyNzg5MDZlNTk1NDFlNjk4ODMiLAogICJlbGlnaWJsZSI6IHRydWUsCiAgInByb2R1Y3Rpb25fZWxpZ2libGUiOiBmYWxzZSwKICAid2l0aGRyYXduIjogZmFsc2UsCiAgInJlYXNvbiI6IG51bGwsCiAgInJlcXVpcmVkX2JyaWRnZSI6IG51bGwKfQo="
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289.keys/payload.json",
+        "bytes": 315,
+        "sha256": "e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289",
+        "base64": "ewogICJrZXlzIjogWwogICAgewogICAgICAiaWQiOiAiODU1NWQ0YzUzYjlkMzJjYTFmYWRiZjRhNzFhMjhhMDJlZTJlYmQ5MDgyNDY1MTBlZjIxM2RiZmM3NmQwYTAzZCIsCiAgICAgICJ0YXVyaV9wdWJsaWNfa2V5IjogImRXNTBjblZ6ZEdWa0lHTnZiVzFsYm5RNklHMXBibWx6YVdkdUlIQjFZbXhwWXlCclpYazZJREkzT0RBM04wSXdRVE0yTXpWRU1qWUtVbGRSYlZoWFQycHpTR1ZCU2pCRVJ6TkZhRTFMT1RkSGRXSm9kbXBCVURCcmVWQmxiSFJSZEhORVNUbFhSSGM0YURGVGNHWnNSM2tLIgogICAgfQogIF0sCiAgInNjaGVtYV92ZXJzaW9uIjogMQp9"
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+        "bytes": 3072,
+        "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+        "base64": "ewogICJzaWduZWQiOiB7CiAgICAiX3R5cGUiOiAicm9vdCIsCiAgICAic3BlY192ZXJzaW9uIjogIjEuMC4wIiwKICAgICJjb25zaXN0ZW50X3NuYXBzaG90IjogdHJ1ZSwKICAgICJ2ZXJzaW9uIjogMSwKICAgICJleHBpcmVzIjogIjIwMjctMDgtMjVUMTk6MTI6MDUuNjQ0ODA2NzIyWiIsCiAgICAia2V5cyI6IHsKICAgICAgIjZiNjU0ZGVhY2UzNmExNzFjODI5ZGMxMjkzMjllMzg2YWRhZDA5Y2UyMTlhZjcyZTc1NWEwMTZkNTNmZGQ1YTAiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiNzUzMzU1NTNlMDkzMTZjMmE2NDA1Mjk3ZDllMzA3NzRkYjRkNGM4YjEzYzc3MjliNjRjNjk5ZjNhZTdlZTQ4YSIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgIjA0NDE4YzE1ZmY0MTljYjcxMjdmZWYzYjQ2OTM0NjFmNDljNmZlZDJmYWEzY2NjNDEyYmQ4Nzk0Nzg3Y2JiMjQiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiMDI0ZTRhMTcwYzRhMGUyYTU4YWQyOTljYzJlNjdmOTIyNGQ3YTA0Yzc1MzVkNDhhZWY1ZjQzZGU1ZTZmMjVmYSIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgIjYyYjliZWU5OWI0NmMyZDYyODc5NGJkZjE0MmFkODAyMTc2ZTQ4YjI5YjY5ZjM2Y2YyZDYyMDZiOWMzYzZjZWMiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiMDI3N2E1ZGU3NzBhOGIwMWU3NzBkMjgwNjU1YjQxODdlMDE3NzE1YTExZDRhYjgwZTk3YjdmOWFmZjVmZjY2MyIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgIjJiMGM3Y2UxZjY4YzE0Nzk2ZGQ4ZjVhY2VkZjNiMjI3MGVmZGYzN2QzNGI0NTJkOGE3MTAwZTE0ODE1ZjA3YmIiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiYjBlN2NkMzM2MDAzODQ2YTM0ZjBlZmFhNjJjMzI2NDMwN2I2MzM3ZjAzZmEwZjNjZWRiN2RlNjEyMjc0NmE3YSIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgImJlMmVkNzJhN2M4NWFlNTExOGVhN2JhYzM4MTQ5YzA0MGRjMmRlNmMxMWMxNTgwMmM3M2Q5OWNmODFkNmYxMTQiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiNWU4ZWE1YTY5YTA0ZjQxNzk3OTg1ZjFmNjIyZDgxOTRjNzQzYWYwOWI4NTA5ZDhjMDViMGM4ZTJkZTZjNTAxYiIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfSwKICAgICAgIjllOGZmZDI4NTY3MTI5NmExZGU1Y2M2NDg1YzJlYjMxOTU0Yzg0OWNlNGM3YzBlNjE3MzI4ZmM2ZjMyZGU4Y2QiOiB7CiAgICAgICAgImtleXR5cGUiOiAiZWQyNTUxOSIsCiAgICAgICAgImtleXZhbCI6IHsKICAgICAgICAgICJwdWJsaWMiOiAiOTc1MTZjY2Y4ZDI4YTEwNGI3YjE5ZTExZWZmYjU3OGUzZGQ0MjE2MzlkZDkyOTExNzhhOGUyZWFkODJlOTExMSIKICAgICAgICB9LAogICAgICAgICJzY2hlbWUiOiAiZWQyNTUxOSIKICAgICAgfQogICAgfSwKICAgICJyb2xlcyI6IHsKICAgICAgInRhcmdldHMiOiB7CiAgICAgICAgImtleWlkcyI6IFsKICAgICAgICAgICI2MmI5YmVlOTliNDZjMmQ2Mjg3OTRiZGYxNDJhZDgwMjE3NmU0OGIyOWI2OWYzNmNmMmQ2MjA2YjljM2M2Y2VjIgogICAgICAgIF0sCiAgICAgICAgInRocmVzaG9sZCI6IDEKICAgICAgfSwKICAgICAgInJvb3QiOiB7CiAgICAgICAgImtleWlkcyI6IFsKICAgICAgICAgICIyYjBjN2NlMWY2OGMxNDc5NmRkOGY1YWNlZGYzYjIyNzBlZmRmMzdkMzRiNDUyZDhhNzEwMGUxNDgxNWYwN2JiIiwKICAgICAgICAgICI5ZThmZmQyODU2NzEyOTZhMWRlNWNjNjQ4NWMyZWIzMTk1NGM4NDljZTRjN2MwZTYxNzMyOGZjNmYzMmRlOGNkIiwKICAgICAgICAgICI2YjY1NGRlYWNlMzZhMTcxYzgyOWRjMTI5MzI5ZTM4NmFkYWQwOWNlMjE5YWY3MmU3NTVhMDE2ZDUzZmRkNWEwIgogICAgICAgIF0sCiAgICAgICAgInRocmVzaG9sZCI6IDIKICAgICAgfSwKICAgICAgInNuYXBzaG90IjogewogICAgICAgICJrZXlpZHMiOiBbCiAgICAgICAgICAiYmUyZWQ3MmE3Yzg1YWU1MTE4ZWE3YmFjMzgxNDljMDQwZGMyZGU2YzExYzE1ODAyYzczZDk5Y2Y4MWQ2ZjExNCIKICAgICAgICBdLAogICAgICAgICJ0aHJlc2hvbGQiOiAxCiAgICAgIH0sCiAgICAgICJ0aW1lc3RhbXAiOiB7CiAgICAgICAgImtleWlkcyI6IFsKICAgICAgICAgICIwNDQxOGMxNWZmNDE5Y2I3MTI3ZmVmM2I0NjkzNDYxZjQ5YzZmZWQyZmFhM2NjYzQxMmJkODc5NDc4N2NiYjI0IgogICAgICAgIF0sCiAgICAgICAgInRocmVzaG9sZCI6IDEKICAgICAgfQogICAgfQogIH0sCiAgInNpZ25hdHVyZXMiOiBbCiAgICB7CiAgICAgICJrZXlpZCI6ICIyYjBjN2NlMWY2OGMxNDc5NmRkOGY1YWNlZGYzYjIyNzBlZmRmMzdkMzRiNDUyZDhhNzEwMGUxNDgxNWYwN2JiIiwKICAgICAgInNpZyI6ICI5NWRmNTUzZGU0Nzc0Y2YzN2UzNTUyYzY4NzkxZTNkMjZkYzE0MmJhZWU5MjZiZjg0Yzc0MGRiZThlOTVhN2RmMmMwOGU4NTI4MjU0MmFiN2YwMDk5N2M5NjMwOGM5NTgwOWRkYTc0NWZiYmY2NDA1ZjAzOTMzNThiZGM5NjEwZCIKICAgIH0sCiAgICB7CiAgICAgICJrZXlpZCI6ICI5ZThmZmQyODU2NzEyOTZhMWRlNWNjNjQ4NWMyZWIzMTk1NGM4NDljZTRjN2MwZTYxNzMyOGZjNmYzMmRlOGNkIiwKICAgICAgInNpZyI6ICIzY2IxYWQyYjViM2IwZjI3MDBiY2E1NTQwMmE1MzkwMTMwMmM2NzhkNDk2NTQzMDllNjJjZGFjMjkzYmEwZWZiMzJmNmQxNGIyZTA5N2NlZGFhN2UxYmZjNzNjNjI4YjIxYTdkZGVlYzlmOTIyNWQ2NjMzNDYzY2ExZjRhNGYwNiIKICAgIH0KICBdCn0K"
+      },
+      {
+        "path": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage.sig",
+        "bytes": 440,
+        "sha256": "a2f9ed256dcf4ed72776ab9110fe072fca573502f02abf34e064761346af8dec",
+        "base64": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZSYlZoWFQycHpTR1ZCU25sU1pEa3dLMFVyV0haSFp6QjRZMWQyT0N0NE9FSlNNVXBCVFhSallXOWhkelV5VG5NNEt6TnVNRkJPZDJReEswNUpZazFXV1c5RFlWVk9WMFY0Y0RaNFVsVTBObEJCV0VJd1JWaDJlamhLY1U5R1JVRlZQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94Tnprek16QXhOREExQ1dacGJHVTZVRzl5ZEdOdmRtVmZNQzR4TGpCZllXMWtOalF1UVhCd1NXMWhaMlVKZG1WeWMybHZiam93TGpFdU1BcFZVR2xaVGtwRldHd3ZWbVJUTTFwdVQxbExhQzgzTTA5WFJVaHRXVTQzWkZWRVZYZHRRM2c1VERaeU1tZFlZV2RDVDBaUVJtTXhOSEJwTUZCTVRVWm1OSGx3UkVWcldsZG1NWEZGVTFSa1NsZFFlbGhCVVQwOUNnPT0="
+      }
+    ]
+  },
+  "copied_windows_current_failure": {
+    "source_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+    "package": {
+      "path": "H:\\Portcove-Worktrees\\224-game-data-20261029\\work\\4003-38c-guidance-build\\Portcove_0.1.0-alpha.2_x64-setup.exe",
+      "local_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/work/4003-38c-guidance-build/Portcove_0.1.0-alpha.2_x64-setup.exe",
+      "bytes": 14806958,
+      "sha256": "072929aadec305dc2e9de52b5a4b172e095f0539c8990a826d77c6cdc11b8a78"
+    },
+    "package_version": "0.1.0-alpha.2",
+    "payload_signature": {
+      "state": "absent",
+      "observed_no_sig_files": true,
+      "reason": "Updater artifact signing intentionally disabled for copied-install guidance-only build"
+    },
+    "compiled_root": {
+      "path": "H:\\Portcove-Worktrees\\224-game-data-20261029\\work\\updater-rehearsal\\windows-installed-update-qualification\\trusted-root.json",
+      "local_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/work/updater-rehearsal/windows-installed-update-qualification/trusted-root.json",
+      "bytes": 3072,
+      "sha256": "f51a37ea56741a249f4597a2043816989aa1f340275ae6f82b045d06552d4f89"
+    },
+    "metadata_url": "file:///H:/Portcove-Worktrees/224-game-data-20261029/work/updater-rehearsal/windows-installed-update-qualification/repository/metadata/",
+    "targets_url": "file:///H:/Portcove-Worktrees/224-game-data-20261029/work/updater-rehearsal/windows-installed-update-qualification/repository/targets/",
+    "phase": "failed",
+    "scope": "Actual copied current-source NSIS qualification image; installation eligibility and visible guidance only; payload signing disabled, no updater operation attempted",
+    "package_source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+    "image": {
+      "path": "H:\\Portcove-Scratch\\224-unregistered-38c-6eb15ba544de470e8d6e3ac42f8f3631\\inputs\\portcove-desktop.exe",
+      "bytes": 57560576,
+      "sha256": "7dadc2f729190b8a0b3790f475dfd4f272f24f979f703d7b9778ea2c6e83e953"
+    },
+    "marker_scope": {
+      "original": "__TAURI_BUNDLE_TYPE_VAR_UNK",
+      "packaged": "__TAURI_BUNDLE_TYPE_VAR_NSS",
+      "marker_offset": 41288882,
+      "differing_offsets": [41288906, 41288907, 41288908],
+      "differing_bytes": 3,
+      "one_unique_replacement_makes_all_bytes_identical": true,
+      "authority": "Pinned tauri-utils documents bundle-type patch and maps NSS to NSIS; producer build log records NSIS patch. This is package-format metadata, not source/package byte equivalence.",
+      "pinned_runtime_source": {
+        "path": "/home/boburning/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-utils-2.10.2/src/platform.rs",
+        "local_path": "/home/boburning/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-utils-2.10.2/src/platform.rs",
+        "bytes": 15481,
+        "sha256": "5e12803d943b7728147c6223fe3e49ba532a0485b122fc47537398160f4092bc"
+      },
+      "cargo_registry_package_checksum": "362ab21cd4cc713f2a02b1a9b5688198b1541cfb6907c4281e9190e0f0ef4aa3",
+      "authenticated_registry_crate": {
+        "path": "/home/boburning/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/tauri-utils-2.10.2.crate",
+        "local_path": "/home/boburning/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/tauri-utils-2.10.2.crate",
+        "bytes": 160193,
+        "sha256": "362ab21cd4cc713f2a02b1a9b5688198b1541cfb6907c4281e9190e0f0ef4aa3"
+      },
+      "source_member_verified_against_crate": true
+    },
+    "build_parent_failure_preserved": true,
+    "account": {
+      "administrator": false,
+      "integrity": "medium",
+      "scope": "Ordinary non-elevated caller; fixed Core credentials/application lease not isolated"
+    },
+    "registry_before": [],
+    "registry_after": [],
+    "before": {
+      "schedule": {
+        "last_success_unix_seconds": null,
+        "consecutive_failures": 0,
+        "next_automatic_check_unix_seconds": null
+      },
+      "staged": null,
+      "apply": null,
+      "install_eligibility": "unavailable",
+      "recovery_required": []
+    },
+    "after": {
+      "schedule": {
+        "last_success_unix_seconds": null,
+        "consecutive_failures": 0,
+        "next_automatic_check_unix_seconds": null
+      },
+      "staged": null,
+      "apply": null,
+      "install_eligibility": "unavailable",
+      "recovery_required": []
+    },
+    "status_unchanged": true,
+    "guidance_dom_text_present": true,
+    "guidance_viewport_pixels_observed": false,
+    "viewport_limit": "Inspected screenshot captures top of long Updates page; required guidance is below viewport, so no painted-guidance claim",
+    "native_close_snapshot": {
+      "captured_at": "2026-10-29T20:50:21.6972625Z",
+      "driver": {
+        "pid": 3840,
+        "path": "H:\\Portcove-Scratch\\224-unregistered-38c-6eb15ba544de470e8d6e3ac42f8f3631\\inputs\\portcove-desktop.exe",
+        "started_filetime": "134377806150740009"
+      },
+      "application_pid": 3840,
+      "processes": [
+        {
+          "pid": 3840,
+          "path": "H:\\Portcove-Scratch\\224-unregistered-38c-6eb15ba544de470e8d6e3ac42f8f3631\\inputs\\portcove-desktop.exe",
+          "started_filetime": "134377806150740009"
+        },
+        {
+          "pid": 3892,
+          "path": "C:\\WINDOWS\\system32\\conhost.exe",
+          "started_filetime": "134377806151085024"
+        },
+        {
+          "pid": 36352,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134377806155823675"
+        },
+        {
+          "pid": 36900,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134377806158262768"
+        },
+        {
+          "pid": 29064,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134377806160346411"
+        },
+        {
+          "pid": 37308,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134377806160348496"
+        },
+        {
+          "pid": 3356,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134377806161302710"
+        },
+        {
+          "pid": 32780,
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "started_filetime": "134377806161868287"
+        }
+      ],
+      "root_kind": "direct-application",
+      "executable_sha256": "7dadc2f729190b8a0b3790f475dfd4f272f24f979f703d7b9778ea2c6e83e953"
+    },
+    "request_close_status": {
+      "exit_code": 1,
+      "signal": null,
+      "error": null
+    },
+    "failure_boundary": "Harness RequestClose rejects application_pid==driver.pid despite captured root_kind direct-application, before CloseMainWindow is called",
+    "cleanup": {
+      "forced": true,
+      "exit_code": 1,
+      "signal": null
+    },
+    "cleanup_failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\ntrue !== false\n",
+    "post_cleanup_observation": {
+      "observed_at": "2026-10-29T20:56:08.0927312Z",
+      "processes": [
+        {
+          "pid": 3840,
+          "started_filetime": "134377806150740009",
+          "path": "H:\\Portcove-Scratch\\224-unregistered-38c-6eb15ba544de470e8d6e3ac42f8f3631\\inputs\\portcove-desktop.exe",
+          "state": "exited"
+        },
+        {
+          "pid": 3892,
+          "started_filetime": "134377806151085024",
+          "path": "C:\\WINDOWS\\system32\\conhost.exe",
+          "state": "exited"
+        },
+        {
+          "pid": 36352,
+          "started_filetime": "134377806155823675",
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "state": "exited"
+        },
+        {
+          "pid": 36900,
+          "started_filetime": "134377806158262768",
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "state": "exited"
+        },
+        {
+          "pid": 29064,
+          "started_filetime": "134377806160346411",
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "state": "exited"
+        },
+        {
+          "pid": 37308,
+          "started_filetime": "134377806160348496",
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "state": "exited"
+        },
+        {
+          "pid": 3356,
+          "started_filetime": "134377806161302710",
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "state": "exited"
+        },
+        {
+          "pid": 32780,
+          "started_filetime": "134377806161868287",
+          "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+          "state": "exited"
+        }
+      ]
+    },
+    "raw_report": {
+      "path": "/mnt/h/Portcove-Scratch/224-unregistered-38c-6eb15ba544de470e8d6e3ac42f8f3631/evidence/unregistered-observation.json",
+      "bytes": 5941,
+      "sha256": "3b7680e9278e0cc16a76bd1f87ef3e7c2daa1079c06bb92e057a7128fca314f6"
+    },
+    "current_source_repair": "RequestClose requires matching direct-root shape plus caller/captured/current executable SHA, retaining all original live PID/start/path/unique-record guards. Fresh controlled GUI observation remains required."
   }
 }

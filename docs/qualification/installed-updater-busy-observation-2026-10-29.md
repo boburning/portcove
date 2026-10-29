@@ -121,8 +121,11 @@ positive run does not establish that the added diagnostics repaired the product.
 Selected reports and public trust files have bounded raw-directory, immutable
 HTTP ETag, exact range, length, SHA and CRC readback, independently reviewed.
 Artifact `12926701381` is 629,666,242 bytes, API SHA-256 `cfc5f19d…`, 525 raw members.
-Complete archive retention/audit and independent payload-signature readback are
-still queued; selected range custody is not a whole-archive digest claim.
+The complete archive and all 525 members (840,401,642 expanded bytes) subsequently
+passed bounded raw-directory, SHA, length and CRC audit. All 18 earlier selected
+range members match the full archive. Exact public trust/signature bytes and the
+complete preserved dataset are recorded in the machine receipt. Independent
+payload-signature readback remains queued; no AppImage executes during custody.
 
 ## Copied-install guidance and remaining boundary
 
@@ -140,6 +143,30 @@ known noneligible status has no staged update. Four browser cases cover copied,
 unconfigured and package-managed status without enabling Restart. The failed
 old-binary native control cannot qualify that new UI; current-package native
 readback remains pending. The current Linux fresh-return sequence passes above.
+
+The current-source 38 NSIS-derived copied case uses the unsigned 14,806,958-byte
+installer (`072929aa…`) and its exact 57,560,576-byte extracted image (`7dadc2f7…`).
+The reviewed Tauri UNK→NSS marker distinction binds that package only; original
+parent guard failure remains retained. Both known registration inventories are
+empty, caller medium/non-elevated, and before/after unavailable status has no
+stage/apply/recovery requirement. The copied-app renderer DOM contains the required
+manual guidance. The inspected screenshot captures the top of the long page,
+with that text below the viewport; painted guidance is not yet established.
+
+This current case fails at the native observation helper: SnapshotApplication
+captures root_kind direct-application with application PID equal to root PID,
+but RequestClose unconditionally rejects that shape before CloseMainWindow.
+Forced cleanup has actual root OS exit 1; all eight captured app/conhost/WebView
+identities are subsequently observed exited. The original failed report is
+retained. The narrow harness repair admits that direct shape only with matching
+caller, captured and current file SHA, while retaining all live identity and
+unique-record guards. Existing driver-descendant close remains unchanged. New
+Windows windowless-child controls are added for refusals and valid admission to
+the enabled-window check; their execution and CI are pending. They do not establish
+successful GUI close. The fresh
+copied case must scroll the owning guidance into view, capture it and observe
+ordinary close plus retained child OS exit 0. The package is not rebuilt for this
+observation-helper repair.
 
 Actual Linux OS reboot remains unobserved. A task-owned isolated guest route is
 being prepared; the shared host will not be rebooted and the row is not waived. Production candidate/default-feature

@@ -780,6 +780,122 @@ void test(
 );
 
 void test(
+  "ordinary close admits only the hash-bound captured direct application",
+  { ...windows, timeout: 60_000 },
+  async () => {
+    const root = await temporaryRoot();
+    const child = await ownedChild();
+    try {
+      const snapshot = path.join(root, "direct-close.json");
+      const sha = createHash("sha256")
+        .update(await readFile(process.execPath))
+        .digest("hex");
+      const invoke = (mode: NativeSessionMode, extra: string[] = []) =>
+        spawnSync(
+          "pwsh",
+          [
+            "-NoProfile",
+            "-File",
+            script,
+            "-Mode",
+            mode,
+            "-SnapshotPath",
+            snapshot,
+            "-ApplicationPath",
+            process.execPath,
+            ...extra,
+          ],
+          { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+        );
+      const captured = invoke("SnapshotApplication", [
+        "-DriverProcessId",
+        String(child.pid),
+        "-ExpectedParentProcessId",
+        String(process.pid),
+        "-ExpectedApplicationSha256",
+        sha,
+      ]);
+      assert.equal(captured.status, 0, captured.stderr);
+      const recorded = readNativeSessionObservation("SnapshotApplication", json(captured.stdout));
+      assert.equal(recorded.application_pid, recorded.driver.pid);
+      const application = required(recorded.processes.find((row) => row.pid === child.pid));
+      const refusals = [
+        { snapshot: recorded, hash: undefined, message: /executable identity changed/ },
+        { snapshot: recorded, hash: "0".repeat(64), message: /executable identity changed/ },
+        {
+          snapshot: { ...recorded, executable_sha256: "0".repeat(64) },
+          hash: sha,
+          message: /executable identity changed/,
+        },
+        {
+          snapshot: { ...recorded, driver: { ...recorded.driver, pid: process.pid } },
+          hash: sha,
+          message: /one captured owned application/,
+        },
+        {
+          snapshot: { ...recorded, root_kind: undefined },
+          hash: sha,
+          message: /one captured owned application/,
+        },
+        {
+          snapshot: { ...recorded, root_kind: "unknown" },
+          hash: sha,
+          message: /one captured owned application/,
+        },
+        {
+          snapshot: {
+            ...recorded,
+            driver: {
+              ...recorded.driver,
+              started_filetime: (BigInt(recorded.driver.started_filetime) - 10_000n).toString(),
+            },
+          },
+          hash: sha,
+          message: /driver identity changed/,
+        },
+        {
+          snapshot: {
+            ...recorded,
+            processes: recorded.processes.map((row) =>
+              row.pid === child.pid
+                ? { ...row, started_filetime: (BigInt(row.started_filetime) - 10_000n).toString() }
+                : row,
+            ),
+          },
+          hash: sha,
+          message: /application identity changed/,
+        },
+        {
+          snapshot: { ...recorded, processes: [...recorded.processes, { ...application }] },
+          hash: sha,
+          message: /one captured owned application/,
+        },
+      ];
+      for (const refusal of refusals) {
+        await writeFile(snapshot, JSON.stringify(refusal.snapshot));
+        const result = invoke(
+          "RequestClose",
+          refusal.hash ? ["-ExpectedApplicationSha256", refusal.hash] : [],
+        );
+        assert.notEqual(result.status, 0, result.stdout);
+        assert.match(result.stderr, refusal.message);
+        process.kill(naturalPid(child.pid), 0);
+      }
+      await writeFile(snapshot, JSON.stringify(recorded));
+      const windowless = invoke("RequestClose", ["-ExpectedApplicationSha256", sha]);
+      assert.notEqual(windowless.status, 0);
+      // Valid direct-root admission reaches the final enabled-window check.
+      // This is not a successful GUI close or an OS-exit observation.
+      assert.match(windowless.stderr, /ordinary close message was not sent/);
+      process.kill(naturalPid(child.pid), 0);
+    } finally {
+      await stop(child);
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+void test(
   "ordinary close refuses changed identity or a windowless owned application",
   windows,
   async () => {

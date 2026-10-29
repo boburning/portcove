@@ -1409,6 +1409,7 @@
             "native shutdown wait is bounded, preserves a live process, and accepts its later exit",
             "isolated driver stop refuses stale identity without acting",
             "driver stop never terminates a replacement or path-mismatched captured survivor",
+            "ordinary close admits only the hash-bound captured direct application",
             "ordinary close refuses changed identity or a windowless owned application",
             "native process discovery refuses ambiguous application descendants",
             "marked helper observation retains actual OS exits without inventing or forcing them"
