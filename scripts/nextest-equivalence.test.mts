@@ -455,7 +455,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     },
   ];
   const windowsPublishedMoveFilter =
-    "package(portcove-core) & test(/^library_move::sequence_tests::published_abort_resume$/)";
+    "package(portcove-core) & (test(/^library_move::sequence_tests::published_abort_resume$/) | test(/^library_move::sequence_tests::published_resume_resume$/))";
   const windowsObservedRecoveryBudgets = [
     {
       filter:

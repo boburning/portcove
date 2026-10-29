@@ -41,13 +41,17 @@ filter = 'package(portcove-cli) & binary(machine_contract) & (test(/^artwork_con
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Required CI40964197761/a1, source67afc206, Windows4 reached
+# observation16 at29.776s before the30.072s cutoff in published_resume_resume.
+# Extend only this Windows fixture to the existing60s harness budget.
+# Keep all assertions, product/child deadlines, worker counts and zero retries.
 # CI40879228847/a1 Windows2 reached observation16 at29.690s before
 # the 30.108s watchdog. The identical test file passed14.404s in
 # CI40876858821/a1 Windows8. Preserve every sequence assertion and resource
 # exclusion with exact60s outer harness room and existing phase diagnostics.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^library_move::sequence_tests::published_abort_resume$/)'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::published_abort_resume$/) | test(/^library_move::sequence_tests::published_resume_resume$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
