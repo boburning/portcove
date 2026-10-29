@@ -975,3 +975,15 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
+
+# Qualification40928794314/a1 Linux job123641624689 verified all247 exact
+# entries by29.937s and entered full graph validation before its30.011s
+# watchdog. The same test module passed27.845/27.544s in prior Linux runs.
+# Retain every byte/contract/graph assertion and existing phase output with
+# exact60s harness room, as already used on Intel/Windows. This changes no
+# product deadline, resource exclusion, worker count or retry policy.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
