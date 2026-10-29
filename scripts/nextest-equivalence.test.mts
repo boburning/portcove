@@ -461,11 +461,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       filter:
         "package(portcove-core) & test(/^service::native_portable::tests::ready_archive_profile_times_survive_update_backup_and_runtime_rollback$/)",
       periods: 36,
+      beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",
     },
     {
       filter:
         "package(portcove-core) & test(/^service::tests::backups::recovers_restore_prepared$/)",
       periods: 24,
+      beforeFilter:
+        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
     },
   ];
   const windowsTrackedCancellationFilter =
@@ -514,8 +517,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
-  const windowsOverrides = overrides.filter((entry) => entry.platform === "x86_64-pc-windows-msvc");
-  for (const { filter, periods } of windowsObservedRecoveryBudgets) {
+  for (const { filter, periods, beforeFilter } of windowsObservedRecoveryBudgets) {
     const observed = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.deepEqual(observed, {
       platform: "x86_64-pc-windows-msvc",
@@ -524,8 +526,9 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       "success-output": "immediate",
     });
     assert.ok(
-      windowsOverrides.indexOf(observed) < windowsObservedRecoveryBudgets.length,
-      "Exact observed Windows cases precede older overlapping Windows budgets",
+      overrides.indexOf(observed) <
+        overrides.indexOf(overrideFor(beforeFilter, "x86_64-pc-windows-msvc")),
+      "Exact observed Windows cases precede their overlapping Windows family budgets",
     );
     assert.equal(overrides.filter((entry) => entry.filter === filter).length, 1);
   }
