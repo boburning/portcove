@@ -31,6 +31,9 @@ import {
 } from "react";
 import type { CollectionLayout } from "../features/browsing/use-collection-layout";
 import {
+  ArrowRight,
+  Heart,
+  Play,
   Boxes,
   CheckCircle2,
   Gamepad2,
@@ -918,6 +921,8 @@ function PortCard({
         dropEligible,
         dropTarget,
         favoriteMenu,
+        favorites,
+        onFavoriteToggle,
       }}
     />
   );
@@ -938,7 +943,19 @@ function LibraryEntry({
   dropEligible,
   dropTarget,
   favoriteMenu,
-}: Pick<PortCardProps, "port" | "status" | "layout" | "onSelect" | "onLaunch" | "onTask"> & {
+  favorites,
+  onFavoriteToggle,
+}: Pick<
+  PortCardProps,
+  | "port"
+  | "status"
+  | "layout"
+  | "onSelect"
+  | "onLaunch"
+  | "onTask"
+  | "favorites"
+  | "onFavoriteToggle"
+> & {
   state: CardState;
   detailOrigin: string;
   input: ReturnType<typeof installedCardInputPresentation>;
@@ -991,6 +1008,27 @@ function LibraryEntry({
           {gameProjectLabel(port) ?? port.name}
         </span>
       </button>
+      <div className="collection-personal-actions">
+        <PortCardActionMenu
+          {...{ favoriteMenu, port, status, onSelect }}
+          overflowOrigin={`library:card-more:${port.id}`}
+        />
+        {favorites && (
+          <Button
+            data-focusable
+            variant="ghost"
+            size="icon-sm"
+            className="collection-art-action collection-favorite"
+            aria-label={`Favorite ${gameIdentityLabel(port)}`}
+            aria-pressed={favorites.ids?.has(port.id) ?? false}
+            title={favorites.ids?.has(port.id) ? "Remove from favorites" : "Add to favorites"}
+            disabled={!favorites.ids || favorites.busy}
+            onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
+          >
+            <Heart aria-hidden="true" />
+          </Button>
+        )}
+      </div>
       <div className="library-entry-chips">
         <IdentityChips
           port={{ ...port, platforms: [], channels: status?.active ? [status.active.channel] : [] }}
@@ -1013,7 +1051,6 @@ function LibraryEntry({
         <PortCardStatus
           port={port}
           status={status}
-          favoriteMenu={favoriteMenu}
           detailOrigin={detailOrigin}
           onSelect={onSelect}
           onTask={onTask}
@@ -1034,7 +1071,6 @@ function LibraryEntry({
 }
 
 function PortCardStatus({
-  favoriteMenu,
   inputDescriptionId,
   port,
   status,
@@ -1050,7 +1086,6 @@ function PortCardStatus({
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
   const taskPrimary = Boolean(action.busy && action.pending?.context.operation !== "launch");
   const canLaunch = cardCanLaunch(port, status, action, onLaunch);
-  const overflowOrigin = `library:card-more:${port.id}`;
   const reviewOrigin = `${detailOrigin}:review`;
   const reviewSetup = Boolean(
     port.pendingSetup || hasPendingSetupAction(status) || installedCardInputPresentation(status),
@@ -1061,7 +1096,7 @@ function PortCardStatus({
       : port.pendingSetup
         ? "Continue setup"
         : reviewSetup
-          ? "Review setup"
+          ? "Set up"
           : "View details";
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
@@ -1071,7 +1106,7 @@ function PortCardStatus({
             data-focusable
             variant="outline"
             size="xs"
-            className="library-card-action max-w-20"
+            className="library-card-action"
             data-detail-origin={`${detailOrigin}:task`}
             onClick={() =>
               onTask
@@ -1079,7 +1114,7 @@ function PortCardStatus({
                 : onSelect(port.id, `${detailOrigin}:task`)
             }
           >
-            View task
+            View task <ArrowRight aria-hidden="true" />
           </Button>
         )}
         {!taskPrimary && !canLaunch && (
@@ -1087,7 +1122,7 @@ function PortCardStatus({
             data-focusable
             variant="outline"
             size="xs"
-            className="library-card-action max-w-20"
+            className="library-card-action"
             aria-label={`${reviewLabel}: ${gameIdentityLabel(port)}`}
             aria-describedby={inputDescriptionId}
             data-detail-origin={reviewOrigin}
@@ -1098,20 +1133,22 @@ function PortCardStatus({
             }
           >
             {reviewLabel}
+            <ArrowRight aria-hidden="true" />
           </Button>
         )}
         {!taskPrimary && canLaunch && (
           <Button
             data-focusable
-            variant="ghost"
+            variant="outline"
             size="xs"
-            className="library-card-action library-card-play max-w-20"
+            className="library-card-action library-card-play"
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
             aria-busy={Boolean(action.busy)}
             title={action.assessment.reason}
             onClick={() => onLaunch?.(port.id)}
           >
+            <Play aria-hidden="true" fill="currentColor" />
             {status?.readiness?.pending_setup
               ? "Start setup"
               : hasUnconfirmedLaunchInput(status, port)
@@ -1119,7 +1156,6 @@ function PortCardStatus({
                 : "Play"}
           </Button>
         )}
-        <PortCardActionMenu {...{ favoriteMenu, port, status, onSelect, overflowOrigin }} />
       </span>
     </div>
   );
@@ -1785,6 +1821,7 @@ function PortCardActionMenu({
             <Button
               data-focusable
               data-detail-origin={overflowOrigin}
+              className="collection-art-action collection-more"
               variant="ghost"
               size="icon-sm"
               aria-label={`More actions for ${gameIdentityLabel(port)}`}

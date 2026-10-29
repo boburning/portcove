@@ -525,9 +525,12 @@ async function assertPortraitLayout(
   control.remove();
   for (const favorite of document.querySelectorAll<HTMLElement>('[aria-label^="Favorite "]')) {
     const card = favorite.closest("article") ?? favorite.parentElement!;
-    expect(favorite.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-      card.querySelector(".collection-art")!.getBoundingClientRect().bottom,
-    );
+    const art = card.querySelector(".collection-art")!.getBoundingClientRect();
+    const favoriteBounds = favorite.getBoundingClientRect();
+    expect(favoriteBounds.top).toBeGreaterThanOrEqual(art.top);
+    expect(favoriteBounds.bottom).toBeLessThanOrEqual(art.bottom);
+    expect(favoriteBounds.right).toBeLessThanOrEqual(art.right);
+    expect(favoriteBounds.left).toBeGreaterThanOrEqual(art.left);
     expect(favorite.closest("button button")).toBeNull();
     for (const action of card.querySelectorAll<HTMLElement>(
       ".collection-actions button, .discover-game > div button",

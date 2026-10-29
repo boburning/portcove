@@ -169,7 +169,7 @@ it.each(["dark", "light"])(
     const play = [...row.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === "Play",
     )!;
-    expect(play.dataset.variant).toBe("ghost");
+    expect(play.dataset.variant).toBe("outline");
     expect(play.textContent).toBe("Play");
     play.focus();
     await expect.element(play).toHaveFocus();

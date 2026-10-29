@@ -32,18 +32,13 @@ size and full sidebar. Available width and interface size change the count.
 Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
 it caps at 160px. Short windows retain the same density rules. Supporting text
 scales and wraps without growing artwork beyond its CSS bound; native interface
-zoom still enlarges the physical rendering. Titles and project labels use their natural one- or two-line footprint
-and expand on focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play
-controls use quiet ghost styling; hover and keyboard focus use the signature red.
+zoom still enlarges the physical rendering. Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
+40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a bordered, labeled button; hover and keyboard focus use the signature red. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
 Library entries have separate identity, Play/review and More actions controls.
-Favorite choices live in More actions alongside the existing update/activity and
-saved-data destinations. They use the same preference owner, failure handling
-and focus return when a filtered entry disappears. Discovery retains its separate
-Favorite control. Checked Ready to play uses semantic success green in both
+Library cards expose a heart favorite toggle at the artwork’s upper right, beside More actions. More retains existing organization, update/activity and saved-data destinations. The direct toggle uses the same preference owner, failure handling and focus return when a filtered entry disappears. Discover places its grouped-game bookmark Save action over the cover and retains the independent Favorite control for singleton projects. Overlay controls are sibling buttons outside the identity control, always visible for touch, at least 32px square, and bounded by the actual artwork. Compact rows place them inline. Discover’s full-width arrow action opens the exact project or comparison; it does not bypass setup review. Checked Ready to play uses semantic success green in both
 themes; selection remains blue and focus retains its distinct indicator. A
 playable current installation keeps Play when a downloaded candidate is present.
 The candidate has a concise update review link. Healthy update entries omit the redundant green readiness summary while retaining Play. Mandatory setup/repair/unknown states and concurrent blockers remain visible. Acquisition work or attention precedes prepared/available update copy; secondary update/channel facts use an explicit disclosure. Active invocations lead to their existing task destination.
