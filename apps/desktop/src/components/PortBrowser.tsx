@@ -1727,7 +1727,7 @@ function LibraryUpdateReview({
           {status?.acquisition
             ? gameUpdateAcquisitionLabel(status.acquisition.phase)
             : status?.staged
-              ? "Downloaded for later"
+              ? "Update saved for later"
               : "Update available at last check"}
         </Button>
       )}

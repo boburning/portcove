@@ -94,8 +94,8 @@ requirements call for project guidance, not an inference from an empty list.
 
 A completed applicable update check with no eligible release differs from an
 unchecked, failed or unavailable check. Keep the time/scope in a retained result
-such as “No update found at last check.” Say “Downloaded for later” only for the
-actual retained checked version; unfinished downloads and applying updates use
+such as “No update found at last check.” Use “Update saved for later” for the
+retained checked version. Reserve a download-result claim for an actual transfer; unfinished downloads and applying updates use
 their supplied progress/recovery state. A saved update policy, one-off choice,
 exact-release notice suppression and paused notices remain separate. The
 [glossary](../GLOSSARY.md#games-ports-and-releases) defines their scope.

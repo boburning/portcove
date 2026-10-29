@@ -10,7 +10,7 @@ use super::{clean, format_bytes, platform_name, port_name, release_channel, utc_
 
 pub(crate) fn install_result(install: &InstallRecord, catalog: &Catalog) -> String {
     let mut text = format!(
-        "Managed installation result\nPort: {}\nInstallation: {}\nVersion: {}\nChannel: {}\nLocation: {}\nInstalled: {}\nDownloaded for later: {}\nRecorded file verification: {}",
+        "Managed installation result\nPort: {}\nInstallation: {}\nVersion: {}\nChannel: {}\nLocation: {}\nInstalled: {}\nSaved for later: {}\nRecorded file verification: {}",
         port_name(catalog, &install.port_id),
         clean(&install.id),
         clean(&install.version),
@@ -49,7 +49,7 @@ pub(crate) fn install_result(install: &InstallRecord, catalog: &Catalog) -> Stri
     text.push_str(&format!(
         "\nNext step: Using the same library, run portcove status {} to inspect the current installation and launch requirements.{}",
         clean(&install.port_id),
-        if install.staged { " This release is downloaded for later; it has not been activated by this result." } else { "" },
+        if install.staged { " This release is saved for later; it has not been activated by this result." } else { "" },
     ));
     text
 }
@@ -117,7 +117,7 @@ pub(crate) fn reconcile_result(result: &ReconcileResult, catalog: &Catalog) -> S
     let outcome = match result.action {
         ReconcileAction::UpToDate => "No game update was needed",
         ReconcileAction::Notify => "Game update available; no update was applied",
-        ReconcileAction::Staged => "Game update downloaded for later without activation",
+        ReconcileAction::Staged => "Game update kept for later without activation",
         ReconcileAction::Activated => "Game update activated",
     };
     let mut text = format!(

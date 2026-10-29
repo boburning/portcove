@@ -56,17 +56,17 @@ describe("desktop components", () => {
           />,
         );
       expect(render(base)).not.toContain("Archive downloaded");
-      expect(render(base)).not.toContain("Downloaded for later");
+      expect(render(base)).not.toContain("Update saved for later");
       const downloaded = render({ ...base, acquisition });
       expect(downloaded).toContain("Archive downloaded");
-      expect(downloaded).not.toContain("Downloaded for later");
+      expect(downloaded).not.toContain("Update saved for later");
       expect(downloaded).toContain("Ready to play");
       const prepared = render({
         ...base,
         staged: installRecord({ id: "prepared", staged: true, version: "2" }),
       });
       expect(prepared).toContain(
-        view === "library" ? "Downloaded for later" : "Downloaded for later",
+        view === "library" ? "Update saved for later" : "Update saved for later",
       );
       expect(prepared).not.toContain("Archive downloaded");
     },
@@ -214,7 +214,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Ready to play");
     expect(html).toContain(
-      view === "library" ? "Downloaded for later" : "Downloaded for later</span>",
+      view === "library" ? "Update saved for later" : "Update saved for later</span>",
     );
     const expectedAvailable =
       difference !== "same target" &&
@@ -413,7 +413,7 @@ describe("desktop components", () => {
     )?.[0];
     expect(card).toBeDefined();
     expect(card).toMatch(
-      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Downloaded for later/u,
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update available at last check/u,
     );
     expect(card).not.toContain(port.summary);
     expect(card).not.toContain(">Windows</span>");
@@ -450,9 +450,9 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Downloaded for later");
+    expect(html).toContain("Update saved for later");
     expect(html).toMatch(
-      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Downloaded for later/u,
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update saved for later/u,
     );
     expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
@@ -512,10 +512,10 @@ describe("desktop components", () => {
       expect(card).toBeDefined();
       expect(card).toContain("Sample Port");
       expect(card?.includes(`${label}</span>`)).toBe(label !== "Ready to play");
-      expect(card).toContain("Downloaded for later</span>");
+      expect(card).toContain("Update saved for later</span>");
       expect(card).toContain(`${action}<`);
       expect(card).toContain(`data-detail-origin="catalog:card:${port.id}:details"`);
-      expect(html).toContain("Downloaded for later</span>");
+      expect(html).toContain("Update saved for later</span>");
     },
   );
 

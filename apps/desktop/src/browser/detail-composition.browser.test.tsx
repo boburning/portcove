@@ -205,7 +205,7 @@ it.each(["dark", "light"])(
   async (theme) => {
     await page.viewport(960, 640);
     await mount(theme, "details");
-    await page.getByRole("button", { name: "Downloaded for later", exact: true }).click();
+    await page.getByRole("button", { name: "Update saved for later", exact: true }).click();
     await expect
       .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
       .toHaveFocus();

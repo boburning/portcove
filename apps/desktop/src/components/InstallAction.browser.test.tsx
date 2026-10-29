@@ -707,7 +707,7 @@ it("exposes a failed install result outside the dismissed review before another 
 
 it.each([
   ["download", "Install · 64.0 MiB", "64.0 MiB", "512 GiB available in library"],
-  ["use_staged", "Use downloaded version", "No download", "Required component included · 1.0 KiB"],
+  ["use_staged", "Use saved version", "No download", "Required component included · 1.0 KiB"],
   ["reuse_retained", "Use previous version", "No download", "Local release already checked"],
 ] as const)(
   "presents the %s plan with its player-facing action",

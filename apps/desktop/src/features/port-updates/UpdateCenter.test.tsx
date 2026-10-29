@@ -165,7 +165,7 @@ describe("update center presentation", () => {
     }
     const states: Array<[string, PortStatus, UpdateCheckOutcome[]]> = [
       ["Not checked", status, []],
-      ["Downloaded for later", { ...status, staged: installRecord({ version: "2.0" }) }, []],
+      ["Update saved for later", { ...status, staged: installRecord({ version: "2.0" }) }, []],
       [
         "No update found at last check",
         status,

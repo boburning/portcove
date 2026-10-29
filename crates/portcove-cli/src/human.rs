@@ -1845,7 +1845,7 @@ pub(crate) fn preparation_cleanup(
 
 pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> String {
     format!(
-        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nDownloaded for later: {}",
+        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
         port_name(catalog, &paths.port_id),
         clean(&paths.library_root.display().to_string()),
         clean(&paths.user_data_root.display().to_string()),
@@ -2215,7 +2215,7 @@ pub(crate) fn operation_name(operation: portcove_core::ActivityOperation) -> &'s
         Operation::Update => "Update game port",
         Operation::Reconcile => "Apply game update policy",
         Operation::VerifyInstall => "Check installed files",
-        Operation::Activate => "Apply downloaded update",
+        Operation::Activate => "Apply saved update",
         Operation::Rollback => "Restore previous version",
         Operation::Adopt => "Copy existing installation",
         Operation::Remove => "Remove managed versions",
@@ -2381,7 +2381,7 @@ fn repair_kind(kind: RepairItemKind) -> &'static str {
 fn install_action(action: InstallPlanAction) -> &'static str {
     match action {
         InstallPlanAction::AlreadyActive => "already active",
-        InstallPlanAction::UseStaged => "use downloaded version",
+        InstallPlanAction::UseStaged => "use saved version",
         InstallPlanAction::ReuseRetained => "use previous version",
         InstallPlanAction::BlockedUnverified => {
             "Blocked by a local installation that does not match the expected files"

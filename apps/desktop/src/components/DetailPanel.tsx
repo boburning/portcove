@@ -509,7 +509,7 @@ function DetailBody(model: {
           {(model.runtimeUpdateAvailable || model.stagedVersion) && (
             <p data-update-attention>
               {model.stagedVersion
-                ? "Downloaded for later · " + model.stagedVersion
+                ? "Update saved for later · " + model.stagedVersion
                 : (model.state.updateAttention ??
                   "An update was available at the last check.")}{" "}
               <Button variant="link" onClick={() => reveal("versions")}>
@@ -853,10 +853,10 @@ function UpdatesGroup({
   return (
     <DetailGroup title="Updates">
       {status?.staged && (
-        <section aria-label="Apply downloaded update">
+        <section aria-label="Apply saved update">
           <p>
-            Downloaded for later: <strong>{status.staged.version}</strong>. Using this checked local
-            copy does not download it again, and keeps the current version for rollback.
+            Update saved for later: <strong>{status.staged.version}</strong>. Using this checked
+            local copy does not download it again, and keeps the current version for rollback.
           </p>
         </section>
       )}
@@ -1071,7 +1071,7 @@ function InstallationVersionSummary({
       )}
       {status?.staged && (
         <div>
-          <dt>Downloaded for later</dt>
+          <dt>Update saved for later</dt>
           <dd>{status.staged.version}</dd>
         </div>
       )}

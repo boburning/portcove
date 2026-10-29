@@ -259,7 +259,7 @@ fn update_policy_summaries_follow_each_core_outcome_without_inventing_an_install
         ),
         (
             ReconcileAction::Staged,
-            "Game update downloaded for later without activation",
+            "Game update kept for later without activation",
         ),
         (ReconcileAction::Activated, "Game update activated"),
     ] {

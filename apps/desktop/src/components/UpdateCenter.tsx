@@ -1315,7 +1315,7 @@ function updateState(
   earlier = false,
 ): { label: string; tone: UpdateTone } {
   if (!outcome) {
-    if (status.staged) return { label: "Downloaded for later", tone: "staged" };
+    if (status.staged) return { label: "Update saved for later", tone: "staged" };
     if (status.acquisition)
       return {
         label: gameUpdateAcquisitionLabel(status.acquisition.phase),
@@ -1328,7 +1328,7 @@ function updateState(
   }
   if (!outcome.ok)
     return { label: earlier ? "Earlier check failed" : "Check failed", tone: "failed" };
-  if (status.staged) return { label: "Downloaded for later", tone: "staged" };
+  if (status.staged) return { label: "Update saved for later", tone: "staged" };
   if (status.acquisition)
     return {
       label: gameUpdateAcquisitionLabel(status.acquisition.phase),

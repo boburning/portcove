@@ -80,7 +80,7 @@ describe("static development scenarios", () => {
     expect(libraryReference).not.toContain('class="detail-panel ');
     const libraryAttention = renderScenario("library-reference-attention-narrow");
     expect(libraryAttention).toContain(">Review game</button>");
-    expect(libraryAttention).toContain("Downloaded for later");
+    expect(libraryAttention).toContain("Update saved for later");
     expect(libraryAttention).toContain(">Play</button>");
     const gameDetails = renderScenario("game-details-reference-narrow");
     expect(gameDetails).toContain("Play");

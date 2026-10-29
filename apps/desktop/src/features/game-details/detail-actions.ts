@@ -7,7 +7,7 @@ import type { Perform } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 
 const actionLabels: Readonly<Record<string, string>> = {
-  "activate staged update": "Apply downloaded update",
+  "activate staged update": "Apply saved update",
   "back up data": "Back up saved data",
   check: "Check for game updates",
   install: "Install game",

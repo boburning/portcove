@@ -269,9 +269,9 @@ pub(crate) enum Commands {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
     },
-    /// Apply a downloaded release as the current installed version.
+    /// Apply a saved release as the current installed version.
     Activate {
-        /// Port with a downloaded release retained for later.
+        /// Port with a saved release retained for later.
         port_id: String,
     },
     /// Return to the retained previous installed version after checking its files.

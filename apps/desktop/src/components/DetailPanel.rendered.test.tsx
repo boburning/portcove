@@ -853,7 +853,7 @@ describe("desktop components", () => {
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
     expect(downloaded).toContain("Ready to play");
     expect(downloaded).toContain("Apply update · 1.0");
-    expect(downloaded).toContain("Downloaded for later · 1.0");
+    expect(downloaded).toContain("Update saved for later · 1.0");
     expect(detailSection(downloaded, "versions")).toContain("Apply update · 1.0");
     expect(downloaded).toContain("data-update-attention");
     expect(downloaded).not.toContain('class="hero-reason"');
@@ -1768,7 +1768,7 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    expect(html).toContain("Downloaded for later · 2.0");
+    expect(html).toContain("Update saved for later · 2.0");
     expect(html).toContain("Apply update · 2.0");
     expect(html.indexOf("Play")).toBeLessThan(html.indexOf("Apply update · 2.0"));
     expect(detailSection(html, "versions")).toContain("Apply update · 2.0");

@@ -621,7 +621,7 @@ export async function installScenarios({
           assert.equal(layout.documentOverflow, false, JSON.stringify(layout));
           assert.equal(layout.state, "Ready to play");
           assert.equal(layout.reason ?? null, null);
-          assert.ok(layout.attention?.includes(`Downloaded for later · ${version}`));
+          assert.ok(layout.attention?.includes(`Update saved for later · ${version}`));
           assert.ok(layout.activate.left >= 0 && layout.activate.right <= width + 1);
           assert.ok(layout.play.left >= 0 && layout.play.right <= width + 1);
           assertStagedActionPlacement(layout);
@@ -750,7 +750,7 @@ export async function installScenarios({
       async () => {
         const section = await browser.findElement(
           By.css(
-            `.detail-panel[data-detail-port-id="${port.id}"] section[aria-label="Apply downloaded update"]`,
+            `.detail-panel[data-detail-port-id="${port.id}"] section[aria-label="Apply saved update"]`,
           ),
         );
         return (await section.getText()).includes(nextVersion);

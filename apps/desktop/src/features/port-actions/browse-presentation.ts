@@ -134,7 +134,7 @@ export function browseStatusSummary(
   const update = status?.acquisition
     ? gameUpdateAcquisitionLabel(status.acquisition.phase)
     : status?.staged
-      ? "Downloaded for later"
+      ? "Update saved for later"
       : updateAvailable
         ? "Update available at last check"
         : undefined;

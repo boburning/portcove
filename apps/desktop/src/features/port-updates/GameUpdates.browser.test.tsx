@@ -800,7 +800,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
       expect.any(Function),
     );
     expect(container.textContent).toContain(
-      "Update downloaded for later. Your current version is unchanged.",
+      "Update kept for later. Your current version is unchanged.",
     );
     expect(container.textContent).not.toContain("Update downloaded for later");
   },
@@ -912,7 +912,7 @@ it("retains authoritative success through the real wrapper when only display ref
   await click("Review game update");
   await click("Prepare update for later");
   expect(container.textContent).toContain(
-    "Update downloaded for later. Your current version is unchanged.",
+    "Update kept for later. Your current version is unchanged.",
   );
   expect(container.querySelector("[data-game-update-outcome]")).toBeNull();
   expect(actualOperation.error).toBe(refreshFailure);
@@ -1227,7 +1227,7 @@ it("downloads an immutable archive during an explicit launch without granting Ap
     },
   ]);
   expect(container.textContent).toContain("Archive downloaded");
-  expect(container.textContent).not.toContain("Downloaded for later");
+  expect(container.textContent).not.toContain("Update saved for later");
   await expect
     .element(page.getByRole("button", { name: "Review game update", exact: true }))
     .toBeDisabled();
@@ -1367,7 +1367,7 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
   expect(container.querySelector('[aria-label="Retained update archive"]')?.textContent).toContain(
     "separate from a prepared update",
   );
-  expect(container.textContent).not.toContain("Downloaded for later");
+  expect(container.textContent).not.toContain("Update saved for later");
   const prepared = [...container.querySelectorAll(".update-stat")].find((stat) =>
     stat.textContent?.includes("Prepared updates"),
   );
