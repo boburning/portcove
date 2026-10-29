@@ -40,13 +40,13 @@
   }
   .collection-covers {
     --collection-art-limit: 260px;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.25rem), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
     align-items: stretch;
     gap: 1.875rem var(--space-5);
   }
   @media (max-height: 50rem) and (min-width: 47.5rem) {
     .collection-covers {
-      --collection-art-limit: 11.25rem;
+      --collection-art-limit: min(260px, 11.25rem);
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
     }
   }

@@ -15,9 +15,15 @@
   .media-gallery-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .media-thumbnail {
+    aspect-ratio: 16 / 9;
+    display: grid;
+    place-items: center;
+    background: var(--color-bg-subtle);
+  }
   .media-thumbnail img {
     width: 100%;
-    height: auto;
+    height: 100%;
     object-fit: contain;
   }
   .media-viewer-stage img {
@@ -29,12 +35,119 @@
     margin-inline: auto;
     object-fit: contain;
   }
+  .detail-notice-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-block: 0.75rem;
+  }
+  .detail-notice-row > svg {
+    flex: none;
+    inline-size: 1.125rem;
+    block-size: 1.125rem;
+  }
+  .detail-notice-row > span {
+    min-inline-size: 0;
+    flex: 1;
+  }
+  .detail-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .detail-history-resource > button {
+    display: flex;
+    inline-size: 100%;
+    justify-content: start;
+    gap: 0.75rem;
+    padding-block: 1rem;
+    border-block: 1px solid var(--color-border-subtle);
+  }
+  .detail-history-resource > button > span {
+    flex: 1;
+    text-align: start;
+  }
+  .detail-backup-empty {
+    display: flex;
+    align-items: start;
+    gap: 1rem;
+    padding: 1.5rem;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+  .detail-backup-empty > svg {
+    flex: none;
+    color: var(--color-text-muted);
+  }
+  .detail-backup-empty p {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+  }
+  .detail-version-stage {
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+    padding: 1.5rem;
+  }
+  .detail-version-pair {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: center;
+  }
+  .detail-version-pair > div {
+    display: grid;
+    justify-items: start;
+    gap: 0.75rem;
+    min-inline-size: 0;
+    flex: 1 1 12rem;
+  }
+  .detail-version-pair strong {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 650;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .detail-version-label {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+  .detail-version-direction {
+    flex: none;
+    color: var(--color-text-muted);
+  }
+  .detail-version-context {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding-block-start: 1rem;
+    margin-block: 1.25rem 0;
+    border-block-start: 1px solid var(--color-border-subtle);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+  @container detail (max-width: 28em) {
+    .detail-version-direction {
+      transform: rotate(90deg);
+    }
+    .detail-version-pair {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .detail-version-pair > div {
+      flex-basis: auto;
+    }
+  }
   .detail-title {
     max-width: 24ch;
     font-size: clamp(1.75rem, 3vw, 3rem);
     font-weight: 650;
     text-wrap: balance;
-    line-height: 1.2;
+    line-height: 1.3;
     letter-spacing: -0.035em;
   }
   .detail-project {
@@ -211,29 +324,6 @@
     border-radius: 0.75rem;
     background: var(--color-bg-elevated);
   }
-  .detail-version-comparison {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
-    gap: 1.25rem;
-    margin: 0 0 1.5rem;
-    padding: 1.5rem;
-    border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-lg);
-    background: var(--color-bg-elevated);
-  }
-  .detail-version-comparison > div {
-    min-inline-size: 0;
-  }
-  .detail-version-comparison dt {
-    font-size: var(--text-xs);
-    color: var(--color-text-secondary);
-  }
-  .detail-version-comparison dd {
-    margin: 0.5rem 0 0;
-    font-size: var(--text-lg);
-    font-weight: 600;
-    overflow-wrap: anywhere;
-  }
   .detail-danger-zone {
     margin-block: 1.75rem;
     border-block-start: 1px solid var(--color-danger-border);
@@ -374,7 +464,7 @@
     padding: 0;
     flex: 1 1 14rem;
   }
-  .detail-tab-panel .installation-facts:not(.detail-version-comparison) {
+  .detail-tab-panel .installation-facts {
     border: 0;
     background: transparent;
   }
@@ -382,7 +472,7 @@
     min-width: 0;
   }
   @container detail (min-width: 64em) {
-    .media-gallery-grid:has(> :nth-child(3)) {
+    .media-gallery-grid:has(> :nth-child(3):last-child) {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }

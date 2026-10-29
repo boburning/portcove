@@ -108,7 +108,9 @@ for (const theme of ["dark", "light"]) {
       expect(cover.right).toBeLessThanOrEqual(innerWidth);
       expect(cover.height).toBeGreaterThan(cover.width);
       const play = page.getByRole("button", { name: "Play", exact: true });
-      expect(play.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(180);
+      // The shared prototype-style primary has a 9rem floor instead of a fixed12rem width.
+      expect(play.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(144);
+      expect(play.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
       expect(play.element().getBoundingClientRect().width).toBeLessThanOrEqual(220);
       await capture(`managed-${theme}-${width}`);
       for (const label of [
@@ -417,8 +419,10 @@ it.each([1440, 1024, 740])(
         (button) => button.textContent?.trim() === "Play",
       )!;
       const bounds = play.getBoundingClientRect();
-      expect(bounds.width).toBeGreaterThanOrEqual(Math.min(192 * scale, actions.clientWidth) - 1);
+      expect(bounds.width).toBeGreaterThanOrEqual(Math.min(144 * scale, actions.clientWidth) - 1);
       expect(bounds.right).toBeLessThanOrEqual(actions.getBoundingClientRect().right + 1);
+      expect(bounds.left).toBeGreaterThanOrEqual(actions.getBoundingClientRect().left - 1);
+      expect(bounds.height).toBeGreaterThanOrEqual(44 * scale - 1);
       expect(play.disabled).toBe(false);
       play.focus();
       await expect.element(play).toHaveFocus();

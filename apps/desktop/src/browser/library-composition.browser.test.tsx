@@ -622,8 +622,9 @@ it("keeps a sidebar collection selected through detail return and compact naviga
   await expect
     .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
     .toBe("collection-0");
+  const collectionElement = collection.element();
   await page.viewport(740, 900);
-  await expect.element(collection).not.toBeVisible();
+  await expect.element(collectionElement).not.toBeVisible();
   const compact = page.getByRole("button", { name: "Collections · Weekend games", exact: true });
   await expect.element(compact).toBeVisible();
   await compact.click();
@@ -637,6 +638,7 @@ it("keeps a sidebar collection selected through detail return and compact naviga
 it("keeps a singleton port review readable below its close control at narrow width", async () => {
   await page.viewport(320, 844);
   await mount();
+  await page.getByRole("button", { name: "Open navigation", exact: true }).click();
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   await page.getByRole("button", { name: "Why this port?", exact: true }).first().click();
   const dialog = page.getByRole("dialog");
@@ -674,10 +676,28 @@ it.each([
   [1024, 800, 4],
   [740, 900, 3],
 ])("preserves the prototype cover density at %ipx by %ipx", async (width, height, columns) => {
-  await page.viewport(width!, height!);
+  await page.viewport(width, height);
   await mount();
   const grid = document.querySelector<HTMLElement>(".collection-covers")!;
-  expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns!);
+  expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
   const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
   expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+});
+
+it("shares Discover membership quick views with filters while preserving search", async () => {
+  await page.viewport(1024, 800);
+  await mount();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  const search = page.getByRole("textbox", { name: "Search Discover", exact: true });
+  await search.fill("Mario");
+  const quickViews = page.getByRole("group", { name: "Discover collections", exact: true });
+  await quickViews.getByRole("button", { name: "Not in library", exact: true }).click();
+  await expect.element(search).toHaveValue("Mario");
+  await expect
+    .element(quickViews.getByRole("button", { name: "Not in library", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(0);
+  await quickViews.getByRole("button", { name: "All games", exact: true }).click();
+  await expect.element(search).toHaveValue("Mario");
+  await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(2);
 });

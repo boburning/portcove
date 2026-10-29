@@ -18,7 +18,7 @@ import { GameHero } from "./GameHero";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
-import { platformLabel, releaseChannelPresentation } from "../view-model";
+import { releaseChannelPresentation } from "../view-model";
 import type { PortDefinition, ReleaseChannel } from "../types";
 import { Chip } from "./ui/chip";
 import { ExternalLink } from "./ExternalLink";
@@ -202,15 +202,16 @@ export function DetailLayout({
                 {identityLabel(system)}
               </Chip>
             ))}
-            {port.platforms?.map((platform) => {
-              const system = platform.split("-")[0]!;
-              return (
-                <Chip key={`platform:${platform}`} style={identityStyle(system)} title="Runs on">
-                  <IdentityIcon name={system} />
-                  {platformLabel(platform)}
-                </Chip>
-              );
-            })}
+            {[...new Set(port.platforms?.map((platform) => platform.split("-")[0]!))].map(
+              (system) => {
+                return (
+                  <Chip key={`platform:${system}`} style={identityStyle(system)} title="Runs on">
+                    <IdentityIcon name={system} />
+                    {identityLabel(system)}
+                  </Chip>
+                );
+              },
+            )}
             {(selectedChannel ? [selectedChannel] : port.channels)?.map((channel) => (
               <Chip
                 key={`channel:${channel}`}

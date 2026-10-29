@@ -15,7 +15,7 @@ export function PortSearch({
   library?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
-  const label = library ? "Search your library" : "Search Find games";
+  const label = library ? "Search your library" : "Search Discover";
   return (
     <div className="search flex min-h-(--control-height-lg) max-w-full min-w-0 items-center gap-2 rounded-pc-md border border-pc-input bg-pc-surface px-3 text-pc-muted-foreground focus-within:outline-3 focus-within:outline-offset-3 focus-within:outline-pc-ring">
       <Icon glyph={Search} />

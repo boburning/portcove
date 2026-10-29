@@ -401,7 +401,50 @@ function PortBrowserView({
           <OrganizationControls
             organization={model.organization}
             selected={model.organizationView}
-            onSelect={model.setOrganizationView}
+            onSelect={(value) => {
+              model.setOrganizationView(value);
+              favorites?.setOnly(false);
+              model.setFilter((current) => {
+                const query = queryFromFilter(current);
+                return query.version === 1 ? { ...query, membership: [] } : current;
+              });
+            }}
+            allSelected={
+              model.organizationView === "all" &&
+              !favorites?.only &&
+              !queryFromFilter(model.filter).membership?.length
+            }
+            afterAll={
+              <Button
+                size="sm"
+                data-focusable
+                variant={
+                  queryFromFilter(model.filter).membership?.length === 1 &&
+                  queryFromFilter(model.filter).membership?.[0] === "not-in-library"
+                    ? "selected"
+                    : "ghost"
+                }
+                aria-pressed={
+                  queryFromFilter(model.filter).membership?.length === 1 &&
+                  queryFromFilter(model.filter).membership?.[0] === "not-in-library"
+                }
+                disabled={
+                  queryFromFilter(model.filter).version !== 1 || !model.queryContext?.library
+                }
+                onClick={() => {
+                  model.setOrganizationView("all");
+                  favorites?.setOnly(false);
+                  model.setFilter((current) => {
+                    const query = queryFromFilter(current);
+                    return query.version === 1
+                      ? { ...query, membership: ["not-in-library"] }
+                      : current;
+                  });
+                }}
+              >
+                Not in library
+              </Button>
+            }
             discover
           >
             {renderFilters()}
@@ -1391,11 +1434,20 @@ function renderFiltersPortBrowserView(
             aria-label={`Favorites (${model.favoriteCount ?? "unavailable"})`}
             aria-pressed={favorites.only}
             disabled={!favorites.ids}
-            onClick={() => favorites.setOnly(!favorites.only)}
+            onClick={() => {
+              if (model.view === "catalog") {
+                model.setOrganizationView("all");
+                model.setFilter((current) => {
+                  const query = queryFromFilter(current);
+                  return query.version === 1 ? { ...query, membership: [] } : current;
+                });
+              }
+              favorites.setOnly(!favorites.only);
+            }}
           >
-            Favorites
+            Favorites{" "}
             <span className="browse-count">
-              {model.favoriteCount === undefined ? "unavailable" : model.favoriteCount}
+              ({model.favoriteCount === undefined ? "unavailable" : model.favoriteCount})
             </span>
           </Button>
         )}
@@ -1468,9 +1520,9 @@ function BrowserQuickViews({
           aria-label={`Favorites ${model.favoriteCount === undefined ? "(unavailable)" : `(${model.favoriteCount})`}`}
           onClick={() => favorites.setOnly(!favorites.only)}
         >
-          Favorites
+          Favorites{" "}
           <span className="browse-count" aria-hidden="true">
-            {model.favoriteCount ?? "—"}
+            ({model.favoriteCount ?? "unavailable"})
           </span>
         </Button>
       )}

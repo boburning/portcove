@@ -1496,7 +1496,6 @@ function AboutCard() {
         />
       </div>
       <div className="self-center">
-        <h2 className="mb-2 text-xl">About Portcove</h2>
         <p className="leading-relaxed text-pc-muted-foreground">
           Install, update, and play native game ports. Portcove keeps track of your library,
           installed versions, saved file locations, and recovery information.

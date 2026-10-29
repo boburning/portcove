@@ -252,7 +252,7 @@ describe("update center presentation", () => {
     });
     expect(savedAvailable).toContain(">Update available at last check</span>");
     expect(savedAvailable).toMatch(/<strong[^>]*>1<\/strong><span[^>]*>Updates available<\/span>/u);
-    expect(savedAvailable).toContain("offered version: </span>2.0");
+    expect(savedAvailable.replace(/<[^>]*>/gu, "")).toContain("offered version: 2.0");
     const changedInstall = render({ ...savedStatus, active: installRecord({ version: "2.0" }) });
     expect(changedInstall).toContain("Update results cover 0 of 1 installed port.");
     expect(changedInstall).toContain(">Not checked</span>");
@@ -501,7 +501,7 @@ it.each(["pending", "failed", "cancelled"] as const)(
     expect(html).toContain("Updates at last check");
     expect(html).toContain("Failed at last check");
     expect(html).toContain("Latest eligible at last check");
-    expect(html).toContain("offered version: </span>2.0");
+    expect(html.replace(/<[^>]*>/gu, "")).toContain("offered version: 2.0");
     expect(html).not.toContain(">Update available</span>");
   },
 );

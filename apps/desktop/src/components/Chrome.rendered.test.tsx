@@ -559,6 +559,7 @@ describe("desktop components", () => {
       "game-files",
       "updates",
       "integrations",
+      "controls",
       "advanced",
       "about",
     ]) {
@@ -566,10 +567,11 @@ describe("desktop components", () => {
       expect(html).toContain(`id="settings-${id}-heading"`);
       expect(index).toContain(`aria-controls="settings-${id}"`);
     }
-    expect(index?.match(/data-slot="button"/gu)).toHaveLength(7);
+    expect(index?.match(/data-slot="button"/gu)).toHaveLength(8);
     expect(index?.match(/aria-current="page"/gu)).toHaveLength(1);
     expect(index).toContain("Library and storage");
     expect(index).toContain("Updates");
+    expect(index).toContain("Keyboard and controller");
   });
 
   it("hides unavailable device sign-in without exposing build configuration", () => {

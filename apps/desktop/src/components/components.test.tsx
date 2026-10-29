@@ -134,6 +134,7 @@ describe("desktop components", () => {
       "game-files",
       "updates",
       "integrations",
+      "controls",
       "advanced",
       "about",
     ]);
@@ -163,6 +164,9 @@ describe("desktop components", () => {
     expect(groupMarkup("updates")).toContain('class="settings-section-description ');
     expect(groupMarkup("updates")).toContain('class="settings-section-content ');
     expect(groupMarkup("integrations")).toContain("GitHub connection");
+    expect(groupMarkup("integrations")).toContain("Steam shortcuts");
+    expect(groupMarkup("controls")).toContain("Keyboard shortcuts");
+    expect(groupMarkup("controls")).toContain("Controller navigation");
     const advanced = groupMarkup("advanced");
     expect(advanced.indexOf("Create support bundle")).toBeLessThan(
       advanced.indexOf("Original game files stay local"),
@@ -190,7 +194,8 @@ describe("desktop components", () => {
       ["library-storage", "game-files", 3],
       ["game-files", "updates", 3],
       ["updates", "integrations", 2],
-      ["integrations", "advanced", 1],
+      ["integrations", "controls", 2],
+      ["controls", "advanced", 2],
       ["advanced", "about", 3],
       ["about", null, 1],
     ] as const;

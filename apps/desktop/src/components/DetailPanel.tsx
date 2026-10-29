@@ -1,3 +1,6 @@
+import { Chip } from "./ui/chip";
+import { IdentityIcon } from "../features/identity/IdentityIcon";
+import { identityStyle } from "../features/identity/identity-style";
 import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
 import { gameFilesPresentation } from "../features/port-actions/browse-presentation";
 import { CurrentStateSummary, ManagementRow } from "./ui/patterns";
@@ -32,6 +35,7 @@ import {
   AlertTriangle,
   ArchiveX,
   ArrowRight,
+  Info,
   Play,
   CheckCircle2,
   ChevronDown,
@@ -313,6 +317,14 @@ export function DetailPanel(props: DetailPanelProps) {
       openSupport={props.openSupport}
       organization={props.organization}
       cancellations={renderCancellations()}
+      hasFileObservations={Boolean(
+        (props.browsingMatch && props.browsingBinding) ||
+        (!props.browsingMatch && props.gameFileFilterContext?.byPort.has(port.id)) ||
+        props.gameFileObservation?.lastAccepted?.routes.some(
+          (route) => route.port_id === port.id,
+        ) ||
+        (props.libraryGeneration !== undefined && selectedChannel),
+      )}
       observations={
         <>
           {!props.browsingMatch && (
@@ -377,7 +389,7 @@ export function DetailPanel(props: DetailPanelProps) {
 interface DetailState {
   title: string;
   description: string;
-  tone: "setup" | "available" | "ready";
+  tone: "setup" | "available" | "ready" | "unknown";
   icon: LucideIcon;
   updateAttention?: string;
 }
@@ -393,6 +405,7 @@ function DetailBody(model: {
   organization?: DetailOrganization | undefined;
   cancellations: ReactNode;
   observations: ReactNode;
+  hasFileObservations: boolean;
   installCancellations?: ActivityRecord[] | undefined;
   perform?: Perform | undefined;
   prepare?: RunPreparation | undefined;
@@ -464,7 +477,9 @@ function DetailBody(model: {
             "inline-flex items-center gap-2",
             model.state.tone === "ready"
               ? "text-pc-success-foreground"
-              : "text-pc-warning-foreground",
+              : model.state.tone === "available" || model.state.tone === "unknown"
+                ? "text-pc-muted-foreground"
+                : "text-pc-warning-foreground",
           )}
         >
           <Icon glyph={model.state.icon} />
@@ -501,27 +516,34 @@ function DetailBody(model: {
         <>
           {model.cancellations}
           {busy ? (
-            <p role="status">
-              Working: {busy}.{" "}
-              <Button variant="link" onClick={() => reveal(detailWorkSection(busy))}>
-                View work
-              </Button>
-            </p>
+            <div role="status" className="detail-notice-row">
+              <Icon glyph={RefreshCw} />
+              <span>
+                Working: {busy}.{" "}
+                <Button variant="link" onClick={() => reveal(detailWorkSection(busy))}>
+                  View work <Icon glyph={ArrowRight} />
+                </Button>
+              </span>
+            </div>
           ) : model.state.tone !== "ready" ? (
-            <p>
-              <span data-detail-reason>{model.state.description}</span>{" "}
-            </p>
+            <div className="detail-notice-row">
+              <Icon glyph={Info} />
+              <span data-detail-reason>{model.state.description}</span>
+            </div>
           ) : null}
           {(model.runtimeUpdateAvailable || model.stagedVersion) && (
-            <p data-update-attention>
-              {model.stagedVersion
-                ? "Update saved for later · " + model.stagedVersion
-                : (model.state.updateAttention ??
-                  "An update was available at the last check.")}{" "}
-              <Button variant="link" onClick={() => reveal("versions")}>
-                Review version
-              </Button>
-            </p>
+            <div data-update-attention className="detail-notice-row">
+              <Icon glyph={Download} />
+              <span>
+                {model.stagedVersion
+                  ? "Update saved for later · " + model.stagedVersion
+                  : (model.state.updateAttention ??
+                    "An update was available at the last check.")}{" "}
+                <Button variant="link" onClick={() => reveal("versions")}>
+                  Review update <Icon glyph={ArrowRight} />
+                </Button>
+              </span>
+            </div>
           )}
         </>
       )}
@@ -905,7 +927,10 @@ function UpdatesGroup({
     </>
   );
   return (
-    <DetailGroup title="Updates">
+    <DetailGroup
+      title="Updates"
+      action={installed ? <UpdateCheckAction busy={busy} check={actions.check} /> : undefined}
+    >
       {status?.staged && (
         <section aria-label="Apply saved update">
           <p>
@@ -923,7 +948,6 @@ function UpdatesGroup({
                 : "No update was found at the last check. You can check again."
               : "No update check is saved for this installation and channel."}
           </p>
-          {!knownCandidate && <UpdateCheckAction busy={busy} check={actions.check} />}
           {knownCandidate && (
             <GameUpdateControl
               key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`}
@@ -938,7 +962,6 @@ function UpdatesGroup({
               primary={knownCandidate}
             />
           )}
-          {knownCandidate && <UpdateCheckAction busy={busy} check={actions.check} />}
         </>
       )}
       <details className="mt-4">
@@ -1027,6 +1050,7 @@ function SavesStorageGroup({
       </CurrentStateSummary>
       {hasBackupHistory && (
         <BackupHistory
+          embedded
           gameName={gameIdentityLabel(port)}
           key={`${port.id}:${libraryGeneration}`}
           generation={libraryGeneration}
@@ -1079,31 +1103,36 @@ function DetailGroup({
   children,
   headingRef,
   hideHeading = false,
+  action,
   headingId: explicitHeadingId,
 }: {
   title: string;
   children: React.ReactNode;
   headingRef?: RefObject<HTMLHeadingElement | null>;
   hideHeading?: boolean;
+  action?: ReactNode;
   headingId?: string;
 }) {
   const headingId = explicitHeadingId ?? `detail-${title.toLowerCase().replaceAll(" ", "-")}`;
   return (
     <section className="detail-group mt-7 grid gap-4 first:mt-0" aria-labelledby={headingId}>
-      <h2
-        ref={headingRef}
-        id={headingId}
-        tabIndex={-1}
-        className={cn("m-0 text-base", hideHeading && "sr-only")}
-      >
-        {title}
-      </h2>
+      <div className="detail-section-heading">
+        <h2
+          ref={headingRef}
+          id={headingId}
+          tabIndex={-1}
+          className={cn("m-0 text-base", hideHeading && "sr-only")}
+        >
+          {title}
+        </h2>
+        {action}
+      </div>
       <div className="grid gap-4">{children}</div>
     </section>
   );
 }
 
-function InstallationVersionSummary({
+export function InstallationVersionSummary({
   status,
   selectedChannel,
 }: {
@@ -1111,40 +1140,61 @@ function InstallationVersionSummary({
   selectedChannel: ReleaseChannel;
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
+  const candidate =
+    status?.staged?.version ?? (checked?.update_available ? checked.release.version : undefined);
+  const channel = status?.active?.channel ?? selectedChannel;
+  const channelChip = (value: ReleaseChannel) => (
+    <Chip style={identityStyle(value, true)}>
+      <IdentityIcon name={value} channel />
+      {releaseChannelPresentation(value).label}
+    </Chip>
+  );
   return (
-    <dl
-      className="installation-facts detail-version-comparison"
-      aria-label="Installation and release versions"
-    >
-      <div>
-        <dt>Installed version</dt>
-        <dd>{status?.active?.version ?? "Not installed"}</dd>
+    <section className="detail-version-stage" aria-label="Installation and release versions">
+      <div className="detail-version-pair">
+        <div className="detail-version-current">
+          <p className="detail-version-label">
+            {status?.active ? "Installed version" : "No managed installation"}
+          </p>
+          <strong>{status?.active?.version ?? "Not installed"}</strong>
+          {status?.active && channelChip(channel)}
+        </div>
+        {candidate && (
+          <>
+            <Icon glyph={ArrowRight} className="detail-version-direction" />
+            <div className="detail-version-candidate">
+              <p className="detail-version-label">
+                {status?.staged ? "Update saved for later" : "Available at last check"}
+              </p>
+              <strong>{candidate}</strong>
+              {channelChip(status?.staged?.channel ?? selectedChannel)}
+            </div>
+          </>
+        )}
       </div>
-      <div>
-        <dt>
-          {status?.active?.channel === selectedChannel ? "Release channel" : "Selected channel"}
-        </dt>
-        <dd>{releaseChannelPresentation(selectedChannel).label}</dd>
-      </div>
-      {status?.active && status.active.channel !== selectedChannel && (
-        <div>
-          <dt>Installed channel</dt>
-          <dd>{releaseChannelPresentation(status.active.channel).label}</dd>
-        </div>
+      {channel !== selectedChannel && (
+        <p className="detail-version-context">
+          Selected channel for future checks: {channelChip(selectedChannel)}
+        </p>
       )}
-      {checked && (
-        <div>
-          <dt>Latest version at last check</dt>
-          <dd>{checked.release.version}</dd>
-        </div>
+      {!candidate && (
+        <p className="detail-version-context">
+          {!status?.active
+            ? "Set up this game before managing its installed versions here."
+            : checked
+              ? `No update was found at the last check (${checked.release.version}).`
+              : "Check for updates to see the latest available version."}
+        </p>
       )}
-      {status?.staged && (
-        <div>
-          <dt>Update saved for later</dt>
-          <dd>{status.staged.version}</dd>
-        </div>
-      )}
-    </dl>
+      {status?.staged &&
+        checked?.update_available &&
+        checked.release.version !== status.staged.version && (
+          <p className="detail-version-context">
+            Latest version at last check: {checked.release.version}. The downloaded update above is
+            separate.
+          </p>
+        )}
+    </section>
   );
 }
 
@@ -2811,8 +2861,8 @@ function presentDetailState({
     ? {
         title: "Readiness unavailable",
         description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
-        tone: "setup",
-        icon: AlertTriangle,
+        tone: "unknown",
+        icon: Info,
       }
     : installed &&
         launchReady &&
@@ -3343,7 +3393,6 @@ function DetailRequirementsFacts({
         <dt>Readiness</dt>
         <dd>{model.state.title}</dd>
       </div>
-      <ListingMaintenanceFacts listing={model.displayPort?.listing} />
     </dl>
   );
 }
@@ -3366,7 +3415,7 @@ function DetailOverviewActions({
           <Icon glyph={FolderOpen} />
           <span>
             <strong>Game files</strong>
-            <small>Requirements and current file checks</small>
+            <small>{gameFilesPresentation(model.port, model.status).title}</small>
           </span>
           <Icon glyph={ArrowRight} />
         </Button>
@@ -3381,24 +3430,25 @@ function DetailOverviewActions({
             <small>
               {model.status?.external_runtime
                 ? "Managed outside Portcove"
-                : model.backups.length
-                  ? `${model.backups.length} recorded backups`
-                  : "Coverage and backup options"}
+                : model.backupReadState?.status === "current" &&
+                    model.backupReadState.hasInventory &&
+                    model.backupState === "healthy"
+                  ? `${model.backups.length} ${model.backups.length === 1 ? "backup" : "backups"}`
+                  : "Review backup history"}
             </small>
           </span>
           <Icon glyph={ArrowRight} />
         </Button>
       </div>
-      <div className="flex flex-wrap gap-3">
-        <Button variant="link" onClick={() => reveal("versions")}>
-          Versions and updates
-        </Button>
-        {model.openActivity && (
-          <Button variant="link" onClick={model.openActivity}>
-            Activity and history
+      {model.openActivity && (
+        <div className="detail-history-resource">
+          <Button variant="ghost" onClick={model.openActivity}>
+            <Icon glyph={FileSearch} />
+            <span>Activity and history</span>
+            <Icon glyph={ArrowRight} />
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }
@@ -3420,6 +3470,9 @@ function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody
       <details className="mt-6">
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />
+        <dl className="detail-facts">
+          <ListingMaintenanceFacts listing={model.displayPort?.listing} />
+        </dl>
       </details>
       <details className="mt-4">
         <summary data-focusable>Compatibility qualifications</summary>
@@ -3502,10 +3555,12 @@ function DetailFilesSection({
             {model.status?.active?.path ?? model.status?.external_runtime?.path}
           </p>
         )}
-        <details className="detail-file-observations">
-          <summary data-focusable>File matching details</summary>
-          {model.observations}
-        </details>
+        {model.hasFileObservations && (
+          <details className="detail-file-observations">
+            <summary data-focusable>File matching details</summary>
+            {model.observations}
+          </details>
+        )}
       </aside>
     </div>
   );
@@ -3632,12 +3687,22 @@ function DetailSavesSection({
   return (
     <>
       {external ? (
-        <CurrentStateSummary title="Saves managed externally">
+        <CurrentStateSummary
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Icon glyph={FolderOpen} />
+              Saves managed externally
+            </span>
+          }
+        >
           <section aria-label="Saved-data coverage">
             <p>
               This installation’s saves and settings stay outside Portcove’s managed backups,
               updates and removal. Follow the port’s instructions to copy them separately.
             </p>
+            <ProjectLink href={model.port.project_url}>
+              Open upstream project <Icon glyph={ArrowRight} />
+            </ProjectLink>
           </section>
         </CurrentStateSummary>
       ) : (
@@ -3676,23 +3741,28 @@ function DetailVersionsSection({
     <div className="detail-versions-workspace">
       <div className="detail-version-main">
         {model.status?.external_runtime ? (
-          <dl className="detail-facts">
-            <div>
-              <dt>Current installation</dt>
-              <dd>Registered external installation · {model.status.external_runtime.version}</dd>
-            </div>
-            <div>
-              <dt>Updates</dt>
-              <dd>Maintained by you or the upstream launcher</dd>
-            </div>
-          </dl>
+          <CurrentStateSummary
+            title={
+              <span className="inline-flex items-center gap-2">
+                <Icon glyph={ExternalLink} />
+                Updates managed externally
+              </span>
+            }
+          >
+            <p>
+              Registered version {model.status.external_runtime.version}. You or the upstream
+              launcher maintain this installation.
+            </p>
+            <ProjectLink href={model.port.project_url}>
+              Open upstream project <Icon glyph={ArrowRight} />
+            </ProjectLink>
+          </CurrentStateSummary>
         ) : (
           <InstallationVersionSummary
             status={model.status}
             selectedChannel={model.selectedChannel}
           />
         )}
-        {model.status?.previous && <p>Previous version · {model.status.previous.version}</p>}
         {!external && model.port.release.provider !== "user-prepared" && (
           <UpdatesGroup
             perform={model.perform}
@@ -3716,15 +3786,24 @@ function DetailVersionsSection({
               activate={model.actions.activate}
             />
             {model.installed && (
-              <VersionRollback
-                status={model.status}
-                busy={model.busy}
-                rollback={model.actions.rollback}
-              />
+              <ManagementRow
+                title="Previous version"
+                description={
+                  model.status?.previous
+                    ? `Retained version ${model.status.previous.version}. Review rollback availability before switching.`
+                    : "No previous version is recorded."
+                }
+              >
+                <VersionRollback
+                  status={model.status}
+                  busy={model.busy}
+                  rollback={model.actions.rollback}
+                />
+              </ManagementRow>
             )}
           </>
         )}
-        {(external || model.port.release.provider === "user-prepared") && (
+        {!external && model.port.release.provider === "user-prepared" && (
           <p className="mt-4">
             You or the upstream launcher manage updates for this installation.{" "}
             <ProjectLink href={model.port.project_url}>Open upstream project</ProjectLink>

@@ -146,21 +146,6 @@
     max-width: 12rem;
     overflow-wrap: anywhere;
   }
-  .update-center .activity-empty {
-    min-height: 132px;
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    background: var(--color-bg-elevated);
-  }
-  .update-center .activity-empty > span {
-    display: grid;
-    flex: none;
-    width: 42px;
-    height: 42px;
-    place-items: center;
-    border-radius: 10px;
-    background: var(--color-bg-subtle);
-  }
   .update-center [data-record-view="history"] .activity-row {
     grid-template-columns: 36px minmax(0, 1fr) max-content max-content;
     border-width: 0 0 1px;
@@ -254,6 +239,9 @@
     }
   }
   @media (width <= 42rem) {
+    .update-center .external-update-action {
+      justify-items: start;
+    }
     .update-center .activity-heading {
       flex-direction: column;
       align-items: start;

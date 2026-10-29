@@ -36,7 +36,7 @@ function filterFieldForChoice(name: string) {
       name,
     )
   )
-    return "Game files for the observed route";
+    return "Game files";
   throw new Error(`No test fixture field registered for ${name}`);
 }
 

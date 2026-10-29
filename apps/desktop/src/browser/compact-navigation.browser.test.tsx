@@ -221,7 +221,7 @@ for (const theme of ["light", "dark"]) {
         .getBoundingClientRect().bottom,
     );
     const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-    expect(categories.element().querySelectorAll("button")).toHaveLength(7);
+    expect(categories.element().querySelectorAll("button")).toHaveLength(8);
     await categories.getByRole("button", { name: "Library and storage", exact: true }).click();
     await expect
       .element(page.getByRole("button", { name: "Choose another library", exact: true }))

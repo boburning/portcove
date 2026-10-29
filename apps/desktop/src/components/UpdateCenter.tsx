@@ -330,11 +330,12 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
               ? "Some update checks failed"
               : model.checked.length === 0
                 ? "Updates not checked"
-                : `${model.available}${model.complete ? "" : "+"} updates available${model.earlierBatch ? " at last check" : ""}`}
+                : `${model.available}${model.complete ? "" : "+"} ${model.available === 1 && model.complete ? "update" : "updates"} available${model.earlierBatch ? " at last check" : ""}`}
         </h2>
         <p className="text-sm text-pc-muted-foreground">
-          {model.checked.length} of {model.installed.length} installed ports have a check result.
-          Unchecked or failed ports may still have updates.
+          {model.checked.length} of {model.installed.length} installed{" "}
+          {model.installed.length === 1 ? "port has" : "ports have"} a check result. Unchecked or
+          failed ports may still have updates.
         </p>
       </div>
       <UpdateCheckControl
@@ -555,18 +556,18 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
           </p>
           <h3>Update statistics</h3>
           {model.renderStatistics()}
+          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+            Looking for Portcove or catalog updates?{" "}
+            <Button
+              data-focusable
+              variant="link"
+              size="xs"
+              onClick={() => model.onOpenSettings("application-updates")}
+            >
+              Open Portcove update settings
+            </Button>
+          </p>
         </details>
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Looking for Portcove or catalog updates?{" "}
-          <Button
-            data-focusable
-            variant="link"
-            size="xs"
-            onClick={() => model.onOpenSettings("application-updates")}
-          >
-            Open Portcove update settings
-          </Button>
-        </p>
         {model.installed.length > 0 && (
           <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
             {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
@@ -676,8 +677,13 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
                         </span>
                       </div>
                     </div>
-                    <span className={`${updateStateClass} ${updateStateTones.muted}`}>
-                      Updated externally
+                    <span className="external-update-action grid justify-items-end gap-3">
+                      <span className={`${updateStateClass} ${updateStateTones.muted}`}>
+                        Updated externally
+                      </span>
+                      <span className="inline-flex items-center gap-2 text-xs font-medium text-pc-interactive-foreground">
+                        View game <Icon glyph={ArrowRight} size="sm" />
+                      </span>
                     </span>
                   </button>
                 );
@@ -931,23 +937,19 @@ function ActivityHistory({
         )}
       </div>
       {shownActivities.length === 0 && (
-        <div className="activity-empty flex items-center gap-3 p-4 text-start text-xs text-pc-muted-foreground">
-          <span className="text-pc-interactive-foreground">
-            <Icon glyph={History} />
-          </span>
-          <div>
-            <strong className="block text-pc-secondary-foreground">
-              {mode === "history"
-                ? "No finished tasks in these records"
-                : "No current tasks in these records"}
-            </strong>
-            <span className="mt-1 block">
-              {mode === "history"
-                ? "Recorded installs, updates, checks and failures appear here when they finish."
-                : "Installs, updates, checks and items needing attention appear here. Finished records are in History."}
-            </span>
-          </div>
-        </div>
+        <EmptyState
+          icon={History}
+          title={
+            mode === "history"
+              ? "No finished tasks in these records"
+              : "No current tasks in these records"
+          }
+          description={
+            mode === "history"
+              ? "Recorded installs, updates, checks and failures appear here when they finish."
+              : "Installs, updates, checks and items needing attention appear here. Finished records are in History."
+          }
+        />
       )}
       <div className="activity-list grid gap-1.5">
         {groups

@@ -388,3 +388,16 @@
     }
   }
 }
+
+@layer utilities {
+  @media (width <= 22rem) {
+    .app-shell > main {
+      padding-block-start: var(--space-4);
+    }
+    [data-library-header],
+    .continue-card,
+    .library-query-tools {
+      margin-block-end: var(--space-3);
+    }
+  }
+}

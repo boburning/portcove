@@ -1,4 +1,4 @@
-import { useId, useState, useRef, type ReactNode } from "react";
+import { Fragment, useId, useState, useRef, type ReactNode } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { Menu } from "@base-ui/react/menu";
 import { Bookmark, EyeOff, Eye, Check, Folder, Plus } from "lucide-react";
@@ -51,7 +51,11 @@ export function OrganizationControls({
   children,
   trigger,
   triggerLabel,
+  afterAll,
+  allSelected,
 }: {
+  afterAll?: ReactNode;
+  allSelected?: boolean;
   children?: ReactNode;
   trigger?: ReactNode;
   triggerLabel?: string;
@@ -80,18 +84,24 @@ export function OrganizationControls({
             ]
           : [["hidden", "Hidden"]]),
       ].map(([id, label]) => (
-        <Button
-          key={id}
-          ref={id === "all" ? allGames : undefined}
-          data-focusable
-          variant={selected === id ? "selected" : "ghost"}
-          size="sm"
-          aria-pressed={selected === id}
-          disabled={!snapshot && id !== "all"}
-          onClick={() => onSelect(id!)}
-        >
-          {label}
-        </Button>
+        <Fragment key={id}>
+          <Button
+            ref={id === "all" ? allGames : undefined}
+            data-focusable
+            variant={
+              (id === "all" ? (allSelected ?? selected === id) : selected === id)
+                ? "selected"
+                : "ghost"
+            }
+            size="sm"
+            aria-pressed={id === "all" ? (allSelected ?? selected === id) : selected === id}
+            disabled={!snapshot && id !== "all"}
+            onClick={() => onSelect(id!)}
+          >
+            {label}
+          </Button>
+          {id === "all" && afterAll}
+        </Fragment>
       ))}
       {!discover &&
         snapshot &&

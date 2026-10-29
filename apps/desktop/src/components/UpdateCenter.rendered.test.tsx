@@ -217,7 +217,7 @@ describe("desktop components", () => {
     expect(html).toContain("Update available");
     expect(html).toContain("Stable · Notify me");
     expect(html).toContain("Check installed ports for updates");
-    expect(html).toContain("Task records");
+    expect(html).toContain("Current tasks");
     expect(html).toContain(`data-detail-origin="updates:installed:${port.id}"`);
     expect(html).toContain(`data-detail-origin="updates:activity:activity-1:target"`);
     expect(html).toContain("Game update");

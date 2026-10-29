@@ -20,33 +20,9 @@ import { Button } from "./ui/button";
 import { Icon } from "./ui";
 import { CurrentStateSummary, ManagementRow } from "./ui/patterns";
 
-function renderListingRequirements(entry: CatalogEntry, listing: CatalogEntry["listing"]) {
+function renderListingEvidence(listing: CatalogEntry["listing"]) {
   return (
     <dl className="detail-facts">
-      <div>
-        <dt>Original game files</dt>
-        <dd>
-          {entry.presentation?.manual_setup
-            ? "Follow the upstream setup instructions"
-            : "Requirements not specified"}
-        </dd>
-      </div>
-      <div>
-        <dt>Runs on</dt>
-        <dd>
-          {entry.platforms.length
-            ? entry.platforms.map(platformLabel).join(" · ")
-            : "Platforms not yet confirmed"}
-        </dd>
-      </div>
-      <div>
-        <dt>Installation</dt>
-        <dd>Upstream setup / external registration</dd>
-      </div>
-      <div>
-        <dt>Release channel</dt>
-        <dd>Managed by the upstream project</dd>
-      </div>
       <div>
         <dt>Recorded availability</dt>
         <dd>{listing ? listingAvailabilityLabel(listing) : "No listing observation"}</dd>
@@ -92,6 +68,37 @@ function renderListingRequirements(entry: CatalogEntry, listing: CatalogEntry["l
         </div>
       )}
       <ListingMaintenanceFacts listing={listing} />
+    </dl>
+  );
+}
+
+function renderListingRequirements(entry: CatalogEntry) {
+  return (
+    <dl className="detail-facts">
+      <div>
+        <dt>Original game files</dt>
+        <dd>
+          {entry.presentation?.manual_setup
+            ? "Follow the upstream setup instructions"
+            : "Requirements not specified"}
+        </dd>
+      </div>
+      <div>
+        <dt>Runs on</dt>
+        <dd>
+          {entry.platforms.length
+            ? entry.platforms.map(platformLabel).join(" · ")
+            : "Platforms not yet confirmed"}
+        </dd>
+      </div>
+      <div>
+        <dt>Installation</dt>
+        <dd>Upstream setup / external registration</dd>
+      </div>
+      <div>
+        <dt>Release channel</dt>
+        <dd>Managed by the upstream project</dd>
+      </div>
     </dl>
   );
 }
@@ -168,7 +175,7 @@ export function ListingDetailPanel({
           }
           projectUrl={listing?.project_url}
           openSupport={openSupport}
-          overviewRequirements={renderListingRequirements(entry, listing)}
+          overviewRequirements={renderListingRequirements(entry)}
           overviewActions={(reveal) => (
             <div className="detail-journey-links">
               <Button
@@ -206,6 +213,7 @@ export function ListingDetailPanel({
               <details className="mt-6">
                 <summary data-focusable>Project status and compatibility qualifications</summary>
                 {links}
+                {renderListingEvidence(listing)}
                 <p>
                   Availability describes the recorded upstream route. No managed installation or
                   compatibility check is inferred from this listing.
@@ -311,8 +319,14 @@ export function ListingDetailPanel({
               </div>
             ),
             saves: (
-              <>
-                <h3 className="text-base">Saved-data coverage</h3>
+              <CurrentStateSummary
+                title={
+                  <span className="inline-flex items-center gap-2">
+                    <Icon glyph={FolderOpen} />
+                    Saves managed externally
+                  </span>
+                }
+              >
                 <p className="max-w-prose">
                   Your original game files, settings and saves stay in the location you choose.
                   External saved data is outside Portcove’s managed backup, restore and removal
@@ -323,10 +337,18 @@ export function ListingDetailPanel({
                   A saved setup entry or exported launch details are not a saved-data backup or a
                   version rollback.
                 </p>
-              </>
+              </CurrentStateSummary>
             ),
             versions: (
-              <>
+              <CurrentStateSummary
+                title={
+                  registered
+                    ? "Updates managed externally"
+                    : entry.pendingSetup
+                      ? "Downloaded setup"
+                      : "No installation yet"
+                }
+              >
                 <dl className="detail-facts">
                   <div>
                     <dt>Current installation</dt>
@@ -348,7 +370,7 @@ export function ListingDetailPanel({
                   checks, staged activation and rollback are unavailable for this route.
                 </p>
                 {links}
-              </>
+              </CurrentStateSummary>
             ),
             manage: (
               <>

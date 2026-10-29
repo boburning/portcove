@@ -123,7 +123,9 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   await expect.element(input).not.toBeInTheDocument();
   expect(document.querySelector(".detail-artwork")).toBeNull();
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
-  await page.getByText("Advanced installation settings", { exact: true }).click();
+  // Future-folder editing has one disclosure; its draft still survives collapse and tab changes.
+  await expect.element(folder).toBeVisible();
+  await expect.element(input).not.toBeInTheDocument();
   await folder.click();
   await expect.element(input).toBeVisible();
   await input.fill("fixture/future-draft");
@@ -158,9 +160,15 @@ it("shows different installed and selected release channels separately", async (
   await mount("library");
   await click("View details for Harbor Adventure Harbor Adventure");
   const facts = document.querySelector('[aria-label="Installation and release versions"]')!;
-  expect(facts.textContent).toContain("Selected channelPreview");
-  expect(facts.textContent).toContain("Installed channelStable");
-  expect(facts.textContent).toContain("Installed version1.2");
+  expect(facts.querySelector(".detail-version-context")?.textContent).toContain(
+    "Selected channel for future checks:",
+  );
+  expect(facts.querySelector(".detail-version-context")?.textContent).toContain("Preview");
+  expect(facts.querySelector(".detail-version-current")?.textContent).toContain("Stable");
+  expect(facts.querySelector(".detail-version-current")?.textContent).not.toContain("Preview");
+  expect(facts.querySelector(".detail-version-current")?.textContent).toContain(
+    "Installed version1.2",
+  );
 });
 
 it("uses a viewport-bound demo workspace across resizing and preserves embedded mode on reset", async () => {

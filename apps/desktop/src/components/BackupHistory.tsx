@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronUp, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ChevronDown, ChevronUp, RotateCcw, Trash2 } from "lucide-react";
 import type { BackupInventory, BackupProblem, BackupRecord } from "../types";
 import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
@@ -11,6 +11,7 @@ import type { BackupReadState } from "../features/backups/use-port-backups";
 
 export function BackupHistory({
   gameName,
+  embedded = false,
   backups,
   problems = [],
   state = "healthy",
@@ -24,6 +25,7 @@ export function BackupHistory({
   focusFallback,
 }: {
   gameName?: string | undefined;
+  embedded?: boolean;
   backups: BackupRecord[];
   problems?: BackupProblem[];
   state?: BackupInventory["state"];
@@ -263,7 +265,23 @@ export function BackupHistory({
           {backupSummary(backups.length, problems.length, state, readState)}
         </small>
       </div>
-      <p>Backups include saves and settings managed by Portcove.</p>
+      {!embedded && <p>Backups include saves and settings managed by Portcove.</p>}
+      {backups.length === 0 &&
+        problems.length === 0 &&
+        state === "healthy" &&
+        readState?.status === "current" &&
+        readState.hasInventory && (
+          <div className="detail-backup-empty">
+            <Icon glyph={Archive} />
+            <div>
+              <strong>No backups yet</strong>
+              <p>
+                A backup will appear here after you back up this installation’s managed saves and
+                settings.
+              </p>
+            </div>
+          </div>
+        )}
       {renderReadStatus()}
       {renderInventoryNotice()}
       {renderRestoreAssessment()}
