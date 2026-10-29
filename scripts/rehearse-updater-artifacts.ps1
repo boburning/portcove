@@ -751,8 +751,56 @@ try {
                     '--bootstrap-library', $rendererLibrary,
                     '--bootstrap-game-cli-manifest', $historicalLinuxGameCliManifest)
             }
-            Invoke-Checked "xvfb-run" $rendererArguments
+            $feedOutage = $null
+            $feedOutageHelper = Join-Path $root 'apps/desktop/scripts/desktop-installed-feed-outage.mts'
+            if ($HistoricalLinuxBootstrap) {
+                $feedOutageControl = Join-Path $rendererRoot 'feed-outage-control'
+                $feedOutageText = (& node $feedOutageHelper --phase prepare --metadata $metadataDirectory --control $feedOutageControl | Out-String)
+                $feedOutageExit = $LASTEXITCODE
+                [IO.File]::WriteAllText((Join-Path $rendererRoot 'feed-outage-preparation-stdout.txt'), $feedOutageText)
+                if ($feedOutageExit -ne 0) { throw 'Installed feed-outage preparation failed before driver dispatch' }
+                $feedOutage = $feedOutageText | ConvertFrom-Json -NoEnumerate
+                $feedOutageConfiguration = Join-Path $feedOutageControl 'configuration.json'
+                if ($feedOutage -isnot [System.Management.Automation.PSCustomObject] -or $feedOutage.phase -cne 'prepare' -or
+                    $feedOutage.configuration -cne $feedOutageConfiguration -or
+                    $feedOutage.sha256 -cne (Get-FileHash -LiteralPath $feedOutageConfiguration -Algorithm SHA256).Hash.ToLowerInvariant()) {
+                    throw 'Installed feed-outage preparation did not return its exact positive control identity'
+                }
+                $feedOutagePreparation = [ordered]@{ preparation=$feedOutage; configuration=(Get-Content -LiteralPath $feedOutageConfiguration -Raw | ConvertFrom-Json); scope='owned local file-feed outage only; no OS-offline, HTTP or production claim' }
+                $feedOutagePreparation | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $rendererRoot 'feed-outage-preparation.json') -Encoding utf8
+                $rendererArguments += @('--feed-outage-configuration', $feedOutage.configuration, '--feed-outage-sha', $feedOutage.sha256)
+            }
+            $rendererFailure = $null
+            try {
+                Invoke-Checked "xvfb-run" $rendererArguments
+            } catch {
+                $rendererFailure = $_.Exception
+                throw
+            } finally {
+                if ($feedOutage) {
+                    try {
+                        $feedRestoreText = (& node $feedOutageHelper --phase restore --configuration $feedOutage.configuration --sha256 $feedOutage.sha256 | Out-String)
+                        $feedRestoreExit = $LASTEXITCODE
+                        [IO.File]::WriteAllText((Join-Path $rendererRoot 'feed-outage-restoration-stdout.txt'), $feedRestoreText)
+                        if ($feedRestoreExit -ne 0) { throw 'Installed feed-outage restoration failed; exact preimage/control retained' }
+                        $feedRestore = $feedRestoreText | ConvertFrom-Json -NoEnumerate
+                        if ($feedRestore -isnot [System.Management.Automation.PSCustomObject] -or $feedRestore.phase -cne 'restored' -or $feedRestore.new_faults_sealed -isnot [bool] -or -not $feedRestore.new_faults_sealed -or
+                            $feedRestore.timestamp_sha256 -cne $feedOutagePreparation.configuration.sha256) {
+                            throw 'Installed feed-outage restoration did not return its exact positive timestamp identity'
+                        }
+                        $feedRestore | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $rendererRoot 'feed-outage-restoration.json') -Encoding utf8
+                    } catch {
+                        if ($rendererFailure) {
+                            throw [AggregateException]::new('Installed renderer and owned-feed restoration both failed; original reports and controls retained', [Exception[]]@($rendererFailure, $_.Exception))
+                        }
+                        throw
+                    }
+                }
+            }
             $rendererReport = Get-Content -LiteralPath (Join-Path $rendererRoot "evidence/renderer-update-evidence.json") -Raw | ConvertFrom-Json
+            if ($feedOutage -and $rendererReport.feed_outage.configuration_sha256 -cne $feedOutage.sha256) {
+                throw 'Installed renderer omitted or changed its configured file-feed outage observation'
+            }
             if ($HistoricalLinuxBootstrap) {
                 if (-not $rendererReport.historical_bootstrap.normal_close_before_driver_teardown -or
                     $rendererReport.historical_bootstrap.phase -cne 'complete') {

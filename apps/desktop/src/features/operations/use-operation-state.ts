@@ -23,6 +23,8 @@ export type OperationRefresh = "workspace" | "activities" | "none";
 export type PerformOptions = {
   refresh?: OperationRefresh;
   invalidateDiagnostics?: boolean;
+  /** Preserve the original task rejection after settlement for a current caller. */
+  propagateFailure?: boolean;
   context?: InvocationContext;
 };
 
@@ -197,6 +199,8 @@ export function useOperationState(configuration: {
       updateInvocations((current) => new Map(current).set(pendingId, record));
       let outcome: NonNullable<InvocationRecord["outcome"]> = "succeeded";
       let failure: unknown;
+      // Quiet cancellation can have no displayed failure; even undefined is a task rejection.
+      let taskFailure: { value: unknown } | undefined;
       let refreshFailure: unknown;
       let result: T | undefined;
       let acceptingEvents = true;
@@ -228,6 +232,7 @@ export function useOperationState(configuration: {
           );
         });
       } catch (value) {
+        taskFailure = { value };
         ({ outcome, failure } = classifyInvocationFailure(value));
       } finally {
         acceptingEvents = false;
@@ -263,6 +268,7 @@ export function useOperationState(configuration: {
             );
         }
       }
+      if (isCurrent() && options.propagateFailure && taskFailure) throw taskFailure.value;
       return isCurrent() ? result : undefined;
     },
     [
