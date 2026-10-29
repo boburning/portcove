@@ -66,6 +66,9 @@ param(
     [string]$HistoricalBootstrapManifestPath,
     [string]$InstalledGameDataConfigurationPath,
     [string]$InstalledGameDataConfigurationSha256,
+    [string]$InstalledLibraryBusyHelperPath,
+    [string]$InstalledLibraryBusyHelperSha256,
+    [string]$InstalledLibraryBusyHelperSource,
     [ValidateSet('official', 'embedded')]
     [Parameter(Position = 26)]
     [string]$RendererTransport = 'official',
@@ -96,6 +99,9 @@ Lifecycle options:
                                  isolated non-elevated fixture chain only, before manual bootstrap.
   -InstalledGameDataConfigurationPath FILE  Optional private real-game dataset fixture (renderer upgrade only).
   -InstalledGameDataConfigurationSha256 HEX  Exact configuration bytes; no production or credential authority.
+  -InstalledLibraryBusyHelperPath FILE  Optional compiled qualification helper for real Core busy/retry acceptance.
+  -InstalledLibraryBusyHelperSha256 HEX  Exact helper bytes, required with helper path and source.
+  -InstalledLibraryBusyHelperSource COMMIT  Recorded helper builder source; not application-source equivalence.
 
   -ExpectedExecutablePath FILE  Expected candidate desktop bytes.
   -ExpectedVersion VERSION  Expected installed version.
@@ -156,6 +162,16 @@ if ($InstalledGameDataConfigurationPath -or $InstalledGameDataConfigurationSha25
         $QualifyPackageRollback -or $HistoricalBootstrapManifestPath -or -not $EvidencePath -or
         -not $InstalledUpdateTrustedRootPath -or -not $RequireSigningAuthorityAbsent) {
         throw 'Game-data fixture requires a hash-bound private configuration and the disposable installed renderer upgrade; other routes remain separate'
+    }
+}
+if ($InstalledLibraryBusyHelperPath -or $InstalledLibraryBusyHelperSha256 -or $InstalledLibraryBusyHelperSource) {
+    if (-not $InstalledGameDataConfigurationPath -or -not $InstalledLibraryBusyHelperPath -or
+        $InstalledLibraryBusyHelperSha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        $InstalledLibraryBusyHelperSource -cnotmatch '^[a-f0-9]{40}$' -or
+        -not [IO.Path]::IsPathFullyQualified($InstalledLibraryBusyHelperPath) -or
+        -not (Test-Path -LiteralPath $InstalledLibraryBusyHelperPath -PathType Leaf) -or
+        (Get-FileHash -LiteralPath $InstalledLibraryBusyHelperPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $InstalledLibraryBusyHelperSha256) {
+        throw 'Core busy qualification requires the real-data renderer route and exact compiled helper/source identities'
     }
 }
 function Invoke-InstalledGameDataPhase([string]$Phase) {
@@ -1560,6 +1576,13 @@ try {
             )
             $rendererArguments += @('--transport', $RendererTransport)
             if ($VerifyStableWaiting) { $rendererArguments += '--verify-stable-waiting' }
+            if ($InstalledLibraryBusyHelperPath) {
+                $rendererArguments += @('--library-busy-helper', $InstalledLibraryBusyHelperPath,
+                    '--library-busy-sha', $InstalledLibraryBusyHelperSha256,
+                    '--library-busy-source', $InstalledLibraryBusyHelperSource,
+                    '--game-data-configuration', $InstalledGameDataConfigurationPath,
+                    '--game-data-sha', $InstalledGameDataConfigurationSha256)
+            }
             $feedOutage = $null
             $feedOutageHelper = Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-installed-feed-outage.mts'
             if ($InstalledGameDataConfigurationPath) {

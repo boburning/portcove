@@ -189,6 +189,10 @@ jobs:
             work/updater-rehearsal/installer-test/run-*/application-update/apply.json
             work/updater-rehearsal/installer-test/run-*/application-update/staging.json
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-descriptor/status.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-descriptor/*.txt
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-activity/activity-holder.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-activity/*.txt
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/failure.html
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.log
@@ -206,6 +210,12 @@ jobs:
             work/updater-rehearsal/windows-renderer-evidence/*.log
             work/updater-rehearsal/linux-appimage-qualification/TEST-ONLY
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
+            work/updater-rehearsal/linux-appimage-qualification/state/noexec-probe.json
+            work/updater-rehearsal/linux-appimage-qualification/state/noexec-probe-stdout.txt
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-descriptor/status.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-descriptor/*.txt
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-activity/activity-holder.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-activity/*.txt
             work/updater-rehearsal/linux-appimage-qualification/inputs/*.json
             work/updater-rehearsal/linux-appimage-qualification/state/application-update-*.json
             work/updater-rehearsal/linux-appimage-qualification/state/packaged-selection.stderr.log

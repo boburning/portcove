@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -22,6 +22,68 @@ interface BusyLibraryOptions {
   installationId: string;
   writerSchema: number;
   lockProtocol: string;
+  environment?: NodeJS.ProcessEnv;
+}
+
+/** Read the existing compiled fixture contract instead of duplicating Core's
+ * schema/protocol constants. This descriptor is qualification input, not release
+ * authority or evidence that the application is running this helper's source. */
+export async function describeInstalledLibraryBusyHelper(options: {
+  fixtureRoot: string;
+  output: string;
+  helperRoot: string;
+  helperPath: string;
+  helperSha256: string;
+  helperSource: string;
+  version: string;
+  environment?: NodeJS.ProcessEnv;
+}) {
+  assert.match(options.helperSha256, /^[a-f0-9]{64}$/u);
+  assert.match(options.helperSource, /^[a-f0-9]{40}$/u);
+  await assertOwnedUnlinkedPath(options.helperRoot, options.helperPath, "busy descriptor helper");
+  await assertOwnedUnlinkedPath(options.fixtureRoot, options.output, "busy descriptor evidence");
+  const binary = await fileIdentity(options.helperPath, { maxBytes: 128 * 1024 * 1024 });
+  assert.equal(binary.sha256, options.helperSha256);
+  await mkdir(options.output);
+  const result = spawnSync(binary.path, ["describe", options.version], {
+    encoding: "utf8",
+    timeout: 20_000,
+    maxBuffer: 65_536,
+    windowsHide: true,
+    env: options.environment ?? process.env,
+  });
+  await writeFile(path.join(options.output, "stdout.txt"), result.stdout ?? "", { flag: "wx" });
+  await writeFile(path.join(options.output, "stderr.txt"), result.stderr ?? "", { flag: "wx" });
+  await writeFile(
+    path.join(options.output, "status.json"),
+    JSON.stringify(
+      {
+        helper: { ...binary, source_commit: options.helperSource },
+        exit_code: result.status,
+        signal: result.signal,
+        error: result.error ? String(result.error) : null,
+      },
+      null,
+      2,
+    ) + "\n",
+    { flag: "wx" },
+  );
+  if (result.error) throw result.error;
+  assert.equal(result.status, 0);
+  assert.equal(result.signal, null);
+  const contract = object(JSON.parse(result.stdout));
+  const library = object(object(contract.compatibility).library);
+  assert.ok(Number.isSafeInteger(library.write_schema) && Number(library.write_schema) > 0);
+  assert.ok(typeof library.lock_protocol === "string" && library.lock_protocol.length > 0);
+  return {
+    helper: { ...binary, source_commit: options.helperSource },
+    writerSchema: Number(library.write_schema),
+    lockProtocol: library.lock_protocol,
+    contract,
+    contract_input_version: options.version,
+    scope:
+      "Compiled helper compatibility only; not installed predecessor version or source evidence",
+  };
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -72,7 +134,7 @@ export async function startInstalledLibraryBusy(options: BusyLibraryOptions) {
       nonce,
       String(options.writerSchema),
     ],
-    { stdio: ["pipe", "pipe", "pipe"], windowsHide: true },
+    { stdio: ["pipe", "pipe", "pipe"], windowsHide: true, env: options.environment ?? process.env },
   );
   let stdout = "";
   let stderr = "";

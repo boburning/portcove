@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 import { startInstalledLibraryBusy } from "./desktop-installed-library-busy.mts";
@@ -98,6 +101,150 @@ void test(
     }
   },
 );
+
+void test(
+  "component noexec probe never runs an inert surrogate on an exec mount",
+  {
+    skip: process.platform !== "linux",
+  },
+  async () => {
+    const prefix = path.join("/dev/shm", `portcove-noexec-component-${randomUUID()}`);
+    const image = `${prefix}.image`,
+      output = `${prefix}.json`,
+      marker = `${prefix}.executed`;
+    try {
+      await writeFile(
+        image,
+        `#!${process.execPath}\nimport {writeFileSync} from 'node:fs';writeFileSync(${JSON.stringify(marker)},'unexpected execution');\n`,
+        { flag: "wx", mode: 0o755 },
+      );
+      const binary = await fileIdentity(image);
+      const entry = fileURLToPath(new URL("./desktop-appimage-noexec-probe.mts", import.meta.url));
+      const result = spawnSync(
+        process.execPath,
+        [
+          entry,
+          "--root",
+          "/dev/shm",
+          "--image",
+          image,
+          "--sha256",
+          binary.sha256,
+          "--output",
+          output,
+        ],
+        { encoding: "utf8", timeout: 30000, maxBuffer: 262144 },
+      );
+      assert.equal(result.error, undefined);
+      const report: unknown = JSON.parse(await readFile(output, "utf8"));
+      assert.ok(isRecord(report) && isRecord(report.mount_query));
+      const query: unknown = JSON.parse(String(report.mount_query.stdout));
+      assert.ok(
+        isRecord(query) && Array.isArray(query.filesystems) && query.filesystems.length === 1,
+      );
+      const mounted: unknown = query.filesystems[0];
+      assert.ok(isRecord(mounted) && typeof mounted.options === "string");
+      if (mounted.options.split(",").includes("noexec")) {
+        assert.equal(result.status, 0);
+        assert.equal(report.phase, "noexec-refused");
+        assert.ok(isRecord(report.execution));
+        assert.equal(report.execution.error_code, "EACCES");
+      } else {
+        assert.equal(result.status, 1);
+        assert.equal(report.phase, "failed");
+        assert.equal(report.execution, undefined, "An exec mount must be refused before launching");
+      }
+      await assert.rejects(lstat(marker), { code: "ENOENT" });
+    } finally {
+      await Promise.all([image, output, marker].map((file) => rm(file, { force: true })));
+    }
+  },
+);
+
+for (const missing of ["hash", "real-data"] as const) {
+  void test(
+    `ordinary driver refuses busy helper without ${missing} before creating output or launching`,
+    {
+      skip: !["linux", "win32"].includes(process.platform),
+    },
+    async () => {
+      const root = await mkdtemp(path.join(tmpdir(), "portcove-busy-admission-"));
+      const output = path.join(root, "never-created");
+      try {
+        const absolute = (name: string) => path.join(root, name);
+        const common = [
+          "--app",
+          absolute("missing-app"),
+          "--output",
+          output,
+          "--staging",
+          absolute("staging"),
+          "--stage-marker",
+          absolute("stage.json"),
+          "--helper-process-marker",
+          absolute("helper.json"),
+          "--relaunch-process-marker",
+          absolute("relaunch.json"),
+          "--candidate-version",
+          "0.3.0",
+          "--library-busy-helper",
+          absolute("missing-busy-helper"),
+        ];
+        if (missing === "real-data")
+          common.push(
+            "--library-busy-sha",
+            "a".repeat(64),
+            "--library-busy-source",
+            "b".repeat(40),
+          );
+        const windows = process.platform === "win32";
+        const entry = fileURLToPath(
+          new URL(
+            windows ? "./desktop-windows-update-test.mts" : "./desktop-appimage-update-test.mts",
+            import.meta.url,
+          ),
+        );
+        const platform = windows
+          ? [
+              "--candidate-installer-sha",
+              "a".repeat(64),
+              "--candidate-executable-sha",
+              "c".repeat(64),
+              "--transport",
+              "embedded",
+            ]
+          : [
+              "--candidate-sha",
+              "a".repeat(64),
+              "--driver",
+              absolute("missing-driver"),
+              "--native-driver",
+              absolute("missing-native-driver"),
+            ];
+        const result = spawnSync(process.execPath, [entry, ...common, ...platform], {
+          cwd: root,
+          encoding: "utf8",
+          timeout: 30_000,
+          maxBuffer: 262_144,
+          windowsHide: true,
+        });
+        assert.equal(result.error, undefined);
+        assert.equal(result.status, 1);
+        assert.match(
+          result.stderr,
+          missing === "hash"
+            ? /library-busy-sha.*required/u
+            : windows
+              ? /game-data-configuration.*required/u
+              : /requires the real installed game fixture/u,
+        );
+        await assert.rejects(lstat(output), { code: "ENOENT" });
+      } finally {
+        await rm(root, { recursive: true });
+      }
+    },
+  );
+}
 
 for (const [mode, exit] of [
   ["bad-ready", 86],

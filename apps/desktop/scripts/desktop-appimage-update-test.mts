@@ -13,6 +13,7 @@ import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.
 import {
   driveInstalledStableWaiting,
   driveInstalledFeedOutage,
+  driveInstalledBusyRestartRefusal,
   driveInstalledUpdateToRestart,
 } from "./desktop-application-update-journey.mts";
 import { loadedWebKitLibraries } from "./desktop-linux-webkit-inspector.mts";
@@ -52,6 +53,9 @@ const { values } = parseArgs({
       "bootstrap-predecessor-sha",
       "bootstrap-library",
       "bootstrap-game-cli-manifest",
+      "library-busy-helper",
+      "library-busy-sha",
+      "library-busy-source",
     ].map((name) => [name, { type: "string" }] as const),
   ),
 });
@@ -76,6 +80,18 @@ const stageMarker = absoluteOption("stage-marker"),
 const candidateSha = requiredOption("candidate-sha"),
   candidateVersion = requiredOption("candidate-version");
 assert.match(candidateSha, /^[0-9a-f]{64}$/u);
+const busyNames = ["library-busy-helper", "library-busy-sha", "library-busy-source"];
+const qualifyLibraryBusy = busyNames.some((name) => Boolean(values[name]));
+if (qualifyLibraryBusy) {
+  for (const name of busyNames) requiredOption(name);
+  absoluteOption("library-busy-helper");
+  assert.match(requiredOption("library-busy-sha"), /^[a-f0-9]{64}$/u);
+  assert.match(requiredOption("library-busy-source"), /^[a-f0-9]{40}$/u);
+  assert.ok(
+    values["bootstrap-game-cli-manifest"],
+    "Busy activity requires the real installed game fixture",
+  );
+}
 const feedOutageConfiguration = values["feed-outage-configuration"],
   feedOutageSha = values["feed-outage-sha"];
 assert.equal(
@@ -117,6 +133,12 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
   driver?: ProcIdentity;
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
   ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
+  library_busy_descriptor?: unknown;
+  library_activity?: Record<string, unknown>;
+  library_busy_refusal?: Awaited<ReturnType<typeof driveInstalledBusyRestartRefusal>>;
+  library_busy_release?: unknown;
+  library_busy_cleanup?: unknown;
+  library_busy_processes?: { before: ProcIdentity; after: ProcIdentity };
   feed_outage?: Awaited<ReturnType<typeof driveInstalledFeedOutage>> & {
     installed_file_sha256_before: string;
     installed_file_sha256_after: string;
@@ -608,6 +630,11 @@ async function historicalPrelude() {
   await save();
 }
 let verifyInstalledGameData: (() => Promise<void>) | undefined;
+let libraryHolder:
+  | Awaited<
+      ReturnType<typeof import("./desktop-installed-library-busy.mts").startInstalledLibraryBusy>
+    >
+  | undefined;
 try {
   if (values["bootstrap-game-cli-manifest"])
     assert.ok(
@@ -657,6 +684,36 @@ try {
       assertInstalledGameDataPreserved(prepared.baseline, after);
       report.actions.push("game-authored-save-config-and-installed-runtime-preserved");
     };
+    if (qualifyLibraryBusy) {
+      const { describeInstalledLibraryBusyHelper, startInstalledLibraryBusy } =
+        await import("./desktop-installed-library-busy.mts");
+      const helperPath = absoluteOption("library-busy-helper");
+      const descriptor = await describeInstalledLibraryBusyHelper({
+        fixtureRoot: selected.ownedRoot,
+        output: path.join(output, "library-busy-descriptor"),
+        helperRoot: path.dirname(helperPath),
+        helperPath,
+        helperSha256: requiredOption("library-busy-sha"),
+        helperSource: requiredOption("library-busy-source"),
+        version: candidateVersion,
+        environment: applicationEnvironment,
+      });
+      report.library_busy_descriptor = descriptor;
+      libraryHolder = await startInstalledLibraryBusy({
+        fixtureRoot: selected.ownedRoot,
+        library: options.library,
+        output: path.join(output, "library-busy-activity"),
+        helperRoot: path.dirname(helperPath),
+        helper: descriptor.helper,
+        portId: prepared.baseline.installed.port_id,
+        installationId: prepared.baseline.installed.id,
+        writerSchema: descriptor.writerSchema,
+        lockProtocol: descriptor.lockProtocol,
+        environment: applicationEnvironment,
+      });
+      report.library_activity = libraryHolder.evidence;
+      await save();
+    }
   }
   report.initial_sha256 = (await hashFile(app)).sha256;
   driverSession = startInstalledUpdateDriver(driverPath, nativeDriver, {
@@ -718,6 +775,40 @@ try {
   });
   report.staged = staged;
   report.actions.push("renderer-downloaded-and-verified");
+  if (libraryHolder) {
+    const applications = (await ownedProcessTree(driver.pid)).filter(
+      (entry) => path.basename(entry.command.split(" ")[0] ?? "") === "portcove-desktop",
+    );
+    assert.equal(applications.length, 1);
+    const before = applications[0];
+    assert.ok(before);
+    report.library_busy_refusal = await driveInstalledBusyRestartRefusal(
+      browser,
+      report.actions,
+      libraryHolder.assertActive,
+    );
+    assert.equal((await hashFile(app)).sha256, report.initial_sha256);
+    assert.deepEqual(
+      await verifyInstalledUpdateStaging({
+        stagingRoot: staging,
+        payloadName: "candidate.payload",
+        candidateSha,
+        candidateVersion,
+        application: app,
+        initialSha: report.initial_sha256,
+      }),
+      staged,
+    );
+    await assert.rejects(readJson(helperMarker), { code: "ENOENT" });
+    await assert.rejects(readJson(relaunchMarker), { code: "ENOENT" });
+    const after = await procIdentity(before.pid);
+    assert.ok(after);
+    assert.deepEqual(after, before);
+    report.library_busy_processes = { before, after };
+    report.library_busy_release = await libraryHolder.release();
+    report.actions.push("held-core-activity-cancelled-and-helper-os-exit-observed");
+    await save();
+  }
   await writeFile(path.join(output, "before-restart.png"), await browser.takeScreenshot(), {
     encoding: "base64",
   });
@@ -782,6 +873,16 @@ try {
   }
   process.exitCode = 1;
 } finally {
+  if (libraryHolder) {
+    try {
+      report.library_busy_cleanup = await libraryHolder.settleOwned();
+    } catch (error) {
+      report.phase = "failed";
+      report.failure = `${report.failure ?? "Qualification failed"}; Core holder settlement: ${errorMessage(error)}`;
+      process.exitCode = 1;
+    }
+    await save();
+  }
   if (report.restart_action_attempted) {
     try {
       report.helper_cleanup = await cleanupHelper();

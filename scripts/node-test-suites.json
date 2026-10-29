@@ -4174,6 +4174,29 @@
       "memberships": [["native-tools", 1300]]
     },
     {
+      "file": "apps/desktop/scripts/desktop-installed-library-busy.native.test.mts",
+      "memberships": [["native-tools", 1350]],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "native-tools",
+          "category": "platform",
+          "prerequisite": "Actual Linux child-process, executable-script and pipe semantics",
+          "reason": "Controller protocol and fail-closed CLI admission controls only; no Core, installed application or release acceptance follows. Execute every declared case on the maintained Linux route; CLI refusal controls also support Windows.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
+          "cases": [
+            "component fake producer: explicit release retains actual child close exit 0",
+            "component fake producer: bad-ready fails and preserves actual owned EOF/exit outcome",
+            "component fake producer: early-exit fails and preserves actual owned EOF/exit outcome",
+            "component fake producer: OS exit 0 cannot accept a foreign terminal activity",
+            "ordinary driver refuses busy helper without hash before creating output or launching",
+            "ordinary driver refuses busy helper without real-data before creating output or launching",
+            "component noexec probe never runs an inert surrogate on an exec mount"
+          ]
+        }
+      ]
+    },
+    {
       "file": "apps/desktop/scripts/desktop-linux-native-session.native.test.mts",
       "memberships": [["native-tools", 1400]]
     },

@@ -475,7 +475,7 @@ try {
         $candidateInventoryPath = Join-Path $candidateStage "updater-inventory.json"
         Copy-Item -LiteralPath $candidateInventoryPath -Destination (Join-Path $inputs "updater-inventory.json")
         Copy-Item -LiteralPath "$candidate.sig" -Destination (Join-Path $inputs "candidate.sig")
-        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- describe $predecessorVersion | Out-String).Trim()
+        $contractText = (& cargo run --locked --quiet --profile controller-tools -p portcove-desktop --example prepare_installed_update -- describe $predecessorVersion | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Could not derive the Linux updater fixture contract" }
         $contract = $contractText | ConvertFrom-Json
         $sourceTree = (& git rev-parse "HEAD^{tree}" | Out-String).Trim()
@@ -670,7 +670,8 @@ try {
         $rendererInstall = Join-Path $rendererRoot "Applications/Portcove"
         $rendererLibrary = Join-Path $rendererRoot "library"
         New-Item -ItemType Directory -Path $rendererInstall, $rendererLibrary | Out-Null
-        $rendererStable = Join-Path $rendererInstall "Portcove.AppImage"
+        $rendererStableName = if ($HistoricalLinuxBootstrap) { 'Portcove Public beta β.AppImage' } else { 'Portcove.AppImage' }
+        $rendererStable = Join-Path $rendererInstall $rendererStableName
         if (-not $HistoricalLinuxBootstrap) {
             Invoke-Checked "/usr/bin/cp" @("--preserve=mode,timestamps", "--", $predecessor, $rendererStable)
             Invoke-Checked "/usr/bin/chmod" @("u+rwx,go+rx", "--", $rendererStable)
@@ -750,6 +751,14 @@ try {
                     '--bootstrap-predecessor-sha', $qualifiedPredecessorHash,
                     '--bootstrap-library', $rendererLibrary,
                     '--bootstrap-game-cli-manifest', $historicalLinuxGameCliManifest)
+                # This existing example was compiled by the describe call above.
+                # The Node consumer rehashes it, reads the same compiled Core
+                # contract and starts its holder only after seed/observer exit.
+                $libraryBusyHelper = Join-Path $env:CARGO_TARGET_DIR 'controller-tools/examples/prepare_installed_update'
+                if (-not (Test-Path -LiteralPath $libraryBusyHelper -PathType Leaf)) { throw 'Compiled Core qualification helper is unavailable' }
+                $libraryBusyHelperSha = (Get-FileHash -LiteralPath $libraryBusyHelper -Algorithm SHA256).Hash.ToLowerInvariant()
+                $rendererArguments += @('--library-busy-helper', $libraryBusyHelper,
+                    '--library-busy-sha', $libraryBusyHelperSha, '--library-busy-source', $revision)
             }
             $feedOutage = $null
             $feedOutageHelper = Join-Path $root 'apps/desktop/scripts/desktop-installed-feed-outage.mts'
