@@ -214,92 +214,94 @@ printf '%s\\0' "\${packages[@]}"
   ]);
 });
 
-void test("repository Rust setup provisions components before ordinary identity probes", async (t) => {
+void test("repository Rust setup provisions components before ordinary identity probes", async () => {
+  const setup = await readWorkflow(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+  );
+  rustAction(setup);
+  assert.doesNotMatch(setup, /RUSTUP_TOOLCHAIN|& (?:rustc|cargo) \+/);
+});
+
+void test("Rust action records consumed toolchain context and stops at each failed probe", async (t) => {
   const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
   );
   const action = rustAction(setup);
-  assert.doesNotMatch(setup, /RUSTUP_TOOLCHAIN|& (?:rustc|cargo) \+/);
-  await t.test(
-    "Rust action records consumed toolchain context and stops at each failed probe",
-    async (t) => {
-      if (!powerShellAvailable()) {
-        t.skip("PowerShell unavailable; required Windows job executes this contract");
-        return;
-      }
-      const config = await readFile(new URL("../rust-toolchain.toml", import.meta.url), "utf8");
-      const observed = requiredFixture(observeToolchainReaders(action, [config])[0]);
-      assert.equal(observed.accepted, true);
-      const pin = observed.outputs[action.toolchain.field],
-        components = observed.outputs[action.components.field];
-      assert.ok(pin && components);
-      for (const target of ["", "wasm32-unknown-unknown"]) {
-        const bound = actionEnvironment(action, observed.outputs, {
-          "inputs.targets": target,
-          "runner.os": "fixtureOS",
-          "runner.arch": "fixtureArch",
-          "github.job": "fixture-job",
-          "github.run_attempt": "7",
-          "github.sha": "b".repeat(40),
-        });
-        const result = observeRustIdentity(action, bound);
-        assert.equal(result.status, 0, result.stderr);
-        assert.deepEqual(
-          result.calls.map((call) => call.command),
-          ["rustup", "rustc", "cargo"],
-          "RUST_PROBE_ORDER",
-        );
-        assert.deepEqual(result.calls[0]?.arguments.slice(0, 2), ["component", "list"]);
-        const options = requiredFixture(result.calls[0]).arguments.slice(2);
-        const toolchainOption = options.indexOf("--toolchain");
-        assert.ok(toolchainOption >= 0);
-        assert.equal(options[toolchainOption + 1], pin);
-        assert.equal(options.filter((value) => value === "--installed").length, 1);
-        assert.equal(options.length, 3);
-        assert.deepEqual(result.calls[1]?.arguments.toSorted(), ["--verbose", "--version"]);
-        assert.deepEqual(result.calls[2]?.arguments, ["--version"]);
-        for (const value of [
-          pin,
-          components,
-          "fixture-clippy,fixture-rustfmt,fixture-rust-analyzer",
-          "fixture rustc\\|version<br>fixture verbose identity",
-          "fixture Cargo version",
-          "fixtureOS-fixtureArch",
-          "fixture-job",
-          "7",
-          "b".repeat(40),
-          target || "host only",
-        ])
-          assert.ok(result.summary.includes(value), `RUST_CONTEXT_VALUE: ${value}`);
-      }
-      const bound = actionEnvironment(action, observed.outputs, {
-        "inputs.targets": "",
-        "runner.os": "fixtureOS",
-        "runner.arch": "fixtureArch",
-        "github.job": "fixture-job",
-        "github.run_attempt": "7",
-        "github.sha": "b".repeat(40),
-      });
-      for (const [index, failure] of (["rustup", "rustc", "cargo"] as const).entries()) {
-        const result = observeRustIdentity(action, bound, failure);
-        assert.equal(result.status, 37 + index, `RUST_PROBE_FAILURE: ${failure}: ${result.stderr}`);
-        assert.deepEqual(
-          result.calls.map((call) => call.command),
-          ["rustup", "rustc", "cargo"].slice(0, index + 1),
-          "RUST_PROBE_FAILURE_DRAIN",
-        );
-        assert.equal(result.summary, "", "RUST_PROBE_PARTIAL_SUMMARY");
-      }
-    },
-  );
+  if (!powerShellAvailable()) {
+    t.skip("PowerShell unavailable; required Windows job executes this contract");
+    return;
+  }
+  const config = await readFile(new URL("../rust-toolchain.toml", import.meta.url), "utf8");
+  const observed = requiredFixture(observeToolchainReaders(action, [config])[0]);
+  assert.equal(observed.accepted, true);
+  const pin = observed.outputs[action.toolchain.field],
+    components = observed.outputs[action.components.field];
+  assert.ok(pin && components);
+  for (const target of ["", "wasm32-unknown-unknown"]) {
+    const bound = actionEnvironment(action, observed.outputs, {
+      "inputs.targets": target,
+      "runner.os": "fixtureOS",
+      "runner.arch": "fixtureArch",
+      "github.job": "fixture-job",
+      "github.run_attempt": "7",
+      "github.sha": "b".repeat(40),
+    });
+    const result = observeRustIdentity(action, bound);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(
+      result.calls.map((call) => call.command),
+      ["rustup", "rustc", "cargo"],
+      "RUST_PROBE_ORDER",
+    );
+    assert.deepEqual(result.calls[0]?.arguments.slice(0, 2), ["component", "list"]);
+    const options = requiredFixture(result.calls[0]).arguments.slice(2);
+    const toolchainOption = options.indexOf("--toolchain");
+    assert.ok(toolchainOption >= 0);
+    assert.equal(options[toolchainOption + 1], pin);
+    assert.equal(options.filter((value) => value === "--installed").length, 1);
+    assert.equal(options.length, 3);
+    assert.deepEqual(result.calls[1]?.arguments.toSorted(), ["--verbose", "--version"]);
+    assert.deepEqual(result.calls[2]?.arguments, ["--version"]);
+    for (const value of [
+      pin,
+      components,
+      "fixture-clippy,fixture-rustfmt,fixture-rust-analyzer",
+      "fixture rustc\\|version<br>fixture verbose identity",
+      "fixture Cargo version",
+      "fixtureOS-fixtureArch",
+      "fixture-job",
+      "7",
+      "b".repeat(40),
+      target || "host only",
+    ])
+      assert.ok(result.summary.includes(value), `RUST_CONTEXT_VALUE: ${value}`);
+  }
+  const bound = actionEnvironment(action, observed.outputs, {
+    "inputs.targets": "",
+    "runner.os": "fixtureOS",
+    "runner.arch": "fixtureArch",
+    "github.job": "fixture-job",
+    "github.run_attempt": "7",
+    "github.sha": "b".repeat(40),
+  });
+  for (const [index, failure] of (["rustup", "rustc", "cargo"] as const).entries()) {
+    const result = observeRustIdentity(action, bound, failure);
+    assert.equal(result.status, 37 + index, `RUST_PROBE_FAILURE: ${failure}: ${result.stderr}`);
+    assert.deepEqual(
+      result.calls.map((call) => call.command),
+      ["rustup", "rustc", "cargo"].slice(0, index + 1),
+      "RUST_PROBE_FAILURE_DRAIN",
+    );
+    assert.equal(result.summary, "", "RUST_PROBE_PARTIAL_SUMMARY");
+  }
 });
 
-void test("Rust setup installs the repository pin instead of an unrelated stable toolchain", async (t) => {
+void test("Rust setup installs the repository pin instead of an unrelated stable toolchain", async () => {
   const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
   );
   assert.match(setup, /Get-Content rust-toolchain\.toml -Raw/);
-  const action = rustAction(setup);
+  rustAction(setup);
   assert.match(setup, /targets: \$\{\{ inputs\.targets \}\}/);
   assert.doesNotMatch(workflow, /uses: dtolnay\/rust-toolchain/);
   for (const section of [
@@ -324,36 +326,38 @@ void test("Rust setup installs the repository pin instead of an unrelated stable
   }
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   assert.match(recipes, /node scripts\/run-rust-tests\.mts --locked --workspace/);
-  await t.test(
-    "Rust pin reader consumes the repository TOML and refuses malformed inputs without partial outputs",
-    async (t) => {
-      if (!powerShellAvailable()) {
-        t.skip("PowerShell unavailable; required Windows job executes this contract");
-        return;
-      }
-      const config = await readFile(new URL("../rust-toolchain.toml", import.meta.url), "utf8");
-      const channel = requiredFixture(config.match(/^channel\s*=\s*"([^"]+)"/mu)?.[1]);
-      const components: unknown = JSON.parse(
-        requiredFixture(config.match(/^components\s*=\s*(\[[^\n]+\])/mu)?.[1]),
-      );
-      assert.ok(Array.isArray(components));
-      const invalid = [
-        config.replace(/^channel[^\n]*\n/mu, ""),
-        config.replace(/^components[^\n]*\n/mu, ""),
-        config.replace(/^components[^\n]*/mu, "components = []"),
-        config.replace(/^components[^\n]*/mu, "components = [7]"),
-        config.replace(/^components[^\n]*/mu, 'components = ["invalid component"]'),
-      ];
-      const [accepted, ...rejected] = observeToolchainReaders(action, [config, ...invalid]);
-      assert.ok(accepted?.accepted);
-      assert.equal(accepted.outputs[action.toolchain.field], channel);
-      assert.equal(accepted.outputs[action.components.field], components.join(","));
-      for (const observation of rejected) {
-        assert.equal(observation.accepted, false, "RUST_PIN_REJECTS_INVALID_INPUT");
-        assert.equal(observation.outputText, "", "RUST_PIN_PARTIAL_OUTPUT");
-      }
-    },
+});
+
+void test("Rust pin reader consumes the repository TOML and refuses malformed inputs without partial outputs", async (t) => {
+  const setup = await readWorkflow(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
   );
+  const action = rustAction(setup);
+  if (!powerShellAvailable()) {
+    t.skip("PowerShell unavailable; required Windows job executes this contract");
+    return;
+  }
+  const config = await readFile(new URL("../rust-toolchain.toml", import.meta.url), "utf8");
+  const channel = requiredFixture(config.match(/^channel\s*=\s*"([^"]+)"/mu)?.[1]);
+  const components: unknown = JSON.parse(
+    requiredFixture(config.match(/^components\s*=\s*(\[[^\n]+\])/mu)?.[1]),
+  );
+  assert.ok(Array.isArray(components));
+  const invalid = [
+    config.replace(/^channel[^\n]*\n/mu, ""),
+    config.replace(/^components[^\n]*\n/mu, ""),
+    config.replace(/^components[^\n]*/mu, "components = []"),
+    config.replace(/^components[^\n]*/mu, "components = [7]"),
+    config.replace(/^components[^\n]*/mu, 'components = ["invalid component"]'),
+  ];
+  const [accepted, ...rejected] = observeToolchainReaders(action, [config, ...invalid]);
+  assert.ok(accepted?.accepted);
+  assert.equal(accepted.outputs[action.toolchain.field], channel);
+  assert.equal(accepted.outputs[action.components.field], components.join(","));
+  for (const observation of rejected) {
+    assert.equal(observation.accepted, false, "RUST_PIN_REJECTS_INVALID_INPUT");
+    assert.equal(observation.outputText, "", "RUST_PIN_PARTIAL_OUTPUT");
+  }
 });
 
 void test("release, rehearsal and deep audit Rust callers preserve repository pin, components, targets and caches", async (t) => {
