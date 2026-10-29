@@ -158,14 +158,14 @@ namespace Portcove.HostedNative {
             if (!HostedCandidateRecoveryAuthorized) throw new InvalidOperationException("Hosted candidate recovery awaits separate owner authority");
             return RecoverOriginalStationCore(original, proposed, owner, candidate);
         }
-        public static bool HostedDiagnosticRecoveryAuthorized { get { return false; } }
+        public static bool HostedDiagnosticRecoveryAuthorized { get { return true; } }
         public static bool RecoverOriginalDiagnosticStation(byte[] original, byte[] proposed, string owner, string candidate) {
             if (!HostedDiagnosticRecoveryAuthorized) throw new InvalidOperationException("Hosted diagnostic recovery awaits exact separate authority");
             string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");
             if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
                 Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" || Environment.GetEnvironmentVariable("GITHUB_JOB") != "installed-prerequisite" ||
                 Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") != "workflow_dispatch" || Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT") != "1" || workflow == null ||
-                !System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$"))
+                !System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/feature/534-connected-custody-canary-20261029$"))
                 throw new InvalidOperationException("Fixed separately held diagnostic recovery boundary required");
             return RecoverOriginalStationCore(original, proposed, owner, candidate);
         }

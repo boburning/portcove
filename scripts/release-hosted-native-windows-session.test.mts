@@ -278,7 +278,7 @@ void test("shared Windows owner framing preserves byte and original deadline bou
   assert.match(script, /Flush\(\$true\)/u);
 });
 
-void test("actual production and diagnostic owner wrappers remain held before context, storage or OS effects", () => {
+void test("production owner remains held and scoped diagnostic wrappers refuse before context, storage or OS effects", () => {
   for (const [name, message] of [
     [
       "release-hosted-native-windows-owner.ps1",
@@ -286,7 +286,7 @@ void test("actual production and diagnostic owner wrappers remain held before co
     ],
     [
       "release-hosted-native-windows-diagnostic-owner.ps1",
-      "Connected Windows diagnostic awaits exact",
+      "Fixed hosted Windows diagnostic owner context required",
     ],
   ] as const) {
     const result = spawnSync(
@@ -324,7 +324,7 @@ void test("actual production and diagnostic owner wrappers remain held before co
     assert.ok(
       recovery.stderr.includes(
         diagnostic
-          ? "Connected diagnostic original-session recovery"
+          ? "Fixed hosted Windows diagnostic recovery context required"
           : "Hosted original-session recovery awaits",
       ),
       recovery.stderr,
@@ -363,13 +363,7 @@ void test("owner wrapper authenticates bounded original mechanism bytes before e
     new URL("./release-hosted-native-windows-diagnostic-owner.ps1", import.meta.url),
     "utf8",
   );
-  await writeFile(
-    wrapper,
-    actual.replace(
-      "$hostedDiagnosticExecutionAuthorized=$false",
-      "$hostedDiagnosticExecutionAuthorized=$true",
-    ),
-  );
+  await writeFile(wrapper, actual.replace("-not $IsWindows", "-not $true"));
   const body =
     "param([string]$ContextBase64,[string]$OwnerProfile,[string]$OwnerScriptsRoot)\n@{marker='inert-mechanism-only';profile=$OwnerProfile;root=$OwnerScriptsRoot}|ConvertTo-Json -Compress\n";
   await writeFile(mechanism, body);
@@ -390,7 +384,24 @@ void test("owner wrapper authenticates bounded original mechanism bytes before e
     spawnSync(
       "pwsh",
       ["-NoProfile", "-NonInteractive", "-File", wrapper, "-ContextBase64", encoded],
-      { encoding: "utf8", timeout: 15000, maxBuffer: 16384 },
+      {
+        encoding: "utf8",
+        timeout: 15000,
+        maxBuffer: 16384,
+        env: {
+          ...process.env,
+          GITHUB_ACTIONS: "true",
+          RUNNER_ENVIRONMENT: "github-hosted",
+          GITHUB_REPOSITORY: "boburning/portcove",
+          GITHUB_JOB: "installed-prerequisite",
+          GITHUB_EVENT_NAME: "workflow_dispatch",
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_SHA: "a".repeat(40),
+          GITHUB_RUN_ID: "123",
+          GITHUB_WORKFLOW_REF:
+            "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-custody-canary-20261029",
+        },
+      },
     );
   const valid = invoke();
   assert.equal(valid.status, 0, valid.stderr);
@@ -417,15 +428,15 @@ void test("diagnostic worker selection cannot enable production or read an arbit
     runHostedWindowsDiagnosticWorkerStage,
   } = await import("./release-hosted-native-windows-worker.mts");
   assert.equal(readHostedWindowsWorkerAbi().execution_authorized, false);
-  assert.equal(readHostedWindowsDiagnosticWorkerAbi().execution_authorized, false);
+  assert.equal(readHostedWindowsDiagnosticWorkerAbi().execution_authorized, true);
   assert.equal(readHostedWindowsDiagnosticWorkerAbi().authority, "none");
   await assert.rejects(
     runHostedWindowsWorkerStage("unreadable-untrusted-path", "invalid"),
     /held hosted worker execution awaits separate authority/u,
   );
   await assert.rejects(
-    runHostedWindowsDiagnosticWorkerStage("unreadable-untrusted-path", "invalid"),
-    /Connected diagnostic worker awaits exact separate authority/u,
+    runHostedWindowsDiagnosticWorkerStage("unreadable-untrusted-path", "invalid", "wrong-ref"),
+    /Fixed diagnostic worker workflow ref required/u,
   );
   const entry = fileURLToPath(new URL("./release-native-worker.mts", import.meta.url));
   const abi = spawnSync(process.execPath, [entry, "--hosted-windows-diagnostic-abi"], {
@@ -436,14 +447,14 @@ void test("diagnostic worker selection cannot enable production or read an arbit
   assert.equal(abi.status, 0, abi.stderr);
   const observation: unknown = JSON.parse(abi.stdout);
   assert.ok(isRecord(observation));
-  assert.equal(observation.execution_authorized, false);
+  assert.equal(observation.execution_authorized, true);
   const refused = spawnSync(
     process.execPath,
     [entry, "--hosted-windows-diagnostic-stage", "unreadable-untrusted-path", "a".repeat(64)],
     { encoding: "utf8", timeout: 15000, maxBuffer: 16384 },
   );
   assert.notEqual(refused.status, 0);
-  assert.match(refused.stderr, /Connected diagnostic worker awaits exact separate authority/u);
+  assert.match(refused.stderr, /fixed hosted stage requires bounded input/u);
 });
 
 void test("diagnostic provider budget uses one bounded public current-job read and refuses stale or foreign authority data", async () => {
@@ -610,6 +621,8 @@ void test("fixed diagnostic acquisition reuses signature verification and refuse
       path,
       project,
       diagnosticVersions: versions,
+      hostedWindowsDiagnosticWorkflowRef:
+        "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-custody-canary-20261029",
       isRecord,
       performance,
       digest: (b: Buffer) => createHash("sha256").update(b).digest("hex"),
@@ -630,7 +643,7 @@ void test("fixed diagnostic acquisition reuses signature verification and refuse
           GITHUB_RUN_ATTEMPT: "1",
           GITHUB_RUN_ID: "123",
           GITHUB_WORKFLOW_REF:
-            "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-fixed-diagnostic",
+            "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-custody-canary-20261029",
         },
       },
       windowsSourceSystemExecutables: { git: "fixed-git" },
@@ -1973,5 +1986,116 @@ void test("actual preparation completion publishes identical durable create-only
           );
       }
     }
+  }
+});
+
+void test("temporary diagnostic scope accepts only the literal branch and original hosted Windows context", () => {
+  const implementation = readFileSync(
+      new URL("./release-hosted-native-windows-diagnostic-source.mts", import.meta.url),
+      "utf8",
+    ),
+    code = body(
+      "export function requireOriginalHostedWindowsDiagnosticContext()",
+      "export async function readOriginalHostedWindowsDiagnosticInputs()",
+      implementation,
+    ),
+    ref =
+      "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-custody-canary-20261029";
+  const environment = {
+    GITHUB_ACTIONS: "true",
+    RUNNER_ENVIRONMENT: "github-hosted",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_JOB: "installed-prerequisite",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_RUN_ID: "123",
+    GITHUB_SHA: "a".repeat(40),
+    GITHUB_WORKFLOW_REF: ref,
+    PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
+    PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
+    PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
+  };
+  const context = { platform: "win32", arch: "x64", env: environment };
+  const check = (process: unknown): unknown =>
+    runInNewContext(code + "\nrequireOriginalHostedWindowsDiagnosticContext()", {
+      assert,
+      process,
+      hostedWindowsDiagnosticWorkflowRef: ref,
+    });
+  const value: unknown = check(context);
+  assert.ok(isRecord(value));
+  assert.equal(value.workflow, ref);
+  for (const changed of [
+    {
+      GITHUB_WORKFLOW_REF: ref.replace("feature/534-connected-custody-canary-20261029", "main"),
+    },
+    {
+      GITHUB_WORKFLOW_REF:
+        "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-other",
+    },
+    {
+      GITHUB_WORKFLOW_REF: ref.replace(
+        "refs/heads/feature/534-connected-custody-canary-20261029",
+        "refs/tags/portcove-production-controller",
+      ),
+    },
+    { GITHUB_RUN_ATTEMPT: "2" },
+    { GITHUB_EVENT_NAME: "pull_request" },
+    { GITHUB_JOB: "native_windows" },
+    { RUNNER_ENVIRONMENT: "self-hosted" },
+    { GITHUB_REPOSITORY: "other/portcove" },
+    { GITHUB_ACTIONS: "false" },
+    { PORTCOVE_HOSTED_OBSERVATION_ONLY: "true" },
+    { PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "false" },
+    { GITHUB_RUN_ID: "" },
+    { GITHUB_SHA: "" },
+  ]) {
+    if ("GITHUB_WORKFLOW_REF" in changed)
+      assert.notEqual(
+        changed.GITHUB_WORKFLOW_REF,
+        ref,
+        "Wrong-ref control must change the admitted ref",
+      );
+    assert.throws(() => check({ ...context, env: { ...environment, ...changed } }));
+  }
+  assert.throws(() => check({ ...context, platform: "linux" }));
+  assert.throws(() => check({ ...context, arch: "arm64" }));
+});
+
+void test("diagnostic worker ref literal is inert data and cannot widen production or import an arbitrary input", async () => {
+  const { runHostedWindowsDiagnosticWorkerStage, runHostedWindowsWorkerStage } =
+      await import("./release-hosted-native-windows-worker.mts"),
+    { hostedWindowsDiagnosticWorkflowRef: ref } =
+      await import("./release-hosted-native-windows-worker-contract.mts");
+  for (const wrong of [
+    "",
+    ref.replace("feature/534-connected-custody-canary-20261029", "main"),
+    ref + "-other",
+  ])
+    await assert.rejects(
+      runHostedWindowsDiagnosticWorkerStage("unreadable", "a".repeat(64), wrong),
+      /Fixed diagnostic worker workflow ref required/u,
+    );
+  await assert.rejects(
+    runHostedWindowsDiagnosticWorkerStage("unreadable", "a".repeat(64), ref),
+    /Fixed same-job diagnostic worker input required/u,
+  );
+  await assert.rejects(
+    runHostedWindowsWorkerStage("unreadable", "a".repeat(64)),
+    /held hosted worker execution awaits separate authority/u,
+  );
+  const entry = fileURLToPath(new URL("./release-native-worker.mts", import.meta.url));
+  for (const args of [
+    ["--hosted-windows-diagnostic-stage", "unreadable", "a".repeat(64)],
+    ["--hosted-windows-diagnostic-stage", "unreadable", "a".repeat(64), "wrong"],
+    ["--hosted-windows-stage", "unreadable", "a".repeat(64), ref],
+  ]) {
+    const result = spawnSync(process.execPath, [entry, ...args], {
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 16384,
+    });
+    assert.notEqual(result.status, 0);
+    assert.equal(result.stdout, "");
   }
 });

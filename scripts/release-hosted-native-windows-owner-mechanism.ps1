@@ -82,7 +82,7 @@ $fixedOwnerContext=if($OwnerProfile -ceq 'Production') {
     $env:GITHUB_JOB -ceq 'native_windows' -and $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/application-update-production[.]yml@refs/tags/[^/]+$'
 }else {
     $env:GITHUB_JOB -ceq 'installed-prerequisite' -and $env:GITHUB_EVENT_NAME -ceq 'workflow_dispatch' -and
-    $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$' -and
+    $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/feature/534-connected-custody-canary-20261029$' -and
     $env:GITHUB_SHA -ceq $context.source_commit -and
     $context.root -ceq (Join-Path $context.source_root 'work/hosted-windows-connected-diagnostic/owner') -and
     $context.tools_root -ceq (Join-Path $context.source_root 'work/hosted-windows-connected-diagnostic/tools')
@@ -203,6 +203,7 @@ try {
             $startInfo.RedirectStandardOutput=$true;$startInfo.RedirectStandardError=$true
             $workerMode=if($OwnerProfile -ceq 'Production'){'--hosted-windows-stage'}else{'--hosted-windows-diagnostic-stage'}
             foreach($argument in @($workerEntry,$workerMode,$workerInput,$request.worker_request_sha256)){$startInfo.ArgumentList.Add($argument)}
+            if($OwnerProfile -ceq 'Diagnostic'){$startInfo.ArgumentList.Add($env:GITHUB_WORKFLOW_REF)}
             $startInfo.Environment.Clear()
             $system=[Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)
             $environment=@{SystemRoot=$system;WINDIR=$system;PATH=((Split-Path $workerNode)+';C:\Program Files\Git\cmd;'+(Join-Path $system 'System32'));PATHEXT='.EXE';USERPROFILE=$context.root;HOME=$context.root;TEMP=$context.root;TMP=$context.root}

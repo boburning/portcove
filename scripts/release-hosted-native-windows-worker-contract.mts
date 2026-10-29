@@ -4,6 +4,9 @@ import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 
 export const hostedWindowsWorkerAbi = "hosted-windows-worker-v1";
+// Temporary branch-only qualification scope; data, never a production grant.
+export const hostedWindowsDiagnosticWorkflowRef =
+  "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-connected-custody-canary-20261029";
 export function hostedWindowsOwnerDeadline(
   sampleTicks: string,
   frequency: number,

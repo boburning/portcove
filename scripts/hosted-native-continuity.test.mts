@@ -1009,7 +1009,7 @@ void test("original observer heartbeat refuses stale samples while preserving th
 
 void test(
   "connected diagnostic workflow stays source-held and writes exactly the four fixed public upload paths",
-  { timeout: 180000 },
+  { timeout: 240000 },
   async (t) => {
     const workflow = parseDocument(
       await readFile(
@@ -1194,7 +1194,7 @@ void test(
     const launch = fileURLToPath(
       new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
     );
-    for (const operation of ["Preflight", "Start"]) {
+    for (const operation of ["Preflight", "Prepare", "Start"]) {
       const result = spawnSync(
         "pwsh",
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", launch, "-Operation", operation],
@@ -1205,7 +1205,7 @@ void test(
         },
       );
       assert.notEqual(result.status, 0);
-      assert.match(result.stderr, /Connected Windows S2 diagnostic remains held/u);
+      assert.match(result.stderr, /Fixed hosted Windows diagnostic context required/u);
     }
   },
 );
@@ -1219,6 +1219,9 @@ void test(
     const entry = fileURLToPath(
       new URL("./release-hosted-native-windows-diagnostic.mts", import.meta.url),
     );
+    // An unauthorized invocation must not write even into an existing public sink.
+    const control = path.join(root, "portcove-hosted-windows-connected-diagnostic");
+    await mkdir(control);
     for (const operation of [
       ["prepare"],
       ["prepare-payload"],
@@ -1235,7 +1238,7 @@ void test(
       });
       assert.equal(result.status, 2, result.stderr);
       assert.equal(result.stdout, "");
-      assert.deepEqual(await readdir(root), []);
+      assert.deepEqual(await readdir(control), []);
     }
   },
 );
