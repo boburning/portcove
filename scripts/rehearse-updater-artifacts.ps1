@@ -350,6 +350,26 @@ try {
             $native.executable_permissions_verified = $true
         }
         $native | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runRoot "$version-native.json") -Encoding utf8
+        if ($HistoricalLinuxBootstrap -and $version -ceq $predecessorVersion) {
+            # Retain the real matching Core CLI before the candidate build
+            # overwrites Linux's shared target. No second archive extractor.
+            $gameCli = Join-Path $cliTargetRoot 'release/portcove'
+            $observedGameCliVersion = (& $gameCli --version | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $observedGameCliVersion -cne "portcove $version") { throw 'Matching predecessor game CLI version differs' }
+            $retainedGameCli = Join-Path $runRoot 'historical-linux-predecessor-cli'
+            if (Test-Path -LiteralPath $retainedGameCli) { throw 'Retained predecessor CLI must be new' }
+            Copy-Item -LiteralPath $gameCli -Destination $retainedGameCli
+            Invoke-Checked '/usr/bin/chmod' @('700', '--', $retainedGameCli)
+            $gameInventory = Get-Content -LiteralPath (Join-Path $stage 'updater-inventory.json') -Raw | ConvertFrom-Json
+            if ($gameInventory.source_commit -cne $revision) { throw 'Game CLI inventory source differs' }
+            $gameArchives = @($gameInventory.packages | Where-Object { $_.id -ceq 'cli-linux-x86_64-tar-gz' })
+            if ($gameArchives.Count -ne 1) { throw 'Matching game CLI archive is missing or ambiguous' }
+            $historicalLinuxGameCliManifest = Join-Path $runRoot 'historical-linux-predecessor-cli.json'
+            [ordered]@{schema_version=1;source_commit=$revision;version=$version;
+                cli=[ordered]@{path=$retainedGameCli;bytes=(Get-Item -LiteralPath $retainedGameCli).Length;sha256=(Get-FileHash -LiteralPath $retainedGameCli -Algorithm SHA256).Hash.ToLowerInvariant()};
+                archive=$gameArchives[0]
+            } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $historicalLinuxGameCliManifest -Encoding utf8NoBOM
+        }
         & git diff --binary -- Cargo.toml Cargo.lock apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json | Set-Content -LiteralPath (Join-Path $runRoot "$version-fixture.patch") -Encoding utf8
         if($captureFixtureDerivation){
             $fixtureAfter=Get-FixtureDerivationState
@@ -728,7 +748,8 @@ try {
                 $rendererArguments += @('--historical-bootstrap-manifest', $historicalLinuxManifest,
                     '--bootstrap-predecessor', $predecessor,
                     '--bootstrap-predecessor-sha', $qualifiedPredecessorHash,
-                    '--bootstrap-library', $rendererLibrary)
+                    '--bootstrap-library', $rendererLibrary,
+                    '--bootstrap-game-cli-manifest', $historicalLinuxGameCliManifest)
             }
             Invoke-Checked "xvfb-run" $rendererArguments
             $rendererReport = Get-Content -LiteralPath (Join-Path $rendererRoot "evidence/renderer-update-evidence.json") -Raw | ConvertFrom-Json
