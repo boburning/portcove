@@ -798,7 +798,11 @@ including growth after a preflight size check. A cached file is never authority.
 Cache copying and verification run in an awaited blocking worker. Cooperative
 cancellation must join that worker before the installer cleans private staging
 or reports its terminal result; interrupted cache partials retain their separate
-evidence lifetime.
+evidence lifetime. The shared network downloader likewise drains pending Tokio
+file writes before returning from cancellation or transfer failure, so a queued
+write cannot outlive the transfer result and race private cleanup. The original
+transfer error retains precedence; a successful transfer still propagates a drain
+failure and must pass the existing size and checksum guards.
 
 The cache uses one existing library OS lock. Retaining a new entry inventories
 at most 256 entries and 8 GiB of retained bytes, including interrupted partial
