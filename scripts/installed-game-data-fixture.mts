@@ -399,6 +399,7 @@ export async function seedInstalledGameData(options: InstalledGameFixtureOptions
   });
   const expected = object(object(fixture.manifest.upstream)[options.platform]);
   const plan = runCore(options, admitted.environment, ["plan", port, "--channel", "stable"]);
+  await options.record({ phase: "normal-core-plan-returned-before-admission", details: plan });
   assert.deepEqual(plan.source_requirements, []);
   const release = object(plan.release);
   const asset = object(release.asset);
