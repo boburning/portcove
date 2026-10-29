@@ -509,6 +509,9 @@ mod tests {
         // Both sides use the same supported legacy projection; only the
         // referenced source validator changes after the initial consent.
         let mut document = service.catalog.document().clone();
+        // Keep the reviewed port; unrelated modern Native6 ports cannot be
+        // represented after deleting their schema-2 source authority.
+        document.ports.retain(|port| port.id == PORT);
         document.schema_version = 1;
         document.source_catalog = None;
         service.replace_catalog_for_test(

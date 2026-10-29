@@ -344,7 +344,16 @@ fn source_only_inventory_excludes_existing_mutable_and_managed_owners() {
         .map(|port| port.id.as_str())
         .collect::<Vec<_>>();
     ports.sort();
-    assert_eq!(ports, ["animal-crossing-pc-port", "g-diffuser", "openpete"]);
+    assert_eq!(
+        ports,
+        [
+            "animal-crossing-pc-port",
+            "diablo-devilutionx",
+            "diablo-hellfire-devilutionx",
+            "g-diffuser",
+            "openpete"
+        ]
+    );
 }
 
 async fn assert_source_only_install_survives_two_launches(zip_source: bool) {
