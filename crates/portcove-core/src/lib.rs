@@ -61,6 +61,7 @@ mod managed_runtime_policy;
 mod managed_shared_preferences;
 mod managed_tfe;
 mod n64_graphics;
+mod native_temp;
 mod operation;
 mod output_relocation;
 mod output_root;

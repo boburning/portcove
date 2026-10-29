@@ -162,10 +162,55 @@ Historical input signatures/feed
 remain explicitly absent. The maintained process-tree supervisor gives this
 consumer a 300-second execution budget after admission/setup, including with an
 inherited lease. Retain failed runs and cleanup settlement; a selected mode is
-not native acceptance. This chain does not create a desktop entry or real game
-save, and the separate lifecycle fixture cannot supply those continuous-data
-claims. Production authority and real release-to-release acceptance remain with
-their owning gates.
+not native acceptance. This chain does not create a desktop entry.
+
+After manual replacement, the same opt-in uses the builder-retained matching
+predecessor Core CLI to install the existing OpenTyrian catalog entry normally.
+The retained CLI receipt joins the source, version, binary hash and staged archive
+inventory before use. It then copies exactly three provenance-pinned,
+checksum-valid game-authored save/configuration files into a new private external
+OpenTyrian store; an existing store is refused. Original runtime files, installed
+record/artifact identity, game-update policy and player-file bytes are compared
+before and after authenticated candidate return. Original runtime/player files
+are captured before the additional observer CLI runs; installed records and
+policy are then read back through status. Candidate startup may already reconcile
+Core state, so this does not claim an unreconciled database preimage. The fixture
+does not copy a library database or execute the game. This renderer chain does
+not uninstall; separate lifecycle controls do not prove this dataset survives
+uninstall.
+Its generator provenance and limits live in
+`scripts/fixtures/application-update-game-data/manifest.json`. In-game loading,
+gameplay, personal history, credentials and managed backup coverage of external
+game data remain unclaimed. A selected mode or component pass is not installed
+updater preservation evidence. Production authority and real release-to-release
+acceptance remain with their owning gates.
+
+For a separate Windows real-data observation, the existing disposable renderer
+upgrade accepts `-InstalledGameDataConfigurationPath` and its exact SHA-256.
+It excludes public/account-bound routes and the historical bootstrap prelude;
+those retain their separate receipts. Use a new private case directory containing
+an empty retained-library sibling of `TestBase`, a source/version/hash-bound
+matching Core CLI receipt, and a closed configuration with `schema_version: 1`,
+`cli_receipt`, `cli_source_commit`, `library` and `preferences_path`. Set
+`APPDATA`, `LOCALAPPDATA` and `PORTCOVE_PREFERENCES` to private children of that
+case. Preflight requires both stores empty and host preferences absent before
+any installer or Core mutation.
+
+After the predecessor is verified, normal Core saves the library choice,
+installs OpenTyrian and copies the same three game-authored files once. Existing
+damaged-stage/repair/update controls then run. The empty-library WebView startup
+smoke uses separate new library/preferences paths for either transport and
+restores the original absent/empty/value environment exactly before the real
+updater renderer starts. Its empty-state assertions remain intact; that smoke
+supplies no observation of the populated game library. After uninstall's original
+recursive-library comparison, the observer captures original runtime/player
+files before additional Core status, checks the original installed record/policy
+and exact saved-library preference bytes, and writes retained evidence outside
+the disposable installer run. A selected option is not evidence of completion.
+The fixed Windows OS credential store is not isolated by these private paths;
+credential continuity, gameplay and raw database-preimage claims remain absent.
+The caller must retain the configuration, CLI/package/source custody and all
+phase reports, including failures. No signing/publication authority is added.
 
 It checks native package versions and
 executable permissions. The Linux job defaults to the approved Ubuntu 24.04

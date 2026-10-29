@@ -565,6 +565,7 @@ void test("desktop runner selects the same complete contract union in local and 
   const expected = [
     "scripts/desktop-execution-plan.test.mts",
     "scripts/desktop-scenarios.test.mts",
+    "scripts/desktop-staged-layout.test.mts",
     "scripts/desktop-verify.test.mts",
     "scripts/frontend-command-preflight.test.mts",
     "scripts/native-helper-dependencies.test.mts",

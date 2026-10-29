@@ -1,0 +1,515 @@
+{
+  "schema_version": 1,
+  "status": "PROPOSAL ONLY; NOT RATIFIED",
+  "authority": "none",
+  "effective_policy": {
+    "application_minutes": 89,
+    "catalog_alternative_minutes": 40,
+    "hard_cap_minutes": 100
+  },
+  "proposed_policy": {
+    "application_minutes": 165,
+    "catalog_alternative_minutes": 40,
+    "hard_cap_minutes": 165,
+    "purpose_accounting": "mutually-exclusive-max-application165-catalog40",
+    "unused_application_allowance_minutes": 0
+  },
+  "source_scope": {
+    "engineering_base": "79bdb25c66085fbbcf94e088b75d4269ac4792ee",
+    "current_workflow_sha256": "76b8fbb5bd7327eb9d33246b0d911ea83943c666efc82607a4458b1b9046020d",
+    "current_policy_sha256": "a951b4c2a6fa036b2b87856ec9e1a06b074626428cbc234400d6ba9bed1b6736",
+    "activation_requires": "Exact final implementation source/workflow/configuration/resource digest, independent review, explicit resource ratification; these preimage hashes are not future approval"
+  },
+  "jobs": [
+    {
+      "job": "admission",
+      "effective_minutes": 1,
+      "proposed_minutes": 1,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tool_bootstrap",
+      "effective_minutes": 4,
+      "proposed_minutes": 12,
+      "scope": "Application branch only; fixed catalog branch remains4",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tool_attest",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tool_bootstrap_windows",
+      "effective_minutes": 4,
+      "proposed_minutes": 22,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "classification_protection_observation",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "classification_writer",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "coordinator",
+      "effective_minutes": 3,
+      "proposed_minutes": 3,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "coordinator_protection_observation",
+      "effective_minutes": 3,
+      "proposed_minutes": 3,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "independent_admission",
+      "effective_minutes": 9,
+      "proposed_minutes": 9,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "protection_observation",
+      "effective_minutes": 10,
+      "proposed_minutes": 10,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "attest",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "native_linux",
+      "effective_minutes": 10,
+      "proposed_minutes": 25,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "payload_signing",
+      "effective_minutes": 10,
+      "proposed_minutes": 10,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_releases",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_preview",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_stable",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_snapshot",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "tuf_timestamp",
+      "effective_minutes": 2,
+      "proposed_minutes": 2,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "release_publication",
+      "effective_minutes": 6,
+      "proposed_minutes": 6,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "site_publication",
+      "effective_minutes": 5,
+      "proposed_minutes": 5,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "site_protection_observation",
+      "effective_minutes": 5,
+      "proposed_minutes": 5,
+      "scope": "Application",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "native_windows",
+      "effective_minutes": null,
+      "proposed_minutes": 35,
+      "scope": "Missing current production job; proposal requires implementation and review before activation",
+      "observed_protected_seconds": null
+    },
+    {
+      "job": "wake",
+      "effective_minutes": 1,
+      "proposed_minutes": 1,
+      "scope": "Same mutually exclusive wake",
+      "observed_protected_seconds": null
+    }
+  ],
+  "allocations": {
+    "tool_bootstrap_application": {
+      "setup_dependencies": 3,
+      "build_tools": 6,
+      "upload_identity_binding": 2,
+      "settlement": 1,
+      "total": 12
+    },
+    "tool_bootstrap_windows": {
+      "setup_dependencies": 4,
+      "runtime_sequential": 7.5,
+      "build_tools": 6,
+      "upload_identity_binding": 3.5,
+      "settlement": 1,
+      "total": 22
+    },
+    "native_linux": {
+      "setup_reacquisition": 3,
+      "pre_post_native_work": 10,
+      "full_payload_signing_wait": 10,
+      "settlement_recovery": 2,
+      "total": 25
+    },
+    "native_windows": {
+      "setup_reacquisition": 3,
+      "runtime_sequential": 7.5,
+      "original_owner_pre_post_capture_upload_recovery": 9.5,
+      "outer_settlement_upload": 5,
+      "total": 35,
+      "outer_ceiling_allowance_not_owner_extension": 10
+    }
+  },
+  "observations": [
+    {
+      "run": "40653503928/1",
+      "source": "fcd44753a4a7095283845fe5a4fd4d357f44e3a4",
+      "windows_component_seconds": 493,
+      "windows_dependency_seconds": 103,
+      "windows_build_seconds": 210,
+      "linux_component_seconds": 270,
+      "limit": "Component/fixture source; not protected cold job or native proof"
+    },
+    {
+      "run": "40686760408/1",
+      "source": "0013a9d2454c55a85e0f00b469fa2ed4d8ae7bb9",
+      "windows_job_seconds": 4494,
+      "runtime_driver_step_seconds": 116,
+      "runtime_helper_milliseconds": 53028,
+      "native_two_build_seconds": 4004,
+      "limit": "Ordinary two-build installed rehearsal; does not size protected prebuilt graph"
+    },
+    {
+      "run": "40712543303/1",
+      "source": "2afd0db89bbd85a1b6224ecb8b6113ab7eacaa1f",
+      "tree": "9f2c28a7bec493d68781587c9317e018c5f1dc21",
+      "windows_job_id": 122901389756,
+      "windows_component_seconds": 542,
+      "linux_component_seconds": 238,
+      "aggregate_component_seconds": 780,
+      "windows_qualifier_step_seconds": 421,
+      "windows_builder_milliseconds": 250842,
+      "windows_runtime_step_seconds": 52,
+      "windows_runtime_helper_milliseconds": 50680,
+      "windows_artifact": {
+        "id": 12826683979,
+        "bytes": 29858,
+        "sha256": "17423a225543454997c4bd29ed16239d17d074b098dffc3dba542cd9f2726ef4"
+      },
+      "runtime_artifact": {
+        "id": 12827157507,
+        "bytes": 2017,
+        "sha256": "b8210321c03a0649422ad90c4a5f50dbb51bcf8303c210ed1e79e306b0c17902"
+      },
+      "limit": "Actual runtime/driver/source byte fence and full tool inventory component; no private account/native candidate or production activation; Linux actual checkout may be synthetic merge"
+    },
+    {
+      "run": "40819727118/1",
+      "provider_event_head": "1a11fa878c946092d7d76643bafd008608b25db6",
+      "linux_actual_checkout": {
+        "schema_version": 1,
+        "commit": "301b3552f0523bd5e649a3df740f833d9c354ab9",
+        "tree": "5627932449e5e70931dfa79733f9c59a8a4298ac",
+        "evidence_scope": "ordinary-hosted-fixture",
+        "authority": "none"
+      },
+      "linux_commit_parents": [
+        "bd4074c6e7bf4a12a2cdca720da5743a68acf0f2",
+        "1a11fa878c946092d7d76643bafd008608b25db6"
+      ],
+      "linux_job_id": 123269113829,
+      "linux_component_seconds": 258,
+      "linux_qualifier_step_seconds": 183,
+      "linux_tool_build_observation": {
+        "scope": "builder entry through complete inventory; cold workflow setup excluded",
+        "elapsed_milliseconds": 144450,
+        "phases": [
+          {
+            "phase": "source-before",
+            "elapsed_milliseconds": 0
+          },
+          {
+            "phase": "source-assets",
+            "elapsed_milliseconds": 754
+          },
+          {
+            "phase": "fixed-native-package-manager",
+            "elapsed_milliseconds": 758
+          },
+          {
+            "phase": "fixed-node-bundles",
+            "elapsed_milliseconds": 1310
+          },
+          {
+            "phase": "fixed-rust-build",
+            "elapsed_milliseconds": 7803
+          },
+          {
+            "phase": "fixed-native-webdriver-build",
+            "elapsed_milliseconds": 129643
+          },
+          {
+            "phase": "tool-inventory",
+            "elapsed_milliseconds": 143284
+          },
+          {
+            "phase": "fixed-native-support-product",
+            "elapsed_milliseconds": 143685
+          },
+          {
+            "phase": "fixed-compiler-source-closure",
+            "elapsed_milliseconds": 143843
+          },
+          {
+            "phase": "complete",
+            "elapsed_milliseconds": 144450
+          }
+        ]
+      },
+      "windows_actual_checkout": {
+        "commit": "1a11fa878c946092d7d76643bafd008608b25db6",
+        "tree": "730b4a4cb78b53ed9dcc9c3d65e3b913186c1df3",
+        "workflow": "boburning/portcove/.github/workflows/controller-tool-build-fixture.yml@refs/pull/3959/merge",
+        "run_id": "40819727118",
+        "attempt": "1",
+        "scope": "ordinary-hosted-Windows-tool-build",
+        "authority": "none"
+      },
+      "windows_job_id": 123269114113,
+      "windows_component_seconds": 531,
+      "windows_qualifier_step_seconds": 399,
+      "windows_tool_build_observation": {
+        "scope": "builder entry through complete inventory; cold workflow setup excluded",
+        "elapsed_milliseconds": 204095,
+        "phases": [
+          {
+            "phase": "source-before",
+            "elapsed_milliseconds": 0
+          },
+          {
+            "phase": "source-assets",
+            "elapsed_milliseconds": 773
+          },
+          {
+            "phase": "fixed-native-package-manager",
+            "elapsed_milliseconds": 826
+          },
+          {
+            "phase": "fixed-microsoft-webview-driver",
+            "elapsed_milliseconds": 1328
+          },
+          {
+            "phase": "fixed-node-bundles",
+            "elapsed_milliseconds": 3609
+          },
+          {
+            "phase": "fixed-rust-build",
+            "elapsed_milliseconds": 8747
+          },
+          {
+            "phase": "fixed-native-webdriver-build",
+            "elapsed_milliseconds": 173288
+          },
+          {
+            "phase": "tool-inventory",
+            "elapsed_milliseconds": 202882
+          },
+          {
+            "phase": "fixed-native-support-product",
+            "elapsed_milliseconds": 203074
+          },
+          {
+            "phase": "fixed-compiler-source-closure",
+            "elapsed_milliseconds": 203223
+          },
+          {
+            "phase": "complete",
+            "elapsed_milliseconds": 203778
+          }
+        ]
+      },
+      "windows_runtime_step_seconds": 57,
+      "windows_runtime_helper_milliseconds": 56359,
+      "windows_runtime_installer_interval_milliseconds": 55289,
+      "windows_runtime_input_sha256": "13905b098d1ac7ae6ef02f821ff1cb1fcd5900efd9cf0acf3feda2491146c51b",
+      "windows_runtime_floor_sha256": "b49ba6da58c679da4a18caaecae3297ea0230971ccf831e0e7085f27b8988b3b",
+      "windows_runtime_minimum": "155.0.4283.62",
+      "windows_runtime_before": ["131.0.2903.86"],
+      "windows_runtime_observed": "156.0.4314.50",
+      "windows_source_preparation_milliseconds": 22415,
+      "windows_dependency_preparation_milliseconds": 148552,
+      "source_dependency_scope": "Credential-free native consumer preparation controls, distinct from builder and bootstrap setup; not private parent acceptance",
+      "driver_observation": {
+        "version": "156.0.4314.50",
+        "executable_sha256": "dd728c934e491abe7e8a07fa366aad135ea15d934cbba99192ad872da59c39d3",
+        "signature_status": "Valid",
+        "scope": "Source-observed driver signature/hash/version matched runtime; external executable binary not retained or independently recomputed here; no loaded candidate engine"
+      },
+      "aggregate_component_seconds": 789,
+      "public_json_artifacts": [
+        {
+          "id": 12874731139,
+          "name": "controller-tools-windows-fixture-40819727118-1",
+          "bytes": 29860,
+          "sha256": "c640ce8ced3c71587007edcabbfb48b1881fcda8b489ff0e8a0624e9bd3b8bca",
+          "members": 19
+        },
+        {
+          "id": 12874371155,
+          "name": "controller-tool-build-fixture-40819727118-1",
+          "bytes": 18084,
+          "sha256": "cef1af4ed11446aa24796adf30a5ec148fcb8ab299b635a82a96242f26938bb9",
+          "members": 20
+        },
+        {
+          "id": 12874282664,
+          "name": "controller-tools-windows-runtime-40819727118-1",
+          "bytes": 2017,
+          "sha256": "3878358bacf0cc9b2e62fa68ec0afbdd08a8b5ffc70c9695090041c8018f3d9e",
+          "members": 1
+        }
+      ],
+      "retained_json_archive_member_count": 40,
+      "retained_evidence": {
+        "joined_source_runtime_build_facts_sha256": "7b22d2c2b5a5b95145d1deac19188149ed7b9f8344c6a1fd148a53bc931ae091",
+        "public_archive_member_retention_sha256": "1421fd1fe809aac873c25d1b0a215c9e2d26f394a37acbb2202606e3efe560bc",
+        "scope": "All three public JSON archives and40 member sizes/SHA256/CRC independently verified before source/build joins; tool binary contents absent"
+      },
+      "limit": "Ordinary source-bound component observations; fresh private Cargo home/target design is not proof of all host/toolchain/registry cache states. Full protected bundle upload/reacquisition/binding, private35 fit, signing wait and production authority remain Unknown"
+    }
+  ],
+  "invariants": {
+    "maximum_spend_usd": 0,
+    "standard_runners_only": true,
+    "paid_fallback": false,
+    "shared_cache": false,
+    "enlarged_cache": false,
+    "overwrite": false,
+    "unrelated_evidence_deletion": false,
+    "retention_days": 7,
+    "archive_bytes": 536870912,
+    "total_archive_bytes": 2147483648,
+    "report_repair_separate_maximum_minutes": 4,
+    "report_repair_does_not_renew_controller": true
+  },
+  "unknowns": [
+    "Cold protected producer setup/build/upload/source-binding runtime",
+    "Actual protected Linux/Windows prebuilt native workload",
+    "Signing readiness latency within allocated full10minute wait",
+    "Production recovery and final artifact readback time",
+    "Provider availability/account storage headroom",
+    "Catalog4minute shared bootstrap fit remains unproven; catalog40 is retained independent allocation, not completion",
+    "Complete protected binary-bundle upload/reacquisition and authenticated producer binding; public JSON archives do not establish binary custody",
+    "Current nonproduction native run40821126468/1 private-stage evidence pending at preparation; its separate90minute job does not size protected native35 or ratify policy"
+  ],
+  "engineering_remaining": [
+    "Implement held protected Windows job orchestration with unchanged production admission/receipts",
+    "Implement fixed application12/catalog4 bootstrap timeout branches and purpose-aware complete resource inventory",
+    "Apply proposed ceilings/digests only after explicit ratification; preserve100 until then",
+    "Prove signing readiness fits the original Windows570000ms total owner or separately implement/review/ratify an initial longer lifetime;35minute job ceiling does not fix it"
+  ],
+  "stop": "Any enlarged runner/payment/fallback, source or digest mismatch, missing authority, expired original deadline or incomplete cleanup refuses; no automatic retry or budget renewal",
+  "windows_owner_constraint": {
+    "effective_total_milliseconds": 570000,
+    "cleanup_reserve_milliseconds": 30000,
+    "wait_rule": "Any signing readiness wait is subordinate to the original remaining owner deadline; pre/post capture and cleanup share that same envelope",
+    "full_signing_job_maximum_milliseconds": 600000,
+    "full_signing_wait_fit": "Unknown; a570000ms total owner cannot await600000ms plus native work",
+    "job_ceiling_does_not_extend_owner": true,
+    "safe_outcome_if_signer_is_late": "Refuse and settle/recover the original owner within its original deadline; preserve partial evidence",
+    "initial_lifetime_change": "Separate held engineering and reviewed owner-policy decision if full600000ms readiness must fit; no renewal or increased deadline is implemented",
+    "nonproduction_diagnostic": "Existing570000ms fixture upload/ACK flow unchanged; no production signing wait"
+  },
+  "linux_owner_constraint": {
+    "effective_total_milliseconds": 570000,
+    "full_signing_job_maximum_milliseconds": 600000,
+    "wait_rule": "Post-sign readiness and both native stages share the original570000ms job clock; no later stage renews it",
+    "full_signing_wait_fit": "Unknown; a570000ms total original clock cannot await600000ms plus native work",
+    "job_ceiling_does_not_extend_owner": true,
+    "safe_outcome_if_signer_is_late": "Refuse and preserve original settlement/recovery within the original clock",
+    "initial_lifetime_change": "Separate held source/budget engineering and review if full600000ms readiness must fit; not implemented by25minute ceiling"
+  },
+  "revision_date": "2026-10-29",
+  "prepared_source": {
+    "renderer": "scripts/release-resource-amendment-proposal.mts",
+    "proposed_workflow_sha256": "79685346069e247b0688961d13928589bc1af106e75c9d0b9fc4e8e7eaf773b8",
+    "proposed_resource_digest": "a67a721f50d265734ca1c1a2006d20b5f6bbbeb646ca37c57de5ff25a3e9f048",
+    "effective_policy_digest": "f91d5eba7d4a0091e44cb35171429ce4743411931b1617970cb6b46bb076c3b6",
+    "scope": "Prepared bytes/digests only; no ratification, installation, source activation or execution authority"
+  },
+  "historical_proposal": {
+    "path": "docs/qualification/slice4-resource-amendment-proposal-2026-10-28.json",
+    "sha256": "14506857c75232c6ad4eca7c9f043567a3afbf354e66b0d56f8fc258550cfbc8",
+    "application_minutes": 163,
+    "windows_bootstrap_minutes": 20,
+    "windows_build_minutes": 4,
+    "proposed_workflow_sha256": "0f0b7b59164b0d3f017e68d57a765e4a3dfd191812b897bf440a0098e754610c",
+    "proposed_resource_digest": "f17438190783def0152b357bdb5eb734438a1c4f1c807934a513bb90b59ff314",
+    "status": "Historical prepared163 receipt retained byte-for-byte; never ratified"
+  },
+  "build_contingency": {
+    "scope": "Windows builder entry through return, excluding cold workflow setup",
+    "older_maximum_observed_milliseconds": 250842,
+    "latest_observed_milliseconds": 204095,
+    "latest_complete_phase_milliseconds": 203778,
+    "proposed_allowance_milliseconds": 360000,
+    "reserve_above_observed_maximum_milliseconds": 109158,
+    "interpretation": "Explicit planning contingency, not a worst-case bound, statistical guarantee, protected fit or extra runtime permission",
+    "other_phase_allocations_reduced": false
+  }
+}

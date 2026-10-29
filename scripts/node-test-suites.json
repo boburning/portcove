@@ -688,6 +688,14 @@
       ]
     },
     {
+      "file": "scripts/desktop-staged-layout.test.mts",
+      "memberships": [
+        ["windows-storage-4", 302],
+        ["frontend-full-4", 302],
+        ["development-tools", 2102]
+      ]
+    },
+    {
       "file": "scripts/desktop-input-observation.test.mts",
       "memberships": [
         ["catalog-full-2", 4100],
@@ -3763,6 +3771,13 @@
       ]
     },
     {
+      "file": "scripts/installed-game-data-fixture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2651],
+        ["release-check", 751]
+      ]
+    },
+    {
       "file": "scripts/upstream-health-accounting.test.mts",
       "memberships": [
         ["catalog-full", 130],
@@ -4393,6 +4408,13 @@
       "memberships": [
         ["catalog-full-2", 1000124],
         ["development-tools", 5400]
+      ]
+    },
+    {
+      "file": "scripts/windows-installed-game-data.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2652],
+        ["release-check", 752]
       ]
     }
   ]

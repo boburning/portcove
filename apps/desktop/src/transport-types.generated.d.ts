@@ -1674,6 +1674,11 @@ export interface PortDefinition {
   upstream_status: "active" | "retired" | "superseded" | "abandoned";
   user_data_environment: string | null;
   windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
+  /**
+   * Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.
+   * The upstream process must preserve the reviewed working directory.
+   */
+  windows_temp_directory?: string | null;
   [k: string]: unknown;
 }
 export interface BundledRuntime {

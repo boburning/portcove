@@ -64,6 +64,8 @@ param(
     [switch]$RendererUpdate,
     [switch]$VerifyStableWaiting,
     [string]$HistoricalBootstrapManifestPath,
+    [string]$InstalledGameDataConfigurationPath,
+    [string]$InstalledGameDataConfigurationSha256,
     [ValidateSet('official', 'embedded')]
     [Parameter(Position = 26)]
     [string]$RendererTransport = 'official',
@@ -92,6 +94,9 @@ Lifecycle options:
   -UpgradeFromInstallerPath FILE  Retained predecessor installer for replacement checks.
   -HistoricalBootstrapManifestPath FILE  Optional exact published updater-less package identity;
                                  isolated non-elevated fixture chain only, before manual bootstrap.
+  -InstalledGameDataConfigurationPath FILE  Optional private real-game dataset fixture (renderer upgrade only).
+  -InstalledGameDataConfigurationSha256 HEX  Exact configuration bytes; no production or credential authority.
+
   -ExpectedExecutablePath FILE  Expected candidate desktop bytes.
   -ExpectedVersion VERSION  Expected installed version.
   -InstallMode Silent|Passive  Installer interaction mode (default: Silent).
@@ -142,6 +147,38 @@ if ($HistoricalBootstrapManifestPath -and ($ordinaryPublicMode -or $NativeAccoun
         -not $UpgradeFromInstallerPath -or -not $InstalledUpdateTrustedRootPath -or -not $RequireSigningAuthorityAbsent -or -not $EvidencePath)) {
     throw 'Historical bootstrap requires the disposable installed renderer chain; public/account/ordinary-package routes remain separate'
 }
+if ($InstalledGameDataConfigurationPath -or $InstalledGameDataConfigurationSha256) {
+    if (-not $InstalledGameDataConfigurationPath -or
+        $InstalledGameDataConfigurationSha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        -not $RendererUpdate -or -not $UpgradeFromInstallerPath -or
+        $ordinaryPublicMode -or $NativeAccountBindingPath -or $NativeAccountBindingSha256 -or
+        $NativeParentOwnsFinish -or $NormalPackageManifestPath -or $NormalPackageAdmissionPath -or
+        $QualifyPackageRollback -or $HistoricalBootstrapManifestPath -or -not $EvidencePath -or
+        -not $InstalledUpdateTrustedRootPath -or -not $RequireSigningAuthorityAbsent) {
+        throw 'Game-data fixture requires a hash-bound private configuration and the disposable installed renderer upgrade; other routes remain separate'
+    }
+}
+function Invoke-InstalledGameDataPhase([string]$Phase) {
+    if (-not $InstalledGameDataConfigurationPath) { return }
+    $gameOutput = (& node (Join-Path $PSScriptRoot 'windows-installed-game-data.mts') --phase $Phase --configuration $InstalledGameDataConfigurationPath --sha256 $InstalledGameDataConfigurationSha256 --library $libraryRoot | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Installed game-data fixture phase $Phase failed" }
+    if (-not $gameOutput) { throw 'Game-data consumer returned no positive observation' }
+    $gameResult = $gameOutput | ConvertFrom-Json -NoEnumerate
+    if ($gameResult -isnot [System.Management.Automation.PSCustomObject] -or $gameResult.phase -cne $Phase -or
+        ($Phase -eq 'admit' -and $gameResult.configuration_sha256 -cne $InstalledGameDataConfigurationSha256) -or
+        ($Phase -ne 'admit' -and $gameResult.result -cne 'complete')) {
+        throw 'Game-data consumer returned an incomplete or mismatched observation'
+    }
+    Write-Output $gameOutput
+    if ($evidence) {
+        if (-not $evidence.installed_game_data) {
+            $evidence.installed_game_data = [ordered]@{configuration=$InstalledGameDataConfigurationPath;configuration_sha256=$InstalledGameDataConfigurationSha256;phases=@()}
+        }
+        $evidence.installed_game_data.phases += $Phase
+        Write-InstallerEvidence "installed_game_data_$Phase"
+    }
+}
+
 if ($VerifyStableWaiting -and ($ordinaryPublicMode -or $NativeAccountBindingPath -or $NativeAccountBindingSha256 -or $NativeParentOwnsFinish -or $NormalPackageManifestPath -or $NormalPackageAdmissionPath)) {
     throw 'Stable waiting fixture verification cannot widen public, dedicated-account or ordinary-package routes'
 }
@@ -830,6 +867,8 @@ if ($RequireSigningAuthorityAbsent) {
     Write-InstallerEvidence "initialized"
 }
 
+Invoke-InstalledGameDataPhase 'admit'
+
 function Stop-JournaledProcess($Run, $Process, [string]$Status, [string]$Reason) {
     $Run.status = $Status
     $journalFailure = $null
@@ -1303,6 +1342,7 @@ try {
             if ($evidence) { $evidence.driver_preflight_baseline = "passed"; Write-InstallerEvidence "driver_preflight_baseline_passed" }
         }
     }
+    Invoke-InstalledGameDataPhase 'seed'
     # This is a qualification marker, not a fabricated game save. A historical
     # chain creates it before its first installer and must never reseed it.
     if (-not $historicalBootstrap) {
@@ -1459,12 +1499,51 @@ try {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = $helperMarker
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
             $driverPreflight = Join-Path $runRoot "driver-preflight-fixture-env"
-            if ($RendererTransport -eq 'embedded') {
-                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mts") --app $application --output $driverPreflight
-            } else {
-                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mts") --app $application --output $driverPreflight --scenario empty-library --port 45872
+            $preflightEnvironment = @{}
+            if ($InstalledGameDataConfigurationPath) {
+                # This startup smoke requires an empty library. The real game
+                # remains in the original library throughout the recovery tests.
+                foreach ($name in @('PORTCOVE_LIBRARY', 'PORTCOVE_PREFERENCES')) {
+                    $present = Test-Path -LiteralPath ('Env:' + $name)
+                    $preflightEnvironment[$name] = @{present=$present;value=$(if ($present) { (Get-Item -LiteralPath ('Env:' + $name)).Value } else { $null })}
+                }
+                $preflightEmptyLibrary = Join-Path $runRoot 'driver-preflight-empty-library'
+                $preflightEmptyPreferences = Join-Path $runRoot 'driver-preflight-empty-preferences.json'
+                if ((Test-Path -LiteralPath $preflightEmptyLibrary) -or (Test-Path -LiteralPath $preflightEmptyPreferences)) { throw 'Isolated startup smoke inputs must be new' }
+                [IO.Directory]::CreateDirectory($preflightEmptyLibrary) | Out-Null
             }
-            if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
+            try {
+                if ($InstalledGameDataConfigurationPath) {
+                    [Environment]::SetEnvironmentVariable('PORTCOVE_LIBRARY', $preflightEmptyLibrary, 'Process')
+                    [Environment]::SetEnvironmentVariable('PORTCOVE_PREFERENCES', $preflightEmptyPreferences, 'Process')
+                }
+                if ($RendererTransport -eq 'embedded') {
+                    & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mts") --app $application --output $driverPreflight
+                } else {
+                    & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mts") --app $application --output $driverPreflight --scenario empty-library --port 45872
+                }
+                $preflightExitCode = $LASTEXITCODE
+            } finally {
+                foreach ($name in $preflightEnvironment.Keys) {
+                    $previous = $preflightEnvironment[$name]
+                    if ($previous.present) {
+                        [Environment]::SetEnvironmentVariable($name, $previous.value, 'Process')
+                    } else {
+                        Remove-Item -LiteralPath ('Env:' + $name) -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+            foreach ($name in $preflightEnvironment.Keys) {
+                $previous = $preflightEnvironment[$name]
+                if ((Test-Path -LiteralPath ('Env:' + $name)) -ne $previous.present -or
+                    ($previous.present -and (Get-Item -LiteralPath ('Env:' + $name)).Value -cne $previous.value)) {
+                    throw 'Original game-library startup environment was not restored'
+                }
+            }
+            if ($InstalledGameDataConfigurationPath -and $evidence) {
+                $evidence.driver_preflight_fixture_env_scope = [ordered]@{scope='separate empty-library startup smoke only';library_root=$preflightEmptyLibrary;preferences_path=$preflightEmptyPreferences;original_environment_restored=$true}
+            }
+            if ($preflightExitCode -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
             if ($evidence) { $evidence.driver_preflight_fixture_env = "passed"; Write-InstallerEvidence "driver_preflight_fixture_env_passed" }
             $candidateExecutableHash = (Get-FileHash -LiteralPath $ExpectedExecutablePath -Algorithm SHA256).Hash.ToLowerInvariant()
             $rendererArguments = @(
@@ -1913,6 +1992,7 @@ try {
         ($afterUninstallManifest | ConvertTo-Json -Depth 6 -Compress)) {
         throw "Uninstall changed the recursive isolated-library manifest"
     }
+    Invoke-InstalledGameDataPhase 'after-uninstall'
 
     if ($RendererUpdate) {
         if (-not $evidence) { throw "Renderer update qualification requires an external EvidencePath" }

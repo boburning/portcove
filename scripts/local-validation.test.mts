@@ -597,6 +597,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "apps/desktop/scripts/desktop-listener-lifetime.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
     "scripts/desktop-boundary-wiring.test.mts",
+    "scripts/desktop-staged-layout.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
     "scripts/node-platform-skips.test.mts",
@@ -628,6 +629,8 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/test-duration-reporter.test.mts",
     "scripts/ui-test-selection.test.mts",
     "scripts/updater-historical-inputs.test.mts",
+    "scripts/installed-game-data-fixture.test.mts",
+    "scripts/windows-installed-game-data.test.mts",
     "scripts/windows-historical-bootstrap.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -695,8 +698,10 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
 void test("fixture module closure edits retain all independent policy and construction consumers", () => {
   const helper = "scripts/fixtures/module-closure.mts";
   const consumers = [
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/daily-discovery.test.mts",
     "scripts/desktop-boundary-wiring.test.mts",
+    "scripts/desktop-staged-layout.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",

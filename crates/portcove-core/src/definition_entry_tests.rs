@@ -387,7 +387,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.adapter == crate::AdapterKind::NativePortable
+        let version = if port.windows_temp_directory.is_some() {
+            5
+        } else if port.adapter == crate::AdapterKind::NativePortable
             && port.release.provider == crate::ReleaseSource::DirectManifest
         {
             if port.windows_runtime_path_policy.is_some() {
@@ -985,4 +987,39 @@ fn native_packaged_path_policy_requires_v4_for_new_and_retained_entries() {
             .capabilities()
             .compatible
     );
+}
+
+#[test]
+fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation() {
+    let port = crate::native_temp::tests::port();
+    let mut entry = entry_for_port(&port);
+    for version in 1..5 {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(5);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 5"));
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        assert!(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .unwrap_err()
+                .message
+                .contains("version 5")
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(5);
+    entry["required_capabilities"][0]["maximum_version"] = json!(5);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+    entry["required_capabilities"][0]["maximum_version"] = json!(4);
+    assert!(inspect(&entry).is_err());
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    entry["required_capabilities"][0]["maximum_version"] = json!(6);
+    assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }

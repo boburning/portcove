@@ -151,6 +151,35 @@ failure threshold. External profiles and arbitrary future save filenames are
 outside the immutable-package check. New and retained independent entries using
 this policy require Native4; Direct-only Native3 retains its meaning.
 
+Native5 additionally supports `windows_temp_directory` for Windows-only native
+archives using `relative-file-max-path`. Its value is one safe ASCII basename,
+at most 64 bytes, declared exactly once in `persistent_paths` and separate from
+other data namespaces. The publisher archive must leave that directory absent.
+Core creates or validates it during existing locked launch preparation and
+rechecks its namespace, case and redirect safety immediately before spawning.
+Read-only launch inspection never creates it.
+
+Core derives relative `TEMP` and `TMP` values from that field. Review the
+upstream working-directory behavior before using it: the process and any
+launched player must preserve the reviewed directory. The relative basename
+keeps temporary filenames relative even when the installation path has Unicode.
+Temporary bytes belong to the existing entry data scope, including backup,
+retained-version and removal preservation; no independent cleanup deletes them.
+Field additions, removals or coordinate changes do not rewrite an installed
+contract. Authored `TEMP`, `TMP` and reviewed host-session overrides remain
+rejected. Renderer hints remain reviewed host-session configuration.
+
+Without an active creating contract, fresh installation refuses an existing
+canonical temporary namespace, including an empty directory or files preserved after removal. Those
+bytes stay held for a reviewed transition; their presence cannot establish the
+new runtime interpretation. Normal active Native5 maintenance retains the exact
+field and existing data authority.
+
+Fresh and retained indexed entries declaring the field require minimum Native5;
+a range whose lower bound is Native4 cannot authorize the new behavior. Earlier
+definitions omit the field and retain Native1–4 semantics. Complete retained
+projection continues to refuse unknown or discarded fields in older readers.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route

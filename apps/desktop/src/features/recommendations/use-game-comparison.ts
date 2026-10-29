@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type SetStateAction } from "r
 import { desktopApi } from "../../api";
 import type { GameComparison, GameComparisonRequest } from "../../types";
 
-export type ComparisonContext = {
+type ComparisonContext = {
   edition: string;
   environment: string;
   platform: NonNullable<GameComparisonRequest["platform"]> | "";
