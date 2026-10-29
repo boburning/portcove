@@ -16,11 +16,12 @@ if($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-host
     $env:PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC -cne 'true' -or $env:PORTCOVE_HOSTED_PLATFORM -cne 'windows-x86_64' -or $env:PORTCOVE_HOSTED_OBSERVATION_ONLY -cne 'false' -or
     [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne 'X64' -or -not $IsWindows){throw 'Fixed hosted Windows diagnostic context required'}
 $source=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$actual=(& git -C $source rev-parse HEAD|Out-String).Trim()
+$fixedGit='C:\Program Files\Git\cmd\git.exe'
+$actual=(& $fixedGit -c core.fsmonitor=false -C $source rev-parse HEAD|Out-String).Trim()
 if($LASTEXITCODE -ne 0 -or $actual -cne $env:GITHUB_SHA){throw 'Actual diagnostic source differs'}
-& git -C $source diff --quiet HEAD --
+& $fixedGit -c core.fsmonitor=false -C $source diff --quiet HEAD --
 if($LASTEXITCODE -ne 0){throw 'Clean tracked diagnostic source required'}
-$actualTree=(& git -C $source rev-parse 'HEAD^{tree}'|Out-String).Trim()
+$actualTree=(& $fixedGit -c core.fsmonitor=false -C $source rev-parse 'HEAD^{tree}'|Out-String).Trim()
 if($LASTEXITCODE -ne 0 -or $actualTree -cnotmatch '^[a-f0-9]{40}$'){throw 'Original diagnostic source tree unavailable'}
 if($Operation -ceq 'Preflight'){return}
 $originalStartupMaximumMilliseconds=330000
@@ -43,22 +44,36 @@ function Select-ClosedCustodyReader([object]$r){
     return @{schema_version=1;reason=$r.reason;phase=$r.phase;ordinal=$r.ordinal;kind=$r.kind;principal_class=$r.principal_class;rights=$r.rights}
 }
 $utf8=[Text.UTF8Encoding]::new($false,$true)
-# Resolve one PATH-first application before any diagnostic control-directory effect.
+function Resolve-OriginalBootstrapNode {
+# Resolve the original provider runtime ONLY during ordinary pre-private Prepare.
 $nodeCommand=Get-Command node -CommandType Application -ErrorAction Stop | Select-Object -First 1
 $node=$nodeCommand.Source
 if($node -isnot [string] -or -not [IO.Path]::IsPathFullyQualified($node) -or [IO.Path]::GetFileName($node) -cne 'node.exe'){throw 'Fixed existing Node24.22.1 runtime required'}
 $nodeItem=Get-Item -LiteralPath $node -Force
 if($nodeItem.PSIsContainer -or ($nodeItem.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Original regular Node executable required'}
 if((& $node --version|Out-String).Trim() -cne 'v24.22.1' -or $LASTEXITCODE -ne 0){throw 'Fixed existing Node24.22.1 runtime required'}
-$workspace=$source
+    return $node
+}
+$workspace=$env:GITHUB_WORKSPACE
 $publicTemp=$env:RUNNER_TEMP
 if($Operation -ceq 'Prepare'){
+    $node=Resolve-OriginalBootstrapNode
     & $node (Join-Path $source 'scripts/release-hosted-native-windows-diagnostic.mts') prepare
     if($LASTEXITCODE -ne 0){throw 'Bounded diagnostic closure preparation refused; retain original partial namespace'}
+    $preparedRoot=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)) ('.pct-connected-'+$env:GITHUB_RUN_ID+'-'+$env:GITHUB_SHA.Substring(0,12))
+    $completed=$utf8.GetString((Read-LaunchBytes (Join-Path $preparedRoot 'preparation.json') 65536))|ConvertFrom-Json
+    foreach($key in @('launcher_sha256','setup_sha256','node_sha256')){if($completed.$key -cnotmatch '^[a-f0-9]{64}$'){throw 'Complete prepared bootstrap integrity required'}}
+    if($completed.source -cne $env:GITHUB_SHA -or $completed.run_id -cne $env:GITHUB_RUN_ID -or $completed.attempt -ne 1 -or $completed.workflow -cne $env:GITHUB_WORKFLOW_REF -or $completed.public_workspace -cne $workspace -or $completed.public_runner_temp -cne $publicTemp){throw 'Original preparation output context differs'}
+    $output=@(('launcher_sha256='+$completed.launcher_sha256),('setup_sha256='+$completed.setup_sha256),('node_sha256='+$completed.node_sha256))
+    [IO.File]::AppendAllText($env:GITHUB_OUTPUT,($output -join "`n")+"`n")
     return
 }
 try{
+if(-not [IO.Path]::IsPathFullyQualified($workspace) -or $env:DIAGNOSTIC_SETUP_SHA -cnotmatch '^[a-f0-9]{64}$' -or $env:DIAGNOSTIC_NODE_SHA -cnotmatch '^[a-f0-9]{64}$'){throw 'Sealed pre-private bootstrap context required'}
+$derivedRoot=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)) ('.pct-connected-'+$env:GITHUB_RUN_ID+'-'+$env:GITHUB_SHA.Substring(0,12))
+if($source -cne (Join-Path $derivedRoot 'windows-source/source')){throw 'Later diagnostic operations require the captured launcher source'}
 $setupBytes=Read-LaunchBytes (Join-Path $source 'scripts/release-hosted-native-windows-setup.cs.txt') 131072
+if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($setupBytes)).ToLowerInvariant() -cne $env:DIAGNOSTIC_SETUP_SHA){throw 'Captured setup differs from sealed bootstrap hash'}
 Add-Type -TypeDefinition $utf8.GetString($setupBytes)
 # The locator is data. Derive the only permitted roots from this original
 # source/run/HOME tuple; it cannot appoint an executable or another controller.
@@ -69,7 +84,8 @@ $expectedNode=Join-Path $expectedRoot 'tools/bin/node.exe'
 $expectedTemp=Join-Path $expectedRoot 'temp'
 if($prepared.schema_version -ne 1 -or $prepared.source -cne $env:GITHUB_SHA -or $prepared.tree -cne $actualTree -or
     $prepared.run_id -cne $env:GITHUB_RUN_ID -or $prepared.attempt -ne 1 -or $prepared.workflow -cne $env:GITHUB_WORKFLOW_REF -or
-    $prepared.authority -cne 'none' -or $prepared.root -cne $expectedRoot -or $prepared.prepared_source -cne $expectedSource -or
+    $prepared.authority -cne 'none' -or $prepared.public_workspace -cne $workspace -or $prepared.public_runner_temp -cne $publicTemp -or
+    $prepared.setup_sha256 -cne $env:DIAGNOSTIC_SETUP_SHA -or $prepared.node_sha256 -cne $env:DIAGNOSTIC_NODE_SHA -or $prepared.root -cne $expectedRoot -or $prepared.prepared_source -cne $expectedSource -or
     $prepared.node -cne $expectedNode -or $prepared.runner_temp -cne $expectedTemp -or $prepared.shared_cache -cne (Join-Path $expectedRoot 'cache') -or
     $prepared.node_sha256 -cnotmatch '^[a-f0-9]{64}$' -or $prepared.controller_sha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'Original prepared diagnostic closure identity differs'}
 $privatePreparation=Read-LaunchBytes (Join-Path $expectedRoot 'preparation.json') 65536

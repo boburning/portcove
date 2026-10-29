@@ -777,8 +777,13 @@ export async function prepareHostedWindowsDiagnosticClosure() {
     controllerBytes = await readControllerToolFile(
       path.join(source, "scripts/release-hosted-native-windows-diagnostic.mts"),
       128 * 1024,
-    );
-  return {
+    ),
+    launcherBytes = await readControllerToolFile(
+      path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+      131072,
+    ),
+    preparedSetupBytes = await readControllerToolFile(path.join(source, setupName), 131072);
+  const report = {
     schema_version: 1,
     source: context.source,
     tree,
@@ -790,6 +795,10 @@ export async function prepareHostedWindowsDiagnosticClosure() {
     node: runtimeFiles[0],
     node_sha256: digest(nodeBytes),
     controller_sha256: digest(controllerBytes),
+    launcher_sha256: digest(launcherBytes),
+    setup_sha256: digest(preparedSetupBytes),
+    public_workspace: project,
+    public_runner_temp: process.env.RUNNER_TEMP,
     shared_cache: scopedPaths.sharedRoot,
     runner_temp: path.join(root, "temp"),
     original_provider_job_id: provider.job_id,
@@ -808,4 +817,33 @@ export async function prepareHostedWindowsDiagnosticClosure() {
     scope:
       "same-job protected diagnostic copies; no publisher authentication or production authority",
   };
+  const reportBytes = Buffer.from(JSON.stringify(report));
+  assert.ok(
+    reportBytes.length > 0 && reportBytes.length <= 65536,
+    "Prepared diagnostic locator exceeds bound",
+  );
+  recheck();
+  recheckImports();
+  const privateRecord = path.join(root, "preparation.json"),
+    publicRecord = path.join(
+      project,
+      "work/hosted-continuity-evidence/windows-diagnostic-preparation.json",
+    );
+  await writeFile(privateRecord, reportBytes, { flag: "wx", flush: true, mode: 0o600 });
+  active();
+  const recordCustody = inspectNativeRuntimeCustody([privateRecord]);
+  await writeFile(publicRecord, reportBytes, { flag: "wx", flush: true, mode: 0o600 });
+  active();
+  assert.ok(
+    reportBytes.equals(await readControllerToolFile(privateRecord, 65536)),
+    "Protected preparation record changed",
+  );
+  assert.ok(
+    reportBytes.equals(await readControllerToolFile(publicRecord, 65536)),
+    "Public preparation locator changed",
+  );
+  recheckNativeRuntimeCustody([privateRecord], recordCustody);
+  recheckImports();
+  recheck();
+  return report;
 }

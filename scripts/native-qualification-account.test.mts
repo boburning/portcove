@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { parse as parseYaml } from "yaml";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   readFileSync,
   copyFileSync,
@@ -11,6 +12,7 @@ import {
   renameSync,
   symlinkSync,
 } from "node:fs";
+import { writeFile as writeFileAsync } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { windowsOwnerEnvironment } from "./release-windows-owner-mechanism.mts";
@@ -828,7 +830,7 @@ void test(
       "utf8",
     );
     const start = source.indexOf("$nodeCommand="),
-      end = source.indexOf("$workspace=$source");
+      end = source.indexOf("    return $node", start);
     assert.ok(
       start > 0 && end > start && end < source.indexOf("[Portcove.HostedNative.Setup]::Directory"),
     );
@@ -898,6 +900,43 @@ void test(
       );
       return value.replace(before, after);
     };
+    const preparationOriginal = readFileSync(
+        new URL("./release-hosted-native-windows-diagnostic-preparation.mts", import.meta.url),
+        "utf8",
+      ),
+      completionStart = preparationOriginal.lastIndexOf("  const report = {"),
+      completionEnding = preparationOriginal.slice(completionStart).trimEnd();
+    assert.ok(completionStart > 0 && completionEnding.endsWith("}"));
+    const completionProgram = stripTypeScriptTypes(
+      "(async () => {\n" + completionEnding.slice(0, -1) + "\n})()",
+      { mode: "transform" },
+    );
+    const continuity = parseYaml(
+      readFileSync(
+        new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+        "utf8",
+      ),
+    ) as { jobs: Record<string, { steps: { id?: string; run?: string }[] }> };
+    const workflowEntry = continuity.jobs["installed-prerequisite"]!.steps.find(
+      (step) => step.id === "diagnostic_start",
+    )?.run;
+    assert.ok(typeof workflowEntry === "string");
+    const unsafeNodeDirectory = path.join(root, "unsafe original node"),
+      poisonMarker = path.join(root, "original-node-executed.txt"),
+      workspaceMarker = path.join(root, "workspace-launcher-executed.txt");
+    mkdirSync(unsafeNodeDirectory);
+    const poisonSource = path.join(root, "UnsafeOriginalNode.cs"),
+      unsafeNode = path.join(unsafeNodeDirectory, "node.exe");
+    writeFileSync(
+      poisonSource,
+      'public static class UnsafeOriginalNode { public static int Main(string[] a) { System.IO.File.WriteAllText(System.Environment.GetEnvironmentVariable("PORTCOVE_OWNED_POISON_NODE"),"unexpected original runtime");System.Console.WriteLine("v24.22.1");return 0; } }',
+    );
+    const poisonCompile = spawnSync(
+      "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",
+      ["/nologo", "/target:exe", `/out:${unsafeNode}`, poisonSource],
+      { encoding: "utf8", timeout: 30000, windowsHide: true },
+    );
+    assert.equal(poisonCompile.status, 0, poisonCompile.stderr);
     for (const variant of [
       "ready",
       "wrong-source",
@@ -908,7 +947,8 @@ void test(
       "unavailable-retention",
     ] as const) {
       let source = path.join(root, variant, "source with spaces");
-      const temporary = path.join(root, variant, "temporary");
+      const temporary = path.join(root, variant, "temporary"),
+        publicWorkspace = source;
       mkdirSync(path.join(source, "scripts"), { recursive: true });
       mkdirSync(temporary);
       let launcher = once(
@@ -994,7 +1034,7 @@ void test(
         path.join(source, "scripts/release-hosted-native-windows-setup.cs.txt"),
       );
       const git = (args: string[]) => {
-        const result = spawnSync(
+        const result: SpawnSyncReturns<string> = spawnSync(
           "git",
           [
             "-c",
@@ -1039,6 +1079,16 @@ void test(
       const preparedSource = path.join(namespace, "windows-source", "source");
       renameSync(source, preparedSource);
       source = preparedSource;
+      mkdirSync(path.join(publicWorkspace, "scripts"), { recursive: true });
+      mkdirSync(path.join(publicWorkspace, "work/hosted-continuity-evidence"), { recursive: true });
+      writeFileSync(
+        path.join(publicWorkspace, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+        "[IO.File]::WriteAllText($env:PORTCOVE_OWNED_POISON_WORKSPACE,'unexpected workspace launcher');throw 'Untrusted workspace entry executed'",
+      );
+      writeFileSync(
+        path.join(publicWorkspace, "scripts/release-hosted-native-windows-setup.cs.txt"),
+        "invalid original workspace setup must never compile",
+      );
       mkdirSync(path.join(namespace, "tools", "bin"), { recursive: true });
       const preparedNode = path.join(namespace, "tools", "bin", "node.exe");
       writeFileSync(preparedNode, readFileSync(process.execPath), { flag: "wx" });
@@ -1081,60 +1131,88 @@ void test(
       assert.match(linkIdentity.stdout, /^[a-f0-9]{8}(?::[a-f0-9]{8}){4}$/u);
       mkdirSync(path.join(namespace, "temp"));
       mkdirSync(path.join(source, "work", "hosted-continuity-evidence"), { recursive: true });
-      writeFileSync(
-        path.join(source, "work/hosted-continuity-evidence/windows-diagnostic-preparation.json"),
-        JSON.stringify({
-          schema_version: 1,
+      // Execute the actual product producer ending; the launcher below must
+      // consume its files instead of a separately synthesized receipt writer.
+      await (runInNewContext(completionProgram, {
+        assert,
+        Buffer,
+        JSON,
+        path,
+        root: namespace,
+        project: publicWorkspace,
+        source,
+        context: {
           source: sha,
-          tree,
           run_id: "123",
-          attempt: 1,
           workflow:
             "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
-          authority: "none",
-          root: namespace,
-          prepared_source: source,
-          node: preparedNode,
-          runner_temp: path.join(namespace, "temp"),
-          shared_cache: path.join(namespace, "cache"),
-          yaml_link: {
-            path: path.join("node_modules", "yaml"),
-            kind: "link",
-            identity: "owned-fixture",
-            target: path.join(source, "scripts"),
-            resolved: "scripts",
-          },
-          yaml_link_native_identity: linkIdentity.stdout,
-          imports: [
-            "scripts/release-hosted-native-windows-diagnostic.mts",
-            "scripts/release-hosted-native-windows-setup.cs.txt",
-          ].map((name) => {
-            const bytes = readFileSync(path.join(source, name));
-            return {
-              path: name,
-              bytes: bytes.length,
-              sha256: createHash("sha256").update(bytes).digest("hex"),
-            };
-          }),
-          node_sha256: createHash("sha256").update(readFileSync(preparedNode)).digest("hex"),
-          controller_sha256: createHash("sha256")
-            .update(
-              readFileSync(
-                path.join(source, "scripts/release-hosted-native-windows-diagnostic.mts"),
-              ),
-            )
-            .digest("hex"),
-        }),
-      );
-      writeFileSync(
-        path.join(namespace, "preparation.json"),
-        readFileSync(
-          path.join(source, "work/hosted-continuity-evidence/windows-diagnostic-preparation.json"),
+        },
+        tree,
+        runtimeFiles: [preparedNode],
+        nodeBytes: readFileSync(preparedNode),
+        controllerBytes: readFileSync(
+          path.join(source, "scripts/release-hosted-native-windows-diagnostic.mts"),
         ),
-        { flag: "wx" },
+        launcherBytes: readFileSync(
+          path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+        ),
+        preparedSetupBytes: readFileSync(
+          path.join(source, "scripts/release-hosted-native-windows-setup.cs.txt"),
+        ),
+        process: { env: { RUNNER_TEMP: temporary } },
+        digest: (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex"),
+        scopedPaths: { sharedRoot: path.join(namespace, "cache") },
+        provider: { job_id: 42, job_started_at: "owned fixture" },
+        diagnosticPreparationMaximumMilliseconds: 480000,
+        treeBytes: Buffer.from("owned tree"),
+        graph: { sha256: "a".repeat(64), entries: 1, bytes: 1 },
+        copies: [],
+        imports: [
+          "scripts/release-hosted-native-windows-diagnostic.mts",
+          "scripts/release-hosted-native-windows-setup.cs.txt",
+        ].map((name) => {
+          const bytes = readFileSync(path.join(source, name));
+          return {
+            path: name,
+            bytes: bytes.length,
+            sha256: createHash("sha256").update(bytes).digest("hex"),
+          };
+        }),
+        yamlLink: {
+          path: path.join("node_modules", "yaml"),
+          kind: "link",
+          identity: "owned-fixture",
+          target: path.join(source, "scripts"),
+          resolved: "scripts",
+        },
+        yamlLinkNativeIdentity: linkIdentity.stdout,
+        driverCopies: [],
+        recheck: () => {},
+        recheckImports: () => {},
+        active: () => {},
+        inspectNativeRuntimeCustody: () => new Map(),
+        recheckNativeRuntimeCustody: () => {},
+        writeFile: writeFileAsync,
+        readControllerToolFile: async (filename: string, maximum: number) => {
+          const bytes = readFileSync(filename);
+          assert.ok(bytes.length > 0 && bytes.length <= maximum);
+          return bytes;
+        },
+      }) as Promise<unknown>);
+      const produced: unknown = JSON.parse(
+        readFileSync(path.join(namespace, "preparation.json")).toString("utf8"),
       );
+      assert.ok(isRecord(produced));
       const fixtureEnvironment = {
         ...process.env,
+        PATH: unsafeNodeDirectory + path.delimiter + process.env.PATH,
+        PORTCOVE_OWNED_POISON_NODE: poisonMarker,
+        PORTCOVE_OWNED_POISON_WORKSPACE: workspaceMarker,
+        DIAGNOSTIC_OPERATION: "Start",
+        DIAGNOSTIC_LAUNCHER_SHA: String(produced.launcher_sha256),
+        DIAGNOSTIC_SETUP_SHA: String(produced.setup_sha256),
+        DIAGNOSTIC_NODE_SHA: String(produced.node_sha256),
+        GITHUB_WORKSPACE: publicWorkspace,
         GITHUB_ACTIONS: "true",
         RUNNER_ENVIRONMENT: "github-hosted",
         GITHUB_REPOSITORY: "boburning/portcove",
@@ -1153,7 +1231,7 @@ void test(
       };
       if (variant === "ready") {
         const locator = path.join(
-            source,
+            publicWorkspace,
             "work/hosted-continuity-evidence/windows-diagnostic-preparation.json",
           ),
           validBytes = readFileSync(locator),
@@ -1171,19 +1249,12 @@ void test(
           const changed: Record<string, unknown> = { ...original, [field!]: wrong };
           writeFileSync(locator, JSON.stringify(changed));
           assert.deepEqual(JSON.parse(readFileSync(locator).toString("utf8")), changed);
-          const refused = spawnSync(
+          const refused: SpawnSyncReturns<string> = spawnSync(
             "pwsh",
-            [
-              "-NoProfile",
-              "-NonInteractive",
-              "-File",
-              path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
-              "-Operation",
-              "Publish",
-            ],
+            ["-NoProfile", "-NonInteractive", "-Command", workflowEntry],
             {
               cwd: source,
-              env: fixtureEnvironment,
+              env: { ...fixtureEnvironment, DIAGNOSTIC_OPERATION: "Publish" },
               encoding: "utf8",
               timeout: 15000,
               maxBuffer: 16384,
@@ -1202,19 +1273,12 @@ void test(
         writeFileSync(locator, validBytes);
         // A scalar locator cannot authorize changed executable bytes.
         writeFileSync(preparedNode, "changed owned inert runtime bytes");
-        const changedRuntime = spawnSync(
+        const changedRuntime: SpawnSyncReturns<string> = spawnSync(
           "pwsh",
-          [
-            "-NoProfile",
-            "-NonInteractive",
-            "-File",
-            path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
-            "-Operation",
-            "Publish",
-          ],
+          ["-NoProfile", "-NonInteractive", "-Command", workflowEntry],
           {
             cwd: source,
-            env: fixtureEnvironment,
+            env: { ...fixtureEnvironment, DIAGNOSTIC_OPERATION: "Publish" },
             encoding: "utf8",
             timeout: 15000,
             maxBuffer: 16384,
@@ -1238,25 +1302,30 @@ void test(
         );
         t.diagnostic("bounded-public-preparation-refusal changed-runtime");
       }
-      const result = spawnSync(
+      const result: SpawnSyncReturns<string> = spawnSync(
         "pwsh",
-        [
-          "-NoProfile",
-          "-NonInteractive",
-          "-File",
-          path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
-        ],
+        ["-NoProfile", "-NonInteractive", "-Command", workflowEntry],
         {
           encoding: "utf8",
           timeout: 35000,
           windowsHide: true,
           maxBuffer: 65536,
-          cwd: source,
+          cwd: publicWorkspace,
           env: fixtureEnvironment,
         },
       );
       assert.equal(result.error, undefined, result.error?.message);
       assert.equal(result.status, 1, result.stderr);
+      assert.equal(
+        existsSync(poisonMarker),
+        false,
+        "Later operations must never probe the unsafe original Node",
+      );
+      assert.equal(
+        existsSync(workspaceMarker),
+        false,
+        "The trusted workflow bootstrap must never enter workspace launcher code",
+      );
       const control = path.join(temporary, "portcove-hosted-windows-connected-diagnostic"),
         reportBytes = readFileSync(path.join(control, "controller-startup-public.json"));
       assert.ok(reportBytes.length <= 65536);

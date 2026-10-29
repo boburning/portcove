@@ -1076,16 +1076,36 @@ void test(
       controller = steps.findIndex((row) => row.id === "diagnostic_start");
     assert.ok(preparation > native && preparation < controller);
     assert.equal(steps[preparation]!["timeout-minutes"], 9);
-    for (const row of steps.filter(
-      (row) =>
-        typeof row.run === "string" &&
-        /-Operation (?:Request|Ack|Settle|Abort)/u.test(String(row.run)),
-    ))
-      assert.doesNotMatch(
-        String(row.run),
-        /& node scripts\//u,
-        "Every relay starts from the captured runtime/source via the fixed launcher",
+    const trustedEntry = steps.find((row) => row.id === "diagnostic_start")?.run;
+    assert.ok(typeof trustedEntry === "string");
+    assert.ok(
+      trustedEntry.indexOf("HashData($taskBytes)") <
+        trustedEntry.indexOf("& $taskEntry @taskArguments"),
+    );
+    assert.doesNotMatch(
+      trustedEntry,
+      /(?:& node|& \.\/scripts\/release-hosted-native-windows-diagnostic-launch)/u,
+    );
+    const relays = steps.filter(
+      (row) => isRecord(row.env) && typeof row.env.DIAGNOSTIC_OPERATION === "string",
+    );
+    assert.equal(relays.length, 8);
+    for (const row of relays) {
+      assert.equal(row.run, trustedEntry);
+      assert.ok(isRecord(row.env));
+      assert.equal(
+        row.env.DIAGNOSTIC_LAUNCHER_SHA,
+        "${{ steps.diagnostic_preparation.outputs.launcher_sha256 }}",
       );
+      assert.equal(
+        row.env.DIAGNOSTIC_SETUP_SHA,
+        "${{ steps.diagnostic_preparation.outputs.setup_sha256 }}",
+      );
+      assert.equal(
+        row.env.DIAGNOSTIC_NODE_SHA,
+        "${{ steps.diagnostic_preparation.outputs.node_sha256 }}",
+      );
+    }
     const settlement = steps.find(
       (row) => row.name === "Retain only bounded diagnostic source and cleanup records",
     );
@@ -1110,19 +1130,43 @@ void test(
           request_sha256: "a".repeat(64),
           name: "fixed-diagnostic-name",
           files: ["subject.json", "report.json", "capture.json", "bundle.json"],
-        };
+        },
+        sha = createHash("sha256")
+          .update(root + id)
+          .digest("hex")
+          .slice(0, 40),
+        run = String(Date.now()),
+        namespace = path.join(os.homedir(), `.pct-connected-${run}-${sha.slice(0, 12)}`),
+        capturedLauncher = path.join(
+          namespace,
+          "windows-source/source/scripts/release-hosted-native-windows-diagnostic-launch.ps1",
+        ),
+        publicWorkspace = path.join(root, id + "-public"),
+        poisonMarker = path.join(root, id + "-workspace-executed");
+      await mkdir(path.dirname(capturedLauncher), { recursive: true });
+      t.after(() => rm(namespace, { recursive: true, force: true }));
+      const captured = `param([string]$Operation,[string]$Stage)\n'${JSON.stringify(request)}'\n`;
+      await writeFile(capturedLauncher, captured, { flag: "wx" });
+      await mkdir(path.join(publicWorkspace, "scripts"), { recursive: true });
       await writeFile(
-        program,
-        `$ErrorActionPreference='Stop'\nfunction Invoke-OwnedDiagnosticRelay { '${JSON.stringify(request)}'; $global:LASTEXITCODE=0 }\n` +
-          step.run.replace(
-            "& ./scripts/release-hosted-native-windows-diagnostic-launch.ps1 -Operation Request",
-            "& Invoke-OwnedDiagnosticRelay",
-          ),
+        path.join(publicWorkspace, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+        `[IO.File]::WriteAllText('${poisonMarker.replaceAll("'", "''")}','wrong source');throw 'Unsafe workspace code executed'`,
       );
+      await writeFile(program, step.run);
+      const environment = {
+        ...process.env,
+        GITHUB_SHA: sha,
+        GITHUB_RUN_ID: run,
+        GITHUB_WORKSPACE: publicWorkspace,
+        GITHUB_OUTPUT: output,
+        DIAGNOSTIC_OPERATION: "Request",
+        DIAGNOSTIC_STAGE: id === "diagnostic_pre" ? "payload-signing" : "release-publication",
+        DIAGNOSTIC_LAUNCHER_SHA: createHash("sha256").update(captured).digest("hex"),
+      };
       const observed = spawnSync(
         "pwsh",
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
-        { encoding: "utf8", timeout: 15000, env: { ...process.env, GITHUB_OUTPUT: output } },
+        { cwd: publicWorkspace, encoding: "utf8", timeout: 15000, env: environment },
       );
       assert.equal(observed.status, 0, observed.stderr);
       assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/u), [
@@ -1132,6 +1176,20 @@ void test(
         ...request.files,
         "PORTCOVE_DIAGNOSTIC_PATHS",
       ]);
+      await assert.rejects(readFile(poisonMarker), { code: "ENOENT" });
+      const wrong = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", program],
+        {
+          cwd: publicWorkspace,
+          encoding: "utf8",
+          timeout: 15000,
+          env: { ...environment, DIAGNOSTIC_LAUNCHER_SHA: "0".repeat(64) },
+        },
+      );
+      assert.notEqual(wrong.status, 0);
+      assert.match(wrong.stderr, /Captured workflow entry differs from sealed original bootstrap/u);
+      await assert.rejects(readFile(poisonMarker), { code: "ENOENT" });
     }
     const launch = fileURLToPath(
       new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),

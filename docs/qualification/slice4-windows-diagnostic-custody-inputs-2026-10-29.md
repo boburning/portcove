@@ -95,7 +95,14 @@ still run on the copies. These are same-job byte observations, not publisher
 authentication, redistribution permission or production admission.
 
 Original C and all request/acknowledgement/settlement/abort relays execute the
-captured Node and protected source. Before any such import, the fixed PowerShell
+captured Node and protected source. Only the initial ordinary Prepare step
+resolves or probes the provider PATH Node. That pre-private step retains the
+captured launcher, setup and Node hashes in its Actions outputs. Every later
+operation enters through one trusted workflow-inline bootstrap, verifies the
+captured launcher against those sealed outputs before executing it, and checks
+captured setup before compiling it. Original workspace code and the original
+Node are not relay entry points. The original public workspace and runner temp
+remain separate from the captured execution source and private temp namespace. Before any such import, the fixed PowerShell
 adapter uses the identical SHA-pinned custody policy, regular single-link native
 handles and complete file/ancestor checks. A public locator cannot appoint a
 root, executable, policy or replacement C; it must match the retained protected
@@ -152,3 +159,13 @@ are 180000ms and 480000ms, covering their sequential children and cleanup withou
 raising other suite defaults. The later focused pair passed in 20516ms; all
 original failures remain retained. This is not an attribution of the
 original delays or a replacement for fresh source qualification.
+
+Independent review rejected the first complete candidate before publication:
+its producer returned but did not persist its two locator files, and its relay
+prefix still re-entered the unsafe original Node/workspace code. Both findings
+remain recorded separately from actual native failures. The corrected producer
+ending is exercised with real filesystem publication, interruption, overwrite,
+expiry and size refusals. The Windows controlled C fixture consumes that actual
+producer ending through the same workflow bootstrap with distinct public and
+protected roots and poisoned original launcher/setup/Node controls. Fresh
+actual Windows execution and final exact-head CI remain mandatory.
