@@ -280,7 +280,8 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  assert.equal(projected.directory.format_version, 3);
+  assert.equal(projected.directory.format_version, 4);
+  assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
     projected.directory.listings.find((value) => value.id === "edition-fixture")?.original_game,

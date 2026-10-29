@@ -825,6 +825,9 @@ function ActivityHistory({
   const attentionIds = new Set([
     ...(activityFeed?.attention_required_activity_ids ?? []),
     ...(activityFeed?.recovery_required_activity_ids ?? []),
+    ...visibleActivities
+      .filter((activity) => activityPresentationState(activity, nowSeconds) === "unfinished")
+      .map((activity) => activity.id),
   ]);
   const inTasks = (activity: ActivityRecord) =>
     protectedIds.has(activity.id) ||
@@ -847,7 +850,8 @@ function ActivityHistory({
     {
       label: "In progress",
       records: visibleActivities.filter(
-        (item) => !attentionIds.has(item.id) && item.status === "running",
+        (item) =>
+          !attentionIds.has(item.id) && activityPresentationState(item, nowSeconds) === "running",
       ),
     },
     {

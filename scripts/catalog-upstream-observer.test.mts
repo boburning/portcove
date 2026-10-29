@@ -1,3 +1,4 @@
+import type { ProviderObservation } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubApiError } from "./github-api.mts";
@@ -381,6 +382,10 @@ void test("operational coordinator isolates handoff files, preserves failure not
   const h = harness();
   await mkdir(path.join(root, "release"), { recursive: true });
   await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  await writeFile(
+    path.join(root, "crates/portcove-core/catalog/listings.json"),
+    JSON.stringify({ format_version: 1, listings: [] }),
+  );
   const cli = path.join(root, "inspector");
   await writeFile(cli, "fixture inspector identity; native execution is mocked");
   await writeFile(
@@ -572,6 +577,10 @@ void test("legacy artifact retains its original report shape while shared ports 
   });
   await mkdir(path.join(root, "release"), { recursive: true });
   await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  await writeFile(
+    path.join(root, "crates/portcove-core/catalog/listings.json"),
+    JSON.stringify({ format_version: 1, listings: [] }),
+  );
   const cli = path.join(root, "inspector");
   await writeFile(cli, "mock Core identity");
   await writeFile(path.join(root, "release/upstream-observer.json"), JSON.stringify(legacy));
@@ -864,6 +873,10 @@ void test("a Core executable changed during projection cannot publish a complete
   });
   await mkdir(path.join(root, "release"), { recursive: true });
   await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  await writeFile(
+    path.join(root, "crates/portcove-core/catalog/listings.json"),
+    JSON.stringify({ format_version: 1, listings: [] }),
+  );
   const cli = path.join(root, "inspector");
   await writeFile(cli, "original mock Core identity");
   await writeFile(path.join(root, "release/upstream-observer.json"), JSON.stringify(legacy));
@@ -1346,6 +1359,10 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
   const h = harness(4);
   await mkdir(path.join(root, "release"), { recursive: true });
   await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  await writeFile(
+    path.join(root, "crates/portcove-core/catalog/listings.json"),
+    JSON.stringify({ format_version: 1, listings: [] }),
+  );
   const cli = path.join(root, "inspector"),
     catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
   await writeFile(cli, "fixture inspector identity; native execution is mocked");
@@ -1490,4 +1507,204 @@ void test("original failure details are published before aggregate diagnostic re
     /evidence envelope/,
   );
   assert.deepEqual(logged, [failure]);
+});
+
+void test("descriptive consumers share one repository collection without managed inspector calls", async () => {
+  const h = harness();
+  const listings = ["descriptive-one", "descriptive-two"].map((id) => ({
+    id,
+    name: id,
+    summary: id,
+    project_url: "https://github.com/owner/shared",
+    availability: "unknown",
+  }));
+  const catalog = { ...h.input, listings };
+  const plan = catalogObservationSources(catalog);
+  assert.equal(plan.sources.length, 2);
+  assert.equal(
+    plan.sources.find((source) => source.repository === "owner/shared")!.ports.length,
+    4,
+  );
+  const originalProject = h.options.project;
+  const managedCalls: string[] = [];
+  h.options.project = async (...args) => {
+    managedCalls.push(args[0]);
+    assert.ok(!args[0].startsWith("descriptive"));
+    return originalProject(...args);
+  };
+  let state: CatalogObserverCheckpoint | null = null;
+  for (let index = 0; index < 20; index++) {
+    const result = await advanceCatalogObservations(catalog, state, h.options);
+    state = result.checkpoint;
+    if (!result.report.pending_source_keys.length) break;
+  }
+  const policies = Object.values(state!.sources).flatMap((source) => source.last_complete_policies);
+  for (const listing of listings) {
+    const policy = policies.find((policy) => policy.port_id === listing.id)!;
+    assert.equal(policy.authority, "descriptive-listing-observation-only");
+    assert.deepEqual(policy.projections, []);
+    assert.ok(policy.listing_update);
+  }
+  assert.ok(managedCalls.length > 0);
+  assert.equal(h.network.filter((url) => url === "identity:owner/shared").length, 1);
+});
+
+void test("descriptive projection retains asset identity without manufacturing package or managed eligibility", async () => {
+  const { projectListingObservation, listingDeclarationHash } =
+    await import("./listing-upstream-observation.mts");
+  const h = harness();
+  await advanceCatalogObservations(h.input, null, h.options);
+  const observed = h.exported.find((entry) => entry[0].repository === "owner/shared")![2].report
+    .observation! as ProviderObservation;
+  const listing = {
+    id: "description",
+    project_url: "https://github.com/owner/shared",
+    availability: "unknown",
+    download_asset_hints: { "windows-x86-64": ["windows", "x64"] },
+  };
+  const report = projectListingObservation(listing, observed, 12);
+  assert.equal(report.authority, "descriptive-listing-observation-only");
+  assert.deepEqual(report.projections, []);
+  assert.equal(report.listing_update.availability, "unknown");
+  assert.equal(report.listing_update.upstream_observation.status, "complete");
+  assert.equal(report.listing_update.upstream_observation.facts_sha256, observed.facts_sha256);
+  assert.equal(
+    listingDeclarationHash(report.listing_update),
+    listingDeclarationHash(listing),
+    "accepting an observation does not invalidate its unchanged declaration",
+  );
+  assert.notEqual(
+    listingDeclarationHash({ ...listing, name: "Correction" }),
+    listingDeclarationHash(listing),
+  );
+});
+
+void test("failed descriptive refresh preserves current authored restrictions and old fact clocks", async () => {
+  const { projectListingObservation, listingUpdatesForReport } =
+    await import("./listing-upstream-observation.mts");
+  const h = harness();
+  await advanceCatalogObservations(h.input, null, h.options);
+  const observed = h.exported.find((entry) => entry[0].repository === "owner/shared")![2].report
+    .observation! as ProviderObservation;
+  const original = {
+    id: "description",
+    project_url: "https://github.com/owner/shared",
+    name: "Old name",
+    download_block_reason: "Old restriction",
+  };
+  const policy = projectListingObservation(original, observed, 12);
+  const current = {
+    ...original,
+    name: "Corrected name",
+    download_block_reason: "Current exact restriction",
+    manual_setup: { steps: [] },
+  };
+  const attempt = "2026-10-28T00:00:00Z";
+  const updates = listingUpdatesForReport(
+    [policy],
+    { exception: { rule: "provider-unavailable" } },
+    attempt,
+    { repository: "owner/shared", ports: [{ listing: current }] },
+  );
+  assert.equal(updates[0]!.name, "Corrected name");
+  assert.equal(updates[0]!.download_block_reason, "Current exact restriction");
+  assert.deepEqual(updates[0]!.manual_setup, { steps: [] });
+  assert.deepEqual(updates[0]!.upstream_observation, {
+    ...policy.listing_update.upstream_observation,
+    attempted_at: attempt,
+    status: "unavailable",
+  });
+  const firstFailure = listingUpdatesForReport(
+    [],
+    { exception: { rule: "invalid-metadata" } },
+    attempt,
+    { repository: "owner/shared", ports: [{ listing: current }] },
+  );
+  assert.equal(firstFailure[0]!.upstream_observation.observed_at, null);
+  assert.equal(firstFailure[0]!.upstream_observation.facts_sha256, null);
+  assert.deepEqual(firstFailure[0]!.upstream_observation.releases, []);
+});
+
+void test("descriptive release windows and pin reconsideration are bounded observations", async () => {
+  const { projectListingObservation, listingObservationReleaseIds } =
+    await import("./listing-upstream-observation.mts");
+  const h = harness();
+  await advanceCatalogObservations(h.input, null, h.options);
+  const observed = structuredClone(
+    h.exported.find((entry) => entry[0].repository === "owner/shared")![2].report
+      .observation! as ProviderObservation,
+  );
+  const listing = {
+    id: "description",
+    project_url: "https://github.com/owner/shared",
+    release_maintenance: {
+      reason: "Retained quickstates",
+      reconsider_when: "Bounded original/save/launch assessment",
+      pinned_releases: [{ version: "older", published_at: "2020-01-01T00:00:00Z" }],
+    },
+  };
+  const report = projectListingObservation(listing, observed, 12);
+  assert.equal(report.pin_reconsideration?.status, "newer-release-observed");
+  assert.deepEqual(report.projections, []);
+  const incomplete = {
+    ...observed,
+    format: 2,
+    coverage: {
+      kind: "channel-candidate-assets" as const,
+      complete_release_headers: true as const,
+      asset_release_ids: [],
+    },
+  };
+  assert.equal(
+    projectListingObservation(listing, incomplete, 12).listing_update.upstream_observation.status,
+    "incomplete",
+  );
+  const invalid = structuredClone(observed);
+  invalid.facts.releases[0]!.draft = false;
+  invalid.facts.releases[0]!.published_at = null;
+  assert.throws(() => listingObservationReleaseIds(invalid), /publication clock/);
+  invalid.facts.releases[0]!.draft = true;
+  assert.ok(!listingObservationReleaseIds(invalid).includes(invalid.facts.releases[0]!.id));
+});
+
+void test("failed refresh invalidates only derived platform labels after authored hint correction", async () => {
+  const { listingUpdatesForReport } = await import("./listing-upstream-observation.mts");
+  const fact = {
+    repository: "owner/shared",
+    observed_at: "2026-10-27T00:00:00Z",
+    fresh_until: "2026-10-27T12:00:00Z",
+    facts_sha256: "a".repeat(64),
+    releases: [
+      {
+        id: 1,
+        assets: [
+          {
+            id: 2,
+            name: "old-windows-x64.zip",
+            sha256: "b".repeat(64),
+            platform_hints: ["windows-x86-64"],
+          },
+        ],
+      },
+    ],
+  };
+  const current = {
+    id: "description",
+    download_asset_hints: { "windows-x86-64": ["new-layout", "windows", "x64"] },
+  };
+  const candidate = listingUpdatesForReport(
+    [{ port_id: "description", listing_update: { ...current, upstream_observation: fact } }],
+    { exception: { rule: "provider-unavailable" } },
+    "2026-10-28T00:00:00Z",
+    { repository: "owner/shared", ports: [{ listing: current }] },
+  )[0]!;
+  assert.deepEqual(candidate.upstream_observation.releases, [
+    {
+      id: 1,
+      assets: [{ id: 2, name: "old-windows-x64.zip", sha256: "b".repeat(64), platform_hints: [] }],
+    },
+  ]);
+  assert.equal(candidate.upstream_observation.observed_at, fact.observed_at);
+  assert.equal(candidate.upstream_observation.fresh_until, fact.fresh_until);
+  assert.equal(candidate.upstream_observation.facts_sha256, fact.facts_sha256);
 });

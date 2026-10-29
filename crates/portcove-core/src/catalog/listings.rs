@@ -12,6 +12,9 @@ impl From<&PortDefinition> for PortListing {
         let presentation = port.presentation.as_ref();
         Self {
             id: port.id.clone(),
+            upstream_observation: None,
+            availability_override_reason: None,
+            release_maintenance: None,
             name: port.name.clone(),
             summary: port.summary.clone(),
             project_url: port.project_url.clone(),
@@ -60,6 +63,17 @@ impl CatalogListingDocument {
         {
             self.format_version = 3;
         }
+        if self.format_version < 4 && self.has_observation_fields() {
+            self.format_version = 4;
+        }
+    }
+
+    fn has_observation_fields(&self) -> bool {
+        self.listings.iter().any(|listing| {
+            listing.upstream_observation.is_some()
+                || listing.availability_override_reason.is_some()
+                || listing.release_maintenance.is_some()
+        })
     }
 
     pub fn from_json(content: &str) -> Result<Self> {
@@ -83,7 +97,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=3) {
+        if !matches!(self.format_version, 1..=4) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -107,6 +121,17 @@ impl CatalogListingDocument {
         {
             return Err(PortcoveError::unsupported(
                 "original game identity and media require listing format 3",
+            ));
+        }
+        if self.format_version < 4
+            && self.listings.iter().any(|listing| {
+                listing.upstream_observation.is_some()
+                    || listing.availability_override_reason.is_some()
+                    || listing.release_maintenance.is_some()
+            })
+        {
+            return Err(PortcoveError::unsupported(
+                "listing observations, overrides and maintenance require format 4",
             ));
         }
         if self.listings.len() > 10_000 {
@@ -142,6 +167,38 @@ fn valid_url(value: &str) -> bool {
                 && url.username().is_empty()
                 && url.password().is_none()
         })
+}
+
+fn observed_release_link(
+    value: &str,
+    repository: &str,
+    version: &str,
+    asset: Option<&str>,
+) -> bool {
+    let Ok(url) = reqwest::Url::parse(value) else {
+        return false;
+    };
+    if url.scheme() != "https"
+        || url.host_str() != Some("github.com")
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.port().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return false;
+    }
+    let prefix = format!(
+        "/{repository}/releases/{}",
+        if asset.is_some() { "download/" } else { "tag/" }
+    );
+    let Some(tail) = url.path().strip_prefix(&prefix) else {
+        return false;
+    };
+    let parts: Vec<_> = tail.split('/').collect();
+    parts.len() == if asset.is_some() { 2 } else { 1 }
+        && crate::release::observed_url_segment_matches(parts[0], version)
+        && asset.is_none_or(|name| crate::release::observed_url_segment_matches(parts[1], name))
 }
 
 impl crate::OriginalGameIdentity {
@@ -186,7 +243,137 @@ impl crate::OriginalGameIdentity {
 }
 
 impl PortListing {
+    fn validate_observation_metadata(&self) -> Result<()> {
+        let invalid = || {
+            PortcoveError::usage("invalid descriptive listing observation or maintenance metadata")
+        };
+        if let Some(reason) = &self.availability_override_reason {
+            if !valid_text(reason, 4096) || self.availability == ListingAvailability::Unknown {
+                return Err(invalid());
+            }
+        }
+        let clock = |value: &str| {
+            time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+                .map_err(|_| invalid())
+        };
+        if let Some(maintenance) = &self.release_maintenance {
+            if !valid_text(&maintenance.reason, 4096)
+                || !valid_text(&maintenance.reconsider_when, 4096)
+                || maintenance.pinned_releases.is_empty()
+                || maintenance.pinned_releases.len() > 4
+            {
+                return Err(invalid());
+            }
+            let mut platforms = HashSet::new();
+            for pin in &maintenance.pinned_releases {
+                if !platforms.insert(pin.platform) || !valid_text(&pin.version, 255) {
+                    return Err(invalid());
+                }
+                if let Some(value) = &pin.published_at {
+                    clock(value)?;
+                }
+            }
+        }
+        let Some(observation) = &self.upstream_observation else {
+            return Ok(());
+        };
+        let repository = crate::release::catalog_download_repository(
+            self.release_url.as_deref().unwrap_or(&self.project_url),
+        )?;
+        let identity = |id: u64| id > 0 && id <= 9_007_199_254_740_991;
+        if observation.provider != "github"
+            || !observation.repository.eq_ignore_ascii_case(&repository)
+            || observation.repository_id.is_some_and(|id| !identity(id))
+            || !(1..=4).contains(&observation.release_limit)
+            || observation.releases.len() > observation.release_limit
+        {
+            return Err(invalid());
+        }
+        let attempted = clock(&observation.attempted_at)?;
+        match (
+            &observation.observed_at,
+            &observation.fresh_until,
+            &observation.facts_sha256,
+        ) {
+            (Some(observed), Some(fresh), Some(hash)) => {
+                let observed = clock(observed)?;
+                let fresh = clock(fresh)?;
+                if observation.repository_id.is_none()
+                    || hash.len() != 64
+                    || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+                    || observed > attempted
+                    || fresh <= observed
+                    || fresh - observed > time::Duration::hours(48)
+                {
+                    return Err(invalid());
+                }
+            }
+            (None, None, None)
+                if observation.status != crate::ListingObservationStatus::Complete
+                    && observation.releases.is_empty() => {}
+            _ => return Err(invalid()),
+        }
+        let mut releases = HashSet::new();
+        let mut tags = HashSet::new();
+        let mut packages = HashSet::new();
+        for release in &observation.releases {
+            if !identity(release.id)
+                || !releases.insert(release.id)
+                || !valid_text(&release.version, 255)
+                || !tags.insert(&release.version)
+                || !valid_url(&release.release_url)
+                || !observed_release_link(
+                    &release.release_url,
+                    &observation.repository,
+                    &release.version,
+                    None,
+                )
+                || clock(&release.published_at)? > attempted
+                || release.assets.len() > 32
+                || (observation.status == crate::ListingObservationStatus::Complete
+                    && !release.assets_complete)
+            {
+                return Err(invalid());
+            }
+            for package in &release.assets {
+                if !identity(package.id)
+                    || !packages.insert(package.id)
+                    || package.platform_hints.iter().any(|platform| {
+                        self.download_asset_hints.get(platform).is_none_or(|hints| {
+                            !hints.iter().all(|hint| {
+                                package
+                                    .name
+                                    .to_ascii_lowercase()
+                                    .contains(&hint.to_ascii_lowercase())
+                            })
+                        })
+                    })
+                    || package.platform_hints.len() > 4
+                    || package.platform_hints.iter().collect::<HashSet<_>>().len()
+                        != package.platform_hints.len()
+                    || !valid_text(&package.name, 255)
+                    || package.name.contains(['/', '\\'])
+                    || matches!(package.name.as_str(), "." | "..")
+                    || package.size > 9_007_199_254_740_991
+                    || !valid_url(&package.url)
+                    || !observed_release_link(
+                        &package.url,
+                        &observation.repository,
+                        &release.version,
+                        Some(&package.name),
+                    )
+                    || package.sha256.as_ref().is_some_and(|hash| {
+                        hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+                    })
+                {
+                    return Err(invalid());
+                }
+            }
+        }
+        Ok(())
+    }
     pub fn validate(&self) -> Result<()> {
+        self.validate_observation_metadata()?;
         if let Some(game) = &self.original_game {
             game.validate()?;
         }
@@ -390,6 +577,9 @@ impl Catalog {
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
                 *listing = PortListing {
+                    upstream_observation: listing.upstream_observation.clone(),
+                    availability_override_reason: listing.availability_override_reason.clone(),
+                    release_maintenance: listing.release_maintenance.clone(),
                     original_game,
                     media,
                     issue_number,
@@ -420,6 +610,7 @@ impl Catalog {
             Arc::make_mut(&mut catalog.listings).format_version = 2;
         }
         Arc::make_mut(&mut catalog.listings).listings.push(listing);
+        Arc::make_mut(&mut catalog.listings).promote_projected_format();
         catalog.user_selected_listing = true;
         Ok(catalog)
     }
@@ -706,7 +897,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":4,"listings":[]}),
+            json!({"format_version":5,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -858,5 +1049,124 @@ mod tests {
         assert!(
             CatalogListingDocument::from_json(&serde_json::to_string(&authored).unwrap()).is_err()
         );
+    }
+}
+
+#[cfg(test)]
+mod observation_metadata_tests {
+    use super::*;
+    use serde_json::{Value, json};
+
+    pub(crate) fn observation() -> Value {
+        json!({"provider":"github","repository":"example/game","repository_id":7,
+            "status":"complete","attempted_at":"2026-10-27T00:01:00Z",
+            "observed_at":"2026-10-27T00:00:00Z","fresh_until":"2026-10-27T12:00:00Z",
+            "facts_sha256":"a".repeat(64),"release_limit":4,
+            "releases":[{"id":11,"version":"v1.2.0","release_url":"https://github.com/example/game/releases/tag/v1.2.0",
+                "published_at":"2026-10-26T00:00:00Z","provider_prerelease":false,"assets_complete":true,
+                "assets":[{"id":21,"name":"game-windows-x64.zip","url":"https://github.com/example/game/releases/download/v1.2.0/game-windows-x64.zip","size":42,"sha256":null,"platform_hints":["windows-x86-64"]}]}]})
+    }
+    fn listing() -> Value {
+        json!({"id":"observed-project","name":"Observed project","summary":"Descriptive facts only.",
+            "project_url":"https://github.com/example/game","availability":"unknown",
+            "download_asset_hints":{"windows-x86-64":["windows","x64"]},"upstream_observation":observation()})
+    }
+    fn parse(value: &Value, format: u32) -> Result<CatalogListingDocument> {
+        CatalogListingDocument::from_json(
+            &json!({"format_version":format,"listings":[value]}).to_string(),
+        )
+    }
+    #[test]
+    fn descriptive_observation_has_an_explicit_format_fence_and_retains_no_managed_authority() {
+        let value = listing();
+        for format in [1, 2, 3] {
+            assert!(parse(&value, format).is_err());
+        }
+        let document = parse(&value, 4).unwrap();
+        let catalog = Catalog::for_user_selected_listing(document.listings[0].clone()).unwrap();
+        assert_eq!(catalog.listing_document().format_version, 4);
+        assert_eq!(
+            catalog.listings()[0]
+                .upstream_observation
+                .as_ref()
+                .unwrap()
+                .repository_id,
+            Some(7)
+        );
+        assert!(catalog.port("observed-project").is_err());
+        let retained =
+            Catalog::from_json(&serde_json::to_string(&catalog.authoritative_document()).unwrap())
+                .unwrap();
+        assert!(retained.port("observed-project").is_err());
+    }
+    #[test]
+    fn descriptive_observation_refuses_ambiguous_identity_foreign_links_and_false_completeness() {
+        for change in [
+            "duplicate-release",
+            "duplicate-asset",
+            "foreign-url",
+            "wrong-tag",
+            "future-clock",
+            "incomplete",
+            "false-platform",
+        ] {
+            let mut value = listing();
+            match change {
+                "duplicate-release" => {
+                    let row = value["upstream_observation"]["releases"][0].clone();
+                    value["upstream_observation"]["releases"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(row);
+                }
+                "duplicate-asset" => {
+                    let asset = value["upstream_observation"]["releases"][0]["assets"][0].clone();
+                    value["upstream_observation"]["releases"][0]["assets"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(asset);
+                }
+                "foreign-url" => value["upstream_observation"]["releases"][0]["assets"][0]["url"] =
+                    "https://github.com/other/game/releases/download/v1.2.0/game-windows-x64.zip"
+                        .into(),
+                "wrong-tag" => {
+                    value["upstream_observation"]["releases"][0]["release_url"] =
+                        "https://github.com/example/game/releases/tag/v0.1.0".into()
+                }
+                "future-clock" => {
+                    value["upstream_observation"]["observed_at"] = "2027-01-01T00:00:00Z".into()
+                }
+                "incomplete" => {
+                    value["upstream_observation"]["releases"][0]["assets_complete"] = false.into()
+                }
+                "false-platform" => {
+                    value["upstream_observation"]["releases"][0]["assets"][0]["platform_hints"] =
+                        json!(["linux-x86-64"])
+                }
+                _ => unreachable!(),
+            }
+            assert!(parse(&value, 4).is_err(), "{change}");
+        }
+    }
+    #[test]
+    fn descriptive_first_failure_and_last_good_facts_remain_distinct() {
+        let mut value = listing();
+        let observation = &mut value["upstream_observation"];
+        observation["status"] = "failed".into();
+        observation["attempted_at"] = "2026-10-28T00:00:00Z".into();
+        assert!(parse(&value, 4).is_ok());
+        let observation = &mut value["upstream_observation"];
+        for field in [
+            "observed_at",
+            "fresh_until",
+            "facts_sha256",
+            "repository_id",
+        ] {
+            observation[field] = Value::Null;
+        }
+        observation["releases"] = json!([]);
+        assert!(parse(&value, 4).is_ok());
+        value["upstream_observation"]["status"] = "complete".into();
+        assert!(parse(&value, 4).is_err());
     }
 }

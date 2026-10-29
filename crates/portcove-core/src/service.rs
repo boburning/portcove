@@ -1777,6 +1777,7 @@ impl PortcoveService {
             Ok(catalog) => catalog,
             Err(_) => {
                 status.readiness = Some(LaunchReadiness {
+                    setup_contract: None,
                     launchable: false,
                     blockers: vec![LaunchBlocker::InvalidInstallation],
                     pending_setup: false,
@@ -1996,6 +1997,39 @@ impl PortcoveService {
             }
         }
         status.readiness = Some(LaunchReadiness {
+            setup_contract: retained_catalog
+                .as_ref()
+                .map(|_| -> Result<crate::SetupExplanation> {
+                    Ok(crate::SetupExplanation {
+                        definition_sha256: crate::catalog::observation_definition_sha256(port)?,
+                        retained: true,
+                        platforms: port.platforms.clone(),
+                        installation_method: port
+                            .presentation
+                            .as_ref()
+                            .map(|presentation| presentation.installation_method),
+                        source_requirements: port
+                            .presentation
+                            .as_ref()
+                            .map(|presentation| presentation.source_requirements.clone())
+                            .unwrap_or_default(),
+                        saves_and_settings: port
+                            .presentation
+                            .as_ref()
+                            .map(|presentation| presentation.saves_and_settings),
+                        persistent_paths: port.persistent_paths.clone(),
+                        persistent_file_patterns: port.persistent_file_patterns.clone(),
+                        manual_preparation: port
+                            .presentation
+                            .as_ref()
+                            .and_then(|presentation| presentation.manual_preparation.clone()),
+                        manual_setup: port
+                            .presentation
+                            .as_ref()
+                            .and_then(|presentation| presentation.manual_setup.clone()),
+                    })
+                })
+                .transpose()?,
             launchable: installed && blockers.is_empty(),
             blockers,
             pending_setup,
@@ -12597,6 +12631,18 @@ fn main() {
         let readiness = status.readiness.unwrap();
         assert!(!readiness.launchable);
         assert_eq!(readiness.blockers, vec![LaunchBlocker::InvalidInstallation]);
+        assert!(readiness.setup_contract.is_none());
+        assert!(
+            service
+                .statuses()
+                .unwrap()
+                .iter()
+                .filter(|row| row.active.is_none() && row.external_runtime.is_none())
+                .all(|row| row
+                    .readiness
+                    .as_ref()
+                    .is_none_or(|ready| ready.setup_contract.is_none()))
+        );
         assert_eq!(status.external_runtime.unwrap().id, first.id);
         assert_eq!(row(), before);
         assert_eq!(fs::read(second.executable).unwrap(), b"accepted runtime");
@@ -15940,6 +15986,33 @@ fn main() {
         changed.persistent_paths.push("future-settings.json".into());
         service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
         phase("changed-catalog-loaded");
+        let explained = service
+            .status(&original.id)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .setup_contract
+            .unwrap();
+        assert!(explained.retained);
+        assert!(
+            explained
+                .persistent_paths
+                .iter()
+                .any(|path| path == "general.json")
+        );
+        assert!(
+            !explained
+                .persistent_paths
+                .iter()
+                .any(|path| path == "future-settings.json")
+        );
+        assert_eq!(
+            explained.manual_preparation,
+            original
+                .presentation
+                .as_ref()
+                .and_then(|presentation| presentation.manual_preparation.clone())
+        );
 
         assert!(service.verify(&original.id).unwrap().valid);
         phase("retained-install-verified");

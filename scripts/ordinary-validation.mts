@@ -1475,6 +1475,7 @@ for (const [file, tests] of [
     [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
   ],
   ["scripts/catalog-upstream-observer.mts", upstreamHealthContractTests],
+  ["scripts/listing-upstream-observation.mts", upstreamHealthContractTests],
   ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],

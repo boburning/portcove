@@ -3636,3 +3636,10 @@ Uncovered producers, missing locks and failed probes remain `unknown`. This
 snapshot is best effort; durable terminal results always win. Desktop uses age
 only for the existing uncertain interruption fallback when ownership is unknown.
 No heartbeat, new durable operation registry or abandonment deadline is added.
+
+Core readiness also supplies a read-only `setup_contract` projection from the
+same effective retained catalog used for launch/source checks. React consumes it
+for requirements, guidance and saved-data explanations; current catalog metadata
+cannot reinterpret an older installation's paths or setup. Missing older fields
+remain unavailable. Existing per-operation assessments and exact artifact records
+continue to supply actions and selected-release identity.
