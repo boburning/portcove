@@ -106,6 +106,19 @@ export function prepareReleaseResourceAmendmentProposal(
     },
   ];
   jobs.native_windows = native;
+  const publication = jobs.release_publication;
+  assert.ok(isRecord(publication) && Array.isArray(publication.needs));
+  assert.ok(publication.needs.every((name) => typeof name === "string"));
+  assert.equal(publication.needs.filter((name) => name === "native_linux").length, 1);
+  assert.equal(publication.needs.includes("native_windows"), false);
+  const linuxSuccess = "needs.native_linux.result == 'success'";
+  assert.ok(typeof publication.if === "string");
+  assert.equal(publication.if.split(linuxSuccess).length, 2);
+  publication.needs = [...publication.needs, "native_windows"];
+  publication.if = publication.if.replace(
+    linuxSuccess,
+    "(" + linuxSuccess + " && needs.native_windows.result == 'success')",
+  );
   const proposedWorkflow = Buffer.from(stringify(raw, { lineWidth: 100 })),
     observation = observeReleaseResources(proposedWorkflow, wake, candidate);
   assert.equal(observation.accounting.application, 165);

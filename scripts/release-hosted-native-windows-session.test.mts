@@ -480,6 +480,7 @@ void test("diagnostic provider budget uses one bounded public current-job read a
   const budget = await readOrdinaryHostedWindowsDiagnosticDeadline(context, valid);
   assert.equal(calls, 1);
   assert.equal(budget.authority, "none");
+  assert.equal(budget.maximum_provider_milliseconds, 6000000);
   assert.equal(budget.maximum_owner_milliseconds, 570000);
   assert.equal(budget.cleanup_reserve_milliseconds, 30000);
   assert.equal(budget.provider_finalizer_margin_milliseconds, 60000);
@@ -505,7 +506,7 @@ void test("diagnostic provider budget uses one bounded public current-job read a
       if (scenario === "wrong-attempt") row.run_attempt = 2;
       if (scenario === "wrong-runner") row.labels = ["larger-paid-runner"];
       if (scenario === "insufficient")
-        row.started_at = new Date(Date.now() - 89 * 60000).toISOString();
+        row.started_at = new Date(Date.now() - 99 * 60000).toISOString();
       const headers = new Headers({
         date: new Date(Date.now() + (scenario === "future-date" ? 120000 : 0)).toUTCString(),
       });
@@ -1974,4 +1975,65 @@ void test("actual preparation completion publishes identical durable create-only
       }
     }
   }
+});
+
+void test("measured4439-second prefix preserves unchanged preparation and owner reserves only in100-minute envelope", async () => {
+  const {
+    readOrdinaryHostedWindowsDiagnosticDeadline,
+    projectHostedWindowsDiagnosticPreparationReserve,
+  } = await import("./release-hosted-native-windows-diagnostic-source.mts");
+  const { requireHostedWindowsDiagnosticPreparationReserve } =
+    await import("./release-hosted-native-windows-diagnostic-preparation.mts");
+  const source = "a".repeat(40),
+    context = { source, run_id: "123", attempt: "1" };
+  const provider: typeof fetch = async () =>
+    new Response(
+      JSON.stringify({
+        total_count: 1,
+        jobs: [
+          {
+            id: 17,
+            name: "installed-prerequisite",
+            head_sha: source,
+            run_id: 123,
+            run_attempt: 1,
+            status: "in_progress",
+            conclusion: null,
+            started_at: new Date(Date.now() - 4439000).toISOString(),
+            labels: ["windows-2022"],
+          },
+        ],
+      }),
+      { status: 200, headers: { date: new Date().toUTCString() } },
+    );
+  const budget = await readOrdinaryHostedWindowsDiagnosticDeadline(context, provider),
+    remaining = Math.floor(budget.provider_remaining_deadline - performance.now());
+  assert.equal(4439 + 480 + 570 + 60, 5549);
+  assert.equal(6000 - 5549, 451);
+  assert.equal(5400 - 5549, -149);
+  assert.equal(budget.maximum_provider_milliseconds, 6000000);
+  assert.equal(budget.maximum_owner_milliseconds, 570000);
+  assert.ok(remaining >= 1499000 && remaining <= 1503000);
+  requireHostedWindowsDiagnosticPreparationReserve(remaining);
+  let original: unknown;
+  try {
+    requireHostedWindowsDiagnosticPreparationReserve(901000);
+  } catch (error) {
+    original = error;
+  }
+  assert.ok(original instanceof Error);
+  const observed = projectHostedWindowsDiagnosticPreparationReserve(original);
+  assert.ok(observed);
+  assert.equal(observed.observed_remaining_milliseconds, 901000);
+  assert.equal(observed.required_remaining_milliseconds, 1050000);
+  assert.equal(observed.preparation_milliseconds, 480000);
+  assert.equal(observed.owner_milliseconds, 570000);
+  assert.equal(observed.provider_finalizer_milliseconds, 60000);
+  const hostile = new Error("private message never projected");
+  Object.defineProperty(hostile, "diagnostic_preparation_reserve", {
+    get() {
+      throw new Error("private accessor");
+    },
+  });
+  assert.equal(projectHostedWindowsDiagnosticPreparationReserve(hostile), null);
 });

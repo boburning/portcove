@@ -103,18 +103,29 @@ fn failed_location_falls_back_but_a_selected_root_never_changes_on_capacity_fail
     assert_eq!(fs::read_to_string(&blocked).unwrap(), "preserved");
 
     let configured = temp.path().join("chosen/preferences.json");
-    let mut sessions = Vec::new();
-    for _ in 0..SESSION_LIMIT {
-        let (host, guard) = HostDiagnostics::start_with_locations(
-            Some(&configured),
-            Some(&platform),
-            Surface::Cli,
-            false,
-        );
-        // The producer belongs to the host. Dropping it lets an otherwise idle
-        // worker complete normally even while its observation guard is retained.
-        sessions.push((host, guard.unwrap()));
-    }
+    // Reserve every real session before starting writers. This case owns the
+    // selected-root and capacity policy, independently of best-effort startup.
+    let prepared: Vec<_> = (0..SESSION_LIMIT)
+        .map(|_| {
+            let host = HostDiagnostics::disabled(Surface::Cli, false);
+            let prepared = HostDiagnostics::prepare_locations(
+                Some(&configured),
+                Some(&platform),
+                host.session_id,
+                Surface::Cli,
+            )
+            .unwrap();
+            assert!(prepared.allocation.is_some());
+            (host, prepared)
+        })
+        .collect();
+    let sessions: Vec<_> = prepared
+        .into_iter()
+        .map(|(host, prepared)| {
+            let (host, guard) = host.start_prepared(prepared);
+            (host, guard.unwrap())
+        })
+        .collect();
     let directories: std::collections::BTreeSet<_> = sessions
         .iter()
         .map(|(host, _)| host.session_directory().unwrap().to_owned())
@@ -264,7 +275,11 @@ fn unavailable_host_diagnostics_has_no_subscriber_or_application_failure() {
 #[test]
 fn recreated_layers_share_the_host_session_monotonic_clock() {
     let temp = tempfile::tempdir().unwrap();
-    let (host, guard) = HostDiagnostics::start_in(temp.path(), Surface::Desktop, false);
+    let host = HostDiagnostics::disabled(Surface::Desktop, false);
+    let directory = portcove_core::prepare_support_log_directory(temp.path()).unwrap();
+    let prepared = HostDiagnostics::prepare_session(directory, host.session_id, Surface::Desktop);
+    assert!(prepared.allocation.is_some());
+    let (host, guard) = host.start_prepared(prepared);
     std::thread::sleep(Duration::from_millis(5));
     for _ in 0..2 {
         tracing::subscriber::with_default(

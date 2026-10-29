@@ -730,6 +730,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
+    "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -1615,6 +1616,7 @@ void test("current and historical catalog authorities select their generator con
     "scripts/catalog-artwork-lifecycle.test.mts",
     "scripts/catalog-artwork-provider.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/generate-catalog.test.mts",
   ]);
@@ -1627,6 +1629,7 @@ void test("current and historical catalog authorities select their generator con
     "scripts/catalog-artwork-lifecycle.test.mts",
     "scripts/catalog-artwork-provider.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/generate-catalog.test.mts",
     "scripts/release-native-source-contract.test.mts",
@@ -3235,6 +3238,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const broad = [
     "scripts/generate-catalog.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
     "scripts/catalog-artwork-dispatch.test.mts",
@@ -3245,6 +3249,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
   ];
   const authoring = [
     "scripts/generate-catalog.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
     "scripts/catalog-artwork-dispatch.test.mts",
@@ -4187,4 +4192,45 @@ void test("desktop launcher changes retain evidence, CLI entry and package consu
       ])
         assert.ok(selected.has(test), `${variant}: missing ${test}`);
   }
+});
+
+void test("diagnostic provider and preparation changes retain budget and observer owners across every lifecycle status", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    "scripts/release-hosted-native-windows-diagnostic-source.mts",
+    "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+    "scripts/release-hosted-native-windows-diagnostic.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const oldPath = variant === "R-new" ? "docs/moved.md" : file,
+        newPath = variant === "R-old" ? "docs/moved.md" : file;
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath,
+        newPath,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ ...change, path: newPath, ...(oldPath !== newPath ? { previousPath: oldPath } : {}) }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        for (const consumer of [
+          "scripts/release-hosted-native-windows-session.test.mts",
+          "scripts/hosted-native-continuity.test.mts",
+        ])
+          assert.ok(selected.has(consumer), `${variant}/${file}/${consumer}`);
+    }
 });

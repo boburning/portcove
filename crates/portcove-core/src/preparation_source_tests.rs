@@ -348,6 +348,8 @@ fn source_only_inventory_excludes_existing_mutable_and_managed_owners() {
         ports,
         [
             "animal-crossing-pc-port",
+            "blake-stone-aliens-of-gold-bstone",
+            "blake-stone-planet-strike-bstone",
             "diablo-devilutionx",
             "diablo-hellfire-devilutionx",
             "g-diffuser",

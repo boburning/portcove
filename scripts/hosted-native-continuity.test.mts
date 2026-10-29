@@ -18,6 +18,7 @@ import test from "node:test";
 import { runPythonSuite } from "./python-test-results.mts";
 import { createHash } from "node:crypto";
 import { parseDocument } from "yaml";
+import { runInNewContext } from "node:vm";
 
 void test("hosted Linux readiness preserves original-generation recovery and refusal outcomes", (context) => {
   runPythonSuite(new URL("./qualify-hosted-native-linux.test.py", import.meta.url), context, 30000);
@@ -651,8 +652,8 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
       typeof stop.run === "string",
   );
   assert.equal(start.name, "Start bounded runner resource observation before checkout");
-  assert.ok(Buffer.byteLength(start.run) < 21000);
-  assert.ok(Buffer.byteLength(start.run.replaceAll("\n", "\r\n")) < 21000);
+  assert.ok(Buffer.byteLength(start.run) < 21500);
+  assert.ok(Buffer.byteLength(start.run.replaceAll("\n", "\r\n")) < 21500);
   const observer = /\$taskObserverSource = @'\n([\s\S]*?)\n'@/u.exec(start.run)?.[1];
   assert.ok(observer);
   assert.ok(
@@ -696,6 +697,7 @@ async function hostedResourceObservationFixture(context: test.TestContext) {
       "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-hosted-job-usage",
     PORTCOVE_HOSTED_PLATFORM: process.platform === "win32" ? "windows-x86_64" : "linux-x86_64",
     PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
+    PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "false",
     RUNNER_TEMP: temporary,
     GITHUB_WORKSPACE: workspace,
     PORTCOVE_INERT_PRIVATE_VALUE: "never-collect-this-inert-value",
@@ -948,7 +950,10 @@ void test("instrumentation-only workflow shares the observer with a three-minute
   assert.equal(input.default, false);
   assert.equal(input.type, "boolean");
   const job = raw.jobs["installed-prerequisite"];
-  assert.equal(job["timeout-minutes"], "${{ inputs.resource_observer_only && 3 || 90 }}");
+  assert.equal(
+    job["timeout-minutes"],
+    "${{ inputs.resource_observer_only && 3 || inputs.connected_private_diagnostic && inputs.platform == 'windows-x86_64' && 100 || 90 }}",
+  );
   for (const step of fixture.steps) {
     assert.ok(isRecord(step));
     const name = String(step.name ?? step.uses ?? step.run);
@@ -1354,4 +1359,43 @@ try{Copy-FixedPublicDiagnosticRecords}catch{$secondRefused=$true}
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+void test("only connected Windows qualification receives the finite100-minute provider envelope", async () => {
+  const raw: unknown = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS();
+  assert.ok(isRecord(raw) && isRecord(raw.jobs) && isRecord(raw.jobs["installed-prerequisite"]));
+  const expression = raw.jobs["installed-prerequisite"]["timeout-minutes"];
+  assert.equal(typeof expression, "string");
+  assert.ok(typeof expression === "string");
+  for (const observer of [true, false])
+    for (const connected of [true, false])
+      for (const platform of ["windows-x86_64", "linux-x86_64"]) {
+        const actual: unknown = runInNewContext(expression.slice(3, -2), {
+          inputs: {
+            resource_observer_only: observer,
+            connected_private_diagnostic: connected,
+            platform,
+          },
+        });
+        assert.equal(actual, observer ? 3 : connected && platform === "windows-x86_64" ? 100 : 90);
+      }
+});
+
+void test("connected Windows resource observer records100 minutes without enlarging other profiles or byte limits", async (context) => {
+  const fixture = await hostedResourceObservationFixture(context);
+  fixture.environment.PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC = "true";
+  const started = fixture.invoke(fixture.startPath);
+  assert.equal(started.status, 0, started.stderr || started.stdout);
+  const intent = await fixture.read("intent.json");
+  assert.ok(isRecord(intent));
+  assert.equal(intent.maximum_milliseconds, process.platform === "win32" ? 6000000 : 5400000);
+  assert.equal(intent.maximum_samples, process.platform === "win32" ? 1200 : 1080);
+  assert.equal(intent.maximum_bytes, 8388608);
+  const stopped = fixture.invoke(fixture.stopPath);
+  assert.equal(stopped.status, 0, stopped.stderr || stopped.stdout);
 });
