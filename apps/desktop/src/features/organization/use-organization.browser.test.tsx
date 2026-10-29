@@ -7,6 +7,8 @@ import { useOrganization } from "./use-organization";
 
 const empty: LibraryOrganization = {
   revision: 0,
+  followed_port_ids: [],
+  followed_release_acknowledgments: {},
   collections: {},
   hidden_port_ids: [],
   saved_game_ids: [],

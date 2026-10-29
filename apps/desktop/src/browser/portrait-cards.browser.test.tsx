@@ -353,8 +353,9 @@ it.each([
     await render(<NavigableCards view={view} onSelect={onSelect} />);
     await document.fonts.ready;
     const controls = [...document.querySelectorAll<HTMLElement>(".port-grid button")];
-    // Both views expose three independent controls per exact port; Library Favorites is in More actions.
-    expect(controls).toHaveLength(12);
+    // Library exposes three controls per port; Catalog adds the independent comparison control.
+    // Favorites remains in Library More actions. Every displayed control stays in the navigation graph.
+    expect(controls).toHaveLength(view === "catalog" ? 16 : 12);
     window.scrollTo(0, 0);
     await frame();
     const initialControlBottom = Math.max(

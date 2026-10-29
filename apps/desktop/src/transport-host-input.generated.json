@@ -169,6 +169,93 @@
     "title": "CatalogDownloadRequest",
     "type": "object"
   },
+  "game_comparison_request": {
+    "$defs": {
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "edition_id": {
+        "default": null,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "environment_id": {
+        "default": null,
+        "description": "An explicit observation environment, not a claim that this machine matches it.\nOmission uses an unqualified environment and cannot inherit another device's evidence.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "evaluated_at": {
+        "default": null,
+        "description": "Explicit replay clock. Adapters must not replace a supplied clock.",
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "platform": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Platform"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "port_id": {
+        "description": "A current or retained listing. Only explicit original-game IDs relate alternatives.",
+        "type": "string"
+      },
+      "refresh": {
+        "default": false,
+        "description": "Reuse the existing provider's conditional requests, cache and network limits.",
+        "type": "boolean"
+      },
+      "required_capabilities": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "source_profile_ids": {
+        "default": null,
+        "description": "Catalog profile IDs only. Omission uses this library's explicit registrations;\npresence describes a hypothetical source context, not a fresh file verification.",
+        "items": {
+          "type": "string"
+        },
+        "type": [
+          "array",
+          "null"
+        ],
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "port_id"
+    ],
+    "title": "GameComparisonRequest",
+    "type": "object"
+  },
   "game_file_query_request": {
     "$defs": {
       "GameFileRouteKind": {
@@ -423,6 +510,55 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "followed": {
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "set_followed_project",
+            "type": "string"
+          },
+          "observed_identity": {
+            "description": "Optionally acknowledge the exact release already visible when following.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "port_id",
+          "followed"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "kind": {
+            "const": "acknowledge_followed_release",
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "port_id",
+          "identity"
+        ],
+        "type": "object"
+      },
       {
         "additionalProperties": false,
         "properties": {

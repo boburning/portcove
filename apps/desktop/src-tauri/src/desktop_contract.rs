@@ -421,6 +421,7 @@ pub fn export_transport_schemas() -> Value {
     ]);
     json!({
         "output": {
+            "game_comparison": output::<portcove_core::GameComparison>(),
             "bootstrap_status": output::<BootstrapStatus>(),
             "support_bundle_export": output::<portcove_core::SupportBundleExport>(),
             "locale_preference": output::<DesktopLocalePreference>(),
@@ -461,6 +462,7 @@ pub fn export_transport_schemas() -> Value {
             "steam_entry_apply_result": output::<SteamEntryApplyResult>(),
         },
         "input": {
+            "game_comparison_request": schemars::schema_for!(portcove_core::GameComparisonRequest),
             "install_input": schemars::schema_for!(InstallInput),
             "organization_change": schemars::schema_for!(portcove_core::OrganizationChange),
             "catalog_download_request": schemars::schema_for!(portcove_core::CatalogDownloadRequest),

@@ -21,6 +21,8 @@ import type {
   OrganizationChange,
   ActivityFeed,
   ActivityRecord,
+  GameComparison,
+  GameComparisonRequest,
 } from "../../types";
 import type { OperationResult } from "../../transport-types.generated";
 
@@ -34,6 +36,8 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   const favorites = new Set<string>();
   let organization: LibraryOrganization = {
     revision: 0,
+    followed_port_ids: [],
+    followed_release_acknowledgments: {},
     collections: {},
     hidden_port_ids: [],
     saved_game_ids: [],
@@ -127,6 +131,29 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       const membership = (values: string[], id: string, included: boolean) =>
         included ? [...new Set([...values, id])] : values.filter((value) => value !== id);
       switch (change.kind) {
+        case "set_followed_project":
+          next.followed_port_ids = membership(
+            next.followed_port_ids,
+            change.port_id,
+            change.followed,
+          );
+          if (!change.followed) delete next.followed_release_acknowledgments[change.port_id];
+          else if (change.observed_identity)
+            next.followed_release_acknowledgments[change.port_id] = [
+              ...new Set([
+                ...(next.followed_release_acknowledgments[change.port_id] ?? []),
+                change.observed_identity,
+              ]),
+            ];
+          break;
+        case "acknowledge_followed_release":
+          next.followed_release_acknowledgments[change.port_id] = [
+            ...new Set([
+              ...(next.followed_release_acknowledgments[change.port_id] ?? []),
+              change.identity,
+            ]),
+          ];
+          break;
         case "set_hidden":
           next.hidden_port_ids = membership(next.hidden_port_ids, change.port_id, change.hidden);
           break;
@@ -338,6 +365,69 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         source_root: "fixture/original",
         transfer_id: "fixture-move",
       } satisfies Awaited<ReturnType<typeof desktopApi.recoverLibraryMove>>;
+    },
+    compare_game_ports: (args) => {
+      const request = args?.request as GameComparisonRequest | undefined;
+      if (args?.generation !== generation || !request || typeof request.port_id !== "string")
+        return unsupported("compare_game_ports (invalid fixture context)");
+      const catalog = workspace(journey).catalog;
+      const anchor = catalog.ports.find((port) => port.id === request.port_id);
+      if (!anchor) return unsupported("compare_game_ports (unknown fixture project)");
+      const game = anchor.presentation?.original_game;
+      const ports = catalog.ports.filter(
+        (port) =>
+          port.id === anchor.id || (game && port.presentation?.original_game?.id === game.id),
+      );
+      return {
+        format_version: 1,
+        policy_version: "balanced-v1",
+        game_id: game?.id ?? null,
+        edition_id: request.edition_id ?? null,
+        editions:
+          game?.source_editions.map((edition) => ({
+            ...edition,
+            system: edition.system ?? null,
+          })) ?? [],
+        platform: request.platform ?? "windows-x86-64",
+        environment_id: request.environment_id ?? "unqualified-host",
+        source_profile_ids: [],
+        source_context_is_hypothetical: false,
+        required_capabilities: request.required_capabilities ?? [],
+        evaluated_at: 0,
+        input_id: "f".repeat(64),
+        assessment: null,
+        limitations: [
+          "Interactive presentation fixture only. No release, original files or gameplay were observed.",
+        ],
+        ports: ports.map((port) => ({
+          port_id: port.id,
+          name: port.name,
+          project_url: port.project_url,
+          edition_ids:
+            port.presentation?.original_game?.source_editions.map((edition) => edition.id) ?? [],
+          declared_platforms: port.platforms,
+          source_profile_ids: [],
+          metadata: "missing",
+          offered_release: null,
+          offered_identity: null,
+          freshness: {
+            state: "unobserved",
+            last_successful_resolution_at: null,
+            last_attempt_at: null,
+            offered_identity_changed_at: null,
+          },
+          operation: {
+            kind: "unknown",
+            reason: "Interactive fixture; no native operation assessment.",
+          },
+          source_health: null,
+          launch_ready: false,
+          installed: false,
+          followed: organization.followed_port_ids.includes(port.id),
+          update_notice: null,
+          limitations: [],
+        })),
+      } satisfies GameComparison;
     },
     get_workspace_snapshot: (args) => {
       requireArgs("get_workspace_snapshot", args, { generation });
