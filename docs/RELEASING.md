@@ -198,7 +198,11 @@ any installer or Core mutation.
 
 After the predecessor is verified, normal Core saves the library choice,
 installs OpenTyrian and copies the same three game-authored files once. Existing
-damaged-stage/repair/update controls then run. After uninstall's original
+damaged-stage/repair/update controls then run. The empty-library WebView startup
+smoke uses separate new library/preferences paths for either transport and
+restores the original absent/empty/value environment exactly before the real
+updater renderer starts. Its empty-state assertions remain intact; that smoke
+supplies no observation of the populated game library. After uninstall's original
 recursive-library comparison, the observer captures original runtime/player
 files before additional Core status, checks the original installed record/policy
 and exact saved-library preference bytes, and writes retained evidence outside

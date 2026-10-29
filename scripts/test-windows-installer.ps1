@@ -1499,12 +1499,51 @@ try {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = $helperMarker
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
             $driverPreflight = Join-Path $runRoot "driver-preflight-fixture-env"
-            if ($RendererTransport -eq 'embedded') {
-                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mts") --app $application --output $driverPreflight
-            } else {
-                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mts") --app $application --output $driverPreflight --scenario empty-library --port 45872
+            $preflightEnvironment = @{}
+            if ($InstalledGameDataConfigurationPath) {
+                # This startup smoke requires an empty library. The real game
+                # remains in the original library throughout the recovery tests.
+                foreach ($name in @('PORTCOVE_LIBRARY', 'PORTCOVE_PREFERENCES')) {
+                    $present = Test-Path -LiteralPath ('Env:' + $name)
+                    $preflightEnvironment[$name] = @{present=$present;value=$(if ($present) { (Get-Item -LiteralPath ('Env:' + $name)).Value } else { $null })}
+                }
+                $preflightEmptyLibrary = Join-Path $runRoot 'driver-preflight-empty-library'
+                $preflightEmptyPreferences = Join-Path $runRoot 'driver-preflight-empty-preferences.json'
+                if ((Test-Path -LiteralPath $preflightEmptyLibrary) -or (Test-Path -LiteralPath $preflightEmptyPreferences)) { throw 'Isolated startup smoke inputs must be new' }
+                [IO.Directory]::CreateDirectory($preflightEmptyLibrary) | Out-Null
             }
-            if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
+            try {
+                if ($InstalledGameDataConfigurationPath) {
+                    [Environment]::SetEnvironmentVariable('PORTCOVE_LIBRARY', $preflightEmptyLibrary, 'Process')
+                    [Environment]::SetEnvironmentVariable('PORTCOVE_PREFERENCES', $preflightEmptyPreferences, 'Process')
+                }
+                if ($RendererTransport -eq 'embedded') {
+                    & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mts") --app $application --output $driverPreflight
+                } else {
+                    & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mts") --app $application --output $driverPreflight --scenario empty-library --port 45872
+                }
+                $preflightExitCode = $LASTEXITCODE
+            } finally {
+                foreach ($name in $preflightEnvironment.Keys) {
+                    $previous = $preflightEnvironment[$name]
+                    if ($previous.present) {
+                        [Environment]::SetEnvironmentVariable($name, $previous.value, 'Process')
+                    } else {
+                        Remove-Item -LiteralPath ('Env:' + $name) -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+            foreach ($name in $preflightEnvironment.Keys) {
+                $previous = $preflightEnvironment[$name]
+                if ((Test-Path -LiteralPath ('Env:' + $name)) -ne $previous.present -or
+                    ($previous.present -and (Get-Item -LiteralPath ('Env:' + $name)).Value -cne $previous.value)) {
+                    throw 'Original game-library startup environment was not restored'
+                }
+            }
+            if ($InstalledGameDataConfigurationPath -and $evidence) {
+                $evidence.driver_preflight_fixture_env_scope = [ordered]@{scope='separate empty-library startup smoke only';library_root=$preflightEmptyLibrary;preferences_path=$preflightEmptyPreferences;original_environment_restored=$true}
+            }
+            if ($preflightExitCode -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
             if ($evidence) { $evidence.driver_preflight_fixture_env = "passed"; Write-InstallerEvidence "driver_preflight_fixture_env_passed" }
             $candidateExecutableHash = (Get-FileHash -LiteralPath $ExpectedExecutablePath -Algorithm SHA256).Hash.ToLowerInvariant()
             $rendererArguments = @(
