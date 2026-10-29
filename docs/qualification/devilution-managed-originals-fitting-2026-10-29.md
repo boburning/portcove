@@ -87,3 +87,16 @@ offered lifecycle operations, and retain failures. Native6's generic Windows
 fixtures are credited at their shared scope only. Gameplay, meaningful in-game
 save/load, cross-version save ABI, installed Desktop and protected publication
 acceptance remain separate observations.
+
+The first real-input attempt used Core source `aa0a44aa`, checkout
+`a5e64e0536eacbaffbfc408182f6bf14018f4351`, CI `40931879122/1` and private
+run `25aa580d-0074-4336-b34f-a250c6a7d417`. Exact source registration refused
+before game execution: the shared aggregate helper returned a single named
+member as `id:sha256`, which is not a digest. The consumer repair preserves
+raw single-disc digests and all multi-member folds, and hashes named singleton
+sets through the existing NUL-delimited SHA-256 fold. Directory/ZIP admission,
+durable reload and unchanged external bytes receive regression coverage.
+Existing persisted identities are not rewritten. That failed attempt retained
+all command evidence and confirmed terminal PowerShell, four retained process
+exits and a complete 435-process CIM inventory with no owned descendants before
+releasing both leases. Fresh CI and real-input qualification remain required.
