@@ -2060,3 +2060,510 @@ void test("imported macOS cleanup retains birth custody and mandatory frozen-own
     "Mac capture must force stop in finally",
   );
 });
+
+void test("artwork scenarios serialize their live production browser observations", async (context) => {
+  const production = "apps/desktop/scripts/desktop-artwork-test.mts";
+  const native = "apps/desktop/scripts/desktop-artwork.native.test.mts";
+  const source = stripTypeScriptTypes(
+    await readFile(new URL("../" + production, import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const syntax = [...nodes(parseAst(code))];
+    const callable = (node: Record<string, unknown>) =>
+      ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+        String(node.type),
+      );
+    function exported(name: string) {
+      for (const entry of syntax.filter((node) => node.type === "ExportNamedDeclaration")) {
+        let local: string | undefined;
+        if (isRecord(entry.declaration)) {
+          if (entry.declaration.type === "FunctionDeclaration")
+            local = identifier(entry.declaration.id);
+          else if (Array.isArray(entry.declaration.declarations)) {
+            local = entry.declaration.declarations
+              .filter(isRecord)
+              .map((node) => identifier(node.id))
+              .find((value) => value === name);
+          }
+          if (local !== name) local = undefined;
+        }
+        if (Array.isArray(entry.specifiers)) {
+          const alias = entry.specifiers
+            .filter(isRecord)
+            .find((node) => (identifier(node.exported) ?? literal(node.exported)) === name);
+          if (alias) local = identifier(alias.local);
+        }
+        if (!local) continue;
+        const binding = syntax.find(
+          (node) =>
+            identifier(node.id) === local &&
+            (node.type === "FunctionDeclaration" ||
+              (node.type === "VariableDeclarator" && isRecord(node.init) && callable(node.init))),
+        );
+        assert.ok(binding, "Resolve actual artwork export " + name);
+        const node = binding.type === "VariableDeclarator" ? binding.init : binding;
+        assert.ok(isRecord(node));
+        return { name, local, node, entry };
+      }
+      assert.fail("Retain exported artwork owner " + name);
+    }
+    const owner = exported("artworkScenario");
+    assert.ok(Array.isArray(owner.node.params) && isRecord(owner.node.params[0]));
+    const propertyValues: unknown = owner.node.params[0].properties;
+    assert.ok(Array.isArray(propertyValues));
+    const properties: Record<string, unknown>[] = propertyValues.filter(isRecord);
+    function contextBinding(name: string): string {
+      const property = properties.find((node) => identifier(node.key) === name);
+      const binding = property && identifier(property.value);
+      assert.ok(binding, "Retain artwork scenario context " + name);
+      return binding;
+    }
+    const browser = contextBinding("browser"),
+      scenario = contextBinding("scenario");
+    // Collect every alias, including aliases imported from the wrong owner.
+    // The consumed dependency, rather than the first import, determines wiring.
+    const importedAdapters = syntax.flatMap((declaration) => {
+      if (declaration.type !== "ImportDeclaration" || !Array.isArray(declaration.specifiers))
+        return [];
+      return declaration.specifiers.filter(isRecord).flatMap((specifier) => {
+        const local = identifier(specifier.local);
+        return local &&
+          (identifier(specifier.imported) ?? literal(specifier.imported)) === "executeBrowserScript"
+          ? [{ declaration, specifier, local }]
+          : [];
+      });
+    });
+    const blocks = syntax.filter(
+      (node) => node.type === "BlockStatement" || node.type === "Program",
+    );
+    const bindings = syntax.flatMap((node) => {
+      const fn =
+        node.type === "FunctionDeclaration"
+          ? node
+          : node.type === "VariableDeclarator" && isRecord(node.init) && callable(node.init)
+            ? node.init
+            : undefined;
+      const name = identifier(node.id);
+      if (!fn || !name) return [];
+      const scope = blocks
+        .filter(
+          (block) => range(block).start <= range(node).start && range(block).end >= range(node).end,
+        )
+        .sort((a, b) => range(a).end - range(a).start - (range(b).end - range(b).start))[0];
+      assert.ok(scope);
+      return [{ name, fn, scope }];
+    });
+    function constant(value: unknown): { value: unknown } | undefined {
+      if (!isRecord(value)) return undefined;
+      if (
+        value.type === "Literal" &&
+        (value.value === null || ["boolean", "string", "number"].includes(typeof value.value))
+      )
+        return { value: value.value };
+      if (value.type === "UnaryExpression" && value.operator === "!") {
+        const argument = constant(value.argument);
+        if (argument) return { value: !argument.value };
+      }
+      return undefined;
+    }
+    function active(seed: unknown) {
+      const live: Record<string, unknown>[] = [],
+        seen = new Set<unknown>();
+      const resolved = new Map<Record<string, unknown>, Record<string, unknown>>();
+      function visit(value: unknown, enter = false) {
+        if (Array.isArray(value)) {
+          for (const item of value) visit(item);
+          return;
+        }
+        if (!isRecord(value) || (callable(value) && !enter) || seen.has(value)) return;
+        seen.add(value);
+        live.push(value);
+        if (value.type === "IfStatement" || value.type === "ConditionalExpression") {
+          const test = constant(value.test);
+          if (test) {
+            visit(value.test);
+            visit(test.value ? value.consequent : value.alternate);
+            return;
+          }
+        }
+        if (value.type === "LogicalExpression") {
+          visit(value.left);
+          const left = constant(value.left);
+          if (
+            left &&
+            ((value.operator === "&&" && !left.value) ||
+              (value.operator === "||" && left.value) ||
+              (value.operator === "??" && left.value !== null && left.value !== undefined))
+          )
+            return;
+          visit(value.right);
+          return;
+        }
+        if (value.type === "CallExpression") {
+          const name = identifier(value.callee);
+          const called = bindings
+            .filter(
+              (binding) =>
+                binding.name === name &&
+                range(binding.scope).start <= range(value).start &&
+                range(binding.scope).end >= range(value).end,
+            )
+            .sort(
+              (a, b) =>
+                range(a.scope).end -
+                range(a.scope).start -
+                (range(b.scope).end - range(b.scope).start),
+            )[0];
+          if (called) {
+            resolved.set(value, called.fn);
+            visit(called.fn, true);
+          }
+          if (
+            name === scenario &&
+            literal(args(value)[0]) === "native-local-artwork-picker-and-recovery"
+          )
+            visit(args(value)[1], true);
+          if (
+            isRecord(value.callee) &&
+            value.callee.type === "MemberExpression" &&
+            identifier(value.callee.object) === browser &&
+            identifier(value.callee.property) === "wait"
+          )
+            visit(args(value)[0], true);
+        }
+        for (const child of Object.values(value)) visit(child);
+      }
+      visit(seed);
+      return { live, resolved };
+    }
+    const { live, resolved } = active(owner.node.body);
+    const scenarios = live.filter(
+      (node) =>
+        node.type === "CallExpression" &&
+        identifier(node.callee) === scenario &&
+        literal(args(node)[0]) === "native-local-artwork-picker-and-recovery",
+    );
+    assert.equal(scenarios.length, 1, "Retain the executed artwork scenario");
+    assert.ok(
+      live.some((node) => awaited(node) === scenarios[0]),
+      "Await the actual artwork scenario",
+    );
+    const readers = ["readArtworkFallback", "readArtworkGeometry"].map(exported).map((reader) => {
+      const calls = live.filter(
+        (node) => node.type === "CallExpression" && resolved.get(node) === reader.node,
+      );
+      assert.ok(calls.length > 0, "Delegate actual artwork observation " + reader.name);
+      for (const call of calls) {
+        assert.equal(identifier(args(call)[0]), browser, "Use the scenario's actual browser");
+        assert.ok(
+          live.some((node) => awaited(node) === call),
+          "Await actual artwork observation " + reader.name,
+        );
+      }
+      const implementation = active(reader.node.body);
+      const adapters = importedAdapters.filter((binding) =>
+        implementation.live.some(
+          (node) =>
+            node.type === "CallExpression" &&
+            identifier(node.callee) === binding.local &&
+            !implementation.resolved.has(node),
+        ),
+      );
+      assert.ok(
+        adapters.length > 0,
+        "Use production browser serialization adapter for " + reader.name,
+      );
+      assert.ok(
+        adapters.every((binding) => literal(binding.declaration.source) === "./browser-script.mts"),
+        "Use production browser serialization adapter for " + reader.name,
+      );
+      return { ...reader, calls, adapters };
+    });
+    const adapters = readers
+      .flatMap((reader) => reader.adapters)
+      .filter(
+        (binding, index, all) =>
+          all.findIndex((candidate) => candidate.specifier === binding.specifier) === index,
+      );
+    return { syntax, owner, readers, live, adapters };
+  }
+  const actual = route(source);
+  const helperNames = new Map([
+    ["fallbackVisual", "$fallbackObservation"],
+    ["expectFallbackVisual", "$settledFallback"],
+  ]);
+  route(
+    edit(
+      source,
+      actual.syntax
+        .filter((node) => node.type === "Identifier" && helperNames.has(String(node.name)))
+        .map((node) => ({ ...range(node), text: helperNames.get(String(node.name)) ?? "" })),
+    ),
+  );
+  const entries = actual.readers.map((reader) => reader.entry);
+  route(
+    (
+      edit(
+        source,
+        entries.map((entry) => ({ ...range(entry), text: "" })),
+      ) +
+      "\n" +
+      entries.map((entry) => source.slice(range(entry).start, range(entry).end)).join("\n")
+    ).replaceAll("\n", "\r\n"),
+  );
+  const arrowEdits: { start: number; end: number; text: string }[] = [];
+  for (const [index, reader] of actual.readers.entries()) {
+    assert.ok(Array.isArray(reader.node.params));
+    const local = "$artworkReader" + index;
+    arrowEdits.push({
+      ...range(reader.entry),
+      text:
+        "const " +
+        local +
+        (reader.node.async ? "=async(" : "=(") +
+        reader.node.params
+          .map((param) => source.slice(range(param).start, range(param).end))
+          .join(",") +
+        ")=>" +
+        source.slice(range(reader.node.body).start, range(reader.node.body).end) +
+        ";export {" +
+        local +
+        " as " +
+        reader.name +
+        "};",
+    });
+    arrowEdits.push(...reader.calls.map((call) => ({ ...range(call.callee), text: local })));
+  }
+  route(edit(source, arrowEdits));
+  const primary = actual.adapters[0];
+  assert.ok(primary);
+  const importSpan = range(primary.declaration);
+  route(
+    edit(source, [
+      { ...range(primary.specifier), text: "executeBrowserScript as $serializedArtwork" },
+      ...actual.syntax
+        .filter(
+          (node) =>
+            node.type === "Identifier" &&
+            node.name === primary.local &&
+            (range(node).start < importSpan.start || range(node).end > importSpan.end),
+        )
+        .map((node) => ({ ...range(node), text: "$serializedArtwork" })),
+    ]),
+  );
+  function rejectWrongImports(code: string) {
+    const observed = route(code);
+    const declarations = observed.adapters
+      .map((binding) => binding.declaration)
+      .filter((node, index, all) => all.indexOf(node) === index);
+    for (const declaration of declarations)
+      assert.throws(
+        () =>
+          route(
+            edit(code, [{ ...range(declaration.source), text: '"./desktop-scenario-state.mts"' }]),
+          ),
+        /Use production browser serialization adapter/u,
+      );
+  }
+  rejectWrongImports(source);
+  const sibling = actual.live.find(
+    (node) =>
+      node.type === "CallExpression" &&
+      identifier(node.callee) === primary.local &&
+      typeof literal(args(node)[1]) === "string",
+  );
+  assert.ok(sibling, "Retain an independently consumed browser adapter alias control");
+  const extraImports = edit(source, [
+    { ...range(sibling.callee), text: "$otherArtworkAdapter" },
+    {
+      start: 0,
+      end: 0,
+      text: 'import "./browser-script.mts";import {executeBrowserScript as $otherArtworkAdapter} from "./browser-script.mts";\n',
+    },
+  ]);
+  route(extraImports);
+  rejectWrongImports(extraImports);
+  for (const reader of actual.readers) {
+    const bypassed = edit(source, [
+      ...reader.calls.map((call) => ({
+        ...range(call.callee),
+        text: "$replacedArtworkObservation",
+      })),
+      {
+        start: range(actual.owner.node.body).end - 1,
+        end: range(actual.owner.node.body).end - 1,
+        text: "\nfunction $unusedArtworkObservation(){return " + reader.local + "(browser); }\n",
+      },
+    ]);
+    assert.throws(
+      () => route(bypassed),
+      (error) =>
+        error instanceof assert.AssertionError &&
+        error.message.includes("Delegate actual artwork observation " + reader.name),
+    );
+    assert.throws(
+      () =>
+        route(
+          edit(
+            source,
+            reader.calls.map((call) => ({ ...range(args(call)[0]), text: "{}" })),
+          ),
+        ),
+      /Use the scenario's actual browser/u,
+    );
+  }
+  for (const reader of actual.readers) {
+    const disabled = edit(
+      source,
+      reader.calls.map((call) => {
+        const wait = actual.live.find((node) => awaited(node) === call);
+        assert.ok(wait);
+        return {
+          ...range(wait),
+          text: "(false && " + source.slice(range(wait).start, range(wait).end) + ")",
+        };
+      }),
+    );
+    assert.throws(
+      () => route(disabled),
+      (error) =>
+        error instanceof assert.AssertionError &&
+        error.message.includes("Delegate actual artwork observation " + reader.name),
+    );
+  }
+  const fallback = actual.readers[0];
+  assert.ok(fallback);
+
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const directory = disposableDirectory(context, path.join(tmpdir(), "portcove-artwork-owner-"));
+  const transport = "apps/desktop/scripts/transport-values.mts";
+  const closure = readFixtureModuleClosure(root, [native, production, transport]);
+  for (const module of closure.modules) {
+    const target = path.join(directory, module.path);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, module.bytes);
+  }
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  function run() {
+    const result = spawnSync(process.execPath, ["--test", "--test-reporter=tap", native], {
+      cwd: directory,
+      env: environment,
+      encoding: "utf8",
+      timeout: 10000,
+      maxBuffer: 1024 * 1024,
+    });
+    assert.ifError(result.error);
+    return { status: result.status, output: result.stdout + result.stderr };
+  }
+  const baseline = run();
+  assert.equal(baseline.status, 0, baseline.output);
+  assert.match(baseline.output, /^# tests 2$/mu);
+  assert.match(baseline.output, /^# pass 2$/mu);
+  assert.match(baseline.output, /^# skipped 0$/mu);
+  const fieldOrder = actual.readers.map((reader) => {
+    const returned = [...nodes(reader.node.body)].find(
+      (node) =>
+        node.type === "ReturnStatement" &&
+        isRecord(node.argument) &&
+        node.argument.type === "ObjectExpression",
+    );
+    assert.ok(
+      returned && isRecord(returned.argument) && Array.isArray(returned.argument.properties),
+    );
+    const properties: unknown[] = returned.argument.properties;
+    return {
+      ...range(returned.argument),
+      text:
+        "{" +
+        properties
+          .slice()
+          .reverse()
+          .map((property) => source.slice(range(property).start, range(property).end))
+          .join(",") +
+        "}",
+    };
+  });
+  writeFileSync(path.join(directory, production), edit(source, fieldOrder));
+  const reordered = run();
+  assert.equal(reordered.status, 0, reordered.output);
+  assert.match(reordered.output, /^# pass 2$/mu);
+  writeFileSync(path.join(directory, production), source);
+  const cleanup = [...nodes(fallback.node.body)].find(
+    (node) => node.type === "TryStatement" && isRecord(node.finalizer),
+  );
+  assert.ok(cleanup && isRecord(cleanup.block) && isRecord(cleanup.finalizer));
+  const geometry = actual.readers[1];
+  assert.ok(geometry);
+  const image = [...nodes(geometry.node.body)].find(
+    (node) =>
+      node.type === "CallExpression" &&
+      isRecord(node.callee) &&
+      identifier(node.callee.property) === "querySelector" &&
+      literal(args(node)[0]) === "img",
+  );
+  assert.ok(image);
+  for (const mutation of [
+    {
+      marker: "color probe cleanup must run when style observation fails",
+      source: edit(source, [
+        {
+          ...range(cleanup),
+          text:
+            source.slice(range(cleanup.block).start, range(cleanup.block).end) +
+            source.slice(range(cleanup.finalizer).start, range(cleanup.finalizer).end),
+        },
+      ]),
+    },
+    {
+      marker: "Measured artwork geometry",
+      source: edit(source, [{ ...range(args(image)[0]), text: '":scope > span"' }]),
+    },
+  ]) {
+    writeFileSync(path.join(directory, production), mutation.source);
+    const rejected = run();
+    assert.notEqual(rejected.status, 0, rejected.output);
+    assert.match(
+      rejected.output,
+      /^not ok \d+ - serialized local artwork fallback preserves generated identity and geometry$/mu,
+    );
+    assert.ok(
+      rejected.output.includes("ARTWORK_CONTRACT_ASSERTION " + mutation.marker),
+      rejected.output,
+    );
+  }
+  writeFileSync(path.join(directory, production), source);
+  const adapterPath = path.join(directory, "apps/desktop/scripts/browser-script.mts");
+  const adapterBytes = await readFile(adapterPath);
+  writeFileSync(adapterPath, "export async function executeBrowserScript(){return {}};\n");
+  try {
+    const changed = run();
+    assert.notEqual(changed.status, 0, changed.output);
+    assert.match(
+      changed.output,
+      /^not ok \d+ - serialized local artwork fallback preserves generated identity and geometry$/mu,
+    );
+    assert.ok(
+      changed.output.includes("ARTWORK_CONTRACT_ASSERTION Generated artwork fallback observation"),
+      changed.output,
+    );
+  } finally {
+    writeFileSync(adapterPath, adapterBytes);
+  }
+  const input = path.join(directory, transport),
+    retained = input + ".retained-input";
+  renameSync(input, retained);
+  try {
+    const missing = run();
+    assert.notEqual(missing.status, 0, missing.output);
+    assert.ok(
+      missing.output.includes("ERR_MODULE_NOT_FOUND") &&
+        missing.output.includes("transport-values"),
+      missing.output,
+    );
+    assert.doesNotMatch(missing.output, /ARTWORK_CONTRACT_ASSERTION/u);
+  } finally {
+    renameSync(retained, input);
+  }
+});
