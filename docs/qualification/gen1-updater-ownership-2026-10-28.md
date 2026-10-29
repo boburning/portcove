@@ -1,5 +1,9 @@
 # Gen1Recomp runtime update owner — October 28, 2026
 
+The subsequent [shared managed-fitting observation](gen1-managed-fitting-2026-10-28.md)
+records ordinary restart and private-profile prerequisites separately. It retains
+this updater guard's delivered scope and Red's historical qualification.
+
 The existing Red definition uses Core's generated-cache management. Upstream
 v0.3.97 can mount a newer `updates/gen1recomp-*.love` from the OS user profile
 over its packaged source at boot. Portable mode does not relocate that payload
