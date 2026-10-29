@@ -746,3 +746,14 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & (test(/^service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route$/) | test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
+
+# CI40803636037/a1 Windows partition2 job123219205820 cut this complete
+# ten-scenario install/adoption ownership matrix off at30.123s without phase
+# output; the same case completed11.676s in40802224164/a1. Retain all scenarios,
+# assertions, locks, cleanup, slots and zero retries. Exact60s diagnostic room
+# and per-scenario phase output establish progress without inferring a cause.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"

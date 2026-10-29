@@ -7896,6 +7896,7 @@ mod tests {
 
     #[test]
     fn publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase() {
+        let started = std::time::Instant::now();
         for kind in [
             LifecycleOperationKind::Install,
             LifecycleOperationKind::Adopt,
@@ -7907,6 +7908,10 @@ mod tests {
                 LifecyclePhase::MetadataCommitted,
                 LifecyclePhase::CleanupPending,
             ] {
+                eprintln!(
+                    "foreign publication owners {kind:?} {phase:?}: fixture begin elapsed={:?}",
+                    started.elapsed()
+                );
                 let temporary = tempfile::tempdir().unwrap();
                 let library = Library::open(temporary.path().join("library")).unwrap();
                 let live = register_zelda_install(&library, "v1", true);
@@ -7936,7 +7941,15 @@ mod tests {
                 let held = library
                     .try_lock_port("zelda64-recomp", "owned-test-install-lock")
                     .unwrap();
+                eprintln!(
+                    "foreign publication owners {kind:?} {phase:?}: recovery begin elapsed={:?}",
+                    started.elapsed()
+                );
                 PortcoveService::new(library.clone()).unwrap();
+                eprintln!(
+                    "foreign publication owners {kind:?} {phase:?}: recovery complete elapsed={:?}",
+                    started.elapsed()
+                );
                 let refused = store.get(&journal.id).unwrap().unwrap();
                 assert_eq!(refused.kind, kind);
                 assert_eq!(refused.phase, phase);
@@ -7974,6 +7987,10 @@ mod tests {
                         .is_err()
                 );
                 drop(held);
+                eprintln!(
+                    "foreign publication owners {kind:?} {phase:?}: assertions complete elapsed={:?}",
+                    started.elapsed()
+                );
             }
         }
     }
