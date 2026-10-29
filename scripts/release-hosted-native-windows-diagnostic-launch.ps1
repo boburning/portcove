@@ -179,11 +179,13 @@ $env:RUNNER_TEMP=$expectedTemp
 $env:PORTCOVE_SHARED_TOOL_CACHE=$prepared.shared_cache
 $env:PATH=(Split-Path -Parent $node)+';C:\Windows\System32;C:\Program Files\Git\cmd;C:\Program Files\PowerShell\7'
 function Copy-FixedPublicDiagnosticRecords {
+    $copyRefused=$false
     foreach($row in @(
         @((Join-Path $expectedTemp 'portcove-hosted-windows-connected-diagnostic/controller-ready.json'),(Join-Path $publicTemp 'portcove-hosted-windows-connected-diagnostic/controller-ready.json'),16384),
         @((Join-Path $expectedTemp 'portcove-hosted-windows-connected-diagnostic/controller-startup-public.json'),(Join-Path $publicTemp 'portcove-hosted-windows-connected-diagnostic/controller-startup-public.json'),65536),
         @((Join-Path $source 'work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json'),(Join-Path $workspace 'work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json'),262144)
     )){
+        try{
         if(-not (Test-Path -LiteralPath $row[0])){continue}
         $bytes=Read-LaunchBytes $row[0] $row[2]
         $value=$utf8.GetString($bytes)|ConvertFrom-Json
@@ -192,7 +194,10 @@ function Copy-FixedPublicDiagnosticRecords {
         if(Test-Path -LiteralPath $row[1]){if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData((Read-LaunchBytes $row[1] $row[2]))) -cne [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))){throw 'Retained public diagnostic sink differs'};continue}
         $sink=[IO.FileStream]::new($row[1],[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
         try{$sink.Write($bytes);$sink.Flush($true)}finally{$sink.Dispose()}
+        if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData((Read-LaunchBytes $row[1] $row[2]))) -cne [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))){throw 'Public diagnostic sink readback differs'}
+        }catch{$copyRefused=$true}
     }
+    if($copyRefused){throw 'One or more fixed public diagnostic records refused'}
 }
 $closed=[ordered]@{}
 foreach($name in @('SystemRoot','WINDIR','PATH','PATHEXT','USERPROFILE','HOME','TEMP','TMP','LOCALAPPDATA','RUNNER_TEMP','RUNNER_TRACKING_ID','RUSTUP_HOME','CARGO_HOME','PORTCOVE_SHARED_TOOL_CACHE','PORTCOVE_RESOURCE_RESERVATION','PORTCOVE_RESOURCE_PROCESS_TOKEN','PORTCOVE_HEAVY_RUST_LOCK_TOKEN','GITHUB_ACTIONS','RUNNER_ENVIRONMENT','GITHUB_REPOSITORY','GITHUB_JOB','GITHUB_WORKFLOW_REF','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','GITHUB_EVENT_NAME','PORTCOVE_HOSTED_PLATFORM','PORTCOVE_HOSTED_OBSERVATION_ONLY','PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC')){

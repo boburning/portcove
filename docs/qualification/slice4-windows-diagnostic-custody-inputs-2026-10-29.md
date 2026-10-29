@@ -169,3 +169,24 @@ expiry and size refusals. The Windows controlled C fixture consumes that actual
 producer ending through the same workflow bootstrap with distinct public and
 protected roots and poisoned original launcher/setup/Node controls. Fresh
 actual Windows execution and final exact-head CI remain mandatory.
+
+The first published complete source, `f24de5784796ce4dbb25a5f65bcd0a39297877ec`,
+failed Windows qualification in CI `40905972986/1`, job `123560863379`.
+Its ready variant reached ready verification and settled the original process
+without ACK. The next wrong-source variant then failed reading the missing
+public startup record. The fixed-record copy loop rejected that variant's
+forged ready identity before attempting its valid startup sibling. This is a
+retention defect; no timeout or intermittent cause is inferred. The raw Windows
+log remains retained with SHA-256
+`527935d49f75a3975c4a9f98a19bde9ed6f10fb194147a353a36f5a11d354fa7`.
+
+The successor attempts each of the same three bounded records independently,
+retains every identity/byte/create-only check, and reports an aggregate refusal
+after attempting siblings. Direct Publish still refuses an invalid member;
+finally copyback preserves the original operation's outcome. A forged source
+ready stays outside the public sink. Its owned negative fixture inspects the
+protected ready bytes to prove the intended corruption while requiring the
+valid startup projection in the public sink. Portable controls exercise forged
+ready, conflicting retained startup, missing optional ready, valid publication
+and repeated publication. Fresh actual Windows and five-context qualification
+remain required; no connected diagnostic dispatch follows from these controls.

@@ -1326,15 +1326,78 @@ void test(
         false,
         "The trusted workflow bootstrap must never enter workspace launcher code",
       );
-      const control = path.join(temporary, "portcove-hosted-windows-connected-diagnostic"),
-        reportBytes = readFileSync(path.join(control, "controller-startup-public.json"));
+      const control = path.join(temporary, "portcove-hosted-windows-connected-diagnostic");
+      const reportPath = path.join(control, "controller-startup-public.json");
+      if (!existsSync(reportPath)) {
+        // Shell output is not a public record: retain only bounded metadata and
+        // the already closed producer projection, never raw stderr or stacks.
+        const stderrBytes = Buffer.from(result.stderr);
+        t.diagnostic(
+          "bounded-public-sink-unavailable " +
+            JSON.stringify({
+              variant,
+              stderr_bytes: stderrBytes.length,
+              stderr_sha256: createHash("sha256").update(stderrBytes).digest("hex"),
+              copy_refused: result.stderr.includes(
+                "Bounded public diagnostic sink copy unavailable",
+              ),
+            }),
+        );
+        const preimportPath = path.join(control, "controller-preimport-public.json");
+        if (existsSync(preimportPath)) {
+          const bytes = readFileSync(preimportPath);
+          assert.ok(bytes.length > 0 && bytes.length <= 16384);
+          const value: unknown = JSON.parse(bytes.toString("utf8"));
+          assert.ok(isRecord(value));
+          assert.equal(value.source, sha);
+          assert.equal(value.tree, tree);
+          assert.equal(value.authority, "none");
+          t.diagnostic("bounded-preimport-observation " + variant + " " + bytes.toString("utf8"));
+        }
+        const protectedReport = path.join(
+          namespace,
+          "temp",
+          "portcove-hosted-windows-connected-diagnostic",
+          "controller-startup-public.json",
+        );
+        if (existsSync(protectedReport)) {
+          const retained = readFileSync(protectedReport);
+          assert.ok(retained.length > 0 && retained.length <= 65536);
+          const value: unknown = JSON.parse(retained.toString("utf8"));
+          assert.ok(isRecord(value));
+          assert.equal(value.source, sha);
+          assert.equal(value.tree, tree);
+          assert.equal(value.run_id, "123");
+          assert.equal(value.authority, "none");
+          t.diagnostic(
+            "bounded-protected-startup-observation " + variant + " " + retained.toString("utf8"),
+          );
+        }
+      }
+      assert.ok(
+        existsSync(reportPath),
+        "The bounded startup projection must reach the original public sink",
+      );
+      const reportBytes = readFileSync(reportPath);
       assert.ok(reportBytes.length <= 65536);
       t.diagnostic(
         "bounded-public-startup-observation " + variant + " " + reportBytes.toString("utf8"),
       );
       const report: unknown = JSON.parse(reportBytes.toString("utf8"));
       assert.ok(isRecord(report));
-      const observedReadyPath = path.join(control, "controller-ready.json");
+      const protectedControl = path.join(
+        namespace,
+        "temp",
+        "portcove-hosted-windows-connected-diagnostic",
+      );
+      // The forged source is retained privately for the causal negative, but
+      // must never be accepted into the original public ready sink.
+      if (variant === "wrong-source")
+        assert.equal(existsSync(path.join(control, "controller-ready.json")), false);
+      const observedReadyPath = path.join(
+        variant === "wrong-source" ? protectedControl : control,
+        "controller-ready.json",
+      );
       if (existsSync(observedReadyPath)) {
         const observedReady = readFileSync(observedReadyPath);
         assert.ok(observedReady.length <= 16384);
@@ -1409,7 +1472,7 @@ void test(
         variant !== "unavailable-retention" &&
         variant !== "exit-259"
       ) {
-        const readyBytes = readFileSync(path.join(control, "controller-ready.json"));
+        const readyBytes = readFileSync(observedReadyPath);
         const ready: unknown = JSON.parse(readyBytes.toString("utf8"));
         assert.ok(isRecord(ready));
         assert.equal(

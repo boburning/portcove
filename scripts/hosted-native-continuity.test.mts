@@ -1239,3 +1239,119 @@ void test(
     }
   },
 );
+
+void test("fixed public diagnostic copying preserves valid siblings while refusing invalid records", async () => {
+  const launcher = await readFile(
+    new URL("./release-hosted-native-windows-diagnostic-launch.ps1", import.meta.url),
+    "utf8",
+  );
+  const start = launcher.indexOf("function Copy-FixedPublicDiagnosticRecords {");
+  const end = launcher.indexOf("\n$closed=", start);
+  assert.ok(start > 0 && end > start);
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-public-siblings-"));
+  try {
+    const fixed = launcher.slice(start, end);
+    for (const scenario of [
+      "forged-ready",
+      "conflicting-startup",
+      "missing-ready",
+      "valid",
+    ] as const) {
+      const directory = path.join(root, scenario);
+      const temp = path.join(directory, "protected-temp"),
+        sink = path.join(directory, "public-temp");
+      const source = path.join(directory, "source"),
+        workspace = path.join(directory, "workspace");
+      const relative = "portcove-hosted-windows-connected-diagnostic";
+      const settlement =
+        "work/hosted-windows-connected-diagnostic/diagnostic-public-settlement.json";
+      const record = {
+        source: "a".repeat(40),
+        tree: "b".repeat(40),
+        run_id: "123",
+        attempt: 1,
+        workflow: "fixed-owned-workflow",
+        authority: "none",
+      };
+      for (const filename of [
+        path.join(temp, relative, "controller-startup-public.json"),
+        path.join(source, settlement),
+      ]) {
+        await mkdir(path.dirname(filename), { recursive: true });
+        await writeFile(filename, JSON.stringify(record));
+      }
+      if (scenario !== "missing-ready")
+        await writeFile(
+          path.join(temp, relative, "controller-ready.json"),
+          JSON.stringify({
+            ...record,
+            source: scenario === "forged-ready" ? "c".repeat(40) : record.source,
+          }),
+        );
+      if (scenario === "conflicting-startup") {
+        await mkdir(path.join(sink, relative), { recursive: true });
+        await writeFile(
+          path.join(sink, relative, "controller-startup-public.json"),
+          "retained-original",
+        );
+      }
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          `
+$ErrorActionPreference='Stop'
+$expectedTemp=$env:OWNED_TEMP;$publicTemp=$env:OWNED_SINK;$source=$env:OWNED_SOURCE;$workspace=$env:OWNED_WORKSPACE
+$actualTree='${record.tree}';$utf8=[Text.UTF8Encoding]::new($false,$true)
+function Read-LaunchBytes($file,$maximum){$bytes=[IO.File]::ReadAllBytes($file);if($bytes.Length -eq 0 -or $bytes.Length -gt $maximum){throw 'Owned bounded read refused'};return ,$bytes}
+${fixed}
+$refused=$false
+try{Copy-FixedPublicDiagnosticRecords}catch{if($_.Exception.Message -cne 'One or more fixed public diagnostic records refused'){throw};$refused=$true}
+# Repeated publication must retain create-only records and repeat a refusal.
+$secondRefused=$false
+try{Copy-FixedPublicDiagnosticRecords}catch{$secondRefused=$true}
+[Console]::Out.Write((@{refused=$refused;second_refused=$secondRefused}|ConvertTo-Json -Compress))
+`,
+        ],
+        {
+          encoding: "utf8",
+          timeout: 15000,
+          maxBuffer: 16384,
+          env: {
+            ...process.env,
+            GITHUB_SHA: record.source,
+            GITHUB_RUN_ID: record.run_id,
+            GITHUB_WORKFLOW_REF: record.workflow,
+            OWNED_TEMP: temp,
+            OWNED_SINK: sink,
+            OWNED_SOURCE: source,
+            OWNED_WORKSPACE: workspace,
+          },
+        },
+      );
+      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.status, 0, result.stderr);
+      const refused = scenario === "forged-ready" || scenario === "conflicting-startup";
+      assert.deepEqual(JSON.parse(result.stdout), { refused, second_refused: refused });
+      assert.deepEqual(
+        await readFile(path.join(workspace, settlement)),
+        Buffer.from(JSON.stringify(record)),
+      );
+      const publicFiles = await readdir(path.join(sink, relative));
+      assert.equal(
+        publicFiles.includes("controller-ready.json"),
+        scenario !== "forged-ready" && scenario !== "missing-ready",
+      );
+      assert.deepEqual(
+        await readFile(path.join(sink, relative, "controller-startup-public.json")),
+        Buffer.from(
+          scenario === "conflicting-startup" ? "retained-original" : JSON.stringify(record),
+        ),
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
