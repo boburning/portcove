@@ -1261,6 +1261,7 @@ for (const [file, tests] of [
       "scripts/test-duration-reporter.test.mts",
       "scripts/ui-test-selection.test.mts",
       "scripts/updater-historical-inputs.test.mts",
+      "scripts/installed-game-data-fixture.test.mts",
       "scripts/windows-historical-bootstrap.test.mts",
     ],
   ],

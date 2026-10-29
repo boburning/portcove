@@ -3762,6 +3762,13 @@
       ]
     },
     {
+      "file": "scripts/installed-game-data-fixture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2651],
+        ["release-check", 751]
+      ]
+    },
+    {
       "file": "scripts/upstream-health-accounting.test.mts",
       "memberships": [
         ["catalog-full", 130],

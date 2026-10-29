@@ -162,10 +162,28 @@ Historical input signatures/feed
 remain explicitly absent. The maintained process-tree supervisor gives this
 consumer a 300-second execution budget after admission/setup, including with an
 inherited lease. Retain failed runs and cleanup settlement; a selected mode is
-not native acceptance. This chain does not create a desktop entry or real game
-save, and the separate lifecycle fixture cannot supply those continuous-data
-claims. Production authority and real release-to-release acceptance remain with
-their owning gates.
+not native acceptance. This chain does not create a desktop entry.
+
+After manual replacement, the same opt-in uses the builder-retained matching
+predecessor Core CLI to install the existing OpenTyrian catalog entry normally.
+The retained CLI receipt joins the source, version, binary hash and staged archive
+inventory before use. It then copies exactly three provenance-pinned,
+checksum-valid game-authored save/configuration files into a new private external
+OpenTyrian store; an existing store is refused. Original runtime files, installed
+record/artifact identity, game-update policy and player-file bytes are compared
+before and after authenticated candidate return. Original runtime/player files
+are captured before the additional observer CLI runs; installed records and
+policy are then read back through status. Candidate startup may already reconcile
+Core state, so this does not claim an unreconciled database preimage. The fixture
+does not copy a library database or execute the game. This renderer chain does
+not uninstall; separate lifecycle controls do not prove this dataset survives
+uninstall.
+Its generator provenance and limits live in
+`scripts/fixtures/application-update-game-data/manifest.json`. In-game loading,
+gameplay, personal history, credentials and managed backup coverage of external
+game data remain unclaimed. A selected mode or component pass is not installed
+updater preservation evidence. Production authority and real release-to-release
+acceptance remain with their owning gates.
 
 It checks native package versions and
 executable permissions. The Linux job defaults to the approved Ubuntu 24.04
