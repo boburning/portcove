@@ -28026,7 +28026,9 @@
             "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "On Windows, choose a short installation folder using basic Latin characters. The official runtime can fail to find its packaged data in folders with non-ASCII names. This Windows runtime-path requirement does not restrict Linux installation paths."
+        ],
         "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
       },
       "original_game_title": "Tyrian",
