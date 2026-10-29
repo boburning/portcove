@@ -322,7 +322,7 @@ void test("bounded transport charges quota observations and stops before spendin
   assert.equal(budget.usage.requests, 1);
 });
 void test("successful comment identity survives later readback denial and deletion without reposting", () => {
-  const candidate: DiscoveryMutation = { status: "reviewed" };
+  const candidate: DiscoveryMutation = { status: "prepared" };
   let posts = 0;
   let durable: DiscoveryMutation = { ...candidate };
   const persist = () => {
@@ -344,7 +344,7 @@ void test("successful comment identity survives later readback denial and deleti
   assert.equal(durable.created_comment, 123);
   assert.throws(() => assertDiscoveryCommentMayPost(durable), /without reposting/);
   assert.equal(posts, 1);
-  const rejected: DiscoveryMutation = { status: "reviewed" };
+  const rejected: DiscoveryMutation = { status: "prepared" };
   assert.throws(
     () =>
       discoveryPost(
@@ -356,8 +356,9 @@ void test("successful comment identity survives later readback denial and deleti
       ),
     /POST denied/,
   );
-  assert.equal(rejected.status, "reviewed");
-  const unknown: DiscoveryMutation = { status: "reviewed" };
+  assert.equal(rejected.status, "prepared");
+  assertDiscoveryCommentMayPost(rejected);
+  const unknown: DiscoveryMutation = { status: "prepared" };
   assert.throws(
     () =>
       discoveryPost(
@@ -371,7 +372,7 @@ void test("successful comment identity survives later readback denial and deleti
   );
   assert.equal(unknown.status, "create-attempted");
   assert.throws(() => assertDiscoveryCommentMayPost(unknown), /without reposting/);
-  const created: DiscoveryMutation = { status: "reviewed" };
+  const created: DiscoveryMutation = { status: "prepared" };
   assert.throws(
     () =>
       discoveryPost(
@@ -880,7 +881,7 @@ void test("a logical journal beyond five candidates resumes verified batches wit
   const first = make("first", true);
   const evidenceHash = (await import("./upstream-observer.mts")).observationHash;
   for (let id = 1; id <= 13; id++) {
-    const body = `reviewed-${id}`;
+    const body = `prepared-${id}`;
     first.journal.candidates[String(id)] = {
       id: String(id),
       kind: "comment",
@@ -892,12 +893,7 @@ void test("a logical journal beyond five candidates resumes verified batches wit
       body_sha256: evidenceHash(body),
       evidence_ids: [],
       evidence_sha256: evidenceHash([]),
-      status: "reviewed",
-      review: {
-        verdict: "clear",
-        body_sha256: evidenceHash(body),
-        evidence_sha256: evidenceHash([]),
-      },
+      status: "prepared",
     };
   }
   await assert.rejects(first.apply(), /fixture interruption/);
