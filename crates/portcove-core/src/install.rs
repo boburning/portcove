@@ -1269,6 +1269,13 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
         self.require_acquisition(&request)?;
+        if let Some(contract) = &request.qualification.retained_contract {
+            let catalog = contract.catalog(&request.port_id)?;
+            crate::preparation::source::require_fresh_canonical_data(
+                catalog.port(&request.port_id)?,
+                &self.library,
+            )?;
+        }
         if request.qualification.source_preparation.is_some() {
             let staged = InstallRecord {
                 path: payload_root.clone(),
@@ -1295,6 +1302,13 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
         self.require_acquisition(&request)?;
+        if let Some(contract) = &request.qualification.retained_contract {
+            let catalog = contract.catalog(&request.port_id)?;
+            crate::preparation::source::require_fresh_canonical_data(
+                catalog.port(&request.port_id)?,
+                &self.library,
+            )?;
+        }
         if request.qualification.source_preparation.is_some() {
             crate::preparation::source::require_publication(&self.library, &install, None)?;
         }

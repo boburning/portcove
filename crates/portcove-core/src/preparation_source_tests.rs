@@ -1075,9 +1075,19 @@ impl crate::operation::LifecycleFaultInjector for InjectCanonicalAtPublication {
 #[tokio::test]
 async fn native6_late_canonical_data_holds_publication_and_already_renamed_recovery() {
     use crate::operation::{LifecycleFaultPoint, OperationStore};
-    for (point, relative) in [
-        (LifecycleFaultPoint::InstallReadyToPublish, "originals"),
-        (LifecycleFaultPoint::InstallPublished, "profile"),
+    for (prepared, point, relative) in [
+        (
+            true,
+            LifecycleFaultPoint::InstallReadyToPublish,
+            "originals",
+        ),
+        (true, LifecycleFaultPoint::InstallPublished, "profile"),
+        (
+            false,
+            LifecycleFaultPoint::InstallReadyToPublish,
+            "originals",
+        ),
+        (false, LifecycleFaultPoint::InstallPublished, "profile"),
     ] {
         let fixture = Fixture::native(false, true);
         let canonical = fixture
@@ -1088,7 +1098,7 @@ async fn native6_late_canonical_data_holds_publication_and_already_renamed_recov
         assert!(
             fixture
                 .install_with_faults(
-                    true,
+                    prepared,
                     std::sync::Arc::new(InjectCanonicalAtPublication {
                         point,
                         path: canonical.clone()
