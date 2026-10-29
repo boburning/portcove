@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "recorded_at": "2026-10-29T21:12:17.093433+00:00",
+  "recorded_at": "2026-10-29T22:06:59.854807+00:00",
   "owners": [224, 225, 52],
-  "owner_state": "open; Windows busy and current Linux busy/restart/data sequence pass at stated scope; current copied Windows case failed at direct-root close harness and viewport capture; isolated Linux reboot unobserved; production authority held by534",
+  "owner_state": "open pending final delivery/reconciliation; Windows busy journey, current Linux busy/restart/data sequence and current Windows painted copied-install guidance/ordinary close pass at stated scopes; isolated Linux reboot unobserved; production authority held by534",
   "source_composition": {
     "controller_and_core_busy_helper": "846d659bf0071d7602c91f57a44310c921313574",
     "windows_shipping_packages": "f5f4917654819db99c2f9a9cc0f671623cf8c55f",
@@ -10272,8 +10272,6 @@
     ]
   },
   "remaining_boundaries": [
-    "Independent current Linux payload-signature readback; complete archive custody passes; earlier846 first divergent cause remains unresolved historical evidence",
-    "Fresh current-package painted copied-install guidance and ordinary close after evidenced direct-root harness repair; failed38case retained",
     "Actual Linux OS reboot unobserved; task-owned isolated guest route being prepared, no shared-host reboot",
     "Actual production candidate/package/default-feature source/Root/key/grant/feed/custody/signing/publication/readback remain held by #534"
   ],
@@ -10548,7 +10546,46 @@
         }
       ]
     },
-    "independent_payload_verification": "pending independent maintained verifier readback; full archive and payload input custody complete",
+    "independent_payload_verification": {
+      "phase": "complete",
+      "authority": "none; independent verification of retained rehearsal payload bytes only",
+      "observations": [
+        {
+          "expected_sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da",
+          "result": {
+            "schema_version": 1,
+            "bytes": 98859512,
+            "sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da",
+            "public_key_sha256": "8555d4c53b9d32ca1fadbf4a71a28a02ee2ebd908246510ef213dbfc76d0a03d",
+            "signature_verified": true
+          },
+          "expected_bytes": 98859512,
+          "exit_code": 0,
+          "payload": "E:\\Codex-Evidence\\beta-updater-20261028\\3900-continuation\\4003-38c-linux-payload-inputs\\updater-rehearsal\\qualified-0.1.0-bundles\\appimage\\Portcove_0.1.0_amd64.AppImage"
+        },
+        {
+          "expected_sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+          "result": {
+            "schema_version": 1,
+            "bytes": 98675192,
+            "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+            "public_key_sha256": "8555d4c53b9d32ca1fadbf4a71a28a02ee2ebd908246510ef213dbfc76d0a03d",
+            "signature_verified": true
+          },
+          "expected_bytes": 98675192,
+          "exit_code": 0,
+          "payload": "E:\\Codex-Evidence\\beta-updater-20261028\\3900-continuation\\4003-38c-linux-payload-inputs\\updater-rehearsal\\0.3.0-linux-x86_64\\Portcove_0.3.0_amd64.AppImage"
+        }
+      ],
+      "verifier": {
+        "path": "H:\\Portcove-Worktrees\\224-nonadmin-beta-20261028\\target\\updater-rehearsal-cli-0.3.0\\release\\portcove-release-tools.exe",
+        "scope": "previous maintained verifier binary, not the product source",
+        "source_commit": "adcbeaadaa6ca0f00be3f5eea4b835149c79d5b8",
+        "sha256": "2ff8802945ca25fd4286c7b456a7f7769ab32ceafe318253a44d73eec97256c9"
+      },
+      "archive_sha256": "cfc5f19d45839d45bdecc1ff36944f48c59d91d51744af4d5f362503bb3e8478",
+      "schema_version": 1
+    },
     "qualified_predecessor": {
       "bytes": 98859512,
       "sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da"
@@ -12131,6 +12168,441 @@
       "bytes": 5941,
       "sha256": "3b7680e9278e0cc16a76bd1f87ef3e7c2daa1079c06bb92e057a7128fca314f6"
     },
-    "current_source_repair": "RequestClose requires matching direct-root shape plus caller/captured/current executable SHA, retaining all original live PID/start/path/unique-record guards. Fresh controlled GUI observation remains required."
+    "current_source_repair": "Subsequent controller276 admits the direct-root shape with caller/captured/current SHA and original live identity guards; its separate positive GUI observation is recorded below. This source38 failed attempt remains failed."
+  },
+  "copied_windows_current_success": {
+    "phase": "complete",
+    "resource_exit_code": 0,
+    "source_commit": "276a580988712d2637ae1affc7ef90b71dc8656a",
+    "package_source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+    "scope": "Current product/UI source38 NSIS-derived unsigned copied-image guidance, controller276; no update/install attempt or signed-publication claim",
+    "actual_report": {
+      "schema_version": 1,
+      "phase": "complete",
+      "source_commit": "276a580988712d2637ae1affc7ef90b71dc8656a",
+      "package_source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+      "image": {
+        "path": "H:\\Portcove-Scratch\\224-unregistered-276-de1b6f1fcade4998bbfe1a8741955934\\inputs\\portcove-desktop.exe",
+        "bytes": 57560576,
+        "sha256": "7dadc2f729190b8a0b3790f475dfd4f272f24f979f703d7b9778ea2c6e83e953"
+      },
+      "scope": "Actual copied current-source NSIS qualification image; installation eligibility and visible guidance only; payload signing disabled, no updater operation attempted",
+      "credential_scope": "Fixed normal Core Windows credential store and application lease are not isolated; credential continuity not_evaluated",
+      "startup": {
+        "captured_at": "2026-10-29T21:57:53.1072068Z",
+        "driver": {
+          "pid": 37960,
+          "path": "H:\\Portcove-Scratch\\224-unregistered-276-de1b6f1fcade4998bbfe1a8741955934\\inputs\\portcove-desktop.exe",
+          "started_filetime": "134377846718855797"
+        },
+        "application_pid": 37960,
+        "processes": [
+          {
+            "pid": 37960,
+            "path": "H:\\Portcove-Scratch\\224-unregistered-276-de1b6f1fcade4998bbfe1a8741955934\\inputs\\portcove-desktop.exe",
+            "started_filetime": "134377846718855797"
+          },
+          {
+            "pid": 37064,
+            "path": "C:\\WINDOWS\\system32\\conhost.exe",
+            "started_filetime": "134377846719272451"
+          },
+          {
+            "pid": 11328,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846721252042"
+          },
+          {
+            "pid": 34452,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846723467377"
+          }
+        ],
+        "root_kind": "direct-application",
+        "executable_sha256": "7dadc2f729190b8a0b3790f475dfd4f272f24f979f703d7b9778ea2c6e83e953"
+      },
+      "connected_processes": {
+        "captured_at": "2026-10-29T21:57:56.1345472Z",
+        "driver": {
+          "pid": 37960,
+          "path": "H:\\Portcove-Scratch\\224-unregistered-276-de1b6f1fcade4998bbfe1a8741955934\\inputs\\portcove-desktop.exe",
+          "started_filetime": "134377846718855797"
+        },
+        "application_pid": 37960,
+        "processes": [
+          {
+            "pid": 37960,
+            "path": "H:\\Portcove-Scratch\\224-unregistered-276-de1b6f1fcade4998bbfe1a8741955934\\inputs\\portcove-desktop.exe",
+            "started_filetime": "134377846718855797"
+          },
+          {
+            "pid": 37064,
+            "path": "C:\\WINDOWS\\system32\\conhost.exe",
+            "started_filetime": "134377846719272451"
+          },
+          {
+            "pid": 11328,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846721252042"
+          },
+          {
+            "pid": 34452,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846723467377"
+          },
+          {
+            "pid": 30976,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846726533603"
+          },
+          {
+            "pid": 34672,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846726669506"
+          },
+          {
+            "pid": 35232,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846726687253"
+          },
+          {
+            "pid": 22260,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846727415138"
+          }
+        ],
+        "root_kind": "direct-application",
+        "executable_sha256": "7dadc2f729190b8a0b3790f475dfd4f272f24f979f703d7b9778ea2c6e83e953"
+      },
+      "before": {
+        "schedule": {
+          "last_success_unix_seconds": null,
+          "consecutive_failures": 0,
+          "next_automatic_check_unix_seconds": null
+        },
+        "staged": null,
+        "apply": null,
+        "install_eligibility": "unavailable",
+        "recovery_required": []
+      },
+      "visible_panel": {
+        "buttons": [
+          {
+            "disabled": false,
+            "text": "Check for updates"
+          },
+          {
+            "disabled": false,
+            "text": "Stable"
+          },
+          {
+            "disabled": false,
+            "text": "Preview"
+          },
+          {
+            "disabled": false,
+            "text": "Preview"
+          },
+          {
+            "disabled": false,
+            "text": "Stable"
+          },
+          {
+            "disabled": false,
+            "text": "AutomaticRecommended"
+          },
+          {
+            "disabled": false,
+            "text": "Notify only"
+          },
+          {
+            "disabled": false,
+            "text": "Manual"
+          },
+          {
+            "disabled": false,
+            "text": "Save application update settings"
+          },
+          {
+            "disabled": false,
+            "text": "Discard changes"
+          },
+          {
+            "disabled": true,
+            "text": "Reset update preferences"
+          },
+          {
+            "disabled": false,
+            "text": "Refresh update status"
+          }
+        ],
+        "text": "Portcove updatesCurrent version 0.1.0-alpha.2Check for application updatesCheck once without changing your update settings. This checks trusted release metadata; it does not download or install Portcove.Check for updatesChannel for this check onlyStablePreviewFuture update behaviorNo application update choice is saved. Automatic checks remain off until you save one.Default channelPreviewStablePreview receives public test releases and later eligible final releases.Update modeAutomaticRecommendedNotify onlyManualAllows Portcove to check and stage verified updates without asking for each release. Applying still waits for a safe exit or an explicit Restart to update action.Pause application update activityStop automatic checks and all downloads until resumed. Manual checks remain available.Saving these settings does not start an update.Save application update settingsDiscard changesReset update preferencesReset update preferences clears your saved choice and turns off automatic checks until you choose again.Update activitySee the download, restart request, and installer state.Refresh update statusThis installation cannot use Portcove's built-in updater. Use a supported package or the documented manual recovery path.No verified application update is staged.No successful application update check is recorded.  "
+      },
+      "after": {
+        "schedule": {
+          "last_success_unix_seconds": null,
+          "consecutive_failures": 0,
+          "next_automatic_check_unix_seconds": null
+        },
+        "staged": null,
+        "apply": null,
+        "install_eligibility": "unavailable",
+        "recovery_required": []
+      },
+      "guidance_viewport": {
+        "hit_matches": true,
+        "rect": {
+          "bottom": 472.96875,
+          "height": 46.796875,
+          "left": 446,
+          "right": 1206,
+          "top": 426.171875,
+          "width": 760
+        },
+        "text": "This installation cannot use Portcove's built-in updater. Use a supported package or the documented manual recovery path.",
+        "viewport": {
+          "height": 800,
+          "width": 1280
+        },
+        "visible": true
+      },
+      "close_snapshot": {
+        "captured_at": "2026-10-29T21:57:57.6869204Z",
+        "driver": {
+          "pid": 37960,
+          "path": "H:\\Portcove-Scratch\\224-unregistered-276-de1b6f1fcade4998bbfe1a8741955934\\inputs\\portcove-desktop.exe",
+          "started_filetime": "134377846718855797"
+        },
+        "application_pid": 37960,
+        "processes": [
+          {
+            "pid": 37960,
+            "path": "H:\\Portcove-Scratch\\224-unregistered-276-de1b6f1fcade4998bbfe1a8741955934\\inputs\\portcove-desktop.exe",
+            "started_filetime": "134377846718855797"
+          },
+          {
+            "pid": 37064,
+            "path": "C:\\WINDOWS\\system32\\conhost.exe",
+            "started_filetime": "134377846719272451"
+          },
+          {
+            "pid": 11328,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846721252042"
+          },
+          {
+            "pid": 34452,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846723467377"
+          },
+          {
+            "pid": 30976,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846726533603"
+          },
+          {
+            "pid": 34672,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846726669506"
+          },
+          {
+            "pid": 35232,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846726687253"
+          },
+          {
+            "pid": 22260,
+            "path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\156.0.4314.50\\msedgewebview2.exe",
+            "started_filetime": "134377846727415138"
+          }
+        ],
+        "root_kind": "direct-application",
+        "executable_sha256": "7dadc2f729190b8a0b3790f475dfd4f272f24f979f703d7b9778ea2c6e83e953"
+      },
+      "ordinary_close_request": {
+        "requested_at": "2026-10-29T21:57:58.1803088Z",
+        "application_pid": 37960,
+        "started_filetime": "134377846718855797",
+        "method": "identity-bound-native-main-window-close-request",
+        "message_sent": true,
+        "main_window_handle": "81658840",
+        "main_window_title": "Portcove"
+      },
+      "retained_child_os_exit": {
+        "code": 0,
+        "signal": null
+      },
+      "ordinary_close_wait": {
+        "exited_at": "2026-10-29T21:57:58.8318006Z",
+        "observed_processes": 8,
+        "wait_ms": 27
+      },
+      "cleanup": {
+        "forced": false,
+        "exit_code": 0,
+        "signal": null
+      }
+    },
+    "raw_report_identity": {
+      "bytes": 9984,
+      "sha256": "9c87693ca62d978fe6a921bed0c6cc0366153854b9b7242b18feee47a6008942"
+    },
+    "account": {
+      "administrator": false,
+      "integrity": "medium",
+      "os": {
+        "architecture": "64-bit",
+        "version": "10.0.26300",
+        "build_number": "26300",
+        "caption": "Microsoft Windows 11 Home"
+      },
+      "credential_scope": "Fixed Core credentials and application lease are not isolated"
+    },
+    "registry_before": [],
+    "registry_after": [],
+    "source_inputs": {
+      "recorded_at": "2026-10-29T21:56:33.301078+00:00",
+      "controller_source": "276a580988712d2637ae1affc7ef90b71dc8656a",
+      "package_source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+      "native_checkout_readback": "4003-276-native-source-checkout3.log",
+      "native_checkout_clean": true,
+      "fresh_root_absent": true,
+      "files": [
+        {
+          "source_path": "/mnt/h/Portcove-Scratch/224-real-data-20261028/observe-4003-276-unregistered.ps1",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/observe-4003-276-unregistered.ps1",
+          "bytes": 11854,
+          "sha256": "5c2ab978780ab569c7f6cd4f38e44f95e4d2390b4fbacceac9aac2ab78da2b4f"
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/work/observe-4003-276-unregistered.mjs",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/observe-4003-276-unregistered.mjs",
+          "bytes": 6546,
+          "sha256": "ad2ec0bcaec9067abedfa3ae24e380c7d5baca83d70c0ed939cdb4cf1cffb1ec"
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/work/4003-guidance-viewport-276.mjs",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/4003-guidance-viewport-276.mjs",
+          "bytes": 1535,
+          "sha256": "95226579c29f25778fa50035340ccaa592b8ac3e795c9172ad86d4ba75810f60"
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/work/run-4003-276-unregistered.mjs",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/run-4003-276-unregistered.mjs",
+          "bytes": 843,
+          "sha256": "295ff9687c31f05add0848864db729709ed2725c827f90d1b054ff7dcb4c001b"
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Scratch/224-real-data-20261028/launch-4003-276-unregistered.ps1",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/launch-4003-276-unregistered.ps1",
+          "bytes": 394,
+          "sha256": "e30b12c8fa3dc89af4fb9f3afd3a710c5ae256913605b296911367093628eff6"
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/apps/desktop/scripts/native-session.ps1",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/native-session.ps1",
+          "bytes": 15004,
+          "sha256": "c7b1afc6200da621041aac1832403f6e274fd4acc4ac4f429410222a608b390c",
+          "git_blob_matches_exact_source": true
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/apps/desktop/scripts/native-process-tree.ps1",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/native-process-tree.ps1",
+          "bytes": 4990,
+          "sha256": "f1cbcda9c65cbe1a5f33cb4d575e3e3b113fff35b406bf77112faf02fd84de90",
+          "git_blob_matches_exact_source": true
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/apps/desktop/scripts/desktop-windows-embedded-session.mts",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/desktop-windows-embedded-session.mts",
+          "bytes": 10249,
+          "sha256": "999369798e4ea02fb0f5d7a32881ee8f2c5dc1757f118fef01e6099d138bc08d",
+          "git_blob_matches_exact_source": true
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/apps/desktop/scripts/desktop-owned-native-session.mts",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/desktop-owned-native-session.mts",
+          "bytes": 15771,
+          "sha256": "c760b0a83e2808faae6b6136cbe3fd2d25c11b4b7e4ede60cb14d047705aeae5",
+          "git_blob_matches_exact_source": true
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/apps/desktop/scripts/desktop-application-update-journey.mts",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/desktop-application-update-journey.mts",
+          "bytes": 18921,
+          "sha256": "bdbb6a68e1e75b25fa0ddd5caf67fceb7f9f7b66d81cecd375d76f25f3152027",
+          "git_blob_matches_exact_source": true
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/apps/desktop/scripts/desktop-installed-update-harness.mts",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/desktop-installed-update-harness.mts",
+          "bytes": 22248,
+          "sha256": "5b88f3243b20bdcc241c4c62acb24f855427ad5833ddc0cac4a5e42dfac6a177",
+          "git_blob_matches_exact_source": true
+        },
+        {
+          "source_path": "/mnt/h/Portcove-Worktrees/224-game-data-20261029/apps/desktop/scripts/browser-script.mts",
+          "retained_path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-276-guidance-observer-inputs/browser-script.mts",
+          "bytes": 1630,
+          "sha256": "e86702d8d208b93df2c0c593607b43f27a2323096689467e95aa969ace4e1e5c",
+          "git_blob_matches_exact_source": true
+        }
+      ],
+      "scope": "Actual12declared native observer/tooling inputs retained before any CoreCLI/app execution; no credentials/profiles/library databases/runtime/package bytes"
+    },
+    "native_controls": {
+      "head": "276a580988712d2637ae1affc7ef90b71dc8656a",
+      "run": 40956526910,
+      "attempt": 1,
+      "job": 123738073062,
+      "file": {
+        "file": "scripts/native-session.test.mts",
+        "observed": true,
+        "passed": 19,
+        "failed": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "new_case": {
+        "format_version": 1,
+        "invocation_id": "974b2dcf-f2d1-46b3-98df-7d03968a2a1f",
+        "observation_index": 92,
+        "file": "scripts/native-session.test.mts",
+        "entry_file": "scripts/native-session.test.mts",
+        "line": 782,
+        "column": 6,
+        "name": "ordinary close admits only the hash-bound captured direct application",
+        "classname": null,
+        "nesting": 0,
+        "kind": "test",
+        "definition_id": "00f5f0705322a7f000471bf21585dc83ca91b114f5e39658e7901b10d62a0073",
+        "test_id": 14,
+        "parent_id": 0,
+        "test_number": 92,
+        "attempt": null,
+        "duration_ms": 6899.5384,
+        "event": "test:pass",
+        "outcome": "passed",
+        "skip_reason": null,
+        "todo_reason": null,
+        "failure": null
+      },
+      "raw_log_sha256": "f4bb4694d190c0aab12f09aff472874b3463eb1a371e18710728ecfab30f8937",
+      "scope": "Actual Windows process controls, not a successful GUI close or installed-package guidance claim"
+    },
+    "screenshot": {
+      "path": "installed-updater-copied-guidance-2026-10-29.png",
+      "bytes": 106336,
+      "sha256": "a764e0e197e2cf71d72e7fac4d31bb060832112f973d90935c4daff101534435",
+      "inspection": "Required manual-supported-package/recovery-path guidance fully painted; existing interface-size warning remains visible"
+    },
+    "acceptance": "Independent non-writing raw-report/PNG/tuple/close/registry/caller review positive; source-helper repair did not rebuild the source38 application package",
+    "limits": [
+      "Unsigned guidance-only package is separate from retained signed NSIS upgrade journeys",
+      "Fixed Windows Core credentialstore/application lease are not isolated",
+      "Empty private Core library; earlier original real-game/preservation chains retain their separate scopes",
+      "No machine-wide installation, credential continuity or production publication claim"
+    ]
   }
 }
