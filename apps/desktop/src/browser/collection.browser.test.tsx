@@ -207,7 +207,9 @@ it("retains a session-only layout through the real details unmount and return", 
   expect(document.body.textContent).toContain(
     "This collection view is available for this session; it could not be saved.",
   );
-  expect(document.activeElement?.getAttribute("data-detail-game-id")).toBe("collection-0");
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
+    .toBe("collection-0");
 });
 
 for (const theme of ["dark", "light"]) {
@@ -320,7 +322,9 @@ for (const theme of ["dark", "light"]) {
       .element(page.getByRole("textbox", { name: "Search your library", exact: true }))
       .toHaveValue("Super Mario 64");
     expect(document.querySelectorAll(".collection-row")).toHaveLength(2);
-    expect(document.activeElement?.getAttribute("data-detail-game-id")).toBe("collection-0");
+    await expect
+      .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
+      .toBe("collection-0");
   });
 
   it(`keeps ${theme} collection actions in one reading flow at actual narrow widths and spacing overrides`, async () => {

@@ -243,6 +243,7 @@ async function chooseReadiness(name: string) {
   await readiness().click();
   await page.getByRole("option", { name, exact: true }).click();
   await expect.element(readiness()).toHaveAttribute("aria-expanded", "false");
+  await expect.element(readiness()).toHaveFocus();
   await closeFilters();
 }
 async function expectReadinessOption(name: string, selected?: boolean) {
@@ -257,6 +258,8 @@ async function expectReadinessOption(name: string, selected?: boolean) {
       String(selected ?? readiness().element().textContent?.includes(name) ?? false),
     );
   await userEvent.keyboard("{Escape}");
+  await expect.element(readiness()).toHaveAttribute("aria-expanded", "false");
+  await expect.element(readiness()).toHaveFocus();
   await closeFilters();
 }
 async function openAdvancedFilters(name: string) {
