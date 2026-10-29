@@ -6,7 +6,7 @@ Native5 delivered by #3960. Existing registrations retain their creating contrac
 The owning issues are #2510 and #2926. Canonical titles remain #2654, #2655,
 #2657, #2662 and #2663; Final Doom #2656 remains separate. The [exact packet](crispy-managed-fitting-2026-10-29.json)
 binds source, packages, coordinates, retained definitions and observation limits.
-Qualification and delivery remain pending.
+The five actual Core operation cases are complete; final delivery remains pending.
 
 There are still 247 operational definitions. These five identities already
 belonged to the affected 312 and the earlier 49 prepared routes. No identity,
@@ -91,10 +91,51 @@ CI40808194373/attempt1 because its authored reserved environment was correctly
 rejected. That failure remains retained. The revised candidate consumes the
 merged Native5 contract rather than weakening the guard.
 
-## Remaining qualification
+## Actual Core operation qualification
 
-The candidate still needs its actual Core install/verify/controller and declared
-data maintenance observations, existing acceptance/adversarial regression
-coverage, independent complete-diff review, all required exact-head CI, guarded
-merge and remote readback. Canonical issue reconciliation follows the delivered
-operation scope; no issue is automatically closed by this inventory or packet.
+The [native operation record](crispy-core-operations-2026-10-29.json) binds PR
+source `16f96924`, actual CI merge checkout `fadae34af` (target `87a91a27`), run `40843915950`/attempt1,
+the authenticated artifact and actual AMD64 CLI bytes. That source passed all five
+required contexts and all eight Windows partitions before its original deadline.
+Eight content-deduplicated owned-window images accompany ten independently bound
+controller observations across five separate entry IDs; no acceptance is inherited
+from another title merely because two controllers render identical pixels.
+
+All five cases installed and verified their exact official package, observed two
+actual setup menus and Save-settings/Yes dialogs, and completed normal controller
+and CLI exits 0. DoomII used a Unicode output leaf. Backup, deliberate mutation,
+restore, verification and preserving removal retained each title’s two actual
+setup configurations and three explicitly task-injected live-session witnesses
+under originals, saves and temp. No subsequent controller/game launch consumed
+those synthetic bytes. They are neither original IWADs nor game-save-format proof.
+All 168 per-entry package-file references over 134 members of four archives stayed
+unchanged. Core final activity and complete exact-root/descendant drain checks
+passed; the native leases released normally. The exact task-created MSIX-visible
+music-pack profile remained unchanged and external.
+
+Three harness failures remain preserved. The host refused the first normal
+PowerShell File entry before Core; a reviewed normal encoded-command route changed
+no machine/user policy, privilege or signing setting. Windows PowerShell 5.1 then exposed a
+wrapped-array mismatch; the exact five-ID guard stayed enforced after a diagnosed
+assignment repair. The third run stopped before backup because the unexpected-write
+guard encountered Core’s own .portcove-launched marker. Its exact ordinary `b'1'`
+content was traced to Core, then narrowly excluded as Core metadata. The bound
+continuation rechecked the retained package/data and resumed maintenance without
+replaying the already completed Doom controllers. Earlier raw failures remain
+failed, not rewritten as passes.
+
+The initial PrintWindow flag0 images stayed black/unreadable. Additional read-only
+exact-owned full-content flag2 captures, each actually inspected before its
+SHA-bound observation gate, establish the displayed menus/dialogs. Renderer choice,
+physical input, original files, games, save ABI, installed Desktop and protected
+acceptance remain unclaimed. Shared Native5 Windows fixtures and the unchanged
+production-provider successor/refusal tests remain distinct from these actual
+7.2 controller/data observations and accept no future Crispy artifact automatically.
+
+## Remaining delivery
+
+Review the final native evidence and complete source/target interaction, pass all
+required exact final-head checks, guarded merge and remote readback, then reconcile
+the five canonical issues at this delivered operation scope. No issue closes merely
+because a count or fixture passes. Final Doom and all six retained Direct/legacy
+constraints remain separate; completed #2494/#254 remain consumed.

@@ -2,7 +2,7 @@
   "format_version": 1,
   "kind": "crispy-shared-native4-managed-fitting",
   "owners": [2510, 2926],
-  "status": "implementation candidate; qualification and delivery pending",
+  "status": "Candidate five-title Core operation qualification complete; final source review, exact-head delivery and canonical reconciliation pending.",
   "scope": {
     "frozen_identities": [
       "doom-the-ultimate-doom-crispy-doom-family",
@@ -87,7 +87,7 @@
     "renderer_request": "No renderer environment is catalog-authored. The optional diagnostic native qualification session requests SDL_RENDER_DRIVER=direct3d11 only in the host-session environment. That request establishes neither the default renderer nor actual backend selection or game rendering.",
     "source_variant_isolation": "Different title IDs retain separate entry data. Retained versions of the same canonical ID share that entry data; use a separate Portcove library or independently owned upstream copy for another original edition. Do not switch populated source variants in place.",
     "temporary_data_transition": "Existing Native4 and user-selected contracts are not reinterpreted. TEMP/TMP and SDL_RENDER_DRIVER remain forbidden authored environment. After preserved removal a remaining canonical temp namespace, including an empty directory, holds fresh installation/reuse/activation/recovery without an active Native5 creating contract. No populated-data adoption or persistence-scope shrink is inferred.",
-    "provider_coverage": "The existing production-provider regression module replays all four observed 7.2 publisher-digest assets across five unchanged definitions, plus controlled N+1 selection, wrong CPU/family, ambiguity and missing-integrity refusals. Synthetic metadata is not accepted future runtime evidence. Test execution remains pending until its source-bound check completes."
+    "provider_coverage": "The existing production-provider regression module replays all four observed 7.2 publisher-digest assets across five unchanged definitions, plus controlled N+1 selection, wrong CPU/family, ambiguity and missing-integrity refusals. Synthetic metadata is not accepted future runtime evidence. The focused production-provider regression passed locally (1.169s) and source16f passed all five contexts/all eight Windows partitions in CI40843915950/a1; these remain metadata/fixture evidence."
   },
   "retained_selected_fixture": {
     "path": "crates/portcove-core/src/testdata/crispy-retained-selected-2026-10-29.json",
@@ -121,12 +121,21 @@
       "receipt": "work/beta-crispy-readonly/native-setup-doom-direct3d11-result.json",
       "sha256": "4a0c439ee10c5a40239c5208e8428e7c59b2319493efebcafbc51d91f24fd5d8",
       "scope": "Actual Doom setup main menu and observed Save settings? Yes confirmation, normal exit0, exact34 publisher files unchanged, two existing task-created configs and external README retained. Same -game doom arguments; requested direct3d11 instead of software. Runtime renderer selection, default backend, other families, originals, game startup and Core lifecycle are not established."
+    },
+    "candidate_core": {
+      "evidence": "crispy-core-operations-2026-10-29.json",
+      "source_head": "16f96924ea0b229a94e6c87b767b6110a7e51f8a",
+      "build_checkout": "fadae34af2b5088cc330ef2623a3de84a318ac74",
+      "raw_report_sha256": "80f48de5a6986fb2a81ab158aedd121ea12bd92f2c02005f328e28295e5f5861",
+      "completed_cases": 5,
+      "normal_controller_and_cli_sessions": 10,
+      "result": "All five install/verify/controller/data-backup-restore/preserving-removal observations complete; final activity and exact-owned process drain complete; native leases released.",
+      "scope": "Actual setup configs plus three labelled live-session synthetic witnesses per title; no originals, game, source validation, actual future version or game-save compatibility."
     }
   },
   "qualification_pending": [
-    "Qualify Native5 metadata, derived temporary coordinates and the diagnostic host-session renderer request through the actual candidate Core lifecycle without promoting diagnostic observations.",
-    "Actual candidate Core install/verify/controller lifecycle, declared-data backup/restore, immutable integrity and preserving removal.",
-    "Complete independent non-writing diff/target review, all required exact-head CI, guarded merge, remote readback and scoped canonical reconciliation."
+    "Independent review of final native evidence and complete final source/target interaction.",
+    "Required all-five exact final-head CI, guarded merge, remote readback and per-ID canonical reconciliation."
   ],
   "not_claimed": [
     "Authentic original-game files or original SHA admission",
@@ -225,7 +234,12 @@
         "DOOMWADDIR": "originals"
       },
       "definition_sha256": "5cd78849a238815b1f838014b8e25cddbaa03455fcceb2b0213bea8193a4b48e",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
       "windows_temp_directory": "temp"
     },
     {
@@ -317,7 +331,12 @@
         "DOOMWADDIR": "originals"
       },
       "definition_sha256": "fa1d1b08d05e562f1e5caa83863f4522f0bfa65f5e2545b6d6873ebc59c6dbbf",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
       "windows_temp_directory": "temp"
     },
     {
@@ -409,7 +428,12 @@
         "DOOMWADDIR": "originals"
       },
       "definition_sha256": "48615df11e0136a68448dae6b812b1c6014077425f4583cffa54a21b69a972d3",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
       "windows_temp_directory": "temp"
     },
     {
@@ -501,7 +525,12 @@
         "DOOMWADDIR": "originals"
       },
       "definition_sha256": "1b2cfc1a2c8beba57f8f967c54475d02ddecc67b57a1637e001ec7c67bf42c17",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
       "windows_temp_directory": "temp"
     },
     {
@@ -593,19 +622,24 @@
         "DOOMWADDIR": "originals"
       },
       "definition_sha256": "149b52209ccae1fafc7a7963f00b0aa7641a573f2602e9cc9c01f4c1876b97fb",
-      "acceptance": "pending candidate Core lifecycle, required CI and final review; no automatic issue closure",
+      "acceptance": {
+        "core_operations": "Actual Windows install, immutable verify, two observed setup-controller normal exits, backup/mutate/restore, preserving removal and exact data-byte retention complete.",
+        "evidence": "crispy-core-operations-2026-10-29.json",
+        "gameplay": "Unknown; no originals/game/inner-player exit was exercised.",
+        "delivery": "Final exact-head checks, guarded merge/readback and canonical reconciliation pending; no automatic closure."
+      },
       "windows_temp_directory": "temp"
     }
   ],
   "independent_design_review": {
-    "contract": "Earlier setup-controller/source/retained-contract review remains scoped to those observations. The Native4 candidate was correctly refused for authored reserved environment; it is superseded by Native5 #3960. Revised complete-diff and native-protocol review remains pending.",
+    "contract": "Revised Native5 complete repair, retained snapshots, production-provider delta and committed source16f review CLEAR against35c10f72; additional87a91a27 interaction reviewed. Native protocol/stager/driver/invocation/array/capture/marker-continuation reviews CLEAR at their recorded scopes. Final evidence/source review remains pending.",
     "repairs": [
       "Generic retained fixture lookup uses Result::is_ok and keeps Windows exact retained-object assertions.",
       "A declared originals directory avoids per-filename case-sensitive persistence gaps.",
       "Different editions of the same canonical ID require a separate library or upstream copy; retained versions share entry data.",
       "Custom outputs inside the managed tree are unclaimed and may hold maintenance; only outside-tree paths are external."
     ],
-    "writer_review": "No missing ordinary default writer identified in the reviewed191-site source inventory; actual candidate lifecycle still pending."
+    "writer_review": "No missing ordinary default writer identified in the reviewed191-site source inventory. Five actual Windows Core controller/data cases now complete; raw source, synthetic probes and game/save compatibility retain their distinct evidence limits."
   },
   "failed_candidate": {
     "head": "49b5151a08b6518c724114ab47797d0cc8ae712e",
