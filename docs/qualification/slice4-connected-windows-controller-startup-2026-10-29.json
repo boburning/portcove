@@ -290,5 +290,20 @@
     },
     "scope": "Hosted missing dependency prerequisite established by source ordering and controlled native comparison; hosted raw child error unobserved; not historical855 cause or connected acceptance",
     "repair": "Reuse existing pinned pnpm action and frozen root ignore-scripts install before account cases in both CI plans; retain actual pinned Node and existing10/120-minute limits; no source activation"
+  },
+  "dependency_guard_failure": {
+    "source": "512448960cb7eeae80eb0e8e808891d8bb809df6",
+    "ci_run": 40809985737,
+    "attempt": 1,
+    "windows_job": 123237836361,
+    "failed_case": "workflow runs bounded Windows controls and pinned lint under the existing catalog aggregate",
+    "reason": "Existing blanket pnpm-install guard rejected the newly required fixed root dependency preparation",
+    "account_cases_observed": 0,
+    "complete_log": {
+      "bytes": 464211,
+      "sha256": "06033343ed09e014a56363d01c89d37279b50311a95edd3f760ce8f8bfe719fb"
+    },
+    "repair": "One exact complete fixed filtered/frozen/ignore-scripts preparation line only; unchanged blanket bans over residual job text; negative controls for changed/duplicate/compound installs and existing disallowed effects",
+    "scope": "Workflow contract calibration only; no actual account14/native/production qualification claimed"
   }
 }
