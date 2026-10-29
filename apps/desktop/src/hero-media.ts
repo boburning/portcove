@@ -32,12 +32,12 @@ export function heroMediaCandidates(port: HeroMediaPort, context: HeroMediaConte
   );
   const bySubject = (a: CatalogMediaAsset, b: CatalogMediaAsset) =>
     Number(a.subject.kind !== "port") - Number(b.subject.kind !== "port");
-  const foreground = (["key_art", "logo"] as const).flatMap((role) =>
-    media
-      .filter((asset) => asset.role === role)
-      .sort(bySubject)
-      .slice(0, 2),
-  );
+  // Identity stays logo-first; photographic key art is not a replacement for a wordmark.
+  // GameHero owns the existing cover, then text fallback when these logos fail.
+  const foreground = media
+    .filter((asset) => asset.role === "logo")
+    .sort(bySubject)
+    .slice(0, 2);
   return {
     foreground,
     backgrounds: media

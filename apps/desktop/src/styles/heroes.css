@@ -12,10 +12,10 @@
     position: relative;
     z-index: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: clamp(1.25rem, 3vw, 2.5rem);
-    min-block-size: 18rem;
-    padding: clamp(1.5rem, 3vw, 2.5rem);
+    min-block-size: 20rem;
+    padding: clamp(1.5rem, 3vw, 3rem);
   }
   .game-hero-content {
     flex: 1 1 auto;
@@ -24,9 +24,9 @@
   .game-hero-foreground {
     display: grid;
     place-items: center;
-    flex: 0 0 clamp(7rem, 14vw, 10rem);
+    flex: 0 0 clamp(6rem, 11vw, 9rem);
     min-inline-size: 0;
-    block-size: 13rem;
+    block-size: 12rem;
   }
   .game-hero-image {
     display: block;
@@ -45,7 +45,7 @@
     flex-basis: 3.5rem;
     block-size: 5.25rem;
   }
-  .game-hero:is([data-hero-layout="key_art"], [data-hero-layout="logo"]) .game-hero-foreground {
+  .game-hero[data-hero-identity="logo"] .game-hero-foreground {
     flex-basis: clamp(11rem, 25vw, 25rem);
   }
   .game-hero[data-hero-identity="logo"] .game-hero-image {
@@ -64,7 +64,7 @@
   .game-hero-credits-slot {
     position: relative;
     z-index: 1;
-    min-block-size: 1.75rem;
+    min-block-size: 0;
   }
   .game-hero-background {
     position: absolute;
@@ -91,11 +91,11 @@
     cursor: pointer;
   }
   .game-hero-continue .game-hero-body {
-    min-block-size: 7rem;
+    align-items: center;
+    min-block-size: 8.5rem;
     padding: var(--space-4) var(--space-5);
   }
-  .game-hero-continue:is([data-hero-layout="key_art"], [data-hero-layout="logo"])
-    .game-hero-foreground {
+  .game-hero-continue[data-hero-identity="logo"] .game-hero-foreground {
     flex-basis: clamp(8rem, 18vw, 16rem);
   }
   .continue-identity {
@@ -121,12 +121,31 @@
     justify-content: space-between;
     gap: var(--space-5);
   }
+  .game-hero-detail[data-hero-identity="logo"] .game-hero-body {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: var(--space-5);
+  }
+  .game-hero-detail[data-hero-identity="logo"] .game-hero-foreground {
+    flex: none;
+    inline-size: min(26rem, 80%);
+    block-size: 8rem;
+    place-items: center start;
+  }
+  .game-hero-detail[data-hero-identity="logo"] .game-hero-image {
+    padding: 0;
+  }
+  .game-hero-detail[data-hero-identity="logo"] .detail-title {
+    font-size: var(--text-xl);
+    letter-spacing: -0.025em;
+  }
   @container detail (max-width: 42rem) {
     .game-hero-body {
       gap: var(--space-5);
       padding: var(--space-5);
     }
-    .game-hero:is([data-hero-layout="key_art"], [data-hero-layout="logo"]) .game-hero-foreground {
+    .game-hero[data-hero-identity="logo"] .game-hero-foreground {
       flex-basis: 32%;
     }
   }
@@ -149,8 +168,7 @@
       inline-size: 3rem;
       block-size: 4.5rem;
     }
-    .game-hero-continue:is([data-hero-layout="key_art"], [data-hero-layout="logo"])
-      .game-hero-foreground {
+    .game-hero-continue[data-hero-identity="logo"] .game-hero-foreground {
       flex-basis: 5rem;
       inline-size: 5rem;
     }
@@ -176,8 +194,7 @@
     .game-hero-detail[data-hero-identity="cover"] .game-hero-foreground {
       inline-size: 6rem;
     }
-    .game-hero-detail:is([data-hero-layout="key_art"], [data-hero-layout="logo"])
-      .game-hero-foreground {
+    .game-hero-detail[data-hero-identity="logo"] .game-hero-foreground {
       flex-basis: auto;
       inline-size: 100%;
     }

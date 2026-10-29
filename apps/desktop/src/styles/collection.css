@@ -35,10 +35,10 @@
     width: min(330px, 34vw);
   }
   .collection-covers {
-    --collection-art-limit: 260px;
+    --collection-art-limit: 16.25rem;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.75rem), 1fr));
     align-items: stretch;
-    gap: 28px 20px;
+    gap: var(--space-7) var(--space-5);
   }
   .collection-cover {
     display: flex;
@@ -59,9 +59,18 @@
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-lg);
   }
+  .collection-cover .collection-identity {
+    width: min(100%, var(--collection-art-limit));
+  }
+  .collection-cover .collection-art {
+    box-shadow: var(--shadow-raised);
+    transition:
+      border-color var(--duration-normal),
+      box-shadow var(--duration-normal);
+  }
   .collection-title {
     display: -webkit-box;
-    min-block-size: 2.8em;
+    min-block-size: 1.4em;
     margin-block-start: var(--space-2);
     overflow: hidden;
     overflow-wrap: anywhere;
@@ -71,7 +80,7 @@
   }
   .collection-project {
     display: -webkit-box;
-    min-block-size: 2.8em;
+    min-block-size: 1.4em;
     margin-block-start: var(--space-1);
     overflow: hidden;
     -webkit-box-orient: vertical;
@@ -171,7 +180,7 @@
   }
 
   .library-entry-chips {
-    margin-block-start: 10px;
+    margin-block-start: var(--space-2);
   }
   .library-entry-chips .identity-chip {
     min-block-size: 24px;
@@ -185,9 +194,9 @@
     justify-content: space-between;
     gap: 8px;
     min-block-size: 44px;
-    margin-block-start: 10px;
-    padding-block-start: 10px;
-    border-block-start: 1px solid var(--color-border-subtle);
+    margin-block-start: var(--space-2);
+    padding-block-start: var(--space-1);
+    border-block-start: 0;
   }
   .collection-cover .library-entry-chips {
     padding-block-end: var(--space-2);
@@ -349,5 +358,21 @@
       justify-content: flex-start;
       padding-inline-start: calc(var(--collection-thumb) + 12px);
     }
+  }
+}
+
+@layer utilities {
+  .collection-identity:hover .collection-art {
+    border-color: var(--color-interactive-border);
+    box-shadow: var(--shadow-floating);
+  }
+  .library-card-play {
+    gap: var(--space-1);
+    color: var(--color-text-secondary);
+  }
+  .library-card-play:hover,
+  .library-card-play:focus-visible {
+    color: var(--color-text-on-dark);
+    background: var(--color-primary-surface);
   }
 }
