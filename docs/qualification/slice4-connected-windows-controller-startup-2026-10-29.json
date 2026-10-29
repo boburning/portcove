@@ -327,5 +327,43 @@
     },
     "repair": "Optional observation failure explicitly preserves null/Unknown; original failure, cleanup, ACK and authority unchanged",
     "scope": "Actual14 Windows account controls only; job/all-five CI not accepted; successor fresh qualification required"
+  },
+  "current_windows_success_linux_contract_failure": {
+    "source": "3665758dca2a7df82a122f883366bdf863aeb8f4",
+    "ci_run": 40813706620,
+    "attempt": 1,
+    "windows": {
+      "job": 123249823541,
+      "conclusion": "success",
+      "job_seconds": 357,
+      "account_cases_passed": 14,
+      "public_original_c_variants": 7,
+      "pssa_and_causal_fixture": "passed",
+      "complete_log_bytes": 572343,
+      "complete_log_sha256": "7f44fd43d487a5a76581c0a181431dcda2d36e2a41d130c5798461ffbf7cb4b4"
+    },
+    "linux": {
+      "job": 123249823829,
+      "conclusion": "failure",
+      "step": "Check relevant cheap repository contracts",
+      "complete_log_bytes": 2920659,
+      "complete_log_sha256": "45a4339ec1f79565cda78bc45f839119c3c46907fc74d053802bc4564ce40164",
+      "failures": [
+        {
+          "file": "scripts/ci-rust-workflow.test.mts",
+          "boundary": "preserve independent native-only checks before root dependency setup"
+        },
+        {
+          "file": "scripts/ci-workflow-fixture.test.mts",
+          "boundary": "equivalent workflow-policy wrapper; child output truncated, separate cause not inferred"
+        },
+        {
+          "file": "scripts/hosted-native-continuity.test.mts",
+          "boundary": "exact settlement path expectation omitted intentional bounded startup record"
+        }
+      ]
+    },
+    "repair": "Keep independent native checks before the unchanged root dependency preparation, then account controls; add only the existing bounded startup path to exact test allowlist",
+    "scope": "Current native Windows14/lint success only; all-five catalog qualification failed; fresh successor required"
   }
 }
