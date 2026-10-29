@@ -310,6 +310,8 @@ internal static class ContractTests
         var independent83 = Json.Object(Json.Parse(Json.Print(Capabilities())));
         independent83["schema_version"] = 83;
         independent83["operation_event_schema_version"] = 3;
+        independent83["commands"] = Json.Array(Json.Field(independent83, "commands")).Cast<string>()
+            .Concat(new[] { "remove.preview", "remove", "installation.review" }).ToArray();
         Check(ProtocolStream.Negotiate(independent83, ConsumerCapability.Lifecycle) == 3,
             "API83 lifecycle uses the independently advertised event3 authority");
         independent83.Remove("operation_event_schema_version");
