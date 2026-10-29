@@ -3,34 +3,11 @@ use super::*;
 
 #[cfg(test)]
 const ID: &str = "sonic-3-and-knuckles-recomp";
+#[cfg(test)]
+use crate::persistence::legacy_direct_reader as legacy_reader;
+use crate::persistence::requires_fresh_direct_data_guard as requires_fresh_data_guard;
+#[cfg(test)]
 const LEGACY_PACKAGE: &str = "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99";
-
-fn legacy_reader(port_id: &str) -> Option<(&'static str, &'static str)> {
-    match port_id {
-        "sonic-3-and-knuckles-recomp" => Some(("v0.5.3", LEGACY_PACKAGE)),
-        "sonic-the-hedgehog-recomp" => Some((
-            "v0.6.0",
-            "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
-        )),
-        "mega-man-x2-snes-recomp" => Some((
-            "v0.1.4",
-            "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
-        )),
-        _ => None,
-    }
-}
-
-fn newer_route(port: &PortDefinition) -> bool {
-    let Some((version, sha256)) = legacy_reader(&port.id) else {
-        return false;
-    };
-    !(port.release.provider == crate::ReleaseSource::DirectManifest
-        && port
-            .release
-            .direct
-            .get(&Platform::WindowsX86_64)
-            .is_some_and(|release| release.version == version && release.sha256 == sha256))
-}
 
 fn held(port: &PortDefinition) -> PortcoveError {
     PortcoveError::conflict(format!(
@@ -89,7 +66,7 @@ impl PortcoveService {
     /// Preserve the exact legacy reader, while refusing unproven canonical data
     /// before a new route is created. Retained imports carry their own receipts.
     pub(super) fn require_direct_fresh_data(&self, port: &PortDefinition) -> Result<()> {
-        if newer_route(port) {
+        if requires_fresh_data_guard(port) {
             require_empty_player_data(port, &self.library.user_dir(&port.id))?;
         }
         Ok(())
@@ -109,7 +86,7 @@ impl PortcoveService {
         install_root: &Path,
         snapshot: &Path,
     ) -> Result<()> {
-        if !newer_route(port) {
+        if !requires_fresh_data_guard(port) {
             return Ok(());
         }
         let install = self
@@ -124,7 +101,7 @@ impl PortcoveService {
         install: &InstallRecord,
         snapshot: &Path,
     ) -> Result<()> {
-        if !newer_route(port) {
+        if !requires_fresh_data_guard(port) {
             return Ok(());
         }
         let retained = self.installed_port(install)?;
@@ -143,7 +120,7 @@ impl PortcoveService {
         to: &PortDefinition,
         roots: &[PathBuf],
     ) -> Result<()> {
-        if retained.id == to.id && newer_route(to) {
+        if retained.id == to.id && requires_fresh_data_guard(to) {
             // Shared paths may contain build-bound states even when every added
             // thumbnail/campaign sidecar is absent. Generic expansion alone is
             // not a compatibility proof for this historical reader transition.
@@ -263,7 +240,7 @@ mod tests {
                 .unwrap();
             release.version = version.into();
             release.sha256 = hash.into();
-            assert!(!newer_route(&port));
+            assert!(!requires_fresh_data_guard(&port));
             fs::create_dir_all(library.user_dir(id)).unwrap();
             let name = if id == "sonic-the-hedgehog-recomp" {
                 "native_save_1.bin"
@@ -277,7 +254,7 @@ mod tests {
                 .get_mut(&Platform::WindowsX86_64)
                 .unwrap()
                 .sha256 = "a".repeat(64);
-            assert!(newer_route(&port));
+            assert!(requires_fresh_data_guard(&port));
             assert!(service.require_direct_fresh_data(&port).is_err());
             assert_eq!(
                 fs::read(library.user_dir(id).join(name)).unwrap(),
@@ -291,7 +268,7 @@ mod tests {
     #[test]
     fn sonic3k_hold_does_not_reinterpret_the_exact_legacy_reader_or_other_ports() {
         let mut port = synthetic_original();
-        assert!(newer_route(&port));
+        assert!(requires_fresh_data_guard(&port));
         port.release.provider = crate::ReleaseSource::DirectManifest;
         port.release.direct.insert(
             Platform::WindowsX86_64,
@@ -303,14 +280,19 @@ mod tests {
                 published_at: None,
             },
         );
-        assert!(!newer_route(&port));
+        assert!(!requires_fresh_data_guard(&port));
         port.release
             .direct
             .get_mut(&Platform::WindowsX86_64)
             .unwrap()
             .sha256 = "0".repeat(64);
-        assert!(newer_route(&port));
+        assert!(requires_fresh_data_guard(&port));
+        port.release.provider = crate::ReleaseSource::UserPrepared;
+        assert!(!requires_fresh_data_guard(&port));
+        port.release.provider = crate::ReleaseSource::Github;
+        port.adapter = AdapterKind::NativePortable;
+        assert!(!requires_fresh_data_guard(&port));
         port.id = "unrelated-fixture".into();
-        assert!(!newer_route(&port));
+        assert!(!requires_fresh_data_guard(&port));
     }
 }
