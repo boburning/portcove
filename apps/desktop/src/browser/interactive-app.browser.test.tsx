@@ -25,20 +25,43 @@ function mount(journey: string) {
   startInteractiveScenarios();
 }
 async function settleCapture() {
+  const phase = (name: string) => {
+    document.documentElement.dataset.capturePhase = name;
+    document.documentElement.dataset.captureVisibility = document.visibilityState;
+    document.documentElement.dataset.captureFonts = document.fonts.status;
+  };
+  phase("fonts");
   await document.fonts.ready;
+  phase("images");
   await expect.poll(() => [...document.images].every((image) => image.complete)).toBe(true);
+  phase("paint");
   // Let the resized workspace and the theme owner's deferred invalidation paint.
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
-  await Promise.all(
-    document
-      .getAnimations()
-      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
-      .map((animation) => animation.finished.catch(() => {})),
+  phase("animations");
+  const animations = document
+    .getAnimations()
+    .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+  // Retain the unsettled phase/state in failure snapshots without weakening capture readiness.
+  document.documentElement.dataset.captureAnimations = JSON.stringify(
+    animations.map((animation) => ({
+      state: animation.playState,
+      pending: animation.pending,
+      rate: animation.playbackRate,
+      timing: animation.effect?.getComputedTiming(),
+      target:
+        animation.effect instanceof KeyframeEffect && animation.effect.target instanceof Element
+          ? `${animation.effect.target.tagName}.${animation.effect.target.getAttribute("class") ?? ""}`
+          : null,
+    })),
   );
+  await Promise.all(animations.map((animation) => animation.finished.catch(() => {})));
+  phase("complete");
 }
 afterEach(() => {
+  for (const key of ["capturePhase", "captureVisibility", "captureFonts", "captureAnimations"])
+    delete document.documentElement.dataset[key];
   stopInteractiveScenarios();
   document.documentElement.style.fontSize = "";
   sessionStorage.removeItem(recoveryKey);

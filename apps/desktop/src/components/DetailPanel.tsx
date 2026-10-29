@@ -2210,11 +2210,9 @@ function PlannedInstallButton({
   let label =
     plan.action === "download"
       ? `Install · ${formatBytes(plan.download_bytes)}`
-      : plan.action === "reuse_retained"
-        ? "Use previous release"
-        : plan.action === "already_active"
-          ? "Use installed release"
-          : "Use ready release";
+      : plan.action === "already_active"
+        ? "Use current version"
+        : (installPlanActionLabel(plan.action) ?? "Review installation");
   if (blocked) label = "Verify or replace the local copy before installing";
   else if (insufficientSpace) label = "Free space required";
   else if (busy === "install") label = "Installing…";
