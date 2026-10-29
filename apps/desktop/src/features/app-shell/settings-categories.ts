@@ -4,6 +4,7 @@ export const settingsCategories = [
   { id: "game-files", label: "Game files" },
   { id: "updates", label: "Updates" },
   { id: "integrations", label: "Integrations" },
+  { id: "controls", label: "Keyboard and controller" },
   { id: "advanced", label: "Advanced" },
   { id: "about", label: "About" },
 ] as const;

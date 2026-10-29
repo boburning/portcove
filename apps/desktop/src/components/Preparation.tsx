@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { InstallRecord, OperationEvent, PreparationPlan } from "../types";
 import { errorText, formatBytes, isCancellation } from "../view-model";
+import { ArtworkImage } from "./Artwork";
 import { OperationCancellation } from "./OperationCancellation";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -175,7 +176,21 @@ export function PreparationControl({
                 ? "Preparing the reviewed installation and game files."
                 : "Review the files and changes before starting."}
             </DialogDescription>
-            {taskLabel && <p className="font-semibold [overflow-wrap:anywhere]">{taskLabel}</p>}
+            <div className="mb-4 flex min-w-0 items-center gap-4 border-b border-[var(--color-border)] pb-4">
+              <ArtworkImage
+                port={{ id: portId }}
+                className="aspect-[2/3] w-12 shrink-0 rounded-pc-sm"
+                quietFallback
+              />
+              <div className="min-w-0">
+                <p className="m-0 font-semibold [overflow-wrap:anywhere]">
+                  {taskLabel ?? "Selected installation"}
+                </p>
+                <p className="mt-1 mb-0 text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+                  Installed version {plan.inputs.install.version}
+                </p>
+              </div>
+            </div>
             {pending === "prepare" ? (
               <>
                 <p role="status">{message ?? "Starting preparation…"}</p>

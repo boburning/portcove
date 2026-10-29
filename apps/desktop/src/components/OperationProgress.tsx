@@ -7,13 +7,20 @@ import { Icon } from "./ui";
 export function OperationProgress({
   operation,
   busy,
+  embedded = false,
 }: {
   operation?: OperationEvent | undefined;
   busy: string;
+  embedded?: boolean;
 }) {
   const { label, detail, range } = progressPresentation(operation, busy);
   return (
-    <div className="operation-bar mb-4 grid grid-cols-[auto_minmax(8rem,_auto)_minmax(12rem,_1fr)] items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground">
+    <div
+      className={cn(
+        "operation-bar mb-4 grid grid-cols-[auto_minmax(8rem,_auto)_minmax(12rem,_1fr)] items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground",
+        embedded && "operation-progress-embedded",
+      )}
+    >
       <span className="text-pc-info-foreground motion-safe:[&_.icon]:animate-spin">
         <Icon glyph={LoaderCircle} />
       </span>

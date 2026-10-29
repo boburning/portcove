@@ -8,7 +8,8 @@ export type ActivitySettingsTarget =
   | "import-library"
   | "library-storage"
   | "application-updates"
-  | "catalog-updates";
+  | "catalog-updates"
+  | "diagnostics";
 export type SettingsTarget = ActivitySettingsTarget | "add-game-file-root";
 
 export function settingsCategoryForTarget(target: SettingsTarget): SettingsCategory {
@@ -18,7 +19,7 @@ export function settingsCategoryForTarget(target: SettingsTarget): SettingsCateg
     ? "game-files"
     : target === "application-updates"
       ? "updates"
-      : target === "catalog-updates"
+      : target === "catalog-updates" || target === "diagnostics"
         ? "advanced"
         : "library-storage";
 }

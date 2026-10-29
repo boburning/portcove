@@ -1,3 +1,7 @@
+import {
+  SidebarCollections,
+  type Organization,
+} from "../features/organization/OrganizationControls";
 import { OperationProgress } from "./OperationProgress";
 import { cn } from "cn";
 import { RadioGroup } from "@base-ui/react/radio-group";
@@ -26,6 +30,8 @@ import {
   Command,
   Download,
   HardDrive,
+  Keyboard,
+  Gamepad2,
   Library,
   LoaderCircle,
   Menu as MenuIcon,
@@ -89,6 +95,7 @@ import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
 import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
+import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 import { LanguageSettings } from "./LanguageSettings";
 import {
   settingsCategories,
@@ -102,6 +109,11 @@ export function Sidebar({
   updateCount,
   activities,
   controller,
+  organization,
+  collectionView = "all",
+  onSelectCollection,
+  libraryRoot,
+  collectionActions,
 }: {
   view: View;
   setView: Dispatch<SetStateAction<View>>;
@@ -109,6 +121,11 @@ export function Sidebar({
   updateCount: number;
   activities: ActivityRecord[];
   controller?: string | undefined;
+  organization?: Organization | undefined;
+  collectionView?: string;
+  onSelectCollection?: ((id: string) => void) | undefined;
+  libraryRoot?: string | undefined;
+  collectionActions?: ReactNode;
 }) {
   const activityState = navigationActivityState(activities);
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -134,50 +151,69 @@ export function Sidebar({
     icon: typeof Library;
     shortcut: string;
   }>;
+  const renderNavigationItem = (item: (typeof items)[number], sheet: boolean) => (
+    <Tooltip label={`${item.label} · ${commandShortcut(item.shortcut)}`} disabled={sheet}>
+      <Button
+        data-focusable
+        aria-current={view === item.view ? "page" : undefined}
+        variant={view === item.view ? "selected" : "ghost"}
+        size="lg"
+        className={cn(
+          "group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 border-transparent p-[var(--space-2)_var(--space-3)] text-start font-normal whitespace-normal after:hidden",
+          view !== item.view && "text-pc-muted-foreground",
+        )}
+        onClick={() => {
+          setView(item.view);
+          setNavigationOpen(false);
+        }}
+      >
+        <Icon glyph={item.icon} />
+        <span className="nav-label min-w-0 flex-1">{item.label}</span>
+        {item.view === "library" && (
+          <b
+            className="rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal text-pc-muted-foreground"
+            aria-label={`${installedCount} in library`}
+          >
+            {installedCount}
+          </b>
+        )}
+        {item.view === "updates" && (updateCount > 0 || activityState) && (
+          <NavigationStatus updateCount={updateCount} activityState={activityState} />
+        )}
+        <Shortcut className="hidden">{commandShortcut(item.shortcut)}</Shortcut>
+      </Button>
+    </Tooltip>
+  );
   const renderNavigation = (sheet = false) => (
     <nav
       ref={sheet ? sheetNavigation : desktopNavigation}
-      className="flex min-h-0 flex-1 flex-col gap-2"
+      className="sidebar-navigation flex min-h-0 flex-1 flex-col gap-2"
       aria-label="Primary navigation"
     >
-      {items.map((item) => (
-        <Tooltip
-          key={item.view}
-          label={`${item.label} · ${commandShortcut(item.shortcut)}`}
-          disabled={sheet}
-        >
-          <Button
-            data-focusable
-            aria-current={view === item.view ? "page" : undefined}
-            variant={view === item.view ? "selected" : "ghost"}
-            size="lg"
-            className={cn(
-              "group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 border-transparent p-[var(--space-2)_var(--space-3)] text-start font-normal whitespace-normal after:hidden",
-              view !== item.view && "text-pc-muted-foreground",
-              item.view === "settings" && !sheet && "mt-auto",
-            )}
-            onClick={() => {
-              setView(item.view);
-              setNavigationOpen(false);
-            }}
-          >
-            <Icon glyph={item.icon} />
-            <span className="nav-label min-w-0 flex-1">{item.label}</span>
-            {item.view === "library" && (
-              <b
-                className="rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal text-pc-muted-foreground"
-                aria-label={`${installedCount} in library`}
-              >
-                {installedCount}
-              </b>
-            )}
-            {item.view === "updates" && (updateCount > 0 || activityState) && (
-              <NavigationStatus updateCount={updateCount} activityState={activityState} />
-            )}
-            <Shortcut className="hidden">{commandShortcut(item.shortcut)}</Shortcut>
-          </Button>
-        </Tooltip>
+      {items.slice(0, 3).map((item) => (
+        <div key={item.view}>{renderNavigationItem(item, sheet)}</div>
       ))}
+      {!sheet && organization && onSelectCollection && (
+        <SidebarCollections
+          organization={organization}
+          selected={view === "library" ? collectionView : ""}
+          onSelect={onSelectCollection}
+        >
+          {collectionActions}
+        </SidebarCollections>
+      )}
+      <div className={sheet ? undefined : "sidebar-bottom mt-auto"}>
+        {!sheet && libraryRoot && (
+          <div className="sidebar-library" title={libraryRoot}>
+            <span className="sidebar-library-dot" aria-hidden="true" />
+            <span>
+              My library<small>On this computer</small>
+            </span>
+            <Icon glyph={HardDrive} size="sm" />
+          </div>
+        )}
+        {renderNavigationItem(items[3]!, sheet)}
+      </div>
     </nav>
   );
   return (
@@ -318,7 +354,7 @@ export function PageHeader({
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
           <p className="mt-2 mb-0 text-sm text-pc-muted-foreground">
-            {libraryCount} {libraryCount === 1 ? "entry" : "entries"} · On this computer
+            {libraryCount} library {libraryCount === 1 ? "entry" : "entries"}
           </p>
         )}
         {copy.description && (
@@ -352,10 +388,10 @@ export function PageHeader({
               size="sm"
               className="command-trigger whitespace-nowrap text-pc-muted-foreground max-[48rem]:size-9 max-[48rem]:shrink-0 max-[48rem]:p-0"
               onClick={onOpenCommands}
-              aria-label={`Commands ${commandShortcut("K")}: open command palette`}
+              aria-label={`Search games and pages ${commandShortcut("K")}: open command palette`}
             >
               <Icon glyph={Command} />
-              <span className="max-[65rem]:hidden">Commands </span>
+              <span className="max-[65rem]:hidden">Search games and pages </span>
               <span className="ms-1 text-xs max-[48rem]:hidden">{commandShortcut("K")}</span>
             </Button>
           </Tooltip>
@@ -402,10 +438,10 @@ export function WorkspaceToolbar({
         size="sm"
         className="command-trigger shrink-0 gap-2 font-normal text-pc-muted-foreground"
         onClick={onOpenCommands}
-        aria-label={`Commands ${commandShortcut("K")}: open command palette`}
+        aria-label={`Search games and pages ${commandShortcut("K")}: open command palette`}
       >
         <Icon glyph={Search} />
-        <span className="max-[65rem]:hidden">Commands </span>{" "}
+        <span className="max-[65rem]:hidden">Search games and pages</span>{" "}
         <Shortcut className="max-[42rem]:hidden">{commandShortcut("K")}</Shortcut>
       </Button>
     </div>
@@ -967,7 +1003,7 @@ function SourceRequirements({
       <div
         className={
           installedCount > 0
-            ? `${sourceRequirementsBase} complete block border-pc-border bg-pc-surface text-xs text-pc-muted-foreground`
+            ? "source-requirements complete text-sm font-normal text-pc-muted-foreground [&_strong]:font-normal"
             : sourceRequirementsClass
         }
       >
@@ -1104,11 +1140,13 @@ function SourceHealth({
         busy={busy}
         add={add}
       />
-      <SourceDiscoveryButton
-        profiles={profiles}
-        disabled={Boolean(busy) || requirementsState !== "available"}
-        onAdded={onAdded}
-      />
+      <div className="justify-self-start">
+        <SourceDiscoveryButton
+          profiles={profiles}
+          disabled={Boolean(busy) || requirementsState !== "available"}
+          onAdded={onAdded}
+        />
+      </div>
       {requirementsState === "available" &&
         (sources.length === 0 ? (
           <p>No game files or BIOS files have been added yet.</p>
@@ -1177,7 +1215,7 @@ function SourceHealthRow({
 }) {
   return (
     <div
-      className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+      className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 last:border-b-0"
       data-source-profile={source.profile_id}
       tabIndex={-1}
     >
@@ -1570,6 +1608,7 @@ function ThemeOption({ option }: { option: ThemePreference }) {
 }
 
 type SettingsViewProps = {
+  steamPorts?: PortDefinition[];
   category?: SettingsCategory | undefined;
   onCategoryChange?: ((category: SettingsCategory) => void) | undefined;
   generation?: number;
@@ -1619,6 +1658,7 @@ export function SettingsView(props: SettingsViewProps) {
   const {
     category,
     onCategoryChange,
+    steamPorts = [],
     generation = 0,
     ports = [],
     statuses = new Map(),
@@ -1664,6 +1704,7 @@ export function SettingsView(props: SettingsViewProps) {
 
   const [localCategory, setLocalCategory] = useState<SettingsCategory>("appearance");
   const selectedCategory = category ?? localCategory;
+  const [steamOpen, setSteamOpen] = useState(false);
 
   const renderCategoryNavigation = () => (
     <nav
@@ -1696,6 +1737,7 @@ export function SettingsView(props: SettingsViewProps) {
                 "game-files": FolderOpen,
                 updates: Download,
                 integrations: Plug,
+                controls: Keyboard,
                 advanced: Wrench,
                 about: Info,
               }[id]
@@ -1720,7 +1762,14 @@ export function SettingsView(props: SettingsViewProps) {
         switchLibrary={switchLibrary}
         reset={resetLibrary}
       />
-      <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} />
+      <StorageCard
+        libraryRoot={storage?.library_root ?? libraryRoot}
+        storage={storage}
+        showLocation={
+          !librarySelection?.root ||
+          librarySelection.root !== (storage?.library_root ?? libraryRoot)
+        }
+      />
       <LibraryRecovery
         key={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
@@ -1871,7 +1920,75 @@ export function SettingsView(props: SettingsViewProps) {
           title="Integrations"
           description="Connect optional services. You don't need an account to play."
         >
+          <SettingsRow>
+            <h2>Steam shortcuts</h2>
+            <p>
+              Add installed games to Steam to launch them from your Steam library. Review each
+              shortcut before making changes.
+            </p>
+            {steamPorts.length > 0 ? (
+              <Button data-focusable variant="outline" onClick={() => setSteamOpen(true)}>
+                <Icon glyph={Gamepad2} />
+                Choose games for Steam…
+              </Button>
+            ) : (
+              <p>Install a game to add a Steam shortcut.</p>
+            )}
+            {steamOpen && steamPorts.length === 1 && steamPorts[0] ? (
+              <SteamEntryDialog
+                port={steamPorts[0]}
+                installed
+                generation={generation}
+                close={() => setSteamOpen(false)}
+              />
+            ) : steamOpen ? (
+              <SteamBatchEntryDialog
+                ports={steamPorts}
+                generation={generation}
+                close={() => setSteamOpen(false)}
+              />
+            ) : null}
+          </SettingsRow>
           <GithubSettings github={github} busy={busy} />
+        </SettingsSection>
+        <SettingsSection
+          id="controls"
+          active={selectedCategory === "controls"}
+          title="Keyboard and controller"
+          description="Move around Portcove without reaching for a mouse."
+        >
+          <SettingsRow>
+            <h2>Keyboard shortcuts</h2>
+            <dl className="divide-y divide-pc-border">
+              {[
+                ["Search games and pages", commandShortcut("K")],
+                ["Search the current Library or Discover view", commandShortcut("F")],
+                ["Open Library", commandShortcut("1")],
+                ["Open Discover", commandShortcut("2")],
+                ["Open Activity", commandShortcut("3")],
+                ["Open Settings", commandShortcut("4")],
+              ].map(([label, keys]) => (
+                <div key={label} className="flex items-center justify-between gap-4 py-3 text-sm">
+                  <dt>{label}</dt>
+                  <dd className="shrink-0">
+                    <Shortcut>{keys}</Shortcut>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </SettingsRow>
+          <SettingsRow>
+            <h2>Controller navigation</h2>
+            <p>
+              Connect a controller to navigate Portcove. Use the D-pad or stick to move, the confirm
+              button to select, and the back button to go back or open navigation. Shoulder buttons
+              switch sections.
+            </p>
+            <p>
+              Controller navigation is available automatically while Portcove is in focus. In-game
+              controls are managed by each game.
+            </p>
+          </SettingsRow>
         </SettingsSection>
         {renderAdvancedSettings()}
         <SettingsSection
@@ -2375,7 +2492,9 @@ export function HostToolRow({
 function StorageCard({
   libraryRoot,
   storage,
+  showLocation = true,
 }: {
+  showLocation?: boolean;
   libraryRoot: string;
   storage?: StorageSummary | undefined;
 }) {
@@ -2395,10 +2514,14 @@ function StorageCard({
         <Icon glyph={HardDrive} />
         Files and capacity
       </h2>
-      <p className="m-0 text-sm text-pc-muted-foreground">Current library</p>
-      <code className="block rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-        {libraryRoot || "Library location unavailable"}
-      </code>
+      {showLocation && (
+        <>
+          <p className="m-0 text-sm text-pc-muted-foreground">Current library</p>
+          <code className="block text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+            {libraryRoot || "Library location unavailable"}
+          </code>
+        </>
+      )}
       {measurable ? (
         <div className="mb-[15px] grid gap-2">
           <div className="flex items-baseline justify-between gap-3">

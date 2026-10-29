@@ -38,7 +38,7 @@ for (const width of [320, 576]) {
       expect(firstArt.getBoundingClientRect().top).toBeLessThan(650);
       const heading = page.getByRole("heading", { name: "Your library", level: 1 }).element();
       const commands = page
-        .getByRole("button", { name: /^Commands .*open command palette$/ })
+        .getByRole("button", { name: /^Search games and pages .*open command palette$/ })
         .element();
       const compactHeader = document.querySelector<HTMLElement>(".sidebar-compact-header")!;
       const headerBox = compactHeader.getBoundingClientRect();

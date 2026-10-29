@@ -206,24 +206,33 @@ export function LibraryRecovery({
           host’s secure-storage admission; a copy does not establish trust on another device.
         </p>
       </details>
-      <h3>Restore a recovery copy</h3>
-      <p>
-        Choose a new or empty destination library first. Review the metadata and copied content
-        together. Restore checks the bound plan and copied files before publishing the destination.
-        Disconnected originals remain saved locations and need current checks or relinking.
-        Interrupted restore offers its existing resume or retaining abort; keep the input copy.
-      </p>
-      <LibraryImportButton
-        disabled={Boolean(busy) || preparing || !libraryRoot}
-        libraryRoot={libraryRoot}
-      />
-      <h3>Change library location</h3>
-      <p>
-        Portcove copies and verifies the current library, then opens the new copy. The old copy will
-        remain; this does not free space on the original drive. This is separate from preparing a
-        recovery copy.
-      </p>
-      <LibraryMoveButton disabled={Boolean(busy) || preparing} />
+      <div className="recovery-action-row">
+        <div className="settings-field-copy">
+          <h3>Restore a recovery copy</h3>
+          <p>
+            Choose a new or empty destination library first. Review the metadata and copied content
+            together. Restore checks the bound plan and copied files before publishing the
+            destination. Disconnected originals remain saved locations and need current checks or
+            relinking. Interrupted restore offers its existing resume or retaining abort; keep the
+            input copy.
+          </p>
+        </div>
+        <LibraryImportButton
+          disabled={Boolean(busy) || preparing || !libraryRoot}
+          libraryRoot={libraryRoot}
+        />
+      </div>
+      <div className="recovery-action-row">
+        <div className="settings-field-copy">
+          <h3>Change library location</h3>
+          <p>
+            Portcove copies and verifies the current library, then opens the new copy. The old copy
+            will remain; this does not free space on the original drive. This is separate from
+            preparing a recovery copy.
+          </p>
+        </div>
+        <LibraryMoveButton disabled={Boolean(busy) || preparing} />
+      </div>
     </SettingsRow>
   );
 }

@@ -19,6 +19,12 @@
     margin-inline-start: auto;
     flex: 0 1 auto;
   }
+  .library-query-tools [aria-label="Collection view"] {
+    padding: 3px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    gap: 2px;
+  }
   .library-query-tools [aria-label="Collection view"] > span {
     display: none;
   }
@@ -38,7 +44,7 @@
     --collection-art-limit: 260px;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.75rem), 1fr));
     align-items: stretch;
-    gap: var(--space-8) var(--space-6);
+    gap: 1.875rem var(--space-5);
   }
   .collection-cover {
     width: min(100%, var(--collection-art-limit));
@@ -73,22 +79,24 @@
   .collection-title {
     display: -webkit-box;
     min-block-size: 2.8em;
-    margin-block-start: var(--space-4);
+    margin-block-start: var(--space-6);
+    font-size: 0.875rem;
     overflow: hidden;
     overflow-wrap: anywhere;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-    line-height: 1.4;
+    line-height: 1.45;
   }
   .collection-project {
     display: -webkit-box;
     min-block-size: 2.8em;
-    margin-block-start: var(--space-1);
+    margin-block-start: 0.3125rem;
+    font-size: 0.75rem;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow-wrap: anywhere;
-    line-height: 1.4;
+    line-height: 1.5;
   }
   .discover-grid {
     align-items: stretch;
@@ -111,7 +119,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .discover-game .collection-title {
-    margin-block-start: var(--space-4);
+    margin-block-start: var(--space-6);
   }
 
   .discover-rows {
@@ -198,18 +206,18 @@
     border-block-start: 1px solid var(--color-border-subtle);
   }
   .collection-cover .library-entry-chips {
-    padding-block-end: var(--space-2);
+    padding-block-end: 0.625rem;
   }
   .collection-cover .library-entry-footer {
     width: min(100%, var(--collection-art-limit));
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
-    min-block-size: 3rem;
+    min-block-size: 2.75rem;
     align-content: start;
     gap: var(--space-3);
     margin-block-start: auto;
-    padding-block-start: var(--space-3);
+    padding-block-start: 0.625rem;
   }
   .collection-cover .collection-state {
     min-block-size: 1.25rem;
@@ -537,5 +545,41 @@
       color: Highlight;
       border-color: Highlight;
     }
+  }
+}
+
+@layer utilities {
+  .browse-count {
+    min-inline-size: 1.125rem;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.25rem;
+    background: var(--color-bg-raised);
+    color: var(--color-text-muted);
+    font-size: 0.6875rem;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+  }
+  [aria-pressed="true"] > .browse-count {
+    background: var(--color-interactive-subtle);
+    color: var(--color-interactive-text-strong);
+  }
+  .library-query-tools [aria-label="Collection view"] > button {
+    min-block-size: 2rem;
+    padding-inline: 0.625rem;
+    font-size: 0.75rem;
+  }
+  .library-card-action {
+    min-block-size: 2rem;
+    padding: 0.3125rem 0.5rem;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+  .collection-cover .collection-state {
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+  .collection-cover .library-entry-chips .identity-chip {
+    font-size: 0.75rem;
   }
 }

@@ -1,7 +1,7 @@
 import { useId, useState, useRef, type ReactNode } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { Menu } from "@base-ui/react/menu";
-import { Bookmark, EyeOff, Eye, Check } from "lucide-react";
+import { Bookmark, EyeOff, Eye, Check, Folder, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { controlFocus } from "../../components/ui/control-style";
@@ -49,14 +49,19 @@ export function OrganizationControls({
   onSelect,
   discover,
   children,
+  trigger,
+  triggerLabel,
 }: {
   children?: ReactNode;
+  trigger?: ReactNode;
+  triggerLabel?: string;
   organization: Organization;
   selected: string;
   onSelect: (id: string) => void;
   discover: boolean;
 }) {
   const [name, setName] = useState("");
+  const [editing, setEditing] = useState(Boolean(triggerLabel));
   const allGames = useRef<HTMLButtonElement>(null);
   const inputId = useId();
   const snapshot = organization.snapshot;
@@ -103,7 +108,11 @@ export function OrganizationControls({
           </Button>
         ))}
       {!discover && (
-        <details className="text-sm">
+        <details
+          className="text-sm"
+          open={editing}
+          onToggle={(event) => setEditing(event.currentTarget.open)}
+        >
           <summary className="cursor-pointer p-2">Edit collections</summary>
           <form
             className="mt-2 flex max-w-full flex-wrap items-end gap-2"
@@ -196,8 +205,9 @@ export function OrganizationControls({
     <Popover.Root>
       <Popover.Trigger
         render={<Button variant={selected === "all" ? "outline" : "selected"} size="sm" />}
+        aria-label={triggerLabel}
       >
-        {selected === "all" ? "Collections" : `Collections · ${current}`}
+        {trigger ?? (selected === "all" ? "Collections" : `Collections · ${current}`)}
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={8} align="start" className="z-(--layer-floating)">
@@ -211,6 +221,80 @@ export function OrganizationControls({
         </Popover.Positioner>
       </Popover.Portal>
     </Popover.Root>
+  );
+}
+
+/** Collection navigation shares the existing revision-bound preference owner. */
+export function SidebarCollections({
+  organization,
+  selected,
+  onSelect,
+  children,
+}: {
+  organization: Organization;
+  children?: ReactNode;
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  const snapshot = organization.snapshot;
+  const collections = Object.entries(snapshot?.collections ?? {});
+  return (
+    <section className="sidebar-collections" aria-label="Collections">
+      <div className="sidebar-collections-heading">
+        <span>Collections</span>
+        <OrganizationControls
+          organization={organization}
+          selected={selected}
+          onSelect={onSelect}
+          discover={false}
+          trigger={<Plus aria-hidden="true" />}
+          triggerLabel="Manage collections"
+        >
+          {children}
+        </OrganizationControls>
+      </div>
+      {collections.map(([id, collection]) => (
+        <Button
+          key={id}
+          data-focusable
+          className="sidebar-collection"
+          variant={selected === `collection:${id}` ? "selected" : "ghost"}
+          aria-pressed={selected === `collection:${id}`}
+          aria-label={`Collection: ${collection.name}`}
+          title={collection.name}
+          onClick={() => onSelect(`collection:${id}`)}
+        >
+          <Folder aria-hidden="true" />
+          <span>{collection.name}</span>
+          <small>{collection.port_ids.length}</small>
+        </Button>
+      ))}
+      {collections.length === 0 && (
+        <p className="sidebar-collections-empty">
+          {snapshot ? "Keep your games in collections." : "Loading collections…"}
+        </p>
+      )}
+      {Boolean(snapshot?.hidden_port_ids.length) && (
+        <Button
+          data-focusable
+          className="sidebar-collection"
+          variant={selected === "hidden" ? "selected" : "ghost"}
+          aria-pressed={selected === "hidden"}
+          onClick={() => onSelect("hidden")}
+        >
+          <EyeOff aria-hidden="true" />
+          <span>Hidden games</span>
+          <small>{snapshot?.hidden_port_ids.length}</small>
+        </Button>
+      )}
+      {organization.failure && (
+        <p className="sidebar-collections-empty" role="status">
+          {organization.failure === "read"
+            ? "Collections could not be refreshed. Open Manage collections to retry."
+            : "Collection changes could not be saved. Your previous choices were kept."}
+        </p>
+      )}
+    </section>
   );
 }
 

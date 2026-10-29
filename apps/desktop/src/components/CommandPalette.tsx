@@ -148,6 +148,11 @@ function OpenCommandPalette({
           />
           <Shortcut>Esc</Shortcut>
         </label>
+        {filtered.length > 0 && (
+          <h3 className="m-0 px-5 pt-4 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]">
+            {query.trim() ? "Search results" : "Quick actions"}
+          </h3>
+        )}
         <div
           className="palette-results max-h-[min(27rem,_58vh)] overflow-auto p-2"
           id="command-palette-results"
@@ -184,7 +189,7 @@ function OpenCommandPalette({
                 onMouseMove={() => setSelectedId(command.id)}
                 onClick={() => run(command)}
               >
-                <span className="palette-command-icon grid h-[2rem] w-[2rem] [place-items:center] rounded-pc-sm bg-[var(--color-bg-raised)] text-[var(--color-interactive-text)]">
+                <span className="palette-command-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-text-muted)]">
                   <Icon glyph={command.icon} />
                 </span>
                 <span>

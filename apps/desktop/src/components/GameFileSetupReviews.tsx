@@ -6,6 +6,8 @@ import { useEffect, useRef } from "react";
 import type { PortDefinition, PortStatus, SourceRecord, SourceInspectionReport } from "../types";
 import { preliminarySelectionRecord } from "./PreliminarySourceSelections";
 import { Button } from "./ui/button";
+import { gameTitle, gameProjectLabel } from "../port-identity";
+import { ArtworkImage } from "./Artwork";
 import { Checkbox } from "./ui/checkbox";
 
 export function GameFileSetupReviews({
@@ -87,10 +89,7 @@ export function GameFileSetupReviews({
         review; selecting a port does not register files or install anything.
       </p>
       {available.map((port) => (
-        <label
-          key={port.id}
-          className="flex min-h-10 cursor-pointer flex-wrap items-center gap-3 py-2"
-        >
+        <label key={port.id} className="setup-review-choice">
           <Checkbox
             data-focusable
             data-setup-review-port={port.id}
@@ -98,7 +97,11 @@ export function GameFileSetupReviews({
             disabled={!selected.includes(port.id) && selected.length >= maxSetupReviewSelection}
             onCheckedChange={() => toggle(port.id)}
           />
-          {port.name} <span className="text-pc-muted-foreground">({port.id})</span>
+          <ArtworkImage port={port} quietFallback className="setup-review-artwork" />
+          <span className="setup-review-identity">
+            <strong>{gameTitle(port)}</strong>
+            <span>{gameProjectLabel(port)}</span>
+          </span>
           {(preliminaryProfiles.has(port.source_profile ?? "") ||
             preliminaryProfiles.has(port.bios_source_profile ?? "")) && (
             <span className="block text-pc-muted-foreground">

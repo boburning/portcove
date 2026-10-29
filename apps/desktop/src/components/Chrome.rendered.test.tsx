@@ -117,7 +117,7 @@ describe("desktop components", () => {
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*class="[^"]*bg-transparent/u);
     expect(html).toMatch(
       new RegExp(
-        `<button[^>]*data-variant="outline"[^>]*aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        `<button[^>]*data-variant="outline"[^>]*aria-label="Search games and pages ${commandShortcut("K")}: open command palette"`,
         "u",
       ),
     );
@@ -169,7 +169,7 @@ describe("desktop components", () => {
         <WorkspaceToolbar view={view} onOpenCommands={vi.fn()} />,
       );
       expect(toolbar).toContain(
-        `aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        `aria-label="Search games and pages ${commandShortcut("K")}: open command palette"`,
       );
       expect(toolbar).toContain('aria-label="Current location"');
     }

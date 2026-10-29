@@ -31,6 +31,8 @@ import {
   type LucideIcon,
   AlertTriangle,
   ArchiveX,
+  ArrowRight,
+  Play,
   CheckCircle2,
   ChevronDown,
   Download,
@@ -38,7 +40,6 @@ import {
   FileArchive,
   FileSearch,
   FolderOpen,
-  Gamepad2,
   HardDrive,
   RefreshCw,
   RotateCcw,
@@ -451,6 +452,8 @@ function DetailBody(model: {
       openSupport={model.openSupport}
       overviewRequirements={<DetailRequirementsFacts model={model} external={external} />}
       overviewActions={(reveal) => <DetailOverviewActions model={model} reveal={reveal} />}
+      overviewDetails={<DetailOverviewEvidence model={model} />}
+      selectedChannel={model.selectedChannel}
       opening={model.opening}
       initialSection={initialSection}
       close={model.actions.close}
@@ -490,6 +493,7 @@ function DetailBody(model: {
             }}
           >
             {directInstall ? "Install" : "Set up"}
+            <Icon glyph={ArrowRight} />
           </Button>
         )
       }
@@ -995,6 +999,7 @@ function SavesStorageGroup({
   return (
     <DetailGroup title="Saves & backups" headingId="detail-saves-and-storage" hideHeading>
       <CurrentStateSummary
+        className="detail-saved-data-summary"
         title="Saved data"
         headingRef={heading}
         action={<DataActions busy={busy} actions={actions} presentation={backupPresentation} />}
@@ -1002,7 +1007,19 @@ function SavesStorageGroup({
         <p role="status" className="m-0 text-sm" id="backup-create-explanation">
           {backupPresentation.explanation}
         </p>
-        <StorageSummary status={status} />
+        <div className="detail-saved-data-facts">
+          <div>
+            <p className="m-0 text-sm text-pc-muted-foreground">Backup history</p>
+            <p className="mt-1 text-lg font-semibold">
+              {backupReadState?.status === "current" &&
+              backupReadState.hasInventory &&
+              backupState === "healthy"
+                ? `${backups.length} ${backups.length === 1 ? "backup" : "backups"}`
+                : "Review history below"}
+            </p>
+          </div>
+          <StorageSummary status={status} />
+        </div>
         <p className="m-0 text-sm text-pc-muted-foreground">
           Backups cover managed saves and settings. Game-version rollback, library metadata and
           other folders are separate.
@@ -1096,7 +1113,7 @@ function InstallationVersionSummary({
   const checked = currentUpdateSnapshot(status)?.check;
   return (
     <dl
-      className="installation-facts m-0 grid grid-cols-[repeat(auto-fit,_minmax(min(100%,_9.25rem),_1fr))] [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-xs [&_dt]:text-pc-muted-foreground [&>div]:min-w-0 [&>div]:px-3 [&>div]:py-2.5"
+      className="installation-facts detail-version-comparison"
       aria-label="Installation and release versions"
     >
       <div>
@@ -1899,7 +1916,7 @@ function installedPlayPresentation(launchReady: boolean, trial: boolean, pending
           ? "Launch this port to finish its first-time setup"
           : "Launch this port"
       : "Review the current launch requirements",
-    glyph: !launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2,
+    glyph: !launchReady ? AlertTriangle : pendingSetup ? Wrench : Play,
     label: !launchReady
       ? "Play unavailable"
       : pendingSetup
@@ -1957,7 +1974,10 @@ function InstalledPlayActions({
           void actions.launch();
         }}
       >
-        <Icon glyph={presentation.glyph} />
+        <Icon
+          glyph={presentation.glyph}
+          className={presentation.glyph === Play ? "fill-current" : ""}
+        />
         {presentation.label}
       </Button>
       <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
@@ -2410,17 +2430,19 @@ function MaintenanceActions({
           </Button>
         </ManagementRow>
       )}
-      <DetailGroup title="Remove from library">
-        <p>Review the exact files to remove and the data to keep before confirming.</p>
-        <RemovalControl
-          key={`${port.id}:${libraryGeneration}`}
-          port={port}
-          status={status}
-          generation={libraryGeneration}
-          busy={Boolean(busy)}
-          apply={actions.remove}
-        />
-      </DetailGroup>
+      <div className="detail-danger-zone">
+        <DetailGroup title="Remove from library">
+          <p>Review the exact files to remove and the data to keep before confirming.</p>
+          <RemovalControl
+            key={`${port.id}:${libraryGeneration}`}
+            port={port}
+            status={status}
+            generation={libraryGeneration}
+            busy={Boolean(busy)}
+            apply={actions.remove}
+          />
+        </DetailGroup>
+      </div>
     </>
   );
 }
@@ -2439,7 +2461,7 @@ function DataActions({
     <div className="flex flex-wrap gap-2">
       <Button
         data-focusable
-        variant="outline"
+        variant="primary"
         title={explanation}
         aria-describedby="backup-create-explanation"
         disabled={Boolean(busy) || !available}
@@ -3343,9 +3365,10 @@ function DetailOverviewActions({
         >
           <Icon glyph={FolderOpen} />
           <span>
-            <strong>Game files and setup</strong>
+            <strong>Game files</strong>
             <small>Requirements and current file checks</small>
           </span>
+          <Icon glyph={ArrowRight} />
         </Button>
         <Button
           variant="ghost"
@@ -3354,7 +3377,7 @@ function DetailOverviewActions({
         >
           <Icon glyph={Save} />
           <span>
-            <strong>Saved data and backups</strong>
+            <strong>Saves & backups</strong>
             <small>
               {model.status?.external_runtime
                 ? "Managed outside Portcove"
@@ -3363,6 +3386,7 @@ function DetailOverviewActions({
                   : "Coverage and backup options"}
             </small>
           </span>
+          <Icon glyph={ArrowRight} />
         </Button>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -3386,6 +3410,13 @@ function DetailOverviewSection({ model }: { model: Parameters<typeof DetailBody>
       <p className="m-0 max-w-prose leading-relaxed text-pc-muted-foreground">
         {model.port.summary}
       </p>
+    </section>
+  );
+}
+
+function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody>[0] }) {
+  return (
+    <section className="detail-evidence" aria-label="Project information and checks">
       <details className="mt-6">
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />
@@ -3414,51 +3445,68 @@ function DetailFilesSection({
   managedPreparation: boolean;
 }) {
   return (
-    <div className="detail-files-stack">
-      <StatusActionsGroup
-        hidePlay={model.installed && model.launchReady}
+    <div className="detail-files-workspace">
+      <div className="detail-files-stack">
+        <StatusActionsGroup
+          hidePlay={model.installed && model.launchReady}
 
-        installCancellations={model.installCancellations}
-        port={model.port}
-        status={model.status}
-        stagedVersion={undefined}
-        sources={model.sources}
-        installed={model.installed}
-        sourceReady={model.sourceReady}
-        biosReady={model.biosReady}
-        launchReady={model.launchReady}
-        pendingSetup={model.pendingSetup}
-        runtimeUpdateAvailable={model.runtimeUpdateAvailable}
-        managedPreparation={managedPreparation}
-        prepare={model.prepare}
-        installPlan={model.installPlan}
-        busy={model.busy}
-        libraryGeneration={model.libraryGeneration}
-        onChanged={model.externalRuntimeChanged}
-        actions={model.actions}
-        openLibraryStorage={model.openLibraryStorage}
-      />
-      <RequirementsGroup
-        key={`requirements:${model.port.id}:${model.libraryGeneration}`}
-        port={model.port}
-        installed={model.installed}
-        status={model.status}
-        sources={model.sources}
-        managedPreparation={managedPreparation}
-        pendingSetup={model.pendingSetup}
-        busy={model.busy}
-      />
-      {(model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation) && (
-        <SetupStatement
-          portId={model.port.id}
+          installCancellations={model.installCancellations}
+          port={model.port}
           status={model.status}
-          organization={model.organization}
+          stagedVersion={undefined}
+          sources={model.sources}
+          installed={model.installed}
+          sourceReady={model.sourceReady}
+          biosReady={model.biosReady}
+          launchReady={model.launchReady}
+          pendingSetup={model.pendingSetup}
+          runtimeUpdateAvailable={model.runtimeUpdateAvailable}
+          managedPreparation={managedPreparation}
+          prepare={model.prepare}
+          installPlan={model.installPlan}
+          busy={model.busy}
+          libraryGeneration={model.libraryGeneration}
+          onChanged={model.externalRuntimeChanged}
+          actions={model.actions}
+          openLibraryStorage={model.openLibraryStorage}
         />
-      )}
-      <details className="detail-file-observations">
-        <summary data-focusable>File matching details</summary>
-        {model.observations}
-      </details>
+        <RequirementsGroup
+          key={`requirements:${model.port.id}:${model.libraryGeneration}`}
+          port={model.port}
+          installed={model.installed}
+          status={model.status}
+          sources={model.sources}
+          managedPreparation={managedPreparation}
+          pendingSetup={model.pendingSetup}
+          busy={model.busy}
+        />
+        {(model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation) && (
+          <SetupStatement
+            portId={model.port.id}
+            status={model.status}
+            organization={model.organization}
+          />
+        )}
+      </div>
+      <aside className="detail-file-context" aria-label="Installation and file details">
+        <h3>Installation</h3>
+        <p>
+          {model.status?.external_runtime
+            ? "External installation"
+            : model.installed
+              ? "Managed by Portcove"
+              : "Not installed"}
+        </p>
+        {(model.status?.active?.path || model.status?.external_runtime?.path) && (
+          <p className="wrap-anywhere select-text">
+            {model.status?.active?.path ?? model.status?.external_runtime?.path}
+          </p>
+        )}
+        <details className="detail-file-observations">
+          <summary data-focusable>File matching details</summary>
+          {model.observations}
+        </details>
+      </aside>
     </div>
   );
 }
@@ -3545,25 +3593,20 @@ function DetailManageSection({
         />
       )}
       {(!external || model.port.adapter === "native-portable") && (
-        <details className="my-4 text-sm">
-          <summary className="cursor-pointer py-2 font-medium">
-            Advanced installation settings
-          </summary>
-          <FutureSetupDisclosure
-            title="Folder for a future install"
-            description="Choosing an output folder does not move or install a game."
-          >
-            <OutputLocationControl
-              gameName={gameIdentityLabel(model.port)}
-              key={model.port.id + ":" + model.libraryGeneration}
-              portId={model.port.id}
-              generation={model.libraryGeneration}
-              busy={model.outputExternalBusy}
-              onChanged={model.outputLocationChanged}
-              onApplying={model.outputApplying}
-            />
-          </FutureSetupDisclosure>
-        </details>
+        <FutureSetupDisclosure
+          title="Folder for a future install"
+          description="Choosing an output folder does not move or install a game."
+        >
+          <OutputLocationControl
+            gameName={gameIdentityLabel(model.port)}
+            key={model.port.id + ":" + model.libraryGeneration}
+            portId={model.port.id}
+            generation={model.libraryGeneration}
+            busy={model.outputExternalBusy}
+            onChanged={model.outputLocationChanged}
+            onApplying={model.outputApplying}
+          />
+        </FutureSetupDisclosure>
       )}
       {(!external || hasRecordedChecks(model.port, model.sources)) && (
         <TechnicalDetails
@@ -3689,14 +3732,13 @@ function DetailVersionsSection({
         )}
       </div>
       {!external && model.installed && model.organization && (
-        <details className="detail-version-options">
-          <summary>Update notices</summary>
+        <aside className="detail-version-options" aria-label="Update notice preferences">
           <UpdateNoticePreferences
             portId={model.port.id}
             status={model.status}
             organization={model.organization}
           />
-        </details>
+        </aside>
       )}
     </div>
   );

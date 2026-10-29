@@ -355,7 +355,7 @@ function DiscoveryResults({
       )}
       {candidates.map((candidate) => (
         <div
-          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 max-[55rem]:grid-cols-[minmax(0,1fr)]"
           key={`${candidate.profile_id}:${candidate.path}`}
         >
           <div className="min-w-0">
@@ -364,7 +364,7 @@ function DiscoveryResults({
             </code>
             <span>{formatBytes(candidate.size)}</span>
           </div>
-          <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+          <div className="actions flex flex-wrap gap-2">
             <Button
               data-focusable
               variant="outline"
@@ -477,7 +477,7 @@ export function SourceImportReview({
           <p>This updates the saved location after Portcove checks the expected files again.</p>
         </>
       )}
-      <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+      <div className="actions flex flex-wrap gap-2">
         <Button data-focusable variant="outline" disabled={busy} onClick={onCancel}>
           Cancel review
         </Button>
@@ -595,7 +595,7 @@ function SourceDiscoveryDialog({
             }
           }}
         />
-        <div className="actions source-inbox-actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+        <div className="actions source-inbox-actions flex flex-wrap gap-2">
           <Button
             data-focusable
             variant="outline"

@@ -1,12 +1,13 @@
 import { useState } from "react";
 import type { PortDefinition, PortStatus, SourceProfile, SourceRecord } from "../types";
-import { gameIdentityLabel } from "../port-identity";
+import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
 import { useSetupReviewSelection } from "../features/game-file-discovery/setup-review-selection";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { Button } from "./ui/button";
 import { SearchChoice } from "./ui/combobox";
-import { FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
 import { Icon } from "./ui";
+import { ArtworkImage } from "./Artwork";
 
 export function AddGames({
   active,
@@ -58,29 +59,23 @@ export function AddGames({
       aria-label="Add games workspace"
       className="add-games max-w-[66rem] min-w-0 wrap-anywhere"
     >
-      <Button variant="outline" size="sm" onClick={close}>
+      <Button variant="ghost" size="sm" className="add-games-back" onClick={close}>
+        <Icon glyph={ArrowLeft} size="sm" />
         Back to library
       </Button>
-      <p className="mt-4 max-w-[65ch] text-pc-muted-foreground">
+      <p className="add-games-intro">
         Start with a game, a folder of original files, or an installation you already have. Portcove
         checks what is supported before you confirm any changes.
       </p>
-      <ol
-        aria-label="Add games stages"
-        className="my-4 flex flex-wrap gap-x-6 gap-y-2 ps-5 text-sm text-pc-muted-foreground [&_[aria-current=step]]:font-semibold [&_[aria-current=step]]:text-pc-foreground"
-      >
-        <li aria-current={!port ? "step" : undefined}>Choose a game or files</li>
-        <li aria-current={port ? "step" : undefined}>Check requirements</li>
-        <li>Review before continuing</li>
-      </ol>
       <div
-        className="my-6 grid gap-3 min-[75rem]:grid-cols-3"
+        className="add-route-choices"
+        data-route-selected={mode !== "choose"}
         role="group"
         aria-label="Ways to add games"
       >
         <Button
           variant={mode === "files" ? "selected" : "outline"}
-          className="h-auto min-h-24 justify-start gap-3 p-4 text-start whitespace-normal"
+          className="add-route-choice"
           aria-label="Choose a game or port"
           aria-describedby="add-game-description"
           aria-pressed={mode === "files"}
@@ -89,14 +84,15 @@ export function AddGames({
           <Icon glyph={Gamepad2} />
           <span>
             <strong className="block">Choose a game or port</strong>
-            <span id="add-game-description" className="mt-1 block text-xs font-normal">
+            <span id="add-game-description" className="add-route-description">
               Find its requirements and choose your original files.
             </span>
           </span>
+          <Icon glyph={ArrowRight} size="sm" className="add-route-arrow" />
         </Button>
         <Button
           variant={mode === "folders" ? "selected" : "outline"}
-          className="h-auto min-h-24 justify-start gap-3 p-4 text-start whitespace-normal"
+          className="add-route-choice"
           aria-label="Find games in a folder"
           aria-describedby="add-folder-description"
           aria-pressed={mode === "folders"}
@@ -108,15 +104,16 @@ export function AddGames({
           <Icon glyph={FolderSearch} />
           <span>
             <strong className="block">Find games in a folder</strong>
-            <span id="add-folder-description" className="mt-1 block text-xs font-normal">
+            <span id="add-folder-description" className="add-route-description">
               Check folders you choose for supported original files.
             </span>
           </span>
+          <Icon glyph={ArrowRight} size="sm" className="add-route-arrow" />
         </Button>
         <Button
           variant={mode === "existing" ? "selected" : "outline"}
           aria-pressed={mode === "existing"}
-          className="h-auto min-h-24 justify-start gap-3 p-4 text-start whitespace-normal"
+          className="add-route-choice"
           aria-label="Use an existing installation"
           aria-describedby="add-existing-description"
           onClick={() => setMode("existing")}
@@ -124,37 +121,48 @@ export function AddGames({
           <Icon glyph={FolderInput} />
           <span>
             <strong className="block">Use an existing installation</strong>
-            <span id="add-existing-description" className="mt-1 block text-xs font-normal">
-              Review a supported copy or the port's external-folder route.
+            <span id="add-existing-description" className="add-route-description">
+              Copy a supported installation or keep using its current folder.
             </span>
           </span>
+          <Icon glyph={ArrowRight} size="sm" className="add-route-arrow" />
         </Button>
       </div>
       <section
         hidden={mode !== "existing"}
-        className="grid gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-5"
+        className="add-route-panel add-existing-options"
         aria-label="Existing installation options"
       >
-        <h2 className="text-lg">Bring an installation into Portcove</h2>
-        <p className="max-w-[65ch] text-pc-muted-foreground">
-          Review the detected port, destination and supported saved data before copying. The
-          original folder stays in place.
-        </p>
-        <Button variant="primary" onClick={onCopyInstallation}>
-          Copy an existing installation
-        </Button>
-        <h3 className="mt-6 text-base">Keep a folder you maintain</h3>
-        <p className="max-w-[65ch] text-pc-muted-foreground">
-          Using a folder in place is supported only by some ports. Choose its game and port to check
-          the available route; other ports require a managed installation.
-        </p>
-        <Button variant="outline" onClick={() => setMode("files")}>
-          Choose its game and port
-        </Button>
+        <div className="add-existing-choice">
+          <div>
+            <h2 className="text-lg">Copy an existing installation</h2>
+            <p className="max-w-[65ch] text-pc-muted-foreground">
+              Review the detected port, destination and supported saved data before copying. The
+              original folder stays in place.
+            </p>
+          </div>
+          <Button variant="primary" onClick={onCopyInstallation}>
+            Copy an existing installation
+            <Icon glyph={ArrowRight} size="sm" />
+          </Button>
+        </div>
+        <div className="add-existing-choice">
+          <div>
+            <h3 className="text-base">Keep a folder you maintain</h3>
+            <p className="max-w-[65ch] text-pc-muted-foreground">
+              Using a folder in place is supported only by some ports. Choose its game and port to
+              check the available route; other ports require a managed installation.
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => setMode("files")}>
+            Choose its game and port
+            <Icon glyph={ArrowRight} size="sm" />
+          </Button>
+        </div>
       </section>
       <section
         hidden={mode !== "files"}
-        className="grid max-w-[48rem] gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-5"
+        className="add-route-panel"
         aria-label="Selected game-file check"
       >
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -188,7 +196,13 @@ export function AddGames({
         )}
         {port && (
           <>
-            <p className="font-semibold">{gameIdentityLabel(port)}</p>
+            <div className="add-selected-game">
+              <ArtworkImage port={port} quietFallback className="add-selected-artwork" />
+              <div>
+                <strong>{gameTitle(port)}</strong>
+                <span>{gameProjectLabel(port)}</span>
+              </div>
+            </div>
             {!candidates.includes(port) && (
               <p className="text-sm text-pc-muted-foreground">
                 Selected game retained outside this search.
@@ -202,6 +216,7 @@ export function AddGames({
                 onClick={() => onCheckFiles(port.id, profile.id)}
               >
                 Choose files to check…
+                <Icon glyph={ArrowRight} size="sm" />
               </Button>
             ) : (
               <p>
@@ -229,6 +244,7 @@ export function AddGames({
               }}
             >
               Review setup for {gameIdentityLabel(port)}
+              <Icon glyph={ArrowRight} size="sm" />
             </Button>
           </>
         )}
@@ -250,7 +266,7 @@ export function AddGames({
           />
         </div>
       )}
-      <p className="mt-4 text-xs text-pc-muted-foreground">
+      <p className="add-games-retained-note">
         You can leave this workspace and keep browsing. Your choices stay here; running tasks remain
         in Activity.
       </p>

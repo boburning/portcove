@@ -1,6 +1,6 @@
 import { Tabs } from "@base-ui/react/tabs";
 import { Menu } from "@base-ui/react/menu";
-import { ArrowLeft, ArrowUpRight, FileText, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, FileText, MoreHorizontal } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   detailSections,
@@ -19,7 +19,7 @@ import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
 import { platformLabel, releaseChannelPresentation } from "../view-model";
-import type { PortDefinition } from "../types";
+import type { PortDefinition, ReleaseChannel } from "../types";
 import { Chip } from "./ui/chip";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
@@ -53,6 +53,8 @@ export function DetailLayout({
   openSupport,
   overviewRequirements,
   overviewActions,
+  overviewDetails,
+  selectedChannel,
   opening,
   initialSection,
   readiness,
@@ -69,6 +71,8 @@ export function DetailLayout({
   projectUrl?: string | undefined;
   openSupport?: (() => void) | undefined;
   overviewRequirements?: ReactNode;
+  overviewDetails?: ReactNode;
+  selectedChannel?: ReleaseChannel;
   overviewActions?: ((reveal: RevealDetailSection) => ReactNode) | undefined;
   opening?: DetailOpening | undefined;
   initialSection: DetailSection;
@@ -176,10 +180,11 @@ export function DetailLayout({
             {gameTitle(port)}
           </h1>
           {gameProjectLabel(port) && (
-            <p className="mt-2 text-sm text-pc-muted-foreground">
+            <p className="detail-project">
               {projectUrl ? (
                 <ExternalLink href={projectUrl} data-focusable>
                   {gameProjectLabel(port)}
+                  <ArrowUpRight aria-hidden="true" />
                 </ExternalLink>
               ) : (
                 gameProjectLabel(port)
@@ -206,16 +211,24 @@ export function DetailLayout({
                 </Chip>
               );
             })}
-            {port.channels?.map((channel) => (
+            {(selectedChannel ? [selectedChannel] : port.channels)?.map((channel) => (
               <Chip
                 key={`channel:${channel}`}
                 style={identityStyle(channel, true)}
-                title="Offered release channel"
+                title={selectedChannel ? "Selected release channel" : "Offered release channel"}
               >
                 <IdentityIcon name={channel} channel />
                 {releaseChannelPresentation(channel).label}
               </Chip>
             ))}
+          </div>
+          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <div data-detail-readiness className="detail-readiness">
+              {readiness}
+            </div>
+            <span className="text-pc-muted-foreground" data-installation-fact>
+              {installation}
+            </span>
           </div>
           <div className="detail-header-actions mt-5 flex flex-wrap items-center gap-2">
             {action(reveal)}
@@ -275,14 +288,6 @@ export function DetailLayout({
               </Menu.Portal>
             </Menu.Root>
           </div>
-          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <div data-detail-readiness className="detail-readiness">
-              {readiness}
-            </div>
-            <span className="text-pc-muted-foreground" data-installation-fact>
-              {installation}
-            </span>
-          </div>
         </div>
       </GameHero>
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
@@ -334,6 +339,7 @@ export function DetailLayout({
                   {panels.overview}
                   <CatalogMediaGallery port={port} />
                   {overviewActions?.(reveal)}
+                  {overviewDetails}
                 </div>
                 <aside className="detail-overview-support min-w-0">
                   <section className="detail-requirements" aria-label="Requirements">
@@ -354,8 +360,9 @@ export function DetailLayout({
                             href={projectUrl}
                             className="flex w-full gap-2.5 border-b border-pc-border py-3 text-xs"
                           >
+                            <FileText aria-hidden="true" />
+                            <span>Project website</span>
                             <ArrowUpRight aria-hidden="true" />
-                            <span>Open upstream project</span>
                           </ExternalLink>
                         </div>
                       )}
@@ -367,6 +374,7 @@ export function DetailLayout({
                         >
                           <FileText aria-hidden="true" />
                           <span>Create support report</span>
+                          <ArrowRight aria-hidden="true" />
                         </Button>
                       )}
                       {openSupport && (

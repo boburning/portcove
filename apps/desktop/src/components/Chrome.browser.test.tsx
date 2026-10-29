@@ -2,7 +2,8 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
-import { PageHeader, Sidebar, WorkspaceToolbar } from "./Chrome";
+import { portDefinition } from "../test-fixtures";
+import { PageHeader, SettingsView, Sidebar, WorkspaceToolbar } from "./Chrome";
 import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { prepareCaptureTarget } from "../../test/capture-target";
 
@@ -21,7 +22,7 @@ for (const platform of ["Win32", "MacIntel"]) {
       await render(<WorkspaceToolbar view="library" onOpenCommands={onOpenCommands} />);
       const shortcut = platform === "MacIntel" ? "Command K" : "Ctrl K";
       const button = page.getByRole("button", {
-        name: `Commands ${shortcut}: open command palette`,
+        name: `Search games and pages ${shortcut}: open command palette`,
         exact: true,
       });
       await expect.element(button).toBeVisible();
@@ -50,7 +51,9 @@ it("keeps the actual workspace Commands trigger available on compact detail navi
       <PageHeader view="catalog" query="" setQuery={() => {}} />
     </>,
   );
-  const commands = page.getByRole("button", { name: /^Commands .*open command palette$/ });
+  const commands = page.getByRole("button", {
+    name: /^Search games and pages .*open command palette$/,
+  });
   await expect.element(commands).toBeVisible();
   expect(document.querySelectorAll(".command-trigger")).toHaveLength(1);
   expect(document.querySelector('[aria-label="Current location"]')?.textContent).toContain(
@@ -87,7 +90,9 @@ it("retains an explicitly requested standalone PageHeader Commands control", asy
   await render(
     <PageHeader view="library" query="" setQuery={() => {}} onOpenCommands={onOpenCommands} />,
   );
-  await page.getByRole("button", { name: /^Commands .*open command palette$/ }).click();
+  await page
+    .getByRole("button", { name: /^Search games and pages .*open command palette$/ })
+    .click();
   expect(onOpenCommands).toHaveBeenCalledTimes(1);
 });
 
@@ -158,3 +163,29 @@ it("visual capture accepts decorative art, rejects hidden and clipped ancestors,
     host.remove();
   }
 });
+
+for (const count of [1, 2]) {
+  it(`opens the correct Steam review workflow for ${count} installed entries and restores focus`, async () => {
+    await render(
+      <SettingsView
+        category="integrations"
+        steamPorts={Array.from({ length: count }, (_, index) => ({
+          ...portDefinition(),
+          id: `steam-${index}`,
+        }))}
+      />,
+    );
+    const trigger = page.getByRole("button", { name: "Choose games for Steam…", exact: true });
+    await trigger.click();
+    await expect
+      .element(
+        page.getByRole("heading", {
+          name: count === 1 ? "Manage Steam shortcut" : "Add selected games to Steam",
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.element(trigger).toHaveFocus();
+  });
+}

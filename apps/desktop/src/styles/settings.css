@@ -33,7 +33,7 @@
   }
   .settings-grid .settings-row p {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     line-height: var(--leading-relaxed);
     color: var(--color-text-muted);
   }
@@ -119,5 +119,24 @@
   }
   .theme-preview b:nth-child(3) {
     --preview-cover-ink: var(--color-theme-preview-cover-red);
+  }
+}
+
+@layer components {
+  .recovery-action-row {
+    display: grid;
+    gap: var(--space-3);
+    align-items: start;
+    padding-block: var(--space-4);
+    border-block-start: 1px solid var(--color-border-subtle);
+  }
+  .recovery-action-row > button {
+    justify-self: start;
+  }
+  @container section (min-width: 40rem) {
+    .recovery-action-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: var(--space-6);
+    }
   }
 }

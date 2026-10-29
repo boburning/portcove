@@ -157,7 +157,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   const launch = vi.spyOn(desktopApi, "launch");
   expect(document.querySelector(".library-query-tools #port-search")).not.toBeNull();
   expect(document.querySelector(".header-tools #port-search")).toBeNull();
-  expect(document.body.textContent).toContain("12 entries · On this computer");
+  expect(document.body.textContent).toContain("12 library entries");
   const portCard = (id: string) =>
     page.elementLocator(
       document
@@ -171,7 +171,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   expect(document.body.textContent).toContain("2 of 12 library entries");
-  await page.getByRole("button", { name: "Collections", exact: true }).click();
+  await page.getByRole("button", { name: "Manage collections", exact: true }).click();
   const commands = page
     .getByText("Collection commands", { exact: true })
     .element()
@@ -332,7 +332,7 @@ it("opens Continue playing details and restores its exact trigger after Back", a
     .element(page.getByRole("button", { name: "Continue playing", exact: true }))
     .toBeVisible();
   const origin = '[data-detail-origin="library:continue-details:collection-0"]';
-  await page.getByRole("button", { name: "View details", exact: true }).click();
+  await page.getByRole("button", { name: "Game details", exact: true }).click();
   await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   await expect.poll(() => document.activeElement?.matches(origin)).toBe(true);
   const target = document.querySelector<HTMLElement>(origin)!;
@@ -385,7 +385,7 @@ it.each([
       const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
       expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
     }
-    await continuation.getByRole("button", { name: "View details", exact: true }).click();
+    await continuation.getByRole("button", { name: "Game details", exact: true }).click();
     await expect
       .element(page.getByRole("heading", { name: title, exact: true }))
       .toHaveAccessibleName(title);
@@ -569,7 +569,7 @@ for (const theme of ["dark", "light"]) {
 it("keeps Collections inside the shared controller scope and returns Back and Escape to its opener", async () => {
   await page.viewport(1200, 900);
   await mount();
-  const opener = page.getByRole("button", { name: "Collections", exact: true });
+  const opener = page.getByRole("button", { name: "Manage collections", exact: true });
   await opener.click();
   const scope = navigationScope();
   expect(scope).not.toBe(document);
@@ -587,4 +587,84 @@ it("keeps Collections inside the shared controller scope and returns Back and Es
   await userEvent.keyboard("{Escape}");
   await expect.element(opener).toHaveFocus();
   await expect.poll(() => navigationScope()).toBe(document);
+});
+
+it("keeps a sidebar collection selected through detail return and compact navigation", async () => {
+  await page.viewport(1440, 900);
+  vi.spyOn(desktopApi, "organizationPreferences").mockResolvedValue({
+    revision: 0,
+    followed_port_ids: [],
+    followed_release_acknowledgments: {},
+    collections: {
+      favorites: { name: "Weekend games", port_ids: ["collection-0", "collection-1"] },
+    },
+    hidden_port_ids: [],
+    saved_game_ids: [],
+    update_notices: {},
+    setup_confirmations: [],
+  });
+  await mount();
+  const collection = page.getByRole("button", { name: "Collection: Weekend games", exact: true });
+  await expect.element(collection).toBeVisible();
+  await collection.click();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
+  await expect.element(collection).toHaveAttribute("aria-pressed", "true");
+  const identity = document.querySelector<HTMLButtonElement>(
+    '[data-detail-game-id="collection-0"]',
+  )!;
+  await userEvent.click(identity);
+  await expect
+    .element(page.getByRole("button", { name: "Back to Library", exact: true }))
+    .toBeVisible();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
+  await expect.element(collection).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
+    .toBe("collection-0");
+  await page.viewport(740, 900);
+  await expect.element(collection).not.toBeVisible();
+  const compact = page.getByRole("button", { name: "Collections · Weekend games", exact: true });
+  await expect.element(compact).toBeVisible();
+  await compact.click();
+  await expect
+    .element(page.getByRole("button", { name: "Weekend games (2)", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(compact).toHaveFocus();
+});
+
+it("keeps a singleton port review readable below its close control at narrow width", async () => {
+  await page.viewport(320, 844);
+  await mount();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  await page.getByRole("button", { name: "Why this port?", exact: true }).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect.element(dialog).toBeVisible();
+  await expect
+    .element(dialog.getByText("Review this port’s requirements and recorded information."))
+    .toBeVisible();
+  const close = dialog
+    .getByRole("button", { name: "Close", exact: true })
+    .element()
+    .getBoundingClientRect();
+  const description = dialog
+    .element()
+    .querySelector<HTMLElement>("[data-slot=dialog-description]")!;
+  const range = document.createRange();
+  range.selectNodeContents(description);
+  for (const line of range.getClientRects()) {
+    expect(line.right <= close.left || line.top >= close.bottom || line.bottom <= close.top).toBe(
+      true,
+    );
+  }
+  expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
+  await dialog.getByText("Recorded evidence and comparison settings", { exact: true }).click();
+  await expect
+    .element(dialog.getByRole("region", { name: "Recommendation context" }))
+    .toBeVisible();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Why this port?", exact: true }).first())
+    .toHaveFocus();
 });

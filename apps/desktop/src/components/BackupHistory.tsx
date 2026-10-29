@@ -271,12 +271,12 @@ export function BackupHistory({
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
         return (
           <div
-            className="backup-row rounded-pc-md border border-[var(--color-transparent)] bg-[var(--color-bg-subtle)] p-[10px] hover:border-[var(--color-border)] hover:bg-[var(--color-bg-subtle-hover)]"
+            className="backup-row grid min-w-0 gap-3 border-b border-pc-border py-4"
             key={backup.id}
             data-backup-id={backup.id}
           >
             <span className="min-w-0">
-              <strong className="overflow-hidden text-[length:var(--text-xs)] text-ellipsis whitespace-nowrap">
+              <strong className="text-sm font-medium [overflow-wrap:anywhere]">
                 {createdLabel}
               </strong>
               <small className="mt-[3px] text-xs text-[var(--color-text-muted)]">
@@ -295,7 +295,7 @@ export function BackupHistory({
                 SHA-256 {backup.sha256}
               </small>
             </details>
-            <span className="backup-actions flex flex-none gap-[6px]">
+            <span className="backup-actions flex flex-wrap gap-2">
               <Button
                 data-focusable
                 data-backup-action="restore"

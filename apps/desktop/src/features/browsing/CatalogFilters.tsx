@@ -41,7 +41,7 @@ const fixedGroups = [
   { key: "installationMethods", label: "Setup methods" },
   { key: "membership", label: "Library membership" },
   { key: "updates", label: "Observed updates" },
-  { key: "gameFiles", label: "Game files for the observed route" },
+  { key: "gameFiles", label: "Game files" },
   { key: "attention", label: "Installation attention" },
 ] as const;
 type Group = (typeof fixedGroups)[number]["key"] | "originalSystems";

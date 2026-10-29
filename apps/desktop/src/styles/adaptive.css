@@ -21,7 +21,8 @@
   ) {
     border-block-end: 1px solid var(--color-border-subtle);
   }
-  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button {
+  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button,
+  .browse-navigation .filter-row > button {
     min-block-size: 2.75rem;
     padding-inline: var(--space-3);
     border-radius: 0;
@@ -34,6 +35,121 @@
   :is([aria-label="Library quick views"], [aria-label="Discover collections"])
     > button[aria-pressed="true"]::after {
     border-color: var(--color-interactive-border);
+  }
+  .browse-navigation .filter-row {
+    display: contents;
+  }
+  .page-header {
+    align-items: center;
+    margin-block-end: 1.625rem;
+  }
+  .page-header h1 {
+    font-size: 1.875rem;
+    font-weight: 650;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+  }
+  .page-header p {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin-block-start: 0.5rem;
+  }
+  .workspace-toolbar .command-trigger {
+    min-block-size: 2.5rem;
+    padding-inline: 0.75rem;
+    font-size: 0.8125rem;
+  }
+  .sidebar .nav-item {
+    font-size: 0.8125rem;
+  }
+  .sidebar .brand strong {
+    font-size: 1.5rem;
+    font-weight: 750;
+  }
+  .sidebar-collections {
+    margin-block-start: 1.75rem;
+    padding-inline: 0.25rem;
+  }
+  .sidebar-collections-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-block-end: 0.5rem;
+    padding-inline-start: 0.75rem;
+    color: var(--color-text-muted);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .sidebar-collections-heading > button {
+    width: 2rem;
+    min-height: 2rem;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+  }
+  .sidebar-collection {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.625rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    text-align: start;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+  }
+  .sidebar-collection > span {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .sidebar-collection > small {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sidebar-collections-empty {
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+  }
+  .sidebar-bottom {
+    padding-block-start: 1.5rem;
+  }
+  .sidebar-library {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 0.5rem;
+    border-block-start: 1px solid var(--color-border-subtle);
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+  }
+  .sidebar-library > span:nth-child(2) {
+    flex: 1;
+    min-width: 0;
+  }
+  .sidebar-library small {
+    display: block;
+    margin-block-start: 0.25rem;
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+  }
+  .sidebar-library-dot {
+    width: 5px;
+    height: 5px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--color-success-text);
+  }
+  .compact-library-collections {
+    display: none;
   }
   .sidebar .brand-avatar {
     border: 0;
@@ -81,6 +197,12 @@
   }
 
   @media (width < 42rem) {
+    .compact-library-collections {
+      display: block;
+    }
+    .page-header h1 {
+      font-size: 1.65rem;
+    }
     html,
     body,
     #root {
@@ -214,7 +336,7 @@
     container-name: app-window;
   }
   @media (min-width: 672px) {
-    @container app-window (max-width: 80em) {
+    @container app-window (max-width: 47.5rem) {
       .app-shell {
         grid-template-columns: var(--layout-sidebar-compact) minmax(0, 1fr);
       }
@@ -229,6 +351,8 @@
         width: 36px;
         height: 36px;
       }
+      .sidebar-collections,
+      .sidebar-library,
       .sidebar .brand > div,
       .sidebar .nav-item > .shortcut,
       .sidebar .nav-item > b:not(.nav-status),
@@ -254,6 +378,9 @@
         overflow: hidden;
         clip-path: inset(50%);
         white-space: nowrap;
+      }
+      .compact-library-collections {
+        display: block;
       }
       .sidebar-footer > button {
         padding-inline: 8px;

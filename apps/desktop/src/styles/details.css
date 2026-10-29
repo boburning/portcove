@@ -1,6 +1,7 @@
 @layer components {
   .detail-hero-primary {
-    inline-size: 12rem;
+    min-inline-size: 9rem;
+    inline-size: max-content;
     max-inline-size: 100%;
     min-inline-size: 0;
   }
@@ -9,7 +10,7 @@
   }
 
   .detail-panel {
-    max-width: 87.5rem;
+    max-width: 97.5rem;
     margin-inline: auto;
   }
   .media-gallery-grid {
@@ -30,12 +31,40 @@
     object-fit: contain;
   }
   .detail-title {
-    max-width: 44ch;
-    font-size: clamp(1.75rem, 2.4vw, 2.5rem);
-    font-weight: 600;
+    max-width: 24ch;
+    font-size: clamp(1.75rem, 3vw, 3rem);
+    font-weight: 650;
     text-wrap: balance;
-    line-height: 1.3;
+    line-height: 1.2;
     letter-spacing: -0.035em;
+  }
+  .detail-project {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-block: 0.625rem 0;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+  .detail-project a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .detail-project svg {
+    inline-size: 1rem;
+    block-size: 1rem;
+    flex: none;
+  }
+  .detail-header-actions > button,
+  .detail-header-actions .detail-hero-action {
+    min-block-size: 2.75rem;
+  }
+  .detail-header-actions > [data-variant="primary"],
+  .detail-header-actions .detail-hero-action {
+    min-inline-size: min(9rem, 100%);
+    padding-inline: 1.25rem;
+    gap: 0.625rem;
   }
   .detail-header-actions .primary-actions {
     margin: 0;
@@ -52,6 +81,19 @@
   }
   .detail-tab {
     min-block-size: 3.25rem;
+  }
+  @media (max-width: 42rem) {
+    .detail-tab-list {
+      flex-wrap: nowrap;
+      gap: 1.25rem;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .detail-tab {
+      flex-shrink: 0;
+      min-block-size: 2.75rem;
+      white-space: nowrap;
+    }
   }
   .detail-tab-panel {
     padding-block-start: var(--space-6);
@@ -101,6 +143,7 @@
     flex: none;
   }
   .detail-about > p {
+    font-size: var(--text-sm);
     line-height: 1.75;
     max-width: 68ch;
   }
@@ -112,12 +155,38 @@
   .detail-journey-links > button {
     min-height: 90px;
     padding: 18px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
     justify-content: start;
     gap: 14px;
     text-align: start;
     border: 1px solid var(--color-border-subtle);
     border-radius: 0.625rem;
     background: var(--color-bg-elevated);
+  }
+  .detail-journey-links > button > svg:last-child {
+    justify-self: end;
+    color: var(--color-text-muted);
+  }
+  .detail-journey-links > button > span {
+    min-inline-size: 0;
+  }
+  .detail-evidence {
+    border-block-start: 1px solid var(--color-border-subtle);
+    font-size: var(--text-sm);
+  }
+  .detail-evidence > details {
+    margin: 0;
+    padding-block: 0.875rem;
+    border-block-end: 1px solid var(--color-border-subtle);
+  }
+  .detail-evidence summary {
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .detail-evidence details[open] > :not(summary) {
+    margin-block-start: 1rem;
   }
   .detail-journey-links strong,
   .detail-journey-links small {
@@ -143,20 +212,99 @@
     border-radius: 0.75rem;
     background: var(--color-bg-elevated);
   }
+  .detail-version-comparison {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    gap: 1.25rem;
+    margin: 0 0 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+  }
+  .detail-version-comparison > div {
+    min-inline-size: 0;
+  }
+  .detail-version-comparison dt {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+  }
+  .detail-version-comparison dd {
+    margin: 0.5rem 0 0;
+    font-size: var(--text-lg);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .detail-danger-zone {
+    margin-block: 1.75rem;
+    border-block-start: 1px solid var(--color-danger-border);
+    padding-block-start: 1.25rem;
+  }
+  .detail-danger-zone .detail-group {
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+  .detail-saved-data-summary {
+    padding: 1.5rem;
+  }
+  .detail-saved-data-summary .detail-saved-data-facts {
+    display: grid;
+    grid-template-columns: minmax(8rem, 0.6fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .backup-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .backup-row > details {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+  }
+  .backup-row > .backup-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .backup-row > span:first-child > small {
+    display: block;
+  }
+  [data-detail-section="manage"] [data-slot="management-row"] {
+    align-items: center;
+    padding-block: 1.5rem;
+    gap: 1.5rem;
+  }
+  [data-detail-section="manage"]
+    [data-slot="management-row"]:has(.artwork-controls[open])
+    > div:last-child {
+    flex-basis: 100%;
+    justify-content: stretch;
+  }
   .detail-version-main {
     min-inline-size: 0;
   }
-  .detail-version-options {
-    margin-block-start: var(--space-5);
-    padding-block-start: var(--space-4);
-    border-block-start: 1px solid var(--color-border-subtle);
+  .detail-versions-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
   }
-  .detail-version-options > summary {
-    cursor: pointer;
-    font-weight: 600;
+  .detail-version-options {
+    min-inline-size: 0;
+    padding: 1.5rem;
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
   }
   .detail-version-options > section {
-    margin-block-start: var(--space-4);
+    margin-block-start: 0;
+  }
+  @media (min-width: 75rem) {
+    .detail-versions-workspace:has(> .detail-version-options) {
+      grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+    }
   }
   .game-update-actions {
     display: grid;
@@ -193,12 +341,23 @@
   .detail-facts {
     margin: 0;
     display: grid;
-    gap: 16px;
+    gap: 0;
     font-size: var(--text-sm);
+  }
+  .detail-facts > div {
+    padding-block: 0.875rem;
+    border-block-end: 1px solid var(--color-border-subtle);
+  }
+  .detail-facts > div:first-child {
+    padding-block-start: 0;
+  }
+  .detail-facts > div:last-child {
+    padding-block-end: 0;
+    border-block-end: 0;
   }
   .detail-facts dt {
     color: var(--color-text-secondary);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
   }
   .detail-facts dd {
     margin: 4px 0 0;
@@ -220,7 +379,7 @@
     padding: 0;
     flex: 1 1 14rem;
   }
-  .detail-tab-panel .installation-facts {
+  .detail-tab-panel .installation-facts:not(.detail-version-comparison) {
     border: 0;
     background: transparent;
   }
@@ -250,6 +409,16 @@
     }
   }
   @container detail (max-width: 28em) {
+    .backup-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .backup-row > .backup-actions {
+      grid-column: 1;
+      grid-row: auto;
+    }
+    .backup-row > details {
+      grid-row: auto;
+    }
     .detail-title {
       font-size: 1.75rem;
     }
@@ -260,7 +429,8 @@
       min-width: 0;
     }
     .detail-overview-support,
-    .detail-journey-links {
+    .detail-journey-links,
+    .detail-saved-data-summary .detail-saved-data-facts {
       grid-template-columns: minmax(0, 1fr);
     }
     .detail-resources {
@@ -284,6 +454,30 @@
     .detail-tab[data-active] {
       border-color: Highlight;
       color: Highlight;
+    }
+  }
+  .detail-files-workspace {
+    display: grid;
+    gap: 2rem;
+    align-items: start;
+  }
+  .detail-file-context {
+    min-inline-size: 0;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-subtle);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+  .detail-file-context h3 {
+    margin-block: 0 1rem;
+    font-size: var(--text-base);
+    color: var(--color-text-primary);
+  }
+  @media (min-width: 75rem) {
+    .detail-files-workspace {
+      grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
     }
   }
   .detail-files-stack {

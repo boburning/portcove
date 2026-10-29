@@ -281,8 +281,40 @@ it("composes About beside authored requirements and support without reserving ab
   expect(requirements.element().getBoundingClientRect().left).toBeGreaterThan(
     about.element().getBoundingClientRect().right,
   );
-  await expect.element(page.getByRole("link", { name: "Open upstream project" })).toBeVisible();
+  await expect.element(page.getByRole("link", { name: "Project website" })).toBeVisible();
   await expect.element(page.getByRole("button", { name: "Create support report" })).toBeVisible();
   expect(document.querySelector(".media-gallery")).toBeNull();
   expect(document.querySelector(".game-hero-background")).toBeNull();
+});
+
+it("shows the selected channel in the hero and keeps supporting evidence after the primary overview", async () => {
+  await render(
+    <DetailLayout
+      port={{ ...portDefinition(), channels: ["stable", "beta", "rolling"] }}
+      selectedChannel="beta"
+      initialSection="overview"
+      readiness="Ready to play"
+      installation="Managed installation"
+      close={vi.fn()}
+      action={() => <button>Play</button>}
+      overviewActions={() => <button>Open game files</button>}
+      overviewDetails={
+        <details>
+          <summary>Recorded checks</summary>
+          <p>Retained evidence</p>
+        </details>
+      }
+    >
+      {() => ({ overview: <p>About this port</p>, files: null, saves: null, versions: null })}
+    </DetailLayout>,
+  );
+  const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
+  await expect.element(identity.getByText("Preview", { exact: true })).toBeVisible();
+  await expect.element(identity.getByText("Stable", { exact: true })).not.toBeInTheDocument();
+  await expect.element(identity.getByText("Rolling", { exact: true })).not.toBeInTheDocument();
+  const action = page.getByRole("button", { name: "Open game files", exact: true }).element();
+  const evidence = page.getByText("Recorded checks", { exact: true }).element();
+  expect(action.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await userEvent.click(evidence);
+  await expect.element(page.getByText("Retained evidence", { exact: true })).toBeVisible();
 });
