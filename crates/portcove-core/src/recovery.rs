@@ -157,6 +157,7 @@ pub(crate) fn recover_published_install(
                 crate::durability::rename_noreplace(&payload, &install.path)?;
             }
             (false, true) => {
+                require_install_publication_authority(service, operation, &install)?;
                 crate::install::check_retained_runtime_paths(&install, &install.path)?;
             }
             (true, true) => {
@@ -292,6 +293,19 @@ fn require_install_publication_authority(
     operation: &LifecycleOperation,
     install: &InstallRecord,
 ) -> Result<()> {
+    if matches!(
+        operation.kind,
+        LifecycleOperationKind::Install | LifecycleOperationKind::Adopt
+    ) {
+        // The caller established the exact journal-owned private/final payload.
+        // Read its authenticated retained contract without current-catalog fallback.
+        if let Some(catalog) = Installer::new(service.library.clone())?.retained_catalog(install)? {
+            crate::preparation::source::require_fresh_canonical_data(
+                catalog.port(&install.port_id)?,
+                &service.library,
+            )?;
+        }
+    }
     crate::preparation::source::require_publication(
         &service.library,
         install,
@@ -805,6 +819,11 @@ pub(crate) fn recover_activation(
             service.require_ghostship_install_data_compatibility(
                 &install,
                 status.active.as_ref().map(|active| active.version.as_str()),
+            )?;
+            let catalog = service.installed_catalog(&install)?;
+            crate::preparation::source::require_fresh_canonical_data(
+                catalog.port(&install.port_id)?,
+                &service.library,
             )?;
             let commit = activation.prepare_commit(service, operation)?;
             service.prepare_retained_install_data(&install)?;

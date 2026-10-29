@@ -387,7 +387,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.windows_temp_directory.is_some() {
+        let version = if crate::preparation::source::native(port) {
+            6
+        } else if port.windows_temp_directory.is_some() {
             5
         } else if port.adapter == crate::AdapterKind::NativePortable
             && port.release.provider == crate::ReleaseSource::DirectManifest
@@ -1019,7 +1021,37 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     );
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
-    entry["required_capabilities"][0]["minimum_version"] = json!(6);
-    entry["required_capabilities"][0]["maximum_version"] = json!(6);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    entry["required_capabilities"][0]["maximum_version"] = json!(7);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn native_originals_require_native6_in_fresh_and_retained_readers() {
+    let mut port = crate::native_temp::tests::port();
+    port.source_profile = Some("owned-file-set".into());
+    let mut entry = entry_for_port(&port);
+    for version in 1..6 {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(6);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 6"));
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        assert!(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .unwrap_err()
+                .message
+                .contains("version 6")
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
 }

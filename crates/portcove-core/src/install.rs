@@ -1148,6 +1148,15 @@ impl Installer {
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
             let port = catalog.port(&request.port_id)?;
+            crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
+            if crate::preparation::source::native(port) {
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::preparation::source::require_pristine_package(
+                    port,
+                    &payload_root,
+                    &selected,
+                )?;
+            }
             if port.windows_temp_directory.is_some() {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 crate::native_temp::require_pristine_package(port, &payload_root, &selected)?;
@@ -1211,8 +1220,11 @@ impl Installer {
                     &catalog,
                     &port,
                     &inputs,
-                    &source_root,
-                    &working,
+                    crate::preparation::source::MaterializationRoot {
+                        payload: &source_root,
+                        working: &working,
+                        replace_prepared: false,
+                    },
                     &|| operation.checkpoint(),
                     &quiesced,
                 );
@@ -1680,7 +1692,7 @@ impl Installer {
         qualification: &InstallQualification,
         port: &PortDefinition,
     ) -> Result<VerificationReport> {
-        if !crate::preparation::source::eligible(port) {
+        if !crate::preparation::source::eligible(port) || crate::preparation::source::native(port) {
             return self.verify_managed(install, qualification);
         }
         self.require_curated_operation(
@@ -2160,6 +2172,11 @@ impl Installer {
         if let Some(contract) = &qualification.retained_contract {
             let catalog = contract.catalog(port_id)?;
             let port = catalog.port(port_id)?;
+            crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
+            if crate::preparation::source::native(port) {
+                let selected = resolve_declared_executable(root, qualification)?;
+                crate::preparation::source::require_pristine_adoption(port, root, &selected)?;
+            }
             if port.windows_temp_directory.is_some() {
                 let selected = resolve_declared_executable(root, qualification)?;
                 crate::native_temp::require_pristine_package(port, root, &selected)?;

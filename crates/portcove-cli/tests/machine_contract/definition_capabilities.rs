@@ -141,6 +141,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("native-portable", 3),
         ("native-portable", 4),
         ("native-portable", 5),
+        ("native-portable", 6),
     ] {
         assert!(expected.insert(capability));
     }

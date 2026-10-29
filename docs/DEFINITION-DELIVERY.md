@@ -63,6 +63,16 @@ retain their meanings. Legacy retained catalog projection still checks complete
 canonical semantics; older readers cannot silently drop the field. This is an
 engine capability, separate from CLI/API envelope versions and publisher trust.
 
+Native portable version 6 consumes exact FileSet originals through the existing
+source-profile/target fields and SourceOnly preparation authority. Complete typed
+source variants and their enforced consumer contract, copied-member identities,
+selected executable-parent coordinates and outer receipts remain bound to the
+installation. The capability allows immutable copies separate from declared
+player data; it grants no source acquisition, per-title conversion or populated
+adoption authority. Prepared source/edition changes remain held. New and retained
+indexed entries declaring a native source profile require minimum version 6;
+older readers refuse the capability range. Native1–5 meanings are unchanged.
+
 Native portable version 2 observes an upstream-owned manual setup completion
 record beneath declared player data. New and retained indexed entries using
 this optional JSON marker require minimum version 2. Core checks bounded regular
